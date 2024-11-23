@@ -7,7 +7,9 @@
 
 ## Documentation of  development is on [Hackmd](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
 
-## Remember to install [golangci-lint](https://github.com/golangci/golangci-lint)
+## Coding Style 
+Our code stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/). 
+We use [golangci-lint](https://github.com/golangci/golangci-lint) to do CI/CD. Please use it on your own IDE to avoid fail when pushing.
 
 ## Code Formatting
 
@@ -42,9 +44,6 @@ This project uses GitHub Actions to automatically check code formatting. The che
 To ensure your code passes the CI checks:
 1. Run `gofmt -s -w .` before committing
 2. Check for any remaining issues with `gofmt -d .`
-
-## Coding Style 
-Our code stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/). Remember to install it.
 
 ## Commit massage
 Please stick to [here](semantic-commit-messages.md) when you are going to submit a commit.
