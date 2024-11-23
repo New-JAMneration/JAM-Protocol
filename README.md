@@ -1,4 +1,4 @@
-# Welcome to your organization's demo repository
+# JAM Protocol Implemetation
 
 ## Style stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/)
 
