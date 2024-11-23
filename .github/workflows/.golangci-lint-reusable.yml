@@ -1,0 +1,50 @@
+# ./.github/workflows/.golangci-lint-reusable.yml
+name: golangci-lint-reusable
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        description: 'OS'
+        required: true
+        type: string
+      go-version:
+        description: 'Go version'
+        required: true
+        type: string
+        default: stable
+      golangci-lint-version:
+        description: 'Golangci-lint version'
+        type: string
+        default: 'v1.60'
+
+jobs:
+  detect-modules:
+    runs-on: ${{ inputs.os }}
+    outputs:
+      modules: ${{ steps.set-modules.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - id: set-modules
+        shell: bash # require for Windows to be able to use $GITHUB_OUTPUT https://github.com/actions/runner/issues/2224
+        run: echo "modules=$(go list -m -json | jq -s '.' | jq -c '[.[].Dir]')" >> $GITHUB_OUTPUT
+
+  golangci-lint:
+    needs: detect-modules
+    runs-on: ${{ inputs.os }}
+    strategy:
+      matrix:
+        modules: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+      - name: golangci-lint ${{ matrix.modules }}
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: ${{ inputs.golangci-lint-version }}
+          working-directory: ${{ matrix.modules }}
