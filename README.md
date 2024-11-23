@@ -5,3 +5,5 @@
 ## Remember to install [golangci-lint](https://github.com/golangci/golangci-lint)
 
 ## Documentation of  development is on [Hackmd](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
+
+## Commit massage stick to [here](semantic-commit-messages.md)
