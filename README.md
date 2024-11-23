@@ -1,7 +1,7 @@
-# Welcome to your organization's demo repository
+# JAM Protocol
 
 ## Style stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/)
 
 ## Remember to install [golangci-lint](https://github.com/golangci/golangci-lint)
 
-## Documentation of  development is on [Hackmd](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
+## Documentation of development is on [Hackmd](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
