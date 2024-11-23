@@ -5,7 +5,13 @@
 [![golangci-lint-reusable](https://github.com/New-JAMneration/JAM-Protocol/workflows/golangci-lint-reusable/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions?query=workflow%3Agolangci-lint-reusable)
 
 
-## Documentation of  development is on [Hackmd](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
+## Documentation
+
+Our development documentation is maintained on HackMD for real-time collaboration and easy updates.
+
+### Access Documentation
+- Main documentation: [HackMD Development Guide](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
+- Requires team member access - please contact project maintainers if you need access
 
 ## Coding Style
 
