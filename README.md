@@ -9,8 +9,6 @@
 
 ## Remember to install [golangci-lint](https://github.com/golangci/golangci-lint)
 
-## Style stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/)
-
 ## Code Formatting
 
 We use `gofmt` to maintain consistent code formatting. Here are the commands you can use:
@@ -44,5 +42,8 @@ This project uses GitHub Actions to automatically check code formatting. The che
 To ensure your code passes the CI checks:
 1. Run `gofmt -s -w .` before committing
 2. Check for any remaining issues with `gofmt -d .`
+
+## Coding Style 
+Our code stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/). Remember to install it.
 
 ## Commit massage stick to [here](semantic-commit-messages.md)
