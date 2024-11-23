@@ -46,4 +46,5 @@ To ensure your code passes the CI checks:
 ## Coding Style 
 Our code stick to [The Google Go Style Guide](https://google.github.io/styleguide/go/). Remember to install it.
 
-## Commit massage stick to [here](semantic-commit-messages.md)
+## Commit massage
+Please stick to [here](semantic-commit-messages.md) when you are going to submit a commit.
