@@ -1,0 +1,39 @@
+# compilation
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go Modules
+/go.sum
+/go.work.sum
+
+# Vendor directory
+/vendor/
+
+# VS Code
+.vscode/
+.history/
+
+# macOS system file
+.DS_Store
+
+# temp doc
+*.log
+*.tmp
+*.swp
+*.bak
+*.old
+*.un~
+
+# dev environment
+*.env
+.env.*
+node_modules/
+
+# sync
+*.sync/
+
