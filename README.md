@@ -14,6 +14,10 @@ mindmap
     Parameter
       Header
       Extrinsic
+        Disputes
+          Verdicts
+          Culprits
+          Faults
     Method
       Guarantee
       Assurance
