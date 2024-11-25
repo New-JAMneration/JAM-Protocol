@@ -4,10 +4,22 @@
 [![golangci-lint (multi OS)](https://github.com/New-JAMneration/JAM-Protocol/workflows/golangci-lint%20(multi%20OS)/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions?query=workflow%3A"golangci-lint%20(multi%20OS)")
 [![golangci-lint-reusable](https://github.com/New-JAMneration/JAM-Protocol/workflows/golangci-lint-reusable/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions?query=workflow%3Agolangci-lint-reusable)
 
-
 ## Documentation
 
 Our development documentation is maintained on HackMD for real-time collaboration and easy updates.
+
+```mermaid
+mindmap
+  id)JAM(
+    Parameter
+      Header
+      Extrinsic
+    Method
+      Guarantee
+      Assurance
+      Auditting
+      Judgement
+```
 
 ### Access Documentation
 - Main documentation: [HackMD Development Guide](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
