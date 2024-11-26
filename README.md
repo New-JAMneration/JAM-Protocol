@@ -13,6 +13,8 @@ mindmap
   id)JAM(
     Parameter
       Header
+        H_offenders
+        H_state
       Extrinsic
         Disputes
           Verdicts
