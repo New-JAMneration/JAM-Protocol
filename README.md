@@ -1,8 +1,6 @@
 # JAM Protocol Implemetation
 
 ![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/workflows/Go%20Format%20Check/badge.svg)
-[![golangci-lint (multi OS)](https://github.com/New-JAMneration/JAM-Protocol/workflows/golangci-lint%20(multi%20OS)/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions?query=workflow%3A"golangci-lint%20(multi%20OS)")
-[![golangci-lint-reusable](https://github.com/New-JAMneration/JAM-Protocol/workflows/golangci-lint-reusable/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions?query=workflow%3Agolangci-lint-reusable)
 
 ## Documentation
 
@@ -34,14 +32,6 @@ mindmap
 ## Coding Style
 
 Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
-
-We enforce code quality using [golangci-lint](https://github.com/golangci/golangci-lint) in our CI/CD pipeline. To ensure smooth development:
-
-- Install and configure golangci-lint in your local environment
-- Run lint checks before committing code
-- Fix any lint issues to prevent CI/CD pipeline failures
-
-### Quick Setup for golangci-lint
 
 1. Installation:
 
