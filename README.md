@@ -33,27 +33,6 @@ mindmap
 
 Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
 
-1. Installation:
-
-```bash
-# macOS
-brew install golangci-lint
-
-# Windows
-scoop install golangci-lint
-
-# Linux/Ubuntu
-Golangci-lint is available inside the majority of the package managers.
-
-# Using Go (all platforms)
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-```
-
-2. Run lint check in project root:
-```bash
-golangci-lint run
-```
-
 Following these guidelines helps maintain code quality and ensures consistency across the project.
 
 ## Code Formatting
