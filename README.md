@@ -29,6 +29,10 @@ We use `gofmt` to maintain consistent code formatting. [Here](./READMERef/code-f
 
 Please stick to [here](./READMERef/semantic-commit-messages.md) when you are going to submit a commit.
 
+## Pull Request
+
+Please follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket’s issue.
+
 ```
               ***              
         ***************        
