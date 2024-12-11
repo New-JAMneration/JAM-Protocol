@@ -1,10 +1,8 @@
 package main
 
-import (
-	"fmt"
-)
+import "github.com/New-JAMneration/JAM-Protocol/cmd"
 
 func main() {
 	// 啟動程式
-	fmt.Println("Hello, Go World!")
+	cmd.Execute()
 }
