@@ -1,3 +1,3 @@
 module github.com/New-JAMneration/JAM-Protocol
 
-go 1.23.3
+go 1.23
