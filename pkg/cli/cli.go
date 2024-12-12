@@ -35,7 +35,7 @@ func ShowShortHelp() {
 	fmt.Println("Commands:")
 
 	maxLen := 0
-	for name, _ := range Sub {
+	for name := range Sub {
 		if len(name) > maxLen {
 			maxLen = len(name)
 		}
@@ -51,7 +51,7 @@ func ShowLongHelp() {
 	fmt.Println("Commands:")
 
 	maxLen := 0
-	for name, _ := range Sub {
+	for name := range Sub {
 		if len(name) > maxLen {
 			maxLen = len(name)
 		}
