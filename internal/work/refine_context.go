@@ -2,10 +2,10 @@ package work
 
 // refine context (11.4)
 type RefineContext struct {
-	Anchor           [32]byte   // anchor header hash
-	StateRoot        [32]byte   // posterior state root
-	BeefyRoot        [32]byte   // posterior beefy root
-	LookupAnchor     [32]byte   // lookup anchor header hash
-	LookupAnchorSlot uint32     // lookup anchor time slot
-	Prerequisites    [][32]byte // hash of prerequisite work packages
+	Anchor           [32]byte   `json:"anchor"`             // anchor header hash
+	StateRoot        [32]byte   `json:"state_root"`         // posterior state root
+	BeefyRoot        [32]byte   `json:"beefy_root"`         // posterior beefy root
+	LookupAnchor     [32]byte   `json:"lookup_anchor"`      // lookup anchor header hash
+	LookupAnchorSlot uint32     `json:"lookup_anchor_slot"` // lookup anchor time slot
+	Prerequisites    [][32]byte `json:"prerequisites"`      // hash of prerequisite work packages
 }
