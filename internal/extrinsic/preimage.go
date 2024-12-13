@@ -7,8 +7,8 @@ import "sort"
 // You can find more information about the preimage in the gray paper:
 // 12.4 Preimage integration, formula (12.28), (12.29)
 type Preimage struct {
-	Requester uint32 // service index
-	Blob      string // octet string
+	Requester uint32 `json:"requester"` // service index
+	Blob      string `json:"blob"`      // octet string
 }
 
 // Preimages is a slice of Preimage.
