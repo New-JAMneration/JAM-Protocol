@@ -6,7 +6,7 @@ type WorkPackage struct {
 	AuthCodeHost  uint32 // host service index
 	Authorizer    Authorizer
 	Context       RefineContext
-	WorkItems     [4]WorkItem
+	WorkItems     []WorkItem
 }
 
 type Authorizer struct {
