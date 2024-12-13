@@ -1,63 +1,49 @@
 package extrinsic
 
-import "sort"
+import (
+	"bytes"
+	"sort"
 
-// Preimage is a structure that contains the requester and the blob.
-// It is used to store the preimages in the Extrinsic.
-// You can find more information about the preimage in the gray paper:
-// 12.4 Preimage integration, formula (12.28), (12.29)
-type Preimage struct {
-	Requester uint32 `json:"requester"` // service index
-	Blob      string `json:"blob"`      // octet string
+	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+)
+
+// PreimagesExtrinsic is a local type that embeds jam_types.PreimagesExtrinsic
+type PreimagesExtrinsic struct {
+	jam_types.PreimagesExtrinsic
 }
 
-// Preimages is a slice of Preimage.
-type Preimages []Preimage
-
-// Len is the number of elements in the collection.
-func (p *Preimages) Len() int {
-	return len(*p)
+// Len returns the number of elements in the Preimages slice.
+func (p *PreimagesExtrinsic) Len() int {
+	return len(p.PreimagesExtrinsic)
 }
 
-// Less reports whether the element with
-// index i should sort before the element with index j.
-func (p *Preimages) Less(i, j int) bool {
-	if (*p)[i].Requester == (*p)[j].Requester {
-		return (*p)[i].Blob < (*p)[j].Blob
+// Less reports whether the element with index i should sort before the element with index j.
+func (p *PreimagesExtrinsic) Less(i, j int) bool {
+	if p.PreimagesExtrinsic[i].Requester == p.PreimagesExtrinsic[j].Requester {
+		return bytes.Compare(p.PreimagesExtrinsic[i].Blob, p.PreimagesExtrinsic[j].Blob) < 0
 	}
-	return (*p)[i].Requester < (*p)[j].Requester
+	return p.PreimagesExtrinsic[i].Requester < p.PreimagesExtrinsic[j].Requester
 }
 
 // Swap swaps the elements with indexes i and j.
-func (p *Preimages) Swap(i, j int) {
-	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+func (p *PreimagesExtrinsic) Swap(i, j int) {
+	p.PreimagesExtrinsic[i], p.PreimagesExtrinsic[j] = p.PreimagesExtrinsic[j], p.PreimagesExtrinsic[i]
 }
 
 // Sort sorts the Preimages in place.
-func (p *Preimages) Sort() {
+func (p *PreimagesExtrinsic) Sort() {
 	sort.Sort(p)
 }
 
 // Add adds a new Preimage to the Preimages slice.
-func (p *Preimages) Add(newPreimage Preimage) {
-	if len(*p) == 0 {
-		// Add the new Preimage
-		*p = append(*p, newPreimage)
-		return
-	}
-
-	// Add the new Preimage
-	*p = append(*p, newPreimage)
-
-	// Remove the duplicates (includes sorting)
+func (p *PreimagesExtrinsic) Add(newPreimage jam_types.Preimage) {
+	p.PreimagesExtrinsic = append(p.PreimagesExtrinsic, newPreimage)
 	p.RemoveDuplicates()
 }
 
 // RemoveDuplicates removes the duplicates from the Preimages slice.
-// It uses the two-pointer technique to ensure that each preimage is unique.
-// The time complexity is O(n log n) because of the sorting.
-func (p *Preimages) RemoveDuplicates() {
-	if len(*p) == 0 {
+func (p *PreimagesExtrinsic) RemoveDuplicates() {
+	if len(p.PreimagesExtrinsic) == 0 {
 		return
 	}
 
@@ -66,13 +52,13 @@ func (p *Preimages) RemoveDuplicates() {
 
 	// Then, remove the duplicates
 	j := 0
-	for i := 1; i < len(*p); i++ {
-		if (*p)[i].Requester != (*p)[j].Requester || (*p)[i].Blob != (*p)[j].Blob {
+	for i := 1; i < len(p.PreimagesExtrinsic); i++ {
+		if p.PreimagesExtrinsic[i].Requester != p.PreimagesExtrinsic[j].Requester || !bytes.Equal(p.PreimagesExtrinsic[i].Blob, p.PreimagesExtrinsic[j].Blob) {
 			j++
-			(*p)[j] = (*p)[i]
+			p.PreimagesExtrinsic[j] = p.PreimagesExtrinsic[i]
 		}
 	}
 
 	// Remove the duplicates
-	*p = (*p)[:j+1]
+	p.PreimagesExtrinsic = p.PreimagesExtrinsic[:j+1]
 }
