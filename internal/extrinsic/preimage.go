@@ -7,58 +7,54 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
-// PreimagesExtrinsic is a local type that embeds jam_types.PreimagesExtrinsic
-type PreimagesExtrinsic struct {
-	jam_types.PreimagesExtrinsic
+func Len(p []jam_types.Preimage) int {
+	return len(p)
 }
 
-// Len returns the number of elements in the Preimages slice.
-func (p *PreimagesExtrinsic) Len() int {
-	return len(p.PreimagesExtrinsic)
-}
-
-// Less reports whether the element with index i should sort before the element with index j.
-func (p *PreimagesExtrinsic) Less(i, j int) bool {
-	if p.PreimagesExtrinsic[i].Requester == p.PreimagesExtrinsic[j].Requester {
-		return bytes.Compare(p.PreimagesExtrinsic[i].Blob, p.PreimagesExtrinsic[j].Blob) < 0
+func Less(p []jam_types.Preimage, i, j int) bool {
+	if p[i].Requester == p[j].Requester {
+		return bytes.Compare(p[i].Blob, p[j].Blob) < 0
 	}
-	return p.PreimagesExtrinsic[i].Requester < p.PreimagesExtrinsic[j].Requester
+	return p[i].Requester < p[j].Requester
 }
 
-// Swap swaps the elements with indexes i and j.
-func (p *PreimagesExtrinsic) Swap(i, j int) {
-	p.PreimagesExtrinsic[i], p.PreimagesExtrinsic[j] = p.PreimagesExtrinsic[j], p.PreimagesExtrinsic[i]
+func Swap(p []jam_types.Preimage, i, j int) {
+	p[i], p[j] = p[j], p[i]
 }
 
-// Sort sorts the Preimages in place.
-func (p *PreimagesExtrinsic) Sort() {
-	sort.Sort(p)
+func Sort(p []jam_types.Preimage) {
+	sort.Slice(p, func(i, j int) bool {
+		return Less(p, i, j)
+	})
 }
 
 // Add adds a new Preimage to the Preimages slice.
-func (p *PreimagesExtrinsic) Add(newPreimage jam_types.Preimage) {
-	p.PreimagesExtrinsic = append(p.PreimagesExtrinsic, newPreimage)
-	p.RemoveDuplicates()
+// It also removes the duplicates from the slice.
+func Add(p []jam_types.Preimage, newPreimage jam_types.Preimage) []jam_types.Preimage {
+	p = append(p, newPreimage)
+	return RemoveDuplicates(p)
 }
 
 // RemoveDuplicates removes the duplicates from the Preimages slice.
-func (p *PreimagesExtrinsic) RemoveDuplicates() {
-	if len(p.PreimagesExtrinsic) == 0 {
-		return
+// It uses the Sort function to sort the slice first.
+// And uses double pointers to remove the duplicates.
+func RemoveDuplicates(p []jam_types.Preimage) []jam_types.Preimage {
+	if len(p) == 0 {
+		return p
 	}
 
 	// First, sort the slice
-	p.Sort()
+	Sort(p)
 
 	// Then, remove the duplicates
 	j := 0
-	for i := 1; i < len(p.PreimagesExtrinsic); i++ {
-		if p.PreimagesExtrinsic[i].Requester != p.PreimagesExtrinsic[j].Requester || !bytes.Equal(p.PreimagesExtrinsic[i].Blob, p.PreimagesExtrinsic[j].Blob) {
+	for i := 1; i < len(p); i++ {
+		if p[i].Requester != p[j].Requester || !bytes.Equal(p[i].Blob, p[j].Blob) {
 			j++
-			p.PreimagesExtrinsic[j] = p.PreimagesExtrinsic[i]
+			p[j] = p[i]
 		}
 	}
 
 	// Remove the duplicates
-	p.PreimagesExtrinsic = p.PreimagesExtrinsic[:j+1]
+	return p[:j+1]
 }
