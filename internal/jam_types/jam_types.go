@@ -130,8 +130,8 @@ type RefineContext struct {
 // Work Package
 
 type ImportSpec struct {
-	TreeRoot OpaqueHash     `json:"tree_root,omitempty"`
-	Index    ValidatorIndex `json:"index,omitempty"`
+	TreeRoot OpaqueHash `json:"tree_root,omitempty"`
+	Index    U16        `json:"index,omitempty"`
 }
 type ExtrinsicSpec struct {
 	Hash OpaqueHash `json:"hash,omitempty"`
@@ -151,7 +151,7 @@ type WorkItem struct {
 	AccumulateGasLimit Gas             `json:"accumulate_gas_limit,omitempty"`
 	ImportSegments     []ImportSpec    `json:"import_segments,omitempty"`
 	Extrinsic          []ExtrinsicSpec `json:"extrinsic,omitempty"`
-	ExportCount        uint16          `json:"export_count,omitempty"`
+	ExportCount        U16             `json:"export_count,omitempty"`
 }
 
 type WorkPackage struct {
@@ -205,10 +205,10 @@ type WorkResult struct {
 
 type WorkPackageSpec struct {
 	Hash         WorkPackageHash `json:"hash,omitempty"`
-	Length       uint32          `json:"length,omitempty"`
+	Length       U32             `json:"length,omitempty"`
 	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
 	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-	ExportsCount uint16          `json:"exports_count,omitempty"`
+	ExportsCount U16             `json:"exports_count,omitempty"`
 }
 
 type SegmentRootLookupItem struct {
@@ -267,7 +267,7 @@ func (b BlocksHistory) Validate(maxBlocksHistory int) error {
 // Tickets
 
 type TicketId OpaqueHash
-type TicketAttempt uint8
+type TicketAttempt U8
 
 type TicketEnvelope struct {
 	Attempt   TicketAttempt                `json:"attempt,omitempty"`
@@ -315,17 +315,17 @@ func (t TicketsExtrinsic) Validate() error {
 	return nil
 }
 
+// Disputes
+
 type Judgement struct {
 	Vote      bool             `json:"vote,omitempty"`
 	Index     ValidatorIndex   `json:"index,omitempty"`
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
-// Disputes
-
 type Verdict struct {
 	Target OpaqueHash  `json:"target,omitempty"`
-	Age    uint32      `json:"age,omitempty"`
+	Age    U32         `json:"age,omitempty"`
 	Votes  []Judgement `json:"votes,omitempty"`
 }
 
@@ -369,9 +369,7 @@ type Preimage struct {
 	Blob      ByteSequence `json:"blob,omitempty"`
 }
 
-type PreimagesExtrinsic struct {
-	Preimages []Preimage `json:"preimages,omitempty"`
-}
+type PreimagesExtrinsic []Preimage
 
 // Assurances
 
