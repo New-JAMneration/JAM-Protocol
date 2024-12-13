@@ -33,6 +33,9 @@ Please stick to [here](./READMERef/semantic-commit-messages.md) when you are goi
 
 Please follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket’s issue.
 
+## Unit Test 
+Please refer to [here](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/golang-test.md).
+
 ```
               ***              
         ***************        
