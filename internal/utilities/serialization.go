@@ -1,8 +1,6 @@
 package utilities
 
 import (
-	"fmt"
-
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
@@ -35,15 +33,12 @@ func Serialize(x jamtypes.U64) []byte {
 		lowerBound := jamtypes.U64(1) << (7 * l64)       // 2^(7*l)
 		upperBound := jamtypes.U64(1) << (7 * (l64 + 1)) // 2^(7*(l+1))
 		if x >= lowerBound && x < upperBound {
-			fmt.Printf("found l=%v, number=%v\n", l, x)
 			// Found suitable l.
-
 			power8l := jamtypes.U64(1) << (8 * l64)
 			remainder := x % power8l
 			floor := x / power8l
+
 			// prefix = 2^8 - 2^(8-l) + floor(x / 2^(8*l))
-			fmt.Printf("floor=%v\n", floor)
-			fmt.Printf("remainder=%v\n", remainder)
 			prefix := byte((256 - (1 << (8 - l64))) + floor)
 
 			return append([]byte{prefix}, SerializeFixedLength(remainder, l)...)
