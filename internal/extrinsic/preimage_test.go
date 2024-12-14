@@ -1,184 +1,87 @@
 package extrinsic
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
 func TestInit(t *testing.T) {
-	var preimages Preimages
+	var preimages jam_types.PreimagesExtrinsic
 
-	if len(preimages) != 0 {
-		t.Fatalf("Expected 0 preimages, got %d", len(preimages))
+	if Len(preimages) != 0 {
+		t.Fatalf("Expected 0 preimages, got %d", Len(preimages))
 	}
 }
 
 func TestAdd(t *testing.T) {
-	var preimages Preimages
+	var preimages jam_types.PreimagesExtrinsic
 
 	// Add a new Preimage
-	preimage1 := Preimage{
+	preimage1 := jam_types.Preimage{
 		Requester: 16909060,
-		Blob:      "0x81095e6122e3bc9d961e00014a7fc833",
+		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
 
-	preimages.Add(preimage1)
+	preimages = Add(preimages, preimage1)
+
+	if Len(preimages) != 1 {
+		t.Fatalf("Expected 1 preimage, got %d", Len(preimages))
+	}
 }
 
 func TestRemoveDuplicatesEmpty(t *testing.T) {
-	var preimages Preimages
+	var preimages jam_types.PreimagesExtrinsic
 
-	preimages.RemoveDuplicates()
+	preimages = RemoveDuplicates(preimages)
 
-	if len(preimages) != 0 {
-		t.Fatalf("Expected 0 preimages, got %d", len(preimages))
+	if Len(preimages) != 0 {
+		t.Fatalf("Expected 0 preimages, got %d", Len(preimages))
 	}
 }
 
 func TestRemoveDuplicates(t *testing.T) {
-	var preimages Preimages
+	var preimages jam_types.PreimagesExtrinsic
 
 	// Add a new Preimage
-	preimage1 := Preimage{
+	preimage1 := jam_types.Preimage{
 		Requester: 16909060,
-		Blob:      "0x81095e6122e3bc9d961e00014a7fc833",
+		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
-	preimages.Add(preimage1)
+	preimages = Add(preimages, preimage1)
 
 	// Add a duplicate Preimage
-	duplicatePreimage := Preimage{
+	duplicatePreimage := jam_types.Preimage{
 		Requester: 16909060,
-		Blob:      "0x81095e6122e3bc9d961e00014a7fc833",
+		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
-	preimages.Add(duplicatePreimage)
+	preimages = Add(preimages, duplicatePreimage)
 
 	// Add a new Preimage
-	preimage2 := Preimage{
+	preimage2 := jam_types.Preimage{
 		Requester: 16909061,
-		Blob:      "0xd257bc7d93a55be3561d720d40a6a342",
+		Blob:      []byte("0xd257bc7d93a55be3561d720d40a6a342"),
 	}
-	preimages.Add(preimage2)
+	preimages = Add(preimages, preimage2)
 
-	if len(preimages) != 2 {
-		t.Fatalf("Expected 2 preimages, got %d", len(preimages))
+	if Len(preimages) != 2 {
+		t.Fatalf("Expected 2 preimages, got %d", Len(preimages))
 	}
 }
 
 func TestSort(t *testing.T) {
-	preimages := Preimages{
-		{Requester: 16909060, Blob: "0x81095e6122e3bc9d961e00014a7fc833"},
-		{Requester: 16909062, Blob: "0x38db056c7c3065fadb630ce6ccbc7385"},
-		{Requester: 16909061, Blob: "0xd257bc7d93a55be3561d720d40a6a342"},
+	preimages := jam_types.PreimagesExtrinsic{
+		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
+		{Requester: 16909062, Blob: []byte("0x38db056c7c3065fadb630ce6ccbc7385")},
+		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
 	}
 
-	preimages.Sort()
+	Sort(preimages)
 
-	expectedRequesters := []uint32{16909060, 16909061, 16909062}
+	expectedRequesters := []jam_types.ServiceId{16909060, 16909061, 16909062}
 	for i, preimage := range preimages {
 		if preimage.Requester != expectedRequesters[i] {
 			t.Errorf("Expected requester %d, got %d", expectedRequesters[i], preimage.Requester)
 		}
-	}
-}
-
-func TestDeserializePreimagesEmpty(t *testing.T) {
-	jsonData := `[]`
-	var preimages Preimages
-
-	err := json.Unmarshal([]byte(jsonData), &preimages)
-	if err != nil {
-		t.Fatalf("Error deserializing JSON: %v", err)
-	}
-
-	if len(preimages) != 0 {
-		t.Fatalf("Expected 0 preimages, got %d", len(preimages))
-	}
-}
-
-func TestDeserializePreimage(t *testing.T) {
-	jsonData := `{"requester": 16909060, "blob": "0x81095e6122e3bc9d961e00014a7fc833"}`
-	var preimage Preimage
-
-	err := json.Unmarshal([]byte(jsonData), &preimage)
-	if err != nil {
-		t.Fatalf("Error deserializing JSON: %v", err)
-	}
-
-	if preimage.Requester != 16909060 {
-		t.Errorf("Expected Requester to be 16909060, got %d", preimage.Requester)
-	}
-
-	if preimage.Blob != "0x81095e6122e3bc9d961e00014a7fc833" {
-		t.Errorf("Expected Blob to be 0x81095e6122e3bc9d961e00014a7fc833, got %s", preimage.Blob)
-	}
-}
-
-func TestDeserializePreimages(t *testing.T) {
-	jsonData := `[
-		{"requester": 16909060, "blob": "0x81095e6122e3bc9d961e00014a7fc833"},
-		{"requester": 16909061, "blob": "0xd257bc7d93a55be3561d720d40a6a342"},
-		{"requester": 16909062, "blob": "0x38db056c7c3065fadb630ce6ccbc7385"}
-	]`
-	var preimages Preimages
-
-	err := json.Unmarshal([]byte(jsonData), &preimages)
-	if err != nil {
-		t.Fatalf("Error deserializing JSON: %v", err)
-	}
-
-	expectedRequesters := []uint32{16909060, 16909061, 16909062}
-	for i, preimage := range preimages {
-		if preimage.Requester != expectedRequesters[i] {
-			t.Errorf("Expected Requester to be %d, got %d", expectedRequesters[i], preimage.Requester)
-		}
-	}
-}
-
-func TestSerializePreimagesEmpty(t *testing.T) {
-	preimages := Preimages{}
-
-	jsonData, err := json.Marshal(preimages)
-	if err != nil {
-		t.Fatalf("Error serializing JSON: %v", err)
-	}
-
-	expectedJSON := `[]`
-	if string(jsonData) != expectedJSON {
-		t.Errorf("Expected JSON to be %s, got %s", expectedJSON, string(jsonData))
-	}
-}
-
-func TestSerializePreimage(t *testing.T) {
-	preimage := Preimage{
-		Requester: 16909060,
-		Blob:      "0x81095e6122e3bc9d961e00014a7fc833",
-	}
-
-	jsonData, err := json.Marshal(preimage)
-	if err != nil {
-		t.Fatalf("Error serializing JSON: %v", err)
-	}
-
-	expectedJSON := `{"requester":16909060,"blob":"0x81095e6122e3bc9d961e00014a7fc833"}`
-	if string(jsonData) != expectedJSON {
-		t.Errorf("Expected JSON to be %s, got %s", expectedJSON, string(jsonData))
-	}
-}
-
-func TestSerializePreimages(t *testing.T) {
-	preimages := Preimages{
-		{Requester: 16909060, Blob: "0x81095e6122e3bc9d961e00014a7fc833"},
-		{Requester: 16909061, Blob: "0xd257bc7d93a55be3561d720d40a6a342"},
-		{Requester: 16909062, Blob: "0x38db056c7c3065fadb630ce6ccbc7385"},
-	}
-
-	jsonData, err := json.Marshal(preimages)
-	if err != nil {
-		t.Fatalf("Error serializing JSON: %v", err)
-	}
-
-	expectedJSON := `[{"requester":16909060,"blob":"0x81095e6122e3bc9d961e00014a7fc833"},{"requester":16909061,"blob":"0xd257bc7d93a55be3561d720d40a6a342"},{"requester":16909062,"blob":"0x38db056c7c3065fadb630ce6ccbc7385"}]`
-	if string(jsonData) != expectedJSON {
-		t.Errorf("Expected JSON to be %s, got %s", expectedJSON, string(jsonData))
 	}
 }
