@@ -20,6 +20,7 @@ feat: add hat wobble
 More Examples:
 
 - `feat`: (new feature for the user, not a new feature for build script)
+- `perf`: (a code change that improve performance)
 - `bug`: (bug fix for the user, not a fix to a build script)
 - `docs`: (changes to the documentation)
 - `style`: (formatting, missing semi colons, etc; no production code change)
