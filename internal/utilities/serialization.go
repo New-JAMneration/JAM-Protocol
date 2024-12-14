@@ -89,6 +89,16 @@ func Serialize(value any) []byte {
 		// Use integer encoding
 		return SerializeU64(v)
 
+	case jamtypes.U8:
+		// Convert to uint64 and use the same integer encoding
+		return SerializeU64(jamtypes.U64(v))
+
+	case jamtypes.U16:
+		return SerializeU64(jamtypes.U64(v))
+
+	case jamtypes.U32:
+		return SerializeU64(jamtypes.U64(v))
+
 	default:
 		// Unknown type: return empty for demonstration.
 		return jamtypes.ByteSequence{}
