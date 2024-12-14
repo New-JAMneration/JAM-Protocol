@@ -13,6 +13,7 @@ If you want to update the mindmap, you can go to the [JAM-mindmap repository](ht
 ### Access Documentation
 
 - Main documentation: [HackMD Development Guide](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
+- Development documentation: [Github Document](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/development-doc.md)
 - Requires team member access - please contact project maintainers if you need access
 
 ## Coding Style
