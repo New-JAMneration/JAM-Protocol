@@ -7,8 +7,8 @@ func LengthDiscriminator(input []any) (int, []any) {
 }
 
 // ConvenientDiscriminator will
-func ConvenientDiscriminator(input map[any]struct{}) (int, map[any]struct{}) {
-	if len(input) == 0 {
+func ConvenientDiscriminator(input *any) (int, any) {
+	if input == nil {
 		return 0, nil
 	}
 	return 1, input
