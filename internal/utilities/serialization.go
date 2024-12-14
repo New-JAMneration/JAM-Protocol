@@ -7,7 +7,7 @@ import (
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
 // It serializes a non-negative integer x into exactly l octets in little-endian order.
 // If l=0, returns an empty slice.
-func SerializeFixedLength(x jamtypes.U64, l int) []byte {
+func SerializeFixedLength(x jamtypes.U64, l int) jamtypes.ByteSequence {
 	if l == 0 {
 		return []byte{}
 	}
@@ -21,7 +21,7 @@ func SerializeFixedLength(x jamtypes.U64, l int) []byte {
 
 // SerializeGeneral corresponds to E in the given specification (C.6).
 // It serializes an integer x (0 <= x < 2^64) into a variable number of octets as described.
-func Serialize(x jamtypes.U64) []byte {
+func Serialize(x jamtypes.U64) jamtypes.ByteSequence {
 	// If x = 0: E(x) = [0]
 	if x == 0 {
 		return []byte{0}
