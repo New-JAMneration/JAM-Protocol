@@ -17,18 +17,18 @@ type BandersnatchKey ByteArray32
 
 type EpochKeys []BandersnatchKey
 
-func (e EpochKeys) Validate(epochLength int) error {
-	if len(e) != epochLength {
-		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", epochLength, len(e))
+func (e EpochKeys) Validate(config Config) error {
+	if len(e) != config.EpochLength {
+		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", config.EpochLength, len(e))
 	}
 	return nil
 }
 
 type TicketsBodies []TicketBody
 
-func (t TicketsBodies) Validate(epochLength int) error {
-	if len(t) != epochLength {
-		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", epochLength, len(t))
+func (t TicketsBodies) Validate(config Config) error {
+	if len(t) != config.EpochLength {
+		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", config.EpochLength, len(t))
 	}
 	return nil
 }
@@ -54,9 +54,9 @@ type ValidatorData struct {
 
 type ValidatorsData []ValidatorData
 
-func (v ValidatorsData) Validate(validatorsCount int) error {
-	if len(v) != validatorsCount {
-		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", validatorsCount, len(v))
+func (v ValidatorsData) Validate(config Config) error {
+	if len(v) != config.ValidatorsCount {
+		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", config.ValidatorsCount, len(v))
 	}
 	return nil
 }
@@ -71,18 +71,18 @@ type EpochMark struct {
 	Validators []BandersnatchKey `json:"validators"`
 }
 
-func (e *EpochMark) Validate(validatorsCount int) error {
-	if len(e.Validators) != validatorsCount {
-		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", validatorsCount, len(e.Validators))
+func (e *EpochMark) Validate(config Config) error {
+	if len(e.Validators) != config.ValidatorsCount {
+		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", config.ValidatorsCount, len(e.Validators))
 	}
 	return nil
 }
 
 type TicketsMark []TicketBody
 
-func (t TicketsMark) Validate(epochLength int) error {
-	if len(t) != epochLength {
-		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", epochLength, len(t))
+func (t TicketsMark) Validate(config Config) error {
+	if len(t) != config.EpochLength {
+		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", config.EpochLength, len(t))
 	}
 	return nil
 }
