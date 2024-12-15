@@ -268,13 +268,37 @@ func (m *MapWarpper) Serialize() jamtypes.ByteSequence {
 		return keys[i].Less(keys[j])
 	})
 
+	// Put the (key, value) pair into an array
 	seq := []Serializable{}
-
 	for _, key := range keys {
 		seq = append(seq, SerializableSequence{key.(Serializable), m.Value[key]})
 	}
 
 	d := Discriminator{Value: seq}
-
 	return d.Serialize()
+}
+
+// C.1.7. Set Encoding.
+type SetWarpper struct {
+	Value []Comparable
+}
+
+func (s *SetWarpper) Serialize() jamtypes.ByteSequence {
+	// Handle empty dictionary
+	if len(s.Value) == 0 {
+		return jamtypes.ByteSequence{}
+	}
+
+	sort.Slice(s.Value, func(i, j int) bool {
+		return s.Value[i].Less(s.Value[j])
+	})
+
+	seq := SerializableSequence{}
+	for _, value := range s.Value {
+		v, ok := value.(Serializable)
+		if ok {
+			seq = append(seq, v)
+		}
+	}
+	return seq.Serialize()
 }
