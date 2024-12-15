@@ -1,8 +1,8 @@
 package extrinsic
 
 import (
-	"sort"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"sort"
 )
 
 // GuaranteeCredentialsController is a struct that contains a slice of GuaranteeCredentials (for controller logic)
@@ -25,22 +25,22 @@ func SetGuaranteeCredentialsController(c []jamTypes.ValidatorSignature) *Guarant
 }
 
 // Len returns the length of the slice
-func (c *GuaranteeCredentialsController)Len() int {
+func (c *GuaranteeCredentialsController) Len() int {
 	return len(c.Credentials)
 }
 
 // Less returns true if the index i is less than the index j
-func (c *GuaranteeCredentialsController)Less(i, j int) bool {
+func (c *GuaranteeCredentialsController) Less(i, j int) bool {
 	return c.Credentials[i].ValidatorIndex < c.Credentials[j].ValidatorIndex
 }
 
 // Swap swaps the index i with the index j
-func (c *GuaranteeCredentialsController)Swap(i, j int) {
+func (c *GuaranteeCredentialsController) Swap(i, j int) {
 	c.Credentials[i], c.Credentials[j] = c.Credentials[j], c.Credentials[i]
 }
 
 // Sort sorts the slice
-func (c *GuaranteeCredentialsController)Sort(){
+func (c *GuaranteeCredentialsController) Sort() {
 	sort.Slice(c.Credentials, func(i, j int) bool {
 		return c.Less(i, j)
 	})
@@ -56,7 +56,7 @@ func (c *GuaranteeCredentialsController) Add(newReportGuaranteeCredentials jamTy
 // RemoveDuplicates removes the duplicates from the ValidatorSignature slice.
 // It uses the Sort function to sort the slice first.
 // And uses double pointers to remove the duplicates.
-func (c *GuaranteeCredentialsController)RemoveDuplicates() []jamTypes.ValidatorSignature {
+func (c *GuaranteeCredentialsController) RemoveDuplicates() []jamTypes.ValidatorSignature {
 	if len(c.Credentials) == 0 {
 		return c.Credentials
 	}
@@ -68,7 +68,7 @@ func (c *GuaranteeCredentialsController)RemoveDuplicates() []jamTypes.ValidatorS
 	j := 0
 
 	for i := 1; i < len(c.Credentials); i++ {
-		if (c.Credentials[i].ValidatorIndex != c.Credentials[j].ValidatorIndex) {
+		if c.Credentials[i].ValidatorIndex != c.Credentials[j].ValidatorIndex {
 			j++
 			c.Credentials[j] = c.Credentials[i]
 		}
