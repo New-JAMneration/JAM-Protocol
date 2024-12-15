@@ -8,8 +8,8 @@ type Discriminator struct {
 
 // C.1.4. Discriminator Encoding.
 func (d Discriminator) Serialize() jam_types.ByteSequence {
-	length := len(d.Value)
-	return append(SerializeU64(jam_types.U64(length)), SerializableSequence(d.Value).Serialize()...)
+	length := jam_types.U64(len(d.Value))
+	return append(WrapU64(length).Serialize(), SerializableSequence(d.Value).Serialize()...)
 
 }
 

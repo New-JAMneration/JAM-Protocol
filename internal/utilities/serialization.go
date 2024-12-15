@@ -1,6 +1,8 @@
 package utilities
 
 import (
+	"bytes"
+
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
@@ -157,4 +159,47 @@ func WrapByteSequence(v jamtypes.ByteSequence) Serializable {
 }
 func WrapByteArray32(v jamtypes.ByteArray32) Serializable {
 	return ByteArray32Wrapper{v}
+}
+
+// ---------------------------------------------
+// C.1.5 Bit Sequence Encoding
+// E(b∈B): pack bits into bytes (LSB-first). If variable length, prefix bit length.
+// BitSequence represents a sequence of bits
+type BitSequenceWrapper struct {
+	Bits             jamtypes.BitSequence
+	IsVariableLength bool
+}
+
+func (b BitSequenceWrapper) Serialize() jamtypes.ByteSequence {
+	if len(b.Bits) == 0 {
+		return jamtypes.ByteSequence{}
+	}
+
+	if len(b.Bits) == 0 {
+		return []byte{}
+	}
+	var buf bytes.Buffer
+	for i := 0; i < len(b.Bits); i += 8 {
+		var octet byte
+		chunk := b.Bits[i:]
+		limit := 8
+		if len(chunk) < limit {
+			limit = len(chunk)
+		}
+		for j := 0; j < limit; j++ {
+			if chunk[j] {
+				octet |= (1 << j)
+			}
+		}
+		buf.WriteByte(octet)
+	}
+	res := buf.Bytes()
+
+	// In the case of a variable length sequence, then the length is prefixed as in the general case.
+	if b.IsVariableLength {
+		bitLen := WrapU64(jamtypes.U64(len(b.Bits))).Serialize()
+		return append(bitLen, res...)
+	}
+
+	return jamtypes.ByteSequence(res)
 }

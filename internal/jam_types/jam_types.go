@@ -17,6 +17,8 @@ type U64 uint64
 type ByteSequence []byte
 type ByteArray32 [32]byte
 
+type BitSequence []bool
+
 // Crypto
 
 type BandersnatchPublic [32]byte
