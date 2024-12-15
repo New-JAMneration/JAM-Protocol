@@ -4,6 +4,64 @@ import (
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
+// Serializable is the interface that all types that can be serialized must implement.
+type Serializable interface {
+	Serialize() jamtypes.ByteSequence
+}
+
+// Empty represents E(∅) = []
+type Empty struct{}
+
+func (e Empty) Serialize() jamtypes.ByteSequence {
+	return jamtypes.ByteSequence{}
+}
+
+// StringOctets treats a string as an octet sequence
+type StringOctets string
+
+func (s StringOctets) Serialize() jamtypes.ByteSequence {
+	return jamtypes.ByteSequence(s)
+}
+
+// Tuple (or a sequence) E({a,b,...}) = E(a)||E(b)||...
+// We can represent this as a slice of Serializable.
+type SerializableSequence []Serializable
+
+func (t SerializableSequence) Serialize() jamtypes.ByteSequence {
+	var result jamtypes.ByteSequence
+	for _, elem := range t {
+		result = append(result, elem.Serialize()...)
+	}
+	return result
+}
+
+// Here we define wrapper types that hold a jam_types value and implement Serializable.
+// For example, a U64Wrapper that holds a jam_types.U64 and provides Serialize().
+
+type U8Wrapper struct {
+	Value jamtypes.U8
+}
+
+type U16Wrapper struct {
+	Value jamtypes.U16
+}
+
+type U32Wrapper struct {
+	Value jamtypes.U32
+}
+
+type U64Wrapper struct {
+	Value jamtypes.U64
+}
+
+type ByteSequenceWrapper struct {
+	Value jamtypes.ByteSequence
+}
+
+type ByteArray32Wrapper struct {
+	Value jamtypes.ByteArray32
+}
+
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
 // It serializes a non-negative integer x into exactly l octets in little-endian order.
 // If l=0, returns an empty slice.
@@ -50,57 +108,53 @@ func SerializeU64(x jamtypes.U64) jamtypes.ByteSequence {
 	return append([]byte{0xFF}, SerializeFixedLength(x, 8)...)
 }
 
-// Serialize implements:
-// C.1.1 Trivial Encodings:
-//
-//	E(∅) = []
-//	E(x ∈ Y) = x if x is already an octet-sequence (treat string as octet-seq too)
-//	E({a,b,...}) = E(a)||E(b)||...
-//	E(a,b,...) = E({a,b,...})
-//
-// C.1.2 Integer Encoding: If input is a uint64, use E from above.
-//
-// C.1.3 Sequence Encoding: E([i0, i1, ...]) = E(i0)||E(i1)||...
-// This is the same logic we use for tuples. For simplicity, we treat any slice []any as a sequence.
-func Serialize(value any) []byte {
-	switch v := value.(type) {
-	case nil:
-		// E(∅) = []
-		return jamtypes.ByteSequence{}
+func (w U8Wrapper) Serialize() jamtypes.ByteSequence {
+	return SerializeU64(jamtypes.U64(w.Value))
+}
 
-	case []byte:
-		// E(x∈Y) = x
-		return v
+func (w U16Wrapper) Serialize() jamtypes.ByteSequence {
+	return SerializeU64(jamtypes.U64(w.Value))
+}
 
-	case string:
-		// Treat string as an octet-sequence
-		return jamtypes.ByteSequence(v)
+func (w U32Wrapper) Serialize() jamtypes.ByteSequence {
+	return SerializeU64(jamtypes.U64(w.Value))
+}
 
-	case []any:
-		// E({a,b,...}) or E([i0,i1,...]) = E(a)||E(b)||...
-		// Just serialize each element and concatenate.
-		var result jamtypes.ByteSequence
-		for _, elem := range v {
-			result = append(result, Serialize(elem)...)
-		}
-		return result
+func (w U64Wrapper) Serialize() jamtypes.ByteSequence {
+	return SerializeU64(jamtypes.U64(w.Value))
+}
 
-	case jamtypes.U64:
-		// Use integer encoding
-		return SerializeU64(v)
+func (w ByteSequenceWrapper) Serialize() jamtypes.ByteSequence {
+	// E(x∈Y) = x directly
+	return w.Value
+}
 
-	case jamtypes.U8:
-		// Convert to uint64 and use the same integer encoding
-		return SerializeU64(jamtypes.U64(v))
+func (w ByteArray32Wrapper) Serialize() jamtypes.ByteSequence {
+	// Fixed length octet sequence
+	return w.Value[:]
+}
 
-	case jamtypes.U16:
-		return SerializeU64(jamtypes.U64(v))
+// helper functions that directly take the jam_types values
+// and return a Serializable wrapper. This makes usage easier.
+func WrapU8(v jamtypes.U8) Serializable {
+	return U8Wrapper{Value: v}
+}
 
-	case jamtypes.U32:
-		return SerializeU64(jamtypes.U64(v))
+func WrapU16(v jamtypes.U16) Serializable {
+	return U16Wrapper{Value: v}
+}
 
-	default:
-		// Unknown type: return empty for demonstration.
-		return jamtypes.ByteSequence{}
-	}
+func WrapU32(v jamtypes.U32) Serializable {
+	return U32Wrapper{Value: v}
+}
+
+func WrapU64(v jamtypes.U64) Serializable {
+	return U64Wrapper{Value: v}
+}
+
+func WrapByteSequence(v jamtypes.ByteSequence) Serializable {
+	return ByteSequenceWrapper{v}
+}
+func WrapByteArray32(v jamtypes.ByteArray32) Serializable {
+	return ByteArray32Wrapper{v}
 }

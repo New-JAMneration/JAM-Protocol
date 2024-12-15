@@ -65,39 +65,3 @@ func TestSerializeU64(t *testing.T) {
 		}
 	}
 }
-
-func TestTrivialEncodings(t *testing.T) {
-	tests := []struct {
-		input any
-		want  []byte
-	}{
-		// E(∅) = []
-		{nil, []byte{}},
-
-		// E(x∈Y) = x if x is a byte-sequence
-		{[]byte{0xDE, 0xAD}, []byte{0xDE, 0xAD}},
-		{"Hello", []byte("Hello")},
-
-		// Tuples/Sequences: E({a,b,...}) = E(a)||E(b)||...
-		{
-			[]any{[]byte("A"), []byte("B")},
-			[]byte("AB"),
-		},
-		{
-			[]any{"Hi", []byte{0x01, 0x02}, "World"},
-			append(append([]byte("Hi"), 0x01, 0x02), []byte("World")...),
-		},
-		// Sequence example (C.1.3):
-		{
-			[]any{"SeqItem1", []byte{0xAB}, "SeqItem2"},
-			append(append([]byte("SeqItem1"), 0xAB), []byte("SeqItem2")...),
-		},
-	}
-
-	for _, tt := range tests {
-		got := Serialize(tt.input)
-		if !bytes.Equal(got, tt.want) {
-			t.Errorf("Serialize(%v) = %X, want %X", tt.input, got, tt.want)
-		}
-	}
-}
