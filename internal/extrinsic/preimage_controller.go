@@ -19,6 +19,11 @@ func NewPreimageController() *PreimageController {
 	}
 }
 
+// Set sets the Preimages slice to the given Preimages slice.
+func (p *PreimageController) Set(preimages []jamTypes.Preimage) {
+	p.Preimages = preimages
+}
+
 // Len returns the length of the Preimages slice.
 func (p *PreimageController) Len() int {
 	return len(p.Preimages)
