@@ -45,7 +45,7 @@ func (r *GuaranteeController) Sort() {
 }
 
 // Add adds a new Guarantee to the ReportGuarantee slice.
-func (r *GuaranteeController) Add(newReportGuarantee jamTypes.ReportGuarantee) []jamTypes.ReportGuarantee {
+func (r *GuaranteeController) Add(newReportGuarantee jamTypes.ReportGuarantee) {
 	r.Guarantees = append(r.Guarantees, newReportGuarantee)
-	return r.Guarantees
+	r.Sort()
 }
