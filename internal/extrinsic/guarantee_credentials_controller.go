@@ -17,11 +17,9 @@ func NewGuaranteeCredentialsController() *GuaranteeCredentialsController {
 	}
 }
 
-// SetGuaranteeCredentialsController sets the GuaranteeCredentials slice
-func SetGuaranteeCredentialsController(c []jamTypes.ValidatorSignature) *GuaranteeCredentialsController {
-	return &GuaranteeCredentialsController{
-		Credentials: c,
-	}
+// Set sets the GuaranteeCredentials slice
+func (c *GuaranteeCredentialsController) Set(cToSet []jamTypes.ValidatorSignature) {
+	c.Credentials = cToSet
 }
 
 // Len returns the length of the slice

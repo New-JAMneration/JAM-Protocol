@@ -94,6 +94,90 @@ func TestGuaranteeAdd(t *testing.T) {
 	}
 }
 
+func TestGuaranteeSet(t *testing.T) {
+	controller := NewGuaranteeController()
+
+	// Create test guarantees
+	guarantee1 := jamTypes.ReportGuarantee{
+		Report: jamTypes.WorkReport{
+			PackageSpec: jamTypes.WorkPackageSpec{
+				Hash:         jamTypes.WorkPackageHash{0x01},
+				Length:       42,
+				ErasureRoot:  jamTypes.ErasureRoot{0x02},
+				ExportsRoot:  jamTypes.ExportsRoot{0x03},
+				ExportsCount: 69,
+			},
+			Context: jamTypes.RefineContext{
+				Anchor:           jamTypes.HeaderHash{0x04},
+				StateRoot:        jamTypes.StateRoot{0x05},
+				BeefyRoot:        jamTypes.BeefyRoot{0x06},
+				LookupAnchor:     jamTypes.HeaderHash{0x07},
+				LookupAnchorSlot: 1,
+			},
+			CoreIndex: 1,
+		},
+		Slot: 100,
+		Signatures: []jamTypes.ValidatorSignature{
+			{
+				ValidatorIndex: 1,
+				Signature:      [64]byte{0x08},
+			},
+		},
+	}
+
+	guarantee2 := jamTypes.ReportGuarantee{
+		Report: jamTypes.WorkReport{
+			PackageSpec: jamTypes.WorkPackageSpec{
+				Hash:         jamTypes.WorkPackageHash{0x11},
+				Length:       43,
+				ErasureRoot:  jamTypes.ErasureRoot{0x12},
+				ExportsRoot:  jamTypes.ExportsRoot{0x13},
+				ExportsCount: 70,
+			},
+			Context: jamTypes.RefineContext{
+				Anchor:           jamTypes.HeaderHash{0x14},
+				StateRoot:        jamTypes.StateRoot{0x15},
+				BeefyRoot:        jamTypes.BeefyRoot{0x16},
+				LookupAnchor:     jamTypes.HeaderHash{0x17},
+				LookupAnchorSlot: 2,
+			},
+			CoreIndex: 2,
+		},
+		Slot: 101,
+		Signatures: []jamTypes.ValidatorSignature{
+			{
+				ValidatorIndex: 2,
+				Signature:      [64]byte{0x18},
+			},
+		},
+	}
+
+	guarantees := []jamTypes.ReportGuarantee{guarantee1, guarantee2}
+
+	// Test setting guarantees
+	controller.Set(guarantees)
+
+	// Verify length
+	if controller.Len() != 2 {
+		t.Fatalf("Expected 2 guarantees, got %d", controller.Len())
+	}
+
+	// Verify content
+	if controller.Guarantees[0].Report.CoreIndex != 1 {
+		t.Errorf("Expected first guarantee core index 1, got %d", controller.Guarantees[0].Report.CoreIndex)
+	}
+
+	if controller.Guarantees[1].Report.CoreIndex != 2 {
+		t.Errorf("Expected second guarantee core index 2, got %d", controller.Guarantees[1].Report.CoreIndex)
+	}
+
+	// Test setting empty slice
+	controller.Set([]jamTypes.ReportGuarantee{})
+	if controller.Len() != 0 {
+		t.Fatalf("Expected 0 guarantees after setting empty slice, got %d", controller.Len())
+	}
+}
+
 func TestGuaranteeRemoveDuplicatesEmpty(t *testing.T) {
 	controller := NewGuaranteeController()
 
