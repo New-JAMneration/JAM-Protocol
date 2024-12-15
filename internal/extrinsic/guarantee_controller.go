@@ -44,34 +44,8 @@ func (r *GuaranteeController) Sort() {
 	})
 }
 
-// Add adds a new Preimage to the ReportGuarantee slice.
-// It also removes the duplicates from the slice.
+// Add adds a new Guarantee to the ReportGuarantee slice.
 func (r *GuaranteeController) Add(newReportGuarantee jamTypes.ReportGuarantee) []jamTypes.ReportGuarantee {
 	r.Guarantees = append(r.Guarantees, newReportGuarantee)
-	return r.RemoveDuplicates()
-}
-
-// RemoveDuplicates removes the duplicates from the ReportGuarantee slice.
-// It uses the Sort function to sort the slice first.
-// And uses double pointers to remove the duplicates.
-func (r *GuaranteeController) RemoveDuplicates() []jamTypes.ReportGuarantee {
-	if len(r.Guarantees) == 0 {
-		return r.Guarantees
-	}
-
-	// First, sort the slice
-	r.Sort()
-
-	// Then, remove the duplicates
-	j := 0
-
-	for i := 1; i < len(r.Guarantees); i++ {
-		if r.Guarantees[i].Report.CoreIndex != r.Guarantees[j].Report.CoreIndex {
-			j++
-			r.Guarantees[j] = r.Guarantees[i]
-		}
-	}
-
-	// Remove the duplicates
-	return r.Guarantees[:j+1]
+	return r.Guarantees
 }
