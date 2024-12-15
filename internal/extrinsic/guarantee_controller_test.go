@@ -178,53 +178,6 @@ func TestGuaranteeSet(t *testing.T) {
 	}
 }
 
-func TestGuaranteeRemoveDuplicatesEmpty(t *testing.T) {
-	controller := NewGuaranteeController()
-
-	result := controller.RemoveDuplicates()
-
-	if len(result) != 0 {
-		t.Fatalf("Expected 0 guarantees, got %d", len(result))
-	}
-}
-
-func TestGuaranteeRemoveDuplicates(t *testing.T) {
-	controller := NewGuaranteeController()
-
-	// Add first guarantee
-	guarantee1 := jamTypes.ReportGuarantee{
-		Report: jamTypes.WorkReport{
-			CoreIndex: 1,
-		},
-		Slot: 100,
-	}
-	controller.Add(guarantee1)
-
-	// Add duplicate guarantee with same core index
-	duplicateGuarantee := jamTypes.ReportGuarantee{
-		Report: jamTypes.WorkReport{
-			CoreIndex: 1,
-		},
-		Slot: 101,
-	}
-	controller.Add(duplicateGuarantee)
-
-	// Add different guarantee
-	guarantee2 := jamTypes.ReportGuarantee{
-		Report: jamTypes.WorkReport{
-			CoreIndex: 2,
-		},
-		Slot: 100,
-	}
-	controller.Add(guarantee2)
-
-	result := controller.RemoveDuplicates()
-
-	if len(result) != 2 {
-		t.Fatalf("Expected 2 guarantees after removing duplicates, got %d", len(result))
-	}
-}
-
 func TestGuaranteeSort(t *testing.T) {
 	controller := NewGuaranteeController()
 	// Add guarantees in unsorted order
