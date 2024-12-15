@@ -17,11 +17,9 @@ func NewGuaranteeController() *GuaranteeController {
 	}
 }
 
-// SetGuaranteeController sets the ReportGuarantee slice
-func SetGuaranteeController(g []jamTypes.ReportGuarantee) *GuaranteeController {
-	return &GuaranteeController{
-		Guarantees: g,
-	}
+// Set sets the ReportGuarantee slice
+func (g *GuaranteeController) Set(gToSet []jamTypes.ReportGuarantee) {
+	g.Guarantees = gToSet
 }
 
 // Len returns the length of the slice

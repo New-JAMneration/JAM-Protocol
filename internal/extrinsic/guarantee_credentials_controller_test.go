@@ -124,3 +124,43 @@ func TestGuaranteeCredentialsSort(t *testing.T) {
 		t.Errorf("Expected first credential to have validator index 0, got %d", controller.Credentials[0].ValidatorIndex)
 	}
 }
+
+func TestGuaranteeCredentialsSet(t *testing.T) {
+	controller := NewGuaranteeCredentialsController()
+
+	// Create test credentials
+	credential1 := jamTypes.ValidatorSignature{
+		ValidatorIndex: 1,
+		Signature:      jamTypes.Ed25519Signature{0x01},
+	}
+
+	credential2 := jamTypes.ValidatorSignature{
+		ValidatorIndex: 2,
+		Signature:      jamTypes.Ed25519Signature{0x02},
+	}
+
+	credentials := []jamTypes.ValidatorSignature{credential1, credential2}
+
+	// Test setting credentials
+	controller.Set(credentials)
+
+	// Verify length
+	if controller.Len() != 2 {
+		t.Fatalf("Expected 2 credentials, got %d", controller.Len())
+	}
+
+	// Verify content
+	if controller.Credentials[0].ValidatorIndex != 1 {
+		t.Errorf("Expected first credential validator index 1, got %d", controller.Credentials[0].ValidatorIndex)
+	}
+
+	if controller.Credentials[1].ValidatorIndex != 2 {
+		t.Errorf("Expected second credential validator index 2, got %d", controller.Credentials[1].ValidatorIndex)
+	}
+
+	// Test setting empty slice
+	controller.Set([]jamTypes.ValidatorSignature{})
+	if controller.Len() != 0 {
+		t.Fatalf("Expected 0 credentials after setting empty slice, got %d", controller.Len())
+	}
+}
