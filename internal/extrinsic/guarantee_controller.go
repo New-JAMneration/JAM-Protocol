@@ -1,0 +1,79 @@
+package extrinsic
+
+import (
+	"sort"
+ 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+)
+
+// GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
+type GuaranteeController struct {
+	Guarantees []jamTypes.ReportGuarantee
+}
+
+// NewGuaranteeController creates a new GuaranteeController (Constructor)
+func NewGuaranteeController() *GuaranteeController {
+	return &GuaranteeController{
+		Guarantees: make([]jamTypes.ReportGuarantee, 0),
+	}
+}
+
+// SetGuaranteeController sets the ReportGuarantee slice
+func SetGuaranteeController(g []jamTypes.ReportGuarantee) *GuaranteeController {
+	return &GuaranteeController{
+		Guarantees: g,
+	}
+}
+
+// Len returns the length of the slice
+func (r *GuaranteeController)Len() int {
+	return len(r.Guarantees)
+}
+
+// Less returns true if the index i is less than the index j
+func (r *GuaranteeController)Less(i, j int) bool {
+	return r.Guarantees[i].Report.CoreIndex < r.Guarantees[j].Report.CoreIndex
+}
+
+// Swap swaps the index i with the index j
+func (r *GuaranteeController)Swap(i, j int) {
+	r.Guarantees[i], r.Guarantees[j] = r.Guarantees[j], r.Guarantees[i]
+}
+
+// Sort sorts the slice
+func (r *GuaranteeController)Sort(){
+	sort.Slice(r.Guarantees, func(i, j int) bool {
+		return r.Less(i, j)
+	})
+}
+
+// Add adds a new Preimage to the ReportGuarantee slice.
+// It also removes the duplicates from the slice.
+func (r *GuaranteeController) Add(newReportGuarantee jamTypes.ReportGuarantee) []jamTypes.ReportGuarantee {
+	r.Guarantees = append(r.Guarantees, newReportGuarantee)
+	return r.RemoveDuplicates()
+}
+
+// RemoveDuplicates removes the duplicates from the ReportGuarantee slice.
+// It uses the Sort function to sort the slice first.
+// And uses double pointers to remove the duplicates.
+func (r *GuaranteeController)RemoveDuplicates() []jamTypes.ReportGuarantee {
+	if len(r.Guarantees) == 0 {
+		return r.Guarantees
+	}
+
+	// First, sort the slice
+	r.Sort()
+
+	// Then, remove the duplicates
+	j := 0
+
+	for i := 1; i < len(r.Guarantees); i++ {
+		if (r.Guarantees[i].Report.CoreIndex != r.Guarantees[j].Report.CoreIndex) {
+			j++
+			r.Guarantees[j] = r.Guarantees[i]
+		}
+	}
+
+	// Remove the duplicates
+	return r.Guarantees[:j+1]
+}
