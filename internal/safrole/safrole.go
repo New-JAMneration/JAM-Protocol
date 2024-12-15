@@ -1,5 +1,7 @@
 package safrole
 
+import "fmt"
+
 // basic types
 type U8 uint8
 
@@ -12,8 +14,24 @@ type OpaqueHash ByteArray32
 type Ed25519Key ByteArray32
 type BlsKey [144]U8
 type BandersnatchKey ByteArray32
-type EpochKeys [EpochLength]BandersnatchKey
-type TicketsBodies [EpochLength]TicketBody
+
+type EpochKeys []BandersnatchKey
+
+func (e EpochKeys) Validate(epochLength int) error {
+	if len(e) != epochLength {
+		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", epochLength, len(e))
+	}
+	return nil
+}
+
+type TicketsBodies []TicketBody
+
+func (t TicketsBodies) Validate(epochLength int) error {
+	if len(t) != epochLength {
+		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", epochLength, len(t))
+	}
+	return nil
+}
 
 // define enumerations
 type TicketsOrKeys struct {
@@ -34,7 +52,14 @@ type ValidatorData struct {
 	Metadata     [128]U8         `json:"metadata"`
 }
 
-type ValidatorsData [ValidatorsCount]ValidatorData
+type ValidatorsData []ValidatorData
+
+func (v ValidatorsData) Validate(validatorsCount int) error {
+	if len(v) != validatorsCount {
+		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", validatorsCount, len(v))
+	}
+	return nil
+}
 
 type TicketEnvelope struct {
 	Attempt   U8      `json:"attempt"`
@@ -42,11 +67,25 @@ type TicketEnvelope struct {
 }
 
 type EpochMark struct {
-	Entropy    OpaqueHash                       `json:"entropy"`
-	Validators [ValidatorsCount]BandersnatchKey `json:"validators"`
+	Entropy    OpaqueHash        `json:"entropy"`
+	Validators []BandersnatchKey `json:"validators"`
 }
 
-type TicketsMark [EpochLength]TicketBody
+func (e *EpochMark) Validate(validatorsCount int) error {
+	if len(e.Validators) != validatorsCount {
+		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", validatorsCount, len(e.Validators))
+	}
+	return nil
+}
+
+type TicketsMark []TicketBody
+
+func (t TicketsMark) Validate(epochLength int) error {
+	if len(t) != epochLength {
+		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", epochLength, len(t))
+	}
+	return nil
+}
 
 // output markers
 type OutputMarks struct {
