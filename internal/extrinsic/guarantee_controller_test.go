@@ -180,21 +180,85 @@ func TestGuaranteeSet(t *testing.T) {
 
 func TestGuaranteeSort(t *testing.T) {
 	controller := NewGuaranteeController()
+
 	// Add guarantees in unsorted order
 	guarantees := []jamTypes.ReportGuarantee{
 		{
 			Report: jamTypes.WorkReport{
+				PackageSpec: jamTypes.WorkPackageSpec{
+					Hash:         jamTypes.WorkPackageHash{0x03},
+					Length:       43,
+					ErasureRoot:  jamTypes.ErasureRoot{0x03},
+					ExportsRoot:  jamTypes.ExportsRoot{0x03},
+					ExportsCount: 70,
+				},
+				Context: jamTypes.RefineContext{
+					Anchor:           jamTypes.HeaderHash{0x03},
+					StateRoot:        jamTypes.StateRoot{0x03},
+					BeefyRoot:        jamTypes.BeefyRoot{0x03},
+					LookupAnchor:     jamTypes.HeaderHash{0x03},
+					LookupAnchorSlot: 3,
+				},
 				CoreIndex: 3,
 			},
-		},
-		{
-			Report: jamTypes.WorkReport{
-				CoreIndex: 1,
+			Slot: 103,
+			Signatures: []jamTypes.ValidatorSignature{
+				{
+					ValidatorIndex: 3,
+					Signature:      jamTypes.Ed25519Signature{0x03},
+				},
 			},
 		},
 		{
 			Report: jamTypes.WorkReport{
+				PackageSpec: jamTypes.WorkPackageSpec{
+					Hash:         jamTypes.WorkPackageHash{0x01},
+					Length:       41,
+					ErasureRoot:  jamTypes.ErasureRoot{0x01},
+					ExportsRoot:  jamTypes.ExportsRoot{0x01},
+					ExportsCount: 68,
+				},
+				Context: jamTypes.RefineContext{
+					Anchor:           jamTypes.HeaderHash{0x01},
+					StateRoot:        jamTypes.StateRoot{0x01},
+					BeefyRoot:        jamTypes.BeefyRoot{0x01},
+					LookupAnchor:     jamTypes.HeaderHash{0x01},
+					LookupAnchorSlot: 1,
+				},
+				CoreIndex: 1,
+			},
+			Slot: 101,
+			Signatures: []jamTypes.ValidatorSignature{
+				{
+					ValidatorIndex: 1,
+					Signature:      jamTypes.Ed25519Signature{0x01},
+				},
+			},
+		},
+		{
+			Report: jamTypes.WorkReport{
+				PackageSpec: jamTypes.WorkPackageSpec{
+					Hash:         jamTypes.WorkPackageHash{0x02},
+					Length:       42,
+					ErasureRoot:  jamTypes.ErasureRoot{0x02},
+					ExportsRoot:  jamTypes.ExportsRoot{0x02},
+					ExportsCount: 69,
+				},
+				Context: jamTypes.RefineContext{
+					Anchor:           jamTypes.HeaderHash{0x02},
+					StateRoot:        jamTypes.StateRoot{0x02},
+					BeefyRoot:        jamTypes.BeefyRoot{0x02},
+					LookupAnchor:     jamTypes.HeaderHash{0x02},
+					LookupAnchorSlot: 2,
+				},
 				CoreIndex: 2,
+			},
+			Slot: 102,
+			Signatures: []jamTypes.ValidatorSignature{
+				{
+					ValidatorIndex: 2,
+					Signature:      jamTypes.Ed25519Signature{0x02},
+				},
 			},
 		},
 	}
@@ -203,12 +267,12 @@ func TestGuaranteeSort(t *testing.T) {
 		controller.Add(g)
 	}
 
-	controller.Sort()
-
-	// Verify sorting
-	for i := 1; i < len(controller.Guarantees); i++ {
-		if controller.Guarantees[i].Report.CoreIndex < controller.Guarantees[i-1].Report.CoreIndex {
-			t.Errorf("Guarantees not properly sorted at index %d", i)
+	// Verify the order after sorting
+	expectedCoreIndices := []jamTypes.CoreIndex{1, 2, 3}
+	for i, expected := range expectedCoreIndices {
+		if controller.Guarantees[i].Report.CoreIndex != expected {
+			t.Errorf("Guarantee at index %d has CoreIndex %d, expected %d",
+				i, controller.Guarantees[i].Report.CoreIndex, expected)
 		}
 	}
 }
