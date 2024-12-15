@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -29,7 +30,21 @@ type config struct {
 	} `json:"const"`
 }
 
-func LoadConfig(path string) error {
+func InitConfig() {
+	var configPath string
+	set := flag.NewFlagSet("config", flag.ExitOnError)
+	set.StringVar(&configPath, "config", "example.json", "set config file path")
+	err := set.Parse(os.Args[1:])
+	if err != nil {
+		return
+	}
+
+	if err := loadConfig(configPath); err != nil {
+		panic(err)
+	}
+}
+
+func loadConfig(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("can't open config file: %w", err)
