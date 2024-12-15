@@ -1,6 +1,6 @@
 package safrole
 
 const (
-	ValidatorsCount = 1024
-	EpochLength     = 256
+	ValidatorsCount = 1023
+	EpochLength     = 600
 )
