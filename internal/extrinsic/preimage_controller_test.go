@@ -31,6 +31,34 @@ func TestAddNewPreimage(t *testing.T) {
 	}
 }
 
+func TestSetPreimagesEmpty(t *testing.T) {
+	preimageController := NewPreimageController()
+
+	// Initialize the Preimages slice without using the Add function
+	preimages := []jamTypes.Preimage{}
+	preimageController.Set(preimages)
+
+	if len(preimageController.Preimages) != 0 {
+		t.Fatalf("Expected 0 preimages, got %d", len(preimageController.Preimages))
+	}
+}
+
+func TestSetPreimages(t *testing.T) {
+	preimageController := NewPreimageController()
+
+	// Initialize the Preimages slice without using the Add function
+	preimages := []jamTypes.Preimage{
+		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
+		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
+		{Requester: 16909062, Blob: []byte("0x38db056c7c3065fadb630ce6ccbc7385")},
+	}
+	preimageController.Set(preimages)
+
+	if len(preimageController.Preimages) != 3 {
+		t.Fatalf("Expected 3 preimages, got %d", len(preimageController.Preimages))
+	}
+}
+
 func TestAddMultiplePreimages(t *testing.T) {
 	preimageController := NewPreimageController()
 
@@ -126,11 +154,12 @@ func TestSort(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimageController.Preimages = []jamTypes.Preimage{
+	preimages := []jamTypes.Preimage{
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909062, Blob: []byte("0x38db056c7c3065fadb630ce6ccbc7385")},
 		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
 	}
+	preimageController.Set(preimages)
 
 	preimageController.Sort()
 
@@ -167,11 +196,12 @@ func TestRemoveDuplicates(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimageController.Preimages = []jamTypes.Preimage{
+	preimages := []jamTypes.Preimage{
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
 	}
+	preimageController.Set(preimages)
 
 	preimageController.RemoveDuplicates()
 
