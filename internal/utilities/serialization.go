@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"bytes"
+	"sort"
 
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
@@ -11,6 +12,10 @@ type Serializable interface {
 	Serialize() jamtypes.ByteSequence
 }
 
+type Comparable interface {
+	Less(other interface{}) bool
+}
+
 // Empty represents E(∅) = []
 type Empty struct{}
 
@@ -18,11 +23,21 @@ func (e Empty) Serialize() jamtypes.ByteSequence {
 	return jamtypes.ByteSequence{}
 }
 
+func (e Empty) Less(other interface{}) bool {
+	return true
+}
+
 // StringOctets treats a string as an octet sequence
 type StringOctets string
 
 func (s StringOctets) Serialize() jamtypes.ByteSequence {
 	return jamtypes.ByteSequence(s)
+}
+func (s StringOctets) Less(other interface{}) bool {
+	if otherKey, ok := other.(StringOctets); ok {
+		return s < otherKey
+	}
+	return false
 }
 
 // Tuple (or a sequence) E({a,b,...}) = E(a)||E(b)||...
@@ -114,16 +129,44 @@ func (w U8Wrapper) Serialize() jamtypes.ByteSequence {
 	return SerializeU64(jamtypes.U64(w.Value))
 }
 
+func (w U8Wrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(U8Wrapper); ok {
+		return w.Value < otherKey.Value
+	}
+	return false
+}
+
 func (w U16Wrapper) Serialize() jamtypes.ByteSequence {
 	return SerializeU64(jamtypes.U64(w.Value))
+}
+
+func (w U16Wrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(U16Wrapper); ok {
+		return w.Value < otherKey.Value
+	}
+	return false
 }
 
 func (w U32Wrapper) Serialize() jamtypes.ByteSequence {
 	return SerializeU64(jamtypes.U64(w.Value))
 }
 
+func (w U32Wrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(U32Wrapper); ok {
+		return w.Value < otherKey.Value
+	}
+	return false
+}
+
 func (w U64Wrapper) Serialize() jamtypes.ByteSequence {
 	return SerializeU64(jamtypes.U64(w.Value))
+}
+
+func (w U64Wrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(U64Wrapper); ok {
+		return w.Value < otherKey.Value
+	}
+	return false
 }
 
 func (w ByteSequenceWrapper) Serialize() jamtypes.ByteSequence {
@@ -202,4 +245,36 @@ func (b BitSequenceWrapper) Serialize() jamtypes.ByteSequence {
 	}
 
 	return jamtypes.ByteSequence(res)
+}
+
+// C.1.6. Dictionary Encoding.
+type MapWarpper struct {
+	Value map[Comparable]Serializable
+}
+
+func (m *MapWarpper) Serialize() jamtypes.ByteSequence {
+	// Handle empty dictionary
+	if len(m.Value) == 0 {
+		return jamtypes.ByteSequence{}
+	}
+
+	// Extract and sort keys
+	keys := make([]Comparable, 0, len(m.Value))
+	for k := range m.Value {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Less(keys[j])
+	})
+
+	seq := []Serializable{}
+
+	for _, key := range keys {
+		seq = append(seq, SerializableSequence{key.(Serializable), m.Value[key]})
+	}
+
+	d := Discriminator{Value: seq}
+
+	return d.Serialize()
 }
