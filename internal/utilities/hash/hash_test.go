@@ -3,8 +3,8 @@ package hash
 import (
 	"bytes"
 	"encoding/hex"
-	"testing"
 	"golang.org/x/crypto/sha3"
+	"testing"
 )
 
 func TestBlake2bHash(t *testing.T) {
@@ -118,6 +118,6 @@ func decodeHex(s string) []byte {
 	if err != nil {
 		panic(err)
 	}
-	
+
 	return b
 }
