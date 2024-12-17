@@ -23,6 +23,10 @@ func Blake2bHashPartial(input []byte, x int) jamTypes.ByteSequence {
 // KeccakHash generates a hash using the Keccak algorithm.
 // The output is a 32-byte hash. (jam_types.OpaqueHash)
 func KeccakHash(input []byte) jamTypes.OpaqueHash {
-	hash := keecak.Sum256(input)
-	return jamTypes.OpaqueHash(hash[:])
+	hash := keecak.NewLegacyKeccak256()
+	hash.Write(input)
+
+	res := hash.Sum(nil) 
+
+	return jamTypes.OpaqueHash(res[:])
 }
