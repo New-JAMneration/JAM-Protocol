@@ -118,9 +118,26 @@ func Fatalf(format string, args ...interface{}) {
 	getLogger().log(FATAL, format, args...)
 }
 
-func SetLevel(level LogLevel) {
+func SetLevel(levelStr string) {
 	getLogger().mu.Lock()
 	defer getLogger().mu.Unlock()
+
+	var level LogLevel
+	switch strings.ToUpper(levelStr) {
+	case "DEBUG":
+		level = DEBUG
+	case "INFO":
+		level = INFO
+	case "WARN":
+		level = WARN
+	case "ERROR":
+		level = ERROR
+	case "FATAL":
+		level = FATAL
+	default:
+		level = INFO
+	}
+
 	getLogger().level = level
 }
 

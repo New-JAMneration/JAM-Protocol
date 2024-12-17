@@ -66,9 +66,9 @@ type Validator struct {
 
 type ValidatorsData []Validator
 
-func (v ValidatorsData) Validate(validatorsCount int) error {
-	if len(v) != validatorsCount {
-		return fmt.Errorf("ValidatorsData must have exactly %d ValidatorData entries, got %d", validatorsCount, len(v))
+func (v ValidatorsData) Validate() error {
+	if len(v) != ValidatorsCount {
+		return fmt.Errorf("ValidatorsData must have exactly %d ValidatorData entries, got %d", ValidatorsCount, len(v))
 	}
 	return nil
 }
@@ -109,9 +109,9 @@ type AvailabilityAssignmentsItem *AvailabilityAssignment
 
 type AvailabilityAssignments []AvailabilityAssignmentsItem
 
-func (assignments AvailabilityAssignments) Validate(coresCount int) error {
-	if len(assignments) != coresCount {
-		return fmt.Errorf("AvailabilityAssignments must have exactly %d items, but got %d", coresCount, len(assignments))
+func (assignments AvailabilityAssignments) Validate() error {
+	if len(assignments) != CoresCount {
+		return fmt.Errorf("AvailabilityAssignments must have exactly %d items, but got %d", CoresCount, len(assignments))
 	}
 	return nil
 }
@@ -125,6 +125,67 @@ type RefineContext struct {
 	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`
 	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"`
 	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`
+}
+
+// Authorizations
+
+type Authorizations struct {
+	CodeHash  OpaqueHash   `json:"code_hash,omitempty"`
+	Signature ByteSequence `json:"signature,omitempty"`
+}
+
+type AuthorizerHash OpaqueHash
+
+type AuthPool []AuthorizerHash
+
+func (a AuthPool) Validate() error {
+	if len(a) > AuthPoolMaxSize {
+		return fmt.Errorf("AuthPool exceeds max-auth-pool-size limit of %d", AuthPoolMaxSize)
+	}
+	return nil
+}
+
+type AuthPools []AuthPool
+
+func (a AuthPools) Validate() error {
+	if len(a) > CoresCount {
+		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %d", CoresCount)
+	}
+
+	for _, pool := range a {
+		err := pool.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type AuthQueue []AuthorizerHash
+
+func (a AuthQueue) Validate() error {
+	if len(a) > AuthQueueSize {
+		return fmt.Errorf("AuthQueue exceeds max-auth-queue-size limit of %d", AuthQueueSize)
+	}
+	return nil
+}
+
+type AuthQueues []AuthQueue
+
+func (a AuthQueues) Validate() error {
+	if len(a) > CoresCount {
+		return fmt.Errorf("AuthQueues exceeds max-auth-queues limit of %d", CoresCount)
+	}
+
+	for _, pool := range a {
+		err := pool.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Work Package
@@ -257,9 +318,9 @@ type BlockInfo struct {
 
 type BlocksHistory []BlockInfo
 
-func (b BlocksHistory) Validate(maxBlocksHistory int) error {
-	if len(b) > maxBlocksHistory {
-		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %d", maxBlocksHistory)
+func (b BlocksHistory) Validate() error {
+	if len(b) > MaxBlocksHistory {
+		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %d", MaxBlocksHistory)
 	}
 	return nil
 }
@@ -281,9 +342,9 @@ type TicketBody struct {
 
 type TicketsAccumulator []TicketBody
 
-func (t TicketsAccumulator) Validate(epochLength int) error {
-	if len(t) > epochLength {
-		return fmt.Errorf("TicketsAccumulator exceeds maximum size of %d", epochLength)
+func (t TicketsAccumulator) Validate() error {
+	if len(t) > EpochLength {
+		return fmt.Errorf("TicketsAccumulator exceeds maximum size of %d", EpochLength)
 	}
 	return nil
 }
@@ -293,13 +354,13 @@ type TicketsOrKeys struct {
 	Keys    []BandersnatchPublic `json:"keys,omitempty"`
 }
 
-func (t TicketsOrKeys) Validate(epochLength int) error {
-	if len(t.Tickets) > 0 && len(t.Tickets) != epochLength {
-		return fmt.Errorf("TicketsOrKeys Tickets must have size %d", epochLength)
+func (t TicketsOrKeys) Validate() error {
+	if len(t.Tickets) > 0 && len(t.Tickets) != EpochLength {
+		return fmt.Errorf("TicketsOrKeys Tickets must have size %d", EpochLength)
 	}
 
-	if len(t.Keys) > 0 && len(t.Keys) != epochLength {
-		return fmt.Errorf("TicketsOrKeys Keys must have size %d", epochLength)
+	if len(t.Keys) > 0 && len(t.Keys) != EpochLength {
+		return fmt.Errorf("TicketsOrKeys Keys must have size %d", EpochLength)
 	}
 	return nil
 }
@@ -307,9 +368,8 @@ func (t TicketsOrKeys) Validate(epochLength int) error {
 type TicketsExtrinsic []TicketEnvelope
 
 func (t TicketsExtrinsic) Validate() error {
-	maxTicketsExtrinsicSize := 16
-	if len(t) > maxTicketsExtrinsicSize {
-		return fmt.Errorf("TicketsExtrinsic exceeds maximum size of %d", maxTicketsExtrinsicSize)
+	if len(t) > MaxTicketsPerBlock {
+		return fmt.Errorf("TicketsExtrinsic exceeds maximum size of %d", MaxTicketsPerBlock)
 	}
 
 	return nil
@@ -329,9 +389,9 @@ type Verdict struct {
 	Votes  []Judgement `json:"votes,omitempty"`
 }
 
-func (v Verdict) Validate(validatorsSuperMajority int) error {
-	if len(v.Votes) != validatorsSuperMajority {
-		return fmt.Errorf("verdict Votes must have size %d", validatorsSuperMajority)
+func (v Verdict) Validate() error {
+	if len(v.Votes) != ValidatorsSuperMajority {
+		return fmt.Errorf("verdict Votes must have size %d", ValidatorsSuperMajority)
 	}
 	return nil
 }
@@ -380,18 +440,18 @@ type AvailAssurance struct {
 	Signature      Ed25519Signature `json:"signature,omitempty"`
 }
 
-func (a AvailAssurance) Validate(availBitfieldBytes int) error {
-	if len(a.Bitfield) != availBitfieldBytes {
-		return fmt.Errorf("AvailAssurance Bitfield must have size %d", availBitfieldBytes)
+func (a AvailAssurance) Validate() error {
+	if len(a.Bitfield) != AvailBitfieldBytes {
+		return fmt.Errorf("AvailAssurance Bitfield must have size %d", AvailBitfieldBytes)
 	}
 	return nil
 }
 
 type AssurancesExtrinsic []AvailAssurance
 
-func (a AssurancesExtrinsic) Validate(validatorsCount int) error {
-	if len(a) > validatorsCount {
-		return fmt.Errorf("AssurancesExtrinsic exceeds maximum size of %d validators", validatorsCount)
+func (a AssurancesExtrinsic) Validate() error {
+	if len(a) > ValidatorsCount {
+		return fmt.Errorf("AssurancesExtrinsic exceeds maximum size of %d validators", ValidatorsCount)
 	}
 	return nil
 }
@@ -413,9 +473,9 @@ type GuaranteesExtrinsic struct {
 	Guarantees []ReportGuarantee `json:"guarantees,omitempty"`
 }
 
-func (g GuaranteesExtrinsic) Validate(coresCount int) error {
-	if len(g.Guarantees) > coresCount {
-		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", coresCount)
+func (g GuaranteesExtrinsic) Validate() error {
+	if len(g.Guarantees) > CoresCount {
+		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
 	}
 	return nil
 }
@@ -428,18 +488,18 @@ type EpochMark struct {
 	Validators     []BandersnatchPublic `json:"validators,omitempty"`
 }
 
-func (e EpochMark) Validate(validatorsCount int) error {
-	if len(e.Validators) > validatorsCount {
-		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", validatorsCount)
+func (e EpochMark) Validate() error {
+	if len(e.Validators) > ValidatorsCount {
+		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", ValidatorsCount)
 	}
 	return nil
 }
 
 type TicketsMark []TicketBody
 
-func (t TicketsMark) Validate(epochLength int) error {
-	if len(t) != epochLength {
-		return fmt.Errorf("TicketsMark must have exactly %d tickets", epochLength)
+func (t TicketsMark) Validate() error {
+	if len(t) != EpochLength {
+		return fmt.Errorf("TicketsMark must have exactly %d tickets", EpochLength)
 	}
 	return nil
 }
