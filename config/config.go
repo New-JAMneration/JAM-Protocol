@@ -62,6 +62,7 @@ func loadConfig(path string) error {
 
 	initJamConst()
 	initLog()
+	initJamScaleRegistry()
 
 	return nil
 }
@@ -81,4 +82,8 @@ func initJamConst() {
 
 func initLog() {
 	logger.SetLevel(Config.Log.Level)
+}
+
+func initJamScaleRegistry() {
+	jam_types.InitScaleRegistry()
 }
