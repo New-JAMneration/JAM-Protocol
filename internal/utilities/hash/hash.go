@@ -26,7 +26,7 @@ func KeccakHash(input []byte) jamTypes.OpaqueHash {
 	hash := keecak.NewLegacyKeccak256()
 	hash.Write(input)
 
-	res := hash.Sum(nil) 
+	res := hash.Sum(nil)
 
 	return jamTypes.OpaqueHash(res[:])
 }
