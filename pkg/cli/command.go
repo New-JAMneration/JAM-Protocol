@@ -41,7 +41,6 @@ func (c *Command) ShowHelp() {
 
 	for _, f := range c.Flags {
 		fmt.Printf("  --%-*s  %s\n", maxLen, f.NameStr(), f.String())
-
 	}
 }
 
