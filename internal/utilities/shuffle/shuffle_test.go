@@ -75,8 +75,6 @@ func TestNumericSequenceFromHash(t *testing.T) {
 
 	numericSequence := numericSequenceFromHash(hash, length)
 
-	fmt.Println(numericSequence)
-
 	if jam_types.U32(len(numericSequence)) != length {
 		t.Errorf("The length of the numeric sequence is not correct")
 	}

@@ -68,12 +68,12 @@ func numericSequenceFromHash(hash jam_types.OpaqueHash, length jam_types.U32) []
 	return numericSequence
 }
 
-// fisherYatesShuffle is a recursive implementation of the Fisher-Yates shuffle
+// FisherYatesShuffle is a recursive implementation of the Fisher-Yates shuffle
 // algorithm.
 // The function requires a sequence of numbers and a sequence of random numbers.
 // It returns a shuffled sequence of numbers.
 // It's defined in graypaper F.1 $\mathcal{F}$
-func fisherYatesShuffle(s []jam_types.U32, r []jam_types.U32) []jam_types.U32 {
+func FisherYatesShuffle(s []jam_types.U32, r []jam_types.U32) []jam_types.U32 {
 	l := len(s)
 
 	// If the sequence is empty, return an empty slice
@@ -91,7 +91,7 @@ func fisherYatesShuffle(s []jam_types.U32, r []jam_types.U32) []jam_types.U32 {
 	s[index], s[l-1] = s[l-1], s[index]
 
 	// Recursively shuffle the remaining elements
-	shuffledRest := fisherYatesShuffle(s[:l-1], r[1:])
+	shuffledRest := FisherYatesShuffle(s[:l-1], r[1:])
 
 	// Return the shuffled sequence
 	return append([]jam_types.U32{selected}, shuffledRest...)
@@ -106,5 +106,5 @@ func Shuffle(s []jam_types.U32, hash jam_types.OpaqueHash) []jam_types.U32 {
 	length := jam_types.U32(len(s))
 	numericSequence := numericSequenceFromHash(hash, length)
 
-	return fisherYatesShuffle(s, numericSequence)
+	return FisherYatesShuffle(s, numericSequence)
 }
