@@ -179,3 +179,48 @@ func TestSetWarpper_Simple(t *testing.T) {
 		t.Errorf("Elements are not in alphabetical order: got=%s", got)
 	}
 }
+
+func TestDiscriminatorSerialization(t *testing.T) {
+	// Define test cases
+	tests := []struct {
+		name     string
+		input    Discriminator
+		expected jamtypes.ByteSequence
+	}{
+		{
+			name:     "Empty Discriminator",
+			input:    Discriminator{Value: []Serializable{}},
+			expected: append(WrapU64(0).Serialize(), []byte{}...), // Length 0, no values
+		},
+		{
+			name: "Non-Empty Discriminator",
+			input: Discriminator{
+				Value: []Serializable{
+					U8Wrapper{Value: 1},
+					U16Wrapper{Value: 300},
+					U32Wrapper{Value: 100000},
+				},
+			},
+			expected: func() jamtypes.ByteSequence {
+				// Manually construct the expected output
+				lengthPrefix := WrapU64(3).Serialize() // Length prefix: 3 elements
+				seq := append(U8Wrapper{Value: 1}.Serialize(),
+					U16Wrapper{Value: 300}.Serialize()...)
+				seq = append(seq, U32Wrapper{Value: 100000}.Serialize()...)
+
+				return append(lengthPrefix, seq...)
+			}(),
+		},
+	}
+
+	// Run each test case
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := tt.input.Serialize()
+
+			if !bytes.Equal(output, tt.expected) {
+				t.Errorf("Test %s failed. Expected: %v, Got: %v", tt.name, tt.expected, output)
+			}
+		})
+	}
+}
