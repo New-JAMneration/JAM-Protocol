@@ -471,12 +471,10 @@ type ReportGuarantee struct {
 	Signatures []ValidatorSignature `json:"signatures,omitempty"`
 }
 
-type GuaranteesExtrinsic struct {
-	Guarantees []ReportGuarantee `json:"guarantees,omitempty"`
-}
+type GuaranteesExtrinsic []ReportGuarantee
 
 func (g GuaranteesExtrinsic) Validate() error {
-	if len(g.Guarantees) > CoresCount {
+	if len(g) > CoresCount {
 		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
 	}
 	return nil
