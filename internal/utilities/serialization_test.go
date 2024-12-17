@@ -66,38 +66,161 @@ func TestSerializeU64(t *testing.T) {
 	}
 }
 
-func TestTrivialEncodings(t *testing.T) {
-	tests := []struct {
-		input any
-		want  []byte
-	}{
-		// E(∅) = []
-		{nil, []byte{}},
+func TestBitSequenceWrapper(t *testing.T) {
+	bits := jamtypes.BitSequence{true, false, true, true, false, false, false, true} // 8 bits
+	w := BitSequenceWrapper{Bits: bits, IsVariableLength: false}
+	got := w.Serialize()
 
-		// E(x∈Y) = x if x is a byte-sequence
-		{[]byte{0xDE, 0xAD}, []byte{0xDE, 0xAD}},
-		{"Hello", []byte("Hello")},
+	// Bit pattern: LSB first, bits: 1,0,1,1,0,0,0,1 = 0x9B (binary 110110011)
+	// Let's compute manually:
+	// bit0 = true => 1
+	// bit1 = false => 0
+	// bit2 = true => 1<<2=4
+	// bit3 = true => 1<<3=8
+	// bit4 = false =>0
+	// bit5 = false =>0
+	// bit6 = false =>0
+	// bit7 = true =>1<<7=128
+	// sum = 1+0+4+8+0+0+0+128 = 141 decimal = 0x8D in hex, check carefully:
+	// Actually, let's write the bits in order: bit0=1,bit1=0,bit2=1,bit3=1,bit4=0,bit5=0,bit6=0,bit7=1
+	// binary: 10001101 in binary = 0x8D indeed.
 
-		// Tuples/Sequences: E({a,b,...}) = E(a)||E(b)||...
-		{
-			[]any{[]byte("A"), []byte("B")},
-			[]byte("AB"),
-		},
-		{
-			[]any{"Hi", []byte{0x01, 0x02}, "World"},
-			append(append([]byte("Hi"), 0x01, 0x02), []byte("World")...),
-		},
-		// Sequence example (C.1.3):
-		{
-			[]any{"SeqItem1", []byte{0xAB}, "SeqItem2"},
-			append(append([]byte("SeqItem1"), 0xAB), []byte("SeqItem2")...),
+	want := []byte{0x8D}
+	if !bytes.Equal(got, want) {
+		t.Errorf("BitSequenceWrapper.Serialize() = %X, want %X", got, want)
+	}
+}
+
+func TestMapWarpper_Empty(t *testing.T) {
+	m := MapWarpper{Value: make(map[Comparable]Serializable)}
+	got := m.Serialize()
+	if len(got) != 0 {
+		t.Errorf("MapWarpper(empty).Serialize() = %X, want empty", got)
+	}
+}
+
+func TestMapWarpper_Simple(t *testing.T) {
+	// Create a dictionary:
+	// Key: StringOctets, Value: U64Wrapper
+	// Keys: "apple", "banana"
+	m := MapWarpper{
+		Value: map[Comparable]Serializable{
+			StringOctets("banana"): U64Wrapper{Value: 200},
+			StringOctets("apple"):  U64Wrapper{Value: 100},
 		},
 	}
 
+	got := m.Serialize()
+	if len(got) == 0 {
+		t.Fatal("MapWarpper.Serialize() returned empty, expected some output")
+	}
+
+	if !bytes.Contains(got, U64Wrapper{2}.Serialize()) {
+		t.Errorf("Serialized output does not contain length")
+	}
+	// We know keys will be sorted as "apple" < "banana".
+	// Discriminator: length of seq = 2 pairs
+	// Each pair = { E(k), E(v) } = { "apple", SerializeU64(100) } followed by { "banana", SerializeU64(200) }.
+	// Let's just check that "apple" appears before "banana" in the serialized output and that 100 appears before 200.
+	if !bytes.Contains(got, []byte("apple")) {
+		t.Errorf("Serialized output does not contain 'apple'")
+	}
+	if !bytes.Contains(got, []byte("banana")) {
+		t.Errorf("Serialized output does not contain 'banana'")
+	}
+
+	// Check order: 'apple' should come before 'banana'
+	idxApple := bytes.Index(got, []byte("apple"))
+	idxBanana := bytes.Index(got, []byte("banana"))
+	if idxApple == -1 || idxBanana == -1 || idxApple > idxBanana {
+		t.Errorf("'apple' should appear before 'banana' in the output")
+	}
+}
+
+func TestSetWarpper_Empty(t *testing.T) {
+	s := SetWarpper{Value: []Comparable{}}
+	got := s.Serialize()
+	if len(got) != 0 {
+		t.Errorf("SetWarpper(empty).Serialize() = %X, want empty", got)
+	}
+}
+
+func TestSetWarpper_Simple(t *testing.T) {
+	// They should be sorted alphabetically: "alice", "bob", "charlie"
+	s := SetWarpper{
+		Value: []Comparable{
+			StringOctets("charlie"),
+			StringOctets("alice"),
+			StringOctets("bob"),
+		},
+	}
+
+	got := s.Serialize()
+	if len(got) == 0 {
+		t.Fatal("SetWarpper.Serialize() returned empty, expected some output")
+	}
+
+	// Check that all elements appear
+	if !bytes.Contains(got, []byte("alice")) ||
+		!bytes.Contains(got, []byte("bob")) ||
+		!bytes.Contains(got, []byte("charlie")) {
+		t.Errorf("SetWarpper.Serialize() output missing some elements")
+	}
+
+	// Check order: 'alice' < 'bob' < 'charlie'
+	idxAlice := bytes.Index(got, []byte("alice"))
+	idxBob := bytes.Index(got, []byte("bob"))
+	idxCharlie := bytes.Index(got, []byte("charlie"))
+
+	if idxAlice == -1 || idxBob == -1 || idxCharlie == -1 {
+		t.Errorf("Some elements not found in serialized set")
+	}
+	if !(idxAlice < idxBob && idxBob < idxCharlie) {
+		t.Errorf("Elements are not in alphabetical order: got=%s", got)
+	}
+}
+
+func TestDiscriminatorSerialization(t *testing.T) {
+	// Define test cases
+	tests := []struct {
+		name     string
+		input    Discriminator
+		expected jamtypes.ByteSequence
+	}{
+		{
+			name:     "Empty Discriminator",
+			input:    Discriminator{Value: []Serializable{}},
+			expected: append(WrapU64(0).Serialize(), []byte{}...), // Length 0, no values
+		},
+		{
+			name: "Non-Empty Discriminator",
+			input: Discriminator{
+				Value: []Serializable{
+					U8Wrapper{Value: 1},
+					U16Wrapper{Value: 300},
+					U32Wrapper{Value: 100000},
+				},
+			},
+			expected: func() jamtypes.ByteSequence {
+				// Manually construct the expected output
+				lengthPrefix := WrapU64(3).Serialize() // Length prefix: 3 elements
+				seq := append(U8Wrapper{Value: 1}.Serialize(),
+					U16Wrapper{Value: 300}.Serialize()...)
+				seq = append(seq, U32Wrapper{Value: 100000}.Serialize()...)
+
+				return append(lengthPrefix, seq...)
+			}(),
+		},
+	}
+
+	// Run each test case
 	for _, tt := range tests {
-		got := Serialize(tt.input)
-		if !bytes.Equal(got, tt.want) {
-			t.Errorf("Serialize(%v) = %X, want %X", tt.input, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			output := tt.input.Serialize()
+
+			if !bytes.Equal(output, tt.expected) {
+				t.Errorf("Test %s failed. Expected: %v, Got: %v", tt.name, tt.expected, output)
+			}
+		})
 	}
 }
