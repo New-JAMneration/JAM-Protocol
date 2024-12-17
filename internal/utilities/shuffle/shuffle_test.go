@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
-	"golang.org/x/crypto/blake2b"
+	hashUtil "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // TestSerialize tests the Serialize function across various data types and values.
@@ -58,7 +58,7 @@ func TestDeserializeFixedLength(t *testing.T) {
 
 func TestBlake2bHash(t *testing.T) {
 	input := []byte{0x00, 0x01, 0x02, 0x03}
-	hash := blake2bHash(input)
+	hash := hashUtil.Blake2bHash(input)
 
 	if len(hash) != 32 {
 		t.Errorf("The length of the hash is not correct")
@@ -68,7 +68,7 @@ func TestBlake2bHash(t *testing.T) {
 // TestNumericSequenceFromHash tests the numericSequenceFromHash function.
 func TestNumericSequenceFromHash(t *testing.T) {
 	// Create a hash as randomness
-	hash := blake2bHash([]byte{0x00, 0x01, 0x02, 0x03})
+	hash := hashUtil.Blake2bHash([]byte{0x00, 0x01, 0x02, 0x03})
 
 	// The output length of the numeric sequence
 	length := jam_types.U32(10)
@@ -91,7 +91,7 @@ func TestShuffle(t *testing.T) {
 	s := []jam_types.U32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
 	// Create a hash as randomness
-	hash := blake2bHash([]byte{0x00, 0x01, 0x02, 0x03})
+	hash := hashUtil.Blake2bHash([]byte{0x00, 0x01, 0x02, 0x03})
 	shuffled := Shuffle(s, hash)
 
 	if len(shuffled) != len(s) {
@@ -112,7 +112,7 @@ func GenerateRandomHash() jam_types.OpaqueHash {
 	if err != nil {
 		panic(err)
 	}
-	return blake2b.Sum256(randomBytes)
+	return hashUtil.Blake2bHash(randomBytes)
 }
 
 func factorial(n int) int {

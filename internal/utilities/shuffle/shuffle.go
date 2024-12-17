@@ -2,7 +2,7 @@ package shuffle
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
-	"golang.org/x/crypto/blake2b"
+	hashUtil "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
@@ -32,13 +32,6 @@ func DeserializeFixedLength(data jam_types.ByteSequence) jam_types.U64 {
 	return x
 }
 
-// blake2bHash generates a hash using the BLAKE2b algorithm.
-// The output is a 32-byte hash. (jam_types.OpaqueHash)
-func blake2bHash(input []byte) jam_types.OpaqueHash {
-	hash := blake2b.Sum256(input)
-	return jam_types.OpaqueHash(hash[:])
-}
-
 // numericSequenceFromHash generates a numeric sequence from a hash.
 // The function defined in graypaper F.2 $\mathcal{Q}_l$
 func numericSequenceFromHash(hash jam_types.OpaqueHash, length jam_types.U32) []jam_types.U32 {
@@ -53,7 +46,7 @@ func numericSequenceFromHash(hash jam_types.OpaqueHash, length jam_types.U32) []
 		serializeOutput := SerializeFixedLength(jam_types.U64(floor), serializeLength)
 
 		// Concatenate the hash with the serialized output
-		hashOutput := blake2bHash(append(hash[:], serializeOutput...))
+		hashOutput := hashUtil.Blake2bHash(append(hash[:], serializeOutput...))
 
 		// Select a slice of 4 bytes from the hashOutput
 		selectRange := jam_types.U32(4)
