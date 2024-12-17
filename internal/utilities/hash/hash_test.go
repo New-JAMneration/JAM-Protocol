@@ -16,7 +16,6 @@ func TestBlake2bHash(t *testing.T) {
 	t.Logf("ouput: %t", output == hex.EncodeToString(buf))
 }
 
-
 func TestBlake2bHashPartial(t *testing.T) {
 	hash := Blake2bHashPartial([]byte("abc"), 4)
 	var buf = hash[:]
@@ -31,10 +30,9 @@ func TestKeccakHash(t *testing.T) {
 
 	hash2 := KeccakHash([]byte("test"))
 	var buf2 = hash2[:]
-	
+
 	output := "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
 	t.Logf("expected: %v", output)
 	t.Logf("ouput: %v", hex.EncodeToString(buf2))
 	t.Logf("ouput: %t", output == (hex.EncodeToString(buf2)))
 }
-
