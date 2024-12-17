@@ -82,12 +82,12 @@ type ByteArray32Wrapper struct {
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
 // It serializes a non-negative integer x into exactly l octets in little-endian order.
 // If l=0, returns an empty slice.
-func SerializeFixedLength(x jamtypes.U64, l int) jamtypes.ByteSequence {
+func SerializeFixedLength[T jamtypes.U32 | jamtypes.U64](x T, l T) jamtypes.ByteSequence {
 	if l == 0 {
 		return []byte{}
 	}
 	out := make([]byte, l)
-	for i := 0; i < l; i++ {
+	for i := T(0); i < l; i++ {
 		out[i] = byte(x & 0xFF)
 		x >>= 8
 	}
@@ -116,7 +116,7 @@ func SerializeU64(x jamtypes.U64) jamtypes.ByteSequence {
 			// prefix = 2^8 - 2^(8-l) + floor(x / 2^(8*l))
 			prefix := byte((256 - (1 << (8 - l64))) + floor)
 
-			return append([]byte{prefix}, SerializeFixedLength(remainder, l)...)
+			return append([]byte{prefix}, SerializeFixedLength(remainder, jamtypes.U64(l))...)
 		}
 	}
 
