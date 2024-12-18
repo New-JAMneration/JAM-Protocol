@@ -3,10 +3,9 @@ package merklization
 import (
 	"errors"
 
-	"golang.org/x/crypto/blake2b"
-
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 const NODE_SIZE = 512
@@ -98,7 +97,7 @@ func regularLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes.
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)
 	encoding = append(encoding, bytesToBits(key[:])[:248]...)
-	valueHash := blake2b.Sum256(value)
+	valueHash := hash.Blake2bHash(value)
 	encoding = append(encoding, bytesToBits(valueHash[:])...)
 
 	return encoding
