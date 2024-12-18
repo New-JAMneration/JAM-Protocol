@@ -1,38 +1,88 @@
 package hash
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
+
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
+// TestBlake2bHash tests the Blake2bHash function.
+// We use the test examples from polkadot-js/common to ensure the correctness of
+// our algorithms
 func TestBlake2bHash(t *testing.T) {
+	hash := Blake2bHash(jamTypes.ByteSequence("abc"))
 
-	hash := Blake2bHash([]byte("abc"))
-	var buf = hash[:]
+	// Expected hash in opaque hash format
+	excpected := jamTypes.OpaqueHash{189, 221, 129, 60, 99, 66, 57, 114, 49, 113, 239, 63, 238, 152, 87, 155, 148, 150, 78, 59, 177, 203, 62, 66, 114, 98, 200, 192, 104, 213, 35, 25}
 
-	output := "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
-	t.Logf("ouput: %v", hex.EncodeToString(buf))
-	t.Logf("expected: %v", output)
-	t.Logf("ouput: %t", output == hex.EncodeToString(buf))
+	if !bytes.Equal(hash[:], excpected[:]) {
+		t.Errorf("Expected: %v, got: %v", excpected, hash)
+	}
+
+	// Expected hash in hex format
+	expectedHex := "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
+
+	if hex.EncodeToString(hash[:]) != expectedHex {
+		t.Errorf("Expected: %v, got: %v", expectedHex, hex.EncodeToString(hash[:]))
+	}
 }
 
+// TestBlake2bHashPartial tests the Blake2bHashPartial function.
+// We use the test examples from polkadot-js/common to ensure the correctness of
+// our algorithms
 func TestBlake2bHashPartial(t *testing.T) {
-	hash := Blake2bHashPartial([]byte("abc"), 4)
-	var buf = hash[:]
+	input := jamTypes.ByteSequence("abc")
+	partialHash := Blake2bHashPartial(input, 4)
 
-	output := "bddd813c"
-	t.Logf("ouput: %v", hex.EncodeToString(buf))
-	t.Logf("expected: %v", output)
-	t.Logf("ouput: %t", output == hex.EncodeToString(buf))
+	// Expected hash in opaque hash format
+	excpected := jamTypes.ByteSequence{189, 221, 129, 60}
+
+	if !bytes.Equal(partialHash[:], excpected[:]) {
+		t.Errorf("Expected: %v, got: %v", excpected, partialHash)
+	}
+
+	// Expected hash in hex format
+	expectedHex := "bddd813c"
+
+	if hex.EncodeToString(partialHash[:]) != expectedHex {
+		t.Errorf("Expected: %v, got: %v", expectedHex, hex.EncodeToString(partialHash[:]))
+	}
 }
 
+// TestKeccakHash tests the KeccakHash function.
+// We use the test examples from polkadot-js/common to ensure the correctness of
+// our algorithms
 func TestKeccakHash(t *testing.T) {
+	testCases := []struct {
+		input       jamTypes.ByteSequence
+		expected    jamTypes.OpaqueHash
+		expectedHex string
+	}{
+		{
+			jamTypes.ByteSequence("test"), jamTypes.OpaqueHash{
+				156, 34, 255, 95, 33, 240, 184, 27, 17, 62, 99, 247, 219, 109, 169, 79,
+				237, 239, 17, 178, 17, 155, 64, 136, 184, 150, 100, 251, 154, 60, 182, 88,
+			}, "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658",
+		},
+		{
+			jamTypes.ByteSequence("test value"), jamTypes.OpaqueHash{
+				45, 7, 54, 75, 92, 35, 28, 86, 206, 99, 212, 148, 48, 224, 133, 234,
+				48, 51, 199, 80, 104, 139, 165, 50, 178, 64, 41, 18, 76, 38, 202, 94,
+			}, "2d07364b5c231c56ce63d49430e085ea3033c750688ba532b24029124c26ca5e",
+		},
+	}
 
-	hash2 := KeccakHash([]byte("test"))
-	var buf2 = hash2[:]
+	for _, tc := range testCases {
+		hash := KeccakHash(tc.input)
 
-	output := "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
-	t.Logf("expected: %v", output)
-	t.Logf("ouput: %v", hex.EncodeToString(buf2))
-	t.Logf("ouput: %t", output == (hex.EncodeToString(buf2)))
+		if !bytes.Equal(hash[:], tc.expected[:]) {
+			t.Errorf("Expected: %v, got: %v", tc.expected, hash)
+		}
+
+		if hex.EncodeToString(hash[:]) != tc.expectedHex {
+			t.Errorf("Expected: %v, got: %v", tc.expectedHex, hex.EncodeToString(hash[:]))
+		}
+	}
 }
