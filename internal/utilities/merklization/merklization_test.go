@@ -7,7 +7,7 @@ import (
 
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"golang.org/x/crypto/blake2b"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestBytesToBits(t *testing.T) {
@@ -84,7 +84,7 @@ func TestBranchEncoding(t *testing.T) {
 		right jamTypes.OpaqueHash
 	}{
 		{jamTypes.OpaqueHash{}, jamTypes.OpaqueHash{}},
-		{blake2b.Sum256([]byte("left")), blake2b.Sum256([]byte("right"))},
+		{hash.Blake2bHash([]byte("left")), hash.Blake2bHash([]byte("right"))},
 	}
 
 	for _, tc := range testCases {
@@ -126,8 +126,8 @@ func TestEmbeddedValueLeaf(t *testing.T) {
 		value jamTypes.ByteSequence
 	}{
 		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{blake2b.Sum256([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
-		{blake2b.Sum256([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
 	}
 
 	for _, tc := range testCases {
@@ -183,11 +183,11 @@ func TestRegularLeaf(t *testing.T) {
 		value jamTypes.ByteSequence
 	}{
 		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{blake2b.Sum256([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 			17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		}},
-		{blake2b.Sum256([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		}},
@@ -224,7 +224,7 @@ func TestRegularLeaf(t *testing.T) {
 		}
 
 		// Check the hash value bits
-		valueHash := blake2b.Sum256(tc.value)
+		valueHash := hash.Blake2bHash(tc.value)
 		valueHashBits := bytesToBits(valueHash[:])
 		if !reflect.DeepEqual(actual[256:512], valueHashBits) {
 			t.Errorf("Expected %v, got %v", valueHashBits, actual[256:512])
@@ -238,13 +238,13 @@ func TestLeafEncoding(t *testing.T) {
 		value jamTypes.ByteSequence
 	}{
 		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{blake2b.Sum256([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
-		{blake2b.Sum256([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
-		{blake2b.Sum256([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
+		{hash.Blake2bHash([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 			17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		}},
-		{blake2b.Sum256([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		}},
