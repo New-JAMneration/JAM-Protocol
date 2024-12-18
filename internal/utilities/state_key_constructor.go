@@ -29,7 +29,7 @@ func (w U8SignatureWrapper) StateKeyConstruct() (output jamTypes.ByteArray32) {
 	output[0] = byte(w.Value)
 	Serialized := SerializeFixedLength(w.Signature, 4)
 	for i := 0; i < 4; i++ {
-		output[2*i+1] = Serialized[0]
+		output[2*i+1] = Serialized[i]
 	}
 	return output
 }
