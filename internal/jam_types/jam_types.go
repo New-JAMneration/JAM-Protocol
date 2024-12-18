@@ -466,7 +466,7 @@ type ValidatorSignature struct {
 }
 
 func (v ValidatorSignature) Validate() error {
-	if v.ValidatorIndex >= ValidatorIndex(ValidatorsCount) {
+	if int(v.ValidatorIndex) >= ValidatorsCount {
 		return fmt.Errorf("ValidatorIndex %d must be less than %d", v.ValidatorIndex, ValidatorsCount)
 	}
 	return nil
