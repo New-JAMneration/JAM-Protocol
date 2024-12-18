@@ -15,7 +15,7 @@ type U32 uint32
 
 type U64 uint64
 type ByteSequence []byte
-type ByteArray32 [32]byte
+type ByteArray32 []byte
 
 type BitSequence []bool
 

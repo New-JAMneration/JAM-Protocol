@@ -44,8 +44,8 @@ func InitScaleRegistry() {
 
 		// Service
 
-		"service_id": types.NewU32,
-		"serviceInfo": func() types.IType {
+		"serviceid": types.NewU32,
+		"serviceinfo": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "code_hash", Type: "opaquehash"},
 				{Name: "balance", Type: "u64"},
@@ -139,7 +139,7 @@ func InitScaleRegistry() {
 			maps := []types.TypeMap{
 				{Name: "service_id", Type: "serviceid"},
 				{Name: "code_hash", Type: "opaquehash"},
-				{Name: "payload_hash", Type: "payloadhash"},
+				{Name: "payload_hash", Type: "opaquehash"},
 				{Name: "accumulate_gas", Type: "gas"},
 				{Name: "result", Type: "workexecresult"},
 			}

@@ -3,14 +3,14 @@ package types
 import (
 	"errors"
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 )
 
 type Enum struct {
 	typeMapping map[int]TypeMap
 }
 
-func (e *Enum) Process(s *scale.Bytes) (interface{}, error) {
+func (e *Enum) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	b, err := s.GetNextBytes(1)
 	if err != nil {
 		return nil, err

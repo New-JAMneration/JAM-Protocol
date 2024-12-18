@@ -39,7 +39,7 @@ func GetType(typeString string) (IType, error) {
 		return f(), nil
 	}
 
-	return nil, fmt.Errorf("type not found")
+	return nil, fmt.Errorf("type not found, typeString: %s", typeString)
 }
 
 func RegisterType(m map[string]func() IType) {
