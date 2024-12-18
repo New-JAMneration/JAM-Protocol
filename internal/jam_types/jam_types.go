@@ -465,9 +465,9 @@ type ValidatorSignature struct {
 	Signature      Ed25519Signature `json:"signature,omitempty"`
 }
 
-func (v ValidatorSignature) Validate(validatorsCount int) error {
-	if int(v.ValidatorIndex) >= validatorsCount {
-		return fmt.Errorf("ValidatorIndex %d must be less than %d", v.ValidatorIndex, validatorsCount)
+func (v ValidatorSignature) Validate() error {
+	if v.ValidatorIndex >= ValidatorIndex(ValidatorsCount) {
+		return fmt.Errorf("ValidatorIndex %d must be less than %d", v.ValidatorIndex, ValidatorsCount)
 	}
 	return nil
 }
@@ -478,12 +478,12 @@ type ReportGuarantee struct {
 	Signatures []ValidatorSignature `json:"signatures,omitempty"`
 }
 
-func (r ReportGuarantee) Validate(validatorsCount int) error {
-	if len(r.Signatures) < 2 || len(r.Signatures) > 3 {
+func (r ReportGuarantee) Validate() error {
+	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
 		return errors.New("signatures length must be between 2 and 3")
 	}
 	for i, sig := range r.Signatures {
-		if err := sig.Validate(validatorsCount); err != nil {
+		if err := sig.Validate(); err != nil {
 			return fmt.Errorf("signature %d validation failed: %w", i, err)
 		}
 	}
