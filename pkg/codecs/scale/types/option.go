@@ -1,14 +1,12 @@
 package types
 
-import (
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
-)
+import "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 
 type Option struct {
 	subType string
 }
 
-func (o *Option) Process(s *scale.Bytes) (interface{}, error) {
+func (o *Option) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	optionByte, err := s.GetNextBytes(1)
 	if err != nil {
 		return nil, err

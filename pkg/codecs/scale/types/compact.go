@@ -1,10 +1,9 @@
 package types
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	bytes2 "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 	"math"
 )
 
@@ -13,17 +12,13 @@ type Compact struct {
 	CompactBytes  []byte
 }
 
-func (c *Compact) ProcessCompactBytes(s *scale.Bytes) (int, error) {
+func (c *Compact) ProcessCompactBytes(s *bytes2.Bytes) (int, error) {
 	data, err := s.GetNextBytes(1)
 	if err != nil {
 		return 0, err
 	}
 
-	reader := bytes.NewReader(data)
-	b, err := reader.ReadByte()
-	if err != nil {
-		return 0, errors.New("failed to read byte")
-	}
+	b := data[0]
 
 	var v int
 
@@ -31,12 +26,7 @@ func (c *Compact) ProcessCompactBytes(s *scale.Bytes) (int, error) {
 	case b == 0:
 		v = 0
 	case b == 0xff:
-		// Read 8 bytes in little endian mode
-		buf := make([]byte, 8)
-		if _, err := reader.Read(buf); err != nil {
-			return 0, errors.New("failed to read remaining bytes for 0xff case")
-		}
-		v = int(binary.LittleEndian.Uint64(buf))
+		v = int(binary.LittleEndian.Uint64(data))
 	default:
 		// Find the first zero bit from the left
 		length := 0
@@ -47,21 +37,25 @@ func (c *Compact) ProcessCompactBytes(s *scale.Bytes) (int, error) {
 			}
 		}
 
-		// Get subsequent bytes
-		buf := make([]byte, length)
-		if _, err := reader.Read(buf); err != nil {
-			return 0, errors.New("failed to read remaining bytes")
+		// Get subsequent scale_bytes
+		buf, nErr := s.GetNextBytes(length)
+		if nErr != nil {
+			return 0, errors.New("failed to read length of compact_bytes")
 		}
 
 		// Calculate remaining part (`rem`) and combine to get final value
 		rem := int(b & ((1 << (7 - length)) - 1))
-		v = int(binary.LittleEndian.Uint64(buf)) + (rem << (8 * length))
+		if len(buf) == 0 {
+			v = rem << (8 * length)
+		} else {
+			v = int(binary.LittleEndian.Uint64(buf)) + (rem << (8 * length))
+		}
 	}
 
 	return v, nil
 }
 
-func (c *Compact) Process(s *scale.Bytes) (interface{}, error) {
+func (c *Compact) Process(s *bytes2.Bytes) (interface{}, error) {
 	return c.ProcessCompactBytes(s)
 }
 

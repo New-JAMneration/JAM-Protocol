@@ -1,8 +1,6 @@
 package types
 
-import (
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
-)
+import "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 
 type TypeMap struct {
 	Name string
@@ -10,6 +8,6 @@ type TypeMap struct {
 }
 
 type IType interface {
-	Process(s *scale.Bytes) (interface{}, error)
+	Process(s *scale_bytes.Bytes) (interface{}, error)
 	ProcessEncode(value interface{}) ([]byte, error)
 }

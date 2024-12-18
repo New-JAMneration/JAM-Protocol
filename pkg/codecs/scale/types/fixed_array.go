@@ -3,8 +3,7 @@ package types
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 	"reflect"
 	"strings"
 )
@@ -14,7 +13,7 @@ type FixedArray struct {
 	subType      string
 }
 
-func (f *FixedArray) Process(s *scale.Bytes) (interface{}, error) {
+func (f *FixedArray) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	if f.elementCount == 0 {
 		return nil, nil
 	}
@@ -24,7 +23,7 @@ func (f *FixedArray) Process(s *scale.Bytes) (interface{}, error) {
 		if gErr != nil {
 			return nil, gErr
 		}
-		return fmt.Sprintf("0x%s", hex.EncodeToString(nextBytes)), nil
+		return nextBytes, nil
 	}
 
 	var result []interface{}
@@ -70,7 +69,7 @@ func (f *FixedArray) ProcessEncode(value interface{}) ([]byte, error) {
 				}
 			}
 		default:
-			return nil, errors.New("unsupported value type for bytes conversion")
+			return nil, errors.New("unsupported value type for scale_bytes conversion")
 		}
 
 		return data, nil

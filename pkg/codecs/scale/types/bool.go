@@ -2,13 +2,13 @@ package types
 
 import (
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 )
 
 type Bool struct {
 }
 
-func (b *Bool) Process(s *scale.Bytes) (interface{}, error) {
+func (b *Bool) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	data, err := s.GetNextBool()
 	if err != nil {
 		return 0, err

@@ -1,4 +1,4 @@
-package scale
+package scale_bytes
 
 import (
 	"encoding/hex"
@@ -13,7 +13,7 @@ type Bytes struct {
 
 func (s *Bytes) GetNextBytes(length int) ([]byte, error) {
 	if s.offset+length > len(s.data) {
-		return nil, errors.New("not enough bytes remaining")
+		return nil, errors.New("not enough scale_bytes remaining")
 	}
 	data := s.data[s.offset : s.offset+length]
 	s.offset += length

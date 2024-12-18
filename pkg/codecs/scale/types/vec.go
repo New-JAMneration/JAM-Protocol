@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 	"reflect"
 	"strings"
 )
@@ -12,7 +12,7 @@ type Vec struct {
 	subType string
 }
 
-func (v *Vec) Process(s *scale.Bytes) (interface{}, error) {
+func (v *Vec) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	compactU32 := NewCompactU32()
 	elementCount, err := compactU32.Process(s)
 	if err != nil {
@@ -59,7 +59,7 @@ func (v *Vec) ProcessEncode(value interface{}) ([]byte, error) {
 				}
 			}
 		default:
-			return nil, errors.New("unsupported value type for bytes conversion")
+			return nil, errors.New("unsupported value type for scale_bytes conversion")
 		}
 
 		lengthEncoded, err := elementCount.ProcessEncode(len(byteArray))

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	bytes2 "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
+	"reflect"
 )
 
 type U8 struct {
 }
 
-func (u *U8) Process(s *scale.Bytes) (interface{}, error) {
+func (u *U8) Process(s *bytes2.Bytes) (interface{}, error) {
 	data, err := s.GetNextU8()
 	if err != nil {
 		return 0, err
@@ -20,7 +21,7 @@ func (u *U8) Process(s *scale.Bytes) (interface{}, error) {
 }
 
 func (u *U8) ProcessEncode(value interface{}) ([]byte, error) {
-	u8, ok := value.(uint8)
+	u8, ok := u.getUint8(value)
 	if !ok {
 		return nil, errors.New("value is not uint8")
 	}
@@ -36,6 +37,19 @@ func (u *U8) ProcessEncode(value interface{}) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (u *U8) getUint8(val interface{}) (uint8, bool) {
+	v := reflect.ValueOf(val)
+	if !v.IsValid() {
+		return 0, false
+	}
+
+	if v.Kind() == reflect.Uint8 {
+		return uint8(v.Uint()), true
+	}
+
+	return 0, false
 }
 
 func NewU8() IType {
