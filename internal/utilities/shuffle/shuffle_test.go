@@ -58,9 +58,8 @@ func TestDeserializeFixedLength(t *testing.T) {
 
 func TestBlake2bHash(t *testing.T) {
 	input := []byte{0x00, 0x01, 0x02, 0x03}
-	hash := hashUtil.Blake2bHash(input)
 
-	if len(hash) != 32 {
+	if len(hashUtil.Blake2bHash(input)) != 32 {
 		t.Errorf("The length of the hash is not correct")
 	}
 }
@@ -148,6 +147,7 @@ func printStatisicTable(original []jam_types.U32, counts map[string]int, iterati
 func TestShuffleRandomness(t *testing.T) {
 	const iterations = 10000
 	const tolerancePercentage = 5
+	const debugMode = false
 
 	counts := make(map[string]int)
 	original := []jam_types.U32{1, 2, 3}
@@ -162,7 +162,9 @@ func TestShuffleRandomness(t *testing.T) {
 	expectedCount := iterations / len(counts)
 	tolerance := expectedCount * tolerancePercentage / 100
 
-	// printStatisicTable(original, counts, iterations, tolerancePercentage)
+	if debugMode {
+		printStatisicTable(original, counts, iterations, tolerancePercentage)
+	}
 
 	// Check the number of unique permutations
 	if len(counts) != factorial(len(original)) {
