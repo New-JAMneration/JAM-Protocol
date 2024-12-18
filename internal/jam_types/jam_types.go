@@ -1,3 +1,6 @@
+// Reminder: When using jam_types, check if a Validate function exists.  
+// If a Validate function is available, remember to use it.  
+// If the desired Validate function is not found, please implement one yourself. :)
 package jam_types
 
 import (
