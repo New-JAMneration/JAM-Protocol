@@ -344,7 +344,7 @@ func InitScaleRegistry() {
 			}
 			return types.NewStruct(maps)
 		},
-		"ticketsmark":   func() types.IType { return types.NewFixedArray(EpochLength, "TicketBody") },
+		"ticketsmark":   func() types.IType { return types.NewFixedArray(EpochLength, "ticketbody") },
 		"offendersmark": func() types.IType { return types.NewVec("ed25519public") },
 		"header": func() types.IType {
 			maps := []types.TypeMap{
