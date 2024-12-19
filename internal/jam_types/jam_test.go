@@ -365,3 +365,30 @@ func TestWorkReport(t *testing.T) {
 		t.Error("Encode failed")
 	}
 }
+
+func TestBlock(t *testing.T) {
+	InitScaleRegistry()
+
+	data, err := readFile("./test_data/block.bin")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	p := &Block{}
+
+	if err := p.ScaleDecode(data); err != nil {
+		t.Error(err)
+		return
+	}
+
+	encode, err := p.ScaleEncode()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if !bytes.Equal(encode, data) {
+		t.Error("Encode failed")
+	}
+}
