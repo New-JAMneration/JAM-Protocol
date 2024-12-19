@@ -5,6 +5,12 @@ import (
 	hashUtil "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
+// H: Calculates the hash of a given string.
+func H(s string) int {
+	// ... implementation of hash function ...
+	return 0 // Replace with actual hash calculation
+}
+
 // N: Calculates the Merkle root from integers.
 func N(v []jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
 	if len(v) == 0 {
