@@ -1,0 +1,17 @@
+{
+  "log": {
+    "level": "debug"
+  },
+  "const": {
+    "validators_count": 6,
+    "cores_count": 2,
+    "epoch_length": 12,
+    "max_tickets_per_block": 3,
+    "tickets_per_validator": 3,
+    "max_blocks_history": 8,
+    "auth_pool_max_size": 8,
+    "auth_queue_size": 80,
+    "validators_super_majority": 5,
+    "avail_bitfield_bytes": 1
+  }
+}
