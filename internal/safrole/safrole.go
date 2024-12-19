@@ -1,6 +1,10 @@
 package safrole
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+)
 
 // basic types
 type U8 uint8
@@ -17,18 +21,18 @@ type BandersnatchKey ByteArray32
 
 type EpochKeys []BandersnatchKey
 
-func (e EpochKeys) Validate(config Config) error {
-	if len(e) != config.EpochLength {
-		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", config.EpochLength, len(e))
+func (e EpochKeys) Validate() error {
+	if len(e) != jam_types.EpochLength {
+		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", jam_types.EpochLength, len(e))
 	}
 	return nil
 }
 
 type TicketsBodies []TicketBody
 
-func (t TicketsBodies) Validate(config Config) error {
-	if len(t) != config.EpochLength {
-		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", config.EpochLength, len(t))
+func (t TicketsBodies) Validate() error {
+	if len(t) != jam_types.EpochLength {
+		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", jam_types.EpochLength, len(t))
 	}
 	return nil
 }
@@ -54,9 +58,9 @@ type ValidatorData struct {
 
 type ValidatorsData []ValidatorData
 
-func (v ValidatorsData) Validate(config Config) error {
-	if len(v) != config.ValidatorsCount {
-		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", config.ValidatorsCount, len(v))
+func (v ValidatorsData) Validate() error {
+	if len(v) != jam_types.ValidatorsCount {
+		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", jam_types.ValidatorsCount, len(v))
 	}
 	return nil
 }
@@ -71,18 +75,18 @@ type EpochMark struct {
 	Validators []BandersnatchKey `json:"validators"`
 }
 
-func (e *EpochMark) Validate(config Config) error {
-	if len(e.Validators) != config.ValidatorsCount {
-		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", config.ValidatorsCount, len(e.Validators))
+func (e *EpochMark) Validate() error {
+	if len(e.Validators) != jam_types.ValidatorsCount {
+		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", jam_types.ValidatorsCount, len(e.Validators))
 	}
 	return nil
 }
 
 type TicketsMark []TicketBody
 
-func (t TicketsMark) Validate(config Config) error {
-	if len(t) != config.EpochLength {
-		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", config.EpochLength, len(t))
+func (t TicketsMark) Validate() error {
+	if len(t) != jam_types.EpochLength {
+		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", jam_types.EpochLength, len(t))
 	}
 	return nil
 }
