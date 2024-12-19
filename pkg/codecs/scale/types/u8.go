@@ -12,11 +12,7 @@ type U8 struct {
 }
 
 func (u *U8) Process(s *bytes2.Bytes) (interface{}, error) {
-	data, err := s.GetNextU8()
-	if err != nil {
-		return 0, err
-	}
-
+	data := s.GetNextU8()
 	return data, nil
 }
 

@@ -19,10 +19,7 @@ func (f *FixedArray) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	}
 
 	if strings.ToLower(f.subType) == "u8" {
-		nextBytes, gErr := s.GetNextBytes(f.elementCount)
-		if gErr != nil {
-			return nil, gErr
-		}
+		nextBytes := s.GetNextBytes(f.elementCount)
 		return nextBytes, nil
 	}
 

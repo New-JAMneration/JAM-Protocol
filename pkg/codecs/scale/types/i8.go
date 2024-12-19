@@ -10,10 +10,7 @@ type I8 struct {
 }
 
 func (i *I8) Process(s *scale_bytes.Bytes) (interface{}, error) {
-	data, err := s.GetNextBytes(1)
-	if err != nil {
-		return 0, err
-	}
+	data := s.GetNextBytes(1)
 
 	return int8(data[0]), nil
 }

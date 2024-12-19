@@ -18,6 +18,7 @@ func InitScaleRegistry() {
 
 		// Application Specific Core
 		"timeslot":          types.NewU32,
+		"epochindex":        types.NewU32,
 		"validatorindex":    types.NewU16,
 		"coreindex":         types.NewU16,
 		"headerhash":        NewOpaqueHash,
@@ -102,7 +103,7 @@ func InitScaleRegistry() {
 			}
 			return types.NewStruct(maps)
 		},
-		"workeritem": func() types.IType {
+		"workitem": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "service", Type: "serviceid"},
 				{Name: "code_hash", Type: "opaquehash"},
@@ -155,21 +156,24 @@ func InitScaleRegistry() {
 			}
 			return types.NewStruct(maps)
 		},
+		"segmenttreeroot": NewOpaqueHash,
 		"segmentrootlookupitem": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "work_package_hash", Type: "workpackagehash"},
-				{Name: "segment_tree_root", Type: "opaquehash"},
+				{Name: "segment_tree_root", Type: "segmenttreeroot"},
 			}
 			return types.NewStruct(maps)
 		},
+		"segmentrootlookups": func() types.IType { return types.NewVec("segmentrootlookupitem") },
+		"authorizeroutput":   types.NewHexBytes,
 		"workreport": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "package_spec", Type: "workpackagespec"},
 				{Name: "context", Type: "refinecontext"},
 				{Name: "core_index", Type: "coreindex"},
 				{Name: "authorizer_hash", Type: "opaquehash"},
-				{Name: "auth_output", Type: "bytesequence"},
-				{Name: "segmentrootlookup", Type: "segmentrootlookup"},
+				{Name: "auth_output", Type: "authorizeroutput"},
+				{Name: "segment_root_lookup", Type: "segmentrootlookups"},
 				{Name: "results", Type: "vec<workresult>"},
 			}
 			return types.NewStruct(maps)
@@ -205,7 +209,7 @@ func InitScaleRegistry() {
 		"ticketattempt": types.NewU8,
 		"ticketenvelope": func() types.IType {
 			maps := []types.TypeMap{
-				{Name: "attempt", Type: "attempt"},
+				{Name: "attempt", Type: "ticketattempt"},
 				{Name: "signature", Type: "bandersnatchringvrfsignature"},
 			}
 			return types.NewStruct(maps)
@@ -217,7 +221,7 @@ func InitScaleRegistry() {
 			}
 			return types.NewStruct(maps)
 		},
-		"TicketsBodies": func() types.IType { return types.NewFixedArray(EpochLength, "ticketbody") },
+		"ticketsbodies": func() types.IType { return types.NewFixedArray(EpochLength, "ticketbody") },
 		"epochkeys":     func() types.IType { return types.NewFixedArray(EpochLength, "bandersnatchpublic") },
 		"ticketsorkeys": func() types.IType {
 			m := map[int]types.TypeMap{
@@ -226,6 +230,7 @@ func InitScaleRegistry() {
 			}
 			return types.NewEnum(m)
 		},
+		"ticketsextrinsic": func() types.IType { return types.NewVec("ticketenvelope") },
 
 		// Disputes
 		"judgement": func() types.IType {
@@ -239,9 +244,9 @@ func InitScaleRegistry() {
 		"Judgements": func() types.IType { return types.NewFixedArray(ValidatorsSuperMajority, "judgement") },
 		"verdict": func() types.IType {
 			maps := []types.TypeMap{
-				{Name: "target", Type: "opaquehash"},
-				{Name: "age", Type: "u32"},
-				{Name: "votes", Type: "ed25519signature"},
+				{Name: "target", Type: "workreporthash"},
+				{Name: "age", Type: "epochindex"},
+				{Name: "votes", Type: "judgements"},
 			}
 			return types.NewStruct(maps)
 		},
@@ -256,7 +261,7 @@ func InitScaleRegistry() {
 		"fault": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "target", Type: "workreporthash"},
-				{Name: "votes", Type: "bool"},
+				{Name: "vote", Type: "bool"},
 				{Name: "key", Type: "ed25519public"},
 				{Name: "signature", Type: "ed25519signature"},
 			}
@@ -294,7 +299,7 @@ func InitScaleRegistry() {
 		"bitfield": func() types.IType { return types.NewFixedArray(AvailBitfieldBytes, "u8") },
 		"availassurance": func() types.IType {
 			maps := []types.TypeMap{
-				{Name: "anchor", Type: "OpaqueHash"},
+				{Name: "anchor", Type: "opaquehash"},
 				{Name: "bitfield", Type: "bitfield"},
 				{Name: "validator_index", Type: "validatorindex"},
 				{Name: "signature", Type: "ed25519signature"},
@@ -311,15 +316,23 @@ func InitScaleRegistry() {
 			}
 			return types.NewStruct(maps)
 		},
-		"reportguarantee": func() types.IType {
+		"guaranteesignature": func() types.IType {
 			maps := []types.TypeMap{
-				{Name: "Report", Type: "workreport"},
-				{Name: "slot", Type: "timeslot"},
-				{Name: "signatures", Type: "vec<validatorsignature>"},
+				{Name: "validator_index", Type: "validatorindex"},
+				{Name: "signature", Type: "ed25519signature"},
 			}
 			return types.NewStruct(maps)
 		},
-		"guaranteesextrinsic": func() types.IType { return types.NewFixedArray(CoresCount, "reportguarantee") },
+		"guaranteesignatures": func() types.IType { return types.NewVec("guaranteesignature") },
+		"reportguarantee": func() types.IType {
+			maps := []types.TypeMap{
+				{Name: "report", Type: "workreport"},
+				{Name: "slot", Type: "timeslot"},
+				{Name: "signatures", Type: "guaranteesignatures"},
+			}
+			return types.NewStruct(maps)
+		},
+		"guaranteesextrinsic": func() types.IType { return types.NewVec("reportguarantee") },
 
 		// Header
 		"validators": func() types.IType { return types.NewFixedArray(ValidatorsCount, "bandersnatchpublic") },
@@ -336,13 +349,12 @@ func InitScaleRegistry() {
 		"header": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "parent", Type: "headerhash"},
-				{Name: "tickets_entropy", Type: "entropy"},
 				{Name: "parent_state_root", Type: "stateroot"},
 				{Name: "extrinsic_hash", Type: "opaquehash"},
 				{Name: "slot", Type: "timeslot"},
 				{Name: "epoch_mark", Type: "option<epochmark>"},
 				{Name: "tickets_mark", Type: "option<ticketsmark>"},
-				{Name: "offendersmark", Type: "offendersmark"},
+				{Name: "offenders_mark", Type: "offendersmark"},
 				{Name: "author_index", Type: "validatorindex"},
 				{Name: "entropy_source", Type: "bandersnatchvrfsignature"},
 				{Name: "seal", Type: "bandersnatchvrfsignature"},

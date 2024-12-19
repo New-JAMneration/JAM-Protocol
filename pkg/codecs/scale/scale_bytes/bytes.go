@@ -11,28 +11,24 @@ type Bytes struct {
 	offset int
 }
 
-func (s *Bytes) GetNextBytes(length int) ([]byte, error) {
+func (s *Bytes) GetNextBytes(length int) []byte {
 	if s.offset+length > len(s.data) {
-		return nil, errors.New("not enough scale_bytes remaining")
+		data := s.data[s.offset:]
+		s.offset = len(s.data)
+		return data
 	}
 	data := s.data[s.offset : s.offset+length]
 	s.offset += length
-	return data, nil
+	return data
 }
 
-func (s *Bytes) GetNextU8() (uint8, error) {
-	data, err := s.GetNextBytes(1)
-	if err != nil {
-		return 0, err
-	}
-	return data[0], nil
+func (s *Bytes) GetNextU8() uint8 {
+	data := s.GetNextBytes(1)
+	return data[0]
 }
 
 func (s *Bytes) GetNextBool() (bool, error) {
-	byteValue, err := s.GetNextU8()
-	if err != nil {
-		return false, fmt.Errorf("failed to read byte for boolean: %w", err)
-	}
+	byteValue := s.GetNextU8()
 
 	if byteValue == 0 {
 		return false, nil
