@@ -15,10 +15,7 @@ func (i *HexBytes) Process(s *scale_bytes.Bytes) (interface{}, error) {
 		return nil, err
 	}
 
-	nextBytes, gErr := s.GetNextBytes(elementCount.(int))
-	if gErr != nil {
-		return nil, gErr
-	}
+	nextBytes := s.GetNextBytes(int(elementCount.(uint64)))
 
 	return nextBytes, nil
 }

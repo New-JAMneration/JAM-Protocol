@@ -20,11 +20,17 @@ func (v *Vec) Process(s *scale_bytes.Bytes) (interface{}, error) {
 	}
 
 	var results []interface{}
-	for i := 0; i < elementCount.(int); i++ {
-		result, gErr := GetType(v.subType)
+	for i := 0; i < int(elementCount.(uint64)); i++ {
+		t, gErr := GetType(v.subType)
 		if gErr != nil {
 			return nil, gErr
 		}
+
+		result, pErr := t.Process(s)
+		if pErr != nil {
+			return nil, pErr
+		}
+
 		results = append(results, result)
 	}
 

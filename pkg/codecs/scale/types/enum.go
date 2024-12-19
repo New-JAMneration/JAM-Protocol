@@ -11,10 +11,7 @@ type Enum struct {
 }
 
 func (e *Enum) Process(s *scale_bytes.Bytes) (interface{}, error) {
-	b, err := s.GetNextBytes(1)
-	if err != nil {
-		return nil, err
-	}
+	b := s.GetNextBytes(1)
 
 	i := int(b[0])
 

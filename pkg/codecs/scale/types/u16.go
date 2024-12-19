@@ -11,11 +11,7 @@ type U16 struct {
 }
 
 func (u *U16) Process(s *scale_bytes.Bytes) (interface{}, error) {
-	data, err := s.GetNextBytes(2)
-	if err != nil {
-		return 0, err
-	}
-
+	data := s.GetNextBytes(2)
 	return binary.LittleEndian.Uint16(data), nil
 }
 

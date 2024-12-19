@@ -11,10 +11,7 @@ type I32 struct {
 }
 
 func (i *I32) Process(s *scale_bytes.Bytes) (interface{}, error) {
-	data, err := s.GetNextBytes(4)
-	if err != nil {
-		return 0, err
-	}
+	data := s.GetNextBytes(4)
 
 	uintVal := binary.LittleEndian.Uint32(data)
 	intVal := int16(uintVal)

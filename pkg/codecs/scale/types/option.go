@@ -7,10 +7,7 @@ type Option struct {
 }
 
 func (o *Option) Process(s *scale_bytes.Bytes) (interface{}, error) {
-	optionByte, err := s.GetNextBytes(1)
-	if err != nil {
-		return nil, err
-	}
+	optionByte := s.GetNextBytes(1)
 
 	if o.subType != "" && optionByte[0] != 0x00 {
 		t, gErr := GetType(o.subType)
