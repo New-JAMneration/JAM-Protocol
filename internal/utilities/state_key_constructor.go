@@ -4,39 +4,49 @@ import (
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
-// U8SignatureWrapper is a wrapper for U8 and U32
-type U8SignatureWrapper struct {
-	Value     jamTypes.U8
-	Signature jamTypes.U32
+// StateKeyConstruct is an interface
+type StateKeyConstruct interface {
+	StateKeyConstruct() (output jamTypes.OpaqueHash)
 }
 
-// U32HashWrapper is a wrapper for U32 and ByteSequence
-type U32HashWrapper struct {
-	Value jamTypes.U32
-	Hash  jamTypes.ByteSequence
+// StateWrapper is a wrapper for U8
+type StateWrapper struct {
+	StateIndex jamTypes.U8
+}
+
+// StateServiceWrapper is a wrapper for U8 and U32
+type StateServiceWrapper struct {
+	StateIndex   jamTypes.U8
+	ServiceIndex jamTypes.U32
+}
+
+// ServiceWrapper is a wrapper for U32 and OpaqueHash
+type ServiceWrapper struct {
+	ServiceIndex jamTypes.U32
+	Hash         jamTypes.OpaqueHash
 }
 
 // D.1 State-Key-Construction
 
-// StateKeyConstruct returns a StringOctets
-func (w U8Wrapper) StateKeyConstruct() (output jamTypes.ByteArray32) {
-	output[0] = byte(w.Value)
+// StateKeyConstruct returns a OpaqueHash
+func (s StateWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
+	output[0] = byte(s.StateIndex)
 	return output
 }
 
-// StateKeyConstruct returns a StringOctets
-func (w U8SignatureWrapper) StateKeyConstruct() (output jamTypes.ByteArray32) {
-	output[0] = byte(w.Value)
-	Serialized := SerializeFixedLength(w.Signature, 4)
+// StateKeyConstruct returns a OpaqueHash
+func (w StateServiceWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
+	output[0] = byte(w.StateIndex)
+	Serialized := SerializeFixedLength(w.ServiceIndex, 4)
 	for i := 0; i < 4; i++ {
 		output[2*i+1] = Serialized[i]
 	}
 	return output
 }
 
-// StateKeyConstruct returns a StringOctets
-func (w U32HashWrapper) StateKeyConstruct() (output jamTypes.ByteArray32) {
-	Serialized := SerializeFixedLength(w.Value, 4)
+// StateKeyConstruct returns a OpaqueHash
+func (w ServiceWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
+	Serialized := SerializeFixedLength(w.ServiceIndex, 4)
 	for i := 0; i < 4; i++ {
 		output[2*i] = Serialized[i]
 		output[2*i+1] = w.Hash[i]
