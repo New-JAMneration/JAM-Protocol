@@ -277,3 +277,26 @@ func TestLeafEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestBitSequenceToString(t *testing.T) {
+	testCases := []struct {
+		input    jamTypes.BitSequence
+		expected string
+	}{
+		{jamTypes.BitSequence{}, ""},
+		{jamTypes.BitSequence{false, false, false, false, false, false, false, false}, "00000000"},
+		{jamTypes.BitSequence{false, false, false, false, false, false, false, true}, "00000001"},
+		{jamTypes.BitSequence{false, false, false, false, true, false, true, false}, "00001010"},
+		{jamTypes.BitSequence{false, true, true, false, false, true, false, false}, "01100100"},
+		{jamTypes.BitSequence{true, false, false, false, false, false, false, false}, "10000000"},
+		{jamTypes.BitSequence{true, true, true, true, true, true, true, true}, "11111111"},
+	}
+
+	for _, tc := range testCases {
+		actual := bitSequenceToString(tc.input)
+
+		if actual != tc.expected {
+			t.Errorf("Expected %v, got %v", tc.expected, actual)
+		}
+	}
+}

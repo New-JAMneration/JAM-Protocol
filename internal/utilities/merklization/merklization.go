@@ -110,3 +110,80 @@ func LeafEncoding(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes
 		return regularLeaf(key, value)
 	}
 }
+
+// Convert a jamTypes.BitSequence to a string
+func bitSequenceToString(bitSequence jamTypes.BitSequence) string {
+	str := ""
+	for _, bit := range bitSequence {
+		if bit {
+			str += "1"
+		} else {
+			str += "0"
+		}
+	}
+	return str
+}
+
+// (D.2)
+// $T(\sigma)$
+// Serialized States
+type SerializedState map[jamTypes.OpaqueHash]jamTypes.ByteSequence
+
+type SerializedStateKeyValue struct {
+	key   jamTypes.OpaqueHash
+	value jamTypes.ByteSequence
+}
+
+// INFO: Convert the BitSequence to a bitstrings, because we cannot use []bool as a
+// key in a map
+type MerklizationInput map[string]SerializedStateKeyValue
+
+func Merklization(d MerklizationInput) jamTypes.OpaqueHash {
+	if len(d) == 0 {
+		// zero hash
+		return jamTypes.OpaqueHash{}
+	}
+
+	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
+	if len(d) == 1 {
+		for _, value := range d {
+			leftEncoding := LeafEncoding(value.key, value.value)
+			bytes, _ := bitsToBytes(leftEncoding)
+			return hash.Blake2bHash(bytes)
+		}
+	}
+
+	l := make(MerklizationInput)
+	r := make(MerklizationInput)
+	for key, value := range d {
+		isLeft := key[0] == '0'
+		if isLeft {
+			l[key] = value
+		}
+
+		isRight := key[0] == '1'
+		if isRight {
+			r[key] = value
+		}
+	}
+
+	branchEncoding := BranchEncoding(Merklization(l), Merklization(r))
+	bytes, _ := bitsToBytes(branchEncoding)
+	return hash.Blake2bHash(bytes)
+}
+
+// basic Merklization function
+// $M_{\sigma}(\sigma)$
+// Input: $T(\sigma)$ a dictionary, serialized states
+func MerklizationState(serializedState SerializedState) {
+	merklizationInput := make(MerklizationInput)
+
+	for stateKey, stateValue := range serializedState {
+		key := bitSequenceToString(bytesToBits(stateKey[:]))
+		value := SerializedStateKeyValue{stateKey, stateValue}
+
+		merklizationInput[key] = value
+	}
+
+	Merklization(merklizationInput)
+}
