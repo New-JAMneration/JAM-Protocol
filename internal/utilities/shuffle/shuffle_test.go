@@ -3,7 +3,12 @@ package shuffle
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
@@ -175,6 +180,60 @@ func TestShuffleRandomness(t *testing.T) {
 	for _, count := range counts {
 		if count < expectedCount-tolerance || count > expectedCount+tolerance {
 			t.Errorf("The percentage of each permutation is not in tolerance")
+		}
+	}
+}
+
+// createNumericSlice creates a numeric slice from 0 to n-1
+func createNumericSlice(n jam_types.U32) []jam_types.U32 {
+	slice := make([]jam_types.U32, n)
+	for i := jam_types.U32(0); i < n; i++ {
+		slice[i] = i
+	}
+	return slice
+}
+
+// TestShuffleWithJamTestVectors tests the Shuffle function with the test
+// vectors from jamtestvectors repository.
+// However, it's still in pull request and not merged yet.
+// https://github.com/w3f/jamtestvectors/blob/bd1247eae47bab10de1fa4be14a644b85e923024/shuffle/shuffle_tests.json
+func TestShuffleWithJamTestVectors(t *testing.T) {
+	type TestCase struct {
+		Input   jam_types.U32   `json:"input"`
+		Entropy string          `json:"entropy"`
+		Output  []jam_types.U32 `json:"output"`
+	}
+
+	// Open the JSON file
+	file, err := os.Open("shuffle_tests.json")
+	if err != nil {
+		t.Errorf("Error opening file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	// Read the file content
+	byteValue, err := io.ReadAll(file)
+	if err != nil {
+		t.Errorf("Error reading file: %v", err)
+		return
+	}
+
+	// Unmarshal the JSON data
+	var testCases []TestCase
+	err = json.Unmarshal(byteValue, &testCases)
+	if err != nil {
+		t.Errorf("Error unmarshalling JSON: %v", err)
+		return
+	}
+
+	for _, testCase := range testCases {
+		inputSequence := createNumericSlice(testCase.Input)
+		entropy, _ := hex.DecodeString(testCase.Entropy)
+		shuffled := Shuffle(inputSequence, jam_types.OpaqueHash(entropy))
+
+		if !reflect.DeepEqual(shuffled, testCase.Output) {
+			t.Errorf("The output of Shuffle is not correct")
 		}
 	}
 }
