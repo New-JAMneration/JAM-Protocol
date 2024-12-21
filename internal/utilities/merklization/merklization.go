@@ -75,7 +75,7 @@ func embeddedValueLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jam
 
 	encoding := jamTypes.BitSequence{}
 	encoding = append(encoding, prefix...)
-	encoding = append(encoding, valueSizeBits[:6]...)
+	encoding = append(encoding, valueSizeBits[2:]...)
 	encoding = append(encoding, bytesToBits(key[:])[:248]...)
 	encoding = append(encoding, bytesToBits(value)...)
 
