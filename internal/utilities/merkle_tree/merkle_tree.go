@@ -54,7 +54,7 @@ func Ps(v []jamTypes.OpaqueHash, i jamTypes.U32) []jamTypes.OpaqueHash {
 
 // PI: Determines the index of the parent node in a complete binary tree.
 func PI(v []jamTypes.OpaqueHash, i jamTypes.U32) jamTypes.U32 {
-	half := jamTypes.U32(len(v) / 2)
+	half := jamTypes.U32((len(v) + 1) / 2)
 	if i < half {
 		return 0 // Left subtree
 	} else {
@@ -89,7 +89,7 @@ func Lx(v []jamTypes.OpaqueHash, i jamTypes.U32) []jamTypes.OpaqueHash {
 
 	ret := make([]jamTypes.OpaqueHash, 0)
 	for idx := i; idx < min(i+pow2, jamTypes.U32(len(v))); idx++ {
-		ret = append(ret, hashUtil.Blake2bHash(v[i][:]))
+		ret = append(ret, hashUtil.Blake2bHash(v[idx][:]))
 	}
 	return ret
 }
