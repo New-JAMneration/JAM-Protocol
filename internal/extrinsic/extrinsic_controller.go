@@ -19,4 +19,5 @@ func NewExtrinsicController(ticketController *TicketController, preimageControll
 		GuaranteeController: guaranteeController,
 		DisputeController:   disputeController,
 		AvailAssurance:      availAssurance,
-
+	}
+}
