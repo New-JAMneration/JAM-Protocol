@@ -1,3 +1,7 @@
+// Reminder: When using jam_types, check if a Validate function exists.
+// If a Validate function is available, remember to use it.
+// If the desired Validate function is not found, please implement one yourself. :)
+
 package jam_types
 
 import (
@@ -724,6 +728,13 @@ type ValidatorSignature struct {
 	Signature      Ed25519Signature `json:"signature,omitempty"`
 }
 
+func (v ValidatorSignature) Validate() error {
+	if int(v.ValidatorIndex) >= ValidatorsCount {
+		return fmt.Errorf("ValidatorIndex %d must be less than %d", v.ValidatorIndex, ValidatorsCount)
+	}
+	return nil
+}
+
 type ReportGuarantee struct {
 	Report     WorkReport           `json:"report"`
 	Slot       TimeSlot             `json:"slot,omitempty"`
@@ -731,6 +742,18 @@ type ReportGuarantee struct {
 }
 
 type GuaranteesExtrinsic []ReportGuarantee
+
+func (r ReportGuarantee) Validate() error {
+	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
+		return errors.New("signatures length must be between 2 and 3")
+	}
+	for i, sig := range r.Signatures {
+		if err := sig.Validate(); err != nil {
+			return fmt.Errorf("signature %d validation failed: %w", i, err)
+		}
+	}
+	return nil
+}
 
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
