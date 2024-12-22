@@ -1,132 +1,94 @@
 package safrole
 
 import (
-	"fmt"
+	"slices"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
-// basic types
-type U8 uint8
+// R function return the epoch and slot index
+// Equation (6.2)
+// !Warning : epoch datatype is undefined in jamtypes and is uncertain
+func R(time jamTypes.TimeSlot) (epoch jamTypes.TimeSlot, slotIndex jamTypes.TimeSlot) {
+	epoch = time / jamTypes.TimeSlot(jamTypes.EpochLength)
+	slotIndex = time % jamTypes.TimeSlot(jamTypes.EpochLength)
+	return epoch, slotIndex
+}
 
-type U32 uint32
+// GetEpochIndex returns the epoch index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+func GetEpochIndex(t jamTypes.TimeSlot) jamTypes.TimeSlot {
+	return t / jamTypes.TimeSlot(jamTypes.EpochLength)
+}
 
-// fixed-length byte arrays
-type ByteArray32 [32]U8
+// GetSlotIndex returns the slot index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+func GetSlotIndex(t jamTypes.TimeSlot) jamTypes.TimeSlot {
+	return t % jamTypes.TimeSlot(jamTypes.EpochLength)
+}
 
-type OpaqueHash ByteArray32
-type Ed25519Key ByteArray32
-type BlsKey [144]U8
-type BandersnatchKey ByteArray32
-
-type EpochKeys []BandersnatchKey
-
-func (e EpochKeys) Validate() error {
-	if len(e) != jam_types.EpochLength {
-		return fmt.Errorf("EpochKeys must have exactly %d entries, got %d", jam_types.EpochLength, len(e))
+// ValidatorIsOffender checks if the validator is an offender
+// Equation (6.14)
+func ValidatorIsOffender(validator ValidatorData, offendersMark jamTypes.OffendersMark) bool {
+	// FIXME: 目前因為 jamTypes.Ed25519Public 與 safrole_types.Ed25519Key 不同,
+	// 需要轉換
+	convertedEd25519 := jamTypes.Ed25519Public{}
+	for i, v := range validator.Ed25519 {
+		convertedEd25519[i] = byte(v)
 	}
-	return nil
+
+	return slices.Contains(offendersMark, convertedEd25519)
 }
 
-type TicketsBodies []TicketBody
-
-func (t TicketsBodies) Validate() error {
-	if len(t) != jam_types.EpochLength {
-		return fmt.Errorf("TicketsBodies must have exactly %d entries, got %d", jam_types.EpochLength, len(t))
+// UpdatePendingValidators updates the pending validators
+// Equation (6.14)
+func UpdatePendingValidators(validators ValidatorsData, offendersMark jamTypes.OffendersMark) ValidatorsData {
+	for i, validator := range validators {
+		if ValidatorIsOffender(validator, offendersMark) {
+			// Replace the validator's Ed25519 key with a null key
+			validators[i].Ed25519 = Ed25519Key{}
+		}
 	}
-	return nil
+
+	return validators
 }
 
-// define enumerations
-type TicketsOrKeys struct {
-	Tickets *TicketsBodies
-	Keys    *EpochKeys
+// GetBandersnatchRingRootCommmitment returns the root commitment of the
+// Bandersnatch ring.
+// O function: The Bandersnatch ring root function.
+// See section 3.8 and appendix G.
+func GetBandersnatchRingRootCommmitment(bandersnatchKeys []BandersnatchKey) [144]U8 {
+	// FIXME: Call rust function
+	return [144]U8{}
 }
 
-// define structures
-type TicketBody struct {
-	ID      OpaqueHash `json:"id"`
-	Attempt U8         `json:"attempt"`
-}
-
-type ValidatorData struct {
-	Bandersnatch BandersnatchKey `json:"bandersnatch"`
-	Ed25519      Ed25519Key      `json:"ed25519"`
-	Bls          BlsKey          `json:"bls"`
-	Metadata     [128]U8         `json:"metadata"`
-}
-
-type ValidatorsData []ValidatorData
-
-func (v ValidatorsData) Validate() error {
-	if len(v) != jam_types.ValidatorsCount {
-		return fmt.Errorf("ValidatorsData must have exactly %d entries, got %d", jam_types.ValidatorsCount, len(v))
+// UpdateBandersnatchKeyRoot returns the root commitment of the Bandersnatch
+// ring
+// Equation (6.15)
+func UpdateBandersnatchKeyRoot(validators ValidatorsData) [144]U8 {
+	bandersnatchKeys := []BandersnatchKey{}
+	for _, validator := range validators {
+		bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
 	}
-	return nil
+
+	return GetBandersnatchRingRootCommmitment(bandersnatchKeys)
 }
 
-type TicketEnvelope struct {
-	Attempt   U8      `json:"attempt"`
-	Signature [784]U8 `json:"signature"`
-}
+// GetNewSafroleState returns the new Safrole state
+// Equation (6.13)
+func GetNewSafroleState(t jamTypes.TimeSlot, tPrime jamTypes.TimeSlot, safroleState State, offendersMark jamTypes.OffendersMark) (newSafroleState State) {
+	e := GetEpochIndex(t)
+	ePrime := GetEpochIndex(tPrime)
 
-type EpochMark struct {
-	Entropy    OpaqueHash        `json:"entropy"`
-	Validators []BandersnatchKey `json:"validators"`
-}
-
-func (e *EpochMark) Validate() error {
-	if len(e.Validators) != jam_types.ValidatorsCount {
-		return fmt.Errorf("EpochMark must have exactly %d validators, got %d", jam_types.ValidatorsCount, len(e.Validators))
+	if ePrime > e {
+		// New epoch
+		newSafroleState.GammaK = UpdatePendingValidators(safroleState.Iota, offendersMark)
+		newSafroleState.Kappa = safroleState.GammaK
+		newSafroleState.Lambda = safroleState.Kappa
+		newSafroleState.GammaZ = UpdateBandersnatchKeyRoot(safroleState.GammaK)
+		return newSafroleState
+	} else {
+		// Same epoch
+		return safroleState
 	}
-	return nil
-}
-
-type TicketsMark []TicketBody
-
-func (t TicketsMark) Validate() error {
-	if len(t) != jam_types.EpochLength {
-		return fmt.Errorf("TicketsMark must have exactly %d TicketBody entries, got %d", jam_types.EpochLength, len(t))
-	}
-	return nil
-}
-
-// output markers
-type OutputMarks struct {
-	EpochMark   *EpochMark   `json:"epoch_mark,omitempty"`   // New epoch signal
-	TicketsMark *TicketsMark `json:"tickets_mark,omitempty"` // Tickets signal
-}
-
-// state relevant to Safrole protocol
-type State struct {
-	Tau    U32            `json:"tau"`     // Most recent block's timeslot
-	Eta    [4]OpaqueHash  `json:"eta"`     // Entropy accumulator and epochal randomness
-	Lambda ValidatorsData `json:"lambda"`  // Validator keys and metadata which were active in the prior epoch
-	Kappa  ValidatorsData `json:"kappa"`   // Validator keys and metadata currently active
-	GammaK ValidatorsData `json:"gamma_k"` // Validator keys for the following epoch
-	Iota   ValidatorsData `json:"iota"`    // Validator keys and metadata to be drawn from next
-	GammaA []TicketBody   `json:"gamma_a"` // Sealing-key contest ticket accumulator
-	GammaS TicketsOrKeys  `json:"gamma_s"` //	Sealing-key series of the current epoch
-	GammaZ [144]U8        `json:"gamma_z"` // Bandersnatch ring commitment
-}
-
-// input for Safrole protocol
-type Input struct {
-	Slot      U32              `json:"slot"`      // Current slot
-	Entropy   OpaqueHash       `json:"entropy"`   // Per block entropy (originated from block entropy source VRF)
-	Extrinsic []TicketEnvelope `json:"extrinsic"` // Safrole extrinsic
-}
-
-// output from Safrole protocol
-type Output struct {
-	Ok  *OutputMarks     `json:"ok,omitempty"`  // Markers
-	Err *CustomErrorCode `json:"err,omitempty"` // Error code
-}
-
-// Safrole state transition function execution dump
-type Testcase struct {
-	Input     Input  `json:"input"`      // Input
-	PreState  State  `json:"pre_state"`  // Pre-execution state
-	Output    Output `json:"output"`     // Output
-	PostState State  `json:"post_state"` // Post-execution state
 }
