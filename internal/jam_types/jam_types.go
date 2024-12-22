@@ -741,9 +741,7 @@ type ReportGuarantee struct {
 	Signatures []ValidatorSignature `json:"signatures,omitempty"`
 }
 
-type GuaranteesExtrinsic []ReportGuarantee
-
-func (r ReportGuarantee) Validate() error {
+func (r *ReportGuarantee) Validate() error {
 	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
 		return errors.New("signatures length must be between 2 and 3")
 	}
@@ -754,6 +752,8 @@ func (r ReportGuarantee) Validate() error {
 	}
 	return nil
 }
+
+type GuaranteesExtrinsic []ReportGuarantee
 
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
