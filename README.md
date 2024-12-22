@@ -16,6 +16,13 @@ If you want to update the mindmap, you can go to the [JAM-mindmap repository](ht
 - Development documentation: [Github Document](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/development-doc.md)
 - Requires team member access - please contact project maintainers if you need access
 
+## Set up
+
+To install the libraries:
+```bash
+go mod tidy
+```
+
 ## Coding Style
 
 Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
