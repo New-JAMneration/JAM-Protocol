@@ -176,7 +176,7 @@ func (w ByteSequenceWrapper) Serialize() jamtypes.ByteSequence {
 
 func (w ByteArray32Wrapper) Serialize() jamtypes.ByteSequence {
 	// Fixed length octet sequence
-	return w.Value[:]
+	return jamtypes.ByteSequence(w.Value[:])
 }
 
 // helper functions that directly take the jam_types values

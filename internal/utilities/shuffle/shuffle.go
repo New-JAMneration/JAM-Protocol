@@ -46,7 +46,7 @@ func numericSequenceFromHash(hash jam_types.OpaqueHash, length jam_types.U32) []
 		serializeOutput := SerializeFixedLength(jam_types.U64(floor), serializeLength)
 
 		// Concatenate the hash with the serialized output
-		hashOutput := hashUtil.Blake2bHash(append(hash[:], serializeOutput...))
+		hashOutput := hashUtil.Blake2bHash(jam_types.ByteSequence(append(hash[:], serializeOutput...)))
 
 		// Select a slice of 4 bytes from the hashOutput
 		selectRange := jam_types.U32(4)
@@ -54,7 +54,7 @@ func numericSequenceFromHash(hash jam_types.OpaqueHash, length jam_types.U32) []
 		hashOutputSlice := hashOutput[startIndex : startIndex+selectRange]
 
 		// Deserialize the hashOutputSlice
-		numericValue := jam_types.U32(DeserializeFixedLength(hashOutputSlice))
+		numericValue := jam_types.U32(DeserializeFixedLength(jam_types.ByteSequence(hashOutputSlice)))
 		numericSequence[i] = numericValue
 	}
 
