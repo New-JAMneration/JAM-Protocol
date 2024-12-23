@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
@@ -44,22 +43,22 @@ func TestSerializeByteArray(t *testing.T) {
 func TestSerializeU32(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    jam_types.U32
+		input    jamTypes.U32
 		expected jamTypes.ByteSequence
 	}{
 		{
 			name:     "Zero",
-			input:    jam_types.U32(0),
+			input:    jamTypes.U32(0),
 			expected: []byte{0x00}, // Adjust expected output based on SerializeU64 behavior
 		},
 		{
 			name:     "Small value",
-			input:    jam_types.U32(42),
+			input:    jamTypes.U32(42),
 			expected: []byte{255, 42, 0, 0, 0, 0, 0, 0, 0}, // Adjust expected output based on SerializeU64 behavior
 		},
 		{
 			name:     "Large value",
-			input:    jam_types.U32(0xffffffff),
+			input:    jamTypes.U32(0xffffffff),
 			expected: []byte{240, 255, 255, 255, 255}, // Adjust expected output based on SerializeU64 behavior
 		},
 	}
@@ -75,7 +74,7 @@ func TestSerializeU32(t *testing.T) {
 }
 
 func TestWorkPackageSpecSerialization(t *testing.T) {
-	var work_package_spec jam_types.WorkPackageSpec
+	var work_package_spec jamTypes.WorkPackageSpec
 	result := WorkPackageSpecSerialization(work_package_spec)
 	expectedOutput := make([]byte, 102)
 	if !bytes.Equal(result, expectedOutput) {
@@ -85,7 +84,7 @@ func TestWorkPackageSpecSerialization(t *testing.T) {
 
 func TestRefineContextSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultRefineContext := jam_types.RefineContext{}
+	defaultRefineContext := jamTypes.RefineContext{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 133)
@@ -99,7 +98,7 @@ func TestRefineContextSerialization(t *testing.T) {
 
 func TestWorkResultSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultWorkResult := jam_types.WorkResult{}
+	defaultWorkResult := jamTypes.WorkResult{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 66)
@@ -113,7 +112,7 @@ func TestWorkResultSerialization(t *testing.T) {
 
 func TestWorkReportSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultWorkReport := jam_types.WorkReport{}
+	defaultWorkReport := jamTypes.WorkReport{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 271)
@@ -127,7 +126,7 @@ func TestWorkReportSerialization(t *testing.T) {
 
 func TestExtrinsicGuaranteeSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultGuaranteesExtrinsic := jam_types.GuaranteesExtrinsic{}
+	defaultGuaranteesExtrinsic := jamTypes.GuaranteesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -141,7 +140,7 @@ func TestExtrinsicGuaranteeSerialization(t *testing.T) {
 
 func TestExtrinsicPreimageSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultExtrinsicPreimage := jam_types.PreimagesExtrinsic{}
+	defaultExtrinsicPreimage := jamTypes.PreimagesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -155,7 +154,7 @@ func TestExtrinsicPreimageSerialization(t *testing.T) {
 
 func TestExtrinsicTicketSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultTicketsExtrinsic := jam_types.TicketsExtrinsic{}
+	defaultTicketsExtrinsic := jamTypes.TicketsExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -169,7 +168,7 @@ func TestExtrinsicTicketSerialization(t *testing.T) {
 
 func TestExtrinsicDisputeSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultDisputesExtrinsic := jam_types.DisputesExtrinsic{}
+	defaultDisputesExtrinsic := jamTypes.DisputesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 3)
