@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -95,5 +96,83 @@ func TestMMR_AppendOne(t *testing.T) {
 	}
 	if !foundAB {
 		t.Errorf("did not find hashB in peaks after AppendOne(hashB)")
+	}
+}
+
+func TestMMR_Serialize(t *testing.T) {
+	tests := []struct {
+		name     string
+		peaks    []jamtypes.OpaqueHash
+		expected jamtypes.ByteSequence
+	}{
+		{
+			name:     "Empty Peaks",
+			peaks:    []jamtypes.OpaqueHash{},
+			expected: utilities.Discriminator{Value: []utilities.Serializable{}}.Serialize(),
+		},
+		{
+			name:  "Peaks with Empty Arrays",
+			peaks: []jamtypes.OpaqueHash{{}, {}},
+			expected: utilities.Discriminator{
+				Value: []utilities.Serializable{
+					utilities.U64Wrapper{},
+					utilities.U64Wrapper{},
+				},
+			}.Serialize(),
+		},
+		{
+			name: "Peaks with Non-Empty Arrays",
+			peaks: []jamtypes.OpaqueHash{
+				{0x1, 0x2},
+				{0x3, 0x4, 0x5},
+			},
+			expected: utilities.Discriminator{
+				Value: []utilities.Serializable{
+					utilities.SerializableSequence{
+						utilities.U64Wrapper{Value: 1},
+						utilities.ByteArray32Wrapper{Value: jamtypes.ByteArray32{0x1, 0x2}},
+					},
+					utilities.SerializableSequence{
+						utilities.U64Wrapper{Value: 1},
+						utilities.ByteArray32Wrapper{Value: jamtypes.ByteArray32{0x3, 0x4, 0x5}},
+					},
+				},
+			}.Serialize(),
+		},
+		{
+			name: "Peaks with Mixed Arrays",
+			peaks: []jamtypes.OpaqueHash{
+				{0x1, 0x2},
+				{},
+				{0x3, 0x4, 0x5},
+			},
+			expected: utilities.Discriminator{
+				Value: []utilities.Serializable{
+					utilities.SerializableSequence{
+						utilities.U64Wrapper{Value: 1},
+						utilities.ByteArray32Wrapper{Value: jamtypes.ByteArray32{0x1, 0x2}},
+					},
+					utilities.U64Wrapper{},
+					utilities.SerializableSequence{
+						utilities.U64Wrapper{Value: 1},
+						utilities.ByteArray32Wrapper{Value: jamtypes.ByteArray32{0x3, 0x4, 0x5}},
+					},
+				},
+			}.Serialize(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MMR{Peaks: tt.peaks}
+
+			// Call Serialize
+			actual := m.Serialize()
+
+			// Assert equality of the actual and expected results
+			if !bytes.Equal(tt.expected, actual) {
+				t.Errorf("Serialize output mismatch")
+			}
+		})
 	}
 }

@@ -2,6 +2,7 @@ package mmr
 
 import (
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 // Node represents a node in the Merkle Mountain Range
@@ -89,4 +90,23 @@ func (m *MMR) AppendOne(data jamtypes.OpaqueHash) []jamtypes.OpaqueHash {
 	newPeaks := m.P(m.Peaks, data, 0)
 	m.Peaks = newPeaks
 	return newPeaks
+}
+
+func (m *MMR) Serialize() jamtypes.ByteSequence {
+	serialItems := []utilities.Serializable{}
+
+	for _, peak := range m.Peaks {
+		// empty
+		if len(peak) == 0 {
+			serialItems = append(serialItems, utilities.U64Wrapper{})
+		} else {
+			serialItems = append(serialItems, utilities.SerializableSequence{utilities.U64Wrapper{Value: 1}, utilities.ByteArray32Wrapper{Value: jamtypes.ByteArray32(peak)}})
+		}
+	}
+
+	disc := utilities.Discriminator{
+		Value: serialItems,
+	}
+
+	return disc.Serialize()
 }
