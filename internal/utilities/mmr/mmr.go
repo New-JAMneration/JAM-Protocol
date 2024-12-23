@@ -37,9 +37,11 @@ func NewMMR(hashFn HashFunction) *MMR {
 
 // concatenateAndHash combines two byte slices and hashes the result
 func (m *MMR) concatenateAndHash(left, right jamtypes.OpaqueHash) jamtypes.OpaqueHash {
-	leftSlice := left[:]
-	rightSlice := right[:]
-	return m.hashFn(append(leftSlice, rightSlice...))
+	// Preallocate slice with the required size to avoid multiple allocations
+	merge := make([]byte, len(left)+len(right))
+	copy(merge, left)
+	copy(merge[len(left):], right)
+	return m.hashFn(merge)
 }
 
 // R (Replace) function from E.8 in the Gray Paper

@@ -1,6 +1,7 @@
 package mmr
 
 import (
+	"bytes"
 	"testing"
 
 	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
@@ -41,15 +42,15 @@ func TestMMR_Replace(t *testing.T) {
 	}
 
 	// Check if index 1 got replaced
-	if newSeq[1] != hashB {
+	if !bytes.Equal(newSeq[1], hashB) {
 		t.Errorf("expected newSeq[1] to be hashB, got %x", newSeq[1])
 	}
 
 	// Ensure other indices remained unchanged
-	if newSeq[0] != hashA {
+	if !bytes.Equal(newSeq[0], hashA) {
 		t.Errorf("expected newSeq[0] to remain hashA, got %x", newSeq[0])
 	}
-	if newSeq[3] != hashB {
+	if !bytes.Equal(newSeq[3], hashA) {
 		t.Errorf("expected newSeq[3] to remain hashB, got %x", newSeq[3])
 	}
 }
@@ -68,7 +69,7 @@ func TestMMR_AppendOne(t *testing.T) {
 	if len(m.Peaks) != 1 {
 		t.Errorf("expected 1 peak after appending 1 item, got %d", len(m.Peaks))
 	}
-	if m.Peaks[0] != hashA {
+	if !bytes.Equal(m.Peaks[0], hashA) {
 		t.Errorf("expected peaks[0] to be hashA, got %x", m.Peaks)
 	}
 
@@ -80,8 +81,14 @@ func TestMMR_AppendOne(t *testing.T) {
 
 	// We at least know the MMR has updated peaks
 	foundAB := false
+	// Preallocate slice with the required size to avoid multiple allocations
+	target := make([]byte, len(hashA)+len(hashB))
+	copy(target, hashA)
+	copy(target[len(hashA):], hashB)
+
+	targetHash := hash.Blake2bHash(target)
 	for _, peak := range m.Peaks {
-		if peak == hash.Blake2bHash(append(hashA[:], hashB[:]...)) {
+		if bytes.Equal(peak, targetHash) {
 			foundAB = true
 			break
 		}
