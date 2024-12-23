@@ -1,7 +1,6 @@
 package utilities
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
@@ -9,8 +8,8 @@ func SerializeByteArray(input []byte) (output jamTypes.ByteSequence) {
 	return WrapByteSequence(jamTypes.ByteSequence(input[:])).Serialize()
 }
 
-func SerializeU32(input jam_types.U32) (output jamTypes.ByteSequence) {
-	return SerializeU64(jam_types.U64(input))
+func SerializeU32(input jamTypes.U32) (output jamTypes.ByteSequence) {
+	return SerializeU64(jamTypes.U64(input))
 }
 
 func HeaderUSerialization(header jamTypes.Header) (output jamTypes.ByteSequence) {
@@ -19,12 +18,12 @@ func HeaderUSerialization(header jamTypes.Header) (output jamTypes.ByteSequence)
 	output = append(output, SerializeByteArray(header.ParentStateRoot[:])...)
 	output = append(output, SerializeByteArray(header.ExtrinsicHash[:])...)
 	// header.Slot
-	output = append(output, SerializeFixedLength(jam_types.U32(header.Slot), 4)...)
+	output = append(output, SerializeFixedLength(jamTypes.U32(header.Slot), 4)...)
 	// ?He header.EpochMark
 	{
-		num, set := EmptyOrPair(header.EpochMark)
-		output = append(output, SerializeU32(jam_types.U32(num))...)
-		if set != nil {
+		num, _ := EmptyOrPair(header.EpochMark)
+		output = append(output, SerializeU32(jamTypes.U32(num))...)
+		if header.EpochMark != nil {
 			output = append(output, SerializeByteArray(header.EpochMark.Entropy[:])...)
 			output = append(output, SerializeByteArray(header.EpochMark.TicketsEntropy[:])...)
 			for _, validator := range header.EpochMark.Validators {
@@ -34,25 +33,25 @@ func HeaderUSerialization(header jamTypes.Header) (output jamTypes.ByteSequence)
 	}
 	// ?Hw header.TicketsMark
 	{
-		num, set := EmptyOrPair(header.TicketsMark)
-		output = append(output, SerializeU32(jam_types.U32(num))...)
-		if set != nil {
+		num, _ := EmptyOrPair(header.TicketsMark)
+		output = append(output, SerializeU32(jamTypes.U32(num))...)
+		if header.TicketsMark != nil {
 			for _, ticket := range *header.TicketsMark {
 				output = append(output, SerializeByteArray(ticket.Id[:])...)
-				output = append(output, SerializeU32(jam_types.U32(ticket.Attempt))...)
+				output = append(output, SerializeU32(jamTypes.U32(ticket.Attempt))...)
 			}
 		}
 	}
 	// ↕Ho header.OffendersMark
 	{
-		output = append(output, SerializeU32(jam_types.U32(len(header.OffendersMark)))...)
+		output = append(output, SerializeU32(jamTypes.U32(len(header.OffendersMark)))...)
 		for _, offender := range header.OffendersMark {
 			output = append(output, WrapByteSequence(jamTypes.ByteSequence(offender[:])).Serialize()...)
 		}
 	}
 	// E2(Hi) header.AuthorIndex
 	{
-		output = append(output, SerializeFixedLength(jam_types.U32(header.AuthorIndex), 2)...)
+		output = append(output, SerializeFixedLength(jamTypes.U32(header.AuthorIndex), 2)...)
 	}
 	// Hv header.EntropySource
 	{
@@ -79,14 +78,14 @@ func ExtrinsicDisputeSerialization(disputes jamTypes.DisputesExtrinsic) (output 
 	output = append(output, SerializeU32(jamTypes.U32(len(disputes.Verdicts)))...)
 	for _, verdict := range disputes.Verdicts {
 		output = append(output, SerializeByteArray(verdict.Target[:])...)
-		output = append(output, SerializeFixedLength(jam_types.U32(verdict.Age), 4)...)
+		output = append(output, SerializeFixedLength(jamTypes.U32(verdict.Age), 4)...)
 		for _, judgement := range verdict.Votes {
 			if !judgement.Vote {
 				output = append(output, SerializeU32(jamTypes.U32(0))...)
 			} else {
 				output = append(output, SerializeU32(jamTypes.U32(1))...)
 			}
-			output = append(output, SerializeFixedLength(jam_types.U32(judgement.Index), 2)...)
+			output = append(output, SerializeFixedLength(jamTypes.U32(judgement.Index), 2)...)
 			output = append(output, SerializeByteArray(judgement.Signature[:])...)
 		}
 	}
@@ -112,7 +111,7 @@ func ExtrinsicDisputeSerialization(disputes jamTypes.DisputesExtrinsic) (output 
 	return output
 }
 
-func ExtrinsicAssuranceSerialization(assurances jam_types.AssurancesExtrinsic) (output jamTypes.ByteSequence) {
+func ExtrinsicAssuranceSerialization(assurances jamTypes.AssurancesExtrinsic) (output jamTypes.ByteSequence) {
 	/*
 		Anchor         OpaqueHash       `json:"anchor,omitempty"`
 		Bitfield       []byte           `json:"bitfield,omitempty"`
@@ -121,17 +120,17 @@ func ExtrinsicAssuranceSerialization(assurances jam_types.AssurancesExtrinsic) (
 
 		↕[a, f, E2(v), s]
 	*/
-	output = append(output, SerializeU32(jam_types.U32(len(assurances)))...)
+	output = append(output, SerializeU32(jamTypes.U32(len(assurances)))...)
 	for _, assurance := range assurances {
 		output = append(output, SerializeByteArray(assurance.Anchor[:])...)
 		output = append(output, SerializeByteArray(assurance.Bitfield[:])...)
-		output = append(output, SerializeFixedLength(jam_types.U32(assurance.ValidatorIndex), 2)...)
+		output = append(output, SerializeFixedLength(jamTypes.U32(assurance.ValidatorIndex), 2)...)
 		output = append(output, SerializeByteArray(assurance.Signature[:])...)
 	}
 	return output
 }
 
-func WorkPackageSpecSerialization(work_package_spec jam_types.WorkPackageSpec) (output jamTypes.ByteSequence) {
+func WorkPackageSpecSerialization(work_package_spec jamTypes.WorkPackageSpec) (output jamTypes.ByteSequence) {
 	/*
 		Hash         WorkPackageHash `json:"hash,omitempty"`
 		Length       U32             `json:"length,omitempty"`
@@ -145,11 +144,11 @@ func WorkPackageSpecSerialization(work_package_spec jam_types.WorkPackageSpec) (
 	output = append(output, SerializeFixedLength(work_package_spec.Length, 4)...)
 	output = append(output, SerializeByteArray(work_package_spec.ErasureRoot[:])...)
 	output = append(output, SerializeByteArray(work_package_spec.ExportsRoot[:])...)
-	output = append(output, SerializeFixedLength(jam_types.U32(work_package_spec.ExportsCount), 2)...)
+	output = append(output, SerializeFixedLength(jamTypes.U32(work_package_spec.ExportsCount), 2)...)
 	return output
 }
 
-func RefineContextSerialization(refine_context jam_types.RefineContext) (output jamTypes.ByteSequence) {
+func RefineContextSerialization(refine_context jamTypes.RefineContext) (output jamTypes.ByteSequence) {
 	/*
 		Anchor           HeaderHash   `json:"anchor,omitempty"`
 		StateRoot        StateRoot    `json:"state_root,omitempty"`
@@ -164,14 +163,15 @@ func RefineContextSerialization(refine_context jam_types.RefineContext) (output 
 	output = append(output, SerializeByteArray(refine_context.StateRoot[:])...)
 	output = append(output, SerializeByteArray(refine_context.BeefyRoot[:])...)
 	output = append(output, SerializeByteArray(refine_context.LookupAnchor[:])...)
-	output = append(output, SerializeFixedLength(jam_types.U32(refine_context.LookupAnchorSlot), 4)...)
-	output = append(output, SerializeU32(jam_types.U32(len(refine_context.Prerequisites)))...)
+	output = append(output, SerializeFixedLength(jamTypes.U32(refine_context.LookupAnchorSlot), 4)...)
+	output = append(output, SerializeU32(jamTypes.U32(len(refine_context.Prerequisites)))...)
 	for _, prerequest := range refine_context.Prerequisites {
 		output = append(output, SerializeByteArray(prerequest[:])...)
 	}
 	return output
 }
-func WorkResultSerialization(result jam_types.WorkResult) (output jamTypes.ByteSequence) {
+
+func WorkResultSerialization(result jamTypes.WorkResult) (output jamTypes.ByteSequence) {
 	/*
 		ServiceId     ServiceId      `json:"service_id,omitempty"`
 		CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
@@ -179,7 +179,7 @@ func WorkResultSerialization(result jam_types.WorkResult) (output jamTypes.ByteS
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
 		Result        WorkExecResult `json:"result,omitempty"`
 	*/
-	output = append(output, SerializeU32(jam_types.U32(result.ServiceId))...)
+	output = append(output, SerializeU32(jamTypes.U32(result.ServiceId))...)
 	output = append(output, SerializeByteArray(result.CodeHash[:])...)
 	output = append(output, SerializeByteArray(result.PayloadHash[:])...)
 	output = append(output, SerializeU64(jamTypes.U64(result.AccumulateGas))...)
@@ -187,7 +187,8 @@ func WorkResultSerialization(result jam_types.WorkResult) (output jamTypes.ByteS
 	// m := MapWarpper{Value: result.Result}
 	return output
 }
-func WorkReportSerialization(work_report jam_types.WorkReport) (output jamTypes.ByteSequence) {
+
+func WorkReportSerialization(work_report jamTypes.WorkReport) (output jamTypes.ByteSequence) {
 	/*
 		PackageSpec       WorkPackageSpec   `json:"package_spec"`
 		Context           RefineContext     `json:"context"`
@@ -201,26 +202,26 @@ func WorkReportSerialization(work_report jam_types.WorkReport) (output jamTypes.
 	*/
 	output = append(output, WorkPackageSpecSerialization(work_report.PackageSpec)...) // xs
 	output = append(output, RefineContextSerialization(work_report.Context)...)       // xx
-	output = append(output, SerializeU32(jam_types.U32(work_report.CoreIndex))...)    // xc
+	output = append(output, SerializeU32(jamTypes.U32(work_report.CoreIndex))...)     // xc
 	output = append(output, SerializeByteArray(work_report.AuthorizerHash[:])...)     // xa
 	// xo
-	output = append(output, SerializeU32(jam_types.U32(len(work_report.AuthOutput)))...)
+	output = append(output, SerializeU32(jamTypes.U32(len(work_report.AuthOutput)))...)
 	output = append(output, SerializeByteArray(work_report.AuthOutput[:])...)
 	// xl
-	output = append(output, SerializeU32(jam_types.U32(len(work_report.SegmentRootLookup)))...)
+	output = append(output, SerializeU32(jamTypes.U32(len(work_report.SegmentRootLookup)))...)
 	for _, item := range work_report.SegmentRootLookup {
 		output = append(output, SerializeByteArray(item.WorkPackageHash[:])...)
 		output = append(output, SerializeByteArray(item.SegmentTreeRoot[:])...)
 	}
 	// xr
-	output = append(output, SerializeU32(jam_types.U32(len(work_report.Results)))...)
+	output = append(output, SerializeU32(jamTypes.U32(len(work_report.Results)))...)
 	for _, result := range work_report.Results {
 		output = append(output, WorkResultSerialization(result)...)
 	}
 	return output
 }
 
-func ExtrinsicGuaranteeSerialization(guarantees jam_types.GuaranteesExtrinsic) (output jamTypes.ByteSequence) {
+func ExtrinsicGuaranteeSerialization(guarantees jamTypes.GuaranteesExtrinsic) (output jamTypes.ByteSequence) {
 	/*
 		Report     WorkReport           `json:"report"`
 		Slot       TimeSlot             `json:"slot,omitempty"`
@@ -233,7 +234,7 @@ func ExtrinsicGuaranteeSerialization(guarantees jam_types.GuaranteesExtrinsic) (
 		// WorkReport
 		output = append(output, WorkReportSerialization(guarantee.Report)...)
 		// Slot
-		output = append(output, SerializeFixedLength(jam_types.U32(guarantee.Slot), 4)...)
+		output = append(output, SerializeFixedLength(jamTypes.U32(guarantee.Slot), 4)...)
 		// Signature
 		output = append(output, SerializeU32(jamTypes.U32(len(guarantee.Signatures)))...)
 		for _, signature := range guarantee.Signatures {
@@ -244,32 +245,32 @@ func ExtrinsicGuaranteeSerialization(guarantees jam_types.GuaranteesExtrinsic) (
 	return output
 }
 
-func ExtrinsicPreimageSerialization(preimages jam_types.PreimagesExtrinsic) (output jamTypes.ByteSequence) {
+func ExtrinsicPreimageSerialization(preimages jamTypes.PreimagesExtrinsic) (output jamTypes.ByteSequence) {
 	/*
 		Requester ServiceId    `json:"requester,omitempty"`
 		Blob      ByteSequence `json:"blob,omitempty"`
 
 		E(↕[s, ↕p])
 	*/
-	output = append(output, SerializeU64(jam_types.U64(len(preimages)))...)
+	output = append(output, SerializeU64(jamTypes.U64(len(preimages)))...)
 	for _, preimage := range preimages {
 		// Preimage.Requester
-		output = append(output, SerializeU64(jam_types.U64(preimage.Requester))...)
+		output = append(output, SerializeU64(jamTypes.U64(preimage.Requester))...)
 		// Preimagt.Blob
-		output = append(output, SerializeU64(jam_types.U64(len(preimage.Blob)))...)
+		output = append(output, SerializeU64(jamTypes.U64(len(preimage.Blob)))...)
 		output = append(output, WrapByteSequence(jamTypes.ByteSequence(preimage.Blob[:])).Serialize()...)
 	}
 	return output
 }
 
-func ExtrinsicTicketSerialization(tickets jam_types.TicketsExtrinsic) (output jamTypes.ByteSequence) {
+func ExtrinsicTicketSerialization(tickets jamTypes.TicketsExtrinsic) (output jamTypes.ByteSequence) {
 	/*
 		E(↕ET )
 	*/
-	output = append(output, SerializeU32(jam_types.U32(len(tickets)))...)
+	output = append(output, SerializeU32(jamTypes.U32(len(tickets)))...)
 	for _, ticket := range tickets {
 		// ticket.Attempt
-		output = append(output, SerializeU64(jam_types.U64(ticket.Attempt))...)
+		output = append(output, SerializeU64(jamTypes.U64(ticket.Attempt))...)
 		// ticket.Signature
 		output = append(output, WrapByteSequence(jamTypes.ByteSequence(ticket.Signature[:])).Serialize()...)
 	}
