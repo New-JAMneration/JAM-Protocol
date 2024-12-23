@@ -5,12 +5,6 @@ import (
 	hashUtil "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// H: Calculates the hash of a given string.
-func H(s string) int {
-	// ... implementation of hash function ...
-	return 0 // Replace with actual hash calculation
-}
-
 // N: Calculates the Merkle root from integers.
 func N(v []jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
 	if len(v) == 0 {
@@ -26,7 +20,26 @@ func N(v []jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
 		a := N(left)
 		b := N(right)
 		combined := append(a[:], b[:]...)
-		output = hashUtil.Blake2bHash(combined) // Combine hashes of left and right subtrees
+		output = hashUtil.Blake2bHash(jamTypes.ByteSequence(combined)) // Combine hashes of left and right subtrees
+		return output
+	}
+}
+
+func N_wHashFunction(v []jamTypes.OpaqueHash, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
+	if len(v) == 0 {
+		return output
+	} else if len(v) == 1 {
+		return v[0] // Base case: single element
+	} else {
+		mid := len(v) / 2
+		left := v[:mid]
+		right := v[mid:]
+		// TODO() add $node:
+		// $node + N(left) + N(right)
+		a := N(left)
+		b := N(right)
+		combined := append(a[:], b[:]...)
+		output = hashFunc(jamTypes.ByteSequence(combined)) // Combine hashes of left and right subtrees
 		return output
 	}
 }
@@ -34,10 +47,19 @@ func N(v []jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
 // Mb: Well-balanced binary Merkle function
 func Mb(v []jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
 	if len(v) == 1 {
-		output = hashUtil.Blake2bHash(v[0][:])
+		output = hashUtil.Blake2bHash(jamTypes.ByteSequence(v[0][:]))
 		return output
 	} else {
 		return N(v) // Use N for multiple elements
+	}
+}
+
+func Mb_wHashFunction(v []jamTypes.OpaqueHash, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) (output jamTypes.OpaqueHash) {
+	if len(v) == 1 {
+		output = hashFunc(jamTypes.ByteSequence(v[0][:]))
+		return output
+	} else {
+		return N_wHashFunction(v, hashFunc) // Use N for multiple elements
 	}
 }
 
@@ -79,6 +101,21 @@ func T(v []jamTypes.OpaqueHash, i jamTypes.U32) (output []jamTypes.OpaqueHash) {
 	}
 }
 
+func T_wHashFunction(v []jamTypes.OpaqueHash, i jamTypes.U32, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) (output []jamTypes.OpaqueHash) {
+	if len(v) > 1 {
+		suffix := T_wHashFunction(Ps(v, i), i-PI(v, i), hashFunc)         // Recursive call for suffix
+		first := N_wHashFunction(Ps(v, jamTypes.U32(len(v))-i), hashFunc) // Calculate hash of prefix
+		// Convert first (ByteArray32) to ByteSequence
+		firstSlice := jamTypes.OpaqueHash(first[:])
+
+		// Concatenate firstSlice and suffix
+		output = append([]jamTypes.OpaqueHash{firstSlice}, suffix...)
+		return output
+	} else {
+		return output
+	}
+}
+
 // Lx: Function provides a single page of hashed leaves
 func Lx(v []jamTypes.OpaqueHash, i jamTypes.U32) []jamTypes.OpaqueHash {
 	pow2 := jamTypes.U32(1)
@@ -89,7 +126,21 @@ func Lx(v []jamTypes.OpaqueHash, i jamTypes.U32) []jamTypes.OpaqueHash {
 
 	ret := make([]jamTypes.OpaqueHash, 0)
 	for idx := i; idx < min(i+pow2, jamTypes.U32(len(v))); idx++ {
-		ret = append(ret, hashUtil.Blake2bHash(v[idx][:]))
+		ret = append(ret, hashUtil.Blake2bHash(jamTypes.ByteSequence(v[idx][:])))
+	}
+	return ret
+}
+
+func Lx_wHashFunction(v []jamTypes.OpaqueHash, i jamTypes.U32, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) []jamTypes.OpaqueHash {
+	pow2 := jamTypes.U32(1)
+	for i*pow2*2 < jamTypes.U32(len(v)) {
+		pow2 *= 2
+	}
+	i *= jamTypes.U32(pow2)
+
+	ret := make([]jamTypes.OpaqueHash, 0)
+	for idx := i; idx < min(i+pow2, jamTypes.U32(len(v))); idx++ {
+		ret = append(ret, hashFunc(jamTypes.ByteSequence(v[idx][:])))
 	}
 	return ret
 }
@@ -103,9 +154,25 @@ func C(v []jamTypes.OpaqueHash) []jamTypes.OpaqueHash {
 	ret := make([]jamTypes.OpaqueHash, sz)
 	for i := 0; i < sz; i++ {
 		if i < len(v) {
-			ret[i] = hashUtil.Blake2bHash(v[i][:]) // TODO $leaf
+			ret[i] = hashUtil.Blake2bHash(jamTypes.ByteSequence(v[i][:])) // TODO $leaf
 		} else {
-			ret[i] = [32]byte{} // Zero hash for padding
+			ret[i] = jamTypes.OpaqueHash{} // Zero hash for padding
+		}
+	}
+	return ret
+}
+
+func C_wHashFunction(v []jamTypes.OpaqueHash, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) []jamTypes.OpaqueHash {
+	sz := 1
+	for sz < len(v) {
+		sz *= 2
+	}
+	ret := make([]jamTypes.OpaqueHash, sz)
+	for i := 0; i < sz; i++ {
+		if i < len(v) {
+			ret[i] = hashFunc(jamTypes.ByteSequence(v[i][:])) // TODO $leaf
+		} else {
+			ret[i] = jamTypes.OpaqueHash{} // Zero hash for padding
 		}
 	}
 	return ret
@@ -119,7 +186,18 @@ func Jx(v []jamTypes.OpaqueHash, i jamTypes.U32) []jamTypes.OpaqueHash {
 	return T(C(v), i)
 }
 
+func Jx_wHashFunction(v []jamTypes.OpaqueHash, i jamTypes.U32, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) []jamTypes.OpaqueHash {
+	for i*2 < jamTypes.U32(len(v)) {
+		i *= 2
+	}
+	return T_wHashFunction(C_wHashFunction(v, hashFunc), i, hashFunc)
+}
+
 // M: Constant-depth binary Merkle function
 func M(v []jamTypes.OpaqueHash) jamTypes.OpaqueHash {
 	return N(C(v))
+}
+
+func M_wHashFunction(v []jamTypes.OpaqueHash, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) jamTypes.OpaqueHash {
+	return N_wHashFunction(C_wHashFunction(v, hashFunc), hashFunc)
 }
