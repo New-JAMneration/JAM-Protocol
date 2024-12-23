@@ -167,6 +167,34 @@ func TestExtrinsicTicketSerialization(t *testing.T) {
 	}
 }
 
+func TestExtrinsicDisputeSerialization(t *testing.T) {
+	// Create a default RefineContext with sample values
+	defaultDisputesExtrinsic := jam_types.DisputesExtrinsic{}
+
+	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
+	expectedOutput := make([]byte, 3)
+
+	result := ExtrinsicDisputeSerialization(defaultDisputesExtrinsic)
+
+	if !bytes.Equal(result, expectedOutput) {
+		t.Errorf("RefineContextSerialization() = %v, want %v", result, expectedOutput)
+	}
+}
+
+func TestExtrinsicAssuranceSerialization(t *testing.T) {
+	// Create a default RefineContext with sample values
+	defaultAssurancesExtrinsic := jamTypes.AssurancesExtrinsic{}
+
+	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
+	expectedOutput := make([]byte, 1)
+
+	result := ExtrinsicAssuranceSerialization(defaultAssurancesExtrinsic)
+
+	if !bytes.Equal(result, expectedOutput) {
+		t.Errorf("RefineContextSerialization() = %v, want %v", result, expectedOutput)
+	}
+}
+
 func TestBlockSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
 	defaultBlock := jamTypes.Block{}
