@@ -5,6 +5,7 @@ import (
 
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
+
 // (6.5) // (6.6)
 // TicketsBodiesController is a controller for TicketsBodies
 type TicketsBodiesController struct {
@@ -25,6 +26,7 @@ func (t *TicketsBodiesController) Validate() error {
 	}
 	return nil
 }
+
 // (6.5)
 // AddTicketBody adds a ticket body to the controller
 func (t *TicketsBodiesController) AddTicketBody(ticketBody TicketBody) *TicketsBodiesController {
