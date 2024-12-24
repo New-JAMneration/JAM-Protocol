@@ -152,7 +152,7 @@ func HeaderSerialization(header jamTypes.Header) (output jamTypes.ByteSequence) 
 
 func HeaderUSerialization(header jamTypes.Header) (output jamTypes.ByteSequence) {
 	// (C.20) EU (H) = E(Hp,Hr,Hx) ⌢ E4(Ht) ⌢ E(¿He, ¿Hw, ↕Ho, E2(Hi),Hv)
-	// header.Slot, header.ParentStateRoot, header.ExtrinsicHash
+	// header.Parent, header.ParentStateRoot, header.ExtrinsicHash
 	output = append(output, SerializeByteArray(header.Parent[:])...)
 	output = append(output, SerializeByteArray(header.ParentStateRoot[:])...)
 	output = append(output, SerializeByteArray(header.ExtrinsicHash[:])...)
