@@ -185,7 +185,7 @@ func HeaderUSerialization(header jamTypes.Header) (output jamTypes.ByteSequence)
 	{
 		output = append(output, SerializeU64(jamTypes.U64(len(header.OffendersMark)))...)
 		for _, offender := range header.OffendersMark {
-			output = append(output, WrapByteSequence(jamTypes.ByteSequence(offender[:])).Serialize()...)
+			output = append(output, SerializeByteArray(offender[:])...)
 		}
 	}
 	// E2(Hi) header.AuthorIndex
