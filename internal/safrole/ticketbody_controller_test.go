@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
-	"github.com/stretchr/testify/assert"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTicketsBodiesController(t *testing.T) {
@@ -40,4 +40,3 @@ func TestTicketsBodiesController(t *testing.T) {
 	controller.AddTicketBody(ticket)
 	assert.Equal(t, initialLength, len(controller.TicketsBodies), "Controller should not allow adding more tickets after exceeding the limit")
 }
-
