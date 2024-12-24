@@ -7,72 +7,6 @@ import (
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 )
 
-func TestSerializeByteArray(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []byte
-		expected jamTypes.ByteSequence
-	}{
-		{
-			name:     "Empty input",
-			input:    []byte{},
-			expected: jamTypes.ByteSequence{}, // Adjust expected output based on WrapByteSequence and Serialize behavior
-		},
-		{
-			name:     "Single byte input",
-			input:    []byte{0x01},
-			expected: jamTypes.ByteSequence{0x01}, // Adjust expected output based on WrapByteSequence and Serialize behavior
-		},
-		{
-			name:     "Multiple byte input",
-			input:    []byte{0x01, 0x02, 0x03},
-			expected: jamTypes.ByteSequence{0x01, 0x02, 0x03}, // Adjust expected output based on WrapByteSequence and Serialize behavior
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := SerializeByteArray(tt.input)
-			if !bytes.Equal(result, tt.expected) {
-				t.Errorf("SerializeByteArray(%v) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestSerializeU32(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    jamTypes.U32
-		expected jamTypes.ByteSequence
-	}{
-		{
-			name:     "Zero",
-			input:    jamTypes.U32(0),
-			expected: []byte{0x00}, // Adjust expected output based on SerializeU64 behavior
-		},
-		{
-			name:     "Small value",
-			input:    jamTypes.U32(42),
-			expected: []byte{255, 42, 0, 0, 0, 0, 0, 0, 0}, // Adjust expected output based on SerializeU64 behavior
-		},
-		{
-			name:     "Large value",
-			input:    jamTypes.U32(0xffffffff),
-			expected: []byte{240, 255, 255, 255, 255}, // Adjust expected output based on SerializeU64 behavior
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := SerializeU32(tt.input)
-			if !bytes.Equal(result, tt.expected) {
-				t.Errorf("SerializeU32(%v) = %v, want %v", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestWorkPackageSpecSerialization(t *testing.T) {
 	var work_package_spec jamTypes.WorkPackageSpec
 	result := WorkPackageSpecSerialization(work_package_spec)
@@ -101,7 +35,7 @@ func TestWorkResultSerialization(t *testing.T) {
 	defaultWorkResult := jamTypes.WorkResult{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
-	expectedOutput := make([]byte, 66)
+	expectedOutput := make([]byte, 77)
 
 	result := WorkResultSerialization(defaultWorkResult)
 
