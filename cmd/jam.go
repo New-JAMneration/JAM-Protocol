@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 )
 
