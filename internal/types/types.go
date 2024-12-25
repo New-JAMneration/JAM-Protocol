@@ -81,6 +81,15 @@ func (e Ed25519Signature) Validate() error {
 	return nil
 }
 
+type BandersnatchRingCommitment []byte
+
+func (e BandersnatchRingCommitment) Validate() error {
+	if len(e) != 144 {
+		return errors.New("BandersnatchRingCommitment expected 144 bytes")
+	}
+	return nil
+}
+
 // Application Specific Core
 
 type OpaqueHash ByteArray32
