@@ -369,6 +369,17 @@ func TicketBodySerialization(ticket_body jamTypes.TicketBody) (output jamTypes.B
 
 func SerializeWorkExecResult(result jamTypes.WorkExecResult) (output jamTypes.ByteSequence) {
 	// (C.28)
+	/*
+			const (
+			WorkExecResultOk           WorkExecResultType = "ok"
+			WorkExecResultOutOfGas                        = "out-of-gas"
+			WorkExecResultPanic                           = "panic"
+			WorkExecResultBadExports                      = "bad-exports"
+			WorkExecResultBadCode                         = "bad-code"
+			WorkExecResultCodeOversize                    = "code-oversize"
+		)
+
+	*/
 	if len(result) == 1 {
 		for key, value := range result {
 			// TODO gray paper type update
@@ -379,6 +390,8 @@ func SerializeWorkExecResult(result jamTypes.WorkExecResult) (output jamTypes.By
 				output = append(output, SerializeU64(jamTypes.U64(1))...)
 			} else if key == "panic" {
 				output = append(output, SerializeU64(jamTypes.U64(2))...)
+			} else if key == "bad-exports" {
+				output = append(output, SerializeU64(jamTypes.U64(3))...)
 			} else if key == "bad-code" {
 				output = append(output, SerializeU64(jamTypes.U64(4))...)
 			} else if key == "code-oversize" {
