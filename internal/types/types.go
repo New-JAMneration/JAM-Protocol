@@ -212,6 +212,11 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 
 // Authorizations
 
+type Authorizer struct {
+	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
+	Params   ByteSequence `json:"params,omitempty"`
+}
+
 type AuthorizerHash OpaqueHash
 
 type AuthPool []AuthorizerHash
@@ -275,11 +280,6 @@ type ImportSpec struct {
 type ExtrinsicSpec struct {
 	Hash OpaqueHash `json:"hash,omitempty"`
 	Len  U32        `json:"len,omitempty"`
-}
-
-type Authorizer struct {
-	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
-	Params   ByteSequence `json:"params,omitempty"`
 }
 
 type WorkItem struct {
