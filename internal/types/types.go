@@ -819,7 +819,7 @@ type EpochMark struct {
 }
 
 func (e EpochMark) Validate() error {
-	if len(e.Validators) > ValidatorsCount {
+	if len(e.Validators) != ValidatorsCount {
 		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", ValidatorsCount)
 	}
 
