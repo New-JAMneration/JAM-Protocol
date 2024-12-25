@@ -987,16 +987,16 @@ func (b *Block) ScaleEncode() ([]byte, error) {
 // Safrole
 
 type State struct {
-	Tau           U32             `json:"tau"`            // Most recent block's timeslot
-	Eta           [4]OpaqueHash   `json:"eta"`            // Entropy accumulator and epochal randomness
-	Lambda        ValidatorsData  `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
-	Kappa         ValidatorsData  `json:"kappa"`          // Validator keys and metadata currently active
-	GammaK        ValidatorsData  `json:"gamma_k"`        // Validator keys for the following epoch
-	Iota          ValidatorsData  `json:"iota"`           // Validator keys and metadata to be drawn from next
-	GammaA        []TicketBody    `json:"gamma_a"`        // Sealing-key contest ticket accumulator
-	GammaS        TicketsOrKeys   `json:"gamma_s"`        // Sealing-key series of the current epoch
-	GammaZ        [144]U8         `json:"gamma_z"`        // Bandersnatch ring commitment
-	PostOffenders []Ed25519Public `json:"post_offendors"` // Posterior offenders sequence
+	Tau           TimeSlot                   `json:"tau"`            // Most recent block's timeslot
+	Eta           EntropyBuffer              `json:"eta"`            // Entropy accumulator and epochal randomness
+	Lambda        ValidatorsData             `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
+	Kappa         ValidatorsData             `json:"kappa"`          // Validator keys and metadata currently active
+	GammaK        ValidatorsData             `json:"gamma_k"`        // Validator keys for the following epoch
+	Iota          ValidatorsData             `json:"iota"`           // Validator keys and metadata to be drawn from next
+	GammaA        TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
+	GammaS        TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
+	GammaZ        BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
+	PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
 }
 
 type Input struct {
