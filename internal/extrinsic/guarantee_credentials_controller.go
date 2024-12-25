@@ -1,8 +1,9 @@
 package extrinsic
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
 	"sort"
+
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // GuaranteeCredentialsController is a struct that contains a slice of GuaranteeCredentials (for controller logic)
