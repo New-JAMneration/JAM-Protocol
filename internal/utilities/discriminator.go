@@ -15,7 +15,7 @@ func (d Discriminator) Serialize() jam_types.ByteSequence {
 
 // LensElementPair will return the length of the slice and the input data itself
 // input will be a slice
-func LensElementPair(input []any) (int, []any) {
+func LensElementPair[T any](input []T) (int, []T) {
 	// Equation C.8
 	return len(input), input
 }
