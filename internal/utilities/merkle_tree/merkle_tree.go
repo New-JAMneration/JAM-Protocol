@@ -1,7 +1,7 @@
 package merkle_tree
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // N: Calculates the Merkle root from integers.
