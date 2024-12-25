@@ -1,7 +1,7 @@
 package mmr
 
 import (
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Node represents a node in the Merkle Mountain Range
