@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TestSerialize tests the Serialize function across various data types and values.

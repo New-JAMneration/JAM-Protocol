@@ -3,7 +3,7 @@ package extrinsic
 import (
 	"sort"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
