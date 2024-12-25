@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Serializable is the interface that all types that can be serialized must implement.

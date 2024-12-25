@@ -2,7 +2,7 @@ package block
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // BlockController is a struct that contains a Header and an Extrinsic

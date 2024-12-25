@@ -3,7 +3,7 @@ package utilities
 import (
 	"testing"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestDeserializeFixedLength(t *testing.T) {
