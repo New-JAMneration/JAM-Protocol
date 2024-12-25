@@ -294,6 +294,79 @@ func WorkReportSerialization(work_report jamTypes.WorkReport) (output jamTypes.B
 	return output
 }
 
+func SerializeWorkPackage(work_package jamTypes.WorkPackage) (output jamTypes.ByteSequence) {
+	/*
+		(C.25) E(x ∈ P) ≡ E(↕xj, E4(xh), xu, ↕xp, xx, ↕xw)
+		type WorkPackage struct {
+			Authorization ByteSequence  `json:"authorization,omitempty"`
+			AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"`
+			Authorizer    Authorizer    `json:"authorizer"`
+			Context       RefineContext `json:"context"`
+			Items         []WorkItem    `json:"items,omitempty"`
+		}
+	*/
+	output = append(output, SerializeU64(jamTypes.U64(len(work_package.Authorization)))...)
+	output = append(output, SerializeByteArray(work_package.Authorization)...)
+	output = append(output, SerializeFixedLength(jamTypes.U64(work_package.AuthCodeHost), 4)...)
+	output = append(output, SerializeByteArray(work_package.Authorizer.CodeHash[:])...)
+	output = append(output, SerializeU64(jamTypes.U64(len(work_package.Authorizer.Params)))...)
+	output = append(output, SerializeByteArray(work_package.Authorizer.Params)...)
+	output = append(output, RefineContextSerialization(work_package.Context)...)
+	output = append(output, SerializeU64(jamTypes.U64(len(work_package.Items)))...)
+	for _, work_item := range work_package.Items {
+		output = append(output, WorkItemSerialization(work_item)...)
+	}
+	return output
+}
+
+func WorkItemSerialization(work_item jamTypes.WorkItem) (output jamTypes.ByteSequence) {
+	/*
+		(C.26) E(x ∈ I) ≡ E(E4(xs), xc, ↕xy, E8(xg), ↕E#I(xi), ↕[(h, E4(i)) ∣ (h, i) <− xx], E2(xe))
+		type WorkItem struct {
+			Service            ServiceId       `json:"service,omitempty"`
+			CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
+			Payload            ByteSequence    `json:"payload,omitempty"`
+			RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`
+			AccumulateGasLimit Gas             `json:"accumulate_gas_limit,omitempty"`
+			ImportSegments     []ImportSpec    `json:"import_segments,omitempty"`
+			Extrinsic          []ExtrinsicSpec `json:"extrinsic,omitempty"`
+			ExportCount        U16             `json:"export_count,omitempty"`
+		}
+	*/
+	output = append(output, SerializeFixedLength(jamTypes.U64(work_item.Service), 4)...)
+	output = append(output, SerializeByteArray(work_item.CodeHash)...)
+	output = append(output, SerializeU64(jamTypes.U64(len(work_item.Payload)))...)
+	output = append(output, SerializeByteArray(work_item.Payload)...)
+	output = append(output, SerializeFixedLength(jamTypes.U64(work_item.RefineGasLimit), 8)...)
+	output = append(output, SerializeU64(jamTypes.U64(len(work_item.ImportSegments)))...)
+	for _, import_spec := range work_item.ImportSegments {
+		output = append(output, SerializeImportSpec(import_spec)...)
+	}
+
+	output = append(output, SerializeU64(jamTypes.U64(len(work_item.Extrinsic)))...)
+	for _, extrinsic_spec := range work_item.Extrinsic {
+		output = append(output, SerializeByteArray(extrinsic_spec.Hash)...)
+		output = append(output, SerializeFixedLength(jamTypes.U64(extrinsic_spec.Len), 8)...)
+	}
+	output = append(output, SerializeFixedLength(jamTypes.U64(work_item.ExportCount), 2)...)
+
+	return output
+}
+
+func TicketBodySerialization(ticket_body jamTypes.TicketBody) (output jamTypes.ByteSequence) {
+	/*
+		(C.27) E(x ∈ C) ≡ E(xy, xr)
+
+		type TicketBody struct {
+			Id      TicketId      `json:"id,omitempty"`
+			Attempt TicketAttempt `json:"attempt,omitempty"`
+		}
+	*/
+	output = append(output, SerializeByteArray(ticket_body.Id)...)
+	output = append(output, SerializeU64(jamTypes.U64(ticket_body.Attempt))...)
+	return output
+}
+
 func SerializeWorkExecResult(result jamTypes.WorkExecResult) (output jamTypes.ByteSequence) {
 	// (C.28)
 	if len(result) == 1 {
@@ -315,5 +388,14 @@ func SerializeWorkExecResult(result jamTypes.WorkExecResult) (output jamTypes.By
 	} else {
 		fmt.Println("Map size expected to be 1")
 	}
+	return output
+}
+
+func SerializeImportSpec(import_spec jamTypes.ImportSpec) (output jamTypes.ByteSequence) {
+	// (C.29) case 1 (h, E2(i)) if h ∈ H
+	// TODO check case2 use case
+	h, i := import_spec.TreeRoot, import_spec.Index
+	output = append(output, SerializeByteArray(h)...)
+	output = append(output, SerializeFixedLength(jamTypes.U64(i), 2)...)
 	return output
 }
