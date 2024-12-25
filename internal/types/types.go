@@ -1006,8 +1006,8 @@ type Input struct {
 }
 
 type OutputData struct {
-	EpochMark   EpochMark   `json:"epoch_mark,omitempty"`   // New epoch marker (optional).
-	TicketsMark TicketsMark `json:"tickets_mark,omitempty"` // Winning tickets marker (optional).
+	EpochMark   *EpochMark   `json:"epoch_mark,omitempty"`   // New epoch marker (optional).
+	TicketsMark *TicketsMark `json:"tickets_mark,omitempty"` // Winning tickets marker (optional).
 }
 
 type Output struct {
