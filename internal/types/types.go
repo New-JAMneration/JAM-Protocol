@@ -468,6 +468,31 @@ func (b BlocksHistory) Validate() error {
 	return nil
 }
 
+// Statistics
+
+type ActivityRecord struct {
+	Blocks        U32 `json:"blocks,omitempty"`
+	Tickets       U32 `json:"tickets,omitempty"`
+	PreImages     U32 `json:"pre_images,omitempty"`
+	PreImagesSize U32 `json:"pre_images_size,omitempty"`
+	Guarantees    U32 `json:"guarantees,omitempty"`
+	Assurances    U32 `json:"assurances,omitempty"`
+}
+
+type ActivityRecords []ActivityRecord
+
+func (a ActivityRecords) Validate() error {
+	if len(a) != ValidatorsCount {
+		return fmt.Errorf("ActivityRecords must have %d activity record", ValidatorsCount)
+	}
+	return nil
+}
+
+type Statistics struct {
+	Current ActivityRecords `json:"current,omitempty"`
+	Last    ActivityRecords `json:"last,omitempty"`
+}
+
 // Tickets
 
 type TicketId OpaqueHash
