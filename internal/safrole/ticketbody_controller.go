@@ -8,13 +8,13 @@ import (
 
 // TicketsBodiesController is a controller for TicketsBodies
 type TicketsBodiesController struct {
-	TicketsBodies []TicketBody
+	TicketsBodies []jamTypes.TicketBody
 }
 
 // NewTicketsBodiesController returns a new TicketsBodiesController
 func NewTicketsBodiesController() *TicketsBodiesController {
 	return &TicketsBodiesController{
-		TicketsBodies: make([]TicketBody, 0),
+		TicketsBodies: make([]jamTypes.TicketBody, 0),
 	}
 }
 
@@ -27,7 +27,7 @@ func (t *TicketsBodiesController) Validate() error {
 }
 
 // AddTicketBody adds a ticket body to the controller
-func (t *TicketsBodiesController) AddTicketBody(ticketBody TicketBody) *TicketsBodiesController {
+func (t *TicketsBodiesController) AddTicketBody(ticketBody jamTypes.TicketBody) *TicketsBodiesController {
 	if t.Validate() != nil {
 		t.TicketsBodies = append(t.TicketsBodies, ticketBody)
 	}
