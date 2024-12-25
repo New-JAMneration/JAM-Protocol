@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type Blocks struct {
