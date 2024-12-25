@@ -342,6 +342,7 @@ const (
 	WorkExecResultOk           WorkExecResultType = "ok"
 	WorkExecResultOutOfGas                        = "out-of-gas"
 	WorkExecResultPanic                           = "panic"
+	WorkExecResultBadExports                      = "bad-exports"
 	WorkExecResultBadCode                         = "bad-code"
 	WorkExecResultCodeOversize                    = "code-oversize"
 )
