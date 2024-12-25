@@ -212,11 +212,6 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 
 // Authorizations
 
-type Authorizations struct {
-	CodeHash  OpaqueHash   `json:"code_hash,omitempty"`
-	Signature ByteSequence `json:"signature,omitempty"`
-}
-
 type AuthorizerHash OpaqueHash
 
 type AuthPool []AuthorizerHash
