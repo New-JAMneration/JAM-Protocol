@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // DeserializeFixedLength corresponds to the inverse of SerializeFixedLength

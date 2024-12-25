@@ -3,7 +3,7 @@ package extrinsic
 import (
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestGuaranteeCredentialsInit(t *testing.T) {
