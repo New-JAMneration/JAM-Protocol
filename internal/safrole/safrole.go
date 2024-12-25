@@ -7,8 +7,8 @@ import (
 // R function return the epoch and slot index
 // Equation (6.2)
 // !Warning : epoch datatype is undefined in jamtypes and is uncertain
-func R(time U32) (epoch U32, slotIndex U32) {
-	epoch = time / U32(jamTypes.EpochLength)
-	slotIndex = time % U32(jamTypes.EpochLength)
+func R(time jamTypes.U32) (epoch jamTypes.U32, slotIndex jamTypes.U32) {
+	epoch = time / jamTypes.U32(jamTypes.EpochLength)
+	slotIndex = time % jamTypes.U32(jamTypes.EpochLength)
 	return epoch, slotIndex
 }
