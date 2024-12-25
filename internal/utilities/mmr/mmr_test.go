@@ -3,7 +3,7 @@ package mmr
 import (
 	"testing"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 

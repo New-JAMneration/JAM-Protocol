@@ -3,7 +3,7 @@ package utilities
 import (
 	"fmt"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func SerializeByteArray(input []byte) (output jamTypes.ByteSequence) {
