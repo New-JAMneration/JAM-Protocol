@@ -3,7 +3,7 @@ package safrole
 import (
 	"fmt"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TicketsBodiesController is a controller for TicketsBodies
