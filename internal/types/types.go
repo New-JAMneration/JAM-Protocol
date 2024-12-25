@@ -226,7 +226,7 @@ func (a AuthPool) Validate() error {
 type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %d", CoresCount)
 	}
 
@@ -243,7 +243,7 @@ func (a AuthPools) Validate() error {
 type AuthQueue []AuthorizerHash
 
 func (a AuthQueue) Validate() error {
-	if len(a) > AuthQueueSize {
+	if len(a) != AuthQueueSize {
 		return fmt.Errorf("AuthQueue exceeds max-auth-queue-size limit of %d", AuthQueueSize)
 	}
 	return nil
@@ -252,7 +252,7 @@ func (a AuthQueue) Validate() error {
 type AuthQueues []AuthQueue
 
 func (a AuthQueues) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthQueues exceeds max-auth-queues limit of %d", CoresCount)
 	}
 
