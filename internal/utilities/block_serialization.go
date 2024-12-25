@@ -63,8 +63,8 @@ func ExtrinsicGuaranteeSerialization(guarantees jamTypes.GuaranteesExtrinsic) (o
 		Slot       TimeSlot             `json:"slot,omitempty"`
 		Signatures []ValidatorSignature `json:"signatures,omitempty"`
 	*/
-	output = append(output, SerializeU64(jamTypes.U64(len(guarantees.Guarantees)))...)
-	for _, guarantee := range guarantees.Guarantees {
+	output = append(output, SerializeU64(jamTypes.U64(len(guarantees)))...)
+	for _, guarantee := range guarantees {
 		// WorkReport
 		output = append(output, WorkReportSerialization(guarantee.Report)...)
 		// Slot
