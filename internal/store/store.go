@@ -1,19 +1,23 @@
 package store
 
-import "sync"
+import (
+	"log"
+	"sync"
+
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+)
 
 var (
-	// initOnce ensures the store is initialized only once
-	initOnce sync.Once
-	// globalStore holds the singleton instance of Store
+	initOnce    sync.Once
 	globalStore *Store
 )
 
 // Store represents a thread-safe global state container
 type Store struct {
 	mu sync.RWMutex
-	// data is a map that can store any type of value
-	data map[string]interface{}
+
+	// INFO: Add more fields here
+	blocks *Blocks
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -21,26 +25,24 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			data: make(map[string]interface{}),
+			blocks: NewBlocks(),
 		}
+
+		log.Println("🚀 Store initialized")
 	})
 	return globalStore
 }
 
-// Set stores a value with the given key in the store.
-// This operation is thread-safe.
-func (s *Store) Set(key string, value interface{}) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.data[key] = value
+func (s *Store) AddBlock(block jamTypes.Block) {
+	s.blocks.AddBlock(block)
 }
 
-// Get retrieves a value by its key from the store.
-// Returns the value and a boolean indicating if the key exists.
-// This operation is thread-safe.
-func (s *Store) Get(key string) (interface{}, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	value, exists := s.data[key]
-	return value, exists
+func (s *Store) GetBlocks() []jamTypes.Block {
+	return s.blocks.GetBlocks()
+}
+
+func (s *Store) GenerateGenesisBlock(block jamTypes.Block) {
+	s.blocks.GenerateGenesisBlock(block)
+	s.blocks.AddBlock(block)
+	log.Println("🚀 Genesis block generated")
 }
