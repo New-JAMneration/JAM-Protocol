@@ -51,7 +51,7 @@ func TestMMR_Replace(t *testing.T) {
 	if !bytes.Equal(newSeq[0], hashA) {
 		t.Errorf("expected newSeq[0] to remain hashA, got %x", newSeq[0])
 	}
-	if !bytes.Equal(newSeq[3], hashA) {
+	if !bytes.Equal(newSeq[3], hashB) {
 		t.Errorf("expected newSeq[3] to remain hashB, got %x", newSeq[3])
 	}
 }
