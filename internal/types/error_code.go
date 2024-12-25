@@ -1,6 +1,6 @@
 package types
 
-type ErrorCode int
+type ErrorCode U8
 
 const (
 	BadSlot          ErrorCode = iota // 0 Timeslot value must be strictly monotonic
