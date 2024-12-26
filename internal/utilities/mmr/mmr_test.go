@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -33,7 +32,7 @@ func TestMMR_Replace(t *testing.T) {
 		t.Fatal("failed to create MMR")
 	}
 
-	original := []*jamtypes.OpaqueHash{&hashA, nil, nil, &hashB}
+	original := []types.MmrPeak{&hashA, nil, nil, &hashB}
 	// Replace the second index (which is empty) with hashB
 	newSeq := m.Replace(original, 1, &hashB)
 

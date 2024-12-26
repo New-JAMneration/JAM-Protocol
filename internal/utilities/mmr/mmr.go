@@ -1,8 +1,6 @@
 package mmr
 
 import (
-	"log"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -22,7 +20,7 @@ type HashFunction func(input types.ByteSequence) types.OpaqueHash
 // "The Merkle mountain range (MMR) is an append-only cryptographic data structure
 // which yields a commitment to a sequence of values"
 type MMR struct {
-	Peaks  []*types.OpaqueHash
+	Peaks  []types.MmrPeak
 	hashFn HashFunction
 }
 
@@ -32,13 +30,13 @@ func NewMMR(hashFn HashFunction) *MMR {
 		return nil
 	}
 	return &MMR{
-		Peaks:  make([]*types.OpaqueHash, 0),
+		Peaks:  make([]types.MmrPeak, 0),
 		hashFn: hashFn,
 	}
 }
 
 // NewMMR creates a new empty Merkle Mountain Range
-func NewMMRFromPeaks(peaks []*types.OpaqueHash, hashFn HashFunction) *MMR {
+func NewMMRFromPeaks(peaks []types.MmrPeak, hashFn HashFunction) *MMR {
 	if hashFn == nil {
 		return nil
 	}
@@ -49,7 +47,7 @@ func NewMMRFromPeaks(peaks []*types.OpaqueHash, hashFn HashFunction) *MMR {
 }
 
 // concatenateAndHash combines two byte slices and hashes the result
-func (m *MMR) concatenateAndHash(left, right *types.OpaqueHash) *types.OpaqueHash {
+func (m *MMR) concatenateAndHash(left, right types.MmrPeak) types.MmrPeak {
 	leftSlice := left[:]
 	rightSlice := right[:]
 	val := m.hashFn(append(leftSlice, rightSlice...))
@@ -62,9 +60,9 @@ func (m *MMR) concatenateAndHash(left, right *types.OpaqueHash) *types.OpaqueHas
 //	(s, i, v) ↦ s' where s' = s except s'i = v"
 //
 // This function replaces the value at index i with value v in sequence s
-func (m *MMR) Replace(sequence []*types.OpaqueHash, index int, value *types.OpaqueHash) []*types.OpaqueHash {
+func (m *MMR) Replace(sequence []types.MmrPeak, index int, value types.MmrPeak) []types.MmrPeak {
 	// Create a new sequence copying the original
-	result := make([]*types.OpaqueHash, len(sequence))
+	result := make([]types.MmrPeak, len(sequence))
 	copy(result, sequence)
 
 	// Replace the value at the specified index
@@ -76,7 +74,7 @@ func (m *MMR) Replace(sequence []*types.OpaqueHash, index int, value *types.Opaq
 }
 
 // P
-func (m *MMR) P(peaks []*types.OpaqueHash, l *types.OpaqueHash, n int) []*types.OpaqueHash {
+func (m *MMR) P(peaks []types.MmrPeak, l types.MmrPeak, n int) []types.MmrPeak {
 	// if n >= l
 	if n >= len(m.Peaks) {
 		return append(m.Peaks, l)
@@ -97,30 +95,13 @@ func (m *MMR) P(peaks []*types.OpaqueHash, l *types.OpaqueHash, n int) []*types.
 	return m.P(peaks, newHash, n+1)
 }
 
-func (m *MMR) AppendOne(data *types.OpaqueHash) []*types.OpaqueHash {
+func (m *MMR) AppendOne(data types.MmrPeak) []types.MmrPeak {
 	if data == nil {
 		return m.Peaks
 	}
 	newPeaks := m.P(m.Peaks, data, 0)
 	m.Peaks = newPeaks
 	return newPeaks
-}
-
-// fromMmrPeaks converts external MmrPeak slices into your jamtypes.OpaqueHash slices.
-func fromMmrPeaks(peaks []types.MmrPeak) []*types.OpaqueHash {
-	result := make([]*types.OpaqueHash, len(peaks))
-	for i, peak := range peaks {
-		log.Printf("peak: %v", peak)
-		if peak != nil {
-			// peak is a pointer to OpaqueHash
-			// OpaqueHash itself could be []byte or [32]byte depending on how jamtypes defines it
-			result[i] = peak
-		} else {
-			// Decide how you want to handle nil peaks:
-			result[i] = nil // or jamtypes.OpaqueHash{} if you prefer an empty hash
-		}
-	}
-	return result
 }
 
 // MmrWrapper converts an external types.Mmr into your internal MMR structure.
@@ -130,5 +111,5 @@ func MmrWrapper(ext *types.Mmr, hashFn HashFunction) *MMR {
 	}
 
 	// Build internal MMR
-	return NewMMRFromPeaks(fromMmrPeaks(ext.Peaks), hashFn)
+	return NewMMRFromPeaks(ext.Peaks, hashFn)
 }
