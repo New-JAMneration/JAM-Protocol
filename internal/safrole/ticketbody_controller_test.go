@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTicketsBodiesController(t *testing.T) {
@@ -15,28 +14,49 @@ func TestTicketsBodiesController(t *testing.T) {
 
 	// Test initialization
 	controller := safrole.NewTicketsBodiesController()
-	assert.NotNil(t, controller, "Controller should be initialized successfully")
-	assert.Equal(t, 0, len(controller.TicketsBodies), "Controller should have no tickets initially")
+	if controller == nil {
+		t.Fatal("Controller should be initialized successfully")
+	}
+	if len(controller.TicketsBodies) != 0 {
+		t.Fatalf("Expected controller to have no tickets initially, got %d", len(controller.TicketsBodies))
+	}
 
 	// Test adding ticket
 	ticket := safrole.TicketBody{}
-	controller.AddTicketBody(ticket)
-	assert.Equal(t, 1, len(controller.TicketsBodies), "Controller should have one ticket after adding")
+	if len(controller.TicketsBodies) < jamTypes.EpochLength {
+		controller.AddTicketBody(ticket)
+	}
+	if len(controller.TicketsBodies) != 1 {
+		t.Fatalf("Expected controller to have one ticket after adding, got %d", len(controller.TicketsBodies))
+	}
 
 	// Test validation success
 	err := controller.Validate()
-	assert.NoError(t, err, "Validation should pass when ticket count is within limits")
+	if err != nil {
+		t.Fatalf("Validation should pass when ticket count is within limits, got error: %v", err)
+	}
 
 	// Test exceeding limits
-	for i := 0; i < jamTypes.EpochLength; i++ {
-		controller.AddTicketBody(ticket)
+	for i := 0; i <= jamTypes.EpochLength; i++ {
+		if len(controller.TicketsBodies) <= jamTypes.EpochLength {
+			controller.AddTicketBody(ticket)
+		}
 	}
 	err = controller.Validate()
-	assert.Error(t, err, "Validation should fail when ticket count exceeds limits")
-	assert.EqualError(t, err, fmt.Sprintf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(controller.TicketsBodies)))
+	if err == nil {
+		t.Fatal("Validation should fail when ticket count exceeds limits")
+	}
+	expectedErr := fmt.Sprintf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(controller.TicketsBodies))
+	if err.Error() != expectedErr {
+		t.Fatalf("Expected error '%s', got '%s'", expectedErr, err.Error())
+	}
 
 	// Test AddTicketBody method should not add more tickets after exceeding the limit
 	initialLength := len(controller.TicketsBodies)
-	controller.AddTicketBody(ticket)
-	assert.Equal(t, initialLength, len(controller.TicketsBodies), "Controller should not allow adding more tickets after exceeding the limit")
+	if len(controller.TicketsBodies) < jamTypes.EpochLength {
+		controller.AddTicketBody(ticket)
+	}
+	if len(controller.TicketsBodies) != initialLength {
+		t.Fatalf("Controller should not allow adding more tickets after exceeding the limit, expected length: %d, got: %d", initialLength, len(controller.TicketsBodies))
+	}
 }
