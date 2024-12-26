@@ -98,6 +98,9 @@ func (m *MMR) P(peaks []*types.OpaqueHash, l *types.OpaqueHash, n int) []*types.
 }
 
 func (m *MMR) AppendOne(data *types.OpaqueHash) []*types.OpaqueHash {
+	if data == nil {
+		return m.Peaks
+	}
 	newPeaks := m.P(m.Peaks, data, 0)
 	m.Peaks = newPeaks
 	return newPeaks
