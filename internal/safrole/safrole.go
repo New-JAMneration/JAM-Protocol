@@ -4,11 +4,16 @@ import (
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// R function return the epoch and slot index
-// Equation (6.2)
-// !Warning : epoch datatype is undefined in jamtypes and is uncertain
-func R(time jamTypes.U32) (epoch jamTypes.U32, slotIndex jamTypes.U32) {
-	epoch = time / jamTypes.U32(jamTypes.EpochLength)
-	slotIndex = time % jamTypes.U32(jamTypes.EpochLength)
-	return epoch, slotIndex
+// GetEpochIndex returns the epoch index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+// (6.2)
+func GetEpochIndex(t jamTypes.TimeSlot) jamTypes.TimeSlot {
+	return t / jamTypes.TimeSlot(jamTypes.EpochLength)
+}
+
+// GetSlotIndex returns the slot index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+// (6.2)
+func GetSlotIndex(t jamTypes.TimeSlot) jamTypes.TimeSlot {
+	return t % jamTypes.TimeSlot(jamTypes.EpochLength)
 }
