@@ -3,7 +3,7 @@ package safrole
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // basic types

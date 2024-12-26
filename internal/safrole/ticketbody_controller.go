@@ -3,7 +3,7 @@ package safrole
 import (
 	"fmt"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // (6.5) // (6.6)
@@ -21,7 +21,7 @@ func NewTicketsBodiesController() *TicketsBodiesController {
 
 // Validate validates the controller
 func (t *TicketsBodiesController) Validate() error {
-	if len(t.TicketsBodies) > jamTypes.EpochLength {
+	if len(t.TicketsBodies) >= jamTypes.EpochLength {
 		return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(t.TicketsBodies))
 	}
 	return nil
@@ -30,8 +30,6 @@ func (t *TicketsBodiesController) Validate() error {
 // (6.5)
 // AddTicketBody adds a ticket body to the controller
 func (t *TicketsBodiesController) AddTicketBody(ticketBody TicketBody) *TicketsBodiesController {
-	if t.Validate() == nil {
-		t.TicketsBodies = append(t.TicketsBodies, ticketBody)
-	}
+	t.TicketsBodies = append(t.TicketsBodies, ticketBody)
 	return t
 }

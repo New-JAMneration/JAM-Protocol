@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
-	"github.com/stretchr/testify/assert"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestEpochKeysValidate(t *testing.T) {
@@ -15,13 +14,18 @@ func TestEpochKeysValidate(t *testing.T) {
 	// Test case 1: correct number of items
 	keys := EpochKeys(make([]BandersnatchKey, jam_types.EpochLength))
 	err := keys.Validate()
-	assert.NoError(t, err, "EpochKeys.Validate should not return an error for valid input")
+	if err != nil {
+		t.Errorf("EpochKeys.Validate returned an unexpected error for valid input: %v", err)
+	}
 
 	// Test case 2: incorrect number of items
 	keys = EpochKeys(make([]BandersnatchKey, jam_types.EpochLength-1))
 	err = keys.Validate()
-	assert.Error(t, err, "EpochKeys.Validate should return an error for invalid input")
-	assert.EqualError(t, err, fmt.Sprintf("EpochKeys must have exactly %d entries, got %d", jam_types.EpochLength, len(keys)))
+	if err == nil {
+		t.Error("EpochKeys.Validate did not return an error for invalid input")
+	} else if err.Error() != fmt.Sprintf("EpochKeys must have exactly %d entries, got %d", jam_types.EpochLength, len(keys)) {
+		t.Errorf("Unexpected error message: got '%v'", err)
+	}
 }
 
 func TestTicketsBodiesValidate(t *testing.T) {
@@ -31,13 +35,18 @@ func TestTicketsBodiesValidate(t *testing.T) {
 	// Test case 1: correct number of items
 	tickets := TicketsBodies(make([]TicketBody, jam_types.EpochLength))
 	err := tickets.Validate()
-	assert.NoError(t, err, "TicketsBodies.Validate should not return an error for valid input")
+	if err != nil {
+		t.Errorf("TicketsBodies.Validate returned an unexpected error for valid input: %v", err)
+	}
 
 	// Test case 2: incorrect number of items
 	tickets = TicketsBodies(make([]TicketBody, jam_types.EpochLength-1))
 	err = tickets.Validate()
-	assert.Error(t, err, "TicketsBodies.Validate should return an error for invalid input")
-	assert.EqualError(t, err, fmt.Sprintf("TicketsBodies must have exactly %d entries, got %d", jam_types.EpochLength, len(tickets)))
+	if err == nil {
+		t.Error("TicketsBodies.Validate did not return an error for invalid input")
+	} else if err.Error() != fmt.Sprintf("TicketsBodies must have exactly %d entries, got %d", jam_types.EpochLength, len(tickets)) {
+		t.Errorf("Unexpected error message: got '%v'", err)
+	}
 }
 
 func TestEpochMarkValidate(t *testing.T) {
@@ -49,13 +58,18 @@ func TestEpochMarkValidate(t *testing.T) {
 		Validators: make([]BandersnatchKey, jam_types.ValidatorsCount),
 	}
 	err := mark.Validate()
-	assert.NoError(t, err, "EpochMark.Validate should not return an error for valid input")
+	if err != nil {
+		t.Errorf("EpochMark.Validate returned an unexpected error for valid input: %v", err)
+	}
 
 	// Test case 2: 錯誤的數量
 	mark.Validators = make([]BandersnatchKey, jam_types.ValidatorsCount-1)
 	err = mark.Validate()
-	assert.Error(t, err, "EpochMark.Validate should return an error for invalid input")
-	assert.EqualError(t, err, fmt.Sprintf("EpochMark must have exactly %d validators, got %d", jam_types.ValidatorsCount, len(mark.Validators)))
+	if err == nil {
+		t.Error("EpochMark.Validate did not return an error for invalid input")
+	} else if err.Error() != fmt.Sprintf("EpochMark must have exactly %d validators, got %d", jam_types.ValidatorsCount, len(mark.Validators)) {
+		t.Errorf("Unexpected error message: got '%v'", err)
+	}
 }
 
 func TestStateIntegrity(t *testing.T) {
@@ -76,13 +90,18 @@ func TestStateIntegrity(t *testing.T) {
 
 	// Test Lambda validation
 	err := state.Lambda.Validate()
-	assert.NoError(t, err, "ValidatorsData.Validate should not return an error for valid input")
+	if err != nil {
+		t.Errorf("ValidatorsData.Validate returned an unexpected error for valid input: %v", err)
+	}
 
 	// Modify Lambda to make it invalid
 	state.Lambda = ValidatorsData{
 		{Bandersnatch: BandersnatchKey{}, Ed25519: Ed25519Key{}, Bls: BlsKey{}, Metadata: [128]U8{}},
 	}
 	err = state.Lambda.Validate()
-	assert.Error(t, err, "ValidatorsData.Validate should return an error for invalid input")
-	assert.EqualError(t, err, fmt.Sprintf("ValidatorsData must have exactly %d entries, got %d", jam_types.ValidatorsCount, len(state.Lambda)))
+	if err == nil {
+		t.Error("ValidatorsData.Validate did not return an error for invalid input")
+	} else if err.Error() != fmt.Sprintf("ValidatorsData must have exactly %d entries, got %d", jam_types.ValidatorsCount, len(state.Lambda)) {
+		t.Errorf("Unexpected error message: got '%v'", err)
+	}
 }

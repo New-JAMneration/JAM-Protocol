@@ -1,7 +1,7 @@
 package safrole
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // GetEpochIndex returns the epoch index of the most recent block't timeslot
