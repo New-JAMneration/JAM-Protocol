@@ -2,6 +2,7 @@ package mmr
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 // Node represents a node in the Merkle Mountain Range
@@ -48,9 +49,9 @@ func NewMMRFromPeaks(peaks []types.MmrPeak, hashFn HashFunction) *MMR {
 
 // concatenateAndHash combines two byte slices and hashes the result
 func (m *MMR) concatenateAndHash(left, right types.MmrPeak) types.MmrPeak {
-	leftSlice := left[:]
-	rightSlice := right[:]
-	val := m.hashFn(append(leftSlice, rightSlice...))
+	leftBytes := []byte(*left)
+	rightBytes := []byte(*right)
+	val := m.hashFn(append(leftBytes, rightBytes...))
 	return &val
 }
 
@@ -81,7 +82,7 @@ func (m *MMR) P(peaks []types.MmrPeak, l types.MmrPeak, n int) []types.MmrPeak {
 	}
 
 	// 2. if peaks[n] is empty
-	if len(m.Peaks[n]) == 0 {
+	if m.Peaks[n] == nil {
 		return m.Replace(m.Peaks, n, l)
 	}
 
@@ -96,7 +97,7 @@ func (m *MMR) P(peaks []types.MmrPeak, l types.MmrPeak, n int) []types.MmrPeak {
 }
 
 func (m *MMR) AppendOne(data types.MmrPeak) []types.MmrPeak {
-	if data == nil {
+	if data == nil || len(*data) == 0 {
 		return m.Peaks
 	}
 	newPeaks := m.P(m.Peaks, data, 0)
@@ -112,4 +113,23 @@ func MmrWrapper(ext *types.Mmr, hashFn HashFunction) *MMR {
 
 	// Build internal MMR
 	return NewMMRFromPeaks(ext.Peaks, hashFn)
+}
+
+func (m *MMR) Serialize() types.ByteSequence {
+	serialItems := []utilities.Serializable{}
+
+	for _, peak := range m.Peaks {
+		// empty
+		if peak == nil || len(*peak) == 0 {
+			serialItems = append(serialItems, utilities.U64Wrapper{})
+		} else {
+			serialItems = append(serialItems, utilities.SerializableSequence{utilities.U64Wrapper{Value: 1}, utilities.ByteArray32Wrapper{Value: types.ByteArray32(*peak)}})
+		}
+	}
+
+	disc := utilities.Discriminator{
+		Value: serialItems,
+	}
+
+	return disc.Serialize()
 }
