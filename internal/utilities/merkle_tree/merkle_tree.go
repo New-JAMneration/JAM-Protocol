@@ -20,11 +20,10 @@ func N(v []jamTypes.ByteSequence, hashFunc func(jamTypes.ByteSequence) jamTypes.
 		mid := len(v) / 2
 		left := v[:mid]
 		right := v[mid:]
-		// TODO() what is $node?
 		// $node + N(left) + N(right)
 		a := N(left, hashFunc)
 		b := N(right, hashFunc)
-		var merge jamTypes.ByteSequence
+		merge := jamTypes.ByteSequence("node")
 		if len(a.ByteSequence) > 0 {
 			merge = append(merge, a.ByteSequence...)
 		} else {
@@ -73,8 +72,8 @@ func PI(v []jamTypes.ByteSequence, i jamTypes.U32) jamTypes.U32 {
 // T: Traces the path from the root to a leaf node, returning opposite nodes at each level to justify data inclusion.
 func T(v []jamTypes.ByteSequence, i jamTypes.U32, hashFunc func(jamTypes.ByteSequence) jamTypes.OpaqueHash) (output []jamTypes.OpaqueHash) {
 	if len(v) > 1 {
-		suffix := T(Ps(v, i), i-PI(v, i), hashFunc)         // Recursive call for suffix
-		first := N(Ps(v, jamTypes.U32(len(v))-i), hashFunc) // Calculate hash of prefix
+		suffix := T(Ps(v, i), i-PI(v, i), hashFunc) // Recursive call for suffix
+		first := N(Ps(v, i), hashFunc)              // Calculate hash of prefix
 		output = append([]jamTypes.OpaqueHash{first.Hash}, suffix...)
 		return output
 	} else {
@@ -92,7 +91,9 @@ func Lx(v []jamTypes.ByteSequence, i jamTypes.U32, hashFunc func(jamTypes.ByteSe
 
 	ret := make([]jamTypes.OpaqueHash, 0)
 	for idx := i; idx < min(i+pow2, jamTypes.U32(len(v))); idx++ {
-		ret = append(ret, hashFunc(v[idx][:]))
+		merge := jamTypes.ByteSequence("leaf")
+		merge = append(merge, v[idx][:]...)
+		ret = append(ret, hashFunc(merge))
 	}
 	return ret
 }
@@ -106,7 +107,9 @@ func C(v []jamTypes.ByteSequence, hashFunc func(jamTypes.ByteSequence) jamTypes.
 	ret := make([]jamTypes.OpaqueHash, sz)
 	for i := 0; i < sz; i++ {
 		if i < len(v) {
-			ret[i] = hashFunc(jamTypes.ByteSequence(v[i][:])) // TODO $leaf
+			merge := jamTypes.ByteSequence("leaf")
+			merge = append(merge, v[i][:]...)
+			ret[i] = hashFunc(merge)
 		} else {
 			ret[i] = jamTypes.OpaqueHash{} // Zero hash for padding
 		}
