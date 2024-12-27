@@ -3,7 +3,7 @@ package utilities
 import (
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestStateWrapper(t *testing.T) {

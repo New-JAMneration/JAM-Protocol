@@ -1,12 +1,13 @@
+package types
+
 // Reminder: When using jam_types, check if a Validate function exists.
 // If a Validate function is available, remember to use it.
 // If the desired Validate function is not found, please implement one yourself. :)
 
-package jam_types
-
 import (
 	"errors"
 	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
@@ -20,65 +21,25 @@ type U32 uint32
 
 type U64 uint64
 type ByteSequence []byte
-type ByteArray32 []byte
+type ByteArray32 [32]byte
 
 type BitSequence []bool
 
 // Crypto
 
-type BandersnatchPublic []byte
+type BandersnatchPublic [32]byte
 
-func (b BandersnatchPublic) Validate() error {
-	if len(b) != 32 {
-		return errors.New("BandersnatchPublic expected 32 bytes")
-	}
-	return nil
-}
+type Ed25519Public [32]byte
 
-type Ed25519Public []byte
+type BlsPublic [144]byte
 
-func (e Ed25519Public) Validate() error {
-	if len(e) != 32 {
-		return errors.New("Ed25519Public expected 32 bytes")
-	}
-	return nil
-}
+type BandersnatchVrfSignature [96]byte
 
-type BlsPublic []byte
+type BandersnatchRingVrfSignature [784]byte
 
-func (e BlsPublic) Validate() error {
-	if len(e) != 144 {
-		return errors.New("BlsPublic expected 144 bytes")
-	}
-	return nil
-}
+type Ed25519Signature [64]byte
 
-type BandersnatchVrfSignature []byte
-
-func (b BandersnatchVrfSignature) Validate() error {
-	if len(b) != 96 {
-		return errors.New("BandersnatchVrfSignature expected 96 bytes")
-	}
-	return nil
-}
-
-type BandersnatchRingVrfSignature []byte
-
-func (b BandersnatchRingVrfSignature) Validate() error {
-	if len(b) != 784 {
-		return errors.New("BandersnatchRingVrfSignature expected 784 bytes")
-	}
-	return nil
-}
-
-type Ed25519Signature []byte
-
-func (e Ed25519Signature) Validate() error {
-	if len(e) != 64 {
-		return errors.New("Ed25519Signature expected 64 bytes")
-	}
-	return nil
-}
+type BandersnatchRingCommitment [144]byte
 
 // Application Specific Core
 
@@ -99,23 +60,9 @@ type ErasureRoot OpaqueHash
 type Gas U64
 
 type Entropy OpaqueHash
-type EntropyBuffer []Entropy
+type EntropyBuffer [4]Entropy
 
-func (e EntropyBuffer) Validate() error {
-	if len(e) != 4 {
-		return errors.New("EntropyBuffer must have exactly 4 Entropies")
-	}
-	return nil
-}
-
-type ValidatorMetadata []byte
-
-func (v ValidatorMetadata) Validate() error {
-	if len(v) != 128 {
-		return errors.New("ValidatorMetadata expected 128 bytes")
-	}
-	return nil
-}
+type ValidatorMetadata [128]byte
 
 type Validator struct {
 	Bandersnatch BandersnatchPublic `json:"bandersnatch,omitempty"`
@@ -202,9 +149,9 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 
 // Authorizations
 
-type Authorizations struct {
-	CodeHash  OpaqueHash   `json:"code_hash,omitempty"`
-	Signature ByteSequence `json:"signature,omitempty"`
+type Authorizer struct {
+	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
+	Params   ByteSequence `json:"params,omitempty"`
 }
 
 type AuthorizerHash OpaqueHash
@@ -221,7 +168,7 @@ func (a AuthPool) Validate() error {
 type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %d", CoresCount)
 	}
 
@@ -238,7 +185,7 @@ func (a AuthPools) Validate() error {
 type AuthQueue []AuthorizerHash
 
 func (a AuthQueue) Validate() error {
-	if len(a) > AuthQueueSize {
+	if len(a) != AuthQueueSize {
 		return fmt.Errorf("AuthQueue exceeds max-auth-queue-size limit of %d", AuthQueueSize)
 	}
 	return nil
@@ -247,7 +194,7 @@ func (a AuthQueue) Validate() error {
 type AuthQueues []AuthQueue
 
 func (a AuthQueues) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthQueues exceeds max-auth-queues limit of %d", CoresCount)
 	}
 
@@ -270,11 +217,6 @@ type ImportSpec struct {
 type ExtrinsicSpec struct {
 	Hash OpaqueHash `json:"hash,omitempty"`
 	Len  U32        `json:"len,omitempty"`
-}
-
-type Authorizer struct {
-	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
-	Params   ByteSequence `json:"params,omitempty"`
 }
 
 type WorkItem struct {
@@ -337,6 +279,7 @@ const (
 	WorkExecResultOk           WorkExecResultType = "ok"
 	WorkExecResultOutOfGas                        = "out-of-gas"
 	WorkExecResultPanic                           = "panic"
+	WorkExecResultBadExports                      = "bad-exports"
 	WorkExecResultBadCode                         = "bad-code"
 	WorkExecResultCodeOversize                    = "code-oversize"
 )
@@ -462,6 +405,31 @@ func (b BlocksHistory) Validate() error {
 	return nil
 }
 
+// Statistics
+
+type ActivityRecord struct {
+	Blocks        U32 `json:"blocks,omitempty"`
+	Tickets       U32 `json:"tickets,omitempty"`
+	PreImages     U32 `json:"pre_images,omitempty"`
+	PreImagesSize U32 `json:"pre_images_size,omitempty"`
+	Guarantees    U32 `json:"guarantees,omitempty"`
+	Assurances    U32 `json:"assurances,omitempty"`
+}
+
+type ActivityRecords []ActivityRecord
+
+func (a ActivityRecords) Validate() error {
+	if len(a) != ValidatorsCount {
+		return fmt.Errorf("ActivityRecords must have %d activity record", ValidatorsCount)
+	}
+	return nil
+}
+
+type Statistics struct {
+	Current ActivityRecords `json:"current,omitempty"`
+	Last    ActivityRecords `json:"last,omitempty"`
+}
+
 // Tickets
 
 type TicketId OpaqueHash
@@ -556,35 +524,11 @@ type Culprit struct {
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
-func (c *Culprit) Validate() error {
-	if err := c.Key.Validate(); err != nil {
-		return err
-	}
-
-	if err := c.Signature.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type Fault struct {
 	Target    WorkReportHash   `json:"target,omitempty"`
 	Vote      bool             `json:"vote,omitempty"`
 	Key       Ed25519Public    `json:"key,omitempty"`
 	Signature Ed25519Signature `json:"signature,omitempty"`
-}
-
-func (f *Fault) Validate() error {
-	if err := f.Key.Validate(); err != nil {
-		return err
-	}
-
-	if err := f.Signature.Validate(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type DisputesRecords struct {
@@ -603,18 +547,6 @@ type DisputesExtrinsic struct {
 func (d *DisputesExtrinsic) Validate() error {
 	for _, verdict := range d.Verdicts {
 		if err := verdict.Validate(); err != nil {
-			return err
-		}
-	}
-
-	for _, culprit := range d.Culprits {
-		if err := culprit.Validate(); err != nil {
-			return err
-		}
-	}
-
-	for _, fault := range d.Faults {
-		if err := fault.Validate(); err != nil {
 			return err
 		}
 	}
@@ -788,14 +720,8 @@ type EpochMark struct {
 }
 
 func (e EpochMark) Validate() error {
-	if len(e.Validators) > ValidatorsCount {
+	if len(e.Validators) != ValidatorsCount {
 		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", ValidatorsCount)
-	}
-
-	for _, validator := range e.Validators {
-		if err := validator.Validate(); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -836,20 +762,6 @@ func (h *Header) Validate() error {
 		if err := h.TicketsMark.Validate(); err != nil {
 			return err
 		}
-	}
-
-	for _, public := range h.OffendersMark {
-		if err := public.Validate(); err != nil {
-			return err
-		}
-	}
-
-	if err := h.EntropySource.Validate(); err != nil {
-		return err
-	}
-
-	if err := h.Seal.Validate(); err != nil {
-		return err
 	}
 
 	return nil
@@ -951,4 +863,42 @@ func (b *Block) ScaleDecode(data []byte) error {
 
 func (b *Block) ScaleEncode() ([]byte, error) {
 	return scale.Encode("block", b)
+}
+
+// Safrole
+
+type State struct {
+	Tau           TimeSlot                   `json:"tau"`            // Most recent block's timeslot
+	Eta           EntropyBuffer              `json:"eta"`            // Entropy accumulator and epochal randomness
+	Lambda        ValidatorsData             `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
+	Kappa         ValidatorsData             `json:"kappa"`          // Validator keys and metadata currently active
+	GammaK        ValidatorsData             `json:"gamma_k"`        // Validator keys for the following epoch
+	Iota          ValidatorsData             `json:"iota"`           // Validator keys and metadata to be drawn from next
+	GammaA        TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
+	GammaS        TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
+	GammaZ        BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
+	PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
+}
+
+type Input struct {
+	Slot      TimeSlot         `json:"slot"`      // Current slot
+	Entropy   Entropy          `json:"entropy"`   // Per block entropy (originated from block entropy source VRF)
+	Extrinsic TicketsExtrinsic `json:"extrinsic"` // Safrole extrinsic
+}
+
+type OutputData struct {
+	EpochMark   *EpochMark   `json:"epoch_mark,omitempty"`   // New epoch marker (optional).
+	TicketsMark *TicketsMark `json:"tickets_mark,omitempty"` // Winning tickets marker (optional).
+}
+
+type Output struct {
+	Ok  *OutputData `json:"ok,omitempty"`
+	Err *ErrorCode  `json:"err,omitempty"`
+}
+
+type TestCase struct {
+	Input     Input  `json:"input"`
+	PreState  State  `json:"pre_state"`
+	Output    Output `json:"output"`
+	PostState State  `json:"post_state"`
 }
