@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // (6.5) // (6.6)
@@ -23,7 +22,7 @@ func NewTicketsBodiesController() *TicketsBodiesController {
 // Validate validates the controller
 func (tbc *TicketsBodiesController) Validate() error {
 	if len(tbc.TicketsBodies) > types.EpochLength {
-		return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(tbc.TicketsBodies))
+		return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", types.EpochLength, len(tbc.TicketsBodies))
 	}
 	return nil
 }
@@ -35,5 +34,5 @@ func (tbc *TicketsBodiesController) AddTicketBody(ticketBody types.TicketBody) e
 		tbc.TicketsBodies = append(tbc.TicketsBodies, ticketBody)
 		return nil
 	}
-	return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(tbc.TicketsBodies))
+	return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", types.EpochLength, len(tbc.TicketsBodies))
 }
