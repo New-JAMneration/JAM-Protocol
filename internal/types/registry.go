@@ -1,4 +1,4 @@
-package jam_types
+package types
 
 import "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/types"
 

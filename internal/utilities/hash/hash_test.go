@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TestBlake2bHash tests the Blake2bHash function.
