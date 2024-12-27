@@ -21,74 +21,25 @@ type U32 uint32
 
 type U64 uint64
 type ByteSequence []byte
-type ByteArray32 []byte
+type ByteArray32 [32]byte
 
 type BitSequence []bool
 
 // Crypto
 
-type BandersnatchPublic []byte
+type BandersnatchPublic [32]byte
 
-func (b BandersnatchPublic) Validate() error {
-	if len(b) != 32 {
-		return errors.New("BandersnatchPublic expected 32 bytes")
-	}
-	return nil
-}
+type Ed25519Public [32]byte
 
-type Ed25519Public []byte
+type BlsPublic [144]byte
 
-func (e Ed25519Public) Validate() error {
-	if len(e) != 32 {
-		return errors.New("Ed25519Public expected 32 bytes")
-	}
-	return nil
-}
+type BandersnatchVrfSignature [96]byte
 
-type BlsPublic []byte
+type BandersnatchRingVrfSignature [784]byte
 
-func (e BlsPublic) Validate() error {
-	if len(e) != 144 {
-		return errors.New("BlsPublic expected 144 bytes")
-	}
-	return nil
-}
+type Ed25519Signature [64]byte
 
-type BandersnatchVrfSignature []byte
-
-func (b BandersnatchVrfSignature) Validate() error {
-	if len(b) != 96 {
-		return errors.New("BandersnatchVrfSignature expected 96 bytes")
-	}
-	return nil
-}
-
-type BandersnatchRingVrfSignature []byte
-
-func (b BandersnatchRingVrfSignature) Validate() error {
-	if len(b) != 784 {
-		return errors.New("BandersnatchRingVrfSignature expected 784 bytes")
-	}
-	return nil
-}
-
-type Ed25519Signature []byte
-
-func (e Ed25519Signature) Validate() error {
-	if len(e) != 64 {
-		return errors.New("Ed25519Signature expected 64 bytes")
-	}
-	return nil
-}
-
-type BandersnatchRingCommitment []byte
-
-func (e BandersnatchRingCommitment) Validate() error {
-	if len(e) != 144 {
-		return errors.New("BandersnatchRingCommitment expected 144 bytes")
-	}
-	return nil
-}
+type BandersnatchRingCommitment [144]byte
 
 // Application Specific Core
 
@@ -109,23 +60,9 @@ type ErasureRoot OpaqueHash
 type Gas U64
 
 type Entropy OpaqueHash
-type EntropyBuffer []Entropy
+type EntropyBuffer [4]Entropy
 
-func (e EntropyBuffer) Validate() error {
-	if len(e) != 4 {
-		return errors.New("EntropyBuffer must have exactly 4 Entropies")
-	}
-	return nil
-}
-
-type ValidatorMetadata []byte
-
-func (v ValidatorMetadata) Validate() error {
-	if len(v) != 128 {
-		return errors.New("ValidatorMetadata expected 128 bytes")
-	}
-	return nil
-}
+type ValidatorMetadata [128]byte
 
 type Validator struct {
 	Bandersnatch BandersnatchPublic `json:"bandersnatch,omitempty"`
@@ -587,35 +524,11 @@ type Culprit struct {
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
-func (c *Culprit) Validate() error {
-	if err := c.Key.Validate(); err != nil {
-		return err
-	}
-
-	if err := c.Signature.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type Fault struct {
 	Target    WorkReportHash   `json:"target,omitempty"`
 	Vote      bool             `json:"vote,omitempty"`
 	Key       Ed25519Public    `json:"key,omitempty"`
 	Signature Ed25519Signature `json:"signature,omitempty"`
-}
-
-func (f *Fault) Validate() error {
-	if err := f.Key.Validate(); err != nil {
-		return err
-	}
-
-	if err := f.Signature.Validate(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type DisputesRecords struct {
@@ -634,18 +547,6 @@ type DisputesExtrinsic struct {
 func (d *DisputesExtrinsic) Validate() error {
 	for _, verdict := range d.Verdicts {
 		if err := verdict.Validate(); err != nil {
-			return err
-		}
-	}
-
-	for _, culprit := range d.Culprits {
-		if err := culprit.Validate(); err != nil {
-			return err
-		}
-	}
-
-	for _, fault := range d.Faults {
-		if err := fault.Validate(); err != nil {
 			return err
 		}
 	}
@@ -823,12 +724,6 @@ func (e EpochMark) Validate() error {
 		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", ValidatorsCount)
 	}
 
-	for _, validator := range e.Validators {
-		if err := validator.Validate(); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -867,20 +762,6 @@ func (h *Header) Validate() error {
 		if err := h.TicketsMark.Validate(); err != nil {
 			return err
 		}
-	}
-
-	for _, public := range h.OffendersMark {
-		if err := public.Validate(); err != nil {
-			return err
-		}
-	}
-
-	if err := h.EntropySource.Validate(); err != nil {
-		return err
-	}
-
-	if err := h.Seal.Validate(); err != nil {
-		return err
 	}
 
 	return nil
