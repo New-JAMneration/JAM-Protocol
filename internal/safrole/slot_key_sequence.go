@@ -37,16 +37,15 @@ func FallbackKeySequence(entropy types.OpaqueHash, validators types.ValidatorsDa
 
 	for i = 0; i < epochLength; i++ {
 		// Get E_4(i)
-		serialized := utils.SerializeFixedLength(i, 4)
+		serial := utils.SerializeFixedLength(i, 4)
 		// Concatenate  entropy with E_4(i)
-		serializedBytes := append(entropy[:], serialized...)
-		// H4 : Keccak256(E_4(i) || entropy) according to GP I.3 , I.3 -> See section 3.8 ,
-		// take only the first 4 octets of the hash,
-		hash := hash.KeccakHash(serializedBytes)
+		concatenation := append(entropy[:], serial...)
+		// H4 : Keccak256(serializedBytes) -> See section 3.8 , take only the first 4 octets of the hash,
+		hash := hash.Blake2bHashPartial(concatenation, 4)
 		// E^(-1) deserialization
-		validatorIndex, _ := utils.DeserializeU64(types.ByteSequence(hash[:4]))
+		validatorIndex, _ := utils.DeserializeFixedLength(types.ByteSequence(hash), types.U64(4))
 		// validatorIndex : jamtypes.U64
-		validatorIndex %= types.U64(types.ValidatorsCount)
+		validatorIndex %= (types.U64(types.ValidatorsCount))
 		// k[]_b : validatorData -> bandersnatch
 		keys[i] = validators[validatorIndex].Bandersnatch
 	}
