@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestTicketsBodiesController(t *testing.T) {
