@@ -6,8 +6,6 @@ import (
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-var entropy OpaqueHash
-
 // OutsideInSequencer re-order the slice of ticketsBodies as in GP Eq. 6.25
 func OutsideInSequencer(t *TicketsBodies) []TicketBody {
 	left := 0
@@ -45,7 +43,7 @@ func FallbackKeySequence(entropy types.OpaqueHash, validators types.ValidatorsDa
 		// E^(-1) deserialization
 		validatorIndex, _ := utils.DeserializeFixedLength(types.ByteSequence(hash), types.U64(4))
 		// validatorIndex : jamtypes.U64
-		validatorIndex %= (types.U64(types.ValidatorsCount))
+		validatorIndex %= (types.U64(len(validators)))
 		// k[]_b : validatorData -> bandersnatch
 		keys[i] = validators[validatorIndex].Bandersnatch
 	}
