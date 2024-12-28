@@ -1,14 +1,19 @@
 package safrole
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// R function return the epoch and slot index
-// Equation (6.2)
-// !Warning : epoch datatype is undefined in jamtypes and is uncertain
-func R(time U32) (epoch U32, slotIndex U32) {
-	epoch = time / U32(jamTypes.EpochLength)
-	slotIndex = time % U32(jamTypes.EpochLength)
-	return epoch, slotIndex
+// GetEpochIndex returns the epoch index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+// (6.2)
+func GetEpochIndex(t types.TimeSlot) types.TimeSlot {
+	return t / types.TimeSlot(types.EpochLength)
+}
+
+// GetSlotIndex returns the slot index of the most recent block't timeslot
+// \tau : The most recent block't timeslot
+// (6.2)
+func GetSlotIndex(t types.TimeSlot) types.TimeSlot {
+	return t % types.TimeSlot(types.EpochLength)
 }
