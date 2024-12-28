@@ -16,8 +16,15 @@ func TestGuaranteeInit(t *testing.T) {
 }
 
 func padSignature(signature jamTypes.Ed25519Signature, targetLength int) jamTypes.Ed25519Signature {
-	padding := bytes.Repeat([]byte{0}, targetLength-len(signature))
-	return append(signature, padding...)
+// Convert fixed-size array to slice first
+	sigSlice := signature[:]
+	padding := bytes.Repeat([]byte{0}, targetLength-len(sigSlice))
+	// Append to the slice
+	paddedSlice := append(sigSlice, padding...)
+	// Convert back to Ed25519Signature
+	var result jamTypes.Ed25519Signature
+	copy(result[:], paddedSlice)
+	return result
 }
 
 func TestGuaranteeAdd(t *testing.T) {
