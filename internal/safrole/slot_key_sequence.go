@@ -7,11 +7,12 @@ import (
 )
 
 // OutsideInSequencer re-order the slice of ticketsBodies as in GP Eq. 6.25
-func OutsideInSequencer(t *TicketsBodies) []TicketBody {
+func OutsideInSequencer(t *types.TicketsAccumulator) types.TicketsAccumulator {
 	left := 0
 	right := types.EpochLength - 1
 
-	out := make([]TicketBody, types.EpochLength)
+	out := make(types.TicketsAccumulator, types.EpochLength)
+
 	for i := 0; i < types.EpochLength; i++ {
 		if i%2 == 0 {
 			out[i] = (*t)[left]
