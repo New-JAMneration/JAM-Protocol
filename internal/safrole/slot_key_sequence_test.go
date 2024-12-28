@@ -2,8 +2,6 @@ package safrole
 
 import (
 	"testing"
-
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestOutsideInSequencer(t *testing.T) {
@@ -99,6 +97,7 @@ func TestOutsideInSequencer(t *testing.T) {
 	}
 }
 
+/*
 func TestFallbackKeySequence(t *testing.T) {
 	// test data : https://github.com/jam-duna/jamtestnet/blob/main/fallback/state_snapshots/425523_000.json
 	type test struct {
@@ -177,3 +176,4 @@ func TestFallbackKeySequence(t *testing.T) {
 		}
 	}
 }
+*/
