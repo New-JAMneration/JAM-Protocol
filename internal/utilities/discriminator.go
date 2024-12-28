@@ -1,6 +1,11 @@
 package utilities
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"fmt"
+	"reflect"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+)
 
 type Discriminator struct {
 	Value []Serializable
@@ -20,28 +25,43 @@ func LensElementPair[T any](input []T) (int, []T) {
 	return len(input), input
 }
 
-// EmptyOrPair will return 0 if the input is empty(length == 0) and (1, input) otherwise
-// 注意 : 傳進來要使用 pointer
-func EmptyOrPair(input any) (int, any) {
+// EmptyOrPair will return the length of the slice and the input data itself
+// if return 2, it means the input type is not supported
+func EmptyOrPair(input interface{}) (int, any) {
 	// Equation C.9
-	// 只需判斷有 len() 的 input，如 slice , map
-	// 無 len() 的 datatype 會被初始花為 0
-	switch input := input.(type) {
-	case []any:
-		if len(input) == 0 {
+	if input == nil {
+		return 0, nil
+	}
+
+	value := reflect.ValueOf(input)
+
+	switch value.Kind() {
+	case reflect.Struct:
+		if value.NumField() == 0 {
 			return 0, nil
 		}
-	case types.ByteSequence:
-		if len(input) == 0 {
-			return 0, nil
+		// check all the fields in struct
+		for i := 0; i < value.NumField(); i++ {
+			fmt.Println(value.Field(i).Kind())
+			f := value.Field(i)
+			if f.Kind() == reflect.Slice && f.Len() != 0 {
+				return 1, input
+			} else if f.Kind() == reflect.Array {
+				return 1, input
+			} else {
+				err := fmt.Errorf("input type is not supported currently")
+				return 2, err
+			}
 		}
-	case string:
-		if len(input) == 0 {
+		return 0, nil
+	case reflect.Slice:
+		if value.Len() == 0 {
 			return 0, nil
 		}
 	default:
-		return 1, input
+		err := fmt.Errorf("input type is not supported currently")
+		return 2, err
 	}
-	return 1, input
 
+	return 1, input
 }
