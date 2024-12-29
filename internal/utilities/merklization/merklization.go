@@ -3,7 +3,7 @@ package merklization
 import (
 	"errors"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -12,9 +12,9 @@ const NODE_SIZE = 512
 
 // bytesToBits converts a byte sequence to a bit sequence.
 // The function defined in graypaper 3.7.3. Boolean Values
-func bytesToBits(s jamTypes.ByteSequence) jamTypes.BitSequence {
+func bytesToBits(s types.ByteSequence) types.BitSequence {
 	// Initialize the bit sequence.
-	bitSequence := jamTypes.BitSequence{}
+	bitSequence := types.BitSequence{}
 
 	// Iterate over the byte sequence.
 	for _, byte := range s {
@@ -33,13 +33,13 @@ func bytesToBits(s jamTypes.ByteSequence) jamTypes.BitSequence {
 }
 
 // bitsToBytes converts a BitSequence to a ByteSequence
-func bitsToBytes(bits jamTypes.BitSequence) (jamTypes.ByteSequence, error) {
+func bitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
 	if len(bits)%8 != 0 {
 		return nil, errors.New("bit sequence length must be a multiple of 8")
 	}
 
 	byteLength := len(bits) / 8
-	bytes := make(jamTypes.ByteSequence, byteLength)
+	bytes := make(types.ByteSequence, byteLength)
 
 	for i, bit := range bits {
 		if bit {
@@ -51,12 +51,12 @@ func bitsToBytes(bits jamTypes.BitSequence) (jamTypes.ByteSequence, error) {
 }
 
 // BranchEncoding encodes a branch node.
-func BranchEncoding(left, right jamTypes.OpaqueHash) jamTypes.BitSequence {
-	branchPrefixBit := jamTypes.BitSequence{false}
+func BranchEncoding(left, right types.OpaqueHash) types.BitSequence {
+	branchPrefixBit := types.BitSequence{false}
 	leftBits := bytesToBits(left[:])[1:]
 	rightBits := bytesToBits(right[:])
 
-	encoding := jamTypes.BitSequence{}
+	encoding := types.BitSequence{}
 	encoding = append(encoding, branchPrefixBit...) // 1 bit
 	encoding = append(encoding, leftBits...)        // 255 bits
 	encoding = append(encoding, rightBits...)       // 256 bits
@@ -64,16 +64,16 @@ func BranchEncoding(left, right jamTypes.OpaqueHash) jamTypes.BitSequence {
 	return encoding // 512 bits
 }
 
-func embeddedValueLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes.BitSequence {
-	leftPrefixBit := jamTypes.BitSequence{true}                    // 1 bit
-	embeddedValueLeafPrefixBit := jamTypes.BitSequence{false}      // 1 bit
+func embeddedValueLeaf(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
+	leftPrefixBit := types.BitSequence{true}                       // 1 bit
+	embeddedValueLeafPrefixBit := types.BitSequence{false}         // 1 bit
 	prefix := append(leftPrefixBit, embeddedValueLeafPrefixBit...) // 2 bits
 
-	valueSize := jamTypes.U32(len(value))
+	valueSize := types.U32(len(value))
 	serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
 	valueSizeBits := bytesToBits(serializedValueSize)
 
-	encoding := jamTypes.BitSequence{}
+	encoding := types.BitSequence{}
 	encoding = append(encoding, prefix...)
 	encoding = append(encoding, valueSizeBits[2:]...)
 	encoding = append(encoding, bytesToBits(key[:])[:248]...)
@@ -81,18 +81,18 @@ func embeddedValueLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jam
 
 	// Calculate the size, if it has space left, fill it with 0
 	if len(encoding) < NODE_SIZE {
-		encoding = append(encoding, make(jamTypes.BitSequence, NODE_SIZE-len(encoding))...)
+		encoding = append(encoding, make(types.BitSequence, NODE_SIZE-len(encoding))...)
 	}
 
 	return encoding
 }
 
-func regularLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes.BitSequence {
-	leftPrefixBit := jamTypes.BitSequence{true}                                    // 1 bit
-	regularLeafPrefixBit := jamTypes.BitSequence{true}                             // 1 bit
-	fillZeroBits := jamTypes.BitSequence{false, false, false, false, false, false} // 6 bits
+func regularLeaf(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
+	leftPrefixBit := types.BitSequence{true}                                    // 1 bit
+	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
+	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
 
-	encoding := jamTypes.BitSequence{}
+	encoding := types.BitSequence{}
 	encoding = append(encoding, leftPrefixBit...)
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)
@@ -103,7 +103,7 @@ func regularLeaf(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes.
 	return encoding
 }
 
-func LeafEncoding(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes.BitSequence {
+func LeafEncoding(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
 	if len(value) <= 32 {
 		return embeddedValueLeaf(key, value)
 	} else {
@@ -111,8 +111,8 @@ func LeafEncoding(key jamTypes.OpaqueHash, value jamTypes.ByteSequence) jamTypes
 	}
 }
 
-// Convert a jamTypes.BitSequence to a string
-func bitSequenceToString(bitSequence jamTypes.BitSequence) string {
+// Convert a types.BitSequence to a string
+func bitSequenceToString(bitSequence types.BitSequence) string {
 	str := ""
 	for _, bit := range bitSequence {
 		if bit {
@@ -127,21 +127,21 @@ func bitSequenceToString(bitSequence jamTypes.BitSequence) string {
 // (D.2)
 // $T(\sigma)$
 // Serialized States
-type SerializedState map[jamTypes.OpaqueHash]jamTypes.ByteSequence
+type SerializedState map[types.OpaqueHash]types.ByteSequence
 
 type SerializedStateKeyValue struct {
-	key   jamTypes.OpaqueHash
-	value jamTypes.ByteSequence
+	key   types.OpaqueHash
+	value types.ByteSequence
 }
 
 // INFO: Convert the BitSequence to a bitstrings, because we cannot use []bool as a
 // key in a map
 type MerklizationInput map[string]SerializedStateKeyValue
 
-func Merklization(d MerklizationInput) jamTypes.OpaqueHash {
+func Merklization(d MerklizationInput) types.OpaqueHash {
 	if len(d) == 0 {
 		// zero hash
-		return jamTypes.OpaqueHash{}
+		return types.OpaqueHash{}
 	}
 
 	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
