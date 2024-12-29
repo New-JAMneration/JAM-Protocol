@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"io"
 	"os"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var Config config
@@ -62,23 +63,28 @@ func loadConfig(path string) error {
 
 	initJamConst()
 	initLog()
+	initJamScaleRegistry()
 
 	return nil
 }
 
 func initJamConst() {
-	jam_types.ValidatorsCount = Config.Const.ValidatorsCount
-	jam_types.CoresCount = Config.Const.CoresCount
-	jam_types.EpochLength = Config.Const.EpochLength
-	jam_types.MaxTicketsPerBlock = Config.Const.MaxTicketsPerBlock
-	jam_types.TicketsPerValidator = Config.Const.TicketsPerValidator
-	jam_types.MaxBlocksHistory = Config.Const.MaxBlocksHistory
-	jam_types.AuthPoolMaxSize = Config.Const.AuthPoolMaxSize
-	jam_types.AuthQueueSize = Config.Const.AuthQueueSize
-	jam_types.ValidatorsSuperMajority = Config.Const.ValidatorsSuperMajority
-	jam_types.AvailBitfieldBytes = Config.Const.AvailBitfieldBytes
+	types.ValidatorsCount = Config.Const.ValidatorsCount
+	types.CoresCount = Config.Const.CoresCount
+	types.EpochLength = Config.Const.EpochLength
+	types.MaxTicketsPerBlock = Config.Const.MaxTicketsPerBlock
+	types.TicketsPerValidator = Config.Const.TicketsPerValidator
+	types.MaxBlocksHistory = Config.Const.MaxBlocksHistory
+	types.AuthPoolMaxSize = Config.Const.AuthPoolMaxSize
+	types.AuthQueueSize = Config.Const.AuthQueueSize
+	types.ValidatorsSuperMajority = Config.Const.ValidatorsSuperMajority
+	types.AvailBitfieldBytes = Config.Const.AvailBitfieldBytes
 }
 
 func initLog() {
 	logger.SetLevel(Config.Log.Level)
+}
+
+func initJamScaleRegistry() {
+	types.InitScaleRegistry()
 }
