@@ -5,25 +5,25 @@ import (
 	"reflect"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestBytesToBits(t *testing.T) {
 	testCases := []struct {
-		input    jamTypes.ByteSequence
-		expected jamTypes.BitSequence
+		input    types.ByteSequence
+		expected types.BitSequence
 	}{
-		{jamTypes.ByteSequence{}, jamTypes.BitSequence{}},
-		{jamTypes.ByteSequence{0}, jamTypes.BitSequence{false, false, false, false, false, false, false, false}},
-		{jamTypes.ByteSequence{1}, jamTypes.BitSequence{false, false, false, false, false, false, false, true}},
-		{jamTypes.ByteSequence{10}, jamTypes.BitSequence{false, false, false, false, true, false, true, false}},
-		{jamTypes.ByteSequence{100}, jamTypes.BitSequence{false, true, true, false, false, true, false, false}},
-		{jamTypes.ByteSequence{128}, jamTypes.BitSequence{true, false, false, false, false, false, false, false}},
-		{jamTypes.ByteSequence{255}, jamTypes.BitSequence{true, true, true, true, true, true, true, true}},
-		{jamTypes.ByteSequence{0, 0}, jamTypes.BitSequence{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}},
-		{jamTypes.ByteSequence{160, 0}, jamTypes.BitSequence{true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false}},
+		{types.ByteSequence{}, types.BitSequence{}},
+		{types.ByteSequence{0}, types.BitSequence{false, false, false, false, false, false, false, false}},
+		{types.ByteSequence{1}, types.BitSequence{false, false, false, false, false, false, false, true}},
+		{types.ByteSequence{10}, types.BitSequence{false, false, false, false, true, false, true, false}},
+		{types.ByteSequence{100}, types.BitSequence{false, true, true, false, false, true, false, false}},
+		{types.ByteSequence{128}, types.BitSequence{true, false, false, false, false, false, false, false}},
+		{types.ByteSequence{255}, types.BitSequence{true, true, true, true, true, true, true, true}},
+		{types.ByteSequence{0, 0}, types.BitSequence{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}},
+		{types.ByteSequence{160, 0}, types.BitSequence{true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false}},
 	}
 
 	for _, tc := range testCases {
@@ -41,21 +41,21 @@ func TestBytesToBits(t *testing.T) {
 
 func TestBitsToBytes(t *testing.T) {
 	testCases := []struct {
-		input         jamTypes.BitSequence
-		expected      jamTypes.ByteSequence
+		input         types.BitSequence
+		expected      types.ByteSequence
 		expectedError error
 	}{
-		{jamTypes.BitSequence{}, jamTypes.ByteSequence{}, nil},
-		{jamTypes.BitSequence{false, false, false, false, false, false, false, false}, jamTypes.ByteSequence{0}, nil},
-		{jamTypes.BitSequence{false, false, false, false, false, false, false, true}, jamTypes.ByteSequence{1}, nil},
-		{jamTypes.BitSequence{false, false, false, false, true, false, true, false}, jamTypes.ByteSequence{10}, nil},
-		{jamTypes.BitSequence{false, true, true, false, false, true, false, false}, jamTypes.ByteSequence{100}, nil},
-		{jamTypes.BitSequence{true, false, false, false, false, false, false, false}, jamTypes.ByteSequence{128}, nil},
-		{jamTypes.BitSequence{true, true, true, true, true, true, true, true}, jamTypes.ByteSequence{255}, nil},
-		{jamTypes.BitSequence{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}, jamTypes.ByteSequence{0, 0}, nil},
-		{jamTypes.BitSequence{true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false}, jamTypes.ByteSequence{160, 0}, nil},
-		{jamTypes.BitSequence{false}, nil, errors.New("bit sequence length must be a multiple of 8")},
-		{jamTypes.BitSequence{true, false, false, false, false, false, false, false, false}, nil, errors.New("bit sequence length must be a multiple of 8")},
+		{types.BitSequence{}, types.ByteSequence{}, nil},
+		{types.BitSequence{false, false, false, false, false, false, false, false}, types.ByteSequence{0}, nil},
+		{types.BitSequence{false, false, false, false, false, false, false, true}, types.ByteSequence{1}, nil},
+		{types.BitSequence{false, false, false, false, true, false, true, false}, types.ByteSequence{10}, nil},
+		{types.BitSequence{false, true, true, false, false, true, false, false}, types.ByteSequence{100}, nil},
+		{types.BitSequence{true, false, false, false, false, false, false, false}, types.ByteSequence{128}, nil},
+		{types.BitSequence{true, true, true, true, true, true, true, true}, types.ByteSequence{255}, nil},
+		{types.BitSequence{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}, types.ByteSequence{0, 0}, nil},
+		{types.BitSequence{true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false}, types.ByteSequence{160, 0}, nil},
+		{types.BitSequence{false}, nil, errors.New("bit sequence length must be a multiple of 8")},
+		{types.BitSequence{true, false, false, false, false, false, false, false, false}, nil, errors.New("bit sequence length must be a multiple of 8")},
 	}
 
 	for _, tc := range testCases {
@@ -80,10 +80,10 @@ func TestBitsToBytes(t *testing.T) {
 
 func TestBranchEncoding(t *testing.T) {
 	testCases := []struct {
-		left  jamTypes.OpaqueHash
-		right jamTypes.OpaqueHash
+		left  types.OpaqueHash
+		right types.OpaqueHash
 	}{
-		{jamTypes.OpaqueHash{}, jamTypes.OpaqueHash{}},
+		{types.OpaqueHash{}, types.OpaqueHash{}},
 		{hash.Blake2bHash([]byte("left")), hash.Blake2bHash([]byte("right"))},
 	}
 
@@ -122,12 +122,12 @@ func TestBranchEncoding(t *testing.T) {
 
 func TestEmbeddedValueLeaf(t *testing.T) {
 	testCases := []struct {
-		key   jamTypes.OpaqueHash
-		value jamTypes.ByteSequence
+		key   types.OpaqueHash
+		value types.ByteSequence
 	}{
-		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
-		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
+		{types.OpaqueHash{}, types.ByteSequence{}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), types.ByteSequence{1, 2, 3}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), types.ByteSequence{1, 11, 111, 0, 3, 0}},
 	}
 
 	for _, tc := range testCases {
@@ -148,10 +148,10 @@ func TestEmbeddedValueLeaf(t *testing.T) {
 		}
 
 		// Check the serialized output of the value size
-		valueSize := jamTypes.U32(len(tc.value))
+		valueSize := types.U32(len(tc.value))
 		serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
 		valueSizeBits := bytesToBits(serializedValueSize)
-		if !reflect.DeepEqual(actual[2:8], valueSizeBits[:6]) {
+		if !reflect.DeepEqual(actual[2:8], valueSizeBits[2:]) {
 			t.Errorf("Expected %v, got %v", valueSizeBits[:6], actual[2:8])
 		}
 
@@ -179,15 +179,15 @@ func TestEmbeddedValueLeaf(t *testing.T) {
 
 func TestRegularLeaf(t *testing.T) {
 	testCases := []struct {
-		key   jamTypes.OpaqueHash
-		value jamTypes.ByteSequence
+		key   types.OpaqueHash
+		value types.ByteSequence
 	}{
-		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{hash.Blake2bHash([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
+		{types.OpaqueHash{}, types.ByteSequence{}},
+		{hash.Blake2bHash([]byte("regular_leaf_test_1")), types.ByteSequence{
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 			17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		}},
-		{hash.Blake2bHash([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("regular_leaf_test_2")), types.ByteSequence{
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		}},
@@ -234,17 +234,17 @@ func TestRegularLeaf(t *testing.T) {
 
 func TestLeafEncoding(t *testing.T) {
 	testCases := []struct {
-		key   jamTypes.OpaqueHash
-		value jamTypes.ByteSequence
+		key   types.OpaqueHash
+		value types.ByteSequence
 	}{
-		{jamTypes.OpaqueHash{}, jamTypes.ByteSequence{}},
-		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), jamTypes.ByteSequence{1, 2, 3}},
-		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), jamTypes.ByteSequence{1, 11, 111, 0, 3, 0}},
-		{hash.Blake2bHash([]byte("regular_leaf_test_1")), jamTypes.ByteSequence{
+		{types.OpaqueHash{}, types.ByteSequence{}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_1")), types.ByteSequence{1, 2, 3}},
+		{hash.Blake2bHash([]byte("embedded_value_leaf_test_2")), types.ByteSequence{1, 11, 111, 0, 3, 0}},
+		{hash.Blake2bHash([]byte("regular_leaf_test_1")), types.ByteSequence{
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 			17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 		}},
-		{hash.Blake2bHash([]byte("regular_leaf_test_2")), jamTypes.ByteSequence{
+		{hash.Blake2bHash([]byte("regular_leaf_test_2")), types.ByteSequence{
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		}},
@@ -280,16 +280,16 @@ func TestLeafEncoding(t *testing.T) {
 
 func TestBitSequenceToString(t *testing.T) {
 	testCases := []struct {
-		input    jamTypes.BitSequence
+		input    types.BitSequence
 		expected string
 	}{
-		{jamTypes.BitSequence{}, ""},
-		{jamTypes.BitSequence{false, false, false, false, false, false, false, false}, "00000000"},
-		{jamTypes.BitSequence{false, false, false, false, false, false, false, true}, "00000001"},
-		{jamTypes.BitSequence{false, false, false, false, true, false, true, false}, "00001010"},
-		{jamTypes.BitSequence{false, true, true, false, false, true, false, false}, "01100100"},
-		{jamTypes.BitSequence{true, false, false, false, false, false, false, false}, "10000000"},
-		{jamTypes.BitSequence{true, true, true, true, true, true, true, true}, "11111111"},
+		{types.BitSequence{}, ""},
+		{types.BitSequence{false, false, false, false, false, false, false, false}, "00000000"},
+		{types.BitSequence{false, false, false, false, false, false, false, true}, "00000001"},
+		{types.BitSequence{false, false, false, false, true, false, true, false}, "00001010"},
+		{types.BitSequence{false, true, true, false, false, true, false, false}, "01100100"},
+		{types.BitSequence{true, false, false, false, false, false, false, false}, "10000000"},
+		{types.BitSequence{true, true, true, true, true, true, true, true}, "11111111"},
 	}
 
 	for _, tc := range testCases {
