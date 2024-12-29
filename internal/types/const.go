@@ -1,4 +1,4 @@
-package jam_types
+package types
 
 var (
 	ValidatorsCount = 6

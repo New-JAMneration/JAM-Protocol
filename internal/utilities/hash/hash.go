@@ -1,7 +1,7 @@
 package hash
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
 )

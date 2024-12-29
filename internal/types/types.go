@@ -1,12 +1,14 @@
+package types
+
 // Reminder: When using jam_types, check if a Validate function exists.
 // If a Validate function is available, remember to use it.
 // If the desired Validate function is not found, please implement one yourself. :)
 
-package jam_types
-
 import (
 	"errors"
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
 // Simple
@@ -26,12 +28,18 @@ type BitSequence []bool
 // Crypto
 
 type BandersnatchPublic [32]byte
+
 type Ed25519Public [32]byte
+
 type BlsPublic [144]byte
 
 type BandersnatchVrfSignature [96]byte
+
 type BandersnatchRingVrfSignature [784]byte
+
 type Ed25519Signature [64]byte
+
+type BandersnatchRingCommitment [144]byte
 
 // Application Specific Core
 
@@ -52,14 +60,7 @@ type ErasureRoot OpaqueHash
 type Gas U64
 
 type Entropy OpaqueHash
-type EntropyBuffer []Entropy
-
-func (e EntropyBuffer) Validate() error {
-	if len(e) != 4 {
-		return errors.New("EntropyBuffer must have exactly 4 Entropies")
-	}
-	return nil
-}
+type EntropyBuffer [4]Entropy
 
 type ValidatorMetadata [128]byte
 
@@ -133,11 +134,24 @@ type RefineContext struct {
 	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`
 }
 
+func (r *RefineContext) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("refinecontext", data, r)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *RefineContext) ScaleEncode() ([]byte, error) {
+	return scale.Encode("refinecontext", r)
+}
+
 // Authorizations
 
-type Authorizations struct {
-	CodeHash  OpaqueHash   `json:"code_hash,omitempty"`
-	Signature ByteSequence `json:"signature,omitempty"`
+type Authorizer struct {
+	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
+	Params   ByteSequence `json:"params,omitempty"`
 }
 
 type AuthorizerHash OpaqueHash
@@ -154,7 +168,7 @@ func (a AuthPool) Validate() error {
 type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %d", CoresCount)
 	}
 
@@ -171,7 +185,7 @@ func (a AuthPools) Validate() error {
 type AuthQueue []AuthorizerHash
 
 func (a AuthQueue) Validate() error {
-	if len(a) > AuthQueueSize {
+	if len(a) != AuthQueueSize {
 		return fmt.Errorf("AuthQueue exceeds max-auth-queue-size limit of %d", AuthQueueSize)
 	}
 	return nil
@@ -180,7 +194,7 @@ func (a AuthQueue) Validate() error {
 type AuthQueues []AuthQueue
 
 func (a AuthQueues) Validate() error {
-	if len(a) > CoresCount {
+	if len(a) != CoresCount {
 		return fmt.Errorf("AuthQueues exceeds max-auth-queues limit of %d", CoresCount)
 	}
 
@@ -205,11 +219,6 @@ type ExtrinsicSpec struct {
 	Len  U32        `json:"len,omitempty"`
 }
 
-type Authorizer struct {
-	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
-	Params   ByteSequence `json:"params,omitempty"`
-}
-
 type WorkItem struct {
 	Service            ServiceId       `json:"service,omitempty"`
 	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
@@ -221,12 +230,38 @@ type WorkItem struct {
 	ExportCount        U16             `json:"export_count,omitempty"`
 }
 
+func (w *WorkItem) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("workitem", data, w)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkItem) ScaleEncode() ([]byte, error) {
+	return scale.Encode("workitem", w)
+}
+
 type WorkPackage struct {
 	Authorization ByteSequence  `json:"authorization,omitempty"`
 	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"`
 	Authorizer    Authorizer    `json:"authorizer"`
 	Context       RefineContext `json:"context"`
 	Items         []WorkItem    `json:"items,omitempty"`
+}
+
+func (w *WorkPackage) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("workpackage", data, w)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkPackage) ScaleEncode() ([]byte, error) {
+	return scale.Encode("workpackage", w)
 }
 
 func (w WorkPackage) Validate() error {
@@ -244,6 +279,7 @@ const (
 	WorkExecResultOk           WorkExecResultType = "ok"
 	WorkExecResultOutOfGas                        = "out-of-gas"
 	WorkExecResultPanic                           = "panic"
+	WorkExecResultBadExports                      = "bad-exports"
 	WorkExecResultBadCode                         = "bad-code"
 	WorkExecResultCodeOversize                    = "code-oversize"
 )
@@ -268,6 +304,27 @@ type WorkResult struct {
 	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
 	AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
 	Result        WorkExecResult `json:"result,omitempty"`
+}
+
+func (w *WorkResult) Validate() error {
+	return nil
+}
+
+func (w *WorkResult) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("workresult", data, w)
+	if err != nil {
+		return err
+	}
+
+	if err := w.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkResult) ScaleEncode() ([]byte, error) {
+	return scale.Encode("workresult", w)
 }
 
 type WorkPackageSpec struct {
@@ -302,6 +359,23 @@ func (w WorkReport) Validate() error {
 	return nil
 }
 
+func (w *WorkReport) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("workreport", data, w)
+	if err != nil {
+		return err
+	}
+
+	if err := w.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WorkReport) ScaleEncode() ([]byte, error) {
+	return scale.Encode("workreport", w)
+}
+
 // Block History
 
 type MmrPeak *OpaqueHash
@@ -329,6 +403,31 @@ func (b BlocksHistory) Validate() error {
 		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %d", MaxBlocksHistory)
 	}
 	return nil
+}
+
+// Statistics
+
+type ActivityRecord struct {
+	Blocks        U32 `json:"blocks,omitempty"`
+	Tickets       U32 `json:"tickets,omitempty"`
+	PreImages     U32 `json:"pre_images,omitempty"`
+	PreImagesSize U32 `json:"pre_images_size,omitempty"`
+	Guarantees    U32 `json:"guarantees,omitempty"`
+	Assurances    U32 `json:"assurances,omitempty"`
+}
+
+type ActivityRecords []ActivityRecord
+
+func (a ActivityRecords) Validate() error {
+	if len(a) != ValidatorsCount {
+		return fmt.Errorf("ActivityRecords must have %d activity record", ValidatorsCount)
+	}
+	return nil
+}
+
+type Statistics struct {
+	Current ActivityRecords `json:"current,omitempty"`
+	Last    ActivityRecords `json:"last,omitempty"`
 }
 
 // Tickets
@@ -373,12 +472,29 @@ func (t TicketsOrKeys) Validate() error {
 
 type TicketsExtrinsic []TicketEnvelope
 
-func (t TicketsExtrinsic) Validate() error {
-	if len(t) > MaxTicketsPerBlock {
+func (t *TicketsExtrinsic) Validate() error {
+	if len(*t) > MaxTicketsPerBlock {
 		return fmt.Errorf("TicketsExtrinsic exceeds maximum size of %d", MaxTicketsPerBlock)
 	}
 
 	return nil
+}
+
+func (t *TicketsExtrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("ticketsextrinsic", data, t)
+	if err != nil {
+		return err
+	}
+
+	if err := t.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TicketsExtrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("ticketsextrinsic", t)
 }
 
 // Disputes
@@ -428,6 +544,33 @@ type DisputesExtrinsic struct {
 	Faults   []Fault   `json:"faults,omitempty"`
 }
 
+func (d *DisputesExtrinsic) Validate() error {
+	for _, verdict := range d.Verdicts {
+		if err := verdict.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *DisputesExtrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("disputesextrinsic", data, d)
+	if err != nil {
+		return err
+	}
+
+	if err := d.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DisputesExtrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("disputesextrinsic", d)
+}
+
 // Preimages
 
 type Preimage struct {
@@ -435,7 +578,38 @@ type Preimage struct {
 	Blob      ByteSequence `json:"blob,omitempty"`
 }
 
+func (p *Preimage) Validate() error {
+	return nil
+}
+
 type PreimagesExtrinsic []Preimage
+
+func (p *PreimagesExtrinsic) Validate() error {
+	for _, preimage := range *p {
+		if err := preimage.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *PreimagesExtrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("preimagesextrinsic", data, p)
+	if err != nil {
+		return err
+	}
+
+	if err := p.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("preimagesextrinsic", p)
+}
 
 // Assurances
 
@@ -455,11 +629,28 @@ func (a AvailAssurance) Validate() error {
 
 type AssurancesExtrinsic []AvailAssurance
 
-func (a AssurancesExtrinsic) Validate() error {
-	if len(a) > ValidatorsCount {
+func (a *AssurancesExtrinsic) Validate() error {
+	if len(*a) > ValidatorsCount {
 		return fmt.Errorf("AssurancesExtrinsic exceeds maximum size of %d validators", ValidatorsCount)
 	}
 	return nil
+}
+
+func (a *AssurancesExtrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("assurancesextrinsic", data, a)
+	if err != nil {
+		return err
+	}
+
+	if err := a.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *AssurancesExtrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("assurancesextrinsic", a)
 }
 
 // Guarantees
@@ -482,7 +673,7 @@ type ReportGuarantee struct {
 	Signatures []ValidatorSignature `json:"signatures,omitempty"`
 }
 
-func (r ReportGuarantee) Validate() error {
+func (r *ReportGuarantee) Validate() error {
 	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
 		return errors.New("signatures length must be between 2 and 3")
 	}
@@ -494,15 +685,30 @@ func (r ReportGuarantee) Validate() error {
 	return nil
 }
 
-type GuaranteesExtrinsic struct {
-	Guarantees []ReportGuarantee `json:"guarantees,omitempty"`
-}
+type GuaranteesExtrinsic []ReportGuarantee
 
-func (g GuaranteesExtrinsic) Validate() error {
-	if len(g.Guarantees) > CoresCount {
+func (g *GuaranteesExtrinsic) Validate() error {
+	if len(*g) > CoresCount {
 		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
 	}
 	return nil
+}
+
+func (g *GuaranteesExtrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("guaranteesextrinsic", data, g)
+	if err != nil {
+		return err
+	}
+
+	if err := g.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("guaranteesextrinsic", g)
 }
 
 // Header
@@ -514,9 +720,10 @@ type EpochMark struct {
 }
 
 func (e EpochMark) Validate() error {
-	if len(e.Validators) > ValidatorsCount {
+	if len(e.Validators) != ValidatorsCount {
 		return fmt.Errorf("EpochMark Validators exceeds maximum size of %d", ValidatorsCount)
 	}
+
 	return nil
 }
 
@@ -544,6 +751,39 @@ type Header struct {
 	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`
 }
 
+func (h *Header) Validate() error {
+	if h.EpochMark != nil {
+		if err := h.EpochMark.Validate(); err != nil {
+			return err
+		}
+	}
+
+	if h.TicketsMark != nil {
+		if err := h.TicketsMark.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *Header) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("header", data, h)
+	if err != nil {
+		return err
+	}
+
+	if err := h.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Header) ScaleEncode() ([]byte, error) {
+	return scale.Encode("header", h)
+}
+
 // Block
 
 type Extrinsic struct {
@@ -554,7 +794,111 @@ type Extrinsic struct {
 	Disputes   DisputesExtrinsic   `json:"disputes"`
 }
 
+func (e *Extrinsic) Validate() error {
+	if err := e.Tickets.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Preimages.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Guarantees.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Assurances.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Disputes.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Extrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("extrinsic", data, e)
+	if err != nil {
+		return err
+	}
+
+	if err := e.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Extrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("extrinsic", e)
+}
+
 type Block struct {
 	Header    Header    `json:"header"`
 	Extrinsic Extrinsic `json:"extrinsic"`
+}
+
+func (b *Block) Validate() error {
+	if err := b.Header.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Block) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("block", data, b)
+	if err != nil {
+		return err
+	}
+
+	if err := b.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Block) ScaleEncode() ([]byte, error) {
+	return scale.Encode("block", b)
+}
+
+// Safrole
+
+type State struct {
+	Tau           TimeSlot                   `json:"tau"`            // Most recent block's timeslot
+	Eta           EntropyBuffer              `json:"eta"`            // Entropy accumulator and epochal randomness
+	Lambda        ValidatorsData             `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
+	Kappa         ValidatorsData             `json:"kappa"`          // Validator keys and metadata currently active
+	GammaK        ValidatorsData             `json:"gamma_k"`        // Validator keys for the following epoch
+	Iota          ValidatorsData             `json:"iota"`           // Validator keys and metadata to be drawn from next
+	GammaA        TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
+	GammaS        TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
+	GammaZ        BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
+	PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
+}
+
+type Input struct {
+	Slot      TimeSlot         `json:"slot"`      // Current slot
+	Entropy   Entropy          `json:"entropy"`   // Per block entropy (originated from block entropy source VRF)
+	Extrinsic TicketsExtrinsic `json:"extrinsic"` // Safrole extrinsic
+}
+
+type OutputData struct {
+	EpochMark   *EpochMark   `json:"epoch_mark,omitempty"`   // New epoch marker (optional).
+	TicketsMark *TicketsMark `json:"tickets_mark,omitempty"` // Winning tickets marker (optional).
+}
+
+type Output struct {
+	Ok  *OutputData `json:"ok,omitempty"`
+	Err *ErrorCode  `json:"err,omitempty"`
+}
+
+type TestCase struct {
+	Input     Input  `json:"input"`
+	PreState  State  `json:"pre_state"`
+	Output    Output `json:"output"`
+	PostState State  `json:"post_state"`
 }
