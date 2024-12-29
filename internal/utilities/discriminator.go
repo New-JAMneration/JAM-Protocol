@@ -1,21 +1,21 @@
 package utilities
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 type Discriminator struct {
 	Value []Serializable
 }
 
 // C.1.4. Discriminator Encoding.
-func (d Discriminator) Serialize() jam_types.ByteSequence {
-	length := jam_types.U64(len(d.Value))
+func (d Discriminator) Serialize() types.ByteSequence {
+	length := types.U64(len(d.Value))
 	return append(WrapU64(length).Serialize(), SerializableSequence(d.Value).Serialize()...)
 
 }
 
 // LensElementPair will return the length of the slice and the input data itself
 // input will be a slice
-func LensElementPair(input []any) (int, []any) {
+func LensElementPair[T any](input []T) (int, []T) {
 	// Equation C.8
 	return len(input), input
 }
@@ -31,7 +31,7 @@ func EmptyOrPair(input any) (int, any) {
 		if len(input) == 0 {
 			return 0, nil
 		}
-	case jam_types.ByteSequence:
+	case types.ByteSequence:
 		if len(input) == 0 {
 			return 0, nil
 		}

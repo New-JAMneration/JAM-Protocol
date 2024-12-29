@@ -1,4 +1,4 @@
-package jam_types
+package types
 
 // need to transform to byte to concat with the message
 const (
