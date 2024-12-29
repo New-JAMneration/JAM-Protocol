@@ -3,7 +3,7 @@ package utilities
 import (
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestStateWrapper(t *testing.T) {
@@ -13,8 +13,13 @@ func TestStateWrapper(t *testing.T) {
 
 	expected := jamTypes.OpaqueHash{byte(stateIndex)}
 	actual := state.StateKeyConstruct()
-
-	if expected != actual {
+	flag := false
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != actual[i] {
+			flag = true
+		}
+	}
+	if flag {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
 
@@ -29,8 +34,13 @@ func TestStateServiceWrapper(t *testing.T) {
 
 	expected := jamTypes.OpaqueHash{byte(stateIndex), Serialized[0], 0, Serialized[1], 0, Serialized[2], 0, Serialized[3], 0}
 	actual := stateService.StateKeyConstruct()
-
-	if expected != actual {
+	flag := false
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != actual[i] {
+			flag = true
+		}
+	}
+	if flag {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
 }
@@ -56,8 +66,13 @@ func TestServiceWrapper(t *testing.T) {
 		hash[24], hash[25], hash[26], hash[27],
 	}
 	actual := service.StateKeyConstruct()
-
-	if expected != actual {
+	flag := false
+	for i := 0; i < len(expected); i++ {
+		if expected[i] != actual[i] {
+			flag = true
+		}
+	}
+	if flag {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
 }
