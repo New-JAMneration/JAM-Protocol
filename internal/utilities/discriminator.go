@@ -48,6 +48,14 @@ func EmptyOrPair(input interface{}) (int, any) {
 				return 1, input
 			} else if f.Kind() == reflect.Array {
 				return 1, input
+			} else if f.Kind() == reflect.Ptr {
+				if value.Field(i).IsNil() {
+					return 0, nil
+				}
+				elem := value.Field(i).Elem()
+				if elem.Kind() == reflect.Slice && elem.Len() != 0 {
+					return 1, input
+				}
 			} else {
 				err := fmt.Errorf("input type is not supported currently")
 				return 2, err
@@ -56,12 +64,21 @@ func EmptyOrPair(input interface{}) (int, any) {
 		return 0, nil
 	case reflect.Slice:
 		if value.Len() == 0 {
+
+			return 0, nil
+		}
+	case reflect.Pointer:
+		if value.IsNil() {
+			fmt.Println("input is nil")
+			return 0, nil
+		}
+		elem := value.Elem()
+		if elem.Kind() == reflect.Slice && elem.Len() == 0 {
 			return 0, nil
 		}
 	default:
-		err := fmt.Errorf("input type is not supported currently")
+		err := fmt.Errorf("input type is not supported ")
 		return 2, err
 	}
-
 	return 1, input
 }
