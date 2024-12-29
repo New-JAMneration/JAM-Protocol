@@ -19,6 +19,7 @@ type Store struct {
 	// INFO: Add more fields here
 	blocks              *Blocks
 	ancestorHeaders     *AncestorHeaders
+	intermediateHeader  *IntermediateHeader
 	posteriorValidators *PosteriorValidators
 }
 
@@ -29,6 +30,7 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			blocks:              NewBlocks(),
 			ancestorHeaders:     NewAncestorHeaders(),
+			intermediateHeader:  NewIntermediateHeader(),
 			posteriorValidators: NewPosteriorValidators(),
 		}
 
@@ -51,6 +53,8 @@ func (s *Store) GenerateGenesisBlock(block jamTypes.Block) {
 	log.Println("🚀 Genesis block generated")
 }
 
+// AncestorHeaders
+
 func (s *Store) AddAncestorHeader(header jamTypes.Header) {
 	s.ancestorHeaders.AddHeader(header)
 }
@@ -58,6 +62,8 @@ func (s *Store) AddAncestorHeader(header jamTypes.Header) {
 func (s *Store) GetAncestorHeaders() []jamTypes.Header {
 	return s.ancestorHeaders.GetHeaders()
 }
+
+// PosteriorValidators
 
 func (s *Store) AddPosteriorValidator(validator jamTypes.Validator) {
 	s.posteriorValidators.AddValidator(validator)
@@ -69,4 +75,18 @@ func (s *Store) GetPosteriorValidators() jamTypes.ValidatorsData {
 
 func (s *Store) GetPosteriorValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
 	return s.posteriorValidators.GetValidatorByIndex(index)
+}
+
+// IntermediateHeader
+
+func (s *Store) AddIntermediateHeader(header jamTypes.Header) {
+	s.intermediateHeader.AddHeader(header)
+}
+
+func (s *Store) GetIntermediateHeader() jamTypes.Header {
+	return s.intermediateHeader.GetHeader()
+}
+
+func (s *Store) ResetIntermediateHeader() {
+	s.intermediateHeader.ResetHeader()
 }
