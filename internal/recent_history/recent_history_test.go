@@ -25,13 +25,12 @@ type testVector struct {
 
 func loadInputFromJSON(filePath string) (testVector, error) {
 	var testVector testVector
-	data, err := os.ReadFile("/home/yu2c/gitclone/JAM-Protocol/internal/recent_history/data/progress_blocks_history-1.json")
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return testVector, err
 	}
-	err = json.Unmarshal(data, testVector)
+	err = json.Unmarshal(data, &testVector)
 	return testVector, err
-
 }
 
 func TestRemoveDuplicate(t *testing.T) {
@@ -154,6 +153,7 @@ func TestAddToBetaPrime(t *testing.T) {
 		t.Error("items.HeaderHash is not equal to BetaPrime")
 	}
 
+	// (7.4)
 	state.AddToBetaPrime(items)
 
 	if len(state.BetaPrime) != 1 {
