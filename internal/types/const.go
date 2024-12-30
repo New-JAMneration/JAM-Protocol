@@ -1,6 +1,6 @@
 package types
 
-var (
+const (
 	ValidatorsCount = 6
 	CoresCount      = 2
 	EpochLength     = 12
