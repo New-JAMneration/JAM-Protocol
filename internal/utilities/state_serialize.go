@@ -304,19 +304,19 @@ func StateSerialize(state jamTypes.State) (map[jamTypes.OpaqueHash]jamTypes.Byte
 		key := serviceWrapper.StateKeyConstruct()
 
 		// a_c
-		output := jamTypes.ByteSequence(v.CodeHash[:])
+		delta1Output := jamTypes.ByteSequence(v.CodeHash[:])
 
 		// a_b, a_g, a_m
-		output = append(output, SerializeFixedLength(jamTypes.U64(v.Balance), 8)...)
-		output = append(output, SerializeFixedLength(jamTypes.U64(v.MinItemGas), 8)...)
-		output = append(output, SerializeFixedLength(jamTypes.U64(v.MinMemoGas), 8)...)
+		delta1Output = append(delta1Output, SerializeFixedLength(jamTypes.U64(v.Balance), 8)...)
+		delta1Output = append(delta1Output, SerializeFixedLength(jamTypes.U64(v.MinItemGas), 8)...)
+		delta1Output = append(delta1Output, SerializeFixedLength(jamTypes.U64(v.MinMemoGas), 8)...)
 
 		// a_l (U64)
-		output = append(output, SerializeFixedLength(CalculateItemNumbers(v), 8)...)
+		delta1Output = append(delta1Output, SerializeFixedLength(CalculateItemNumbers(v), 8)...)
 
 		// a_i
-		output = append(output, SerializeFixedLength(CalculateOctectsNumbers(v), 4)...)
-		serialized[key] = output
+		delta1Output = append(delta1Output, SerializeFixedLength(CalculateOctectsNumbers(v), 4)...)
+		serialized[key] = delta1Output
 	}
 
 	// delta 2
@@ -347,12 +347,12 @@ func StateSerialize(state jamTypes.State) (map[jamTypes.OpaqueHash]jamTypes.Byte
 			serviceWrapper := ServiceWrapper{ServiceIndex: jamTypes.U32(k), Hash: jamTypes.OpaqueHash(hashKey)}
 			key := serviceWrapper.StateKeyConstruct()
 
-			var output1 jamTypes.ByteSequence
+			var delta4Output jamTypes.ByteSequence
 			for _, timeSlot := range value {
-				output1 = append(output1, SerializeFixedLength(jamTypes.U64(timeSlot), 4)...)
+				delta4Output = append(delta4Output, SerializeFixedLength(jamTypes.U64(timeSlot), 4)...)
 			}
-			output := append(SerializeU64(jamTypes.U64(len(output1))), SerializeByteArray(output1)...)
-			serialized[key] = output
+			delta4Output = append(SerializeU64(jamTypes.U64(len(delta4Output))), SerializeByteArray(delta4Output)...)
+			serialized[key] = delta4Output
 		}
 	}
 
