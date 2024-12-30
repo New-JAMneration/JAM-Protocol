@@ -1,5 +1,7 @@
 package types
 
+import "fmt"
+
 // (4.4)
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
@@ -58,7 +60,16 @@ type PrivilegedServices struct {
 }
 
 // (12.3)
-type UnaccumulateWorkReports [EpochLength]UnaccumulateWorkReport
+type AccumulationQueue []UnaccumulateWorkReports
+type UnaccumulateWorkReports []UnaccumulateWorkReport
+
+func (accumulationQueue AccumulationQueue) Validate() error {
+	if len(accumulationQueue) != EpochLength {
+		return fmt.Errorf("AccumulationQueue must have exactly %d items, but got %d", EpochLength, len(accumulationQueue))
+	}
+	return nil
+}
+
 type UnaccumulateWorkReport struct {
 	WorkReport        WorkReport
 	UnaccumulatedDeps []WorkPackageHash
