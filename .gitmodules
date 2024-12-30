@@ -1,0 +1,6 @@
+[submodule "internal/test_data/jamtestnet"]
+	path = internal/test_data/jamtestnet
+	url = git@github.com:jam-duna/jamtestnet.git
+[submodule "internal/test_data/jam-test-vectors"]
+	path = internal/test_data/jam-test-vectors
+	url = git@github.com:davxy/jam-test-vectors.git
