@@ -10,6 +10,7 @@ import (
 var kJamEntropy = "jam_entropy"            // XE
 var kJamFallbackSeal = "jam_fallback_seal" // XF
 var kJamTicketSeal = "jam_ticket_seal"     // XT
+var kSlotSubmissionEnd = 500               // Y
 /*
 - [x] $\mathbf{H}_p$ : parent hash
 - [x] $\mathbf{H}_r$ : prior state root
@@ -104,9 +105,9 @@ func Sealing(state types.State, header types.Header) {
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-	SlotSubmissionEnd := 500 // Y
+
 	if ep == e+1 {
-		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			state.Gamma.GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
 			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(state.Eta[2]), state.Kappa)
