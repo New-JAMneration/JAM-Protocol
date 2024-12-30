@@ -78,3 +78,10 @@ type UnaccumulateWorkReport struct {
 // (12.1)
 type AccumulatedHistories []AccumulatedHistory
 type AccumulatedHistory []WorkPackageHash
+
+func (accumulatedHistories AccumulatedHistories) Validate() error {
+	if len(accumulatedHistories) != EpochLength {
+		return fmt.Errorf("AccumulatedHistories must have exactly %d items, but got %d", EpochLength, len(accumulatedHistories))
+	}
+	return nil
+}
