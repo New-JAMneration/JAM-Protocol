@@ -1,0 +1,3 @@
+[submodule "pkg/Rust-VRF"]
+	path = pkg/Rust-VRF
+	url = https://github.com/New-JAMneration/Rust-VRF.git
