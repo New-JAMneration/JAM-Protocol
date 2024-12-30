@@ -332,7 +332,7 @@ func WorkItemSerialization(work_item jamTypes.WorkItem) (output jamTypes.ByteSeq
 	*/
 	// ↕[(h, E4(i)) ∣ (h, i) <− xx] TODO: \se_4(i) should be just \se(i), but we should wait for this to be written.". check with haha
 	output = append(output, SerializeFixedLength(jamTypes.U64(work_item.Service), 4)...)
-	output = append(output, SerializeByteArray(work_item.CodeHash)...)
+	output = append(output, SerializeByteArray(work_item.CodeHash[:])...)
 	output = append(output, SerializeU64(jamTypes.U64(len(work_item.Payload)))...)
 	output = append(output, SerializeByteArray(work_item.Payload)...)
 
@@ -346,7 +346,7 @@ func WorkItemSerialization(work_item jamTypes.WorkItem) (output jamTypes.ByteSeq
 
 	output = append(output, SerializeU64(jamTypes.U64(len(work_item.Extrinsic)))...)
 	for _, extrinsic_spec := range work_item.Extrinsic {
-		output = append(output, SerializeByteArray(extrinsic_spec.Hash)...)
+		output = append(output, SerializeByteArray(extrinsic_spec.Hash[:])...)
 		output = append(output, SerializeFixedLength(jamTypes.U64(extrinsic_spec.Len), 4)...)
 	}
 	output = append(output, SerializeFixedLength(jamTypes.U64(work_item.ExportCount), 2)...)
@@ -363,7 +363,7 @@ func TicketBodySerialization(ticket_body jamTypes.TicketBody) (output jamTypes.B
 			Attempt TicketAttempt `json:"attempt,omitempty"`
 		}
 	*/
-	output = append(output, SerializeByteArray(ticket_body.Id)...)
+	output = append(output, SerializeByteArray(ticket_body.Id[:])...)
 	output = append(output, SerializeU64(jamTypes.U64(ticket_body.Attempt))...)
 	return output
 }
@@ -408,7 +408,7 @@ func SerializeImportSpec(import_spec jamTypes.ImportSpec) (output jamTypes.ByteS
 	// (C.29) case 1 (h, E2(i)) if h ∈ H
 	// TODO check case2 use case
 	h, i := import_spec.TreeRoot, import_spec.Index
-	output = append(output, SerializeByteArray(h)...)
+	output = append(output, SerializeByteArray(h[:])...)
 	output = append(output, SerializeFixedLength(jamTypes.U64(i), 2)...)
 	return output
 }
