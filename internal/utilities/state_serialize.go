@@ -425,7 +425,7 @@ func CalculateOctectsNumbers(serviceAccount jamTypes.ServiceAccount) (output jam
 
 func CalculateItemNumbers(serviceAccount jamTypes.ServiceAccount) (output jamTypes.U64) {
 	var sum1 jamTypes.U64
-	for key, _ := range serviceAccount.LookupDict {
+	for key := range serviceAccount.LookupDict {
 		sum1 += 81 + jamTypes.U64(key.Length)
 	}
 	var sum2 jamTypes.U64
