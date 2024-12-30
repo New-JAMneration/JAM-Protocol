@@ -3,7 +3,7 @@ package types
 // (4.4)
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
-	Beta   BlockInfo               `json:"beta"`
+	Beta   BlocksHistory           `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
 	Delta  ServiceAccountState     `json:"delta"`
 	Eta    EntropyBuffer           `json:"eta"`
@@ -35,12 +35,19 @@ type ServiceAccountState map[ServiceId]ServiceAccount
 type ServiceAccount struct {
 	StorageDict    map[OpaqueHash]ByteSequence
 	PreimageLookup map[OpaqueHash]ByteSequence
-	LookupDict     map[OpaqueHash]ByteSequence
+	LookupDict     map[DictionaryKey]TimeSlotSet
 	CodeHash       OpaqueHash
 	Balance        U64
 	MinItemGas     Gas
 	MinMemoGas     Gas
 }
+
+type DictionaryKey struct {
+	Hash   OpaqueHash
+	Length U32
+}
+
+type TimeSlotSet []TimeSlot
 
 // (9.9)
 type PrivilegedServices struct {
@@ -51,7 +58,7 @@ type PrivilegedServices struct {
 }
 
 // (12.3)
-type UnaccumulateWorkReports []UnaccumulateWorkReport
+type UnaccumulateWorkReports [EpochLength]UnaccumulateWorkReport
 type UnaccumulateWorkReport struct {
 	WorkReport        WorkReport
 	UnaccumulatedDeps []WorkPackageHash
