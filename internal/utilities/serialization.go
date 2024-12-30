@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"sort"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Serializable is the interface that all types that can be serialized must implement.
 type Serializable interface {
-	Serialize() jamtypes.ByteSequence
+	Serialize() types.ByteSequence
 }
 
 type Comparable interface {
@@ -19,8 +19,8 @@ type Comparable interface {
 // Empty represents E(∅) = []
 type Empty struct{}
 
-func (e Empty) Serialize() jamtypes.ByteSequence {
-	return jamtypes.ByteSequence{}
+func (e Empty) Serialize() types.ByteSequence {
+	return types.ByteSequence{}
 }
 
 func (e Empty) Less(other interface{}) bool {
@@ -30,8 +30,8 @@ func (e Empty) Less(other interface{}) bool {
 // StringOctets treats a string as an octet sequence
 type StringOctets string
 
-func (s StringOctets) Serialize() jamtypes.ByteSequence {
-	return jamtypes.ByteSequence(s)
+func (s StringOctets) Serialize() types.ByteSequence {
+	return types.ByteSequence(s)
 }
 func (s StringOctets) Less(other interface{}) bool {
 	if otherKey, ok := other.(StringOctets); ok {
@@ -44,8 +44,8 @@ func (s StringOctets) Less(other interface{}) bool {
 // We can represent this as a slice of Serializable.
 type SerializableSequence []Serializable
 
-func (t SerializableSequence) Serialize() jamtypes.ByteSequence {
-	var result jamtypes.ByteSequence
+func (t SerializableSequence) Serialize() types.ByteSequence {
+	var result types.ByteSequence
 	for _, elem := range t {
 		result = append(result, elem.Serialize()...)
 	}
@@ -56,33 +56,33 @@ func (t SerializableSequence) Serialize() jamtypes.ByteSequence {
 // For example, a U64Wrapper that holds a jam_types.U64 and provides Serialize().
 
 type U8Wrapper struct {
-	Value jamtypes.U8
+	Value types.U8
 }
 
 type U16Wrapper struct {
-	Value jamtypes.U16
+	Value types.U16
 }
 
 type U32Wrapper struct {
-	Value jamtypes.U32
+	Value types.U32
 }
 
 type U64Wrapper struct {
-	Value jamtypes.U64
+	Value types.U64
 }
 
 type ByteSequenceWrapper struct {
-	Value jamtypes.ByteSequence
+	Value types.ByteSequence
 }
 
 type ByteArray32Wrapper struct {
-	Value jamtypes.ByteArray32
+	Value types.ByteArray32
 }
 
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
 // It serializes a non-negative integer x into exactly l octets in little-endian order.
 // If l=0, returns an empty slice.
-func SerializeFixedLength[T jamtypes.U32 | jamtypes.U64](x T, l T) jamtypes.ByteSequence {
+func SerializeFixedLength[T types.U32 | types.U64](x T, l T) types.ByteSequence {
 	if l == 0 {
 		return []byte{}
 	}
@@ -96,7 +96,7 @@ func SerializeFixedLength[T jamtypes.U32 | jamtypes.U64](x T, l T) jamtypes.Byte
 
 // SerializeGeneral corresponds to E in the given specification (C.6).
 // It serializes an integer x (0 <= x < 2^64) into a variable number of octets as described.
-func SerializeU64(x jamtypes.U64) jamtypes.ByteSequence {
+func SerializeU64(x types.U64) types.ByteSequence {
 	// If x = 0: E(x) = [0]
 	if x == 0 {
 		return []byte{0}
@@ -105,18 +105,18 @@ func SerializeU64(x jamtypes.U64) jamtypes.ByteSequence {
 	// Attempt to find l in [1..8] such that 2^(7*l) ≤ x < 2^(7*(l+1))
 	for l := 1; l <= 8; l++ {
 		l64 := uint(l)
-		lowerBound := jamtypes.U64(1) << (7 * l64)       // 2^(7*l)
-		upperBound := jamtypes.U64(1) << (7 * (l64 + 1)) // 2^(7*(l+1))
+		lowerBound := types.U64(1) << (7 * l64)       // 2^(7*l)
+		upperBound := types.U64(1) << (7 * (l64 + 1)) // 2^(7*(l+1))
 		if x >= lowerBound && x < upperBound {
 			// Found suitable l.
-			power8l := jamtypes.U64(1) << (8 * l64)
+			power8l := types.U64(1) << (8 * l64)
 			remainder := x % power8l
 			floor := x / power8l
 
 			// prefix = 2^8 - 2^(8-l) + floor(x / 2^(8*l))
 			prefix := byte((256 - (1 << (8 - l64))) + floor)
 
-			return append([]byte{prefix}, SerializeFixedLength(remainder, jamtypes.U64(l))...)
+			return append([]byte{prefix}, SerializeFixedLength(remainder, types.U64(l))...)
 		}
 	}
 
@@ -125,8 +125,8 @@ func SerializeU64(x jamtypes.U64) jamtypes.ByteSequence {
 	return append([]byte{0xFF}, SerializeFixedLength(x, 8)...)
 }
 
-func (w U8Wrapper) Serialize() jamtypes.ByteSequence {
-	return SerializeU64(jamtypes.U64(w.Value))
+func (w U8Wrapper) Serialize() types.ByteSequence {
+	return SerializeU64(types.U64(w.Value))
 }
 
 func (w U8Wrapper) Less(other interface{}) bool {
@@ -136,8 +136,8 @@ func (w U8Wrapper) Less(other interface{}) bool {
 	return false
 }
 
-func (w U16Wrapper) Serialize() jamtypes.ByteSequence {
-	return SerializeU64(jamtypes.U64(w.Value))
+func (w U16Wrapper) Serialize() types.ByteSequence {
+	return SerializeU64(types.U64(w.Value))
 }
 
 func (w U16Wrapper) Less(other interface{}) bool {
@@ -147,8 +147,8 @@ func (w U16Wrapper) Less(other interface{}) bool {
 	return false
 }
 
-func (w U32Wrapper) Serialize() jamtypes.ByteSequence {
-	return SerializeU64(jamtypes.U64(w.Value))
+func (w U32Wrapper) Serialize() types.ByteSequence {
+	return SerializeU64(types.U64(w.Value))
 }
 
 func (w U32Wrapper) Less(other interface{}) bool {
@@ -158,8 +158,8 @@ func (w U32Wrapper) Less(other interface{}) bool {
 	return false
 }
 
-func (w U64Wrapper) Serialize() jamtypes.ByteSequence {
-	return SerializeU64(jamtypes.U64(w.Value))
+func (w U64Wrapper) Serialize() types.ByteSequence {
+	return SerializeU64(types.U64(w.Value))
 }
 
 func (w U64Wrapper) Less(other interface{}) bool {
@@ -169,39 +169,53 @@ func (w U64Wrapper) Less(other interface{}) bool {
 	return false
 }
 
-func (w ByteSequenceWrapper) Serialize() jamtypes.ByteSequence {
+func (w ByteSequenceWrapper) Serialize() types.ByteSequence {
 	// E(x∈Y) = x directly
 	return w.Value
 }
 
-func (w ByteArray32Wrapper) Serialize() jamtypes.ByteSequence {
+func (w ByteArray32Wrapper) Serialize() types.ByteSequence {
 	// Fixed length octet sequence
-	return jamtypes.ByteSequence(w.Value[:])
+	return types.ByteSequence(w.Value[:])
 }
 
 // helper functions that directly take the jam_types values
 // and return a Serializable wrapper. This makes usage easier.
-func WrapU8(v jamtypes.U8) Serializable {
+func WrapU8(v types.U8) Serializable {
 	return U8Wrapper{Value: v}
 }
 
-func WrapU16(v jamtypes.U16) Serializable {
+func WrapU16(v types.U16) Serializable {
 	return U16Wrapper{Value: v}
 }
 
-func WrapU32(v jamtypes.U32) Serializable {
+func WrapU32(v types.U32) Serializable {
 	return U32Wrapper{Value: v}
 }
 
-func WrapU64(v jamtypes.U64) Serializable {
+func WrapU64(v types.U64) Serializable {
 	return U64Wrapper{Value: v}
 }
 
-func WrapByteSequence(v jamtypes.ByteSequence) Serializable {
+func WrapByteSequence(v types.ByteSequence) Serializable {
 	return ByteSequenceWrapper{v}
 }
-func WrapByteArray32(v jamtypes.ByteArray32) Serializable {
+func WrapByteArray32(v types.ByteArray32) Serializable {
 	return ByteArray32Wrapper{v}
+}
+
+// New Wrapper types for the new types defined in the JAM protocol
+type OpaqueHashWrapper struct {
+	Value types.OpaqueHash
+}
+
+func (w OpaqueHashWrapper) Serialize() types.ByteSequence {
+	// Fixed length octet sequence
+	return types.ByteSequence(w.Value[:])
+}
+
+func WrapOpaqueHash(v types.OpaqueHash) Serializable {
+	return OpaqueHashWrapper{Value: v}
 }
 
 // ---------------------------------------------
@@ -209,13 +223,13 @@ func WrapByteArray32(v jamtypes.ByteArray32) Serializable {
 // E(b∈B): pack bits into bytes (LSB-first). If variable length, prefix bit length.
 // BitSequence represents a sequence of bits
 type BitSequenceWrapper struct {
-	Bits             jamtypes.BitSequence
+	Bits             types.BitSequence
 	IsVariableLength bool
 }
 
-func (b BitSequenceWrapper) Serialize() jamtypes.ByteSequence {
+func (b BitSequenceWrapper) Serialize() types.ByteSequence {
 	if len(b.Bits) == 0 {
-		return jamtypes.ByteSequence{}
+		return types.ByteSequence{}
 	}
 
 	if len(b.Bits) == 0 {
@@ -240,11 +254,11 @@ func (b BitSequenceWrapper) Serialize() jamtypes.ByteSequence {
 
 	// In the case of a variable length sequence, then the length is prefixed as in the general case.
 	if b.IsVariableLength {
-		bitLen := WrapU64(jamtypes.U64(len(b.Bits))).Serialize()
+		bitLen := WrapU64(types.U64(len(b.Bits))).Serialize()
 		return append(bitLen, res...)
 	}
 
-	return jamtypes.ByteSequence(res)
+	return types.ByteSequence(res)
 }
 
 // C.1.6. Dictionary Encoding.
@@ -252,10 +266,10 @@ type MapWarpper struct {
 	Value map[Comparable]Serializable
 }
 
-func (m *MapWarpper) Serialize() jamtypes.ByteSequence {
+func (m *MapWarpper) Serialize() types.ByteSequence {
 	// Handle empty dictionary
 	if len(m.Value) == 0 {
-		return jamtypes.ByteSequence{}
+		return types.ByteSequence{}
 	}
 
 	// Extract and sort keys
@@ -283,10 +297,10 @@ type SetWarpper struct {
 	Value []Comparable
 }
 
-func (s *SetWarpper) Serialize() jamtypes.ByteSequence {
+func (s *SetWarpper) Serialize() types.ByteSequence {
 	// Handle empty dictionary
 	if len(s.Value) == 0 {
-		return jamtypes.ByteSequence{}
+		return types.ByteSequence{}
 	}
 
 	sort.Slice(s.Value, func(i, j int) bool {

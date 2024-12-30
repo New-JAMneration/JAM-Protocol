@@ -3,33 +3,36 @@ package safrole
 import (
 	"fmt"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// (6.5) // (6.6)
 // TicketsBodiesController is a controller for TicketsBodies
 type TicketsBodiesController struct {
-	TicketsBodies []jamTypes.TicketBody
+	TicketsBodies []types.TicketBody
 }
 
 // NewTicketsBodiesController returns a new TicketsBodiesController
 func NewTicketsBodiesController() *TicketsBodiesController {
 	return &TicketsBodiesController{
-		TicketsBodies: make([]jamTypes.TicketBody, 0),
+		TicketsBodies: make([]types.TicketBody, 0),
 	}
 }
 
 // Validate validates the controller
-func (t *TicketsBodiesController) Validate() error {
-	if len(t.TicketsBodies) > jamTypes.EpochLength {
-		return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", jamTypes.EpochLength, len(t.TicketsBodies))
+func (tbc *TicketsBodiesController) Validate() error {
+	if len(tbc.TicketsBodies) > types.EpochLength {
+		return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", types.EpochLength, len(tbc.TicketsBodies))
 	}
 	return nil
 }
 
+// (6.5)
 // AddTicketBody adds a ticket body to the controller
-func (t *TicketsBodiesController) AddTicketBody(ticketBody jamTypes.TicketBody) *TicketsBodiesController {
-	if t.Validate() != nil {
-		t.TicketsBodies = append(t.TicketsBodies, ticketBody)
+func (tbc *TicketsBodiesController) AddTicketBody(ticketBody types.TicketBody) error {
+	if len(tbc.TicketsBodies) < types.EpochLength {
+		tbc.TicketsBodies = append(tbc.TicketsBodies, ticketBody)
+		return nil
 	}
-	return t
+	return fmt.Errorf("TicketsBodiesController must have less than %d entries, got %d", types.EpochLength, len(tbc.TicketsBodies))
 }
