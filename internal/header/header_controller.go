@@ -51,20 +51,51 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) {
 // CreateExtrinsicHash creates the extrinsic hash of the header.
 // (5.4), (5.5), (5.6)
 // H_x: extrinsic hash
+// INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
 func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
-	ticketSerialized := hash.Blake2bHash(utilities.ExtrinsicTicketSerialization(extrinsic.Tickets))
-	preimageSerialized := hash.Blake2bHash(utilities.ExtrinsicPreimageSerialization(extrinsic.Preimages))
-	guaranteeSerialized := hash.Blake2bHash(utilities.ExtrinsicGuaranteeSerialization(extrinsic.Guarantees))
-	AssureanceSerialized := hash.Blake2bHash(utilities.ExtrinsicAssuranceSerialization(extrinsic.Assurances))
-	DisputeSerialized := hash.Blake2bHash(utilities.ExtrinsicDisputeSerialization(extrinsic.Disputes))
+	ticketSerializedHash := hash.Blake2bHash(utilities.ExtrinsicTicketSerialization(extrinsic.Tickets))
+	preimageSerializedHash := hash.Blake2bHash(utilities.ExtrinsicPreimageSerialization(extrinsic.Preimages))
+	AssureanceSerializedHash := hash.Blake2bHash(utilities.ExtrinsicAssuranceSerialization(extrinsic.Assurances))
+	DisputeSerializedHash := hash.Blake2bHash(utilities.ExtrinsicDisputeSerialization(extrinsic.Disputes))
+
+	// g (5.6)
+	g := types.ByteSequence{}
+	g = append(g, utilities.SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
+	for _, guarantee := range extrinsic.Guarantees {
+		// w, WorkReport
+		w := guarantee.Report
+		wHash := hash.Blake2bHash(utilities.WorkReportSerialization(w))
+
+		// t, Slot
+		t := guarantee.Slot
+		tSerialized := utilities.SerializeFixedLength(types.U32(t), 4)
+
+		// a, Signatures (credential)
+		signaturesLength, Signatures := utilities.LensElementPair(guarantee.Signatures)
+
+		elementSerialized := types.ByteSequence{}
+		elementSerialized = append(elementSerialized, utilities.SerializeByteArray(wHash[:])...)
+		elementSerialized = append(elementSerialized, utilities.SerializeByteArray(tSerialized)...)
+		elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signaturesLength))...)
+		for _, signature := range Signatures {
+			elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signature.ValidatorIndex))...)
+			elementSerialized = append(elementSerialized, utilities.SerializeByteArray(signature.Signature[:])...)
+		}
+
+		// If the input type of serialization is octet sequence, we can directly
+		// append it because it is already serialized.
+		g = append(g, elementSerialized...)
+	}
+
+	gHash := hash.Blake2bHash(g)
 
 	// Serialize the hash of the extrinsic elements
 	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(ticketSerialized)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(preimageSerialized)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(guaranteeSerialized)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(AssureanceSerialized)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(DisputeSerialized)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(ticketSerializedHash)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(preimageSerializedHash)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(gHash)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(AssureanceSerializedHash)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(DisputeSerializedHash)).Serialize()...)
 
 	// Hash the serialized elements
 	extrinsicHash := types.OpaqueHash(hash.Blake2bHash(serializedElements))
@@ -85,12 +116,11 @@ func getCurrentTimeInSecond() uint64 {
 	return secondsSinceJam
 }
 
+// ValidateTimeSlot validates the time slot of the header.
+// 1. The time slot of the header is always larger than the parent header's
+// time slot.
+// 2. The time slot of the header is always smaller than the current time.
 func (h *HeaderController) ValidateTimeSlot(parentHeader types.Header, timeslot types.TimeSlot) error {
-	// INFO: Validate the time slot
-	// 1. The time slot of the header is always larger than the parent header's
-	// time slot.
-	// 2. The time slot of the header is always smaller than the current time.
-
 	if timeslot <= parentHeader.Slot {
 		return fmt.Errorf("The time slot of the header is always larger than the parent header's time slot.")
 	}
@@ -107,8 +137,10 @@ func (h *HeaderController) ValidateTimeSlot(parentHeader types.Header, timeslot 
 	return nil
 }
 
-// CreateHeaderSlot creates a time slot for the header.
+// CreateHeaderSlot creates the time slot of the header.
 // (5.7) H_t: time slot
+// Users can use the function to set the timeslot of this header (block).
+// It means the block is built in this timeslot.
 func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, timeslot types.TimeSlot) error {
 	err := h.ValidateTimeSlot(parentHeader, timeslot)
 	if err != nil {
