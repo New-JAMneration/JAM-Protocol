@@ -267,6 +267,7 @@ func TestVerifySignature(t *testing.T) {
 	}
 }
 
+/*  deprecated, redefined in verdict_controller & fault_controller
 func TestExcludeOffenders(t *testing.T) {
 	validatorsData := jamTypes.ValidatorsData{
 		{
@@ -357,3 +358,4 @@ func TestExcludeOffenders(t *testing.T) {
 		}
 	}
 }
+*/
