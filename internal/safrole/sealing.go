@@ -23,7 +23,7 @@ var kSlotSubmissionEnd = 500               // Y
 - [x] $\mathbf{H}_v$ : the entropy-rielding VRF signatrue
 - [ ] $\mathbf{H}_s$ : a block seal
 */
-func SealingByTickets(state types.State, header types.Header) types.State {
+func SealingByTickets(state types.State, header types.Header, eta_p types.EntropyBuffer) types.State {
 	/*
 				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
 		See section 3.8.
@@ -35,12 +35,12 @@ func SealingByTickets(state types.State, header types.Header) types.State {
 	// TODO ir EU H Ha
 	var concat types.ByteSequence
 	concat = append(concat, types.ByteSequence(kJamTicketSeal[:])...) // XT
-	concat = append(concat, types.ByteSequence(state.Eta[3][:])...)   // η′3
+	concat = append(concat, types.ByteSequence(eta_p[3][:])...)       // η′3
 	//
 	fmt.Print(concat)
 	return state
 }
-func SealingByBandersnatchs(state types.State, header types.Header) types.State {
+func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.EntropyBuffer) types.State {
 	/*
 				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
 		See section 3.8.
@@ -51,7 +51,7 @@ func SealingByBandersnatchs(state types.State, header types.Header) types.State 
 	// TODO EU H Ha
 	var concat types.ByteSequence
 	concat = append(concat, types.ByteSequence(kJamFallbackSeal[:])...) // XF
-	concat = append(concat, types.ByteSequence(state.Eta[3][:])...)     // η′3
+	concat = append(concat, types.ByteSequence(eta_p[3][:])...)         // η′3
 	// TODO
 	// header.Seal = Hs ∈ F EU(H) Ha ⟨XF ⌢ η′3⟩
 	// header.
@@ -85,17 +85,18 @@ func Sealing(state types.State, header types.Header) {
 	e := GetEpochIndex(state.Tau)
 	ep := GetEpochIndex(header.Slot)
 	m := GetSlotIndex(state.Tau)
+	eta_p := state.Eta
 	if ep > e { // e′ > e
 		for i := 2; i >= 0; i-- {
-			state.Eta[i+1] = state.Eta[i]
+			eta_p[i+1] = eta_p[i]
 		}
-		state.Eta[0] = types.Entropy(hash.Blake2bHash(state.Eta[1][:])) // TODO concat Y(Hv)
+		eta_p[0] = types.Entropy(hash.Blake2bHash(eta_p[1][:])) // TODO concat Y(Hv)
 	}
 
 	if len(state.Gamma.GammaS.Tickets) > 0 {
-		state = SealingByTickets(state, header)
+		state = SealingByTickets(state, header, eta_p)
 	} else if len(state.Gamma.GammaS.Keys) > 0 {
-		state = SealingByBandersnatchs(state, header)
+		state = SealingByBandersnatchs(state, header, eta_p)
 	}
 	/*
 		TODO (6.17) Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩
@@ -108,10 +109,11 @@ func Sealing(state types.State, header types.Header) {
 	*/
 
 	if ep == e+1 {
+		state.Eta = eta_p
 		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			state.Gamma.GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
-			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(state.Eta[2]), state.Kappa)
+			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(eta_p[2]), state.Kappa)
 		}
 	}
 }
