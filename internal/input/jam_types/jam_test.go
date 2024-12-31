@@ -1,4 +1,4 @@
-package types
+package jam_types
 
 import (
 	"bytes"
