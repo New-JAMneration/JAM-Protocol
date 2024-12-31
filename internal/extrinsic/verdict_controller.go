@@ -3,7 +3,7 @@ package extrinsic
 import (
 	"crypto/ed25519"
 
-	input "github.com/New-JAMneration/JAM-Protocol/internal/input"
+	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
