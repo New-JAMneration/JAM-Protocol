@@ -3,6 +3,7 @@ package extrinsic
 import (
 	"crypto/ed25519"
 
+	input "github.com/New-JAMneration/JAM-Protocol/internal/input"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -58,9 +59,9 @@ func (v *VerdictWrapper) VerifySignature() []int {
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
 		var message []byte
 		if v.Verdict.Votes[i].Vote {
-			message = []byte(jamTypes.JamValid)
+			message = []byte(input.JamValid)
 		} else {
-			message = []byte(jamTypes.JamInvalid)
+			message = []byte(input.JamInvalid)
 		}
 
 		message = append(message, target...)
