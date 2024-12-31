@@ -74,17 +74,6 @@ func Sealing(state types.State, header types.Header) {
 			PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
 		}
 	*/
-	if len(state.Gamma.GammaS.Tickets) > 0 {
-		state = SealingByTickets(state, header)
-	} else if len(state.Gamma.GammaS.Keys) > 0 {
-		state = SealingByBandersnatchs(state, header)
-	}
-	/*
-		(6.17) Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩
-	*/
-	e := GetEpochIndex(state.Tau)
-	ep := GetEpochIndex(header.Slot)
-	m := GetSlotIndex(state.Tau)
 	/*
 		Entropy Update
 		(6.21) η ∈ ⟦H⟧4
@@ -93,12 +82,24 @@ func Sealing(state types.State, header types.Header) {
 		(6.23) (η′1, η′2, η′3)
 								(η1, η2, η3) otherwise
 	*/
+	e := GetEpochIndex(state.Tau)
+	ep := GetEpochIndex(header.Slot)
+	m := GetSlotIndex(state.Tau)
 	if ep > e { // e′ > e
 		for i := 2; i >= 0; i-- {
 			state.Eta[i+1] = state.Eta[i]
 		}
 		state.Eta[0] = types.Entropy(hash.Blake2bHash(state.Eta[1][:])) // TODO concat Y(Hv)
 	}
+
+	if len(state.Gamma.GammaS.Tickets) > 0 {
+		state = SealingByTickets(state, header)
+	} else if len(state.Gamma.GammaS.Keys) > 0 {
+		state = SealingByBandersnatchs(state, header)
+	}
+	/*
+		TODO (6.17) Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩
+	*/
 	/*
 		Slot Key Sequence Update
 						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
