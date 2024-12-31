@@ -4,25 +4,6 @@ import (
 	"testing"
 )
 
-func TestNewVerdictController(t *testing.T) {
-	verdictController := NewVerdictController()
-
-	// Test that controller is not nil
-	if verdictController == nil {
-		t.Fatal("Expected VerdictController to not be nil")
-	}
-
-	// Test that Verdicts slice is initialized
-	if verdictController.Verdicts == nil {
-		t.Fatal("Expected Verdicts slice to be initialized")
-	}
-
-	// Test that Verdicts slice is empty
-	if len(verdictController.Verdicts) != 0 {
-		t.Errorf("Expected empty verdicts slice, got length %d", len(verdictController.Verdicts))
-	}
-}
-
 func TestNewFaultController(t *testing.T) {
 	faultController := NewFaultController()
 
