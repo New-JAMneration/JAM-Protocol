@@ -98,7 +98,7 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
 	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(DisputeSerializedHash)).Serialize()...)
 
 	// Hash the serialized elements
-	extrinsicHash := types.OpaqueHash(hash.Blake2bHash(serializedElements))
+	extrinsicHash := hash.Blake2bHash(serializedElements)
 
 	h.Header.ExtrinsicHash = extrinsicHash
 }
@@ -165,7 +165,7 @@ func (h *HeaderController) CreateBlockAuthorIndex(authorIndex types.ValidatorInd
 
 // H_a = k'[H_i]
 // k': posterior current validator set
-func (h *HeaderController) GetAutherBendersnatchKey(header types.Header) types.BandersnatchPublic {
+func (h *HeaderController) GetAuthorBandersnatchKey(header types.Header) types.BandersnatchPublic {
 	authorIndex := header.AuthorIndex
 
 	// Get the posterior current validator set
