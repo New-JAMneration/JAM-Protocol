@@ -1,6 +1,6 @@
-package safrole
+package jam_types
 
-type CustomErrorCode int
+type CustomErrorCode U8
 
 const (
 	BadSlot          CustomErrorCode = iota // 0 Timeslot value must be strictly monotonic

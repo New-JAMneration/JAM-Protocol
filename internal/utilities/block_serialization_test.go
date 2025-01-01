@@ -35,7 +35,7 @@ func TestWorkResultSerialization(t *testing.T) {
 	defaultWorkResult := jamTypes.WorkResult{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
-	expectedOutput := make([]byte, 77)
+	expectedOutput := make([]byte, 76)
 
 	result := WorkResultSerialization(defaultWorkResult)
 

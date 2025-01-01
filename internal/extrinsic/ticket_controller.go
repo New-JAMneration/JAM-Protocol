@@ -1,7 +1,7 @@
 package extrinsic
 
 import (
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TicketController is a struct that contains a slice of Ticket (for controller logic)
