@@ -27,12 +27,12 @@ func N(v []jamTypes.ByteSequence, hashFunc func(jamTypes.ByteSequence) jamTypes.
 		if len(a.ByteSequence) > 0 {
 			merge = append(merge, a.ByteSequence...)
 		} else {
-			merge = append(merge, jamTypes.ByteSequence(a.Hash)...)
+			merge = append(merge, jamTypes.ByteSequence(a.Hash[:])...)
 		}
 		if len(b.ByteSequence) > 0 {
 			merge = append(merge, b.ByteSequence...)
 		} else {
-			merge = append(merge, jamTypes.ByteSequence(b.Hash)...)
+			merge = append(merge, jamTypes.ByteSequence(b.Hash[:])...)
 		}
 		output.Hash = hashFunc(merge) // Combine hashes of left and right subtrees
 		return output
@@ -126,7 +126,7 @@ func Jx(v []jamTypes.ByteSequence, i jamTypes.U32, hashFunc func(jamTypes.ByteSe
 	C_res := C(v, hashFunc)
 	var seq []jamTypes.ByteSequence
 	for _, hash := range C_res {
-		seq = append(seq, jamTypes.ByteSequence(hash))
+		seq = append(seq, jamTypes.ByteSequence(hash[:]))
 	}
 	return T(seq, i, hashFunc)
 }
@@ -136,7 +136,7 @@ func M(v []jamTypes.ByteSequence, hashFunc func(jamTypes.ByteSequence) jamTypes.
 	C_res := C(v, hashFunc)
 	var seq []jamTypes.ByteSequence
 	for _, hash := range C_res {
-		seq = append(seq, jamTypes.ByteSequence(hash))
+		seq = append(seq, jamTypes.ByteSequence(hash[:]))
 	}
 	return N(seq, hashFunc).Hash
 }
