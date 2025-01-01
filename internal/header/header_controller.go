@@ -91,11 +91,11 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
 
 	// Serialize the hash of the extrinsic elements
 	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(ticketSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(preimageSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(gHash)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(AssureanceSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapByteArray32(types.ByteArray32(DisputeSerializedHash)).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(ticketSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(preimageSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(gHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(AssureanceSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(DisputeSerializedHash).Serialize()...)
 
 	// Hash the serialized elements
 	extrinsicHash := hash.Blake2bHash(serializedElements)
