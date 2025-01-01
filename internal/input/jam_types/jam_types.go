@@ -7,6 +7,7 @@ package jam_types
 import (
 	"errors"
 	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 

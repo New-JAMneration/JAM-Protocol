@@ -1,9 +1,9 @@
-package safrole
+package jam_types
 
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 )
 
 // basic types
