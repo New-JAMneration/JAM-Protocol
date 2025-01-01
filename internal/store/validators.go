@@ -1,38 +1,48 @@
 package store
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // kappa'
-type PosteriorValidators struct {
+type PosteriorCurrentValidators struct {
 	mu         sync.RWMutex
-	Validators jamTypes.ValidatorsData
+	Validators types.ValidatorsData
 }
 
-func NewPosteriorValidators() *PosteriorValidators {
-	return &PosteriorValidators{
-		Validators: jamTypes.ValidatorsData{},
+func NewPosteriorValidators() *PosteriorCurrentValidators {
+	return &PosteriorCurrentValidators{
+		Validators: types.ValidatorsData{},
 	}
 }
 
-func (pv *PosteriorValidators) AddValidator(validator jamTypes.Validator) {
+func (pv *PosteriorCurrentValidators) AddValidator(validator types.Validator) error {
 	pv.mu.Lock()
 	defer pv.mu.Unlock()
 
+	if len(pv.Validators) == types.ValidatorsCount {
+		// show validates count in error message printf
+		errMessage := fmt.Sprintf("The number of validators is %d", types.ValidatorsCount)
+		return errors.New(errMessage)
+	}
+
 	pv.Validators = append(pv.Validators, validator)
+
+	return nil
 }
 
-func (pv *PosteriorValidators) GetValidators() jamTypes.ValidatorsData {
+func (pv *PosteriorCurrentValidators) GetValidators() types.ValidatorsData {
 	pv.mu.RLock()
 	defer pv.mu.RUnlock()
 
 	return pv.Validators
 }
 
-func (pv *PosteriorValidators) GetValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
+func (pv *PosteriorCurrentValidators) GetValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	pv.mu.RLock()
 	defer pv.mu.RUnlock()
 

@@ -17,10 +17,10 @@ type Store struct {
 	mu sync.RWMutex
 
 	// INFO: Add more fields here
-	blocks              *Blocks
-	ancestorHeaders     *AncestorHeaders
-	intermediateHeader  *IntermediateHeader
-	posteriorValidators *PosteriorValidators
+	blocks                     *Blocks
+	ancestorHeaders            *AncestorHeaders
+	intermediateHeader         *IntermediateHeader
+	posteriorCurrentValidators *PosteriorCurrentValidators
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -28,10 +28,10 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			blocks:              NewBlocks(),
-			ancestorHeaders:     NewAncestorHeaders(),
-			intermediateHeader:  NewIntermediateHeader(),
-			posteriorValidators: NewPosteriorValidators(),
+			blocks:                     NewBlocks(),
+			ancestorHeaders:            NewAncestorHeaders(),
+			intermediateHeader:         NewIntermediateHeader(),
+			posteriorCurrentValidators: NewPosteriorValidators(),
 		}
 
 		log.Println("🚀 Store initialized")
@@ -66,15 +66,15 @@ func (s *Store) GetAncestorHeaders() []jamTypes.Header {
 // PosteriorValidators
 
 func (s *Store) AddPosteriorValidator(validator jamTypes.Validator) {
-	s.posteriorValidators.AddValidator(validator)
+	s.posteriorCurrentValidators.AddValidator(validator)
 }
 
 func (s *Store) GetPosteriorValidators() jamTypes.ValidatorsData {
-	return s.posteriorValidators.GetValidators()
+	return s.posteriorCurrentValidators.GetValidators()
 }
 
 func (s *Store) GetPosteriorValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
-	return s.posteriorValidators.GetValidatorByIndex(index)
+	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
 }
 
 // IntermediateHeader
