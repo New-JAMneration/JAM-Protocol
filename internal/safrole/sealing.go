@@ -83,20 +83,20 @@ func Sealing(state types.State, header types.Header) {
 								(η1, η2, η3) otherwise
 	*/
 	e := GetEpochIndex(state.Tau)
-	ep := GetEpochIndex(header.Slot)
+	e_prime := GetEpochIndex(header.Slot)
 	m := GetSlotIndex(state.Tau)
-	eta_p := state.Eta
-	if ep > e { // e′ > e
+	eta_prime := state.Eta
+	if e_prime > e { // e′ > e
 		for i := 2; i >= 0; i-- {
-			eta_p[i+1] = eta_p[i]
+			eta_prime[i+1] = eta_prime[i]
 		}
-		eta_p[0] = types.Entropy(hash.Blake2bHash(eta_p[1][:])) // TODO concat Y(Hv)
+		eta_prime[0] = types.Entropy(hash.Blake2bHash(eta_prime[1][:])) // TODO concat Y(Hv)
 	}
 
 	if len(state.Gamma.GammaS.Tickets) > 0 {
-		state = SealingByTickets(state, header, eta_p)
+		state = SealingByTickets(state, header, eta_prime)
 	} else if len(state.Gamma.GammaS.Keys) > 0 {
-		state = SealingByBandersnatchs(state, header, eta_p)
+		state = SealingByBandersnatchs(state, header, eta_prime)
 	}
 	/*
 		TODO (6.17) Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩
@@ -107,13 +107,14 @@ func Sealing(state types.State, header types.Header) {
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-
-	if ep == e+1 {
-		state.Eta = eta_p
+	if e_prime > e {
+		state.Eta = eta_prime
+	}
+	if e_prime == e+1 {
 		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			state.Gamma.GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
-			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(eta_p[2]), state.Kappa)
+			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(eta_prime[2]), state.Kappa)
 		}
 	}
 }
