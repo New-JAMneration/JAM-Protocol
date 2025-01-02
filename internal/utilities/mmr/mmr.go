@@ -49,9 +49,9 @@ func NewMMRFromPeaks(peaks []types.MmrPeak, hashFn HashFunction) *MMR {
 
 // concatenateAndHash combines two byte slices and hashes the result
 func (m *MMR) concatenateAndHash(left, right types.MmrPeak) types.MmrPeak {
-	leftBytes := []byte(*left)
-	rightBytes := []byte(*right)
-	val := m.hashFn(append(leftBytes, rightBytes...))
+	leftBytes := [32]byte(*left)
+	rightBytes := [32]byte(*right)
+	val := m.hashFn(append(leftBytes[:], rightBytes[:]...))
 	return &val
 }
 
