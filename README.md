@@ -36,6 +36,10 @@ go run . start
 go build -o ./build/JAM-Protocol
 ```
 
+## Rust Submodule Guide
+
+For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/rust-vrf-compile-guide.md).
+
 ## Coding Style
 
 Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
