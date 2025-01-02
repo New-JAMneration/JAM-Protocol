@@ -1,41 +1,73 @@
 package header
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// {
-//   "parent": "0x5c743dbc514284b2ea57798787c5a155ef9d7ac1e9499ec65910a7a3d65897b7",
-//   "parent_state_root": "0x2591ebd047489f1006361a4254731466a946174af02fe1d86681d254cfd4a00b",
-//   "extrinsic_hash": "0x74a9e79d2618e0ce8720ff61811b10e045c02224a09299f04e404a9656e85c81",
-//   "slot": 42,
-//   "epoch_mark": {
-//     "entropy": "0xae85d6635e9ae539d0846b911ec86a27fe000f619b78bcac8a74b77e36f6dbcf",
-//     "tickets_entropy": "0x333a7e328f0c4183f4b947e1d8f68aa4034f762e5ecdb5a7f6fbf0afea2fd8cd",
-//     "validators": [
-//       "0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d",
-//       "0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0",
-//       "0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc",
-//       "0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33",
-//       "0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3",
-//       "0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d"
-//     ]
-//   },
-//   "tickets_mark": null,
-//   "offenders_mark": [
-//     "0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"
-//   ],
-//   "author_index": 3,
-//   "entropy_source": "0xae85d6635e9ae539d0846b911ec86a27fe000f619b78bcac8a74b77e36f6dbcf49a52360f74a0233cea0775356ab0512fafff0683df08fae3cb848122e296cbc50fed22418ea55f19e55b3c75eb8b0ec71dcae0d79823d39920bf8d6a2256c5f",
-//   "seal": "0x31dc5b1e9423eccff9bccd6549eae8034162158000d5be9339919cc03d14046e6431c14cbb172b3aed702b9e9869904b1f39a6fe1f3e904b0fd536f13e8cac496682e1c81898e88e604904fa7c3e496f9a8771ef1102cc29d567c4aad283f7b0"
-// }
+// ParentHeaderHash, ExtrinsicHash, ParentStateRoot will be tested in the
+// block serialization
 
-type headerJSON struct {
+func strToHex(str string) []byte {
+	hexStr, err := hex.DecodeString(str[2:]) // 0x prefix
+	if err != nil {
+		panic(err)
+	}
+	return hexStr
+}
+
+func bytesToHex(data []byte) string {
+	// concat 0x prefix
+	return "0x" + hex.EncodeToString(data)
+}
+
+func GetHeaderString(h types.Header) string {
+	var output string
+	output += fmt.Sprintf("Parent: %s\n", bytesToHex([]byte(h.Parent[:])))
+	output += fmt.Sprintf("ParentStateRoot: %s\n", bytesToHex([]byte(h.ParentStateRoot[:])))
+	output += fmt.Sprintf("ExtrinsicHash: %s\n", bytesToHex([]byte(h.ExtrinsicHash[:])))
+	output += fmt.Sprintf("Slot: %d\n", h.Slot)
+	output += fmt.Sprintf("EpochMark: %s\n", "")
+	if h.EpochMark != nil {
+		output += fmt.Sprintf("EpochMark.Entropy: %s\n", bytesToHex([]byte(h.EpochMark.Entropy[:])))
+		output += fmt.Sprintf("EpochMark.TicketsEntropy: %s\n", bytesToHex([]byte(h.EpochMark.TicketsEntropy[:])))
+
+		output += fmt.Sprintf("EpochMark.Validators: %s\n", "")
+		for _, v := range h.EpochMark.Validators {
+			output += fmt.Sprintf("  %s\n", bytesToHex([]byte(v[:])))
+		}
+	}
+
+	output += fmt.Sprintf("TicketsMark: %s\n", "")
+	if h.TicketsMark != nil {
+		for _, t := range *h.TicketsMark {
+			output += fmt.Sprintf("  %s\n", bytesToHex([]byte(t.Id[:])))
+		}
+	}
+
+	output += fmt.Sprintf("OffendersMark: %s\n", "")
+	if h.OffendersMark != nil {
+		for _, o := range h.OffendersMark {
+			output += fmt.Sprintf("  %s\n", bytesToHex([]byte(o[:])))
+		}
+	}
+	output += fmt.Sprintf("AuthorIndex: %d\n", h.AuthorIndex)
+	output += fmt.Sprintf("EntropySource: %s\n", bytesToHex([]byte(h.EntropySource[:])))
+	output += fmt.Sprintf("Seal: %s\n", bytesToHex([]byte(h.Seal[:])))
+
+	return output
+}
+
+type HeaderJSON struct {
 	Parent          string `json:"parent"`
 	ParentStateRoot string `json:"parent_state_root"`
 	ExtrinsicHash   string `json:"extrinsic_hash"`
@@ -49,10 +81,11 @@ type headerJSON struct {
 	OffendersMark []string    `json:"offenders_mark"`
 	AuthorIndex   int         `json:"author_index"`
 	EntropySource string      `json:"entropy_source"`
+	Seal          string      `json:"seal"`
 }
 
-func loadTestData() types.Header {
-	jsonFile := "test_data/header.json"
+func loadTestHeader0() types.Header {
+	jsonFile := "../../pkg/test_data/jam-test-vectors/codec/data/header_0.json"
 
 	// Open the JSON file
 	file, err := os.Open(jsonFile)
@@ -61,9 +94,56 @@ func loadTestData() types.Header {
 	}
 	defer file.Close()
 
-	// Decode the JSON file
-	var header headerJSON
-	err = json.Unmarshal(file, &header)
+	// Read the file content
+	byteValue, err := io.ReadAll(file)
+	if err != nil {
+		panic(err)
+	}
+
+	// Unmarshal the JSON data
+	var headerJSON HeaderJSON
+	err = json.Unmarshal(byteValue, &headerJSON)
+	if err != nil {
+		panic(err)
+	}
+
+	header := convertHeaderJSONToHeader(headerJSON)
+
+	return header
+}
+
+func convertHeaderJSONToHeader(headerJSON HeaderJSON) types.Header {
+	header := types.Header{
+		Parent:          types.HeaderHash(strToHex(headerJSON.Parent)),
+		ParentStateRoot: types.StateRoot(strToHex(headerJSON.ParentStateRoot)),
+		ExtrinsicHash:   types.OpaqueHash(strToHex(headerJSON.ExtrinsicHash)),
+		Slot:            types.TimeSlot(headerJSON.Slot),
+		EpochMark: &types.EpochMark{
+			Entropy:        types.Entropy(strToHex(headerJSON.EpochMark.Entropy)),
+			TicketsEntropy: types.Entropy(strToHex(headerJSON.EpochMark.TicketsEntropy)),
+			Validators:     nil,
+		},
+		TicketsMark:   nil,
+		OffendersMark: nil,
+		AuthorIndex:   types.ValidatorIndex(headerJSON.AuthorIndex),
+		EntropySource: types.BandersnatchVrfSignature(strToHex(headerJSON.EntropySource)),
+		Seal:          types.BandersnatchVrfSignature(strToHex(headerJSON.Seal)),
+	}
+
+	validators := make([]types.BandersnatchPublic, len(headerJSON.EpochMark.Validators))
+	for i, v := range headerJSON.EpochMark.Validators {
+		validators[i] = types.BandersnatchPublic(strToHex(v))
+	}
+
+	offenders := make([]types.Ed25519Public, len(headerJSON.OffendersMark))
+	for i, o := range headerJSON.OffendersMark {
+		offenders[i] = types.Ed25519Public(strToHex(o))
+	}
+
+	header.EpochMark.Validators = validators
+	header.OffendersMark = offenders
+
+	return header
 }
 
 func TestNewHeaderController(t *testing.T) {
@@ -107,12 +187,208 @@ func TestHeaderController_GetHeader(t *testing.T) {
 	})
 }
 
-func TestCreateParentHeaderHash(t *testing.T) {
-	t.Run("CreateParentHeaderHash", func(t *testing.T) {
-		hc := NewHeaderController()
+func TestValidateTimeSlot(t *testing.T) {
+	now := time.Now().UTC()
+	secondsSinceJam := uint64(now.Sub(types.JamCommonEra).Seconds())
+	testCases := []struct {
+		parentHeader types.Header
+		slot         types.TimeSlot
+		expected     error
+	}{
+		{
+			parentHeader: types.Header{
+				Slot: 0,
+			},
+			slot:     1,
+			expected: nil,
+		},
+		{
+			parentHeader: types.Header{
+				Slot: 1,
+			},
+			slot:     2,
+			expected: nil,
+		},
+		{
+			parentHeader: types.Header{
+				Slot: 2,
+			},
+			slot:     1,
+			expected: fmt.Errorf("The time slot of the header is always larger than the parent header's time slot."),
+		},
+		{
+			parentHeader: types.Header{
+				Slot: 2,
+			},
+			slot:     types.TimeSlot((secondsSinceJam + 100) / uint64(types.SlotPeriod)),
+			expected: fmt.Errorf("The time slot of the header is always smaller than the current time."),
+		},
+	}
 
-		// TODO: Load Parent Header from test data
-		parentHeader := types.Header{}
-		hc.CreateParentHeaderHash(parentHeader)
+	for _, tc := range testCases {
+		t.Run("ValidateTimeSlot", func(t *testing.T) {
+			hc := NewHeaderController()
+
+			err := hc.ValidateTimeSlot(tc.parentHeader, tc.slot)
+
+			if err != nil && tc.expected != nil {
+				if err.Error() != tc.expected.Error() {
+					t.Errorf("ValidateTimeSlot() = %v; want %v", err, tc.expected)
+				}
+			} else {
+				if err != tc.expected {
+					t.Errorf("ValidateTimeSlot() = %v; want %v", err, tc.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateHeaderSlot(t *testing.T) {
+	testCases := []struct {
+		parentHeader    types.Header
+		currentTimeslot types.TimeSlot
+		error           error
+	}{
+		{
+			parentHeader: types.Header{
+				Slot: 0,
+			},
+			currentTimeslot: 1,
+			error:           nil,
+		},
+		{
+			parentHeader: types.Header{
+				Slot: 2,
+			},
+			currentTimeslot: 5,
+			error:           nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run("CreateHeaderSlot", func(t *testing.T) {
+			hc := NewHeaderController()
+
+			err := hc.CreateHeaderSlot(tc.parentHeader, tc.currentTimeslot)
+
+			if err == nil {
+				if hc.GetHeader().Slot != tc.currentTimeslot {
+					t.Errorf("CreateHeaderSlot() = %d; want %d", hc.GetHeader().Slot, tc.currentTimeslot)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateBlockAuthorIndex(t *testing.T) {
+	testCases := []struct {
+		authorIndex types.ValidatorIndex
+		expected    types.ValidatorIndex
+	}{
+		{
+			authorIndex: 0,
+			expected:    0,
+		},
+		{
+			authorIndex: 123,
+			expected:    123,
+		},
+	}
+
+	for _, tc := range testCases {
+		hc := NewHeaderController()
+		hc.CreateBlockAuthorIndex(types.ValidatorIndex(tc.authorIndex))
+		if hc.Header.AuthorIndex != tc.expected {
+			t.Errorf("CreateBlockAuthorIndex() = %d; want %d", hc.Header.AuthorIndex, tc.expected)
+		}
+	}
+}
+
+func TestGetAuthorBandersnatchKey(t *testing.T) {
+	testCases := []struct {
+		bandersnatchKey types.BandersnatchPublic
+		authorIndex     types.ValidatorIndex
+		expected        types.BandersnatchPublic
+	}{
+		{
+			bandersnatchKey: types.BandersnatchPublic(strToHex("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
+			authorIndex:     0,
+			expected:        types.BandersnatchPublic(strToHex("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
+		},
+		{
+			bandersnatchKey: types.BandersnatchPublic(strToHex("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
+			authorIndex:     1,
+			expected:        types.BandersnatchPublic(strToHex("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
+		},
+		{
+			bandersnatchKey: types.BandersnatchPublic(strToHex("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
+			authorIndex:     2,
+			expected:        types.BandersnatchPublic(strToHex("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
+		},
+	}
+
+	s := store.GetInstance()
+	// Initialize the store
+	for _, tc := range testCases {
+		s.AddPosteriorCurrentValidator(types.Validator{
+			Bandersnatch: tc.bandersnatchKey,
+		})
+	}
+
+	for _, tc := range testCases {
+		thisHeader := types.Header{
+			AuthorIndex: tc.authorIndex,
+		}
+
+		hc := NewHeaderController()
+		thisBandersnatch := hc.GetAuthorBandersnatchKey(thisHeader)
+
+		if thisBandersnatch != tc.expected {
+			t.Errorf("GetAuthorBandersnatchKey() = %s; want %s", thisBandersnatch, tc.expected)
+		}
+	}
+}
+
+func TestGetAncenstorHeaders(t *testing.T) {
+	now := time.Now().UTC()
+	secondsSinceJam := uint64(now.Sub(types.JamCommonEra).Seconds())
+
+	s := store.GetInstance()
+	s.AddAncestorHeader(types.Header{
+		Slot: types.TimeSlot((secondsSinceJam + 100) / uint64(types.SlotPeriod)),
 	})
+	s.AddAncestorHeader(types.Header{
+		Slot: types.TimeSlot((secondsSinceJam + 101) / uint64(types.SlotPeriod)),
+	})
+	s.AddAncestorHeader(types.Header{
+		Slot: types.TimeSlot((secondsSinceJam + 102) / uint64(types.SlotPeriod)),
+	})
+
+	hc := NewHeaderController()
+	ancestorHeaders := hc.GetAncestorHeaders()
+
+	if len(ancestorHeaders) != 3 {
+		t.Errorf("GetAncestorHeaders() = %d; want 3", len(ancestorHeaders))
+	}
+}
+
+func TestGetAncenstorHeadersTooOld(t *testing.T) {
+	s := store.GetInstance()
+	s.AddAncestorHeader(types.Header{
+		Slot: 0,
+	})
+	s.AddAncestorHeader(types.Header{
+		Slot: 1,
+	})
+	s.AddAncestorHeader(types.Header{
+		Slot: 2,
+	})
+
+	hc := NewHeaderController()
+	ancestorHeaders := hc.GetAncestorHeaders()
+
+	if len(ancestorHeaders) != 0 {
+		t.Errorf("GetAncestorHeaders() = %d; want 0", len(ancestorHeaders))
+	}
 }
