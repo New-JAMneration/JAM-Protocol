@@ -1,0 +1,36 @@
+{
+    "header": {
+        "parent": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "parent_state_root": "0xdc7cd48071510f258f021f05189d56744e2d62dfc8a620bae9855cc5d9326f7c",
+        "extrinsic_hash": "0xdc080ad182cb9ff052a1ca8ecbc51164264efc7dd6debaaa45764950f843acb8",
+        "slot": 5106360,
+        "epoch_mark": {
+            "entropy": "0x6f6ad2224d7d58aec6573c623ab110700eaca20a48dc2965d535e466d524af2a",
+            "tickets_entropy": "0x835ac82bfa2ce8390bb50680d4b7a73dfa2a4cff6d8c30694b24a605f9574eaf",
+            "validators": [
+                "0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d",
+                "0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0",
+                "0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc",
+                "0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33",
+                "0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3",
+                "0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d"
+            ]
+        },
+        "tickets_mark": null,
+        "offenders_mark": [],
+        "author_index": 2,
+        "entropy_source": "0x1ef2d3fd951a6ca263cf407c86d5221437bfb8c23ccb39edf6f742c3145c2557490efd490bf82795f480d6242edec61333a46b9ca72e994cb0b4665723bba507b6bd807b7cb62d50af87d45177ddcb9171505b09f834d2bd8ddabb8d1c8e2803",
+        "seal": "0x034c0e655f644fb109dbcd0050ca49180e2a5bd3b9a95b88626732ce05dbfccce45a96310024d65cdaa166e66e912e77d69b9d76a7289a09b7d55a952106e21b68c595822db9d7db19d9f7749b6ddc3a6f86ed1b642bbd435dd6174497584007"
+    },
+    "extrinsic": {
+        "tickets": [],
+        "preimages": [],
+        "guarantees": [],
+        "assurances": [],
+        "disputes": {
+            "verdicts": null,
+            "culprits": null,
+            "faults": null
+        }
+    }
+}
