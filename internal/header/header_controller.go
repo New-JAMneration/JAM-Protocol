@@ -103,15 +103,10 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
 	h.Header.ExtrinsicHash = extrinsicHash
 }
 
-// FIXME: Use the real Jam Common Era
 func getCurrentTimeInSecond() uint64 {
 	// The Jam Common Era is 2025-01-01 12:00:00 UTC defined in the graypaper.
-	// jamCommonEra := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-
-	jamCommonEra := time.Now().UTC().Add(-600 * time.Second)
-
 	now := time.Now().UTC()
-	secondsSinceJam := uint64(now.Sub(jamCommonEra).Seconds())
+	secondsSinceJam := uint64(now.Sub(types.JamCommonEra).Seconds())
 
 	return secondsSinceJam
 }
@@ -127,8 +122,7 @@ func (h *HeaderController) ValidateTimeSlot(parentHeader types.Header, timeslot 
 
 	// Get the current time in seconds.
 	currentTimeInSecond := getCurrentTimeInSecond()
-	const slotPeriod uint8 = 6
-	timeslotInSecond := uint64(timeslot) * uint64(slotPeriod)
+	timeslotInSecond := uint64(timeslot) * uint64(types.SlotPeriod)
 
 	if timeslotInSecond > currentTimeInSecond {
 		return fmt.Errorf("The time slot of the header is always smaller than the current time.")
@@ -141,13 +135,13 @@ func (h *HeaderController) ValidateTimeSlot(parentHeader types.Header, timeslot 
 // (5.7) H_t: time slot
 // Users can use the function to set the timeslot of this header (block).
 // It means the block is built in this timeslot.
-func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, timeslot types.TimeSlot) error {
-	err := h.ValidateTimeSlot(parentHeader, timeslot)
+func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTimeslot types.TimeSlot) error {
+	err := h.ValidateTimeSlot(parentHeader, currentTimeslot)
 	if err != nil {
 		return err
 	}
 
-	h.Header.Slot = timeslot
+	h.Header.Slot = currentTimeslot
 	return nil
 }
 
@@ -172,7 +166,7 @@ func (h *HeaderController) GetAuthorBandersnatchKey(header types.Header) types.B
 	s := store.GetInstance()
 
 	// Get the validator by index
-	validator := s.GetPosteriorValidatorByIndex(authorIndex)
+	validator := s.GetPosteriorCurrentValidatorByIndex(authorIndex)
 
 	return validator.Bandersnatch
 }

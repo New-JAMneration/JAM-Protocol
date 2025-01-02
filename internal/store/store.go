@@ -63,17 +63,17 @@ func (s *Store) GetAncestorHeaders() []jamTypes.Header {
 	return s.ancestorHeaders.GetHeaders()
 }
 
-// PosteriorValidators
+// PosteriorCurrentValidators
 
-func (s *Store) AddPosteriorValidator(validator jamTypes.Validator) {
+func (s *Store) AddPosteriorCurrentValidator(validator jamTypes.Validator) {
 	s.posteriorCurrentValidators.AddValidator(validator)
 }
 
-func (s *Store) GetPosteriorValidators() jamTypes.ValidatorsData {
+func (s *Store) GetPosteriorCurrentValidators() jamTypes.ValidatorsData {
 	return s.posteriorCurrentValidators.GetValidators()
 }
 
-func (s *Store) GetPosteriorValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
+func (s *Store) GetPosteriorCurrentValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
 }
 

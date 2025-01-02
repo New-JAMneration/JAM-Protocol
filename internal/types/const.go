@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 var (
 	ValidatorsCount = 6
 	CoresCount      = 2
@@ -15,4 +17,9 @@ var (
 
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes      = 1
+)
+
+var (
+	SlotPeriod   = 6
+	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 )
