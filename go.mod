@@ -8,6 +8,6 @@ require (
 )
 
 require (
-	github.com/klauspost/cpuid/v2 v2.2.8 // indirect: for Erasure Coding
+	github.com/klauspost/cpuid/v2 v2.2.8 // indirect; indirect: for Erasure Coding
 	golang.org/x/sys v0.28.0 // indirect
 )
