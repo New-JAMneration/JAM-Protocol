@@ -39,12 +39,14 @@ func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 
 // beta^dagger (7.2) and STF (4.6)
 func (s *State) AddToBetaDagger(h types.Header) {
-	if len(s.Beta) != maxBlocksHistory {
-		// except
-		h.ParentStateRoot = s.BetaDagger[len(s.Beta)-1].StateRoot
-	} else {
-		// duplicate beta into beta^dagger
-		s.BetaDagger = append(s.BetaDagger, s.Beta...)
+	if len(s.Beta) > 0 {
+		if len(s.Beta) != maxBlocksHistory {
+			// except
+			s.BetaDagger[len(s.Beta)-1].StateRoot = h.ParentStateRoot
+		} else {
+			// duplicate beta into beta^dagger
+			s.BetaDagger = append(s.BetaDagger, s.Beta...)
+		}
 	}
 
 	// check BetaDagger is not longer than maxBlocksHistory
@@ -99,7 +101,6 @@ func (s *State) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.M
 		// MMR append func $\mathcal{A}$
 		NewMmr := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
 		return NewMmr
-
 	} else {
 		// if State.Beta is empty -> create a new empty MMR
 		m := mmr.NewMMR(hash.KeccakHash)
@@ -126,14 +127,14 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 
 // item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
 func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
-	headerHash := hash.Blake2bHash(u.HeaderSerialization(h))
+	headerHash := h.Parent // hash.Blake2bHash(u.HeaderSerialization(h))
 	accumulationResultTreeRoot := r(c)
 	accumulationResultMmr := s.b(accumulationResultTreeRoot)
 	workReportHash := p(eg)
 	zeroHash := types.StateRoot(types.OpaqueHash{})
 
 	items = types.BlockInfo{
-		HeaderHash: types.HeaderHash(headerHash),
+		HeaderHash: headerHash,
 		Mmr:        types.Mmr{Peaks: accumulationResultMmr},
 		StateRoot:  zeroHash,
 		Reported:   workReportHash,
@@ -145,11 +146,11 @@ func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmen
 
 // Update BetaDagger to BetaPrime (7.4)
 func (s *State) AddToBetaPrime(items types.BlockInfo) {
-	s.BetaPrime = append(s.BetaPrime, items)
-
 	// Ensure BetaPrime's length not exceed maxBlocksHistory
-	if len(s.BetaPrime) > maxBlocksHistory {
+	if len(s.BetaPrime) >= maxBlocksHistory {
 		// remove old states, with length is maxBlocksHistory
-		s.BetaPrime = s.BetaPrime[maxBlocksHistory:]
+		s.BetaPrime = s.BetaPrime[1:]
 	}
+
+	s.BetaPrime = append(s.BetaPrime, items)
 }
