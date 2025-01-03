@@ -18,6 +18,7 @@ type Store struct {
 
 	// INFO: Add more fields here
 	blocks                     *Blocks
+	states                     *States
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
@@ -29,11 +30,11 @@ func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
 			blocks:                     NewBlocks(),
+			states:                     NewStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 		}
-
 		log.Println("🚀 Store initialized")
 	})
 	return globalStore
@@ -51,6 +52,19 @@ func (s *Store) GenerateGenesisBlock(block jamTypes.Block) {
 	s.blocks.GenerateGenesisBlock(block)
 	s.blocks.AddBlock(block)
 	log.Println("🚀 Genesis block generated")
+}
+
+func (s *Store) GetState() jamTypes.State {
+	return s.states.GetState()
+}
+
+func (s *Store) GetStates() States {
+	return *s.states
+}
+
+func (s *Store) GenerateGenesisState(state jamTypes.State) {
+	s.states.GenerateGenesisState(state)
+	log.Println("🚀 Genesis state generated")
 }
 
 // AncestorHeaders

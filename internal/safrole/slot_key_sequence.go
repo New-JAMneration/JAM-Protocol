@@ -27,7 +27,7 @@ func OutsideInSequencer(t *types.TicketsAccumulator) types.TicketsAccumulator {
 }
 
 // FallbackKeySequence implements the fallback key sequence in GP Eq. 6.26
-func FallbackKeySequence(entropy types.OpaqueHash, validators types.ValidatorsData) []types.BandersnatchPublic {
+func FallbackKeySequence(entropy types.Entropy, validators types.ValidatorsData) []types.BandersnatchPublic {
 	// require globa variable entropy
 	// type EpochKeys []BandersnatchKey
 	keys := make([]types.BandersnatchPublic, types.EpochLength)
@@ -42,9 +42,9 @@ func FallbackKeySequence(entropy types.OpaqueHash, validators types.ValidatorsDa
 		// H4 : Keccak256(serializedBytes) -> See section 3.8 , take only the first 4 octets of the hash,
 		hash := hash.Blake2bHashPartial(concatenation, 4)
 		// E^(-1) deserialization
-		validatorIndex, _ := utils.DeserializeFixedLength(types.ByteSequence(hash), types.U64(4))
+		validatorIndex, _ := utils.DeserializeFixedLength(types.ByteSequence(hash), types.U32(4))
 		// validatorIndex : jamtypes.U64
-		validatorIndex %= (types.U64(len(validators)))
+		validatorIndex %= (types.U32(len(validators)))
 		// k[]_b : validatorData -> bandersnatch
 		keys[i] = validators[validatorIndex].Bandersnatch
 	}
