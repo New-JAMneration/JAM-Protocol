@@ -154,7 +154,7 @@ func SerializeRho(rho jamTypes.AvailabilityAssignments) (output jamTypes.ByteSeq
 		if v != nil {
 			output = append(output, SerializeU64(jamTypes.U64(1))...)
 			output = append(output, SerializeWorkReport(v.Report)...)
-			output = append(output, SerializeFixedLength(v.Timeout, 4)...)
+			output = append(output, SerializeFixedLength(jamTypes.U32(v.Timeout), 4)...)
 		} else {
 			output = append(output, SerializeU64(jamTypes.U64(0))...)
 		}
