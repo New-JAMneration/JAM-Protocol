@@ -12,8 +12,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// custom input struct for json^^
-//type mmrpeak_json string
+// Custom input struct for json^^
 
 type mmr_json struct {
 	Peak []string `json:"peak,omitempty"`
@@ -26,7 +25,7 @@ type workPackage_json struct {
 
 type blockInfo_json struct {
 	HeaderHash string             `json:"header_hash,omitempty"`
-	Mmr        mmr_json           `json:"mmr,omitempty"`
+	Mmr        mmr_json           `json:"mmr"`
 	StateRoot  string             `json:"state_root,omitempty"`
 	Reported   []workPackage_json `json:"reported,omitempty"`
 }
@@ -64,10 +63,10 @@ type myVector struct {
 }
 
 func hexToOpaqueHash(hexStr string) ([32]byte, error) {
-	// 移除可能的 "0x" 前綴
+	// remove "0x" prefix
 	hexStr = strings.TrimPrefix(hexStr, "0x")
 
-	// 解碼 hex 字串
+	// decode hex string
 	bytes, err := hex.DecodeString(hexStr)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("failed to decode hex: %v", err)
@@ -90,11 +89,10 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 	}
 	err = json.Unmarshal(data, &vector_json)
 
-	// convert to mytype
+	// convert json to mytype
 	// MyVector.Input: json to myHistory
 	var (
 		// string to HeaderHash
-		//inputHeaderHash, _    = hex.DecodeString(vector_json.Input.HeaderHash)
 		inputHeaderHash, _    = hexToOpaqueHash(vector_json.Input.HeaderHash)
 		inputHeaderHash_types = types.HeaderHash(inputHeaderHash)
 
@@ -111,8 +109,10 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 		inputWorkPackages_types []types.ReportedWorkPackage
 	)
 	for _, inputWorkPackage := range inputWorkPackages {
+		// string to WorkReportHash and ExportsRoot
 		workPackageHash, _ := hexToOpaqueHash(inputWorkPackage.Hash)
 		workPackageExportsRoot, _ := hexToOpaqueHash(inputWorkPackage.ExportsRoot)
+		// append to inputWorkPackages_types
 		inputWorkPackages_types = append(inputWorkPackages_types, types.ReportedWorkPackage{
 			Hash:        types.WorkReportHash(workPackageHash),
 			ExportsRoot: types.ExportsRoot(workPackageExportsRoot),
@@ -133,18 +133,18 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 
 		blockInfo := types.BlockInfo{
 			HeaderHash: types.HeaderHash(headerHash),
-			//Mmr:        mmr,
+			// Mmr:        mmr, (Write later)
 			StateRoot: types.StateRoot(stateRoot),
 			Reported:  []types.ReportedWorkPackage{},
 		}
 
 		for _, mmrPeak := range preStateBeta.Mmr.Peak {
 			var (
+				// string to MmrPeak
 				peak, _  = hexToOpaqueHash(mmrPeak)
 				peakHash = types.OpaqueHash(peak)
-				//mmr     = types.Mmr{Peaks: append(preStateBetas_types[i].Mmr.Peaks, types.MmrPeak(peak))}
 			)
-			// string to MmrPeak
+			// append to MmrPeak
 			blockInfo.Mmr.Peaks = append(blockInfo.Mmr.Peaks, types.MmrPeak(&peakHash))
 		}
 
@@ -157,6 +157,7 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 				reportedWorkPackageHash, _        = hexToOpaqueHash(reportedWorkPackage.Hash)
 				reportedWorkPackageExportsRoot, _ = hexToOpaqueHash(reportedWorkPackage.ExportsRoot)
 			)
+			// append to ReportedWorkPackage
 			blockInfo.Reported = append(blockInfo.Reported, types.ReportedWorkPackage{
 				Hash:        types.WorkReportHash(reportedWorkPackageHash),
 				ExportsRoot: types.ExportsRoot(reportedWorkPackageExportsRoot),
@@ -188,9 +189,8 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 			var (
 				peak, _  = hexToOpaqueHash(mmrPeak)
 				peakHash = types.OpaqueHash(peak)
-				//mmr     = types.Mmr{Peaks: append(postStateBetas_types[i].Mmr.Peaks, types.MmrPeak(peak))}
 			)
-			// string to MmrPeak
+			// append to MmrPeak
 			blockInfo.Mmr.Peaks = append(blockInfo.Mmr.Peaks, types.MmrPeak(&peakHash))
 		}
 
@@ -203,6 +203,7 @@ func loadInputFromJSON(filePath string) (m myVector, err error) {
 				reportedWorkPackageHash, _        = hexToOpaqueHash(reportedWorkPackage.Hash)
 				reportedWorkPackageExportsRoot, _ = hexToOpaqueHash(reportedWorkPackage.ExportsRoot)
 			)
+			// append to ReportedWorkPackage
 			blockInfo.Reported = append(blockInfo.Reported, types.ReportedWorkPackage{
 				Hash:        types.WorkReportHash(reportedWorkPackageHash),
 				ExportsRoot: types.ExportsRoot(reportedWorkPackageExportsRoot),
@@ -240,13 +241,15 @@ func TestRemoveDuplicate(t *testing.T) {
 		Beta: m.PreState.Beta,
 	}
 	if state.Beta != nil { // Beta is empty -> not need to remove duplicate
-		// test existing header hash
-		if state.RemoveDuplicate(m.PreState.Beta[0].HeaderHash) != true {
-			t.Error("Expected true for existing header hash")
+		// test existing header hashes
+		for _, beta := range m.PreState.Beta {
+			if state.RemoveDuplicate(beta.HeaderHash) != true {
+				t.Error("Expected true for existing header hash:", beta.HeaderHash)
+			}
 		}
 		// test non-existing header hash
 		if state.RemoveDuplicate(m.Input.HeaderHash) != false {
-			t.Error("Expected false for non-existing header hash")
+			t.Error("Expected false for non-existing header hash", m.Input.HeaderHash)
 		}
 	}
 
@@ -260,7 +263,7 @@ func TestAddToBetaDagger(t *testing.T) {
 
 	state := &State{
 		Beta:       m.PreState.Beta,
-		BetaDagger: []types.BlockInfo{},
+		BetaDagger: []types.BlockInfo{}, // empty pending for write in AddToBetaDagger
 	}
 
 	var monkHeader = types.Header{
@@ -282,16 +285,15 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	state := &State{
-		Beta:       m.PreState.Beta,
-		BetaDagger: []types.BlockInfo{},
-		BetaPrime:  []types.BlockInfo{},
+		Beta:      m.PreState.Beta,     // input beta
+		BetaPrime: []types.BlockInfo{}, // empty pending for write in AddToBetaPrime
 	}
 
 	var monkHeader = types.Header{
 		Parent:          m.Input.HeaderHash,
 		ParentStateRoot: m.Input.ParentStateRoot,
 	}
-	// ------------init----------------
+
 	// r function
 	// handmade BeefyCommitmentOutput
 	monkC := BeefyCommitmentOutput{
@@ -312,46 +314,37 @@ func TestAddToBetaPrime(t *testing.T) {
 
 	// p function
 	// GuaranteesExtrinsic from vector_json
-	eg := types.GuaranteesExtrinsic{
-		{
+	eg := types.GuaranteesExtrinsic{}
+
+	for _, workPackage := range m.Input.WorkPackages {
+		eg = append(eg, types.ReportGuarantee{
 			Report: types.WorkReport{
 				PackageSpec: types.WorkPackageSpec{
-					Hash:        types.WorkPackageHash(m.Input.WorkPackages[0].Hash),
-					ExportsRoot: m.Input.WorkPackages[0].ExportsRoot,
+					Hash:        types.WorkPackageHash(workPackage.Hash),
+					ExportsRoot: workPackage.ExportsRoot,
 				},
 			},
-		},
-		{
-			Report: types.WorkReport{
-				PackageSpec: types.WorkPackageSpec{
-					Hash:        types.WorkPackageHash(m.Input.WorkPackages[1].Hash),
-					ExportsRoot: m.Input.WorkPackages[1].ExportsRoot,
-				},
-			},
-		},
+		})
 	}
 
 	reports := p(eg)
-	// fmt.Print(m.PostState.BetaPrime[0].Reported)
-	// fmt.Print("\n")
-	// fmt.Print(reports)
 
 	if len(reports) == 0 {
 		t.Error("Expected non-empty reports")
 	}
 	for i, report := range reports {
-		if report.Hash != m.PostState.BetaPrime[0].Reported[i].Hash {
+		if report.Hash != m.PostState.BetaPrime[len(m.PostState.BetaPrime)-1].Reported[i].Hash {
 			t.Errorf("report[%d].Hash is not equal to testvector's BetaPrime", i)
 		}
-		if report.ExportsRoot != m.PostState.BetaPrime[0].Reported[i].ExportsRoot {
+		if report.ExportsRoot != m.PostState.BetaPrime[len(m.PostState.BetaPrime)-1].Reported[i].ExportsRoot {
 			t.Errorf("report[%d].ExportsRoot is not equal to testvector's BetaPrime", i)
 		}
 	}
 
-	// n func
+	// n function
 	items := state.n(monkHeader, eg, monkC)
 
-	if items.HeaderHash != m.PostState.BetaPrime[0].HeaderHash {
+	if items.HeaderHash != m.PostState.BetaPrime[len(m.PostState.BetaPrime)-1].HeaderHash {
 		t.Errorf("items.HeaderHash %x is not equal to BetaPrime's %x", items.HeaderHash, m.PostState.BetaPrime[0].HeaderHash)
 	}
 

@@ -10,6 +10,7 @@ import (
 	mmr "github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
 )
 
+// TODO: move State struct to state.go
 type State struct {
 	Beta       []types.BlockInfo // prior state
 	BetaDagger []types.BlockInfo // intermediate state
@@ -19,7 +20,7 @@ type State struct {
 // \mathbf{C} in GP from type B (12.15)
 type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
 
-// instant-used struct
+// Instant-used struct
 type AccumulationOutput struct {
 	serviceid  types.ServiceId
 	commitment types.OpaqueHash
@@ -27,7 +28,7 @@ type AccumulationOutput struct {
 
 var maxBlocksHistory = types.MaxBlocksHistory
 
-// remove duplicated blocks by BlockHash
+// Remove duplicated blocks by BlockHash
 func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 	for _, block := range s.Beta {
 		if block.HeaderHash == headerhash {
@@ -37,33 +38,31 @@ func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 	return false
 }
 
-// beta^dagger (7.2) and STF (4.6)
+// Beta^dagger (7.2) and STF (4.6)
 func (s *State) AddToBetaDagger(h types.Header) {
 	if len(s.Beta) > 0 {
-		if len(s.Beta) != maxBlocksHistory {
-			// except
-			s.BetaDagger[len(s.Beta)-1].StateRoot = h.ParentStateRoot
-		} else {
-			// duplicate beta into beta^dagger
-			s.BetaDagger = append(s.BetaDagger, s.Beta...)
-		}
+		// Append first aviod empty slice
+		// Duplicate beta into beta^dagger
+		s.BetaDagger = append(s.BetaDagger, s.Beta...)
+		// Except for the stateroot need to be updated
+		s.BetaDagger[len(s.Beta)-1].StateRoot = h.ParentStateRoot
 	}
 
-	// check BetaDagger is not longer than maxBlocksHistory
+	// Check BetaDagger is not longer than maxBlocksHistory
 	if len(s.BetaDagger) > maxBlocksHistory {
-		// remove oldest elements to retain maxBlocksHistory
+		// Remove old elements to retain maxBlocksHistory
 		s.BetaDagger = s.BetaDagger[len(s.BetaDagger)-maxBlocksHistory:]
 	}
 }
 
-// -----(7.3)--------
+// -----(7.3)-----
 
-// accumulation-result tree root $r$
+// Accumulation-result tree root $r$
 func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
-	// empty struct
+	// Empty struct
 	pairs := make([]AccumulationOutput, len(c))
 
-	// extract slices from c
+	// Extract slices from c
 	for i, output := range c {
 		pairs[i] = AccumulationOutput{
 			serviceid:  output.serviceid,
@@ -71,12 +70,12 @@ func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 		}
 	}
 
-	// sort by serviceid $s$
+	// Sort by serviceid $s$
 	sort.Slice(pairs, func(i, j int) bool {
 		return pairs[i].serviceid < pairs[j].serviceid
 	})
 
-	// serialization
+	// Serialization
 	var dataSerialized types.ByteSequence
 	for _, pair := range pairs {
 		serviceidSerialized := u.SerializeFixedLength(types.U32(pair.serviceid), 4)
@@ -94,15 +93,15 @@ func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 
 // Merkle Mountain Range $\mathbf{b}$
 func (s *State) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.MmrPeak) {
-	// only genesis block goto else
+	// Only genesis block goto else
 	if len(s.Beta) != 0 {
-		// else extract each slice of State.beta and then use the latest slice as input of m.AppendOne
+		// Else extract each slice of State.beta and then use the latest slice as input of m.AppendOne
 		wrappedMmr := mmr.MmrWrapper(&s.Beta[len(s.Beta)-1].Mmr, hash.KeccakHash)
 		// MMR append func $\mathcal{A}$
 		NewMmr := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
 		return NewMmr
 	} else {
-		// if State.Beta is empty -> create a new empty MMR
+		// If State.Beta is empty -> create a new empty MMR
 		m := mmr.NewMMR(hash.KeccakHash)
 		// MMR append func $\mathcal{A}$
 		NewMmr := m.AppendOne(&accumulationResultTreeRoot)
@@ -127,7 +126,7 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 
 // item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
 func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
-	headerHash := h.Parent // hash.Blake2bHash(u.HeaderSerialization(h))
+	headerHash := h.Parent
 	accumulationResultTreeRoot := r(c)
 	accumulationResultMmr := s.b(accumulationResultTreeRoot)
 	workReportHash := p(eg)
@@ -142,14 +141,14 @@ func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmen
 	return items
 }
 
-// -----(7.3)--------
+// -----(7.3)-----
 
 // Update BetaDagger to BetaPrime (7.4)
 func (s *State) AddToBetaPrime(items types.BlockInfo) {
 	// Ensure BetaPrime's length not exceed maxBlocksHistory
 	if len(s.BetaPrime) >= maxBlocksHistory {
-		// remove old states, with length is maxBlocksHistory
-		s.BetaPrime = s.BetaPrime[1:]
+		// Remove old states, with length is maxBlocksHistory
+		s.BetaPrime = s.BetaPrime[len(s.BetaPrime)-maxBlocksHistory:]
 	}
 
 	s.BetaPrime = append(s.BetaPrime, items)
