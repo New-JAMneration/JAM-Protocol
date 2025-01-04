@@ -1,9 +1,9 @@
-package safrole
+package jam_types
 
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 )
 
 // basic types
@@ -14,12 +14,10 @@ type U32 uint32
 // fixed-length byte arrays
 type ByteArray32 [32]U8
 
-type (
-	OpaqueHash      ByteArray32
-	Ed25519Key      ByteArray32
-	BlsKey          [144]U8
-	BandersnatchKey ByteArray32
-)
+type OpaqueHash ByteArray32
+type Ed25519Key ByteArray32
+type BlsKey [144]U8
+type BandersnatchKey ByteArray32
 
 type EpochKeys []BandersnatchKey
 

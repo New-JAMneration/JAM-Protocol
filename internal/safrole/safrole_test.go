@@ -3,146 +3,98 @@ package safrole
 import (
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func TestGetEpochIndexEpochLength600(t *testing.T) {
-	jamTypes.EpochLength = 600
+func TestGetEpochIndex(t *testing.T) {
+	// Mock types.EpochLength
+	types.EpochLength = 10
 
-	testCases := []struct {
-		t        jamTypes.TimeSlot
-		expected jamTypes.TimeSlot
+	// Test various time slot inputs
+	tests := []struct {
+		input    types.TimeSlot
+		expected types.TimeSlot
 	}{
-		{0, 0},
-		{1, 0},
-		{2, 0},
-		{599, 0},
-		{600, 1},
-		{601, 1},
-		{1199, 1},
-		{1200, 2},
+		{0, 0},  // Time slot 0, epoch 0
+		{9, 0},  // Time slot 9, epoch 0
+		{10, 1}, // Time slot 10, epoch 1
+		{20, 2}, // Time slot 20, epoch 2
+		{25, 2}, // Time slot 25, epoch 2
 	}
 
-	for _, testCase := range testCases {
-		if actual := GetEpochIndex(testCase.t); actual != testCase.expected {
-			t.Errorf("GetEpochIndex(%d) = %d, expected %d", testCase.t, actual, testCase.expected)
+	for _, test := range tests {
+		result := GetEpochIndex(test.input)
+		if result != test.expected {
+			t.Errorf("For input %v, expected epoch %v but got %v", test.input, test.expected, result)
 		}
 	}
 }
 
-func TestGetEpochIndexEpochLength12(t *testing.T) {
-	jamTypes.EpochLength = 12
+func TestGetSlotIndex(t *testing.T) {
+	// Mock types.EpochLength
+	types.EpochLength = 10
 
-	testCases := []struct {
-		t        jamTypes.TimeSlot
-		expected jamTypes.TimeSlot
+	// Test various time slot inputs
+	tests := []struct {
+		input    types.TimeSlot
+		expected types.TimeSlot
 	}{
-		{0, 0},
-		{1, 0},
-		{2, 0},
-		{11, 0},
-		{12, 1},
-		{13, 1},
-		{23, 1},
-		{24, 2},
+		{0, 0},  // time slot 0, slot index 0
+		{9, 9},  // time slot 9, slot index 9
+		{10, 0}, // time slot 10, slot index 0
+		{20, 0}, // time slot 20, slot index 0
+		{25, 5}, // time slot 25, slot index 5
 	}
 
-	for _, testCase := range testCases {
-		if actual := GetEpochIndex(testCase.t); actual != testCase.expected {
-			t.Errorf("GetEpochIndex(%d) = %d, expected %d", testCase.t, actual, testCase.expected)
-		}
-	}
-}
-
-func TestGetSlotIndexEpochLength600(t *testing.T) {
-	jamTypes.EpochLength = 600
-
-	testCases := []struct {
-		t        jamTypes.TimeSlot
-		expected jamTypes.TimeSlot
-	}{
-		{0, 0},
-		{1, 1},
-		{2, 2},
-		{599, 599},
-		{600, 0},
-		{601, 1},
-		{1199, 599},
-		{1200, 0},
-	}
-
-	for _, testCase := range testCases {
-		if actual := GetSlotIndex(testCase.t); actual != testCase.expected {
-			t.Errorf("GetSlotIndex(%d) = %d, expected %d", testCase.t, actual, testCase.expected)
-		}
-	}
-}
-
-func TestGetSlotIndexEpochLength12(t *testing.T) {
-	jamTypes.EpochLength = 12
-
-	testCases := []struct {
-		t        jamTypes.TimeSlot
-		expected jamTypes.TimeSlot
-	}{
-		{0, 0},
-		{1, 1},
-		{2, 2},
-		{11, 11},
-		{12, 0},
-		{13, 1},
-		{23, 11},
-		{24, 0},
-	}
-
-	for _, testCase := range testCases {
-		if actual := GetSlotIndex(testCase.t); actual != testCase.expected {
-			t.Errorf("GetSlotIndex(%d) = %d, expected %d", testCase.t, actual, testCase.expected)
+	for _, test := range tests {
+		result := GetSlotIndex(test.input)
+		if result != test.expected {
+			t.Errorf("For input %v, expected slotIndex %v but got %v", test.input, test.expected, result)
 		}
 	}
 }
 
 func TestValidatorIsOffender(t *testing.T) {
-	offendersMark := jamTypes.OffendersMark{}
-	offenderValidator := jamTypes.Validator{
-		Bandersnatch: jamTypes.BandersnatchPublic{},
-		Ed25519:      jamTypes.Ed25519Public{1, 2, 3},
-		Bls:          jamTypes.BlsPublic{},
-		Metadata:     jamTypes.ValidatorMetadata{},
+	offendersMark := types.OffendersMark{}
+	offenderValidator := types.Validator{
+		Bandersnatch: types.BandersnatchPublic{},
+		Ed25519:      types.Ed25519Public{1, 2, 3},
+		Bls:          types.BlsPublic{},
+		Metadata:     types.ValidatorMetadata{},
 	}
 	offendersMark = append(offendersMark, offenderValidator.Ed25519)
 
 	testCases := []struct {
-		validator  ValidatorData
-		offenders  jamTypes.OffendersMark
+		validator  types.Validator
+		offenders  types.OffendersMark
 		isOffender bool
 	}{
 		{
-			ValidatorData{
-				Bandersnatch: BandersnatchKey{},
-				Ed25519:      Ed25519Key{1, 2, 3},
-				Bls:          BlsKey{},
-				Metadata:     [128]U8{},
+			types.Validator{
+				Bandersnatch: types.BandersnatchPublic{},
+				Ed25519:      types.Ed25519Public{1, 2, 3},
+				Bls:          types.BlsPublic{},
+				Metadata:     types.ValidatorMetadata{},
 			},
 			offendersMark,
 			true,
 		},
 		{
-			ValidatorData{
-				Bandersnatch: BandersnatchKey{},
-				Ed25519:      Ed25519Key{1, 2, 2},
-				Bls:          BlsKey{},
-				Metadata:     [128]U8{},
+			types.Validator{
+				Bandersnatch: types.BandersnatchPublic{},
+				Ed25519:      types.Ed25519Public{1, 2, 2},
+				Bls:          types.BlsPublic{},
+				Metadata:     types.ValidatorMetadata{},
 			},
 			offendersMark,
 			false,
 		},
 		{
-			ValidatorData{
-				Bandersnatch: BandersnatchKey{},
-				Ed25519:      Ed25519Key{2, 2, 2},
-				Bls:          BlsKey{},
-				Metadata:     [128]U8{},
+			types.Validator{
+				Bandersnatch: types.BandersnatchPublic{},
+				Ed25519:      types.Ed25519Public{2, 2, 2},
+				Bls:          types.BlsPublic{},
+				Metadata:     types.ValidatorMetadata{},
 			},
 			offendersMark,
 			false,

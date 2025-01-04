@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"testing"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TestSerialize tests the Serialize function across various data types and values.
 // TestSerializeFixedLength verifies that SerializeFixedLength correctly encodes integers to fixed-length octets.
 func TestSerializeFixedLength(t *testing.T) {
 	tests := []struct {
-		x       jamtypes.U64
-		l       jamtypes.U64
+		x       types.U64
+		l       types.U64
 		wantHex []byte
 	}{
 		{0, 0, []byte{}},
@@ -36,8 +36,8 @@ func TestSerializeFixedLength(t *testing.T) {
 
 func TestSerializeFixedLengthU32(t *testing.T) {
 	tests := []struct {
-		x       jamtypes.U32
-		l       jamtypes.U32
+		x       types.U32
+		l       types.U32
 		wantHex []byte
 	}{
 		{0, 0, []byte{}},
@@ -61,7 +61,7 @@ func TestSerializeFixedLengthU32(t *testing.T) {
 // TestSerializeGeneral checks that SerializeGeneral meets the defined conditions.
 func TestSerializeU64(t *testing.T) {
 	tests := []struct {
-		x       jamtypes.U64
+		x       types.U64
 		wantHex []byte
 	}{
 		// According to the specification:
@@ -91,7 +91,7 @@ func TestSerializeU64(t *testing.T) {
 }
 
 func TestBitSequenceWrapper(t *testing.T) {
-	bits := jamtypes.BitSequence{true, false, true, true, false, false, false, true} // 8 bits
+	bits := types.BitSequence{true, false, true, true, false, false, false, true} // 8 bits
 	w := BitSequenceWrapper{Bits: bits, IsVariableLength: false}
 	got := w.Serialize()
 
@@ -209,7 +209,7 @@ func TestDiscriminatorSerialization(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    Discriminator
-		expected jamtypes.ByteSequence
+		expected types.ByteSequence
 	}{
 		{
 			name:     "Empty Discriminator",
@@ -225,7 +225,7 @@ func TestDiscriminatorSerialization(t *testing.T) {
 					U32Wrapper{Value: 100000},
 				},
 			},
-			expected: func() jamtypes.ByteSequence {
+			expected: func() types.ByteSequence {
 				// Manually construct the expected output
 				lengthPrefix := WrapU64(3).Serialize() // Length prefix: 3 elements
 				seq := append(U8Wrapper{Value: 1}.Serialize(),
@@ -246,5 +246,43 @@ func TestDiscriminatorSerialization(t *testing.T) {
 				t.Errorf("Test %s failed. Expected: %v, Got: %v", tt.name, tt.expected, output)
 			}
 		})
+	}
+}
+
+func TestOpaqueHashWrapper_Serialize(t *testing.T) {
+	// Mock opaque hash value
+	mockHash := types.OpaqueHash{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+
+	// Create an instance of OpaqueHashWrapper
+	wrapper := OpaqueHashWrapper{Value: mockHash}
+
+	// Call Serialize method
+	serialized := wrapper.Serialize()
+
+	// Expected serialized value
+	expected := types.ByteSequence(mockHash[:])
+
+	// Assert the serialization matches the expected value
+	if !bytes.Equal(expected, serialized) {
+		t.Errorf("Expected: %v, Got: %v", expected, serialized)
+	}
+}
+
+func TestWrapOpaqueHash(t *testing.T) {
+	// Mock opaque hash value
+	mockHash := types.OpaqueHash{0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
+
+	// Call WrapOpaqueHash
+	serializable := WrapOpaqueHash(mockHash)
+
+	// Assert the returned value is an instance of OpaqueHashWrapper
+	wrapper, ok := serializable.(OpaqueHashWrapper)
+	if !ok {
+		t.Errorf("Returned value should be of type OpaqueHashWrapper")
+	}
+
+	// Assert the Value field matches the input hash
+	if wrapper.Value != mockHash {
+		t.Errorf("Expected: %v, Got: %v", mockHash, wrapper.Value)
 	}
 }
