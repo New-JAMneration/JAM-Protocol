@@ -300,3 +300,19 @@ func TestBitSequenceToString(t *testing.T) {
 		}
 	}
 }
+
+func TestMerklizationState(t *testing.T) {
+	testState := types.State{}
+
+	stateRoot, err := MerklizationState(testState)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	resultLen := len(stateRoot)
+	expectedLen := len(types.OpaqueHash{})
+
+	if resultLen != expectedLen {
+		t.Errorf("Expected %v, got %v", expectedLen, resultLen)
+	}
+}
