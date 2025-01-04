@@ -2,12 +2,14 @@ package header
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 // HeaderController is a controller for the header.
@@ -146,10 +148,15 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 }
 
 // (5.8) H_r: state root hash
-func (h *HeaderController) CreateStateRootHash(state types.State) {
+func (h *HeaderController) CreateStateRootHash(parentState types.State) {
 	// State merklization
-	// FIXME: call function to merklize the state
-	// We're waiting for the merklization function merge to the main branch.
+	parentStateRoot, err := merklization.MerklizationState(parentState)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	h.Header.ParentStateRoot = types.StateRoot(parentStateRoot)
 }
 
 // H_i: a Bandersnatch block author index

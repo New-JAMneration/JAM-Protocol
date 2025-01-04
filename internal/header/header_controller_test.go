@@ -392,3 +392,19 @@ func TestGetAncenstorHeadersTooOld(t *testing.T) {
 		t.Errorf("GetAncestorHeaders() = %d; want 0", len(ancestorHeaders))
 	}
 }
+
+// INFO: We have to test the merklization function in the merklization package.
+// This funciton only checks if the length of the parentStateRoot is correct.
+func TestCreateParentStateRoot(t *testing.T) {
+	testParentState := types.State{}
+
+	hc := NewHeaderController()
+
+	hc.CreateStateRootHash(testParentState)
+
+	parentStateRoot := hc.GetHeader().ParentStateRoot
+
+	if len(parentStateRoot) != len(types.StateRoot{}) {
+		t.Errorf("CreateStateRootHash() = %s; want %s", parentStateRoot, types.StateRoot{})
+	}
+}
