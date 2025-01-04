@@ -1,7 +1,9 @@
 package extrinsic
 
 import (
+	"bytes"
 	"crypto/ed25519"
+	"sort"
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -14,7 +16,11 @@ type VerdictWrapper struct {
 
 // VerdictController is a struct that contains a slice of Verdict
 type VerdictController struct {
-	Verdicts []VerdictWrapper
+	Verdicts     []VerdictWrapper
+	goodReports  []jamTypes.WorkReportHash
+	badReports   []jamTypes.WorkReportHash
+	wonkyReports []jamTypes.WorkReportHash
+
 	/*
 		type Verdict struct {
 			Target OpaqueHash  `json:"target,omitempty"`
@@ -27,6 +33,7 @@ type VerdictController struct {
 				Signature Ed25519Signature `json:"signature,omitempty"`
 			}
 	*/
+
 }
 
 // NewVerdictController returns a new VerdictController
@@ -39,7 +46,7 @@ func NewVerdictController() *VerdictController {
 // VerifySignature verifies the signatures of the judgement in the verdict   , Eq. 10.3
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
-	state := store.GetInstance().GetState()
+	state := store.GetInstance().GetPriorState()
 	a := jamTypes.U32(state.Tau) / jamTypes.U32(jamTypes.EpochLength)
 	var k jamTypes.ValidatorsData
 	if v.Verdict.Age == a {
@@ -72,4 +79,140 @@ func (v *VerdictWrapper) VerifySignature() []int {
 	}
 
 	return invalidVotes
+}
+
+// SortUnique sorts the verdicts and removes duplicates | Eq. 10.7, Eq. 10.10
+func (v *VerdictController) SortUnique() {
+	v.Unique()
+	v.Sort()
+
+}
+
+// Unique removes duplicates
+func (v *VerdictController) Unique() {
+	if len(v.Verdicts) == 0 {
+		return
+	}
+	// Eq. 10.7 unique
+	uniqueMap := make(map[jamTypes.OpaqueHash]bool)
+	result := make([]VerdictWrapper, 0)
+
+	for _, v := range v.Verdicts {
+		if !uniqueMap[v.Verdict.Target] {
+			uniqueMap[v.Verdict.Target] = true
+			result = append(result, v)
+		}
+	}
+	(*v).Verdicts = result
+	// Eq. 10.10 unique
+	for _, v := range v.Verdicts {
+		for i := 0; i < len(v.Verdict.Votes); i++ {
+			uniqueJudgementMap := make(map[jamTypes.ValidatorIndex]bool)
+			votesResult := make([]jamTypes.Judgement, 0)
+			for j := 0; j < len(v.Verdict.Votes); j++ {
+				if !uniqueJudgementMap[v.Verdict.Votes[j].Index] {
+					uniqueJudgementMap[v.Verdict.Votes[j].Index] = true
+					votesResult = append(votesResult, v.Verdict.Votes[j])
+				}
+				v.Verdict.Votes = votesResult
+			}
+		}
+	}
+}
+
+// Sort sorts the verdicts
+func (v *VerdictController) Sort() {
+	sort.Sort(v)
+	for _, v := range v.Verdicts {
+		votes := VoteWrapper(v.Verdict.Votes)
+		sort.Sort(&votes)
+	}
+}
+
+func (v *VerdictController) Less(i, j int) bool {
+	return bytes.Compare(v.Verdicts[i].Verdict.Target[:], v.Verdicts[j].Verdict.Target[:]) < 0
+}
+
+func (v *VerdictController) Len() int {
+	return len(v.Verdicts)
+}
+
+func (v *VerdictController) Swap(i, j int) {
+	v.Verdicts[i], v.Verdicts[j] = v.Verdicts[j], v.Verdicts[i]
+}
+
+// Sort sorts the judgements
+type VoteWrapper []jamTypes.Judgement
+
+func (v *VoteWrapper) Less(i, j int) bool {
+	return (*v)[i].Index < (*v)[j].Index
+}
+
+func (v *VoteWrapper) Len() int {
+	return len(*v)
+}
+
+func (v *VoteWrapper) Swap(i, j int) {
+	(*v)[i], (*v)[j] = (*v)[j], (*v)[i]
+}
+
+// SetDisjoint is disjoint with psi_g, psi_b, psi_w | Eq. 10.7
+func (v *VerdictController) SetDisjoint() {
+	// not in psi_g, psi_b, psi_w
+	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
+	psi := store.GetInstance().GetPriorState().Psi
+	psiGood := psi.Good
+	psiBad := psi.Bad
+	psiWonky := psi.Wonky
+
+	uniqueMap := make(map[jamTypes.OpaqueHash]bool)
+
+	for _, v := range psiGood {
+		uniqueMap[jamTypes.OpaqueHash(v)] = true
+	}
+	for _, v := range psiBad {
+		uniqueMap[jamTypes.OpaqueHash(v)] = true
+	}
+	for _, v := range psiWonky {
+		uniqueMap[jamTypes.OpaqueHash(v)] = true
+	}
+
+	result := make([]VerdictWrapper, 0)
+
+	for _, v := range v.Verdicts {
+		if !uniqueMap[v.Verdict.Target] {
+			result = append(result, v)
+		}
+	}
+
+	(*v).Verdicts = result
+}
+
+// JudgeVerdictStates judges the states of the verdicts | Eq. 10.11
+func (v *VerdictController) JudgeVerdictStates() ([]jamTypes.WorkReportHash, []jamTypes.WorkReportHash, []jamTypes.WorkReportHash) {
+	goodVotesNum := jamTypes.ValidatorsCount*2/3 + 1
+	wonkyVotesNum := jamTypes.ValidatorsCount / 3
+
+	goodReports := make([]jamTypes.WorkReportHash, 0)
+	badReports := make([]jamTypes.WorkReportHash, 0)
+	wonkyReports := make([]jamTypes.WorkReportHash, 0)
+
+	for _, verdict := range v.Verdicts {
+		positiveVotes := 0
+
+		for _, votes := range verdict.Verdict.Votes {
+			if votes.Vote {
+				positiveVotes++
+			}
+		}
+
+		if positiveVotes == goodVotesNum {
+			goodReports = append(goodReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
+		} else if positiveVotes >= wonkyVotesNum {
+			wonkyReports = append(wonkyReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
+		} else {
+			badReports = append(badReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
+		}
+	}
+	return goodReports, badReports, wonkyReports
 }

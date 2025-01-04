@@ -1,6 +1,9 @@
 package extrinsic
 
 import (
+	"bytes"
+	"sort"
+
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -25,9 +28,10 @@ func NewCulpritController() *CulpritController {
 	}
 }
 
+// VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.8
 func (c *CulpritController) VerifyCulpritValidity() bool {
-	states := store.GetInstance().GetStates()
-	psiBad := states.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
+	postStates := store.GetInstance().GetPosteriorStates()
+	psiBad := postStates.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
 
 	c.Culprits = c.VerifyReportHashValidty(&psiBad)
 	c.Culprits = c.ExcludeOffenders()
@@ -56,7 +60,7 @@ func (c *CulpritController) VerifyReportHashValidty(psiBad *[]jamTypes.WorkRepor
 // ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 func (c *CulpritController) ExcludeOffenders() []jamTypes.Culprit {
-	exclude := store.GetInstance().GetState().Psi.Offenders
+	exclude := store.GetInstance().GetPriorState().Psi.Offenders
 	excludeMap := make(map[jamTypes.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
@@ -72,4 +76,45 @@ func (c *CulpritController) ExcludeOffenders() []jamTypes.Culprit {
 		}
 	}
 	return out
+}
+
+// SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
+func (c *CulpritController) SortUnique() {
+	c.Unique()
+	c.Sort()
+}
+
+// Unique removes duplicates
+func (c *CulpritController) Unique() {
+	if len(c.Culprits) == 0 {
+		return
+	}
+
+	uniqueMap := make(map[jamTypes.Ed25519Public]bool)
+	result := make([]jamTypes.Culprit, 0)
+
+	for _, culprit := range c.Culprits {
+		if !uniqueMap[culprit.Key] {
+			uniqueMap[culprit.Key] = true
+			result = append(result, culprit)
+		}
+	}
+	c.Culprits = result
+}
+
+// Sort sorts the slice
+func (c *CulpritController) Sort() {
+	sort.Sort(c)
+}
+
+func (c *CulpritController) Less(i, j int) bool {
+	return bytes.Compare(c.Culprits[i].Key[:], c.Culprits[j].Key[:]) < 0
+}
+
+func (c *CulpritController) Swap(i, j int) {
+	c.Culprits[i], c.Culprits[j] = c.Culprits[j], c.Culprits[i]
+}
+
+func (c *CulpritController) Len() int {
+	return len(c.Culprits)
 }
