@@ -1,9 +1,10 @@
-package utilities
+package merklization
 
 import (
 	"testing"
 
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 func TestStateWrapper(t *testing.T) {
@@ -22,7 +23,6 @@ func TestStateWrapper(t *testing.T) {
 	if flag {
 		t.Errorf("Expected %v, got %v", expected, actual)
 	}
-
 }
 
 func TestStateServiceWrapper(t *testing.T) {
@@ -30,7 +30,7 @@ func TestStateServiceWrapper(t *testing.T) {
 	var serviceIndex jamTypes.U32 = 1000
 
 	stateService := StateServiceWrapper{StateIndex: stateIndex, ServiceIndex: serviceIndex}
-	Serialized := SerializeFixedLength(serviceIndex, 4)
+	Serialized := utilities.SerializeFixedLength(serviceIndex, 4)
 
 	expected := jamTypes.OpaqueHash{byte(stateIndex), Serialized[0], 0, Serialized[1], 0, Serialized[2], 0, Serialized[3], 0}
 	actual := stateService.StateKeyConstruct()
@@ -54,10 +54,11 @@ func TestServiceWrapper(t *testing.T) {
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 	}
 	service := ServiceWrapper{ServiceIndex: serviceIndex, Hash: hash}
-	Serialized := SerializeFixedLength(serviceIndex, 4)
-	//t.Log("Serialized :", Serialized)
-	//t.Log("Hash :", hash)
-	expected := jamTypes.OpaqueHash{Serialized[0], hash[0], Serialized[1], hash[1], Serialized[2], hash[2], Serialized[3], hash[3],
+	Serialized := utilities.SerializeFixedLength(serviceIndex, 4)
+	// t.Log("Serialized :", Serialized)
+	// t.Log("Hash :", hash)
+	expected := jamTypes.OpaqueHash{
+		Serialized[0], hash[0], Serialized[1], hash[1], Serialized[2], hash[2], Serialized[3], hash[3],
 		hash[4], hash[5], hash[6], hash[7],
 		hash[8], hash[9], hash[10], hash[11],
 		hash[12], hash[13], hash[14], hash[15],
