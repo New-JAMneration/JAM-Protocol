@@ -59,6 +59,7 @@ func ExtrinsicPreimageSerialization(preimages jamTypes.PreimagesExtrinsic) (outp
 	return output
 }
 
+// INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
 func ExtrinsicGuaranteeSerialization(guarantees jamTypes.GuaranteesExtrinsic) (output jamTypes.ByteSequence) {
 	/*
 		(C.16) E(↕[w, E4(t), ↕a])
