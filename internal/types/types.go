@@ -105,7 +105,7 @@ type ServiceInfo struct {
 
 type AvailabilityAssignment struct {
 	Report  WorkReport `json:"report"`
-	Timeout uint32     `json:"timeout,omitempty"`
+	Timeout TimeSlot   `json:"timeout,omitempty"`
 }
 
 func (a AvailabilityAssignment) Validate() error {

@@ -124,11 +124,6 @@ func bitSequenceToString(bitSequence types.BitSequence) string {
 	return str
 }
 
-// (D.2)
-// $T(\sigma)$
-// Serialized States
-type SerializedState map[types.OpaqueHash]types.ByteSequence
-
 type SerializedStateKeyValue struct {
 	key   types.OpaqueHash
 	value types.ByteSequence
@@ -158,12 +153,12 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 	for key, value := range d {
 		isLeft := key[0] == '0'
 		if isLeft {
-			l[key] = value
+			l[key[1:]] = value
 		}
 
 		isRight := key[0] == '1'
 		if isRight {
-			r[key] = value
+			r[key[1:]] = value
 		}
 	}
 
@@ -175,7 +170,7 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 // basic Merklization function
 // $M_{\sigma}(\sigma)$
 // Input: $T(\sigma)$ a dictionary, serialized states
-func MerklizationState(serializedState SerializedState) {
+func MerklizationSerializedState(serializedState map[types.OpaqueHash]types.ByteSequence) types.OpaqueHash {
 	merklizationInput := make(MerklizationInput)
 
 	for stateKey, stateValue := range serializedState {
@@ -185,5 +180,17 @@ func MerklizationState(serializedState SerializedState) {
 		merklizationInput[key] = value
 	}
 
-	Merklization(merklizationInput)
+	return Merklization(merklizationInput)
+}
+
+// MerklizationState is a function that takes a state and returns the
+// Merklization of the state.
+// (D.5)
+func MerklizationState(state types.State) (types.OpaqueHash, error) {
+	serializedState, err := StateSerialize(state)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	return MerklizationSerializedState(serializedState), nil
 }
