@@ -8,6 +8,7 @@ import (
 
 func TestGetEpochIndex(t *testing.T) {
 	// Mock types.EpochLength
+	backupEpochLength := types.EpochLength
 	types.EpochLength = 10
 
 	// Test various time slot inputs
@@ -28,10 +29,13 @@ func TestGetEpochIndex(t *testing.T) {
 			t.Errorf("For input %v, expected epoch %v but got %v", test.input, test.expected, result)
 		}
 	}
+
+	types.EpochLength = backupEpochLength
 }
 
 func TestGetSlotIndex(t *testing.T) {
 	// Mock types.EpochLength
+	backupEpochLength := types.EpochLength
 	types.EpochLength = 10
 
 	// Test various time slot inputs
@@ -52,6 +56,8 @@ func TestGetSlotIndex(t *testing.T) {
 			t.Errorf("For input %v, expected slotIndex %v but got %v", test.input, test.expected, result)
 		}
 	}
+
+	types.EpochLength = backupEpochLength
 }
 
 func TestValidatorIsOffender(t *testing.T) {
