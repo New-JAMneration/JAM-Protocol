@@ -1,7 +1,8 @@
-package utilities
+package merklization
 
 import (
 	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 // StateKeyConstruct is an interface
@@ -37,7 +38,7 @@ func (s StateWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
 // StateKeyConstruct returns a OpaqueHash
 func (w StateServiceWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
 	output[0] = byte(w.StateIndex)
-	Serialized := SerializeFixedLength(w.ServiceIndex, 4)
+	Serialized := utilities.SerializeFixedLength(w.ServiceIndex, 4)
 	for i := 0; i < 4; i++ {
 		output[2*i+1] = Serialized[i]
 	}
@@ -46,7 +47,7 @@ func (w StateServiceWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
 
 // StateKeyConstruct returns a OpaqueHash
 func (w ServiceWrapper) StateKeyConstruct() (output jamTypes.OpaqueHash) {
-	Serialized := SerializeFixedLength(w.ServiceIndex, 4)
+	Serialized := utilities.SerializeFixedLength(w.ServiceIndex, 4)
 	for i := 0; i < 4; i++ {
 		output[2*i] = Serialized[i]
 		output[2*i+1] = w.Hash[i]
