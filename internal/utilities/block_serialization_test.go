@@ -359,76 +359,77 @@ func pocExtrinsicHash(extrinsic types.Extrinsic) (output types.OpaqueHash) {
 
 	// Serialize the hash of the extrinsic elements
 	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, WrapByteArray32(types.ByteArray32(ticketSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, WrapByteArray32(types.ByteArray32(preimageSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, WrapByteArray32(types.ByteArray32(gHash)).Serialize()...)
-	serializedElements = append(serializedElements, WrapByteArray32(types.ByteArray32(assureanceSerializedHash)).Serialize()...)
-	serializedElements = append(serializedElements, WrapByteArray32(types.ByteArray32(disputeSerializedHash)).Serialize()...)
+	serializedElements = append(serializedElements, WrapOpaqueHash(ticketSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, WrapOpaqueHash(preimageSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, WrapOpaqueHash(gHash).Serialize()...)
+	serializedElements = append(serializedElements, WrapOpaqueHash(assureanceSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, WrapOpaqueHash(disputeSerializedHash).Serialize()...)
 
+	// Hash the serialized elements
 	output = hash.Blake2bHash(serializedElements)
 
 	return output
 }
 
-func TestBlockSerialization(t *testing.T) {
-	testCases := []struct {
-		name              string
-		header            types.Header
-		extrinsic         types.Extrinsic
-		expectedHeader    types.HeaderHash
-		expectedExtrinsic types.OpaqueHash
-	}{}
+// func TestBlockSerialization(t *testing.T) {
+// 	testCases := []struct {
+// 		name              string
+// 		header            types.Header
+// 		extrinsic         types.Extrinsic
+// 		expectedHeader    types.HeaderHash
+// 		expectedExtrinsic types.OpaqueHash
+// 	}{}
 
-	for i := 0; i <= 11; i++ {
-		name := fmt.Sprintf("425530_%03d", i) // 格式化為 425530_000, 425530_001, ...
-		header := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header
-		extrinsic := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Extrinsic
-		var expectedHeaderHash types.HeaderHash
-		expectedExtrinsicHash := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header.ExtrinsicHash
+// 	for i := 0; i <= 11; i++ {
+// 		name := fmt.Sprintf("425530_%03d", i) // 格式化為 425530_000, 425530_001, ...
+// 		header := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header
+// 		extrinsic := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Extrinsic
+// 		var expectedHeaderHash types.HeaderHash
+// 		expectedExtrinsicHash := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header.ExtrinsicHash
 
-		if i == 11 {
-			expectedHeaderHash = readBlockDataFromJson("data/425531_000.json").Header.Parent // 對於 011，使用 425531_000 的 parent
-		} else {
-			expectedHeaderHash = readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i+1)).Header.Parent
-		}
+// 		if i == 11 {
+// 			expectedHeaderHash = readBlockDataFromJson("data/425531_000.json").Header.Parent // 對於 011，使用 425531_000 的 parent
+// 		} else {
+// 			expectedHeaderHash = readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i+1)).Header.Parent
+// 		}
 
-		testCases = append(testCases, struct {
-			name              string
-			header            types.Header
-			extrinsic         types.Extrinsic
-			expectedHeader    types.HeaderHash
-			expectedExtrinsic types.OpaqueHash
-		}{
-			name:              name,
-			header:            header,
-			extrinsic:         extrinsic,
-			expectedHeader:    expectedHeaderHash,
-			expectedExtrinsic: expectedExtrinsicHash,
-		})
-	}
+// 		testCases = append(testCases, struct {
+// 			name              string
+// 			header            types.Header
+// 			extrinsic         types.Extrinsic
+// 			expectedHeader    types.HeaderHash
+// 			expectedExtrinsic types.OpaqueHash
+// 		}{
+// 			name:              name,
+// 			header:            header,
+// 			extrinsic:         extrinsic,
+// 			expectedHeader:    expectedHeaderHash,
+// 			expectedExtrinsic: expectedExtrinsicHash,
+// 		})
+// 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			headerResult := HeaderSerialization(tc.header)
-			headerHash := hash.Blake2bHash(headerResult)
-			// extrinsicResult := extrinsicSerialization(tc.extrinsic)
-			// extrinsicHash := hash.Blake2bHash(extrinsicResult)
-			pocExtrinsicHash := pocExtrinsicHash(tc.extrinsic)
+// 	for _, tc := range testCases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			headerResult := HeaderSerialization(tc.header)
+// 			headerHash := hash.Blake2bHash(headerResult)
+// 			// extrinsicResult := extrinsicSerialization(tc.extrinsic)
+// 			// extrinsicHash := hash.Blake2bHash(extrinsicResult)
+// 			pocExtrinsicHash := pocExtrinsicHash(tc.extrinsic)
 
-			if headerHash != types.OpaqueHash(tc.expectedHeader) {
-				t.Errorf("\nExpected Header Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedHeader[:]), hex.EncodeToString(headerHash[:]))
-			}
+// 			if headerHash != types.OpaqueHash(tc.expectedHeader) {
+// 				t.Errorf("\nExpected Header Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedHeader[:]), hex.EncodeToString(headerHash[:]))
+// 			}
 
-			if pocExtrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
-				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(pocExtrinsicHash[:]))
-			}
+// 			if pocExtrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
+// 				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(pocExtrinsicHash[:]))
+// 			}
 
-			// if extrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
-			// 	t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(extrinsicHash[:]))
-			// }
-		})
-	}
-}
+// 			// if extrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
+// 			// 	t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(extrinsicHash[:]))
+// 			// }
+// 		})
+// 	}
+// }
 
 func TestHeaderSerialization(t *testing.T) {
 	testCases := []struct {
@@ -496,45 +497,46 @@ func TestExtrinsicSerialization(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// extrinsicResult := extrinsicSerialization(tc.extrinsic)
-			// extrinsicHash := hash.Blake2bHash(extrinsicResult)
+			extrinsicResult := extrinsicSerialization(tc.extrinsic)
+			extrinsicHash := hash.Blake2bHash(extrinsicResult)
+
+			if extrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
+				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(extrinsicHash[:]))
+			}
+		})
+	}
+}
+
+func TestPocExtrinsicSerialization(t *testing.T) {
+	testCases := []struct {
+		name              string
+		extrinsic         types.Extrinsic
+		expectedExtrinsic types.OpaqueHash
+	}{}
+
+	for i := 0; i <= 11; i++ {
+		name := fmt.Sprintf("425530_%03d", i) // 格式化為 425530_000, 425530_001, ...
+		extrinsic := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Extrinsic
+		expectedExtrinsicHash := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header.ExtrinsicHash
+
+		testCases = append(testCases, struct {
+			name              string
+			extrinsic         types.Extrinsic
+			expectedExtrinsic types.OpaqueHash
+		}{
+			name:              name,
+			extrinsic:         extrinsic,
+			expectedExtrinsic: expectedExtrinsicHash,
+		})
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			pocExtrinsicHash := pocExtrinsicHash(tc.extrinsic)
 
 			if pocExtrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
 				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(pocExtrinsicHash[:]))
 			}
-
-			// if extrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
-			// 	t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(extrinsicHash[:]))
-			// }
 		})
 	}
 }
-
-// func TestExtrinsicSerialization(t *testing.T) {
-// 	testCases := []struct {
-// 		name      string
-// 		extrinsic types.Extrinsic
-// 		expected  string
-// 	}{
-// 		{
-// 			name:      "LoadExtrinsic",
-// 			extrinsic: readBlockDataFromJson("data/425530_007.json").Extrinsic,
-// 			expected:  "b90d1b7ccbc999f230283d67f2a207709e21875d2d2097b6ae24e97db748bde9",
-// 		},
-// 	}
-// 	for _, tc := range testCases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			result := extrinsicSerialization(tc.extrinsic)
-// 			resultHash := hash.Blake2bHash(result)
-
-// 			if hex.EncodeToString(resultHash[:]) != tc.expected {
-// 				poc := pocExtrinsicHash(tc.extrinsic)
-// 				fmt.Printf("POC Hash: %v\n", hex.EncodeToString(poc[:]))
-// 				fmt.Printf("oringinal hash: %v\n", hex.EncodeToString(resultHash[:]))
-// 				fmt.Printf("expected hash: %v\n", tc.expected)
-// 				t.Errorf("Expected: %v, got: %v", tc.expected, hex.EncodeToString(resultHash[:]))
-// 			}
-// 		})
-// 	}
-// }
