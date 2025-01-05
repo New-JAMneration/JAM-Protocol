@@ -29,6 +29,12 @@ func (s *States) GenerateGenesisState(state types.State) {
 	s.state = &state
 }
 
+func (s *States) SetBeta(beta types.BlocksHistory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta = beta
+}
+
 func (s *States) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

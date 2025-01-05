@@ -3,6 +3,7 @@ package recent_history
 import (
 	"sort"
 
+	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	u "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -11,11 +12,12 @@ import (
 )
 
 // TODO: move State struct to state.go
-type State struct {
-	Beta       []types.BlockInfo // prior state
-	BetaDagger []types.BlockInfo // intermediate state
-	BetaPrime  []types.BlockInfo // posterior state
-}
+//
+//	type types.State.Beta struct {
+//		Beta       []types.BlockInfo // prior state
+//		BetaDagger []types.BlockInfo // intermediate state
+//		BetaPrime  []types.BlockInfo // posterior state
+//	}
 
 // \mathbf{C} in GP from type B (12.15)
 type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
@@ -29,7 +31,7 @@ type AccumulationOutput struct {
 var maxBlocksHistory = types.MaxBlocksHistory
 
 // Remove duplicated blocks by BlockHash
-func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
+func (s *types.State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 	for _, block := range s.Beta {
 		if block.HeaderHash == headerhash {
 			return true
@@ -39,7 +41,7 @@ func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 }
 
 // Beta^dagger (7.2) and STF (4.6)
-func (s *State) AddToBetaDagger(h types.Header) {
+func (s *types.State) AddToBetaDagger(h types.Header) {
 	if len(s.Beta) > 0 {
 		// Append first aviod empty slice
 		// Duplicate beta into beta^dagger
@@ -92,7 +94,7 @@ func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 }
 
 // Merkle Mountain Range $\mathbf{b}$
-func (s *State) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.MmrPeak) {
+func (s *types.State) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.MmrPeak) {
 	// Only genesis block goto else
 	if len(s.Beta) != 0 {
 		// Else extract each slice of State.beta and then use the latest slice as input of m.AppendOne
@@ -124,7 +126,7 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 	return reports
 }
 
-// item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
+// item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, types.State root $s$, WorkReportHash $\mathbf{p}$)
 func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
 	headerHash := h.Parent
 	accumulationResultTreeRoot := r(c)
@@ -144,7 +146,7 @@ func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmen
 // -----(7.3)-----
 
 // Update BetaDagger to BetaPrime (7.4)
-func (s *State) AddToBetaPrime(items types.BlockInfo) {
+func (s *types.State) AddToBetaPrime(items types.BlockInfo) {
 	// Ensure BetaPrime's length not exceed maxBlocksHistory
 	if len(s.BetaPrime) >= maxBlocksHistory {
 		// Remove old states, with length is maxBlocksHistory
