@@ -68,9 +68,8 @@ func TestSerializeU64(t *testing.T) {
 		// x=0 => E(x)=[0]
 		{0, []byte{0x00}},
 
-		// For small values, often the form is a single byte if it fits in the correct range
-		{1, []byte{0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
-		{127, []byte{0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}, // Should still fit in one byte if it satisfies condition 2^(7*1)=128
+		{1, []byte{0x01}},
+		{127, []byte{0x7F}},
 
 		{128, []byte{0x80, 0x80}},
 		{255, []byte{0x80, 0xFF}},
