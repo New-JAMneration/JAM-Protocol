@@ -19,6 +19,8 @@ type Store struct {
 	// INFO: Add more fields here
 	blocks                     *Blocks
 	states                     *States
+	intermediateStates         *IntermediateStates
+	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
@@ -31,6 +33,8 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			blocks:                     NewBlocks(),
 			states:                     NewStates(),
+			intermediateStates:         NewIntermediateStates(),
+			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
