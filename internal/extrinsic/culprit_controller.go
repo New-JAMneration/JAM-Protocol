@@ -60,7 +60,9 @@ func (c *CulpritController) VerifyReportHashValidty(psiBad *[]types.WorkReportHa
 // ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 func (c *CulpritController) ExcludeOffenders() []types.Culprit {
+
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list

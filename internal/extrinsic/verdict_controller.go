@@ -46,7 +46,9 @@ func NewVerdictController() *VerdictController {
 // VerifySignature verifies the signatures of the judgement in the verdict   , Eq. 10.3
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
+
 	state := store.GetInstance().GetPriorState()
+
 	a := types.U32(state.Tau) / types.U32(types.EpochLength)
 	var k types.ValidatorsData
 	if v.Verdict.Age == a {
