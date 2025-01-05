@@ -103,7 +103,7 @@ func SerializeU64(x types.U64) types.ByteSequence {
 	}
 
 	// Attempt to find l in [1..8] such that 2^(7*l) ≤ x < 2^(7*(l+1))
-	for l := 1; l <= 8; l++ {
+	for l := 0; l <= 7; l++ {
 		l64 := uint(l)
 		lowerBound := types.U64(1) << (7 * l64)       // 2^(7*l)
 		upperBound := types.U64(1) << (7 * (l64 + 1)) // 2^(7*(l+1))
