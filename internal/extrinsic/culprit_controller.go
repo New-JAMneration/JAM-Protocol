@@ -5,12 +5,12 @@ import (
 	"sort"
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
 type CulpritController struct {
-	Culprits []jamTypes.Culprit `json:"culprits,omitempty"`
+	Culprits []types.Culprit `json:"culprits,omitempty"`
 	/*
 		type Culprit struct {
 			Target    WorkReportHash   `json:"target,omitempty"`		r
@@ -24,7 +24,7 @@ type CulpritController struct {
 func NewCulpritController() *CulpritController {
 
 	return &CulpritController{
-		Culprits: make([]jamTypes.Culprit, 0),
+		Culprits: make([]types.Culprit, 0),
 	}
 }
 
@@ -41,14 +41,14 @@ func (c *CulpritController) VerifyCulpritValidity() bool {
 	return true
 }
 
-func (c *CulpritController) VerifyReportHashValidty(psiBad *[]jamTypes.WorkReportHash) []jamTypes.Culprit {
-	checkMap := make(map[jamTypes.WorkReportHash]bool)
+func (c *CulpritController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash) []types.Culprit {
+	checkMap := make(map[types.WorkReportHash]bool)
 
 	for _, report := range *psiBad {
 		checkMap[report] = true
 	}
 
-	var out []jamTypes.Culprit
+	var out []types.Culprit
 	for _, report := range c.Culprits {
 		if checkMap[report.Target] {
 			out = append(out, report)
@@ -59,16 +59,16 @@ func (c *CulpritController) VerifyReportHashValidty(psiBad *[]jamTypes.WorkRepor
 
 // ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
-func (c *CulpritController) ExcludeOffenders() []jamTypes.Culprit {
+func (c *CulpritController) ExcludeOffenders() []types.Culprit {
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
-	excludeMap := make(map[jamTypes.Ed25519Public]bool)
+	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
 	}
 
 	length := len(c.Culprits)
 
-	var out []jamTypes.Culprit
+	var out []types.Culprit
 	for i := 0; i < length; i++ { // culprit index
 
 		if !excludeMap[c.Culprits[i].Key] {
@@ -90,8 +90,8 @@ func (c *CulpritController) Unique() {
 		return
 	}
 
-	uniqueMap := make(map[jamTypes.Ed25519Public]bool)
-	result := make([]jamTypes.Culprit, 0)
+	uniqueMap := make(map[types.Ed25519Public]bool)
+	result := make([]types.Culprit, 0)
 
 	for _, culprit := range c.Culprits {
 		if !uniqueMap[culprit.Key] {
