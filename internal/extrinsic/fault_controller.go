@@ -63,6 +63,7 @@ func (f *FaultController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash
 func (f *FaultController) ExcludeOffenders() []types.Fault {
 
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
