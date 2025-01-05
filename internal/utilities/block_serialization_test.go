@@ -320,56 +320,56 @@ func extrinsicSerialization(extrinsic types.Extrinsic) (output types.ByteSequenc
 }
 
 // extrinsic hash formula (5.4)
-func pocExtrinsicHash(extrinsic types.Extrinsic) (output types.OpaqueHash) {
-	ticketSerializedHash := hash.Blake2bHash(ExtrinsicTicketSerialization(extrinsic.Tickets))
-	preimageSerializedHash := hash.Blake2bHash(ExtrinsicPreimageSerialization(extrinsic.Preimages))
-	assureanceSerializedHash := hash.Blake2bHash(ExtrinsicAssuranceSerialization(extrinsic.Assurances))
-	disputeSerializedHash := hash.Blake2bHash(ExtrinsicDisputeSerialization(extrinsic.Disputes))
+// func pocExtrinsicHash(extrinsic types.Extrinsic) (output types.OpaqueHash) {
+// 	ticketSerializedHash := hash.Blake2bHash(ExtrinsicTicketSerialization(extrinsic.Tickets))
+// 	preimageSerializedHash := hash.Blake2bHash(ExtrinsicPreimageSerialization(extrinsic.Preimages))
+// 	assureanceSerializedHash := hash.Blake2bHash(ExtrinsicAssuranceSerialization(extrinsic.Assurances))
+// 	disputeSerializedHash := hash.Blake2bHash(ExtrinsicDisputeSerialization(extrinsic.Disputes))
 
-	// g (5.6)
-	g := types.ByteSequence{}
-	g = append(g, SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
-	for _, guarantee := range extrinsic.Guarantees {
-		// w, WorkReport
-		w := guarantee.Report
-		wHash := hash.Blake2bHash(WorkReportSerialization(w))
+// 	// g (5.6)
+// 	g := types.ByteSequence{}
+// 	g = append(g, SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
+// 	for _, guarantee := range extrinsic.Guarantees {
+// 		// w, WorkReport
+// 		w := guarantee.Report
+// 		wHash := hash.Blake2bHash(WorkReportSerialization(w))
 
-		// t, Slot
-		t := guarantee.Slot
-		tSerialized := SerializeFixedLength(types.U32(t), 4)
+// 		// t, Slot
+// 		t := guarantee.Slot
+// 		tSerialized := SerializeFixedLength(types.U32(t), 4)
 
-		// a, Signatures (credential)
-		signaturesLength, Signatures := LensElementPair(guarantee.Signatures)
+// 		// a, Signatures (credential)
+// 		signaturesLength, Signatures := LensElementPair(guarantee.Signatures)
 
-		elementSerialized := types.ByteSequence{}
-		elementSerialized = append(elementSerialized, SerializeByteArray(wHash[:])...)
-		elementSerialized = append(elementSerialized, SerializeByteArray(tSerialized)...)
-		elementSerialized = append(elementSerialized, SerializeU64(types.U64(signaturesLength))...)
-		for _, signature := range Signatures {
-			elementSerialized = append(elementSerialized, SerializeU64(types.U64(signature.ValidatorIndex))...)
-			elementSerialized = append(elementSerialized, SerializeByteArray(signature.Signature[:])...)
-		}
+// 		elementSerialized := types.ByteSequence{}
+// 		elementSerialized = append(elementSerialized, SerializeByteArray(wHash[:])...)
+// 		elementSerialized = append(elementSerialized, SerializeByteArray(tSerialized)...)
+// 		elementSerialized = append(elementSerialized, SerializeU64(types.U64(signaturesLength))...)
+// 		for _, signature := range Signatures {
+// 			elementSerialized = append(elementSerialized, SerializeU64(types.U64(signature.ValidatorIndex))...)
+// 			elementSerialized = append(elementSerialized, SerializeByteArray(signature.Signature[:])...)
+// 		}
 
-		// If the input type of serialization is octet sequence, we can directly
-		// append it because it is already serialized.
-		g = append(g, elementSerialized...)
-	}
+// 		// If the input type of serialization is octet sequence, we can directly
+// 		// append it because it is already serialized.
+// 		g = append(g, elementSerialized...)
+// 	}
 
-	gHash := hash.Blake2bHash(g)
+// 	gHash := hash.Blake2bHash(g)
 
-	// Serialize the hash of the extrinsic elements
-	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, WrapOpaqueHash(ticketSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, WrapOpaqueHash(preimageSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, WrapOpaqueHash(gHash).Serialize()...)
-	serializedElements = append(serializedElements, WrapOpaqueHash(assureanceSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, WrapOpaqueHash(disputeSerializedHash).Serialize()...)
+// 	// Serialize the hash of the extrinsic elements
+// 	serializedElements := types.ByteSequence{}
+// 	serializedElements = append(serializedElements, WrapOpaqueHash(ticketSerializedHash).Serialize()...)
+// 	serializedElements = append(serializedElements, WrapOpaqueHash(preimageSerializedHash).Serialize()...)
+// 	serializedElements = append(serializedElements, WrapOpaqueHash(gHash).Serialize()...)
+// 	serializedElements = append(serializedElements, WrapOpaqueHash(assureanceSerializedHash).Serialize()...)
+// 	serializedElements = append(serializedElements, WrapOpaqueHash(disputeSerializedHash).Serialize()...)
 
-	// Hash the serialized elements
-	output = hash.Blake2bHash(serializedElements)
+// 	// Hash the serialized elements
+// 	output = hash.Blake2bHash(serializedElements)
 
-	return output
-}
+// 	return output
+// }
 
 func TestBlockSerialization(t *testing.T) {
 	testCases := []struct {
