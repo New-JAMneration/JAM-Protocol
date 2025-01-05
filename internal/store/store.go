@@ -60,16 +60,16 @@ func (s *Store) GetPriorState() types.State {
 	return s.priorStates.GetState()
 }
 
-func (s *Store) GetPriorStates() PriorStates {
-	return *s.priorStates
+func (s *Store) GetPriorStates() *PriorStates {
+	return s.priorStates
 }
 
 func (s *Store) GetPosteriorState() types.State {
 	return s.posteriorStates.GetState()
 }
 
-func (s *Store) GetPosteriorStates() PosteriorStates {
-	return *s.posteriorStates
+func (s *Store) GetPosteriorStates() *PosteriorStates {
+	return s.posteriorStates
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
