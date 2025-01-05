@@ -277,7 +277,7 @@ func WorkReportSerialization(work_report types.WorkReport) (output types.ByteSeq
 	*/
 	output = append(output, WorkPackageSpecSerialization(work_report.PackageSpec)...) // xs
 	output = append(output, RefineContextSerialization(work_report.Context)...)       // xx
-	output = append(output, SerializeU64(types.U64(work_report.CoreIndex))...)     // xc
+	output = append(output, SerializeU64(types.U64(work_report.CoreIndex))...)        // xc
 	output = append(output, SerializeByteSequence(work_report.AuthorizerHash[:])...)  // xa
 	// xo
 	output = append(output, SerializeU64(types.U64(len(work_report.AuthOutput)))...)
