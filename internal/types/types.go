@@ -19,9 +19,11 @@ type U16 uint16
 
 type U32 uint32
 
-type U64 uint64
-type ByteSequence []byte
-type ByteArray32 [32]byte
+type (
+	U64          uint64
+	ByteSequence []byte
+	ByteArray32  [32]byte
+)
 
 type BitSequence []bool
 
@@ -45,22 +47,28 @@ type BandersnatchRingCommitment [144]byte
 
 type OpaqueHash ByteArray32
 
-type TimeSlot U32
-type ValidatorIndex U16
-type CoreIndex U16
+type (
+	TimeSlot       U32
+	ValidatorIndex U16
+	CoreIndex      U16
+)
 
-type HeaderHash OpaqueHash
-type StateRoot OpaqueHash
-type BeefyRoot OpaqueHash
-type WorkPackageHash OpaqueHash
-type WorkReportHash OpaqueHash
-type ExportsRoot OpaqueHash
-type ErasureRoot OpaqueHash
+type (
+	HeaderHash      OpaqueHash
+	StateRoot       OpaqueHash
+	BeefyRoot       OpaqueHash
+	WorkPackageHash OpaqueHash
+	WorkReportHash  OpaqueHash
+	ExportsRoot     OpaqueHash
+	ErasureRoot     OpaqueHash
+)
 
 type Gas U64
 
-type Entropy OpaqueHash
-type EntropyBuffer [4]Entropy
+type (
+	Entropy       OpaqueHash
+	EntropyBuffer [4]Entropy
+)
 
 type ValidatorMetadata [128]byte
 
@@ -97,7 +105,7 @@ type ServiceInfo struct {
 
 type AvailabilityAssignment struct {
 	Report  WorkReport `json:"report"`
-	Timeout uint32     `json:"timeout,omitempty"`
+	Timeout TimeSlot   `json:"timeout,omitempty"`
 }
 
 func (a AvailabilityAssignment) Validate() error {
@@ -432,8 +440,10 @@ type Statistics struct {
 
 // Tickets
 
-type TicketId OpaqueHash
-type TicketAttempt U8
+type (
+	TicketId      OpaqueHash
+	TicketAttempt U8
+)
 
 type TicketEnvelope struct {
 	Attempt   TicketAttempt                `json:"attempt,omitempty"`

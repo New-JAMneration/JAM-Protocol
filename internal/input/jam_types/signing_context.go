@@ -10,6 +10,6 @@ const (
 	JamAnnounce     = "jam_announce"
 	JamTicketSeal   = "jam_ticket_seal"
 	JamAudit        = "jam_audit"
-	JamVaild        = "jam_valid"
+	JamValid        = "jam_valid"
 	JamInvalid      = "jam_invalid"
 )
