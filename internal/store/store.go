@@ -56,7 +56,6 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	log.Println("🚀 Genesis block generated")
 }
 
-
 func (s *Store) GetPriorState() types.State {
 	return s.priorStates.GetState()
 }

@@ -14,12 +14,17 @@ type VerdictWrapper struct {
 	Verdict types.Verdict
 }
 
+type PositiveJudgmentLevel int
+
+type VerdictSummary struct {
+	ReportHash           types.OpaqueHash `json:"target,omitempty"`
+	PositiveJudgmentsSum PositiveJudgmentLevel
+}
+
 // VerdictController is a struct that contains a slice of Verdict
 type VerdictController struct {
-	Verdicts     []VerdictWrapper
-	goodReports  []types.WorkReportHash
-	badReports   []types.WorkReportHash
-	wonkyReports []types.WorkReportHash
+	Verdicts           []VerdictWrapper
+	VerdictSumSequence []VerdictSummary
 
 	/*
 		type Verdict struct {
@@ -39,7 +44,8 @@ type VerdictController struct {
 // NewVerdictController returns a new VerdictController
 func NewVerdictController() *VerdictController {
 	return &VerdictController{
-		Verdicts: make([]VerdictWrapper, 0),
+		Verdicts:           make([]VerdictWrapper, 0),
+		VerdictSumSequence: make([]VerdictSummary, 0),
 	}
 }
 
@@ -190,31 +196,21 @@ func (v *VerdictController) SetDisjoint() {
 	(*v).Verdicts = result
 }
 
-// JudgeVerdictStates judges the states of the verdicts | Eq. 10.11
-func (v *VerdictController) JudgeVerdictStates() ([]types.WorkReportHash, []types.WorkReportHash, []types.WorkReportHash) {
-	goodVotesNum := types.ValidatorsCount*2/3 + 1
-	wonkyVotesNum := types.ValidatorsCount / 3
-
-	goodReports := make([]types.WorkReportHash, 0)
-	badReports := make([]types.WorkReportHash, 0)
-	wonkyReports := make([]types.WorkReportHash, 0)
+// GenerateVerdictSumSequence generates verdict only with report hash and votes | Eq. 10.11
+func (v *VerdictController) GenerateVerdictSumSequence() {
 
 	for _, verdict := range v.Verdicts {
-		positiveVotes := 0
+		verdictSummary := VerdictSummary{}
 
+		positiveVotes := 0
+		verdictSummary.ReportHash = verdict.Verdict.Target
 		for _, votes := range verdict.Verdict.Votes {
 			if votes.Vote {
 				positiveVotes++
 			}
 		}
-
-		if positiveVotes == goodVotesNum {
-			goodReports = append(goodReports, types.WorkReportHash(verdict.Verdict.Target))
-		} else if positiveVotes == wonkyVotesNum {
-			wonkyReports = append(wonkyReports, types.WorkReportHash(verdict.Verdict.Target))
-		} else if positiveVotes == 0 {
-			badReports = append(badReports, types.WorkReportHash(verdict.Verdict.Target))
-		}
+		verdictSummary.PositiveJudgmentsSum = PositiveJudgmentLevel(positiveVotes)
+		v.VerdictSumSequence = append(v.VerdictSumSequence, verdictSummary)
 	}
-	return goodReports, badReports, wonkyReports
+
 }
