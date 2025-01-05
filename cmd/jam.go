@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 )
 
@@ -35,26 +35,26 @@ func SetupJAMProtocol() {
 	// Generate genesis block
 	hash := "5c743dbc514284b2ea57798787c5a155ef9d7ac1e9499ec65910a7a3d65897b7"
 	byteArray, _ := hex.DecodeString(hash)
-	genesisBlock := jamTypes.Block{
-		Header: jamTypes.Header{
+	genesisBlock := types.Block{
+		Header: types.Header{
 			// hash string to jamTypes.HeaderHash
-			Parent:          jamTypes.HeaderHash(byteArray),
-			ParentStateRoot: jamTypes.StateRoot{},
-			ExtrinsicHash:   jamTypes.OpaqueHash{},
+			Parent:          types.HeaderHash(byteArray),
+			ParentStateRoot: types.StateRoot{},
+			ExtrinsicHash:   types.OpaqueHash{},
 			Slot:            0,
 			EpochMark:       nil,
 			TicketsMark:     nil,
-			OffendersMark:   jamTypes.OffendersMark{},
+			OffendersMark:   types.OffendersMark{},
 			AuthorIndex:     0,
-			EntropySource:   jamTypes.BandersnatchVrfSignature{},
-			Seal:            jamTypes.BandersnatchVrfSignature{},
+			EntropySource:   types.BandersnatchVrfSignature{},
+			Seal:            types.BandersnatchVrfSignature{},
 		},
-		Extrinsic: jamTypes.Extrinsic{
-			Tickets:    jamTypes.TicketsExtrinsic{},
-			Preimages:  jamTypes.PreimagesExtrinsic{},
-			Guarantees: jamTypes.GuaranteesExtrinsic{},
-			Assurances: jamTypes.AssurancesExtrinsic{},
-			Disputes:   jamTypes.DisputesExtrinsic{},
+		Extrinsic: types.Extrinsic{
+			Tickets:    types.TicketsExtrinsic{},
+			Preimages:  types.PreimagesExtrinsic{},
+			Guarantees: types.GuaranteesExtrinsic{},
+			Assurances: types.AssurancesExtrinsic{},
+			Disputes:   types.DisputesExtrinsic{},
 		},
 	}
 

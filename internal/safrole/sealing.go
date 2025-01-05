@@ -3,7 +3,7 @@ package safrole
 import (
 	"fmt"
 
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -114,7 +114,7 @@ func Sealing(state types.State, header types.Header) {
 		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			state.Gamma.GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
-			state.Gamma.GammaS.Keys = FallbackKeySequence(types.OpaqueHash(eta_prime[2]), state.Kappa)
+			state.Gamma.GammaS.Keys = FallbackKeySequence(types.Entropy(eta_prime[2]), state.Kappa)
 		}
 	}
 }

@@ -4,23 +4,23 @@ import (
 	"bytes"
 	"sort"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type PreimageController struct {
-	Preimages []jamTypes.Preimage
+	Preimages []types.Preimage
 }
 
 // NewPreimageController creates a new PreimageController with the given
 // Preimages slice.
 func NewPreimageController() *PreimageController {
 	return &PreimageController{
-		Preimages: make([]jamTypes.Preimage, 0),
+		Preimages: make([]types.Preimage, 0),
 	}
 }
 
 // Set sets the Preimages slice to the given Preimages slice.
-func (p *PreimageController) Set(preimages []jamTypes.Preimage) {
+func (p *PreimageController) Set(preimages []types.Preimage) {
 	p.Preimages = preimages
 }
 
@@ -50,7 +50,7 @@ func (p *PreimageController) Sort() {
 
 // Add adds a new Preimage to the Preimages slice.
 // It also removes the duplicates from the slice.
-func (p *PreimageController) Add(newPreimage jamTypes.Preimage) {
+func (p *PreimageController) Add(newPreimage types.Preimage) {
 	p.Preimages = append(p.Preimages, newPreimage)
 	p.RemoveDuplicates()
 }

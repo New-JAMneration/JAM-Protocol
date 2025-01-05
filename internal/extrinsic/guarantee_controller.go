@@ -3,23 +3,23 @@ package extrinsic
 import (
 	"sort"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
 type GuaranteeController struct {
-	Guarantees []jamTypes.ReportGuarantee
+	Guarantees []types.ReportGuarantee
 }
 
 // NewGuaranteeController creates a new GuaranteeController (Constructor)
 func NewGuaranteeController() *GuaranteeController {
 	return &GuaranteeController{
-		Guarantees: make([]jamTypes.ReportGuarantee, 0),
+		Guarantees: make([]types.ReportGuarantee, 0),
 	}
 }
 
 // Set sets the ReportGuarantee slice
-func (g *GuaranteeController) Set(gToSet []jamTypes.ReportGuarantee) {
+func (g *GuaranteeController) Set(gToSet []types.ReportGuarantee) {
 	g.Guarantees = gToSet
 }
 
@@ -46,7 +46,7 @@ func (r *GuaranteeController) Sort() {
 }
 
 // Add adds a new Guarantee to the ReportGuarantee slice.
-func (r *GuaranteeController) Add(newReportGuarantee jamTypes.ReportGuarantee) {
+func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 	r.Guarantees = append(r.Guarantees, newReportGuarantee)
 	r.Sort()
 }
