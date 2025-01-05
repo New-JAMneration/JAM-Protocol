@@ -56,7 +56,7 @@ func DeserializeU64(data types.ByteSequence) (types.U64, error) {
 	// and verifying that decoded x fits the expected range.
 	var bestX types.U64
 	found := false
-	for tryL := 1; tryL <= 8; tryL++ {
+	for tryL := 0; tryL <= 7; tryL++ {
 		base := 256 - (1 << (8 - tryL))
 		if int(prefix) >= base {
 			// floorVal = prefix - base
