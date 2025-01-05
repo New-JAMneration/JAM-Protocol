@@ -1,7 +1,7 @@
 package safrole
 
 import (
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )

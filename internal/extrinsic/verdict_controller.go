@@ -5,11 +5,11 @@ import (
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type VerdictWrapper struct {
-	Verdict jamTypes.Verdict
+	Verdict types.Verdict
 }
 
 // VerdictController is a struct that contains a slice of Verdict
@@ -40,8 +40,8 @@ func NewVerdictController() *VerdictController {
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
 	state := store.GetInstance().GetState()
-	a := jamTypes.U32(state.Tau) / jamTypes.U32(jamTypes.EpochLength)
-	var k jamTypes.ValidatorsData
+	a := types.U32(state.Tau) / types.U32(types.EpochLength)
+	var k types.ValidatorsData
 	if v.Verdict.Age == a {
 		k = state.Kappa
 	} else {
