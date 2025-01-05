@@ -76,12 +76,12 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
 		signaturesLength, Signatures := utilities.LensElementPair(guarantee.Signatures)
 
 		elementSerialized := types.ByteSequence{}
-		elementSerialized = append(elementSerialized, utilities.SerializeByteArray(wHash[:])...)
-		elementSerialized = append(elementSerialized, utilities.SerializeByteArray(tSerialized)...)
+		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(wHash[:])...)
+		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(tSerialized)...)
 		elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signaturesLength))...)
 		for _, signature := range Signatures {
 			elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signature.ValidatorIndex))...)
-			elementSerialized = append(elementSerialized, utilities.SerializeByteArray(signature.Signature[:])...)
+			elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(signature.Signature[:])...)
 		}
 
 		// If the input type of serialization is octet sequence, we can directly
