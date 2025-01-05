@@ -2,7 +2,8 @@ package extrinsic
 
 import (
 	"fmt"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // DisputeController is a struct that contains a slice of Dispute (for controller logic)
@@ -22,36 +23,42 @@ func NewDisputeController(VerdictController *VerdictController, FaultController 
 }
 
 // ValidateFaults validates the faults in the verdict | Eq. 10.13
-func (d *DisputeController) ValidateFaults() []jamTypes.WorkReportHash {
-	faultMap := make(map[jamTypes.WorkReportHash]bool)
-	notInFault := make([]jamTypes.WorkReportHash, 0)
-
+func (d *DisputeController) ValidateFaults() []types.WorkReportHash {
+	faultMap := make(map[types.WorkReportHash]bool)
+	notInFault := make([]types.WorkReportHash, 0)
 	for _, report := range d.FaultController.Faults {
 		faultMap[report.Target] = true
 	}
 
-	for _, goodReport := range d.VerdictController.goodReports {
-		if !faultMap[goodReport] {
-			notInFault = append(notInFault, goodReport)
-			fmt.Println("good report not in fault map : ", goodReport)
+	good := PositiveJudgmentLevel(input.ValidatorsCount*2/3 + 1)
+	for _, report := range d.VerdictController.VerdictSumSequence {
+		if report.PositiveJudgmentsSum == PositiveJudgmentLevel(good) {
+			if !faultMap[types.WorkReportHash(report.ReportHash)] {
+				notInFault = append(notInFault, types.WorkReportHash(report.ReportHash))
+				fmt.Println("good report not in fault map : ", report.ReportHash)
+			}
 		}
 	}
+
 	return notInFault
 }
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
-func (d *DisputeController) ValidateCulprits() []jamTypes.WorkReportHash {
-	culpritMap := make(map[jamTypes.WorkReportHash]bool)
-	notInCulprit := make([]jamTypes.WorkReportHash, 0)
+func (d *DisputeController) ValidateCulprits() []types.WorkReportHash {
+	culpritMap := make(map[types.WorkReportHash]bool)
+	notInCulprit := make([]types.WorkReportHash, 0)
 
 	for _, report := range d.CulpritController.Culprits {
 		culpritMap[report.Target] = true
 	}
 
-	for _, badReport := range d.VerdictController.badReports {
-		if !culpritMap[badReport] {
-			notInCulprit = append(notInCulprit, badReport)
-			fmt.Println("bad report not in culprit map : ", badReport)
+	bad := PositiveJudgmentLevel(0)
+	for _, report := range d.VerdictController.VerdictSumSequence {
+		if report.PositiveJudgmentsSum == PositiveJudgmentLevel(bad) {
+			if !culpritMap[types.WorkReportHash(report.ReportHash)] {
+				notInCulprit = append(notInCulprit, types.WorkReportHash(report.ReportHash))
+				fmt.Println("good report not in fault map : ", report.ReportHash)
+			}
 		}
 	}
 	return notInCulprit

@@ -11,13 +11,11 @@ type PriorStates struct {
 	state *types.State
 }
 
-
 func NewPriorStates() *PriorStates {
 	return &PriorStates{
 		state: &types.State{},
 	}
 }
-
 
 func (s *PriorStates) GetState() types.State {
 	s.mu.RLock()
@@ -25,13 +23,11 @@ func (s *PriorStates) GetState() types.State {
 	return *s.state
 }
 
-
 func (s *PriorStates) GenerateGenesisState(state types.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state = &state
 }
-
 
 func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
@@ -40,13 +36,11 @@ func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
 
 }
 
-
 func (s *PriorStates) SetLambda(lambda types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Lambda = lambda
 }
-
 
 func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
 	s.mu.Lock()
