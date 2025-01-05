@@ -3,25 +3,25 @@ package extrinsic
 import (
 	"sort"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
 type AvailAssuranceController struct {
-	AvailAssurances []jamTypes.AvailAssurance
-	AssuranceCheck  map[jamTypes.ValidatorIndex]struct{} // assurance at most one per validator, use map to check
+	AvailAssurances []types.AvailAssurance
+	AssuranceCheck  map[types.ValidatorIndex]struct{} // assurance at most one per validator, use map to check
 }
 
 // NewAvailAssuranceController creates a new AvailAssuranceController
 func NewAvailAssuranceController() *AvailAssuranceController {
 	return &AvailAssuranceController{
-		AvailAssurances: make([]jamTypes.AvailAssurance, 0),
-		AssuranceCheck:  make(map[jamTypes.ValidatorIndex]struct{}),
+		AvailAssurances: make([]types.AvailAssurance, 0),
+		AssuranceCheck:  make(map[types.ValidatorIndex]struct{}),
 	}
 }
 
 // Add adds a new AvailAssurance to the AvailAssurance slice
-func (a *AvailAssuranceController) Add(newAvailAssurance jamTypes.AvailAssurance) {
+func (a *AvailAssuranceController) Add(newAvailAssurance types.AvailAssurance) {
 	if !a.CheckAssuranceExist(newAvailAssurance) { // return false = validatorIndex has not submit assurance
 		a.AssuranceCheck[newAvailAssurance.ValidatorIndex] = struct{}{}
 		a.AvailAssurances = append(a.AvailAssurances, newAvailAssurance)
@@ -29,7 +29,7 @@ func (a *AvailAssuranceController) Add(newAvailAssurance jamTypes.AvailAssurance
 }
 
 // CheckAssuranceExist checks if the AvailAssurance already exists
-func (a *AvailAssuranceController) CheckAssuranceExist(availAssurance jamTypes.AvailAssurance) (exist bool) {
+func (a *AvailAssuranceController) CheckAssuranceExist(availAssurance types.AvailAssurance) (exist bool) {
 	if _, exists := a.AssuranceCheck[availAssurance.ValidatorIndex]; exists {
 		return true
 	}
@@ -54,7 +54,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 	a.AvailAssurances[i], a.AvailAssurances[j] = a.AvailAssurances[j], a.AvailAssurances[i]
 }
 
-type AvailAssurance jamTypes.AvailAssurance
+type AvailAssurance types.AvailAssurance
 
 // SetCoreBit is for setting the validity of the core-index in the assurance bit
 func (a AvailAssurance) SetCoreBit(coreIndex uint16, validity bool) {

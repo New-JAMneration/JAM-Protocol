@@ -3,23 +3,23 @@ package extrinsic
 import (
 	"sort"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // GuaranteeCredentialsController is a struct that contains a slice of GuaranteeCredentials (for controller logic)
 type GuaranteeCredentialsController struct {
-	Credentials []jamTypes.ValidatorSignature
+	Credentials []types.ValidatorSignature
 }
 
 // NewGuaranteeCredentialsController creates a new GuaranteeCredentialsController (Constructor)
 func NewGuaranteeCredentialsController() *GuaranteeCredentialsController {
 	return &GuaranteeCredentialsController{
-		Credentials: make([]jamTypes.ValidatorSignature, 0),
+		Credentials: make([]types.ValidatorSignature, 0),
 	}
 }
 
 // Set sets the GuaranteeCredentials slice
-func (c *GuaranteeCredentialsController) Set(cToSet []jamTypes.ValidatorSignature) {
+func (c *GuaranteeCredentialsController) Set(cToSet []types.ValidatorSignature) {
 	c.Credentials = cToSet
 }
 
@@ -47,7 +47,7 @@ func (c *GuaranteeCredentialsController) Sort() {
 
 // Add adds a new GuaranteeCredentials to the GuaranteeCredentials slice.
 // It also removes the duplicates from the slice.
-func (c *GuaranteeCredentialsController) Add(newReportGuaranteeCredentials jamTypes.ValidatorSignature) []jamTypes.ValidatorSignature {
+func (c *GuaranteeCredentialsController) Add(newReportGuaranteeCredentials types.ValidatorSignature) []types.ValidatorSignature {
 	c.Credentials = append(c.Credentials, newReportGuaranteeCredentials)
 	return c.RemoveDuplicates()
 }
@@ -55,7 +55,7 @@ func (c *GuaranteeCredentialsController) Add(newReportGuaranteeCredentials jamTy
 // RemoveDuplicates removes the duplicates from the ValidatorSignature slice.
 // It uses the Sort function to sort the slice first.
 // And uses double pointers to remove the duplicates.
-func (c *GuaranteeCredentialsController) RemoveDuplicates() []jamTypes.ValidatorSignature {
+func (c *GuaranteeCredentialsController) RemoveDuplicates() []types.ValidatorSignature {
 	if len(c.Credentials) == 0 {
 		return c.Credentials
 	}

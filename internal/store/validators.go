@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // kappa'

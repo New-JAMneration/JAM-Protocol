@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 var (
@@ -40,21 +40,21 @@ func GetInstance() *Store {
 	return globalStore
 }
 
-func (s *Store) AddBlock(block jamTypes.Block) {
+func (s *Store) AddBlock(block types.Block) {
 	s.blocks.AddBlock(block)
 }
 
-func (s *Store) GetBlocks() []jamTypes.Block {
+func (s *Store) GetBlocks() []types.Block {
 	return s.blocks.GetBlocks()
 }
 
-func (s *Store) GenerateGenesisBlock(block jamTypes.Block) {
+func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.blocks.GenerateGenesisBlock(block)
 	s.blocks.AddBlock(block)
 	log.Println("🚀 Genesis block generated")
 }
 
-func (s *Store) GetState() jamTypes.State {
+func (s *Store) GetState() types.State {
 	return s.states.GetState()
 }
 
@@ -62,42 +62,42 @@ func (s *Store) GetStates() States {
 	return *s.states
 }
 
-func (s *Store) GenerateGenesisState(state jamTypes.State) {
+func (s *Store) GenerateGenesisState(state types.State) {
 	s.states.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
 }
 
 // AncestorHeaders
 
-func (s *Store) AddAncestorHeader(header jamTypes.Header) {
+func (s *Store) AddAncestorHeader(header types.Header) {
 	s.ancestorHeaders.AddHeader(header)
 }
 
-func (s *Store) GetAncestorHeaders() []jamTypes.Header {
+func (s *Store) GetAncestorHeaders() []types.Header {
 	return s.ancestorHeaders.GetHeaders()
 }
 
 // PosteriorCurrentValidators
 
-func (s *Store) AddPosteriorCurrentValidator(validator jamTypes.Validator) {
+func (s *Store) AddPosteriorCurrentValidator(validator types.Validator) {
 	s.posteriorCurrentValidators.AddValidator(validator)
 }
 
-func (s *Store) GetPosteriorCurrentValidators() jamTypes.ValidatorsData {
+func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 	return s.posteriorCurrentValidators.GetValidators()
 }
 
-func (s *Store) GetPosteriorCurrentValidatorByIndex(index jamTypes.ValidatorIndex) jamTypes.Validator {
+func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
 }
 
 // IntermediateHeader
 
-func (s *Store) AddIntermediateHeader(header jamTypes.Header) {
+func (s *Store) AddIntermediateHeader(header types.Header) {
 	s.intermediateHeader.AddHeader(header)
 }
 
-func (s *Store) GetIntermediateHeader() jamTypes.Header {
+func (s *Store) GetIntermediateHeader() types.Header {
 	return s.intermediateHeader.GetHeader()
 }
 

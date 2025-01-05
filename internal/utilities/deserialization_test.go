@@ -3,15 +3,15 @@ package utilities
 import (
 	"testing"
 
-	jamtypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestDeserializeFixedLength(t *testing.T) {
-	tests := []jamtypes.U32{1, 127, 128, 255}
+	tests := []types.U32{1, 127, 128, 255}
 	for _, tt := range tests {
-		ser := SerializeFixedLength(tt, jamtypes.U32(2))
-		data := jamtypes.ByteSequence(ser)
-		deser, err := DeserializeFixedLength(data, jamtypes.U32(2))
+		ser := SerializeFixedLength(tt, types.U32(2))
+		data := types.ByteSequence(ser)
+		deser, err := DeserializeFixedLength(data, types.U32(2))
 		if err != nil {
 			t.Fatalf("DeserializeU8Wrapper failed: %v", err)
 		}
@@ -22,11 +22,11 @@ func TestDeserializeFixedLength(t *testing.T) {
 }
 
 func TestU8Serialization(t *testing.T) {
-	tests := []jamtypes.U8{1, 127, 128, 255}
+	tests := []types.U8{1, 127, 128, 255}
 	for _, tt := range tests {
 		orig := U8Wrapper{Value: tt}
 		ser := orig.Serialize()
-		data := jamtypes.ByteSequence(ser) // make a copy we can consume
+		data := types.ByteSequence(ser) // make a copy we can consume
 		deser, err := DeserializeU8Wrapper(data)
 		if err != nil {
 			t.Fatalf("DeserializeU8Wrapper failed: %v", err)
@@ -38,11 +38,11 @@ func TestU8Serialization(t *testing.T) {
 }
 
 func TestU16Serialization(t *testing.T) {
-	tests := []jamtypes.U16{0, 1, 255, 256, 16639}
+	tests := []types.U16{0, 1, 255, 256, 16639}
 	for _, tt := range tests {
 		orig := U16Wrapper{Value: tt}
 		ser := orig.Serialize()
-		data := jamtypes.ByteSequence(ser)
+		data := types.ByteSequence(ser)
 		deser, err := DeserializeU16Wrapper(data)
 		if err != nil {
 			t.Fatalf("DeserializeU16Wrapper failed: %v", err)
@@ -54,11 +54,11 @@ func TestU16Serialization(t *testing.T) {
 }
 
 func TestU32Serialization(t *testing.T) {
-	tests := []jamtypes.U32{0, 1, 65535, 65536, 4294967295}
+	tests := []types.U32{0, 1, 65535, 65536, 4294967295}
 	for _, tt := range tests {
 		orig := U32Wrapper{Value: tt}
 		ser := orig.Serialize()
-		data := jamtypes.ByteSequence(ser)
+		data := types.ByteSequence(ser)
 		deser, err := DeserializeU32Wrapper(data)
 		if err != nil {
 			t.Fatalf("DeserializeU32Wrapper failed: %v", err)
@@ -70,11 +70,11 @@ func TestU32Serialization(t *testing.T) {
 }
 
 func TestU64Serialization(t *testing.T) {
-	tests := []jamtypes.U64{0, 1, 255, 256, 65535, 65536, 4294967295, 4294967296, 18446744073709551615}
+	tests := []types.U64{0, 1, 255, 256, 65535, 65536, 4294967295, 4294967296, 18446744073709551615}
 	for _, tt := range tests {
 		orig := U64Wrapper{Value: tt}
 		ser := orig.Serialize()
-		data := jamtypes.ByteSequence(ser)
+		data := types.ByteSequence(ser)
 		deser, err := DeserializeU64Wrapper(data)
 		if err != nil {
 			t.Fatalf("DeserializeU64Wrapper failed: %v", err)
