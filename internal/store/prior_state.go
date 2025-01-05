@@ -3,46 +3,46 @@ package store
 import (
 	"sync"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type States struct {
 	mu    sync.RWMutex
-	state *jamTypes.State
+	state *types.State
 }
 
 func NewStates() *States {
 	return &States{
-		state: &jamTypes.State{},
+		state: &types.State{},
 	}
 }
 
-func (s *States) GetState() jamTypes.State {
+func (s *States) GetState() types.State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return *s.state
 }
 
-func (s *States) GenerateGenesisState(state jamTypes.State) {
+func (s *States) GenerateGenesisState(state types.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state = &state
 }
 
-func (s *States) SetKappa(kappa jamTypes.ValidatorsData) {
+func (s *States) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Kappa = kappa
 
 }
 
-func (s *States) SetLambda(lambda jamTypes.ValidatorsData) {
+func (s *States) SetLambda(lambda types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Lambda = lambda
 }
 
-func (s *States) AddPsiOffenders(offender jamTypes.Ed25519Public) {
+func (s *States) AddPsiOffenders(offender types.Ed25519Public) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
