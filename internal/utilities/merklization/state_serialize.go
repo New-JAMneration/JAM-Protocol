@@ -10,7 +10,7 @@ func SerializeAlpha(alpha jamTypes.AuthPools) (output jamTypes.ByteSequence) {
 	for _, authPool := range alpha {
 		output = append(output, utilities.SerializeU64(jamTypes.U64(len(authPool)))...)
 		for _, authorizerHash := range authPool {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(authorizerHash[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(authorizerHash[:]))...)
 		}
 	}
 	return output
@@ -19,7 +19,7 @@ func SerializeAlpha(alpha jamTypes.AuthPools) (output jamTypes.ByteSequence) {
 func SerializeVarphi(varphi jamTypes.AuthQueues) (output jamTypes.ByteSequence) {
 	for _, v := range varphi {
 		for _, authQueue := range v {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(authQueue[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(authQueue[:]))...)
 		}
 	}
 	return output
@@ -30,22 +30,22 @@ func SerializeBeta(beta jamTypes.BlocksHistory) (output jamTypes.ByteSequence) {
 	for _, blockInfo := range beta {
 		// h
 		output = append(output, utilities.SerializeU64(jamTypes.U64(len(blockInfo.HeaderHash)))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(blockInfo.HeaderHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(blockInfo.HeaderHash[:]))...)
 
 		// b
 		mmrResult := SerializeFromMmrPeaks(blockInfo.Mmr)
 		output = append(output, utilities.SerializeU64(jamTypes.U64(len(mmrResult)))...)
-		output = append(output, utilities.SerializeByteArray(mmrResult)...)
+		output = append(output, utilities.SerializeByteSequence(mmrResult)...)
 
 		// s
 		output = append(output, utilities.SerializeU64(jamTypes.U64(len(blockInfo.StateRoot)))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(blockInfo.StateRoot[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(blockInfo.StateRoot[:]))...)
 
 		// p  (?) BlockInfo.Reported is different from GP, list or dict
 		output = append(output, utilities.SerializeU64(jamTypes.U64(len(blockInfo.Reported)))...)
 		for _, report := range blockInfo.Reported {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(report.Hash[:]))...)
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(report.ExportsRoot[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(report.Hash[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(report.ExportsRoot[:]))...)
 		}
 	}
 	return output
@@ -54,33 +54,33 @@ func SerializeBeta(beta jamTypes.BlocksHistory) (output jamTypes.ByteSequence) {
 func SerializeGamma(gamma jamTypes.Gamma) (output jamTypes.ByteSequence) {
 	// gamma_k
 	for _, v := range gamma.GammaK {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Ed25519[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bls[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Metadata[:]))...)
 	}
 
 	// gamma_z
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(gamma.GammaZ[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(gamma.GammaZ[:]))...)
 
 	// gamma_s (6.5)
 	if gamma.GammaS.Tickets != nil {
 		output = append(output, utilities.SerializeU64(jamTypes.U64(0))...)
 		for _, ticket := range gamma.GammaS.Tickets {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(ticket.Id[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(ticket.Id[:]))...)
 			output = append(output, utilities.SerializeU64(jamTypes.U64(ticket.Attempt))...)
 		}
 	} else if gamma.GammaS.Keys != nil {
 		output = append(output, utilities.SerializeU64(jamTypes.U64(1))...)
 		for _, key := range gamma.GammaS.Keys {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(key[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(key[:]))...)
 		}
 	}
 
 	// gamma_a
 	output = append(output, utilities.SerializeU64(jamTypes.U64(len(gamma.GammaA)))...)
 	for _, ticket := range gamma.GammaA {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(ticket.Id[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(ticket.Id[:]))...)
 		output = append(output, utilities.SerializeU64(jamTypes.U64(ticket.Attempt))...)
 	}
 	return output
@@ -90,62 +90,62 @@ func SerializePsi(psi jamTypes.DisputesRecords) (output jamTypes.ByteSequence) {
 	// psi_g
 	output = append(output, utilities.SerializeU64(jamTypes.U64(len(psi.Good)))...)
 	for _, workReportHash := range psi.Good {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReportHash[:]))...)
 	}
 
 	// psi_b
 	output = append(output, utilities.SerializeU64(jamTypes.U64(len(psi.Bad)))...)
 	for _, workReportHash := range psi.Bad {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReportHash[:]))...)
 	}
 
 	// psi_w
 	output = append(output, utilities.SerializeU64(jamTypes.U64(len(psi.Wonky)))...)
 	for _, workReportHash := range psi.Wonky {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReportHash[:]))...)
 	}
 
 	// psi_o
 	output = append(output, utilities.SerializeU64(jamTypes.U64(len(psi.Offenders)))...)
 	for _, ed25519public := range psi.Offenders {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(ed25519public[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(ed25519public[:]))...)
 	}
 	return output
 }
 
 func SerializeEta(eta jamTypes.EntropyBuffer) (output jamTypes.ByteSequence) {
 	for _, entropy := range eta {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(entropy[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(entropy[:]))...)
 	}
 	return output
 }
 
 func SerializeIota(iota jamTypes.ValidatorsData) (output jamTypes.ByteSequence) {
 	for _, v := range iota {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Ed25519[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bls[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Metadata[:]))...)
 	}
 	return output
 }
 
 func SerializeKappa(kappa jamTypes.ValidatorsData) (output jamTypes.ByteSequence) {
 	for _, v := range kappa {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Ed25519[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bls[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Metadata[:]))...)
 	}
 	return output
 }
 
 func SerializeLambda(lambda jamTypes.ValidatorsData) (output jamTypes.ByteSequence) {
 	for _, v := range lambda {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bandersnatch[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Ed25519[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Bls[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.Metadata[:]))...)
 	}
 	return output
 }
@@ -182,20 +182,20 @@ func SerializeChi(chi jamTypes.PrivilegedServices) (output jamTypes.ByteSequence
 
 func SerializePi(pi jamTypes.Statistics) (output jamTypes.ByteSequence) {
 	for _, activityRecord := range pi.Current {
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
 	}
 	for _, activityRecord := range pi.Last {
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
-		output = append(output, utilities.SerializeByteArray(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
+		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
 	}
 	return output
 }
@@ -205,7 +205,7 @@ func SerializeTheta(theta jamTypes.UnaccumulateWorkReports) (output jamTypes.Byt
 	for _, v := range theta {
 		output = append(output, SerializeWorkReport(v.WorkReport)...)
 		for _, dep := range v.UnaccumulatedDeps {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(dep[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(dep[:]))...)
 		}
 	}
 	return output
@@ -215,7 +215,7 @@ func SerializeXi(xi jamTypes.AccumulatedHistories) (output jamTypes.ByteSequence
 	output = utilities.SerializeU64(jamTypes.U64(len(xi)))
 	for _, v := range xi {
 		for _, history := range v {
-			output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(history[:]))...)
+			output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(history[:]))...)
 		}
 	}
 	return output
@@ -352,7 +352,7 @@ func StateSerialize(state jamTypes.State) (map[jamTypes.OpaqueHash]jamTypes.Byte
 			for _, timeSlot := range value {
 				delta4Output = append(delta4Output, utilities.SerializeFixedLength(jamTypes.U64(timeSlot), 4)...)
 			}
-			delta4Output = append(utilities.SerializeU64(jamTypes.U64(len(delta4Output))), utilities.SerializeByteArray(delta4Output)...)
+			delta4Output = append(utilities.SerializeU64(jamTypes.U64(len(delta4Output))), utilities.SerializeByteSequence(delta4Output)...)
 			serialized[key] = delta4Output
 		}
 	}
@@ -379,41 +379,41 @@ func SerializeFromMmrPeaks(m jamTypes.Mmr) (output jamTypes.ByteSequence) {
 
 func SerializeWorkReport(workReport jamTypes.WorkReport) (output jamTypes.ByteSequence) {
 	// packagespec
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.PackageSpec.Hash[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.PackageSpec.Hash[:]))...)
 	output = append(output, utilities.SerializeU64(jamTypes.U64(workReport.PackageSpec.Length))...)
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.PackageSpec.ErasureRoot[:]))...)
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.PackageSpec.ExportsRoot[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.PackageSpec.ErasureRoot[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.PackageSpec.ExportsRoot[:]))...)
 	output = append(output, utilities.SerializeU64(jamTypes.U64(workReport.PackageSpec.ExportsCount))...)
 
 	// refine context
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.Context.Anchor[:]))...)
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.Context.StateRoot[:]))...)
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.Context.BeefyRoot[:]))...)
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.Context.LookupAnchor[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.Context.Anchor[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.Context.StateRoot[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.Context.BeefyRoot[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.Context.LookupAnchor[:]))...)
 	output = append(output, utilities.SerializeU64(jamTypes.U64(workReport.Context.LookupAnchorSlot))...)
 	for _, v := range workReport.Context.Prerequisites {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v[:]))...)
 	}
 
 	// core index
 	output = append(output, utilities.SerializeU64(jamTypes.U64(workReport.CoreIndex))...)
 
 	// authorization hash
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.AuthorizerHash[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.AuthorizerHash[:]))...)
 
 	// authoutput
-	output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(workReport.AuthOutput[:]))...)
+	output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(workReport.AuthOutput[:]))...)
 
 	// segment root lookup
 	for _, v := range workReport.SegmentRootLookup {
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.WorkPackageHash[:]))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.SegmentTreeRoot[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.WorkPackageHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.SegmentTreeRoot[:]))...)
 	}
 
 	// results
 	for _, v := range workReport.Results {
 		output = append(output, utilities.SerializeU64(jamTypes.U64(v.ServiceId))...)
-		output = append(output, utilities.SerializeByteArray(jamTypes.ByteSequence(v.CodeHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(jamTypes.ByteSequence(v.CodeHash[:]))...)
 	}
 
 	return output
