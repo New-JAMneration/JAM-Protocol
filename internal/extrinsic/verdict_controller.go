@@ -7,19 +7,19 @@ import (
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type VerdictWrapper struct {
-	Verdict jamTypes.Verdict
+	Verdict types.Verdict
 }
 
 // VerdictController is a struct that contains a slice of Verdict
 type VerdictController struct {
 	Verdicts     []VerdictWrapper
-	goodReports  []jamTypes.WorkReportHash
-	badReports   []jamTypes.WorkReportHash
-	wonkyReports []jamTypes.WorkReportHash
+	goodReports  []types.WorkReportHash
+	badReports   []types.WorkReportHash
+	wonkyReports []types.WorkReportHash
 
 	/*
 		type Verdict struct {
@@ -47,8 +47,8 @@ func NewVerdictController() *VerdictController {
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
 	state := store.GetInstance().GetPriorState()
-	a := jamTypes.U32(state.Tau) / jamTypes.U32(jamTypes.EpochLength)
-	var k jamTypes.ValidatorsData
+	a := types.U32(state.Tau) / types.U32(types.EpochLength)
+	var k types.ValidatorsData
 	if v.Verdict.Age == a {
 		k = state.Kappa
 	} else {
@@ -94,7 +94,7 @@ func (v *VerdictController) Unique() {
 		return
 	}
 	// Eq. 10.7 unique
-	uniqueMap := make(map[jamTypes.OpaqueHash]bool)
+	uniqueMap := make(map[types.OpaqueHash]bool)
 	result := make([]VerdictWrapper, 0)
 
 	for _, v := range v.Verdicts {
@@ -107,8 +107,8 @@ func (v *VerdictController) Unique() {
 	// Eq. 10.10 unique
 	for _, v := range v.Verdicts {
 		for i := 0; i < len(v.Verdict.Votes); i++ {
-			uniqueJudgementMap := make(map[jamTypes.ValidatorIndex]bool)
-			votesResult := make([]jamTypes.Judgement, 0)
+			uniqueJudgementMap := make(map[types.ValidatorIndex]bool)
+			votesResult := make([]types.Judgement, 0)
 			for j := 0; j < len(v.Verdict.Votes); j++ {
 				if !uniqueJudgementMap[v.Verdict.Votes[j].Index] {
 					uniqueJudgementMap[v.Verdict.Votes[j].Index] = true
@@ -142,7 +142,7 @@ func (v *VerdictController) Swap(i, j int) {
 }
 
 // Sort sorts the judgements
-type VoteWrapper []jamTypes.Judgement
+type VoteWrapper []types.Judgement
 
 func (v *VoteWrapper) Less(i, j int) bool {
 	return (*v)[i].Index < (*v)[j].Index
@@ -165,16 +165,16 @@ func (v *VerdictController) SetDisjoint() {
 	psiBad := psi.Bad
 	psiWonky := psi.Wonky
 
-	uniqueMap := make(map[jamTypes.OpaqueHash]bool)
+	uniqueMap := make(map[types.OpaqueHash]bool)
 
 	for _, v := range psiGood {
-		uniqueMap[jamTypes.OpaqueHash(v)] = true
+		uniqueMap[types.OpaqueHash(v)] = true
 	}
 	for _, v := range psiBad {
-		uniqueMap[jamTypes.OpaqueHash(v)] = true
+		uniqueMap[types.OpaqueHash(v)] = true
 	}
 	for _, v := range psiWonky {
-		uniqueMap[jamTypes.OpaqueHash(v)] = true
+		uniqueMap[types.OpaqueHash(v)] = true
 	}
 
 	result := make([]VerdictWrapper, 0)
@@ -189,13 +189,13 @@ func (v *VerdictController) SetDisjoint() {
 }
 
 // JudgeVerdictStates judges the states of the verdicts | Eq. 10.11
-func (v *VerdictController) JudgeVerdictStates() ([]jamTypes.WorkReportHash, []jamTypes.WorkReportHash, []jamTypes.WorkReportHash) {
-	goodVotesNum := jamTypes.ValidatorsCount*2/3 + 1
-	wonkyVotesNum := jamTypes.ValidatorsCount / 3
+func (v *VerdictController) JudgeVerdictStates() ([]types.WorkReportHash, []types.WorkReportHash, []types.WorkReportHash) {
+	goodVotesNum := types.ValidatorsCount*2/3 + 1
+	wonkyVotesNum := types.ValidatorsCount / 3
 
-	goodReports := make([]jamTypes.WorkReportHash, 0)
-	badReports := make([]jamTypes.WorkReportHash, 0)
-	wonkyReports := make([]jamTypes.WorkReportHash, 0)
+	goodReports := make([]types.WorkReportHash, 0)
+	badReports := make([]types.WorkReportHash, 0)
+	wonkyReports := make([]types.WorkReportHash, 0)
 
 	for _, verdict := range v.Verdicts {
 		positiveVotes := 0
@@ -207,11 +207,11 @@ func (v *VerdictController) JudgeVerdictStates() ([]jamTypes.WorkReportHash, []j
 		}
 
 		if positiveVotes == goodVotesNum {
-			goodReports = append(goodReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
-		} else if positiveVotes >= wonkyVotesNum {
-			wonkyReports = append(wonkyReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
-		} else {
-			badReports = append(badReports, jamTypes.WorkReportHash(verdict.Verdict.Target))
+			goodReports = append(goodReports, types.WorkReportHash(verdict.Verdict.Target))
+		} else if positiveVotes == wonkyVotesNum {
+			wonkyReports = append(wonkyReports, types.WorkReportHash(verdict.Verdict.Target))
+		} else if positiveVotes == 0 {
+			badReports = append(badReports, types.WorkReportHash(verdict.Verdict.Target))
 		}
 	}
 	return goodReports, badReports, wonkyReports
