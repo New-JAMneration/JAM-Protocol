@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestNewPreimageController(t *testing.T) {
@@ -19,7 +19,7 @@ func TestAddNewPreimage(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Add a new Preimage
-	preimage1 := jamTypes.Preimage{
+	preimage1 := types.Preimage{
 		Requester: 16909060,
 		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
@@ -35,7 +35,7 @@ func TestSetPreimagesEmpty(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimages := []jamTypes.Preimage{}
+	preimages := []types.Preimage{}
 	preimageController.Set(preimages)
 
 	if len(preimageController.Preimages) != 0 {
@@ -47,7 +47,7 @@ func TestSetPreimages(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimages := []jamTypes.Preimage{
+	preimages := []types.Preimage{
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
 		{Requester: 16909062, Blob: []byte("0x38db056c7c3065fadb630ce6ccbc7385")},
@@ -63,14 +63,14 @@ func TestAddMultiplePreimages(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Add a new Preimage
-	preimage1 := jamTypes.Preimage{
+	preimage1 := types.Preimage{
 		Requester: 16909060,
 		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
 	preimageController.Add(preimage1)
 
 	// Add a new Preimage
-	preimage2 := jamTypes.Preimage{
+	preimage2 := types.Preimage{
 		Requester: 16909061,
 		Blob:      []byte("0xd257bc7d93a55be3561d720d40a6a342"),
 	}
@@ -85,14 +85,14 @@ func TestAddDuplicatePreimages(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Add a new Preimage
-	preimage1 := jamTypes.Preimage{
+	preimage1 := types.Preimage{
 		Requester: 16909060,
 		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
 	preimageController.Add(preimage1)
 
 	// Add a duplicate Preimage
-	duplicatePreimage := jamTypes.Preimage{
+	duplicatePreimage := types.Preimage{
 		Requester: 16909060,
 		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
@@ -107,21 +107,21 @@ func TestAddUnsortedPreimages(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Add a new Preimage
-	preimage1 := jamTypes.Preimage{
+	preimage1 := types.Preimage{
 		Requester: 16909060,
 		Blob:      []byte("0x81095e6122e3bc9d961e00014a7fc833"),
 	}
 	preimageController.Add(preimage1)
 
 	// Add a new Preimage
-	preimage2 := jamTypes.Preimage{
+	preimage2 := types.Preimage{
 		Requester: 16909062,
 		Blob:      []byte("0x38db056c7c3065fadb630ce6ccbc7385"),
 	}
 	preimageController.Add(preimage2)
 
 	// Add a new Preimage
-	preimage3 := jamTypes.Preimage{
+	preimage3 := types.Preimage{
 		Requester: 16909061,
 		Blob:      []byte("0xd257bc7d93a55be3561d720d40a6a342"),
 	}
@@ -131,7 +131,7 @@ func TestAddUnsortedPreimages(t *testing.T) {
 		t.Fatalf("Expected 3 preimages, got %d", len(preimageController.Preimages))
 	}
 
-	expectedRequesters := []jamTypes.ServiceId{16909060, 16909061, 16909062}
+	expectedRequesters := []types.ServiceId{16909060, 16909061, 16909062}
 	for i, preimage := range preimageController.Preimages {
 		if preimage.Requester != expectedRequesters[i] {
 			t.Errorf("Expected requester %d, got %d", expectedRequesters[i], preimage.Requester)
@@ -154,7 +154,7 @@ func TestSort(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimages := []jamTypes.Preimage{
+	preimages := []types.Preimage{
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909062, Blob: []byte("0x38db056c7c3065fadb630ce6ccbc7385")},
 		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
@@ -163,7 +163,7 @@ func TestSort(t *testing.T) {
 
 	preimageController.Sort()
 
-	expectedRequesters := []jamTypes.ServiceId{16909060, 16909061, 16909062}
+	expectedRequesters := []types.ServiceId{16909060, 16909061, 16909062}
 	for i, preimage := range preimageController.Preimages {
 		if preimage.Requester != expectedRequesters[i] {
 			t.Errorf("Expected requester %d, got %d", expectedRequesters[i], preimage.Requester)
@@ -196,7 +196,7 @@ func TestRemoveDuplicates(t *testing.T) {
 	preimageController := NewPreimageController()
 
 	// Initialize the Preimages slice without using the Add function
-	preimages := []jamTypes.Preimage{
+	preimages := []types.Preimage{
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909060, Blob: []byte("0x81095e6122e3bc9d961e00014a7fc833")},
 		{Requester: 16909061, Blob: []byte("0xd257bc7d93a55be3561d720d40a6a342")},
@@ -209,7 +209,7 @@ func TestRemoveDuplicates(t *testing.T) {
 		t.Fatalf("Expected 2 preimages, got %d", len(preimageController.Preimages))
 	}
 
-	expectedRequesters := []jamTypes.ServiceId{16909060, 16909061}
+	expectedRequesters := []types.ServiceId{16909060, 16909061}
 	for i, preimage := range preimageController.Preimages {
 		if preimage.Requester != expectedRequesters[i] {
 			t.Errorf("Expected requester %d, got %d", expectedRequesters[i], preimage.Requester)

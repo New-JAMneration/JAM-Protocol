@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetEpochIndex(t *testing.T) {
-	// Mock jamTypes.EpochLength
+	// Mock types.EpochLength
 	types.EpochLength = 10
 
 	// Test various time slot inputs
@@ -32,7 +32,7 @@ func TestGetEpochIndex(t *testing.T) {
 }
 
 func TestGetSlotIndex(t *testing.T) {
-	// Mock jamTypes.EpochLength
+	// Mock types.EpochLength
 	types.EpochLength = 10
 
 	// Test various time slot inputs
