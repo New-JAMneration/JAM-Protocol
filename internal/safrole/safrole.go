@@ -60,9 +60,9 @@ func UpdatePendingValidators(validators types.ValidatorsData, offendersMark type
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
 func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) types.BandersnatchRingCommitment {
-	// FIXME: Call rust function
-	// TODO: update return type
-	return types.BandersnatchRingCommitment{}
+	vrfHandler, _ := CreateVRFHandler(bandersnatchKeys)
+	commitment, _ := vrfHandler.GetCommitment()
+	return types.BandersnatchRingCommitment(commitment)
 }
 
 // UpdateBandersnatchKeyRoot returns the root commitment of the Bandersnatch

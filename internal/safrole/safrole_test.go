@@ -114,5 +114,25 @@ func TestValidatorIsOffender(t *testing.T) {
 	}
 }
 
-// TODO: Add tests for GetNewSafroleState, UpdateBandersnatchKeyRoot and
-// GetBandersnatchRingRootCommmitment
+func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
+	expectedCommitmentStr := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
+	expectedCommitment := types.BandersnatchRingCommitment(hex2Bytes(expectedCommitmentStr))
+
+	bandersnatchKeys := []types.BandersnatchPublic{
+		types.BandersnatchPublic(hex2Bytes("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
+		types.BandersnatchPublic(hex2Bytes("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
+		types.BandersnatchPublic(hex2Bytes("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
+		types.BandersnatchPublic(hex2Bytes("0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33")),
+		types.BandersnatchPublic(hex2Bytes("0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3")),
+		types.BandersnatchPublic(hex2Bytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
+	}
+
+	vrfHandler, _ := CreateVRFHandler(bandersnatchKeys)
+	commitment, _ := vrfHandler.GetCommitment()
+
+	if types.BandersnatchRingCommitment(commitment) != expectedCommitment {
+		t.Errorf("Expected commitment %v, got %v", expectedCommitment, commitment)
+	}
+}
+
+// TODO: Add tests for GetNewSafroleState, UpdateBandersnatchKeyRoot
