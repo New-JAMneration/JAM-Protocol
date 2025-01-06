@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Custom input struct for json^^
@@ -346,7 +346,6 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	// r function
-
 	// handmade BeefyCommitmentOutput
 	mockC := BeefyCommitmentOutput{
 		{commitment: my.Input.AccumulateRoot},
@@ -365,10 +364,8 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	// p function
-
 	// GuaranteesExtrinsic from vector_json
 	mockEg := types.GuaranteesExtrinsic{}
-
 	for _, workPackage := range my.Input.WorkPackages {
 		mockEg = append(mockEg, types.ReportGuarantee{
 			Report: types.WorkReport{
@@ -419,10 +416,10 @@ func TestAddToBetaPrime(t *testing.T) {
 func TestRecentHistory(t *testing.T) {
 	// Load test vectors from JSON
 	vectors := []string{
-		"./data/progress_blocks_history-1.json",
-		"./data/progress_blocks_history-2.json",
-		"./data/progress_blocks_history-3.json",
-		"./data/progress_blocks_history-4.json",
+		"./data/progress_blocks_history-1.json", // Empty history queue
+		"./data/progress_blocks_history-2.json", // Not empty nor full history queue
+		"./data/progress_blocks_history-3.json", // Fill the history queue
+		"./data/progress_blocks_history-4.json", // Shift the history queue
 	}
 
 	for i, vector := range vectors {
