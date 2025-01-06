@@ -33,8 +33,8 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			blocks:                     NewBlocks(),
 			priorStates:                NewPriorStates(),
-			posteriorStates:            NewPosteriorStates(),
 			intermediateStates:         NewIntermediateStates(),
+			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
