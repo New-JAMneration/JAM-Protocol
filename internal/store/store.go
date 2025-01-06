@@ -4,7 +4,7 @@ import (
 	"log"
 	"sync"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 var (
@@ -17,8 +17,12 @@ type Store struct {
 	mu sync.RWMutex
 
 	// INFO: Add more fields here
-	blocks *Blocks
-	states *States
+	blocks                     *Blocks
+	priorStates                *PriorStates
+	posteriorStates            *PosteriorStates
+	ancestorHeaders            *AncestorHeaders
+	intermediateHeader         *IntermediateHeader
+	posteriorCurrentValidators *PosteriorCurrentValidators
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -26,37 +30,87 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			blocks: NewBlocks(),
-			states: NewStates(),
+			blocks:                     NewBlocks(),
+			priorStates:                NewPriorStates(),
+			posteriorStates:            NewPosteriorStates(),
+			ancestorHeaders:            NewAncestorHeaders(),
+			intermediateHeader:         NewIntermediateHeader(),
+			posteriorCurrentValidators: NewPosteriorValidators(),
 		}
 		log.Println("🚀 Store initialized")
 	})
 	return globalStore
 }
 
-func (s *Store) AddBlock(block jamTypes.Block) {
+func (s *Store) AddBlock(block types.Block) {
 	s.blocks.AddBlock(block)
 }
 
-func (s *Store) GetBlocks() []jamTypes.Block {
+func (s *Store) GetBlocks() []types.Block {
 	return s.blocks.GetBlocks()
 }
 
-func (s *Store) GenerateGenesisBlock(block jamTypes.Block) {
+func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.blocks.GenerateGenesisBlock(block)
 	s.blocks.AddBlock(block)
 	log.Println("🚀 Genesis block generated")
 }
 
-func (s *Store) GetState() jamTypes.State {
-	return s.states.GetState()
+func (s *Store) GetPriorState() types.State {
+	return s.priorStates.GetState()
 }
 
-func (s *Store) GetStates() States {
-	return *s.states
+func (s *Store) GetPriorStates() *PriorStates {
+	return s.priorStates
 }
 
-func (s *Store) GenerateGenesisState(state jamTypes.State) {
-	s.states.GenerateGenesisState(state)
+func (s *Store) GetPosteriorState() types.State {
+	return s.posteriorStates.GetState()
+}
+
+func (s *Store) GetPosteriorStates() *PosteriorStates {
+	return s.posteriorStates
+}
+
+func (s *Store) GenerateGenesisState(state types.State) {
+	s.priorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
+}
+
+// AncestorHeaders
+
+func (s *Store) AddAncestorHeader(header types.Header) {
+	s.ancestorHeaders.AddHeader(header)
+}
+
+func (s *Store) GetAncestorHeaders() []types.Header {
+	return s.ancestorHeaders.GetHeaders()
+}
+
+// PosteriorCurrentValidators
+
+func (s *Store) AddPosteriorCurrentValidator(validator types.Validator) {
+	s.posteriorCurrentValidators.AddValidator(validator)
+}
+
+func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
+	return s.posteriorCurrentValidators.GetValidators()
+}
+
+func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
+	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+// IntermediateHeader
+
+func (s *Store) AddIntermediateHeader(header types.Header) {
+	s.intermediateHeader.AddHeader(header)
+}
+
+func (s *Store) GetIntermediateHeader() types.Header {
+	return s.intermediateHeader.GetHeader()
+}
+
+func (s *Store) ResetIntermediateHeader() {
+	s.intermediateHeader.ResetHeader()
 }
