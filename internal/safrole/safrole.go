@@ -32,14 +32,7 @@ func R(time types.TimeSlot) (epoch types.TimeSlot, slotIndex types.TimeSlot) {
 // ValidatorIsOffender checks if the validator is an offender
 // Equation (6.14)
 func ValidatorIsOffender(validator types.Validator, offendersMark types.OffendersMark) bool {
-	// FIXME: 目前因為 types.Ed25519Public 與 safrole_types.Ed25519Key 不同,
-	// 需要轉換
-	convertedEd25519 := types.Ed25519Public{}
-	for i, v := range validator.Ed25519 {
-		convertedEd25519[i] = byte(v)
-	}
-
-	return slices.Contains(offendersMark, convertedEd25519)
+	return slices.Contains(offendersMark, validator.Ed25519)
 }
 
 // UpdatePendingValidators updates the pending validators
