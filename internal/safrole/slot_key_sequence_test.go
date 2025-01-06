@@ -3,7 +3,7 @@ package safrole
 import (
 	"encoding/hex"
 	"fmt"
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"testing"
 )
 

@@ -1,13 +1,15 @@
 package extrinsic
 
 import (
+	"bytes"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"sort"
 )
 
 // FaultController is a struct that contains a slice of Fault
 type FaultController struct {
-	Faults []jamTypes.Fault `json:"faults,omitempty"`
+	Faults []types.Fault `json:"faults,omitempty"`
 	/*
 		type Fault struct {
 			Target    WorkReportHash   `json:"target,omitempty"`		r
@@ -21,13 +23,13 @@ type FaultController struct {
 // NewFaultController returns a new FaultController
 func NewFaultController() *FaultController {
 	return &FaultController{
-		Faults: make([]jamTypes.Fault, 0),
+		Faults: make([]types.Fault, 0),
 	}
 }
 
 func (f *FaultController) VerifyFaultValidity() bool {
-	states := store.GetInstance().GetStates()
-	psiBad := states.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
+	postStates := store.GetInstance().GetPosteriorStates()
+	psiBad := postStates.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
 
 	f.Faults = f.VerifyReportHashValidty(&psiBad)
 	f.Faults = f.ExcludeOffenders()
@@ -37,13 +39,13 @@ func (f *FaultController) VerifyFaultValidity() bool {
 	return true
 }
 
-func (f *FaultController) VerifyReportHashValidty(psiBad *[]jamTypes.WorkReportHash) []jamTypes.Fault {
-	checkMap := make(map[jamTypes.WorkReportHash]bool)
+func (f *FaultController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash) []types.Fault {
+	checkMap := make(map[types.WorkReportHash]bool)
 	for _, report := range *psiBad {
 		checkMap[report] = true
 	}
 
-	var out []jamTypes.Fault
+	var out []types.Fault
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
 		vote := f.Faults[i].Vote
@@ -58,17 +60,18 @@ func (f *FaultController) VerifyReportHashValidty(psiBad *[]jamTypes.WorkReportH
 
 // ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
-func (f *FaultController) ExcludeOffenders() []jamTypes.Fault {
+func (f *FaultController) ExcludeOffenders() []types.Fault {
 
-	exclude := store.GetInstance().GetState().Psi.Offenders
-	excludeMap := make(map[jamTypes.Ed25519Public]bool)
+	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+
+	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
 	}
 
 	length := len(f.Faults)
 
-	var out []jamTypes.Fault
+	var out []types.Fault
 	for i := 0; i < length; i++ { // culprit index
 
 		if !excludeMap[f.Faults[i].Key] {
@@ -76,4 +79,32 @@ func (f *FaultController) ExcludeOffenders() []jamTypes.Fault {
 		}
 	}
 	return out
+}
+
+// SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
+func (f *FaultController) SortUnique() {
+	f.Sort()
+	f.Unique()
+}
+
+func (f *FaultController) Unique() {
+	if len(f.Faults) == 0 {
+		return
+	}
+}
+
+func (f *FaultController) Sort() {
+	sort.Sort(f)
+}
+
+func (f *FaultController) Less(i, j int) bool {
+	return bytes.Compare(f.Faults[i].Key[:], f.Faults[j].Key[:]) < 0
+}
+
+func (f *FaultController) Swap(i, j int) {
+	f.Faults[i], f.Faults[j] = f.Faults[j], f.Faults[i]
+}
+
+func (f *FaultController) Len() int {
+	return len(f.Faults)
 }

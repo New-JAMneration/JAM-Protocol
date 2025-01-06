@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	jamTypes "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestWorkPackageSpecSerialization(t *testing.T) {
-	var work_package_spec jamTypes.WorkPackageSpec
+	var work_package_spec types.WorkPackageSpec
 	result := WorkPackageSpecSerialization(work_package_spec)
 	expectedOutput := make([]byte, 102)
 	if !bytes.Equal(result, expectedOutput) {
@@ -18,7 +18,7 @@ func TestWorkPackageSpecSerialization(t *testing.T) {
 
 func TestRefineContextSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultRefineContext := jamTypes.RefineContext{}
+	defaultRefineContext := types.RefineContext{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 133)
@@ -32,7 +32,7 @@ func TestRefineContextSerialization(t *testing.T) {
 
 func TestWorkResultSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultWorkResult := jamTypes.WorkResult{}
+	defaultWorkResult := types.WorkResult{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 76)
@@ -46,7 +46,7 @@ func TestWorkResultSerialization(t *testing.T) {
 
 func TestWorkReportSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultWorkReport := jamTypes.WorkReport{}
+	defaultWorkReport := types.WorkReport{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 271)
@@ -60,7 +60,7 @@ func TestWorkReportSerialization(t *testing.T) {
 
 func TestExtrinsicGuaranteeSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultGuaranteesExtrinsic := jamTypes.GuaranteesExtrinsic{}
+	defaultGuaranteesExtrinsic := types.GuaranteesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -74,7 +74,7 @@ func TestExtrinsicGuaranteeSerialization(t *testing.T) {
 
 func TestExtrinsicPreimageSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultExtrinsicPreimage := jamTypes.PreimagesExtrinsic{}
+	defaultExtrinsicPreimage := types.PreimagesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -88,7 +88,7 @@ func TestExtrinsicPreimageSerialization(t *testing.T) {
 
 func TestExtrinsicTicketSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultTicketsExtrinsic := jamTypes.TicketsExtrinsic{}
+	defaultTicketsExtrinsic := types.TicketsExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -102,7 +102,7 @@ func TestExtrinsicTicketSerialization(t *testing.T) {
 
 func TestExtrinsicDisputeSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultDisputesExtrinsic := jamTypes.DisputesExtrinsic{}
+	defaultDisputesExtrinsic := types.DisputesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 3)
@@ -116,7 +116,7 @@ func TestExtrinsicDisputeSerialization(t *testing.T) {
 
 func TestExtrinsicAssuranceSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultAssurancesExtrinsic := jamTypes.AssurancesExtrinsic{}
+	defaultAssurancesExtrinsic := types.AssurancesExtrinsic{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
 	expectedOutput := make([]byte, 1)
@@ -130,10 +130,10 @@ func TestExtrinsicAssuranceSerialization(t *testing.T) {
 
 func TestBlockSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultBlock := jamTypes.Block{}
+	defaultBlock := types.Block{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
-	expectedOutput := jamTypes.ByteSequence{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	expectedOutput := types.ByteSequence{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 	result := BlockSerialization(defaultBlock)
 
@@ -144,10 +144,10 @@ func TestBlockSerialization(t *testing.T) {
 
 func TestHeaderSerialization(t *testing.T) {
 	// Create a default RefineContext with sample values
-	defaultHeader := jamTypes.Header{}
+	defaultHeader := types.Header{}
 
 	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
-	expectedOutput := jamTypes.ByteSequence{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	expectedOutput := types.ByteSequence{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 255, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	result := HeaderSerialization(defaultHeader)
 
 	if !bytes.Equal(result, expectedOutput) {
