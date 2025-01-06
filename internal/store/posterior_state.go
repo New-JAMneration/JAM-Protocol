@@ -22,3 +22,9 @@ func (s *PosteriorStates) GetState() jamTypes.State {
 	defer s.mu.RUnlock()
 	return *s.state
 }
+
+func (s *PosteriorStates) SetRho(rho jamTypes.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Rho = rho
+}
