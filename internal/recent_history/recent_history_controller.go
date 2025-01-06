@@ -3,19 +3,37 @@ package recent_history
 import (
 	"sort"
 
+	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
-	u "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	merkle "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
 	mmr "github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
 )
 
-// TODO: move State struct to state.go
-type State struct {
-	Beta       []types.BlockInfo // prior state
-	BetaDagger []types.BlockInfo // intermediate state
-	BetaPrime  []types.BlockInfo // posterior state
+// RecentHistoryController is a controller for the recent history.
+// This controller is used to manage the recent history.
+type RecentHistoryController struct {
+	Betas types.BlocksHistory
 }
+
+// NewRecentHistoryController creates a new RecentHistoryController.
+func NewRecentHistoryController() *RecentHistoryController {
+	return &RecentHistoryController{
+		Betas: types.BlocksHistory{},
+	}
+}
+
+// // Set sets the Header to the given Header.
+// // You can load the test data and generate a header from this function.
+// func (rhc *RecentHistoryController) SetHeader(header types.Header) {
+// 	h.Header = header
+// }
+
+// // Get returns the Header.
+// func (rhc *RecentHistoryController) GetHeader() types.Header {
+// 	return h.Header
+// }
 
 // \mathbf{C} in GP from type B (12.15)
 type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
@@ -29,9 +47,10 @@ type AccumulationOutput struct {
 var maxBlocksHistory = types.MaxBlocksHistory
 
 // Remove duplicated blocks by BlockHash
-func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
-	for _, block := range s.Beta {
-		if block.HeaderHash == headerhash {
+func (rhc *RecentHistoryController) CheckDuplicate(headerhash types.HeaderHash) bool {
+	// Check if headerhash is already in Recent History Controller
+	for _, beta := range rhc.Betas {
+		if beta.HeaderHash == headerhash {
 			return true
 		}
 	}
@@ -39,20 +58,26 @@ func (s *State) RemoveDuplicate(headerhash types.HeaderHash) bool {
 }
 
 // Beta^dagger (7.2) and STF (4.6)
-func (s *State) AddToBetaDagger(h types.Header) {
-	if len(s.Beta) > 0 {
+func (rhc *RecentHistoryController) AddToBetaDagger(header types.Header) {
+	// Get recent beta^dagger from store
+	betaDagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+
+	if len(rhc.Betas) > 0 {
 		// Append first aviod empty slice
 		// Duplicate beta into beta^dagger
-		s.BetaDagger = append(s.BetaDagger, s.Beta...)
+		betaDagger = append(betaDagger, rhc.Betas...)
 		// Except for the stateroot need to be updated
-		s.BetaDagger[len(s.Beta)-1].StateRoot = h.ParentStateRoot
+		betaDagger[len(rhc.Betas)-1].StateRoot = header.ParentStateRoot
 	}
 
-	// Check BetaDagger is not longer than maxBlocksHistory
-	if len(s.BetaDagger) > maxBlocksHistory {
+	// Check beta^dagger is not longer than maxBlocksHistory
+	if len(betaDagger) > maxBlocksHistory {
 		// Remove old elements to retain maxBlocksHistory
-		s.BetaDagger = s.BetaDagger[len(s.BetaDagger)-maxBlocksHistory:]
+		betaDagger = betaDagger[len(betaDagger)-maxBlocksHistory:]
 	}
+
+	// Set beta^dagger to intermediate state in store
+	store.GetInstance().GetIntermediateStates().SetBeta(betaDagger)
 }
 
 // -----(7.3)-----
@@ -78,10 +103,10 @@ func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 	// Serialization
 	var dataSerialized types.ByteSequence
 	for _, pair := range pairs {
-		serviceidSerialized := u.SerializeFixedLength(types.U32(pair.serviceid), 4)
+		serviceidSerialized := utils.SerializeFixedLength(types.U32(pair.serviceid), 4)
 		dataSerialized = append(dataSerialized, serviceidSerialized...)
 
-		commitmentSerialized := u.OpaqueHashWrapper{Value: pair.commitment}.Serialize()
+		commitmentSerialized := utils.OpaqueHashWrapper{Value: pair.commitment}.Serialize()
 		dataSerialized = append(dataSerialized, commitmentSerialized...)
 	}
 
@@ -92,11 +117,11 @@ func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 }
 
 // Merkle Mountain Range $\mathbf{b}$
-func (s *State) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.MmrPeak) {
+func (rhc *RecentHistoryController) b(accumulationResultTreeRoot types.OpaqueHash) (NewMmr []types.MmrPeak) {
 	// Only genesis block goto else
-	if len(s.Beta) != 0 {
+	if len(rhc.Betas) != 0 {
 		// Else extract each slice of State.beta and then use the latest slice as input of m.AppendOne
-		wrappedMmr := mmr.MmrWrapper(&s.Beta[len(s.Beta)-1].Mmr, hash.KeccakHash)
+		wrappedMmr := mmr.MmrWrapper(&rhc.Betas[len(rhc.Betas)-1].Mmr, hash.KeccakHash)
 		// MMR append func $\mathcal{A}$
 		NewMmr := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
 		return NewMmr
@@ -125,10 +150,10 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 }
 
 // item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
-func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
-	headerHash := h.Parent
+func (rhc *RecentHistoryController) n(header types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
+	headerHash := header.Parent
 	accumulationResultTreeRoot := r(c)
-	accumulationResultMmr := s.b(accumulationResultTreeRoot)
+	accumulationResultMmr := rhc.b(accumulationResultTreeRoot)
 	workReportHash := p(eg)
 	zeroHash := types.StateRoot(types.OpaqueHash{})
 
@@ -143,13 +168,19 @@ func (s *State) n(h types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmen
 
 // -----(7.3)-----
 
-// Update BetaDagger to BetaPrime (7.4)
-func (s *State) AddToBetaPrime(items types.BlockInfo) {
-	// Ensure BetaPrime's length not exceed maxBlocksHistory
-	if len(s.BetaPrime) >= maxBlocksHistory {
+// Update beta^dagger to beta^prime (7.4)
+func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
+	// Get recent beta^dagger from store
+	betaDagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+
+	betaDagger = append(betaDagger, items)
+
+	// Ensure beta^prime's length not exceed maxBlocksHistory
+	if len(betaDagger) >= maxBlocksHistory {
 		// Remove old states, with length is maxBlocksHistory
-		s.BetaPrime = s.BetaPrime[len(s.BetaPrime)-maxBlocksHistory:]
+		betaDagger = betaDagger[len(betaDagger)-maxBlocksHistory:]
 	}
 
-	s.BetaPrime = append(s.BetaPrime, items)
+	// Set beta^dagger to beta^prime in store
+	store.GetInstance().GetPosteriorStates().SetBeta(betaDagger)
 }
