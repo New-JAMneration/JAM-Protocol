@@ -18,7 +18,7 @@ type Store struct {
 
 	// INFO: Add more fields here
 	blocks                     *Blocks
-	states                     *States
+	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
@@ -32,9 +32,9 @@ func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
 			blocks:                     NewBlocks(),
-			states:                     NewStates(),
-			intermediateStates:         NewIntermediateStates(),
+			priorStates:                NewPriorStates(),
 			posteriorStates:            NewPosteriorStates(),
+			intermediateStates:         NewIntermediateStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
@@ -58,16 +58,24 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	log.Println("🚀 Genesis block generated")
 }
 
-func (s *Store) GetState() types.State {
-	return s.states.GetState()
+func (s *Store) GetPriorState() types.State {
+	return s.priorStates.GetState()
 }
 
-func (s *Store) GetStates() States {
-	return *s.states
+func (s *Store) GetPriorStates() *PriorStates {
+	return s.priorStates
+}
+
+func (s *Store) GetPosteriorState() types.State {
+	return s.posteriorStates.GetState()
+}
+
+func (s *Store) GetPosteriorStates() *PosteriorStates {
+	return s.posteriorStates
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
-	s.states.GenerateGenesisState(state)
+	s.priorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
 }
 
