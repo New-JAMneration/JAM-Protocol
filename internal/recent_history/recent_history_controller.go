@@ -24,17 +24,6 @@ func NewRecentHistoryController() *RecentHistoryController {
 	}
 }
 
-// // Set sets the Header to the given Header.
-// // You can load the test data and generate a header from this function.
-// func (rhc *RecentHistoryController) SetHeader(header types.Header) {
-// 	h.Header = header
-// }
-
-// // Get returns the Header.
-// func (rhc *RecentHistoryController) GetHeader() types.Header {
-// 	return h.Header
-// }
-
 // \mathbf{C} in GP from type B (12.15)
 type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
 
