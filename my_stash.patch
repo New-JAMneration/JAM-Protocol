@@ -1,0 +1,70 @@
+diff --git a/internal/extrinsic/culprit_controller.go b/internal/extrinsic/culprit_controller.go
+index 9e5032e..39ba33c 100644
+--- a/internal/extrinsic/culprit_controller.go
++++ b/internal/extrinsic/culprit_controller.go
+@@ -26,7 +26,7 @@ func NewCulpritController() *CulpritController {
+ }
+ 
+ func (c *CulpritController) VerifyCulpritValidity() bool {
+-	states := store.GetInstance().GetStates()
++	states := store.GetInstance().GetPriorStates()
+ 	psiBad := states.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
+ 
+ 	c.Culprits = c.VerifyReportHashValidty(&psiBad)
+@@ -56,7 +56,7 @@ func (c *CulpritController) VerifyReportHashValidty(psiBad *[]types.WorkReportHa
+ // ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
+ // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
+ func (c *CulpritController) ExcludeOffenders() []types.Culprit {
+-	exclude := store.GetInstance().GetState().Psi.Offenders
++	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+ 	excludeMap := make(map[types.Ed25519Public]bool)
+ 	for _, offenderEd25519 := range exclude {
+ 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
+diff --git a/internal/extrinsic/fault_controller.go b/internal/extrinsic/fault_controller.go
+index 6e5d373..3abbc40 100644
+--- a/internal/extrinsic/fault_controller.go
++++ b/internal/extrinsic/fault_controller.go
+@@ -26,7 +26,7 @@ func NewFaultController() *FaultController {
+ }
+ 
+ func (f *FaultController) VerifyFaultValidity() bool {
+-	states := store.GetInstance().GetStates()
++	states := store.GetInstance().GetPriorStates()
+ 	psiBad := states.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
+ 
+ 	f.Faults = f.VerifyReportHashValidty(&psiBad)
+@@ -60,7 +60,7 @@ func (f *FaultController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash
+ // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
+ func (f *FaultController) ExcludeOffenders() []types.Fault {
+ 
+-	exclude := store.GetInstance().GetState().Psi.Offenders
++	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+ 	excludeMap := make(map[types.Ed25519Public]bool)
+ 	for _, offenderEd25519 := range exclude {
+ 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
+diff --git a/internal/extrinsic/verdict_controller.go b/internal/extrinsic/verdict_controller.go
+index 5f4f6b6..941a7bc 100644
+--- a/internal/extrinsic/verdict_controller.go
++++ b/internal/extrinsic/verdict_controller.go
+@@ -39,7 +39,7 @@ func NewVerdictController() *VerdictController {
+ // VerifySignature verifies the signatures of the judgement in the verdict   , Eq. 10.3
+ // currently return []int to check the test, it might change after connect other components in Ch.10
+ func (v *VerdictWrapper) VerifySignature() []int {
+-	state := store.GetInstance().GetState()
++	state := store.GetInstance().GetPriorState()
+ 	a := types.U32(state.Tau) / types.U32(types.EpochLength)
+ 	var k types.ValidatorsData
+ 	if v.Verdict.Age == a {
+diff --git a/internal/extrinsic/verdict_controller_test.go b/internal/extrinsic/verdict_controller_test.go
+index 7ca7830..d25a5ba 100644
+--- a/internal/extrinsic/verdict_controller_test.go
++++ b/internal/extrinsic/verdict_controller_test.go
+@@ -139,7 +139,7 @@ func TestVerifySignature(t *testing.T) {
+ 			Ed25519: types.Ed25519Public(hexToBytes("0x837ce344bc9defceb0d7de7e9e9925096768b7adb4dad932e532eb6551e0ea02"))},
+ 	}
+ 
+-	states := store.GetInstance().GetStates()
++	states := store.GetInstance().GetPriorStates()
+ 	states.SetKappa(kappa)
+ 	// test data 1 : https://github.com/davxy/jam-test-vectors/blob/polkajam-vectors/disputes/tiny/progress_with_verdicts-1.json
+ 	fmt.Println("Data 1 : valid signatures in verdicts")
