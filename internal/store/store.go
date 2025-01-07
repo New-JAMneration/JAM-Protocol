@@ -49,7 +49,11 @@ func (s *Store) AddBlock(block types.Block) {
 }
 
 func (s *Store) GetBlocks() []types.Block {
-	return s.blocks.GetBlocks()
+	return s.blocks.GetAllAncientBlocks()
+}
+
+func (s *Store) GetBlock() types.Block {
+	return s.blocks.GetBlock()
 }
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
