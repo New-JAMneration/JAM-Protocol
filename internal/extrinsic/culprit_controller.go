@@ -28,38 +28,32 @@ func NewCulpritController() *CulpritController {
 	}
 }
 
-// VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.8
-func (c *CulpritController) VerifyCulpritValidity() bool {
-	postStates := store.GetInstance().GetPosteriorStates()
-	psiBad := postStates.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
-
-	c.Culprits = c.VerifyReportHashValidty(&psiBad)
-	c.Culprits = c.ExcludeOffenders()
-
-	// the testvectors do not have the case of verifySignature at Eq. 10.5. Besides, do not how to handle the invalid signature
-
-	return true
+// VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.5
+func (c *CulpritController) VerifyCulpritValidity() {
+	// if the culprits are not valid, panic
+	c.VerifyReportHashValidty()
+	c.ExcludeOffenders()
 }
 
-func (c *CulpritController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash) []types.Culprit {
+// VerifyReportHashValidty verifies the validity of the reports
+func (c *CulpritController) VerifyReportHashValidty() {
+	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
 	checkMap := make(map[types.WorkReportHash]bool)
 
-	for _, report := range *psiBad {
+	for _, report := range psiBad {
 		checkMap[report] = true
 	}
 
-	var out []types.Culprit
 	for _, report := range c.Culprits {
-		if checkMap[report.Target] {
-			out = append(out, report)
+		if !checkMap[report.Target] {
+			panic("culprits_not_in_bad")
 		}
 	}
-	return out
 }
 
-// ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
+// ExcludeOffenders excludes the offenders from the validator set
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
-func (c *CulpritController) ExcludeOffenders() []types.Culprit {
+func (c *CulpritController) ExcludeOffenders() {
 
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
 
@@ -70,14 +64,11 @@ func (c *CulpritController) ExcludeOffenders() []types.Culprit {
 
 	length := len(c.Culprits)
 
-	var out []types.Culprit
 	for i := 0; i < length; i++ { // culprit index
-
 		if !excludeMap[c.Culprits[i].Key] {
-			out = append(out, c.Culprits[i])
+			panic("offenders_already_judged")
 		}
 	}
-	return out
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8

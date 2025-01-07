@@ -1,7 +1,6 @@
 package extrinsic
 
 import (
-	"fmt"
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -23,9 +22,8 @@ func NewDisputeController(VerdictController *VerdictController, FaultController 
 }
 
 // ValidateFaults validates the faults in the verdict | Eq. 10.13
-func (d *DisputeController) ValidateFaults() []types.WorkReportHash {
+func (d *DisputeController) ValidateFaults() {
 	faultMap := make(map[types.WorkReportHash]bool)
-	notInFault := make([]types.WorkReportHash, 0)
 	for _, report := range d.FaultController.Faults {
 		faultMap[report.Target] = true
 	}
@@ -34,19 +32,16 @@ func (d *DisputeController) ValidateFaults() []types.WorkReportHash {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == PositiveJudgmentLevel(good) {
 			if !faultMap[types.WorkReportHash(report.ReportHash)] {
-				notInFault = append(notInFault, types.WorkReportHash(report.ReportHash))
-				fmt.Println("good report not in fault map : ", report.ReportHash)
+				panic("not_enough_faults")
 			}
 		}
 	}
 
-	return notInFault
 }
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
-func (d *DisputeController) ValidateCulprits() []types.WorkReportHash {
+func (d *DisputeController) ValidateCulprits() {
 	culpritMap := make(map[types.WorkReportHash]bool)
-	notInCulprit := make([]types.WorkReportHash, 0)
 
 	for _, report := range d.CulpritController.Culprits {
 		culpritMap[report.Target] = true
@@ -56,10 +51,8 @@ func (d *DisputeController) ValidateCulprits() []types.WorkReportHash {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == PositiveJudgmentLevel(bad) {
 			if !culpritMap[types.WorkReportHash(report.ReportHash)] {
-				notInCulprit = append(notInCulprit, types.WorkReportHash(report.ReportHash))
-				fmt.Println("good report not in fault map : ", report.ReportHash)
+				panic("not_enough_culprits")
 			}
 		}
 	}
-	return notInCulprit
 }
