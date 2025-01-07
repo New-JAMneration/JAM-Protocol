@@ -33,7 +33,6 @@ func (s *States) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Kappa = kappa
-
 }
 
 func (s *States) SetLambda(lambda types.ValidatorsData) {
