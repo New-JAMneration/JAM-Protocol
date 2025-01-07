@@ -3,6 +3,7 @@ package safrole
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -130,6 +131,7 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 	}
 
 	vrfHandler, _ := CreateVRFHandler(bandersnatchKeys)
+	defer vrfHandler.Free()
 	commitment, _ := vrfHandler.GetCommitment()
 
 	if types.BandersnatchRingCommitment(commitment) != expectedCommitment {
@@ -138,11 +140,23 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 }
 
 func TestKeyRotate(t *testing.T) {
-	timeslot := types.TimeSlot(1)
-	timeslotPrime := types.TimeSlot(12)
 	s := store.GetInstance()
-	state := s.GetPriorState()
-	offendersMark := types.OffendersMark{}
+	priorState := s.GetPriorState()
+
+	now := time.Now().UTC()
+	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+
+	// Add a block to the store
+	s.AddBlock(types.Block{
+		Header: types.Header{
+			Slot:          tauPrime - types.TimeSlot(types.EpochLength),
+			OffendersMark: types.OffendersMark{},
+		},
+	})
+
+	// Simulate previous time slot to trigger key rotation
+	priorState.Tau = tauPrime - types.TimeSlot(types.EpochLength)
 
 	fakeValidators := LoadFakeValidators()
 
@@ -189,15 +203,15 @@ func TestKeyRotate(t *testing.T) {
 	gammaZ := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
 	priorGammaZ := types.BandersnatchRingCommitment(hex2Bytes(gammaZ))
 
-	state.Kappa = priorKappa
-	state.Lambda = priorLambda
-	state.Iota = priorIota
-	state.Gamma.GammaK = priorGammaK
-	state.Gamma.GammaZ = priorGammaZ
+	priorState.Kappa = priorKappa
+	priorState.Lambda = priorLambda
+	priorState.Iota = priorIota
+	priorState.Gamma.GammaK = priorGammaK
+	priorState.Gamma.GammaZ = priorGammaZ
 
-	s.GenerateGenesisState(state)
+	s.GenerateGenesisState(priorState)
 
-	KeyRotate(timeslot, timeslotPrime, state, offendersMark)
+	KeyRotate()
 
 	// Get posterior state
 	posteriorState := s.GetPosteriorState()

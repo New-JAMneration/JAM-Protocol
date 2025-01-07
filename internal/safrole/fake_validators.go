@@ -45,7 +45,7 @@ type FakeValidators []FakeValidator
 func hex2Bytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
-		fmt.Printf("failed to decode hex string: %v", err)
+		fmt.Printf("failed to decode hex string: %v\n", err)
 	}
 	return bytes
 }
@@ -54,21 +54,21 @@ func LoadRawFakeValidators() FakeValidatorDTOs {
 	// Open the JSON file
 	file, err := os.Open("../input/validator/fake_validators.json")
 	if err != nil {
-		fmt.Errorf("Error opening file: %v", err)
+		fmt.Printf("Error opening file: %v\n", err)
 	}
 	defer file.Close()
 
 	// Read the file content
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
-		fmt.Errorf("Error reading file: %v", err)
+		fmt.Printf("Error reading file: %v\n", err)
 	}
 
 	// Unmarshal the JSON data
 	var fakeValidatorDTOs FakeValidatorDTOs
 	err = json.Unmarshal(byteValue, &fakeValidatorDTOs)
 	if err != nil {
-		fmt.Errorf("Error unmarshalling JSON: %v", err)
+		fmt.Printf("Error unmarshalling JSON: %v\n", err)
 	}
 
 	return fakeValidatorDTOs
