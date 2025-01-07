@@ -8,17 +8,17 @@ import (
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 type VerdictWrapper struct {
 	Verdict types.Verdict
 }
 
-type PositiveJudgmentLevel int
-
 type VerdictSummary struct {
 	ReportHash           types.OpaqueHash `json:"target,omitempty"`
-	PositiveJudgmentsSum PositiveJudgmentLevel
+	PositiveJudgmentsSum int
 }
 
 // VerdictController is a struct that contains a slice of Verdict
@@ -205,8 +205,27 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 				positiveVotes++
 			}
 		}
-		verdictSummary.PositiveJudgmentsSum = PositiveJudgmentLevel(positiveVotes)
+		verdictSummary.PositiveJudgmentsSum = positiveVotes
 		v.VerdictSumSequence = append(v.VerdictSumSequence, verdictSummary)
 	}
 
+}
+
+// ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
+func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
+	priorStatesRho := store.GetInstance().GetPriorState().Rho
+	clearReports := make(map[types.OpaqueHash]bool)
+	for _, verdict := range verdictSumSequence {
+		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
+			clearReports[types.OpaqueHash(verdict.ReportHash)] = true
+		}
+	}
+	intermediateStatesRho := priorStatesRho
+	for _, item := range intermediateStatesRho {
+		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(item.Report))
+		if clearReports[hashReport] {
+			item = nil
+		}
+	}
+	store.GetInstance().GetIntermediateStates().SetRhoDagger(intermediateStatesRho)
 }
