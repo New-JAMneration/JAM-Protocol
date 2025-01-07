@@ -1,7 +1,9 @@
 package safrole
 
 import (
+	"fmt"
 	"slices"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -52,16 +54,25 @@ func UpdatePendingValidators(validators types.ValidatorsData, offendersMark type
 // Bandersnatch ring.
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
-func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) types.BandersnatchRingCommitment {
-	vrfHandler, _ := CreateVRFHandler(bandersnatchKeys)
-	commitment, _ := vrfHandler.GetCommitment()
-	return types.BandersnatchRingCommitment(commitment)
+func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
+	vrfHandler, handlerErr := CreateVRFHandler(bandersnatchKeys)
+	if handlerErr != nil {
+		return types.BandersnatchRingCommitment{}, handlerErr
+	}
+	defer vrfHandler.Free()
+
+	commitment, commitmentErr := vrfHandler.GetCommitment()
+	if commitmentErr != nil {
+		return types.BandersnatchRingCommitment{}, commitmentErr
+	}
+
+	return types.BandersnatchRingCommitment(commitment), nil
 }
 
 // UpdateBandersnatchKeyRoot returns the root commitment of the Bandersnatch
 // ring
-// Equation (6.15)
-func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) types.BandersnatchRingCommitment {
+// Equation (6.13)
+func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.BandersnatchRingCommitment, error) {
 	bandersnatchKeys := []types.BandersnatchPublic{}
 	for _, validator := range validators {
 		bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
@@ -81,7 +92,12 @@ func GetNewSafroleState(t types.TimeSlot, tPrime types.TimeSlot, safroleState ty
 		newSafroleState.Gamma.GammaK = UpdatePendingValidators(safroleState.Iota, offendersMark)
 		newSafroleState.Kappa = safroleState.Gamma.GammaK
 		newSafroleState.Lambda = safroleState.Kappa
-		newSafroleState.Gamma.GammaZ = UpdateBandersnatchKeyRoot(safroleState.Gamma.GammaK)
+		z, zErr := UpdateBandersnatchKeyRoot(safroleState.Gamma.GammaK)
+		if zErr != nil {
+			fmt.Printf("Error updating Bandersnatch key root: %v\n", zErr)
+			return
+		}
+		newSafroleState.Gamma.GammaZ = z
 		return newSafroleState
 	} else {
 		// Same epoch
@@ -92,12 +108,32 @@ func GetNewSafroleState(t types.TimeSlot, tPrime types.TimeSlot, safroleState ty
 // KeyRotate rotates the keys
 // Update the state with the new Safrole state
 // (6.13)
-func KeyRotate(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State, offendersMark types.OffendersMark) {
-	safroleState = GetNewSafroleState(t, tPrime, safroleState, offendersMark)
-
+func KeyRotate() {
 	s := store.GetInstance()
-	s.GetPosteriorStates().SetGammaK(safroleState.Gamma.GammaK)
-	s.GetPosteriorStates().SetKappa(safroleState.Kappa)
-	s.GetPosteriorStates().SetLambda(safroleState.Lambda)
-	s.GetPosteriorStates().SetGammaZ(safroleState.Gamma.GammaZ)
+
+	// Get the most recent block
+	block := s.GetLatestBlock()
+
+	// Get prior state
+	priorState := s.GetPriorState()
+
+	// Get previous time slot index
+	tau := priorState.Tau
+
+	// Get current time slot
+	now := time.Now().UTC()
+	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+
+	// Get offenders mark from header
+	offendersMark := block.Header.OffendersMark
+
+	// Execute key rotation
+	newSafroleState := GetNewSafroleState(tau, tauPrime, priorState, offendersMark)
+
+	// Update state to posterior state
+	s.GetPosteriorStates().SetGammaK(newSafroleState.Gamma.GammaK)
+	s.GetPosteriorStates().SetKappa(newSafroleState.Kappa)
+	s.GetPosteriorStates().SetLambda(newSafroleState.Lambda)
+	s.GetPosteriorStates().SetGammaZ(newSafroleState.Gamma.GammaZ)
 }

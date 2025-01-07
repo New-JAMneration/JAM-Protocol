@@ -29,6 +29,12 @@ func (b *Blocks) GetBlocks() []types.Block {
 	return b.blocks
 }
 
+func (b *Blocks) GetLatestBlock() types.Block {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.blocks[len(b.blocks)-1]
+}
+
 func (b *Blocks) GenerateGenesisBlock(block types.Block) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
