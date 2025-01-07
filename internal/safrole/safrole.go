@@ -23,7 +23,6 @@ func GetSlotIndex(t types.TimeSlot) types.TimeSlot {
 
 // R function return the epoch and slot index
 // Equation (6.2)
-// !Warning : epoch datatype is undefined in jamtypes and is uncertain
 func R(time types.TimeSlot) (epoch types.TimeSlot, slotIndex types.TimeSlot) {
 	epoch = time / types.TimeSlot(types.EpochLength)
 	slotIndex = time % types.TimeSlot(types.EpochLength)
