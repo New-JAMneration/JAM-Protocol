@@ -173,3 +173,30 @@ func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
 	// Set beta^dagger to beta^prime in store
 	store.GetInstance().GetPosteriorStates().SetBeta(betaDagger)
 }
+
+// STF β† ≺ (H, β) (4.6)
+func STFBeta2BetaDagger() {
+	var (
+		rhc    = NewRecentHistoryController()
+		betas  = store.GetInstance().GetPriorStates().GetState().Beta
+		blocks = store.GetInstance().GetBlocks()
+		header = blocks[len(blocks)-1].Header
+	)
+	rhc.Betas = betas
+	rhc.AddToBetaDagger(header)
+}
+
+// STF β′ ≺ (H, EG, β†, C) (4.7)
+func STFBetaDagger2BetaPrime() {
+	var (
+		rhc    = NewRecentHistoryController()
+		betas  = store.GetInstance().GetPriorStates().GetState().Beta
+		blocks = store.GetInstance().GetBlocks()
+		header = blocks[len(blocks)-1].Header
+		eg     = blocks[len(blocks)-1].Extrinsic.Guarantees
+		c      = BeefyCommitmentOutput{}
+	)
+	rhc.Betas = betas
+	items := rhc.n(header, eg, c)
+	rhc.AddToBetaPrime(items)
+}
