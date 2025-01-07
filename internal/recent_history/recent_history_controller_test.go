@@ -304,7 +304,7 @@ func TestAddToBetaDagger(t *testing.T) {
 	rhc.AddToBetaDagger(mockHeader)
 
 	// Get result of BetaDagger from store
-	betadagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+	betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if len(betadagger) > types.MaxBlocksHistory {
@@ -450,7 +450,7 @@ func TestSTFBeta2BetaDagger(t *testing.T) {
 	STFBetaDagger2BetaPrime()
 
 	// Get result of BetaDagger from store
-	betadagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+	betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if len(betadagger) > types.MaxBlocksHistory {
@@ -590,7 +590,7 @@ func TestRecentHistory(t *testing.T) {
 		rhc.AddToBetaDagger(mockHeader)
 
 		// Get result of BetaDagger from store
-		betadagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+		betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 		// length of BetaDagger should not exceed maxBlocksHistory
 		if len(betadagger) > types.MaxBlocksHistory {
@@ -725,7 +725,7 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		STFBeta2BetaDagger()
 
 		// Get result of BetaDagger from store
-		betadagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+		betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 		// length of BetaDagger should not exceed maxBlocksHistory
 		if len(betadagger) > types.MaxBlocksHistory {
