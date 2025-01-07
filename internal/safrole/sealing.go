@@ -3,7 +3,9 @@ package safrole
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -32,14 +34,21 @@ func SealingByTickets(state types.State, header types.Header, eta_p types.Entrop
 							  iy = Y(Hs)
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
 	*/
-	// TODO ir EU H Ha
-	var concat types.ByteSequence
-	concat = append(concat, types.ByteSequence(kJamTicketSeal[:])...) // XT
-	concat = append(concat, types.ByteSequence(eta_p[3][:])...)       // η′3
-	//
-	fmt.Print(concat)
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	i_r := state.Gamma.GammaS.Tickets[header.Slot].Id // header.Slot or  GetSlotIndex(state.Tau) or ????
+	message := utilities.HeaderUSerialization(header)
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(kJamTicketSeal[:])...) // XT
+	context = append(context, types.ByteSequence(eta_p[3][:])...)       // η′3
+	context = append(context, types.ByteSequence(i_r[:])...)            // ir
+	// TODO ir F Y assign
+	fmt.Print(context)
+	fmt.Print(public_key)
+	fmt.Print(message)
+	fmt.Print(i_r)
 	return state
 }
+
 func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.EntropyBuffer) types.State {
 	/*
 				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
@@ -48,45 +57,65 @@ func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.
 	/*
 		(6.16) γ′s ∈ ⟦HB⟧  Hs ∈ F EU(H) Ha ⟨XF ⌢ η′3⟩
 	*/
-	// TODO EU H Ha
-	var concat types.ByteSequence
-	concat = append(concat, types.ByteSequence(kJamFallbackSeal[:])...) // XF
-	concat = append(concat, types.ByteSequence(eta_p[3][:])...)         // η′3
-	// TODO
-	// header.Seal = Hs ∈ F EU(H) Ha ⟨XF ⌢ η′3⟩
-	// header.
-	fmt.Print(concat)
+	/*
+		public key: Ha  Bandersnatch key of the block author  header.AuthorIndex
+		message: EU (H)
+		context: XF ⌢ η′3
+	*/
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	message := utilities.HeaderUSerialization(header)
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(kJamFallbackSeal[:])...) // XF
+	context = append(context, types.ByteSequence(eta_p[3][:])...)         // η′3
+	// TODO F Y assign
+	fmt.Print(context)
+	fmt.Print(public_key)
+	fmt.Print(message)
 	return state
 }
-func Sealing(state types.State, header types.Header) {
-	// TODO using global
+
+func UpdateEntropyRieldingVRFSignature(state types.State, header types.Header) types.State {
 	/*
-		type State struct {
-			Tau           TimeSlot                   `json:"tau"`            // Most recent block's timeslot
-			Eta           EntropyBuffer              `json:"eta"`            // Entropy accumulator and epochal randomness
-			Lambda        ValidatorsData             `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
-			Kappa         ValidatorsData             `json:"kappa"`          // Validator keys and metadata currently active
-			GammaK        ValidatorsData             `json:"gamma_k"`        // Validator keys for the following epoch
-			Iota          ValidatorsData             `json:"iota"`           // Validator keys and metadata to be drawn from next
-			GammaA        TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
-			GammaS        TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
-			GammaZ        BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
-			PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
-		}
+				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
+		See section 3.8.
 	*/
 	/*
-		Entropy Update
-		(6.21) η ∈ ⟦H⟧4
-		(6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
-								(η0, η1, η2) if e′ > e
-		(6.23) (η′1, η′2, η′3)
-								(η1, η2, η3) otherwise
+		(6.17) Hv ∈ F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	*/
+	/*
+		public key: Ha  Bandersnatch key of the block author  header.AuthorIndex
+		message: []
+		context: XE ⌢ Y(Hs)
+	*/
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	var message types.ByteSequence
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
+	// TODO handler.vrfoutput(header.Seal)
+	// TODO F Y assign
+	fmt.Print(context)
+	fmt.Print(public_key)
+	fmt.Print(message)
+	return state
+}
+
+func Sealing() {
+	state := store.GetInstance().GetState()
+	inter := store.IntermediateHeader{}
+	header := inter.GetHeader()
 	e := GetEpochIndex(state.Tau)
 	e_prime := GetEpochIndex(header.Slot)
 	m := GetSlotIndex(state.Tau)
 	eta_prime := state.Eta
 	if e_prime > e { // e′ > e
+		/*
+			Entropy Update
+			(6.21) η ∈ ⟦H⟧4
+			(6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
+									(η0, η1, η2) if e′ > e
+			(6.23) (η′1, η′2, η′3)
+									(η1, η2, η3) otherwise
+		*/
 		for i := 2; i >= 0; i-- {
 			eta_prime[i+1] = eta_prime[i]
 		}
@@ -98,9 +127,7 @@ func Sealing(state types.State, header types.Header) {
 	} else if len(state.Gamma.GammaS.Keys) > 0 {
 		state = SealingByBandersnatchs(state, header, eta_prime)
 	}
-	/*
-		TODO (6.17) Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩
-	*/
+	UpdateEntropyRieldingVRFSignature(state, header)
 	/*
 		Slot Key Sequence Update
 						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
@@ -114,7 +141,7 @@ func Sealing(state types.State, header types.Header) {
 		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			state.Gamma.GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
-			state.Gamma.GammaS.Keys = FallbackKeySequence(types.Entropy(eta_prime[2]), state.Kappa)
+			state.Gamma.GammaS.Keys = FallbackKeySequence(eta_prime[2], state.Kappa)
 		}
 	}
 }
