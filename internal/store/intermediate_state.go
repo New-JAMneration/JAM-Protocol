@@ -7,24 +7,24 @@ import (
 )
 
 type IntermediateStates struct {
-	mu    sync.RWMutex
-	state *jamTypes.State
+	mu        sync.RWMutex
+	RhoDagger *jamTypes.AvailabilityAssignments
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
-		state: &jamTypes.State{},
+		RhoDagger: &jamTypes.AvailabilityAssignments{},
 	}
 }
 
-func (s *IntermediateStates) GetState() jamTypes.State {
+func (s *IntermediateStates) GetRhoDagger() jamTypes.AvailabilityAssignments {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return *s.state
+	return *s.RhoDagger
 }
 
-func (s *IntermediateStates) SetRho(rho jamTypes.AvailabilityAssignments) {
+func (s *IntermediateStates) SetRhoDagger(rhoDagger jamTypes.AvailabilityAssignments) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Rho = rho
+	s.RhoDagger = &rhoDagger
 }

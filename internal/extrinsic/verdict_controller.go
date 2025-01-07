@@ -231,5 +231,5 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			item = nil
 		}
 	}
-	store.GetInstance().GetIntermediateStates().SetRho(intermediateStatesRho)
+	store.GetInstance().GetIntermediateStates().SetRhoDagger(intermediateStatesRho)
 }
