@@ -3,6 +3,7 @@ package safrole
 import (
 	"slices"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -71,8 +72,8 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) types.Bandersnat
 }
 
 // GetNewSafroleState returns the new Safrole state
-// Equation (6.13)
 func GetNewSafroleState(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State, offendersMark types.OffendersMark) (newSafroleState types.State) {
+	// Equation (6.13)
 	e := GetEpochIndex(t)
 	ePrime := GetEpochIndex(tPrime)
 
@@ -87,4 +88,17 @@ func GetNewSafroleState(t types.TimeSlot, tPrime types.TimeSlot, safroleState ty
 		// Same epoch
 		return safroleState
 	}
+}
+
+// KeyRotate rotates the keys
+// Update the state with the new Safrole state
+// (6.13)
+func KeyRotate(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State, offendersMark types.OffendersMark) {
+	safroleState = GetNewSafroleState(t, tPrime, safroleState, offendersMark)
+
+	s := store.GetInstance()
+	s.GetPosteriorStates().SetGammaK(safroleState.Gamma.GammaK)
+	s.GetPosteriorStates().SetKappa(safroleState.Kappa)
+	s.GetPosteriorStates().SetLambda(safroleState.Lambda)
+	s.GetPosteriorStates().SetGammaZ(safroleState.Gamma.GammaZ)
 }

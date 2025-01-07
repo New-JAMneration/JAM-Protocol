@@ -1,8 +1,10 @@
 package safrole
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -132,6 +134,84 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 
 	if types.BandersnatchRingCommitment(commitment) != expectedCommitment {
 		t.Errorf("Expected commitment %v, got %v", expectedCommitment, commitment)
+	}
+}
+
+func TestKeyRotate(t *testing.T) {
+	timeslot := types.TimeSlot(1)
+	timeslotPrime := types.TimeSlot(12)
+	s := store.GetInstance()
+	state := s.GetPriorState()
+	offendersMark := types.OffendersMark{}
+
+	fakeValidators := LoadFakeValidators()
+
+	priorKappa := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		priorKappa = append(priorKappa, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	priorGammaK := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		priorGammaK = append(priorGammaK, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	priorIota := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		priorIota = append(priorIota, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	priorLambda := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		priorLambda = append(priorLambda, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	gammaZ := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
+	priorGammaZ := types.BandersnatchRingCommitment(hex2Bytes(gammaZ))
+
+	state.Kappa = priorKappa
+	state.Lambda = priorLambda
+	state.Iota = priorIota
+	state.Gamma.GammaK = priorGammaK
+	state.Gamma.GammaZ = priorGammaZ
+
+	s.GenerateGenesisState(state)
+
+	KeyRotate(timeslot, timeslotPrime, state, offendersMark)
+
+	// Get posterior state
+	posteriorState := s.GetPosteriorState()
+	if !reflect.DeepEqual(posteriorState.Gamma.GammaK, priorIota) {
+		t.Errorf("Expected GammaK to be %v, got %v", priorIota, posteriorState.Gamma.GammaK)
+	}
+	if !reflect.DeepEqual(posteriorState.Kappa, priorGammaK) {
+		t.Errorf("Expected Kappa to be %v, got %v", priorGammaK, posteriorState.Kappa)
+	}
+	if !reflect.DeepEqual(posteriorState.Lambda, priorKappa) {
+		t.Errorf("Expected Lambda to be %v, got %v", priorKappa, posteriorState.Lambda)
+	}
+	if posteriorState.Gamma.GammaZ != priorGammaZ {
+		t.Errorf("Expected GammaZ to be %v, got %v", priorGammaZ, posteriorState.Gamma.GammaZ)
 	}
 }
 
