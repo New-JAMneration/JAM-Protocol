@@ -1,8 +1,6 @@
 package safrole
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -13,18 +11,20 @@ var kJamEntropy = "jam_entropy"            // XE
 var kJamFallbackSeal = "jam_fallback_seal" // XF
 var kJamTicketSeal = "jam_ticket_seal"     // XT
 var kSlotSubmissionEnd = 500               // Y
+
 /*
 - [x] $\mathbf{H}_p$ : parent hash
 - [x] $\mathbf{H}_r$ : prior state root
-- [ ] $\mathbf{H}_x$ : extrinsic hash
+- [x] $\mathbf{H}_x$ : extrinsic hash
 - [x] $\mathbf{H}_t$ : a time slot index
 - [x] $\mathbf{H}_e$ : the epoch
 - [x] $\mathbf{H}_w$ : winning tickets
 - [x] $\mathbf{H}_o$ : offenders markders
 - [x] $\mathbf{H}_i$ : a Bandersnatch block author index
 - [x] $\mathbf{H}_v$ : the entropy-rielding VRF signature
-- [ ] $\mathbf{H}_s$ : a block seal
+- [x] $\mathbf{H}_s$ : a block seal
 */
+
 func SealingByTickets(state types.State, header types.Header, eta_p types.EntropyBuffer) (sign []byte, vrf []byte) {
 	/*
 				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
@@ -52,9 +52,9 @@ func SealingByTickets(state types.State, header types.Header, eta_p types.Entrop
 	return sign, vrf
 }
 
-func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.EntropyBuffer) types.State {
+func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.EntropyBuffer) (sign []byte) {
 	/*
-				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
+		F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
 		See section 3.8.
 	*/
 	/*
@@ -70,14 +70,15 @@ func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(kJamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_p[3][:])...)         // η′3
-	// TODO F Y assign
-	fmt.Print(context)
-	fmt.Print(public_key)
-	fmt.Print(message)
-	return state
+
+	bandersnatchKeys := []types.BandersnatchPublic{public_key}
+	handler, _ := CreateVRFHandler(bandersnatchKeys)
+	signature, _ := handler.IETFSign(context, message)
+
+	sign = signature
+	return sign
 }
 
-// Equation (6.21) - (6.23)
 func UpdateEntropy(Eta types.EntropyBuffer, validators types.ValidatorsData) types.EntropyBuffer {
 	/*
 		Entropy Update
@@ -105,9 +106,9 @@ func UpdateEntropy(Eta types.EntropyBuffer, validators types.ValidatorsData) typ
 	return Eta
 }
 
-func UpdateEntropyRieldingVRFSignature(state types.State, header types.Header) types.State {
+func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
 	/*
-				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
+		F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
 		See section 3.8.
 	*/
 	/*
@@ -122,12 +123,13 @@ func UpdateEntropyRieldingVRFSignature(state types.State, header types.Header) t
 	var message types.ByteSequence
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
-	// TODO handler.vrfoutput(header.Seal)
-	// TODO F Y assign
-	fmt.Print(context)
-	fmt.Print(public_key)
-	fmt.Print(message)
-	return state
+
+	bandersnatchKeys := []types.BandersnatchPublic{public_key}
+	handler, _ := CreateVRFHandler(bandersnatchKeys)
+	signature, _ := handler.IETFSign(context, message)
+
+	sign = signature
+	return sign
 }
 
 func Sealing() {
@@ -152,12 +154,14 @@ func Sealing() {
 	}
 
 	if len(state.Gamma.GammaS.Tickets) > 0 {
-		sign, vrf := SealingByTickets(state, header, eta_prime)
+		sign, _ := SealingByTickets(state, header, eta_prime)
 		inter.SetSeal(types.BandersnatchVrfSignature(sign))
 	} else if len(state.Gamma.GammaS.Keys) > 0 {
-		state = SealingByBandersnatchs(state, header, eta_prime)
+		sign := SealingByBandersnatchs(state, header, eta_prime)
+		inter.SetSeal(types.BandersnatchVrfSignature(sign))
 	}
-	UpdateEntropyRieldingVRFSignature(state, header)
+	sign := UpdateHeaderEntropy(state, header)
+	inter.SetEntropySource(types.BandersnatchVrfSignature(sign))
 	/*
 		Slot Key Sequence Update
 						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E

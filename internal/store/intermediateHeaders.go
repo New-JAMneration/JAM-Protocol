@@ -43,3 +43,9 @@ func (i *IntermediateHeader) SetSeal(seal types.BandersnatchVrfSignature) {
 	defer i.mu.Unlock()
 	i.Header.Seal = seal
 }
+
+func (i *IntermediateHeader) SetEntropySource(entropy types.BandersnatchVrfSignature) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.EntropySource = entropy
+}
