@@ -215,7 +215,7 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 
 }
 
-// CLearWorkReports clear uncertain or invalid work reports form core | Eq. 10.15
+// ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
 	priorStatesRho := store.GetInstance().GetPriorState().Rho
 	clearReports := make(map[types.OpaqueHash]bool)
@@ -224,12 +224,12 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			clearReports[types.OpaqueHash(verdict.ReportHash)] = true
 		}
 	}
-	posteriorStatesRho := priorStatesRho[:0]
+	intermediateStatesRho := make(types.AvailabilityAssignments, 0)
 	for _, item := range priorStatesRho {
 		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(item.Report))
 		if !clearReports[hashReport] {
-			posteriorStatesRho = append(posteriorStatesRho, item)
+			intermediateStatesRho = append(intermediateStatesRho, item)
 		}
 	}
-	store.GetInstance().GetPosteriorStates().SetRho(posteriorStatesRho)
+	store.GetInstance().GetIntermediateStates().SetRho(intermediateStatesRho)
 }

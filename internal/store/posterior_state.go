@@ -23,12 +23,6 @@ func (s *PosteriorStates) GetState() jamTypes.State {
 	return *s.state
 }
 
-func (s *PosteriorStates) SetRho(rho jamTypes.AvailabilityAssignments) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Rho = rho
-}
-
 func (s *PosteriorStates) SetPsiG(psiG []jamTypes.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
