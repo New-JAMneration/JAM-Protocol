@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -65,56 +66,17 @@ func (d *DisputeController) ValidateCulprits() []types.WorkReportHash {
 	return notInCulprit
 }
 
-// UpdatePsi updates the Dispute state | Eq. 10.16~19
-func (d *DisputeController) UpdatePsi(priorStatesPsi types.DisputesRecords, newVerdicts []VerdictSummary, newCulprits []types.Culprit, newFaults []types.Fault) types.DisputesRecords {
-	updateVerdict := CompareVerdictsWithPsi(priorStatesPsi, newVerdicts)
+// UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
+func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) {
+	priorPsi := store.GetInstance().GetPriorState().Psi
+	updateVerdicts := CompareVerdictsWithPsi(priorPsi, newVerdicts)
 
-	goodMap := make(map[types.WorkReportHash]bool)
-	badMap := make(map[types.WorkReportHash]bool)
-	wonkyMap := make(map[types.WorkReportHash]bool)
-	offendersMap := make(map[types.Ed25519Public]bool)
-
-	for _, good := range priorStatesPsi.Good {
-		goodMap[good] = true
-	}
-	for _, bad := range priorStatesPsi.Bad {
-		badMap[bad] = true
-	}
-	for _, wonky := range priorStatesPsi.Wonky {
-		wonkyMap[wonky] = true
-	}
-	for _, offenders := range priorStatesPsi.Offenders {
-		offendersMap[offenders] = true
-	}
-
-	updateListAndMap(&priorStatesPsi.Good, updateVerdict.Good, goodMap)
-	updateListAndMap(&priorStatesPsi.Bad, updateVerdict.Bad, badMap)
-	updateListAndMap(&priorStatesPsi.Wonky, updateVerdict.Wonky, wonkyMap)
-
-	offenders := make([]types.Ed25519Public, 0)
-	for _, culprit := range newCulprits {
-		offenders = append(offenders, culprit.Key)
-	}
-
-	for _, fault := range newFaults {
-		offenders = append(offenders, fault.Key)
-	}
-
-	for _, newCulpritAndFault := range offenders {
-		if !offendersMap[newCulpritAndFault] {
-			priorStatesPsi.Offenders = append(priorStatesPsi.Offenders, newCulpritAndFault)
-		}
-	}
-	return priorStatesPsi
-}
-
-func updateListAndMap(list *[]types.WorkReportHash, newItems []types.WorkReportHash, itemMap map[types.WorkReportHash]bool) {
-	for _, item := range newItems {
-		if !itemMap[item] {
-			*list = append(*list, item)
-			itemMap[item] = true
-		}
-	}
+	posteriorPsiG := UpdatePsiG(priorPsi, updateVerdicts)
+	posteriorPsiB := UpdatePsiB(priorPsi, updateVerdicts)
+	posteriorPsiW := UpdatePsiW(priorPsi, updateVerdicts)
+	store.GetInstance().GetPosteriorStates().SetPsiG(posteriorPsiG)
+	store.GetInstance().GetPosteriorStates().SetPsiB(posteriorPsiB)
+	store.GetInstance().GetPosteriorStates().SetPsiW(posteriorPsiW)
 }
 
 func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) types.DisputesRecords {
@@ -129,6 +91,67 @@ func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequen
 		}
 	}
 	return updates
+}
+
+func UpdatePsiG(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
+	goodMap := make(map[types.WorkReportHash]bool)
+	for _, good := range priorPsi.Good {
+		goodMap[good] = true
+	}
+	return updateListAndMap(priorPsi.Good, updateVerdicts.Good, goodMap)
+}
+
+func UpdatePsiB(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
+	badMap := make(map[types.WorkReportHash]bool)
+	for _, bad := range priorPsi.Bad {
+		badMap[bad] = true
+	}
+	return updateListAndMap(priorPsi.Bad, updateVerdicts.Bad, badMap)
+}
+
+func UpdatePsiW(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
+	wonkyMap := make(map[types.WorkReportHash]bool)
+	for _, wonky := range priorPsi.Wonky {
+		wonkyMap[wonky] = true
+	}
+	return updateListAndMap(priorPsi.Wonky, updateVerdicts.Wonky, wonkyMap)
+}
+
+func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHash, itemMap map[types.WorkReportHash]bool) []types.WorkReportHash {
+	for _, item := range newItems {
+		if !itemMap[item] {
+			list = append(list, item)
+			itemMap[item] = true
+		}
+	}
+	return list
+}
+
+// UpdatePsiO updates the PsiO | Eq. 10.19
+func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.Fault) {
+	priorPsi := store.GetInstance().GetPriorState().Psi
+	offenderMap := make(map[types.Ed25519Public]bool)
+	for _, offender := range priorPsi.Offenders {
+		offenderMap[offender] = true
+	}
+
+	offenders := make([]types.Ed25519Public, 0)
+	for _, culprit := range culprits {
+		offenders = append(offenders, culprit.Key)
+	}
+
+	for _, fault := range faults {
+		offenders = append(offenders, fault.Key)
+	}
+
+	posteriorPsiO := make([]types.Ed25519Public, 0)
+	for _, culpritAndFault := range offenders {
+		if !offenderMap[culpritAndFault] {
+			posteriorPsiO = append(posteriorPsiO, culpritAndFault)
+		}
+	}
+
+	store.GetInstance().GetPosteriorStates().SetPsiO(posteriorPsiO)
 }
 
 // HeaderOffenders returns the offenders markers | Eq. 10.20
