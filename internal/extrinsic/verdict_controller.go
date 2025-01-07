@@ -164,7 +164,7 @@ func (v *VoteWrapper) Swap(i, j int) {
 	(*v)[i], (*v)[j] = (*v)[j], (*v)[i]
 }
 
-// SetDisjoint is disjoint with psi_g, psi_b, psi_w | Eq. 10.7
+// SetDisjoint is disjoint with psi_g, psi_b, psi_w | Eq. 10.9
 func (v *VerdictController) SetDisjoint() {
 	// not in psi_g, psi_b, psi_w
 	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
@@ -185,15 +185,11 @@ func (v *VerdictController) SetDisjoint() {
 		uniqueMap[types.OpaqueHash(v)] = true
 	}
 
-	result := make([]VerdictWrapper, 0)
-
 	for _, v := range v.Verdicts {
 		if !uniqueMap[v.Verdict.Target] {
-			result = append(result, v)
+			panic("offender already judged")
 		}
 	}
-
-	(*v).Verdicts = result
 }
 
 // GenerateVerdictSumSequence generates verdict only with report hash and votes | Eq. 10.11
