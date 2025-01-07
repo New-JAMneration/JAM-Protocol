@@ -24,6 +24,7 @@ type Store struct {
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	beefyCommitmentOutput      *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -38,6 +39,7 @@ func GetInstance() *Store {
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
+			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -53,7 +55,7 @@ func (s *Store) GetBlocks() []types.Block {
 }
 
 func (s *Store) GetBlock() types.Block {
-	return s.blocks.GetBlock()
+	return s.blocks.GetLatestBlock()
 }
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
@@ -133,4 +135,16 @@ func (s *Store) GetIntermediateHeader() types.Header {
 
 func (s *Store) ResetIntermediateHeader() {
 	s.intermediateHeader.ResetHeader()
+}
+
+// BeefyCommitmentOutput (This is tmp used waiting for more def in GP)
+
+// Get
+func (s *Store) GetBeefyCommitmentOutput() types.BeefyCommitmentOutput {
+	return s.beefyCommitmentOutput.GetBeefyCommitmentOutput()
+}
+
+// Set
+func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
+	return s.beefyCommitmentOutput
 }

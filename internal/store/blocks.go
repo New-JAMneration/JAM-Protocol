@@ -33,7 +33,7 @@ func (b *Blocks) GetAllAncientBlocks() []types.Block {
 }
 
 // Get latest block
-func (b *Blocks) GetBlock() types.Block {
+func (b *Blocks) GetLatestBlock() types.Block {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.blocks[len(b.blocks)-1]

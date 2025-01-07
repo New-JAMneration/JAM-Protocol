@@ -24,14 +24,14 @@ func NewRecentHistoryController() *RecentHistoryController {
 	}
 }
 
-// \mathbf{C} in GP from type B (12.15)
-type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
+// // \mathbf{C} in GP from type B (12.15)
+// type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
 
-// Instant-used struct
-type AccumulationOutput struct {
-	serviceid  types.ServiceId
-	commitment types.OpaqueHash
-}
+// // Instant-used struct
+// type AccumulationOutput struct {
+// 	serviceid  types.ServiceId
+// 	commitment types.OpaqueHash
+// }
 
 var maxBlocksHistory = types.MaxBlocksHistory
 
@@ -46,7 +46,7 @@ func (rhc *RecentHistoryController) CheckDuplicate(headerhash types.HeaderHash) 
 	return false
 }
 
-// Beta^dagger (7.2) and STF (4.6)
+// Beta^dagger (7.2)
 func (rhc *RecentHistoryController) AddToBetaDagger(header types.Header) {
 	// Get recent beta^dagger from store
 	betaDagger := store.GetInstance().GetIntermediateStates().GetState().Beta
@@ -72,30 +72,30 @@ func (rhc *RecentHistoryController) AddToBetaDagger(header types.Header) {
 // -----(7.3)-----
 
 // Accumulation-result tree root $r$
-func r(c BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
+func r(c types.BeefyCommitmentOutput) (accumulationResultTreeRoot types.OpaqueHash) {
 	// Empty struct
-	pairs := make([]AccumulationOutput, len(c))
+	pairs := make([]types.AccumulationOutput, len(c))
 
 	// Extract slices from c
 	for i, output := range c {
-		pairs[i] = AccumulationOutput{
-			serviceid:  output.serviceid,
-			commitment: output.commitment,
+		pairs[i] = types.AccumulationOutput{
+			Serviceid:  output.Serviceid,
+			Commitment: output.Commitment,
 		}
 	}
 
 	// Sort by serviceid $s$
 	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].serviceid < pairs[j].serviceid
+		return pairs[i].Serviceid < pairs[j].Serviceid
 	})
 
 	// Serialization
 	var dataSerialized types.ByteSequence
 	for _, pair := range pairs {
-		serviceidSerialized := utils.SerializeFixedLength(types.U32(pair.serviceid), 4)
+		serviceidSerialized := utils.SerializeFixedLength(types.U32(pair.Serviceid), 4)
 		dataSerialized = append(dataSerialized, serviceidSerialized...)
 
-		commitmentSerialized := utils.OpaqueHashWrapper{Value: pair.commitment}.Serialize()
+		commitmentSerialized := utils.OpaqueHashWrapper{Value: pair.Commitment}.Serialize()
 		dataSerialized = append(dataSerialized, commitmentSerialized...)
 	}
 
@@ -139,7 +139,7 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 }
 
 // item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
-func (rhc *RecentHistoryController) n(header types.Header, eg types.GuaranteesExtrinsic, c BeefyCommitmentOutput) (items types.BlockInfo) {
+func (rhc *RecentHistoryController) n(header types.Header, eg types.GuaranteesExtrinsic, c types.BeefyCommitmentOutput) (items types.BlockInfo) {
 	headerHash := header.Parent
 	accumulationResultTreeRoot := r(c)
 	accumulationResultMmr := rhc.b(accumulationResultTreeRoot)
@@ -179,8 +179,8 @@ func STFBeta2BetaDagger() {
 	var (
 		rhc    = NewRecentHistoryController()
 		betas  = store.GetInstance().GetPriorStates().GetState().Beta
-		blocks = store.GetInstance().GetBlocks()
-		header = blocks[len(blocks)-1].Header
+		block  = store.GetInstance().GetBlock()
+		header = block.Header
 	)
 	rhc.Betas = betas
 	rhc.AddToBetaDagger(header)
@@ -191,10 +191,10 @@ func STFBetaDagger2BetaPrime() {
 	var (
 		rhc    = NewRecentHistoryController()
 		betas  = store.GetInstance().GetPriorStates().GetState().Beta
-		blocks = store.GetInstance().GetBlocks()
-		header = blocks[len(blocks)-1].Header
-		eg     = blocks[len(blocks)-1].Extrinsic.Guarantees
-		c      = BeefyCommitmentOutput{}
+		block  = store.GetInstance().GetBlock()
+		c      = store.GetInstance().GetBeefyCommitmentOutput()
+		header = block.Header
+		eg     = block.Extrinsic.Guarantees
 	)
 	rhc.Betas = betas
 	items := rhc.n(header, eg, c)
