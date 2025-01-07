@@ -12,19 +12,6 @@ var kJamFallbackSeal = "jam_fallback_seal" // XF
 var kJamTicketSeal = "jam_ticket_seal"     // XT
 var kSlotSubmissionEnd = 500               // Y
 
-/*
-- [x] $\mathbf{H}_p$ : parent hash
-- [x] $\mathbf{H}_r$ : prior state root
-- [x] $\mathbf{H}_x$ : extrinsic hash
-- [x] $\mathbf{H}_t$ : a time slot index
-- [x] $\mathbf{H}_e$ : the epoch
-- [x] $\mathbf{H}_w$ : winning tickets
-- [x] $\mathbf{H}_o$ : offenders markders
-- [x] $\mathbf{H}_i$ : a Bandersnatch block author index
-- [x] $\mathbf{H}_v$ : the entropy-rielding VRF signature
-- [x] $\mathbf{H}_s$ : a block seal
-*/
-
 func SealingByTickets(state types.State, header types.Header, eta_p types.EntropyBuffer) (sign []byte, vrf []byte) {
 	/*
 				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
