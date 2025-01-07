@@ -37,3 +37,9 @@ func (i *IntermediateHeader) ResetHeader() {
 	defer i.mu.Unlock()
 	i.Header = types.Header{}
 }
+
+func (i *IntermediateHeader) SetSeal(seal types.BandersnatchVrfSignature) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.Seal = seal
+}
