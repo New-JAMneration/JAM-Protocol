@@ -74,10 +74,6 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
 }
 
-func (s *Store) GetIntermediateState() types.State {
-	return s.intermediateStates.GetState()
-}
-
 func (s *Store) GetIntermediateStates() *IntermediateStates {
 	return s.intermediateStates
 }
