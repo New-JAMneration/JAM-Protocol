@@ -50,6 +50,10 @@ func (s *Store) GetBlocks() []types.Block {
 	return s.blocks.GetBlocks()
 }
 
+func (s *Store) GetLatestBlock() types.Block {
+	return s.blocks.GetLatestBlock()
+}
+
 func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.blocks.GenerateGenesisBlock(block)
 	s.blocks.AddBlock(block)
