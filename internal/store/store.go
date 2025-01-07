@@ -74,10 +74,10 @@ func (s *Store) GetPriorStates() *PriorStates {
 	return s.priorStates
 }
 
-// Get
-func (s *Store) GetIntermediateState() types.State {
-	return s.intermediateStates.GetState()
-}
+// // Get
+// func (s *Store) GetIntermediateState() types.State {
+// 	return s.intermediateStates.GetState()
+// }
 
 // Set
 func (s *Store) GetIntermediateStates() *IntermediateStates {

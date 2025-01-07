@@ -49,7 +49,7 @@ func (rhc *RecentHistoryController) CheckDuplicate(headerhash types.HeaderHash) 
 // Beta^dagger (7.2)
 func (rhc *RecentHistoryController) AddToBetaDagger(header types.Header) {
 	// Get recent beta^dagger from store
-	betaDagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 	if len(rhc.Betas) > 0 {
 		// Append first aviod empty slice
@@ -66,7 +66,7 @@ func (rhc *RecentHistoryController) AddToBetaDagger(header types.Header) {
 	}
 
 	// Set beta^dagger to intermediate state in store
-	store.GetInstance().GetIntermediateStates().SetBeta(betaDagger)
+	store.GetInstance().GetIntermediateStates().SetBetaDagger(betaDagger)
 }
 
 // -----(7.3)-----
@@ -160,7 +160,7 @@ func (rhc *RecentHistoryController) n(header types.Header, eg types.GuaranteesEx
 // Update beta^dagger to beta^prime (7.4)
 func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
 	// Get recent beta^dagger from store
-	betaDagger := store.GetInstance().GetIntermediateStates().GetState().Beta
+	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 
 	betaDagger = append(betaDagger, items)
 

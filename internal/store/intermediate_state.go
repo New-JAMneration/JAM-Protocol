@@ -8,29 +8,45 @@ import (
 
 type IntermediateStates struct {
 	mu    sync.RWMutex
-	state *types.State
+	state *IntermediateState
+}
+
+type IntermediateState struct {
+	BetaDagger types.BlocksHistory
+	RhoDagger  types.AvailabilityAssignments
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
-		state: &types.State{},
+		state: &IntermediateState{
+			BetaDagger: types.BlocksHistory{},
+			RhoDagger:  types.AvailabilityAssignments{},
+		},
 	}
 }
 
-func (s *IntermediateStates) GetState() types.State {
+// BetaDagger
+func (s *IntermediateStates) GetBetaDagger() types.BlocksHistory {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return *s.state
+	return s.state.BetaDagger
 }
 
-func (s *IntermediateStates) GenerateGenesisState(state types.State) {
+func (s *IntermediateStates) SetBetaDagger(betaDagger types.BlocksHistory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state = &state
+	s.state.BetaDagger = betaDagger
 }
 
-func (s *IntermediateStates) SetBeta(beta types.BlocksHistory) {
+// RhoDagger
+func (s *IntermediateStates) GetRhoDagger() types.AvailabilityAssignments {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.RhoDagger
+}
+
+func (s *IntermediateStates) SetRhoDagger(rhoDagger types.AvailabilityAssignments) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Beta = beta
+	s.state.RhoDagger = rhoDagger
 }
