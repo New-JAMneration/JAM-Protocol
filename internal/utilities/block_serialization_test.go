@@ -316,60 +316,9 @@ func extrinsicSerialization(extrinsic types.Extrinsic) (output types.ByteSequenc
 	output = append(output, ExtrinsicGuaranteeSerialization(extrinsic.Guarantees)...)
 	output = append(output, ExtrinsicAssuranceSerialization(extrinsic.Assurances)...)
 	output = append(output, ExtrinsicDisputeSerialization(extrinsic.Disputes)...)
+
 	return output
 }
-
-// extrinsic hash formula (5.4)
-// func pocExtrinsicHash(extrinsic types.Extrinsic) (output types.OpaqueHash) {
-// 	ticketSerializedHash := hash.Blake2bHash(ExtrinsicTicketSerialization(extrinsic.Tickets))
-// 	preimageSerializedHash := hash.Blake2bHash(ExtrinsicPreimageSerialization(extrinsic.Preimages))
-// 	assureanceSerializedHash := hash.Blake2bHash(ExtrinsicAssuranceSerialization(extrinsic.Assurances))
-// 	disputeSerializedHash := hash.Blake2bHash(ExtrinsicDisputeSerialization(extrinsic.Disputes))
-
-// 	// g (5.6)
-// 	g := types.ByteSequence{}
-// 	g = append(g, SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
-// 	for _, guarantee := range extrinsic.Guarantees {
-// 		// w, WorkReport
-// 		w := guarantee.Report
-// 		wHash := hash.Blake2bHash(WorkReportSerialization(w))
-
-// 		// t, Slot
-// 		t := guarantee.Slot
-// 		tSerialized := SerializeFixedLength(types.U32(t), 4)
-
-// 		// a, Signatures (credential)
-// 		signaturesLength, Signatures := LensElementPair(guarantee.Signatures)
-
-// 		elementSerialized := types.ByteSequence{}
-// 		elementSerialized = append(elementSerialized, SerializeByteArray(wHash[:])...)
-// 		elementSerialized = append(elementSerialized, SerializeByteArray(tSerialized)...)
-// 		elementSerialized = append(elementSerialized, SerializeU64(types.U64(signaturesLength))...)
-// 		for _, signature := range Signatures {
-// 			elementSerialized = append(elementSerialized, SerializeU64(types.U64(signature.ValidatorIndex))...)
-// 			elementSerialized = append(elementSerialized, SerializeByteArray(signature.Signature[:])...)
-// 		}
-
-// 		// If the input type of serialization is octet sequence, we can directly
-// 		// append it because it is already serialized.
-// 		g = append(g, elementSerialized...)
-// 	}
-
-// 	gHash := hash.Blake2bHash(g)
-
-// 	// Serialize the hash of the extrinsic elements
-// 	serializedElements := types.ByteSequence{}
-// 	serializedElements = append(serializedElements, WrapOpaqueHash(ticketSerializedHash).Serialize()...)
-// 	serializedElements = append(serializedElements, WrapOpaqueHash(preimageSerializedHash).Serialize()...)
-// 	serializedElements = append(serializedElements, WrapOpaqueHash(gHash).Serialize()...)
-// 	serializedElements = append(serializedElements, WrapOpaqueHash(assureanceSerializedHash).Serialize()...)
-// 	serializedElements = append(serializedElements, WrapOpaqueHash(disputeSerializedHash).Serialize()...)
-
-// 	// Hash the serialized elements
-// 	output = hash.Blake2bHash(serializedElements)
-
-// 	return output
-// }
 
 func TestBlockSerialization(t *testing.T) {
 	testCases := []struct {
@@ -412,17 +361,13 @@ func TestBlockSerialization(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			headerResult := HeaderSerialization(tc.header)
 			headerHash := hash.Blake2bHash(headerResult)
+			// TODO : might need to use GP v0.5.0 formula (5.4) to (5.6) to calculate extrinsic hash, implemented in header_controller
 			extrinsicResult := extrinsicSerialization(tc.extrinsic)
 			extrinsicHash := hash.Blake2bHash(extrinsicResult)
-			// pocExtrinsicHash := pocExtrinsicHash(tc.extrinsic)
 
 			if headerHash != types.OpaqueHash(tc.expectedHeader) {
 				t.Errorf("\nExpected Header Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedHeader[:]), hex.EncodeToString(headerHash[:]))
 			}
-
-			// if pocExtrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
-			// 	t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(pocExtrinsicHash[:]))
-			// }
 
 			if extrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
 				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(extrinsicHash[:]))
@@ -437,6 +382,11 @@ func TestExtrinsicSerialization(t *testing.T) {
 		extrinsic         types.Extrinsic
 		expectedExtrinsic types.OpaqueHash
 	}{
+		{
+			name:              "Tickets",
+			extrinsic:         readBlockDataFromJson("data/425531_000.json").Extrinsic,
+			expectedExtrinsic: readBlockDataFromJson("data/425531_000.json").Header.ExtrinsicHash,
+		},
 		{
 			name:              "Assurances",
 			extrinsic:         readBlockDataFromJson("data/425536_009.json").Extrinsic,
@@ -455,6 +405,7 @@ func TestExtrinsicSerialization(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// TODO : might need to use GP v0.5.0 formula (5.4) to (5.6) to calculate extrinsic hash, implemented in header_controller
 			extrinsicResult := extrinsicSerialization(tc.extrinsic)
 			extrinsicHash := hash.Blake2bHash(extrinsicResult)
 
@@ -464,37 +415,3 @@ func TestExtrinsicSerialization(t *testing.T) {
 		})
 	}
 }
-
-// func TestPocExtrinsicSerialization(t *testing.T) {
-// 	testCases := []struct {
-// 		name              string
-// 		extrinsic         types.Extrinsic
-// 		expectedExtrinsic types.OpaqueHash
-// 	}{}
-
-// 	for i := 0; i <= 11; i++ {
-// 		name := fmt.Sprintf("425530_%03d", i) // 格式化為 425530_000, 425530_001, ...
-// 		extrinsic := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Extrinsic
-// 		expectedExtrinsicHash := readBlockDataFromJson(fmt.Sprintf("data/425530_%03d.json", i)).Header.ExtrinsicHash
-
-// 		testCases = append(testCases, struct {
-// 			name              string
-// 			extrinsic         types.Extrinsic
-// 			expectedExtrinsic types.OpaqueHash
-// 		}{
-// 			name:              name,
-// 			extrinsic:         extrinsic,
-// 			expectedExtrinsic: expectedExtrinsicHash,
-// 		})
-// 	}
-
-// 	for _, tc := range testCases {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			pocExtrinsicHash := pocExtrinsicHash(tc.extrinsic)
-
-// 			if pocExtrinsicHash != types.OpaqueHash(tc.expectedExtrinsic) {
-// 				t.Errorf("\nExpected Extrinsic Hash: %v, \nGot: %v", hex.EncodeToString(tc.expectedExtrinsic[:]), hex.EncodeToString(pocExtrinsicHash[:]))
-// 			}
-// 		})
-// 	}
-// }
