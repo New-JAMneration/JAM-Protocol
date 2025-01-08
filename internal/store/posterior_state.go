@@ -23,6 +23,18 @@ func (s *PosteriorStates) GetState() types.State {
 	return *s.state
 }
 
+func (s *PosteriorStates) GenerateGenesisState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
+}
+
+func (s *PosteriorStates) SetBeta(beta types.BlocksHistory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta = beta
+}
+
 func (s *PosteriorStates) SetPsiG(psiG []types.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
