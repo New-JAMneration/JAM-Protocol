@@ -3,7 +3,7 @@ package store
 import (
 	"sync"
 
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type PosteriorStates struct {
@@ -57,4 +57,28 @@ func (s *PosteriorStates) SetPsiO(psiO []types.Ed25519Public) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = psiO
+}
+
+func (s *PosteriorStates) SetKappa(kappa types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Kappa = kappa
+}
+
+func (s *PosteriorStates) SetLambda(lambda types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Lambda = lambda
+}
+
+func (s *PosteriorStates) SetGammaK(gammaK types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaK = gammaK
+}
+
+func (s *PosteriorStates) SetGammaZ(gammaZ types.BandersnatchRingCommitment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaZ = gammaZ
 }
