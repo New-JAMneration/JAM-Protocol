@@ -55,7 +55,8 @@ func UpdatePendingValidators(validators types.ValidatorsData, offendersMark type
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
 func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
-	vrfHandler, handlerErr := CreateVRFHandler(bandersnatchKeys)
+	var proverIdx uint = 0
+	vrfHandler, handlerErr := CreateRingVRFHandler(bandersnatchKeys, proverIdx)
 	if handlerErr != nil {
 		return types.BandersnatchRingCommitment{}, handlerErr
 	}

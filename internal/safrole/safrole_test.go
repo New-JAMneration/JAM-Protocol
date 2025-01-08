@@ -130,7 +130,8 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 		types.BandersnatchPublic(hex2Bytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
 	}
 
-	vrfHandler, _ := CreateVRFHandler(bandersnatchKeys)
+	var proverIdx uint = 0
+	vrfHandler, _ := CreateRingVRFHandler(bandersnatchKeys, proverIdx)
 	defer vrfHandler.Free()
 	commitment, _ := vrfHandler.GetCommitment()
 
