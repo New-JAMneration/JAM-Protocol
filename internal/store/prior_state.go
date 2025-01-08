@@ -29,11 +29,16 @@ func (s *PriorStates) GenerateGenesisState(state types.State) {
 	s.state = &state
 }
 
+func (s *PriorStates) SetBeta(beta types.BlocksHistory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta = beta
+}
+
 func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Kappa = kappa
-
 }
 
 func (s *PriorStates) SetLambda(lambda types.ValidatorsData) {
