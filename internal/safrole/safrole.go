@@ -81,9 +81,9 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 	return GetBandersnatchRingRootCommmitment(bandersnatchKeys)
 }
 
-// GetNewSafroleState returns the new Safrole state
-func GetNewSafroleState(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State, offendersMark types.OffendersMark) (newSafroleState types.State) {
-	// Equation (6.13)
+// keyRotation rotates the keys, it updates the state with the new Safrole state
+// Equation (6.13)
+func keyRotation(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State, offendersMark types.OffendersMark) (newSafroleState types.State) {
 	e := GetEpochIndex(t)
 	ePrime := GetEpochIndex(tPrime)
 
@@ -129,7 +129,7 @@ func KeyRotate() {
 	offendersMark := block.Header.OffendersMark
 
 	// Execute key rotation
-	newSafroleState := GetNewSafroleState(tau, tauPrime, priorState, offendersMark)
+	newSafroleState := keyRotation(tau, tauPrime, priorState, offendersMark)
 
 	// Update state to posterior state
 	s.GetPosteriorStates().SetGammaK(newSafroleState.Gamma.GammaK)
