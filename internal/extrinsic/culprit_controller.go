@@ -2,10 +2,10 @@ package extrinsic
 
 import (
 	"bytes"
-	"sort"
-
+	"fmt"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"sort"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -36,7 +36,7 @@ func (c *CulpritController) VerifyCulpritValidity() {
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
-func (c *CulpritController) VerifyReportHashValidty() {
+func (c *CulpritController) VerifyReportHashValidty() error {
 	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
 	checkMap := make(map[types.WorkReportHash]bool)
 
@@ -46,14 +46,15 @@ func (c *CulpritController) VerifyReportHashValidty() {
 
 	for _, report := range c.Culprits {
 		if !checkMap[report.Target] {
-			panic("culprits_not_in_bad")
+			return fmt.Errorf("culprits_not_in_bad")
 		}
 	}
+	return nil
 }
 
 // ExcludeOffenders excludes the offenders from the validator set
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
-func (c *CulpritController) ExcludeOffenders() {
+func (c *CulpritController) ExcludeOffenders() error {
 
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
 
@@ -66,9 +67,10 @@ func (c *CulpritController) ExcludeOffenders() {
 
 	for i := 0; i < length; i++ { // culprit index
 		if !excludeMap[c.Culprits[i].Key] {
-			panic("offenders_already_judged")
+			return fmt.Errorf("offenders_already_judged")
 		}
 	}
+	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8

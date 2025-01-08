@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"bytes"
+	"fmt"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"sort"
@@ -36,7 +37,7 @@ func (f *FaultController) VerifyFaultValidity() bool {
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
-func (f *FaultController) VerifyReportHashValidty() {
+func (f *FaultController) VerifyReportHashValidty() error {
 	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
 	psiGood := store.GetInstance().GetPosteriorStates().GetState().Psi.Good
 
@@ -53,15 +54,16 @@ func (f *FaultController) VerifyReportHashValidty() {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
 		vote := f.Faults[i].Vote
-		// if vote : true  || the report is not in the bad list || the report is in the good list => panic
+		// if vote : true  || the report is not in the bad list || the report is in the good list => panic if data is invalid
 		if vote || !badMap[f.Faults[i].Target] || goodMap[f.Faults[i].Target] {
-			panic("fault_verdict_wrong")
+			return fmt.Errorf("fault_verdict_wrong")
 		}
 	}
+	return nil
 }
 
 // ExcludeOffenders excludes the offenders from the validator set
-func (f *FaultController) ExcludeOffenders() {
+func (f *FaultController) ExcludeOffenders() error {
 
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
 	excludeMap := make(map[types.Ed25519Public]bool)
@@ -72,9 +74,10 @@ func (f *FaultController) ExcludeOffenders() {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ { // culprit index
 		if !excludeMap[f.Faults[i].Key] {
-			panic("offenders_already_judged")
+			return fmt.Errorf("offenders_already_judged")
 		}
 	}
+	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
@@ -83,12 +86,14 @@ func (f *FaultController) SortUnique() {
 	f.Unique()
 }
 
+// Unique removes duplicates
 func (f *FaultController) Unique() {
 	if len(f.Faults) == 0 {
 		return
 	}
 }
 
+// Sort sorts the faults
 func (f *FaultController) Sort() {
 	sort.Sort(f)
 }

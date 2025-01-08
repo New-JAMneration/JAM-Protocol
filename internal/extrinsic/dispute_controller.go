@@ -1,6 +1,7 @@
 package extrinsic
 
 import (
+	"fmt"
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -23,7 +24,7 @@ func NewDisputeController(VerdictController *VerdictController, FaultController 
 }
 
 // ValidateFaults validates the faults in the verdict | Eq. 10.13
-func (d *DisputeController) ValidateFaults() {
+func (d *DisputeController) ValidateFaults() error {
 	faultMap := make(map[types.WorkReportHash]bool)
 	for _, report := range d.FaultController.Faults {
 		faultMap[report.Target] = true
@@ -33,15 +34,15 @@ func (d *DisputeController) ValidateFaults() {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == good {
 			if !faultMap[types.WorkReportHash(report.ReportHash)] {
-				panic("not_enough_faults")
+				return fmt.Errorf("not_enough_faults")
 			}
 		}
 	}
-
+	return nil
 }
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
-func (d *DisputeController) ValidateCulprits() {
+func (d *DisputeController) ValidateCulprits() error {
 	culpritMap := make(map[types.WorkReportHash]bool)
 
 	for _, report := range d.CulpritController.Culprits {
@@ -52,10 +53,11 @@ func (d *DisputeController) ValidateCulprits() {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == bad {
 			if !culpritMap[types.WorkReportHash(report.ReportHash)] {
-				panic("not_enough_culprits")
+				return fmt.Errorf("not_enough_culprits")
 			}
 		}
 	}
+	return nil
 }
 
 // UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
