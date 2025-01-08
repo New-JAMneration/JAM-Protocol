@@ -20,6 +20,7 @@ type Store struct {
 	blocks                     *Blocks
 	priorStates                *PriorStates
 	posteriorStates            *PosteriorStates
+	intermediateStates         *IntermediateStates
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
@@ -33,6 +34,7 @@ func GetInstance() *Store {
 			blocks:                     NewBlocks(),
 			priorStates:                NewPriorStates(),
 			posteriorStates:            NewPosteriorStates(),
+			intermediateStates:         NewIntermediateStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
@@ -74,6 +76,10 @@ func (s *Store) GetPosteriorState() types.State {
 
 func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
+}
+
+func (s *Store) GetIntermediateStates() *IntermediateStates {
+	return s.intermediateStates
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
