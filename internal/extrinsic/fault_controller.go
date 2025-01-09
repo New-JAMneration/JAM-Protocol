@@ -29,11 +29,15 @@ func NewFaultController() *FaultController {
 }
 
 // VerifyFaultValidity verifies the validity of the faults | Eq. 10.6
-func (f *FaultController) VerifyFaultValidity() bool {
-	// if the faults are not valid, panic
-	f.VerifyReportHashValidty()
-	f.ExcludeOffenders()
-	return true
+func (f *FaultController) VerifyFaultValidity() {
+	// if the faults are not valid, return error
+	if err := f.VerifyReportHashValidty(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
+	}
+
+	if err := f.ExcludeOffenders(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
+	}
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
@@ -54,9 +58,9 @@ func (f *FaultController) VerifyReportHashValidty() error {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
 		vote := f.Faults[i].Vote
-		// if vote : true  || the report is not in the bad list || the report is in the good list => panic if data is invalid
+		// if vote : true  || the report is not in the bad list || the report is in the good list => return error if data is invalid
 		if vote || !badMap[f.Faults[i].Target] || goodMap[f.Faults[i].Target] {
-			return fmt.Errorf("fault_verdict_wrong")
+			return fmt.Errorf("FaultController.VerifyReportHashValidty failed : fault_verdict_wrong")
 		}
 	}
 	return nil
@@ -74,7 +78,7 @@ func (f *FaultController) ExcludeOffenders() error {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ { // culprit index
 		if !excludeMap[f.Faults[i].Key] {
-			return fmt.Errorf("offenders_already_judged")
+			return fmt.Errorf("FaultController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}
 	return nil

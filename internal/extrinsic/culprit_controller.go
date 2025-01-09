@@ -30,9 +30,13 @@ func NewCulpritController() *CulpritController {
 
 // VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.5
 func (c *CulpritController) VerifyCulpritValidity() {
-	// if the culprits are not valid, panic
-	c.VerifyReportHashValidty()
-	c.ExcludeOffenders()
+	// if the culprits are not valid return error
+	if err := c.VerifyReportHashValidty(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
+	}
+	if err := c.ExcludeOffenders(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
+	}
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
@@ -46,7 +50,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 
 	for _, report := range c.Culprits {
 		if !checkMap[report.Target] {
-			return fmt.Errorf("culprits_not_in_bad")
+			return fmt.Errorf("CulpritController.VerifyReportHashValidty failed : culprits_not_in_bad")
 		}
 	}
 	return nil
@@ -67,7 +71,7 @@ func (c *CulpritController) ExcludeOffenders() error {
 
 	for i := 0; i < length; i++ { // culprit index
 		if !excludeMap[c.Culprits[i].Key] {
-			return fmt.Errorf("offenders_already_judged")
+			return fmt.Errorf("CulpritController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}
 	return nil
