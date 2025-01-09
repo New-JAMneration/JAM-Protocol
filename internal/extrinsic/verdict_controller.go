@@ -3,6 +3,7 @@ package extrinsic
 import (
 	"bytes"
 	"crypto/ed25519"
+	"fmt"
 	"sort"
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -12,10 +13,12 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
+// VerdictWrapper is a struct that contains a Verdict
 type VerdictWrapper struct {
 	Verdict types.Verdict
 }
 
+// VerdictSummary is a struct that contains a Verdict
 type VerdictSummary struct {
 	ReportHash           types.OpaqueHash `json:"target,omitempty"`
 	PositiveJudgmentsSum int
@@ -149,7 +152,6 @@ func (v *VerdictController) Swap(i, j int) {
 	v.Verdicts[i], v.Verdicts[j] = v.Verdicts[j], v.Verdicts[i]
 }
 
-// Sort sorts the judgements
 type VoteWrapper []types.Judgement
 
 func (v *VoteWrapper) Less(i, j int) bool {
@@ -164,8 +166,8 @@ func (v *VoteWrapper) Swap(i, j int) {
 	(*v)[i], (*v)[j] = (*v)[j], (*v)[i]
 }
 
-// SetDisjoint is disjoint with psi_g, psi_b, psi_w | Eq. 10.7
-func (v *VerdictController) SetDisjoint() {
+// SetDisjoint is disjoint with psi_g, psi_b, psi_w | Eq. 10.9
+func (v *VerdictController) SetDisjoint() error {
 	// not in psi_g, psi_b, psi_w
 	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
 	psi := store.GetInstance().GetPriorState().Psi
@@ -185,15 +187,12 @@ func (v *VerdictController) SetDisjoint() {
 		uniqueMap[types.OpaqueHash(v)] = true
 	}
 
-	result := make([]VerdictWrapper, 0)
-
 	for _, v := range v.Verdicts {
 		if !uniqueMap[v.Verdict.Target] {
-			result = append(result, v)
+			return fmt.Errorf("offender already judged")
 		}
 	}
-
-	(*v).Verdicts = result
+	return nil
 }
 
 // GenerateVerdictSumSequence generates verdict only with report hash and votes | Eq. 10.11
@@ -212,7 +211,6 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 		verdictSummary.PositiveJudgmentsSum = positiveVotes
 		v.VerdictSumSequence = append(v.VerdictSumSequence, verdictSummary)
 	}
-
 }
 
 // ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
