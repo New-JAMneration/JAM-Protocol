@@ -214,3 +214,103 @@ func TestMMR_Serialize(t *testing.T) {
 		})
 	}
 }
+
+// TestSuperPeak exercises the MMR.SuperPeak function.
+func TestSuperPeak(t *testing.T) {
+	// Create a simple MMR instance that uses Keccak as its hashing function.
+	newTestMMR := func() *MMR {
+		return &MMR{
+			Peaks: []types.MmrPeak{},
+			// If your MMR normally uses m.hashFn, just wrap hash.KeccakHash here:
+			// i.e., hashFn: func(input types.ByteSequence) types.OpaqueHash { ... }
+			hashFn: func(input types.ByteSequence) types.OpaqueHash {
+				h := hash.Blake2bHash(input)
+				return h
+			},
+		}
+	}
+
+	t.Run("no peaks", func(t *testing.T) {
+		m := newTestMMR()
+		got := m.SuperPeak([]types.MmrPeak{})
+		if got != nil {
+			t.Errorf("SuperPeak([]) = %v; want nil", got)
+		}
+	})
+
+	t.Run("single peak", func(t *testing.T) {
+		m := newTestMMR()
+
+		// Make a “peak” with some recognizable bytes:
+		var p1 types.OpaqueHash
+		copy(p1[:], []byte("peak-1"))
+
+		peaks := []types.MmrPeak{&p1}
+		got := m.SuperPeak(peaks)
+
+		if got == nil {
+			t.Fatalf("SuperPeak([p1]) = nil; want the peak itself")
+		}
+		if !bytes.Equal(p1[:], (*got)[:]) {
+			t.Errorf("SuperPeak([p1]) = %x; want %x", *got, p1)
+		}
+	})
+
+	t.Run("two peaks", func(t *testing.T) {
+		m := newTestMMR()
+
+		var p1, p2 types.OpaqueHash
+		copy(p1[:], []byte("peak-1"))
+		copy(p2[:], []byte("peak-2"))
+
+		peaks := []types.MmrPeak{&p1, &p2}
+		got := m.SuperPeak(peaks)
+
+		// Manually compute the expected:
+		//   seq = "peak" + p1 + p2
+		seq := []byte("peak")
+		seq = append(seq, p1[:]...)
+		seq = append(seq, p2[:]...)
+		want := hash.KeccakHash(seq)
+
+		if got == nil {
+			t.Fatalf("SuperPeak([p1,p2]) = nil; want a 32-byte hash")
+		}
+		if !bytes.Equal(want[:], (*got)[:]) {
+			t.Errorf("SuperPeak([p1,p2]) = %x; want %x", *got, want)
+		}
+	})
+
+	t.Run("three peaks", func(t *testing.T) {
+		m := newTestMMR()
+
+		// p1, p2, p3
+		var p1, p2, p3 types.OpaqueHash
+		copy(p1[:], []byte("peak-1"))
+		copy(p2[:], []byte("peak-2"))
+		copy(p3[:], []byte("peak-3"))
+
+		peaks := []types.MmrPeak{&p1, &p2, &p3}
+		got := m.SuperPeak(peaks)
+
+		// Let’s do a manual fold:
+		// partial = hash("peak"+p1+p2)
+		seqPartial := []byte("peak")
+		seqPartial = append(seqPartial, p1[:]...)
+		seqPartial = append(seqPartial, p2[:]...)
+		partial := hash.KeccakHash(seqPartial)
+
+		// final = hash("peak"+partial+p3)
+		seqFinal := []byte("peak")
+		seqFinal = append(seqFinal, partial[:]...)
+		seqFinal = append(seqFinal, p3[:]...)
+		want := hash.KeccakHash(seqFinal)
+
+		if got == nil {
+			t.Fatalf("SuperPeak([p1,p2,p3]) = nil; want 32-byte hash")
+		}
+		if !bytes.Equal(want[:], (*got)[:]) {
+			t.Errorf("SuperPeak([p1,p2,p3]) = %x; want %x", *got, want)
+		}
+	})
+}
