@@ -3,7 +3,6 @@ package mmr
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // Node represents a node in the Merkle Mountain Range
@@ -133,45 +132,4 @@ func (m *MMR) Serialize() types.ByteSequence {
 	}
 
 	return disc.Serialize()
-}
-
-// SuperPeak implements the MMR "super-peak" function described in E.10
-// M_R: [H?] -> H
-//
-//	b -> {
-//	    if |h| = 0 => nil
-//	    if |h| = 1 => h0
-//	    otherwise => hash( SuperPeak(h[..|h|-1]), h[|h|-1] )
-//	}
-func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.MmrPeak {
-	switch len(peaks) {
-	case 0:
-		// No peaks => return nil
-		return nil
-	case 1:
-		// Single peak => return it directly
-		return peaks[0]
-	default:
-		// "Fold" the first (n-1) peaks by recursively computing SuperPeak,
-		// then combine the result with the final peak.
-		partial := m.SuperPeak(peaks[:len(peaks)-1])
-
-		// HK ($peak ⌢ MR(h...ShS−1) ⌢ hShS−1) otherwise
-		seq := types.ByteSequence{}
-
-		// Append the "peak" prefix
-		seq = append(seq, []byte("peak")...)
-
-		// Append the partial hash
-		partialBytes := (*partial)[:]
-		seq = append(seq, partialBytes...)
-
-		// Append the final peak
-		finalPeak := (*peaks[len(peaks)-1])[:]
-		seq = append(seq, finalPeak...)
-
-		result := hash.KeccakHash(seq)
-
-		return &result
-	}
 }
