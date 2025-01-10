@@ -294,7 +294,7 @@ func TestValidateBitField(t *testing.T) {
 			AuthOutput:        types.ByteSequence(hexToBytes("0x")),
 			SegmentRootLookup: types.SegmentRootLookup{},
 			Results: []types.WorkResult{
-				types.WorkResult{
+				{
 					ServiceId:     types.ServiceId(129),
 					CodeHash:      types.OpaqueHash(hexToBytes("0x8178abf4f459e8ed591be1f7f629168213a5ac2a487c28c0ef1a806198096c7a")),
 					PayloadHash:   types.OpaqueHash(hexToBytes("0xfa99b97e72fcfaef616108de981a59dc3310e2a9f5e73cd44d702ecaaccd8696")),
@@ -357,7 +357,7 @@ func TestFilterAvailableReports(t *testing.T) {
 			AuthOutput:        types.ByteSequence(hexToBytes("0x")),
 			SegmentRootLookup: types.SegmentRootLookup{},
 			Results: []types.WorkResult{
-				types.WorkResult{
+				{
 					ServiceId:     types.ServiceId(129),
 					CodeHash:      types.OpaqueHash(hexToBytes("0x8178abf4f459e8ed591be1f7f629168213a5ac2a487c28c0ef1a806198096c7a")),
 					PayloadHash:   types.OpaqueHash(hexToBytes("0xfa99b97e72fcfaef616108de981a59dc3310e2a9f5e73cd44d702ecaaccd8696")),
@@ -392,7 +392,7 @@ func TestFilterAvailableReports(t *testing.T) {
 			AuthOutput:        types.ByteSequence(hexToBytes("0x")),
 			SegmentRootLookup: types.SegmentRootLookup{},
 			Results: []types.WorkResult{
-				types.WorkResult{
+				{
 					ServiceId:     types.ServiceId(198),
 					CodeHash:      types.OpaqueHash(hexToBytes("0xc69d09eaac7e1af761c2448987e69929cf86960d091556dab5caf7ded9b3e766")),
 					PayloadHash:   types.OpaqueHash(hexToBytes("0xd55e07438aeeeb0d6509ab28af8a758d1fb70424db6b27c7e1ef6473e721c328")),
