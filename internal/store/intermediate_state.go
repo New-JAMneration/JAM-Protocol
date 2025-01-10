@@ -58,3 +58,9 @@ func (s *IntermediateStates) SetRhoDoubleDagger(RhoDoubleDagger types.Availabili
 	defer s.mu.Unlock()
 	s.state.RhoDoubleDagger = RhoDoubleDagger
 }
+
+func (s *IntermediateStates) GetRhoDoubleDagger() types.AvailabilityAssignments {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.RhoDoubleDagger
+}

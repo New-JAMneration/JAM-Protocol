@@ -1,6 +1,7 @@
 package extrinsic
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"fmt"
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -18,7 +19,7 @@ var (
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
 type AvailAssuranceController struct {
-	AvailAssurances []types.AvailAssurance
+	AvailAssurances types.AssurancesExtrinsic `json:"assurances"`
 	/*
 		type AvailAssurance struct {
 			Anchor         OpaqueHash       `json:"anchor,omitempty"`
@@ -32,7 +33,7 @@ type AvailAssuranceController struct {
 // NewAvailAssuranceController creates a new AvailAssuranceController
 func NewAvailAssuranceController() *AvailAssuranceController {
 	return &AvailAssuranceController{
-		AvailAssurances: make([]types.AvailAssurance, 0),
+		AvailAssurances: make(types.AssurancesExtrinsic, 0),
 	}
 }
 
@@ -41,10 +42,11 @@ func (a *AvailAssuranceController) ValidateAnchor() error {
 	headerParent := types.OpaqueHash(store.GetInstance().GetBlock().Header.Parent)
 
 	for _, availAssurance := range a.AvailAssurances {
-		if availAssurance.Anchor != headerParent {
+		if !bytes.Equal(availAssurance.Anchor[:], headerParent[:]) {
 			return fmt.Errorf("AvailAssuranceController.ValidateAnchor failed : bad_attestation_parent")
 		}
 	}
+
 	return nil
 }
 
@@ -90,8 +92,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 
 // ValidateSignature validates the signature of the AvailAssurance | Eq. 11.13, 11.14
 func (a *AvailAssuranceController) ValidateSignature() error {
-	state := store.GetInstance().GetPosteriorState()
-	kappaPrime := state.Kappa
+	kappaPrime := store.GetInstance().GetPosteriorState().Kappa
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
@@ -104,7 +105,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 
 		publicKey := kappaPrime[availAssurance.ValidatorIndex].Ed25519[:]
 		if !ed25519.Verify(publicKey, message, availAssurance.Signature[:]) {
-			fmt.Errorf("invalid_signature")
+			return fmt.Errorf("invalid_signature")
 		}
 	}
 	return nil
@@ -113,18 +114,20 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 // ValidateBitField | Eq. 11.15
 func (a *AvailAssuranceController) ValidateBitField() error {
 	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
-	var coreStatus = make([]byte, jam_types.CoresCount)
-	// only core is not nil
-	for i := 0; i < jam_types.CoresCount; i++ {
-		if rhoDagger[i] != nil {
-			coreStatus[i] = 1
-		}
-	}
 
-	for i := 0; i < jam_types.CoresCount; i++ {
+	for i := 0; i < len(a.AvailAssurances); i++ {
+		byteIndex, bitIndex := 0, 0
 		for j := 0; j < jam_types.CoresCount; j++ {
-			if a.AvailAssurances[i].Bitfield[j] > coreStatus[j] {
-				return fmt.Errorf("AvailAssuranceController.ValidateBitField failed : core_not_engaged")
+			// compute bitfield is 1 or 0
+			if rhoDagger[j] == nil {
+				if a.AvailAssurances[i].Bitfield[byteIndex]&(1<<bitIndex) != 0 {
+					return fmt.Errorf("AvailAssuranceController.ValidateBitField failed : core_not_engaged")
+				}
+			}
+			bitIndex++
+			if bitIndex == 8 {
+				byteIndex++
+				bitIndex = 0
 			}
 		}
 	}
@@ -138,12 +141,19 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 	totalAvailable := make([]int, jam_types.CoresCount)
 
 	for i := 0; i < len(a.AvailAssurances); i++ {
+		byteIndex, bitIndex := 0, 0
 		for j := 0; j < jam_types.CoresCount; j++ {
-			if a.AvailAssurances[i].Bitfield[j] == 1 {
+			if a.AvailAssurances[i].Bitfield[byteIndex]&(1<<bitIndex) == 1 {
 				totalAvailable[j]++
+			}
+			bitIndex++
+			if bitIndex == 8 {
+				byteIndex++
+				bitIndex = 0
 			}
 		}
 	}
+
 	// 11.17 Set available reports or timeout reports to nil
 	rhoDoubleDagger := rhoDagger
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
@@ -154,4 +164,5 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 		}
 	}
 	store.GetInstance().GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
+
 }

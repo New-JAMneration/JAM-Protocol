@@ -5,10 +5,13 @@ package types
 // If the desired Validate function is not found, please implement one yourself. :)
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
+	"io/ioutil"
+	"os"
 )
 
 // Simple
@@ -921,4 +924,156 @@ type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
 type AccumulationOutput struct {
 	Serviceid  ServiceId
 	Commitment OpaqueHash
+}
+
+type InputWrapper[T any] struct {
+	Input T
+}
+
+func ParseData[t any](fileName string) (InputWrapper[t], error) {
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		fmt.Printf("Error opening file %s: %v\n", fileName, err)
+		return InputWrapper[t]{}, err
+	}
+	defer file.Close()
+
+	bytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Printf("Error reading file: %s: %v\n", fileName, err)
+		return InputWrapper[t]{}, err
+	}
+	var wrapper InputWrapper[t]
+	err = json.Unmarshal(bytes, &wrapper)
+	if err != nil {
+		fmt.Printf("Error unmarshalling JSON:: %v\n", err)
+	}
+	return wrapper, nil
+}
+
+func DecodeJSONByte(input []byte) []byte {
+	toJSON, _ := json.Marshal(input)
+	out := string(toJSON)[1 : len(string(toJSON))-1]
+	return hexToBytes(out)
+}
+
+func hexToBytes(hexString string) []byte {
+	bytes, err := hex.DecodeString(hexString[2:])
+	if err != nil {
+		fmt.Printf("failed to decode hex string: %v", err)
+	}
+	return bytes
+}
+
+func parseFixedByteArray(data []byte, expectedLen int) ([]byte, error) {
+	var hexStr string
+	if err := json.Unmarshal(data, &hexStr); err != nil {
+		return nil, err
+	}
+
+	if len(hexStr) < 2 || hexStr[:2] != "0x" {
+		return nil, fmt.Errorf("invalid hex format: %s", hexStr)
+	}
+
+	decoded, err := hex.DecodeString(hexStr[2:])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(decoded) != expectedLen {
+		return nil, fmt.Errorf("invalid length: expected %d bytes, got %d", expectedLen, len(decoded))
+	}
+
+	return decoded, nil
+}
+
+func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *HeaderHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Signature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 64)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Public) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BlsPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 96)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 784)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingCommitment) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 128)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
 }
