@@ -5,13 +5,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-var (
-	// defined in the graypaper section I.4.4 Constants
-	l                                = 4
-	J                                = 8
-	WorkReportOutputBlobsMaximumSize = 48 * 1024 // Eq. 11.9
-)
-
 type WorkReportController struct {
 	WorkReport *types.WorkReport
 	/*
@@ -36,7 +29,7 @@ func NewWorkReportController(workReport *types.WorkReport) *WorkReportController
 
 // ValidateWorkItemsNumbers checks if the number of work items is between 1 and 4 | Eq. 11.2
 func (w *WorkReportController) ValidateWorkItemsNumbers() error {
-	if len(w.WorkReport.Results) < 1 || len(w.WorkReport.Results) > l {
+	if len(w.WorkReport.Results) < 1 || len(w.WorkReport.Results) > types.I {
 		return fmt.Errorf("WorkReport Results must have between 1 and 4 items, but got %d", len(w.WorkReport.Results))
 	}
 	return nil
@@ -44,8 +37,8 @@ func (w *WorkReportController) ValidateWorkItemsNumbers() error {
 
 // ValidateLookupDictAndPrerequisites checks the number of SegmentRootLookup and Prerequisites < J | Eq. 11.3
 func (w *WorkReportController) ValidateLookupDictAndPrerequisites() error {
-	if len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites) > J {
-		return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", J, len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites))
+	if len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites) > types.J {
+		return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", types.J, len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites))
 	}
 	return nil
 }
@@ -59,8 +52,8 @@ func (w *WorkReportController) ValidateOutputSize() error {
 		}
 	}
 
-	if totalSize > WorkReportOutputBlobsMaximumSize {
-		return fmt.Errorf("total size exceeds %d bytes", WorkReportOutputBlobsMaximumSize)
+	if totalSize > types.WorkReportOutputBlobsMaximumSize {
+		return fmt.Errorf("total size exceeds %d bytes", types.WorkReportOutputBlobsMaximumSize)
 	}
 	return nil
 }

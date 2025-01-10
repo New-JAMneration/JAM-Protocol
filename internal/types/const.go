@@ -23,3 +23,10 @@ var (
 	SlotPeriod   = 6
 	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 )
+
+var (
+	I                                = 4
+	J                                = 8
+	U                                = 5
+	WorkReportOutputBlobsMaximumSize = 48 * 1024
+)
