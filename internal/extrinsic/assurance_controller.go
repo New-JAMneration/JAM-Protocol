@@ -9,12 +9,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"sort"
-)
 
-var (
-	// U is defined in I.4.4
-	U = 5
+	"sort"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
@@ -159,7 +155,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
 
 	for i := 0; i < jam_types.CoresCount; i++ {
-		if totalAvailable[i] < availableNumber || headerTimeSlot >= rhoDagger[i].Timeout+types.TimeSlot(U) {
+		if totalAvailable[i] < availableNumber || headerTimeSlot >= rhoDagger[i].Timeout+types.TimeSlot(types.U) {
 			rhoDoubleDagger[i] = nil
 		}
 	}
