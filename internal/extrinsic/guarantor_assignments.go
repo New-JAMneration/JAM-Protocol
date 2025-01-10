@@ -2,12 +2,15 @@ package extrinsic
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
 
 // This is borne out with V = 1, 023 validators and C = 341 cores.
 const (
 	V = 1023
 	C = 341
+	E = 600
+	R = 10
 )
 
 // GuranatorAssignments is a struct that contains a slice of CoreIndex and Ed25519Public
@@ -18,11 +21,33 @@ type GuranatorAssignments struct {
 }
 
 // (11.19) R(c, n) = [(x + n) mod C | x ∈ c]
-// U16 -> coreIndex is U16
-func rotateCores(in []types.U16, n types.U16) []types.U16 {
-	out := make([]types.U16, len(in))
+func rotateCores(in []types.U32, n types.U32) []types.U32 {
+	out := make([]types.U32, len(in))
 	for i, x := range in {
-		out[i] = (x + n) % types.U16(C)
+		out[i] = (x + n) % types.U32(C)
 	}
 	return out
+}
+
+// (11.20)
+func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
+	base := make([]types.U32, V)
+	for i := 0; i < V; i++ {
+		c := (C * uint32(i)) / V
+		base[i] = types.U32(c)
+	}
+
+	shuffled := shuffle.Shuffle(base, types.OpaqueHash(e))
+
+	subEpoch := (uint32(currentSlot) % E) / R
+
+	// R(...) call
+	rotatedU32 := rotateCores(shuffled, types.U32(subEpoch))
+
+	// Convert back to []types.CoreIndex
+	rotated := make([]types.CoreIndex, len(rotatedU32))
+	for i, v := range rotatedU32 {
+		rotated[i] = types.CoreIndex(v)
+	}
+	return rotated
 }
