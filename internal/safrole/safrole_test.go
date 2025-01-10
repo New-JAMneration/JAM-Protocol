@@ -276,7 +276,7 @@ func TestReplaceOffenderKeys(t *testing.T) {
 		})
 	}
 
-	// Set posterior state offenders to empty
+	// Set posterior state offenders to the first validator
 	s := store.GetInstance()
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{fakeValidators[0].Ed25519})
 
