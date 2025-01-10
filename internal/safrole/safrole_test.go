@@ -143,6 +143,7 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 func TestKeyRotate(t *testing.T) {
 	s := store.GetInstance()
 	priorState := s.GetPriorState()
+	posteriorState := s.GetPosteriorState()
 
 	now := time.Now().UTC()
 	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
@@ -151,10 +152,12 @@ func TestKeyRotate(t *testing.T) {
 	// Add a block to the store
 	s.AddBlock(types.Block{
 		Header: types.Header{
-			Slot:          tauPrime - types.TimeSlot(types.EpochLength),
-			OffendersMark: types.OffendersMark{},
+			Slot: tauPrime - types.TimeSlot(types.EpochLength),
 		},
 	})
+
+	// Set offendersMark
+	s.GetPosteriorStates().SetPsiO(types.OffendersMark{})
 
 	// Simulate previous time slot to trigger key rotation
 	priorState.Tau = tauPrime - types.TimeSlot(types.EpochLength)
@@ -215,7 +218,7 @@ func TestKeyRotate(t *testing.T) {
 	KeyRotate()
 
 	// Get posterior state
-	posteriorState := s.GetPosteriorState()
+	posteriorState = s.GetPosteriorState()
 	if !reflect.DeepEqual(posteriorState.Gamma.GammaK, priorIota) {
 		t.Errorf("Expected GammaK to be %v, got %v", priorIota, posteriorState.Gamma.GammaK)
 	}
@@ -227,6 +230,74 @@ func TestKeyRotate(t *testing.T) {
 	}
 	if posteriorState.Gamma.GammaZ != priorGammaZ {
 		t.Errorf("Expected GammaZ to be %v, got %v", priorGammaZ, posteriorState.Gamma.GammaZ)
+	}
+}
+
+func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
+	// Load fake validators
+	fakeValidators := LoadFakeValidators()
+
+	// Create validators data
+	validatorsData := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		validatorsData = append(validatorsData, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	// Set posterior state offenders to empty
+	s := store.GetInstance()
+	s.GetPosteriorStates().SetPsiO(types.OffendersMark{})
+
+	newValidators := ReplaceOffenderKeys(validatorsData)
+
+	// Check if the new validators data has the same length as the original
+	// validators data
+	if len(newValidators) != len(validatorsData) {
+		t.Errorf("Expected newValidators to have %d elements, got %d", len(validatorsData), len(newValidators))
+	}
+}
+
+func TestReplaceOffenderKeys(t *testing.T) {
+	// Load fake validators
+	fakeValidators := LoadFakeValidators()
+
+	// Create validators data
+	validatorsData := types.ValidatorsData{}
+	for _, fakeValidator := range fakeValidators {
+		validatorsData = append(validatorsData, types.Validator{
+			Bandersnatch: fakeValidator.Bandersnatch,
+			Ed25519:      fakeValidator.Ed25519,
+			Bls:          fakeValidator.BLS,
+			Metadata:     types.ValidatorMetadata{},
+		})
+	}
+
+	// Set posterior state offenders to the first validator
+	s := store.GetInstance()
+	s.GetPosteriorStates().SetPsiO(types.OffendersMark{fakeValidators[0].Ed25519})
+
+	newValidators := ReplaceOffenderKeys(validatorsData)
+
+	// Check if the new validators data has the same length as the original
+	// validators data
+	if len(newValidators) != len(validatorsData) {
+		t.Errorf("Expected newValidators to have %d elements, got %d", len(validatorsData), len(newValidators))
+	}
+
+	// Check if the new validators data has the same elements as the original
+	// validators data, except for the offender
+	for i, newValidator := range newValidators {
+		if newValidator.Ed25519 == fakeValidators[0].Ed25519 {
+			t.Errorf("Expected newValidators[%d] to be different from the offender, got %v", i, newValidator)
+		}
+	}
+
+	if newValidators[0].Ed25519 != (types.Ed25519Public{}) {
+		t.Errorf("Expected newValidators[0] to be zeroed out, got %v", newValidators[0])
 	}
 }
 
