@@ -1,15 +1,16 @@
 package extrinsic
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
 
 // This is borne out with V = 1, 023 validators and C = 341 cores.
-const (
-	V = 1023
-	C = 341
-	E = 600
+var (
+	V = types.ValidatorsCount
+	C = types.CoresCount
+	E = types.EpochLength
 	R = 10
 )
 
@@ -50,4 +51,28 @@ func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
 		rotated[i] = types.CoreIndex(v)
 	}
 	return rotated
+}
+
+// (11.21) G(e, t, k) = (P(e, t), H_K)
+func NewGuranatorAssignments(
+	epochEntropy types.Entropy,
+	currentSlot types.TimeSlot,
+	validators types.ValidatorsData,
+) GuranatorAssignments {
+
+	// 1. get the core assignments
+	coreAssignments := permute(epochEntropy, currentSlot)
+
+	// 2. get the public keys
+	result := safrole.ReplaceOffenderKeys(validators)
+	pubKeys := make([]types.Ed25519Public, len(result))
+
+	for i, v := range result {
+		pubKeys[i] = v.Ed25519
+	}
+
+	return GuranatorAssignments{
+		CoreAssignments: coreAssignments,
+		PublicKeys:      pubKeys,
+	}
 }
