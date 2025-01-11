@@ -34,13 +34,13 @@ func rotateCores(in []types.U32, n types.U32) []types.U32 {
 func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
 	base := make([]types.U32, V)
 	for i := 0; i < V; i++ {
-		c := (C * uint32(i)) / V
+		c := (C * i) / V
 		base[i] = types.U32(c)
 	}
 
 	shuffled := shuffle.Shuffle(base, types.OpaqueHash(e))
 
-	subEpoch := (uint32(currentSlot) % E) / R
+	subEpoch := (int(currentSlot) % E) / R
 
 	// R(...) call
 	rotatedU32 := rotateCores(shuffled, types.U32(subEpoch))
@@ -54,6 +54,7 @@ func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
 }
 
 // (11.21) G(e, t, k) = (P(e, t), H_K)
+// G ≡ (P (η′2, τ ′), Φ(κ′))
 func NewGuranatorAssignments(
 	epochEntropy types.Entropy,
 	currentSlot types.TimeSlot,
@@ -75,4 +76,23 @@ func NewGuranatorAssignments(
 		CoreAssignments: coreAssignments,
 		PublicKeys:      pubKeys,
 	}
+}
+
+// (11.22) G∗ ≡ (P (e, τ ′ − R), Φ(k))
+func GStar(state types.State) GuranatorAssignments {
+	var e types.Entropy
+	var validators types.ValidatorsData
+
+	eta_prime := state.Eta
+	if (int(state.Tau)-R)/E == int(state.Tau)/E {
+		// (η′2, κ′)
+		e = eta_prime[2]
+		validators = state.Kappa
+	} else {
+		// (η′3, λ′)
+		e = eta_prime[3]
+		validators = state.Lambda
+	}
+
+	return NewGuranatorAssignments(e, state.Tau-types.TimeSlot(R), validators)
 }
