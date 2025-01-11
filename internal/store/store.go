@@ -19,11 +19,12 @@ type Store struct {
 	// INFO: Add more fields here
 	blocks                     *Blocks
 	priorStates                *PriorStates
-	posteriorStates            *PosteriorStates
 	intermediateStates         *IntermediateStates
+	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	beefyCommitmentOutput      *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -33,11 +34,12 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			blocks:                     NewBlocks(),
 			priorStates:                NewPriorStates(),
-			posteriorStates:            NewPosteriorStates(),
 			intermediateStates:         NewIntermediateStates(),
+			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
+			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -49,7 +51,11 @@ func (s *Store) AddBlock(block types.Block) {
 }
 
 func (s *Store) GetBlocks() []types.Block {
-	return s.blocks.GetBlocks()
+	return s.blocks.GetAllAncientBlocks()
+}
+
+func (s *Store) GetBlock() types.Block {
+	return s.blocks.GetLatestBlock()
 }
 
 func (s *Store) GetLatestBlock() types.Block {
@@ -62,24 +68,34 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	log.Println("🚀 Genesis block generated")
 }
 
+// Get
 func (s *Store) GetPriorState() types.State {
 	return s.priorStates.GetState()
 }
 
+// Set
 func (s *Store) GetPriorStates() *PriorStates {
 	return s.priorStates
 }
 
+// // Get
+// func (s *Store) GetIntermediateState() types.State {
+// 	return s.intermediateStates.GetState()
+// }
+
+// Set
+func (s *Store) GetIntermediateStates() *IntermediateStates {
+	return s.intermediateStates
+}
+
+// Get
 func (s *Store) GetPosteriorState() types.State {
 	return s.posteriorStates.GetState()
 }
 
+// Set
 func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
-}
-
-func (s *Store) GetIntermediateStates() *IntermediateStates {
-	return s.intermediateStates
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
@@ -123,4 +139,16 @@ func (s *Store) GetIntermediateHeader() types.Header {
 
 func (s *Store) ResetIntermediateHeader() {
 	s.intermediateHeader.ResetHeader()
+}
+
+// BeefyCommitmentOutput (This is tmp used waiting for more def in GP)
+
+// Get
+func (s *Store) GetBeefyCommitmentOutput() types.BeefyCommitmentOutput {
+	return s.beefyCommitmentOutput.GetBeefyCommitmentOutput()
+}
+
+// Set
+func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
+	return s.beefyCommitmentOutput
 }
