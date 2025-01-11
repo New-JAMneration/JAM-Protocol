@@ -3,7 +3,7 @@ package types
 // Reminder: When using jam_types, check if a Validate function exists.
 // If a Validate function is available, remember to use it.
 // If the desired Validate function is not found, please implement one yourself. :)
-
+//version = 0.5.3
 import (
 	"errors"
 	"fmt"
@@ -123,7 +123,7 @@ func (assignments AvailabilityAssignments) Validate() error {
 	return nil
 }
 
-// Refine Context
+// B.8. Refine Context
 
 type RefineContext struct {
 	Anchor           HeaderHash   `json:"anchor,omitempty"`
@@ -147,7 +147,7 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 	return scale.Encode("refinecontext", r)
 }
 
-// Authorizations
+// 8.1. Authorizations
 
 type Authorizer struct {
 	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
@@ -158,6 +158,7 @@ type AuthorizerHash OpaqueHash
 
 type AuthPool []AuthorizerHash
 
+// (8.1) AuthPool and AuthQueue
 func (a AuthPool) Validate() error {
 	if len(a) > AuthPoolMaxSize {
 		return fmt.Errorf("AuthPool exceeds max-auth-pool-size limit of %d", AuthPoolMaxSize)
@@ -208,7 +209,7 @@ func (a AuthQueues) Validate() error {
 	return nil
 }
 
-// Work Package
+// 14.3. (14.2) Work Package
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"`
@@ -219,6 +220,7 @@ type ExtrinsicSpec struct {
 	Len  U32        `json:"len,omitempty"`
 }
 
+// 14.3. (14.3) Work Item
 type WorkItem struct {
 	Service            ServiceId       `json:"service,omitempty"`
 	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
@@ -271,7 +273,7 @@ func (w WorkPackage) Validate() error {
 	return nil
 }
 
-// Work Report
+// 11.1.1. Work Report
 
 type WorkExecResultType string
 
@@ -298,6 +300,7 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 	}
 }
 
+// WorkResult ?
 type WorkResult struct {
 	ServiceId     ServiceId      `json:"service_id,omitempty"`
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
@@ -376,7 +379,7 @@ func (w *WorkReport) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workreport", w)
 }
 
-// Block History
+// Block History   ??
 
 type MmrPeak *OpaqueHash
 
@@ -425,12 +428,13 @@ func (a ActivityRecords) Validate() error {
 	return nil
 }
 
+// (13.2) ??
 type Statistics struct {
 	Current ActivityRecords `json:"current,omitempty"`
 	Last    ActivityRecords `json:"last,omitempty"`
 }
 
-// Tickets
+// Tickets   (6.5)   or  6.7.  ?
 
 type TicketId OpaqueHash
 type TicketAttempt U8
@@ -445,6 +449,7 @@ type TicketBody struct {
 	Attempt TicketAttempt `json:"attempt,omitempty"`
 }
 
+// (6.5)
 type TicketsAccumulator []TicketBody
 
 func (t TicketsAccumulator) Validate() error {
@@ -470,6 +475,7 @@ func (t TicketsOrKeys) Validate() error {
 	return nil
 }
 
+// (6.29)
 type TicketsExtrinsic []TicketEnvelope
 
 func (t *TicketsExtrinsic) Validate() error {
@@ -497,7 +503,7 @@ func (t *TicketsExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("ticketsextrinsic", t)
 }
 
-// Disputes
+// 10. Disputes
 
 type Judgement struct {
 	Vote      bool             `json:"vote,omitempty"`
@@ -505,6 +511,8 @@ type Judgement struct {
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
+// (10.2)   E_D ≡ (v,c,f)
+// v = Verdict
 type Verdict struct {
 	Target OpaqueHash  `json:"target,omitempty"`
 	Age    U32         `json:"age,omitempty"`
@@ -518,12 +526,14 @@ func (v Verdict) Validate() error {
 	return nil
 }
 
+// c = Culprit
 type Culprit struct {
 	Target    WorkReportHash   `json:"target,omitempty"`
 	Key       Ed25519Public    `json:"key,omitempty"`
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
+// f = Fault
 type Fault struct {
 	Target    WorkReportHash   `json:"target,omitempty"`
 	Vote      bool             `json:"vote,omitempty"`
@@ -531,6 +541,7 @@ type Fault struct {
 	Signature Ed25519Signature `json:"signature,omitempty"`
 }
 
+// (10.1)
 type DisputesRecords struct {
 	Good      []WorkReportHash `json:"good,omitempty"`      // Good verdicts (psi_g)
 	Bad       []WorkReportHash `json:"bad,omitempty"`       // Bad verdicts (psi_b)
@@ -538,6 +549,7 @@ type DisputesRecords struct {
 	Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 }
 
+// 10.2. (10.2)
 type DisputesExtrinsic struct {
 	Verdicts []Verdict `json:"verdicts,omitempty"`
 	Culprits []Culprit `json:"culprits,omitempty"`
@@ -582,6 +594,7 @@ func (p *Preimage) Validate() error {
 	return nil
 }
 
+//(12.28) (12.29)
 type PreimagesExtrinsic []Preimage
 
 func (p *PreimagesExtrinsic) Validate() error {
@@ -611,7 +624,7 @@ func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("preimagesextrinsic", p)
 }
 
-// Assurances
+//11.2.1 Assurances
 
 type AvailAssurance struct {
 	Anchor         OpaqueHash       `json:"anchor,omitempty"`
@@ -627,6 +640,7 @@ func (a AvailAssurance) Validate() error {
 	return nil
 }
 
+//(11.10)
 type AssurancesExtrinsic []AvailAssurance
 
 func (a *AssurancesExtrinsic) Validate() error {
@@ -667,6 +681,7 @@ func (v ValidatorSignature) Validate() error {
 	return nil
 }
 
+//(11.23)  Work Report Guarantee
 type ReportGuarantee struct {
 	Report     WorkReport           `json:"report"`
 	Slot       TimeSlot             `json:"slot,omitempty"`
@@ -686,7 +701,7 @@ func (r *ReportGuarantee) Validate() error {
 }
 
 type GuaranteesExtrinsic []ReportGuarantee
-
+//(11.23)
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
 		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
@@ -712,7 +727,7 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 }
 
 // Header
-
+//(6.27)
 type EpochMark struct {
 	Entropy        Entropy              `json:"entropy,omitempty"`
 	TicketsEntropy Entropy              `json:"tickets_entropy,omitempty"`
@@ -738,6 +753,7 @@ func (t TicketsMark) Validate() error {
 
 type OffendersMark []Ed25519Public
 
+//(5.1)
 type Header struct {
 	Parent          HeaderHash               `json:"parent,omitempty"`
 	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"`
