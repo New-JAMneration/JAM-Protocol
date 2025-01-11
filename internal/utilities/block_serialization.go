@@ -373,8 +373,29 @@ func TicketBodySerialization(ticket_body types.TicketBody) (output types.ByteSeq
 	return output
 }
 
+func DeferredTransferSerialization(transfer types.DeferredTransfer) (output types.ByteSequence) {
+	/*
+		(C.28) E(x ∈ T) ≡ E(E4(xs), E4(xd), E8(xa), E(xm), E8(xg))
+
+		type DeferredTransfer struct {
+			SenderID   ServiceId `json:"senderid"`
+			ReceiverID ServiceId `json:"receiverid"`
+			Balance    U64       `json:"balance"`
+			Memo       [128]byte `json:"memo"`
+			GasLimit   Gas       `json:"gas"`
+		}
+
+	*/
+	output = append(output, SerializeFixedLength(types.U64(transfer.SenderID), 4)...)
+	output = append(output, SerializeFixedLength(types.U64(transfer.ReceiverID), 4)...)
+	output = append(output, SerializeFixedLength(types.U64(transfer.Balance), 8)...)
+	output = append(output, SerializeByteSequence(transfer.Memo[:])...)
+	output = append(output, SerializeFixedLength(types.U64(transfer.GasLimit), 8)...)
+	return output
+}
+
 func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequence) {
-	// (C.28)
+	// (C.29)
 	/*
 			const (
 			WorkExecResultOk           WorkExecResultType = "ok"
@@ -410,7 +431,7 @@ func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequ
 }
 
 func SerializeImportSpec(import_spec types.ImportSpec) (output types.ByteSequence) {
-	// (C.29) case 1 (h, E2(i)) if h ∈ H
+	// (C.30) case 1 (h, E2(i)) if h ∈ H
 	// TODO check case2 use case
 	h, i := import_spec.TreeRoot, import_spec.Index
 	output = append(output, SerializeOpaqueHash(h)...)
