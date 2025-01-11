@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"bytes"
+	"fmt"
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"sort"
@@ -27,58 +28,60 @@ func NewFaultController() *FaultController {
 	}
 }
 
-func (f *FaultController) VerifyFaultValidity() bool {
-	postStates := store.GetInstance().GetPosteriorStates()
-	psiBad := postStates.GetState().Psi.Bad //  psi_b (bad report) will first update using verdicts in Eq. 10.17
-
-	f.Faults = f.VerifyReportHashValidty(&psiBad)
-	f.Faults = f.ExcludeOffenders()
-
-	// the testvectors do not have the case of verifySignature at Eq. 10.6. Besides, do not how to handle the invalid signature
-
-	return true
-}
-
-func (f *FaultController) VerifyReportHashValidty(psiBad *[]types.WorkReportHash) []types.Fault {
-	checkMap := make(map[types.WorkReportHash]bool)
-	for _, report := range *psiBad {
-		checkMap[report] = true
+// VerifyFaultValidity verifies the validity of the faults | Eq. 10.6
+func (f *FaultController) VerifyFaultValidity() {
+	// if the faults are not valid, return error
+	if err := f.VerifyReportHashValidty(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
 	}
 
-	var out []types.Fault
+	if err := f.ExcludeOffenders(); err != nil {
+		fmt.Println("Error ocurred : ", err.Error())
+	}
+}
+
+// VerifyReportHashValidty verifies the validity of the reports
+func (f *FaultController) VerifyReportHashValidty() error {
+	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
+	psiGood := store.GetInstance().GetPosteriorStates().GetState().Psi.Good
+
+	badMap := make(map[types.WorkReportHash]bool)
+	for _, report := range psiBad {
+		badMap[report] = true
+	}
+
+	goodMap := make(map[types.WorkReportHash]bool)
+	for _, report := range psiGood {
+		goodMap[report] = true
+	}
+
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
 		vote := f.Faults[i].Vote
-
-		if !vote && checkMap[f.Faults[i].Target] { // normal condition  : r have to be in psi_b (bad) and it is in psi_b (bad)
-			out = append(out, f.Faults[i])
+		// if vote : true  || the report is not in the bad list || the report is in the good list => return error if data is invalid
+		if vote || !badMap[f.Faults[i].Target] || goodMap[f.Faults[i].Target] {
+			return fmt.Errorf("FaultController.VerifyReportHashValidty failed : fault_verdict_wrong")
 		}
 	}
-
-	return out
+	return nil
 }
 
-// ExcludeOffenders excludes the offenders from the validator set  Eq. 10.6  exclude psi_o will be used in verdict, fault, culprit
-// Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
-func (f *FaultController) ExcludeOffenders() []types.Fault {
+// ExcludeOffenders excludes the offenders from the validator set
+func (f *FaultController) ExcludeOffenders() error {
 
 	exclude := store.GetInstance().GetPriorState().Psi.Offenders
-
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
 	}
 
 	length := len(f.Faults)
-
-	var out []types.Fault
 	for i := 0; i < length; i++ { // culprit index
-
 		if !excludeMap[f.Faults[i].Key] {
-			out = append(out, f.Faults[i])
+			return fmt.Errorf("FaultController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}
-	return out
+	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
@@ -87,12 +90,14 @@ func (f *FaultController) SortUnique() {
 	f.Unique()
 }
 
+// Unique removes duplicates
 func (f *FaultController) Unique() {
 	if len(f.Faults) == 0 {
 		return
 	}
 }
 
+// Sort sorts the faults
 func (f *FaultController) Sort() {
 	sort.Sort(f)
 }
