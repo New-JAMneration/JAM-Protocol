@@ -594,7 +594,7 @@ func (p *Preimage) Validate() error {
 	return nil
 }
 
-//(12.28) (12.29)
+// (12.28) (12.29)
 type PreimagesExtrinsic []Preimage
 
 func (p *PreimagesExtrinsic) Validate() error {
@@ -640,7 +640,7 @@ func (a AvailAssurance) Validate() error {
 	return nil
 }
 
-//(11.10)
+// (11.10)
 type AssurancesExtrinsic []AvailAssurance
 
 func (a *AssurancesExtrinsic) Validate() error {
@@ -681,7 +681,7 @@ func (v ValidatorSignature) Validate() error {
 	return nil
 }
 
-//(11.23)  Work Report Guarantee
+// (11.23)  Work Report Guarantee
 type ReportGuarantee struct {
 	Report     WorkReport           `json:"report"`
 	Slot       TimeSlot             `json:"slot,omitempty"`
@@ -701,7 +701,8 @@ func (r *ReportGuarantee) Validate() error {
 }
 
 type GuaranteesExtrinsic []ReportGuarantee
-//(11.23)
+
+// (11.23)
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
 		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
@@ -727,7 +728,7 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 }
 
 // Header
-//(6.27)
+// (6.27)
 type EpochMark struct {
 	Entropy        Entropy              `json:"entropy,omitempty"`
 	TicketsEntropy Entropy              `json:"tickets_entropy,omitempty"`
@@ -753,7 +754,7 @@ func (t TicketsMark) Validate() error {
 
 type OffendersMark []Ed25519Public
 
-//(5.1)
+// (5.1)
 type Header struct {
 	Parent          HeaderHash               `json:"parent,omitempty"`
 	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"`
