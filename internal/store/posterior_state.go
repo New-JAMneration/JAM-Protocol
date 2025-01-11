@@ -106,27 +106,3 @@ func (s *PosteriorStates) SetGammaS(GammaS types.TicketsOrKeys) {
 	defer s.mu.Unlock()
 	s.state.Gamma.GammaS = GammaS
 }
-
-func (s *PosteriorStates) SetPsiG(psiG []types.WorkReportHash) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Psi.Good = psiG
-}
-
-func (s *PosteriorStates) SetPsiB(psiB []types.WorkReportHash) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Psi.Bad = psiB
-}
-
-func (s *PosteriorStates) SetPsiW(psiW []types.WorkReportHash) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Psi.Wonky = psiW
-}
-
-func (s *PosteriorStates) SetPsiO(psiO []types.Ed25519Public) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Psi.Offenders = psiO
-}
