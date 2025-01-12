@@ -37,3 +37,15 @@ func (i *IntermediateHeader) ResetHeader() {
 	defer i.mu.Unlock()
 	i.Header = types.Header{}
 }
+
+func (i *IntermediateHeader) GetEpochMark() *types.EpochMark {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.EpochMark
+}
+
+func (i *IntermediateHeader) SetEpochMark(epochMark *types.EpochMark) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.EpochMark = epochMark
+}

@@ -137,6 +137,10 @@ func (s *Store) GetIntermediateHeader() types.Header {
 	return s.intermediateHeader.GetHeader()
 }
 
+func (s *Store) GetIntermediateHeaderPointer() *IntermediateHeader {
+	return s.intermediateHeader
+}
+
 func (s *Store) ResetIntermediateHeader() {
 	s.intermediateHeader.ResetHeader()
 }
