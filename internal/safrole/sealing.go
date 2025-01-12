@@ -144,14 +144,6 @@ func Sealing() {
 	slot_index := GetSlotIndex(state.Tau)
 	eta_prime := state.Eta
 	if e_prime > e { // e′ > e
-		/*
-			Entropy Update
-			(6.21) η ∈ ⟦H⟧4
-			(6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
-									(η0, η1, η2) if e′ > e
-			(6.23) (η′1, η′2, η′3)
-									(η1, η2, η3) otherwise
-		*/
 		eta_prime = UpdateEntropy(state, header)
 	}
 
