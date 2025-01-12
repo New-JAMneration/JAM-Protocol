@@ -39,7 +39,7 @@ func TestPermute(t *testing.T) {
 		t.Errorf("permute output length mismatch.\nExpected: %d\nGot:      %d", V, len(out))
 	}
 
-	expected := []types.CoreIndex{0, 0, 1, 0, 1, 1}
+	expected := []types.CoreIndex{1, 1, 0, 1, 0, 0}
 
 	if !reflect.DeepEqual(out, expected) {
 		t.Fatalf("permute failed.\nExpected: %v\nGot:      %v", expected, out)
@@ -185,7 +185,7 @@ func TestGStarKappa(t *testing.T) {
 		t.Errorf("expected G* to use lambda's public key[1], got something else")
 	}
 
-	expected := []types.CoreIndex{0, 0, 0, 1, 1, 1}
+	expected := []types.CoreIndex{1, 1, 1, 0, 0, 0}
 
 	if !reflect.DeepEqual(gStarVal.CoreAssignments, expected) {
 		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gStarVal.CoreAssignments)

@@ -11,7 +11,7 @@ var (
 	V = types.ValidatorsCount
 	C = types.CoresCount
 	E = types.EpochLength
-	R = 10
+	R = types.RotationPeriod
 )
 
 // GuranatorAssignments is a struct that contains a slice of CoreIndex and Ed25519Public
