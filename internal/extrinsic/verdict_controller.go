@@ -188,7 +188,7 @@ func (v *VerdictController) SetDisjoint() error {
 	}
 
 	for _, v := range v.Verdicts {
-		if !uniqueMap[v.Verdict.Target] {
+		if uniqueMap[v.Verdict.Target] {
 			return fmt.Errorf("offender already judged")
 		}
 	}
