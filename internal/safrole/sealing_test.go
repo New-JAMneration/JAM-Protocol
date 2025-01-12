@@ -35,8 +35,6 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 }
 
 func TestCalculateNewEntropy(t *testing.T) {
-	// 測試案例 1: 正常情況
-
 	eta := types.EntropyBuffer{
 		types.Entropy(hexToByteArray32("0xae29c985e3ee3f0fbe2aed426a9ba404a7774a585bccf84b2459bf9c5dbd84ca")),
 		types.Entropy(hexToByteArray32("0x6f6ad2224d7d58aec6573c623ab110700eaca20a48dc2965d535e466d524af2a")),
@@ -47,11 +45,24 @@ func TestCalculateNewEntropy(t *testing.T) {
 	entropySource := types.BandersnatchVrfSignature(hex2Bytes("0x1ef2d3fd951a6ca263cf407c86d5221437bfb8c23ccb39edf6f742c3145c2557490efd490bf82795f480d6242edec61333a46b9ca72e994cb0b4665723bba507b6bd807b7cb62d50af87d45177ddcb9171505b09f834d2bd8ddabb8d1c8e2803"))
 
 	expectedEntropy := hexToByteArray32("0x8b4dc74caab5d2542c49466c2ea24721e41f1fac070eb923be88435dca2e7e18")
-	// 呼叫 CalculateNewEntropy 函數
+
 	actualEntropy := CalculateNewEntropy(publicKey, entropySource, eta)
 
 	if !bytes.Equal(actualEntropy[:], expectedEntropy[:]) {
-		t.Errorf("RefineContextSerialization() = %v, want %v", actualEntropy, expectedEntropy)
+		t.Errorf("CalculateNewEntropy() = %v, want %v", actualEntropy, expectedEntropy)
+	}
+}
+
+func TestCalculateHeaderEntropy(t *testing.T) {
+	publicKey := types.BandersnatchPublic(hexToByteArray32("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d"))
+	seal := types.BandersnatchVrfSignature(hex2Bytes("0x034c0e655f644fb109dbcd0050ca49180e2a5bd3b9a95b88626732ce05dbfccce45a96310024d65cdaa166e66e912e77d69b9d76a7289a09b7d55a952106e21b68c595822db9d7db19d9f7749b6ddc3a6f86ed1b642bbd435dd6174497584007"))
+
+	expectedHeaderEntropy := hexToByteArray32("0x8b4dc74caab5d2542c49466c2ea24721e41f1fac070eb923be88435dca2e7e18")
+
+	actualHeaderEntropy := CalculateHeaderEntropy(publicKey, seal)
+
+	if !bytes.Equal(actualHeaderEntropy[:], expectedHeaderEntropy[:]) {
+		t.Errorf("CalculateHeaderEntrop() = %v, want %v", actualHeaderEntropy, expectedHeaderEntropy)
 	}
 }
 
