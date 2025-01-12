@@ -343,6 +343,192 @@ func TestDisputeWorkFlow_progress_invalidates_avail_assignments_1(t *testing.T) 
 	}
 }
 
+func TestDisputeWorkFlow_progress_with_bad_signatures_1(t *testing.T) {
+	disputeExtrinsic := types.DisputesExtrinsic{
+		Verdicts: []types.Verdict{
+			{
+				Target: types.OpaqueHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Age:    0,
+				Votes: []types.Judgement{
+					{
+						Vote:      false,
+						Index:     0,
+						Signature: types.Ed25519Signature(HexToBytes("0x647c04630e911a432f99e6c1108bcf4c06496754033b77c5eb8271a5d06a85e1884db0fb977e232e416643ccfaf4f334e99f3b8d9cdfc65a8e4ecbc9db284005")),
+					},
+					{
+						Vote:      false,
+						Index:     1,
+						Signature: types.Ed25519Signature(HexToBytes("0xb95288deca20fcb649a3515ece2f1d147f8c0f3acef20967cd05a7b770c96e2e0928a056af1aa233c45b0a154e31dae842a50ff48f249cc364af20f282db950a")),
+					},
+					{
+						Vote:      false,
+						Index:     2,
+						Signature: types.Ed25519Signature(HexToBytes("0x2f8476e2c06dec1fd24130363f922f5419d91cd250d0d9448e8db471e08377a8ee927c8ca9c45ff47796cf0dfb35e4aff4fee96cae8dbe40fbd48d1cd59c7f0c")),
+					},
+					{
+						Vote:      false,
+						Index:     3,
+						Signature: types.Ed25519Signature(HexToBytes("0xdf20eab8438b43d774ac84d4225607cdd4159ee495991c89c9dc302e7d826b53e23b1f266a2dcf915dee277a0bfa0b93c957504503213c3f57a4c08b5ce07f0b")),
+					},
+					{
+						Vote:      false,
+						Index:     4,
+						Signature: types.Ed25519Signature(HexToBytes("0xdf20eab8438b43d774ac84d4225607cdd4159ee495991c89c9dc302e7d826b53e23b1f266a2dcf915dee277a0bfa0b93c957504503213c3f57a4c08b5ce07f0b")),
+					},
+				},
+			},
+		},
+		Culprits: []types.Culprit{
+			{
+				Target:    types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Key:       types.Ed25519Public(HexToBytes("0x22351e22105a19aabb42589162ad7f1ea0df1c25cebf0e4a9fcd261301274862")),
+				Signature: types.Ed25519Signature(HexToBytes("0xc935d19a67d96edd5bff539e11a0340153acb119d4bb83e7f60aba87e6fec4acb236d19a97476924d311390accede172a045978dcb0a65adb528ff0e7f7cf609")),
+			},
+			{
+				Target:    types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Key:       types.Ed25519Public(HexToBytes("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29")),
+				Signature: types.Ed25519Signature(HexToBytes("0x7ec23531ebc5aa88883a8b8f1f7b1f05ea18fa12f735de02a167309fe41bb0a87f5ff05d7c00c15fbc19f181badd53e0ec25d9a62e742d239c2058f4964b040f")),
+			},
+		},
+		Faults: []types.Fault{},
+	}
+
+	expectedPsi := types.DisputesRecords{
+		Good:      []types.WorkReportHash{},
+		Bad:       []types.WorkReportHash{},
+		Wonky:     []types.WorkReportHash{},
+		Offenders: []types.Ed25519Public{},
+	}
+
+	// initialize the store
+	store.GetInstance().GetPriorStates().SetKappa(Kappa)
+	store.GetInstance().GetPriorStates().SetLambda(Lambda)
+
+	store.GetInstance().GetPosteriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiB([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiO([]types.Ed25519Public{})
+
+	store.GetInstance().GetPriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiB([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiO([]types.Ed25519Public{})
+
+	_, err := Disputes(disputeExtrinsic)
+
+	if err == nil {
+		t.Errorf("expected an error but got nil")
+	} else {
+		expectedError := "bad_signature"
+		if err.Error() != expectedError {
+			t.Errorf("expected error: %v, got: %v", expectedError, err)
+		}
+	}
+
+	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
+		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
+	}
+}
+
+func TestDisputeWorkFlow_progress_with_bad_signatures_2(t *testing.T) {
+	disputeExtrinsic := types.DisputesExtrinsic{
+		Verdicts: []types.Verdict{
+			{
+				Target: types.OpaqueHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Age:    0,
+				Votes: []types.Judgement{
+					{
+						Vote:      false,
+						Index:     0,
+						Signature: types.Ed25519Signature(HexToBytes("0x647c04630e911a432f99e6c1108bcf4c06496754033b77c5eb8271a5d06a85e1884db0fb977e232e416643ccfaf4f334e99f3b8d9cdfc65a8e4ecbc9db284005")),
+					},
+					{
+						Vote:      false,
+						Index:     1,
+						Signature: types.Ed25519Signature(HexToBytes("0xb95288deca20fcb649a3515ece2f1d147f8c0f3acef20967cd05a7b770c96e2e0928a056af1aa233c45b0a154e31dae842a50ff48f249cc364af20f282db950a")),
+					},
+					{
+						Vote:      false,
+						Index:     2,
+						Signature: types.Ed25519Signature(HexToBytes("0x2f8476e2c06dec1fd24130363f922f5419d91cd250d0d9448e8db471e08377a8ee927c8ca9c45ff47796cf0dfb35e4aff4fee96cae8dbe40fbd48d1cd59c7f0c")),
+					},
+					{
+						Vote:      false,
+						Index:     3,
+						Signature: types.Ed25519Signature(HexToBytes("0x8aa6778092622ad32db2aa10d060a2ad9f7b819af62ff5ada7f88616f81a8ffd0889c64cd857785c1d1a28e39fe2164b71555ecad03ad286f2952144a862c205")),
+					},
+					{
+						Vote:      false,
+						Index:     4,
+						Signature: types.Ed25519Signature(HexToBytes("0xdf20eab8438b43d774ac84d4225607cdd4159ee495991c89c9dc302e7d826b53e23b1f266a2dcf915dee277a0bfa0b93c957504503213c3f57a4c08b5ce07f0b")),
+					},
+				},
+			},
+		},
+		Culprits: []types.Culprit{
+			{
+				Target:    types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Key:       types.Ed25519Public(HexToBytes("0xb3e0e096b02e2ec98a3441410aeddd78c95e27a0da6f411a09c631c0f2bea6e9")),
+				Signature: types.Ed25519Signature(HexToBytes("0xc935d19a67d96edd5bff539e11a0340153acb119d4bb83e7f60aba87e6fec4acb236d19a97476924d311390accede172a045978dcb0a65adb528ff0e7f7cf609")),
+			},
+			{
+				Target:    types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+				Key:       types.Ed25519Public(HexToBytes("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29")),
+				Signature: types.Ed25519Signature(HexToBytes("0x7ec23531ebc5aa88883a8b8f1f7b1f05ea18fa12f735de02a167309fe41bb0a87f5ff05d7c00c15fbc19f181badd53e0ec25d9a62e742d239c2058f4964b040f")),
+			},
+		},
+		Faults: []types.Fault{},
+	}
+
+	expectedPsi := types.DisputesRecords{
+		Good: []types.WorkReportHash{},
+		Bad: []types.WorkReportHash{
+			types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+		},
+		Wonky: []types.WorkReportHash{},
+		Offenders: []types.Ed25519Public{
+			types.Ed25519Public(HexToBytes("0x22351e22105a19aabb42589162ad7f1ea0df1c25cebf0e4a9fcd261301274862")),
+			types.Ed25519Public(HexToBytes("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29")),
+		},
+	}
+
+	// initialize the store
+	store.GetInstance().GetPriorStates().SetKappa(Kappa)
+	store.GetInstance().GetPriorStates().SetLambda(Lambda)
+
+	store.GetInstance().GetPosteriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiB([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiO([]types.Ed25519Public{})
+
+	store.GetInstance().GetPriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiB([]types.WorkReportHash{
+		types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+	})
+	store.GetInstance().GetPriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiO([]types.Ed25519Public{
+		types.Ed25519Public(HexToBytes("0x22351e22105a19aabb42589162ad7f1ea0df1c25cebf0e4a9fcd261301274862")),
+		types.Ed25519Public(HexToBytes("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29")),
+	})
+
+	_, err := Disputes(disputeExtrinsic)
+
+	if err == nil {
+		t.Errorf("expected an error but got nil")
+	} else {
+		expectedError := "bad_signature"
+		if err.Error() != expectedError {
+			t.Errorf("expected error: %v, got: %v", expectedError, err)
+		}
+	}
+
+	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
+		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
+	}
+}
+
 func TestDisputeWorkFlow_ProgressWithCulprit1(t *testing.T) {
 	disputeExtrinsic := types.DisputesExtrinsic{
 		Verdicts: []types.Verdict{
