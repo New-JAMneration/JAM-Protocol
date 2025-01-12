@@ -59,8 +59,10 @@ func (f *FaultController) VerifyReportHashValidty() error {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
 		vote := f.Faults[i].Vote
-		// if vote : true  || the report is not in the bad list || the report is in the good list => return error if data is invalid
-		if vote || !badMap[f.Faults[i].Target] || goodMap[f.Faults[i].Target] {
+		// if vote not contradict verdict, should not be in faults
+		inGood := goodMap[f.Faults[i].Target] && !badMap[f.Faults[i].Target]
+		inBad := !goodMap[f.Faults[i].Target] && badMap[f.Faults[i].Target]
+		if (vote && inGood) || (!vote && inBad) {
 			return fmt.Errorf("FaultController.VerifyReportHashValidty failed : fault_verdict_wrong")
 		}
 	}
