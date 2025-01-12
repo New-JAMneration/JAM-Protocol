@@ -65,6 +65,7 @@ func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.
 }
 
 func CalculateNewEntropy(public_key types.BandersnatchPublic, entropy_source types.BandersnatchVrfSignature, eta types.EntropyBuffer) types.Entropy {
+	// η′0 ≡ H(η0 ⌢ Y(Hv))
 	handler, _ := CreateVRFHandler(public_key, 0)
 	vrfOutput, _ := handler.VRFOutput(entropy_source[:])
 	hash_input := append(eta[0][:], vrfOutput...)

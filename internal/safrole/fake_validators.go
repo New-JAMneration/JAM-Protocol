@@ -120,12 +120,21 @@ func CreateRingVRFHandler(bandersnatchKeys []types.BandersnatchPublic, proverIdx
 func CreateVRFHandler(bandersnatchKey types.BandersnatchPublic, proverIdx uint) (*vrf.Handler, error) {
 	// Only the secret key of the prover is needed
 	fakeValidators := LoadFakeValidators()
-	skBytes := fakeValidators[proverIdx].BandersnatchPrivate[:]
-
+	var private BandersnatchPrivate
+	for _, bandersnatch := range fakeValidators {
+		//fmt.Println(bandersnatchKey)
+		//fmt.Println(bandersnatch.Bandersnatch)
+		if bandersnatch.Bandersnatch == bandersnatchKey {
+			private = bandersnatch.BandersnatchPrivate
+			// proverIdx = uint(idx)
+			// fmt.Println("SUCCESS")
+		}
+	}
+	skBytes := private[:]
+	// fmt.Println(skBytes)
 	// Use input bandersnatch keys to create the ring
 	ringBytes := []byte{}
 	ringSize := uint(1)
 	ringBytes = append(ringBytes, bandersnatchKey[:]...)
-
-	return vrf.NewHandler(ringBytes, skBytes, ringSize, proverIdx)
+	return vrf.NewHandler(ringBytes, skBytes, ringSize, 0)
 }
