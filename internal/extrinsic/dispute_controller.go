@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"fmt"
+
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -145,7 +146,7 @@ func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.
 		}
 	}
 
-	store.GetInstance().GetPosteriorStates().SetPsiO(posteriorPsiO)
+	store.GetInstance().GetPosteriorStates().SetPsiO(append(priorPsi.Offenders, posteriorPsiO...))
 }
 
 // HeaderOffenders returns the offenders markers | Eq. 10.20
