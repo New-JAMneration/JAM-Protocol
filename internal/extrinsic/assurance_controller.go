@@ -130,6 +130,17 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 	return nil
 }
 
+/*
+// BitfieldOctetSequenceToBinarySequence transform the input octet bitfield to a binary sequence
+fun (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
+	for _, availAssurance := range a.AvailAssurances {
+		binaryBitfield := make([]byte, jam_types.CoresCount)
+
+
+	}
+}
+*/
+
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() {
 	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
