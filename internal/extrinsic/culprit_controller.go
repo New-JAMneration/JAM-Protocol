@@ -3,9 +3,10 @@ package extrinsic
 import (
 	"bytes"
 	"fmt"
+	"sort"
+
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"sort"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -70,7 +71,7 @@ func (c *CulpritController) ExcludeOffenders() error {
 	length := len(c.Culprits)
 
 	for i := 0; i < length; i++ { // culprit index
-		if !excludeMap[c.Culprits[i].Key] {
+		if excludeMap[c.Culprits[i].Key] {
 			return fmt.Errorf("CulpritController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}
