@@ -943,8 +943,6 @@ type AccumulationOutput struct {
 	Commitment OpaqueHash
 }
 
-<<<<<<< HEAD
-=======
 type InputWrapper[T any] struct {
 	Input T
 }
@@ -977,7 +975,6 @@ func DecodeJSONByte(input []byte) []byte {
 	return hexToBytes(out)
 }
 
->>>>>>> 543ab8023f93056ab08e52988419d9a35815b471
 func hexToBytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
