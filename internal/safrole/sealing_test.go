@@ -3,6 +3,7 @@ package safrole
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -36,28 +37,29 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 
 func TestCalculateNewEntropy(t *testing.T) {
 	eta := types.EntropyBuffer{
-		types.Entropy(hexToByteArray32("0xae29c985e3ee3f0fbe2aed426a9ba404a7774a585bccf84b2459bf9c5dbd84ca")),
-		types.Entropy(hexToByteArray32("0x6f6ad2224d7d58aec6573c623ab110700eaca20a48dc2965d535e466d524af2a")),
-		types.Entropy(hexToByteArray32("0x835ac82bfa2ce8390bb50680d4b7a73dfa2a4cff6d8c30694b24a605f9574eaf")),
-		types.Entropy(hexToByteArray32("0xd2d34655ebcad804c56d2fd5f932c575b6a5dbb3f5652c5202bcc75ab9c2cc95")),
+		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
+		types.Entropy(hexToByteArray32("0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa")),
+		types.Entropy(hexToByteArray32("0x491db955568b306018eee09f2966f873bb665a20b703584ad868454b81b17e76")),
+		types.Entropy(hexToByteArray32("0x0de5a58e78d62b28af21e63fc7f901e1435165a1e8324fa3b20c18afd901c29b")),
 	}
-	publicKey := types.BandersnatchPublic(hexToByteArray32("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d"))
-	entropySource := types.BandersnatchVrfSignature(hex2Bytes("0x1ef2d3fd951a6ca263cf407c86d5221437bfb8c23ccb39edf6f742c3145c2557490efd490bf82795f480d6242edec61333a46b9ca72e994cb0b4665723bba507b6bd807b7cb62d50af87d45177ddcb9171505b09f834d2bd8ddabb8d1c8e2803"))
 
-	expectedEntropy := hexToByteArray32("0x8b4dc74caab5d2542c49466c2ea24721e41f1fac070eb923be88435dca2e7e18")
+	publicKey := types.BandersnatchPublic(hexToByteArray32("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc"))
+	entropySource := types.BandersnatchVrfSignature(hex2Bytes("0x274a0906a0612d7b34eee7470106e4f5d52f946d590cffd3957d48ad7c68ae8df5698fbbfdabfa471b70524c199e724de5c1501a07a283b17098f0e395487e1c2f179c7b81b164bd172c93d2c4ca9d7aacb61198dc1653a67988bc15e683ed0e"))
 
+	expectedEntropy := types.Entropy(hexToByteArray32("0x8c89c318db72cd8b6edf1cd42e2e5501afc76d7fc4d84d7af95d84f64a96daf0"))
+	// fmt.Println((len(expectedEntropy)))
 	actualEntropy := CalculateNewEntropy(publicKey, entropySource, eta)
-
-	if !bytes.Equal(actualEntropy[:], expectedEntropy[:]) {
-		t.Errorf("CalculateNewEntropy() = %v, want %v", actualEntropy, expectedEntropy)
+	if bytes.Equal(actualEntropy[:], expectedEntropy[:]) {
+		fmt.Println("SUCCESS MACTHING")
 	}
+	t.Errorf("CalculateHeaderEntrop() = %v, want %v", actualEntropy, expectedEntropy)
 }
 
 func TestCalculateHeaderEntropy(t *testing.T) {
-	publicKey := types.BandersnatchPublic(hexToByteArray32("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d"))
-	seal := types.BandersnatchVrfSignature(hex2Bytes("0x034c0e655f644fb109dbcd0050ca49180e2a5bd3b9a95b88626732ce05dbfccce45a96310024d65cdaa166e66e912e77d69b9d76a7289a09b7d55a952106e21b68c595822db9d7db19d9f7749b6ddc3a6f86ed1b642bbd435dd6174497584007"))
+	publicKey := types.BandersnatchPublic(hexToByteArray32("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc"))
+	seal := types.BandersnatchVrfSignature(hex2Bytes("0xa70cd5b81c52bb33540d75a2c68ba482f54758f347d1ef97b6f4f9708199f51c451c97b60fc5a218249ed7c0b2bfb589ac6dbc5776bd10e20bb067257daf410c2ab890dec90b4e0dc96d99058721e6fb0a1543d83a8d3d56d1125d1162fd9208"))
 
-	expectedHeaderEntropy := hexToByteArray32("0x8b4dc74caab5d2542c49466c2ea24721e41f1fac070eb923be88435dca2e7e18")
+	expectedHeaderEntropy := types.BandersnatchVrfSignature(hex2Bytes("0xa81d92d83542ddfe0f34a81ce306ad3032740a75c14c6e99890690caa647986bf0b815a3ca5543ad24fe67d723a9180266ff65dcc3fc4824f9d688ab1e528301c76c5290d655cc1d1ad079ce696b5a9368241e2f0d16bc5cd413830f5c4c100a"))
 
 	actualHeaderEntropy := CalculateHeaderEntropy(publicKey, seal)
 
