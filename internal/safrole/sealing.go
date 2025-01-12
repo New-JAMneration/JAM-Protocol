@@ -94,7 +94,7 @@ func UpdateEntropy(state types.State, header types.Header) types.EntropyBuffer {
 	return eta
 }
 
-func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
+func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.BandersnatchVrfSignature) (sign []byte) {
 	/*
 		F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
 		See section 3.8.
@@ -102,21 +102,21 @@ func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
 	/*
 		(6.17) Hv ∈ F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	*/
-	/*
-		public key: Ha  Bandersnatch key of the block author  header.AuthorIndex
-		message: []
-		context: XE ⌢ Y(Hs)
-	*/
-	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
-	var message types.ByteSequence
-	var context types.ByteSequence
-	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
-
 	handler, _ := CreateVRFHandler(public_key, 0)
-	signature, _ := handler.IETFSign(context, message)
+	var message types.ByteSequence                                   // message: []
+	var context types.ByteSequence                                   //context: XE ⌢ Y(Hs)
+	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
+	vrf, _ := handler.VRFOutput(seal[:])
+	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
+	signature, _ := handler.IETFSign(context, message)    // F [] Ha ⟨XE ⌢ Y(Hs)⟩
+	return signature
+}
 
-	sign = signature
-	return sign
+func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch // Ha
+	seal := header.Seal                                        // Hs
+	signature := CalculateHeaderEntropy(public_key, seal)
+	return signature
 }
 
 func Sealing() {
