@@ -939,3 +939,11 @@ type AccumulationOutput struct {
 	Serviceid  ServiceId
 	Commitment OpaqueHash
 }
+
+type DeferredTransfer struct {
+	SenderID   ServiceId `json:"senderid"`
+	ReceiverID ServiceId `json:"receiverid"`
+	Balance    U64       `json:"balance"`
+	Memo       [128]byte `json:"memo"`
+	GasLimit   Gas       `json:"gas"`
+}
