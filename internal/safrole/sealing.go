@@ -119,6 +119,21 @@ func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
 	return signature
 }
 
+func UpdateSlotKeySequence(state types.State, slot_index types.TimeSlot, eta_p types.EntropyBuffer) (GammaS types.TicketsOrKeys) {
+	/*
+		Slot Key Sequence Update
+						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		(6.24) γ′s ≡    γs if e′ = e
+						F(η′2, κ′) otherwise
+	*/
+	if len(state.Gamma.GammaA) == types.EpochLength && int(slot_index) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
+	} else { //F(η′2, κ′) otherwise
+		GammaS.Keys = FallbackKeySequence(eta_p[2], state.Kappa)
+	}
+	return GammaS
+}
+
 func Sealing() {
 	s := store.GetInstance()
 	state := s.GetPriorState()
@@ -126,7 +141,7 @@ func Sealing() {
 	header := inter.GetHeader()
 	e := GetEpochIndex(state.Tau)
 	e_prime := GetEpochIndex(header.Slot)
-	m := GetSlotIndex(state.Tau)
+	slot_index := GetSlotIndex(state.Tau)
 	eta_prime := state.Eta
 	if e_prime > e { // e′ > e
 		/*
@@ -137,7 +152,7 @@ func Sealing() {
 			(6.23) (η′1, η′2, η′3)
 									(η1, η2, η3) otherwise
 		*/
-		s.GetPosteriorStates().SetEta(UpdateEntropy(state, header))
+		eta_prime = UpdateEntropy(state, header)
 	}
 
 	if len(state.Gamma.GammaS.Tickets) > 0 {
@@ -149,20 +164,12 @@ func Sealing() {
 	}
 	sign := UpdateHeaderEntropy(state, header)
 	inter.SetEntropySource(types.BandersnatchVrfSignature(sign))
-	/*
-		Slot Key Sequence Update
-						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
-		(6.24) γ′s ≡    γs if e′ = e
-						F(η′2, κ′) otherwise
-	*/
+
+	if e_prime == e+1 {
+		new_GammaS := UpdateSlotKeySequence(state, slot_index, eta_prime)
+		s.GetPosteriorStates().SetGammaS(new_GammaS)
+	}
 	if e_prime > e {
 		s.GetPosteriorStates().SetEta(eta_prime)
-	}
-	if e_prime == e+1 {
-		if len(state.Gamma.GammaA) == types.EpochLength && int(m) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
-			s.GetPosteriorStates().SetGammaSTickets(OutsideInSequencer(&state.Gamma.GammaA))
-		} else { //F(η′2, κ′) otherwise
-			s.GetPosteriorStates().SetGammaSKeys(FallbackKeySequence(eta_prime[2], state.Kappa))
-		}
 	}
 }

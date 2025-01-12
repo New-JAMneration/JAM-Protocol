@@ -89,18 +89,6 @@ func (s *PosteriorStates) SetEta(Eta types.EntropyBuffer) {
 	s.state.Eta = Eta
 }
 
-func (s *PosteriorStates) SetGammaSTickets(Tickets []types.TicketBody) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Gamma.GammaS.Tickets = Tickets
-}
-
-func (s *PosteriorStates) SetGammaSKeys(Keys []types.BandersnatchPublic) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Gamma.GammaS.Keys = Keys
-}
-
 func (s *PosteriorStates) SetGammaS(GammaS types.TicketsOrKeys) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
