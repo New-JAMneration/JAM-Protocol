@@ -926,38 +926,6 @@ type AccumulationOutput struct {
 	Commitment OpaqueHash
 }
 
-type InputWrapper[T any] struct {
-	Input T
-}
-
-func ParseData[t any](fileName string) (InputWrapper[t], error) {
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		fmt.Printf("Error opening file %s: %v\n", fileName, err)
-		return InputWrapper[t]{}, err
-	}
-	defer file.Close()
-
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		fmt.Printf("Error reading file: %s: %v\n", fileName, err)
-		return InputWrapper[t]{}, err
-	}
-	var wrapper InputWrapper[t]
-	err = json.Unmarshal(bytes, &wrapper)
-	if err != nil {
-		fmt.Printf("Error unmarshalling JSON:: %v\n", err)
-	}
-	return wrapper, nil
-}
-
-func DecodeJSONByte(input []byte) []byte {
-	toJSON, _ := json.Marshal(input)
-	out := string(toJSON)[1 : len(string(toJSON))-1]
-	return hexToBytes(out)
-}
-
 func hexToBytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {

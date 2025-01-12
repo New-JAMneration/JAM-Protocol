@@ -25,8 +25,8 @@ var (
 )
 
 var (
-	I                                = 4
-	J                                = 8
-	U                                = 5
+	MaximumWorkItems                 = 4 // I
+	MaximumDependencyItems           = 8 // J
+	WorkReportTimeout                = 5 // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024
 )
