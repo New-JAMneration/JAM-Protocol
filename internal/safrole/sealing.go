@@ -29,8 +29,7 @@ func SealingByTickets(state types.State, header types.Header, eta_p types.Entrop
 	context = append(context, types.ByteSequence(eta_p[3][:])...)        // η′3
 	context = append(context, types.ByteSequence([]byte{uint8(i_r)})...) // ir
 
-	bandersnatchKeys := []types.BandersnatchPublic{public_key}
-	handler, _ := CreateVRFHandler(bandersnatchKeys)
+	handler, _ := CreateVRFHandler(public_key, 0)
 	signature, _ := handler.IETFSign(context, message)
 	vrf_output, _ := handler.VRFOutput(signature)
 
@@ -58,15 +57,21 @@ func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.
 	context = append(context, types.ByteSequence(kJamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_p[3][:])...)         // η′3
 
-	bandersnatchKeys := []types.BandersnatchPublic{public_key}
-	handler, _ := CreateVRFHandler(bandersnatchKeys)
+	handler, _ := CreateVRFHandler(public_key, 0)
 	signature, _ := handler.IETFSign(context, message)
 
 	sign = signature
 	return sign
 }
 
-func UpdateEntropy(Eta types.EntropyBuffer, validators types.ValidatorsData) types.EntropyBuffer {
+func CalculateNewEntropy(public_key types.BandersnatchPublic, entropy_source types.BandersnatchVrfSignature, eta types.EntropyBuffer) types.Entropy {
+	handler, _ := CreateVRFHandler(public_key, 0)
+	vrfOutput, _ := handler.VRFOutput(entropy_source[:])
+	hash_input := append(eta[0][:], vrfOutput...)
+	return types.Entropy(hash.Blake2bHash(hash_input))
+}
+
+func UpdateEntropy(state types.State, header types.Header) types.EntropyBuffer {
 	/*
 		Entropy Update
 		(6.21) η ∈ ⟦H⟧4
@@ -76,21 +81,17 @@ func UpdateEntropy(Eta types.EntropyBuffer, validators types.ValidatorsData) typ
 								(η1, η2, η3) otherwise
 	*/
 	// TODO: check the correct usage of header state, vrf
-	inter := store.IntermediateHeader{}
-	header := inter.GetHeader()
+	// (Eta types.EntropyBuffer, validators types.ValidatorsData)
+	eta := state.Eta
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	entropy_source := header.EntropySource
+	EtaPrime0 := CalculateNewEntropy(public_key, entropy_source, eta)
+	// CalculateNewEntropy
 	for i := 2; i >= 0; i-- {
-		Eta[i+1] = Eta[i]
+		eta[i+1] = eta[i]
 	}
-
-	bandersnatchKeys := []types.BandersnatchPublic{}
-	for _, validator := range validators {
-		bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
-	}
-	handler, _ := CreateVRFHandler(bandersnatchKeys)
-	vrfOutput, _ := handler.VRFOutput(header.EntropySource[:])
-	hash_input := append(Eta[1][:], vrfOutput...)
-	Eta[0] = types.Entropy(hash.Blake2bHash(hash_input))
-	return Eta
+	eta[0] = EtaPrime0
+	return eta
 }
 
 func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
@@ -111,8 +112,7 @@ func UpdateHeaderEntropy(state types.State, header types.Header) (sign []byte) {
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
 
-	bandersnatchKeys := []types.BandersnatchPublic{public_key}
-	handler, _ := CreateVRFHandler(bandersnatchKeys)
+	handler, _ := CreateVRFHandler(public_key, 0)
 	signature, _ := handler.IETFSign(context, message)
 
 	sign = signature
@@ -137,7 +137,7 @@ func Sealing() {
 			(6.23) (η′1, η′2, η′3)
 									(η1, η2, η3) otherwise
 		*/
-		s.GetPosteriorStates().SetEta(UpdateEntropy(state.Eta, state.Gamma.GammaK))
+		s.GetPosteriorStates().SetEta(UpdateEntropy(state, header))
 	}
 
 	if len(state.Gamma.GammaS.Tickets) > 0 {
