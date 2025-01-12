@@ -30,15 +30,15 @@ func NewFaultController() *FaultController {
 }
 
 // VerifyFaultValidity verifies the validity of the faults | Eq. 10.6
-func (f *FaultController) VerifyFaultValidity() {
+func (f *FaultController) VerifyFaultValidity() error {
 	// if the faults are not valid, return error
 	if err := f.VerifyReportHashValidty(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
-
 	if err := f.ExcludeOffenders(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
+	return nil
 }
 
 // VerifyReportHashValidty verifies the validity of the reports

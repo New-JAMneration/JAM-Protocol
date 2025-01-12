@@ -30,14 +30,15 @@ func NewCulpritController() *CulpritController {
 }
 
 // VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.5
-func (c *CulpritController) VerifyCulpritValidity() {
+func (c *CulpritController) VerifyCulpritValidity() error {
 	// if the culprits are not valid return error
 	if err := c.VerifyReportHashValidty(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
 	if err := c.ExcludeOffenders(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
+	return nil
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
