@@ -2,6 +2,9 @@ package types
 
 import "time"
 
+// changeable constants for chainspec
+
+// tiny
 var (
 	ValidatorsCount = 6
 	CoresCount      = 2
@@ -19,7 +22,12 @@ var (
 	AvailBitfieldBytes      = 1
 )
 
+// permanent constants
 var (
+	AdditionalBalancePerItem  = 10  // B_I
+	AdditionalBalancePerOctet = 1   // B_L
+	BasicMinimumBalance       = 100 // B_S
+
 	SlotPeriod   = 6
 	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 )

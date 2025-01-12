@@ -12,6 +12,7 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
+	Delta      types.ServiceAccountState
 	BetaDagger types.BlocksHistory
 	RhoDagger  types.AvailabilityAssignments
 }
@@ -19,10 +20,24 @@ type IntermediateState struct {
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
+			Delta:      types.ServiceAccountState{},
 			BetaDagger: types.BlocksHistory{},
 			RhoDagger:  types.AvailabilityAssignments{},
 		},
 	}
+}
+
+// Delta
+func (s *IntermediateStates) GetDelta() types.ServiceAccountState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Delta
+}
+
+func (s *IntermediateStates) SetDelta(delta types.ServiceAccountState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Delta = delta
 }
 
 // BetaDagger

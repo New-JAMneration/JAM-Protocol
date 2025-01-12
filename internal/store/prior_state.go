@@ -35,6 +35,12 @@ func (s *PriorStates) SetBeta(beta types.BlocksHistory) {
 	s.state.Beta = beta
 }
 
+func (s *PriorStates) SetDelta(delta types.ServiceAccountState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Delta = delta
+}
+
 func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
