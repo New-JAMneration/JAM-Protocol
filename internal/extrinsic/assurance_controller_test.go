@@ -1,6 +1,7 @@
 package extrinsic
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -307,6 +308,7 @@ func TestValidateBitField(t *testing.T) {
 		},
 		Timeout: types.TimeSlot(11),
 	}
+	assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
 	store.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
 	err = assuranceExtrinsic.ValidateBitField()
 	if err == nil {
@@ -405,6 +407,7 @@ func TestFilterAvailableReports(t *testing.T) {
 		},
 		Timeout: types.TimeSlot(11),
 	}
+	assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
 	store.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
 	store.GetInstance().AddBlock(types.Block{
 		Header: types.Header{
@@ -427,4 +430,20 @@ func TestFilterAvailableReports(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestBitfieldOctetSequenceToBinarySequence(t *testing.T) {
+	assuranceExtrinsic := NewAvailAssuranceController()
+
+	assuranceExtrinsic.AvailAssurances = append(assuranceExtrinsic.AvailAssurances,
+		types.AvailAssurance{
+			Bitfield: []byte{0x03}})
+
+	assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
+	expected := []byte{1, 1, 0, 0, 0, 0, 0, 0}
+
+	if bytes.Compare(assuranceExtrinsic.AvailAssurances[0].Bitfield, expected) != 0 {
+		t.Errorf("BitfieldOctetSequenceToBinarySequence failed")
+	}
+
 }

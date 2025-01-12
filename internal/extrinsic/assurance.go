@@ -2,18 +2,25 @@ package extrinsic
 
 import (
 	"fmt"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func Assurance() {
-	availAssureance := NewAvailAssuranceController{}
+// Assurance is a struct that contains a slice of Assurance
+func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) {
+	assurances := NewAvailAssuranceController() // input data
+	assurances.AvailAssurances = assuranceExtrinsic
 
-	availAssureance.ValidateAnchor()
-	availAssurance.SortUnique()
-	availAssurance.ValidateSignature()
+	assurances.ValidateAnchor()
 
-	if err := availAssurance.ValidateBitField(); err != nil {
+	assurances.SortUnique()
+
+	assurances.ValidateSignature()
+
+	assurances.BitfieldOctetSequenceToBinarySequence()
+
+	if err := assurances.ValidateBitField(); err != nil {
 		fmt.Println(err)
 	}
 
-	availAssurance.FilterAvailableReports()
+	assurances.FilterAvailableReports()
 }

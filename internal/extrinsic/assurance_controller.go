@@ -112,34 +112,42 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
 
 	for i := 0; i < len(a.AvailAssurances); i++ {
-		byteIndex, bitIndex := 0, 0
 		for j := 0; j < jam_types.CoresCount; j++ {
-			// compute bitfield is 1 or 0
-			if rhoDagger[j] == nil {
-				if a.AvailAssurances[i].Bitfield[byteIndex]&(1<<bitIndex) != 0 {
-					return fmt.Errorf("AvailAssuranceController.ValidateBitField failed : core_not_engaged")
-				}
-			}
-			bitIndex++
-			if bitIndex == 8 {
-				byteIndex++
-				bitIndex = 0
+			// rhoDagger[j] nil : core j has no report to be process
+			// assurers can not set nil core
+			if a.AvailAssurances[i].Bitfield[j] == 1 && rhoDagger[j] != nil {
+				return fmt.Errorf("AvailAssuranceController.ValidateBitField failed : core_engaged")
 			}
 		}
 	}
 	return nil
 }
 
-/*
 // BitfieldOctetSequenceToBinarySequence transform the input octet bitfield to a binary sequence
-fun (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
-	for _, availAssurance := range a.AvailAssurances {
-		binaryBitfield := make([]byte, jam_types.CoresCount)
+func (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
+	// input (bitfield) : octet sequence ,  output	(binaryBitfield) : binary sequence
+	length := len(a.AvailAssurances[0].Bitfield)
+	bitLength := length * 8
 
+	for assuranceIndex := 0; assuranceIndex < len(a.AvailAssurances); assuranceIndex++ {
+		binaryBitfield := make([]byte, bitLength)
 
+		// LSB-first
+
+		for i := 0; i < length; i++ {
+			for j := 0; j < 8; j++ {
+				if a.AvailAssurances[assuranceIndex].Bitfield[i]&(1<<j) != 0 {
+					binaryBitfield[i*8+j] = 1
+				} else {
+					binaryBitfield[i*8+j] = 0
+				}
+			}
+		}
+
+		a.AvailAssurances[assuranceIndex].Bitfield = make([]byte, bitLength)
+		copy(a.AvailAssurances[assuranceIndex].Bitfield, binaryBitfield)
 	}
 }
-*/
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() {
@@ -153,11 +161,6 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 			if a.AvailAssurances[i].Bitfield[byteIndex]&(1<<bitIndex) == 1 {
 				totalAvailable[j]++
 			}
-			bitIndex++
-			if bitIndex == 8 {
-				byteIndex++
-				bitIndex = 0
-			}
 		}
 	}
 
@@ -166,7 +169,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
 
 	for i := 0; i < jam_types.CoresCount; i++ {
-		if totalAvailable[i] < availableNumber || headerTimeSlot >= rhoDagger[i].Timeout+types.TimeSlot(types.U) {
+		if totalAvailable[i] > availableNumber || headerTimeSlot >= rhoDagger[i].Timeout+types.TimeSlot(types.WorkReportTimeout) {
 			rhoDoubleDagger[i] = nil
 		}
 	}
