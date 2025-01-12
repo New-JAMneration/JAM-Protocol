@@ -22,12 +22,12 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) ([]types.Ed25519Public, 
 		VerdictPtr := &verdictController.Verdicts[i]
 		invalid := VerdictPtr.VerifySignature()
 		if len(invalid) > 0 {
-			return nil, fmt.Errorf("invalid signature in verdict")
+			return nil, fmt.Errorf("bad_signature")
 		}
 	}
 	verdictController.SortUnique()
 	if err := verdictController.SetDisjoint(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bad_signature")
 	}
 
 	verdictController.GenerateVerdictSumSequence()
