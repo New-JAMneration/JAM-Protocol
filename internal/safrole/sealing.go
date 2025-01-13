@@ -1,8 +1,6 @@
 package safrole
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -89,9 +87,6 @@ func UpdateEtaPrime0() {
 	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
 	entropy_source := header.EntropySource
 	eta := state.Eta
-	fmt.Println(public_key)
-	fmt.Println(entropy_source)
-	fmt.Println(eta)
 	handler, _ := CreateVRFHandler(public_key, 0)
 	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
 	hash_input := append(eta[0][:], vrfOutput...)

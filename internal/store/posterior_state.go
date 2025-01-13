@@ -100,3 +100,9 @@ func (s *PosteriorStates) SetGammaS(GammaS types.TicketsOrKeys) {
 	defer s.mu.Unlock()
 	s.state.Gamma.GammaS = GammaS
 }
+
+func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}

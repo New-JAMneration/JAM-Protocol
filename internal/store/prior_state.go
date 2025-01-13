@@ -58,3 +58,9 @@ func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
 	defer s.mu.Unlock()
 	s.state.Eta = eta
 }
+
+func (s *PriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}

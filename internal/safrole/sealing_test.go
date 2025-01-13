@@ -153,6 +153,32 @@ func TestUpdateHeaderEntropy(t *testing.T) {
 	actualHeaderEntropy := s.GetIntermediateHeader().EntropySource
 
 	if !bytes.Equal(actualHeaderEntropy[:], expectedHeaderEntropy[:]) {
-		t.Errorf("CalculateHeaderEntrop() = %v, want %v", actualHeaderEntropy, expectedHeaderEntropy)
+		t.Errorf("CalculateHeaderEntropy() = %v, want %v", actualHeaderEntropy, expectedHeaderEntropy)
+	}
+}
+
+func TestUpdateEntropy(t *testing.T) {
+	s := store.GetInstance()
+	eta := types.EntropyBuffer{
+		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
+		types.Entropy(hexToByteArray32("0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa")),
+		types.Entropy(hexToByteArray32("0x491db955568b306018eee09f2966f873bb665a20b703584ad868454b81b17e76")),
+		types.Entropy(hexToByteArray32("0x0de5a58e78d62b28af21e63fc7f901e1435165a1e8324fa3b20c18afd901c29b")),
+	}
+	s.GetPriorStates().SetTau(types.TimeSlot(types.EpochLength - 1))
+	s.GetPriorStates().SetEta(eta)
+	s.GetPosteriorStates().SetTau(types.TimeSlot(types.EpochLength))
+	UpdateEntropy()
+	etaPrime := s.GetPosteriorState().Eta
+	expect_etaPrime := types.EntropyBuffer{
+		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
+		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
+		types.Entropy(hexToByteArray32("0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa")),
+		types.Entropy(hexToByteArray32("0x491db955568b306018eee09f2966f873bb665a20b703584ad868454b81b17e76")),
+	}
+	for i := 0; i < 4; i++ {
+		if !bytes.Equal(etaPrime[i][:], expect_etaPrime[i][:]) {
+			t.Errorf("UpdateEntropy() = %v, want %v", etaPrime[i], expect_etaPrime[i])
+		}
 	}
 }
