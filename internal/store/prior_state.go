@@ -70,3 +70,10 @@ func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
 	defer s.mu.Unlock()
 	s.state.Eta = eta
 }
+
+// gamma_a
+func (s *PriorStates) SetGammaA(gammaA types.TicketsAccumulator) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}

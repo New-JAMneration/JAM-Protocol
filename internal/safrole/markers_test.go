@@ -2,7 +2,6 @@ package safrole
 
 import (
 	"testing"
-	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -12,14 +11,11 @@ import (
 func TestCreateEpochMarkerNewEpoch(t *testing.T) {
 	s := store.GetInstance()
 
-	now := time.Now().UTC()
-	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-
-	// Simulate previous time slot to trigger create epoch marker
-	priorTau := tauPrime - types.TimeSlot(types.EpochLength)
+	priorTau := types.TimeSlot(types.EpochLength - 1)
+	posteriorTau := types.TimeSlot(types.EpochLength)
 
 	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posteriorTau)
 
 	// Set gamma_k into posterior state
 	// Load fake validators
@@ -86,14 +82,11 @@ func TestCreateEpochMarkerNewEpoch(t *testing.T) {
 func TestCreateEpochMarkerSameEpoch(t *testing.T) {
 	s := store.GetInstance()
 
-	now := time.Now().UTC()
-	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-
-	// Set the prior tau to the current tau, so that the epoch index is the same
-	priorTau := tauPrime
+	priorTau := types.TimeSlot(types.EpochLength - 2)
+	posteriorTau := types.TimeSlot(types.EpochLength - 1)
 
 	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posteriorTau)
 
 	// Set gamma_k into posterior state
 	// Load fake validators
@@ -184,14 +177,12 @@ func TestCreateEpochMarkerNewEpochWithJamTestNetData(t *testing.T) {
 
 	s := store.GetInstance()
 
-	now := time.Now().UTC()
-	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-
 	// Simulate previous time slot to trigger create epoch marker
-	priorTau := tauPrime - types.TimeSlot(types.EpochLength)
+	priorTau := types.TimeSlot(types.EpochLength - 1)
+	posteriorTau := types.TimeSlot(types.EpochLength)
 
 	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posteriorTau)
 
 	s.GetPosteriorStates().SetGammaK(gamma_k)
 	s.GetPriorStates().SetEta(eta)
@@ -223,6 +214,387 @@ func TestCreateEpochMarkerNewEpochWithJamTestNetData(t *testing.T) {
 	for i, validator := range epochMarker.Validators {
 		if validator != expectedEpochMarker.Validators[i] {
 			t.Errorf("Epoch marker validator is incorrect")
+		}
+	}
+}
+
+func TestCreateWinningTicketsPassFullConditions(t *testing.T) {
+	// Prepare test data
+	s := store.GetInstance()
+
+	// Simulate different epoch and pass slot index condition
+	priorTau := types.TimeSlot(types.Y - 1)
+	posterTau := types.TimeSlot(types.Y)
+	gamma_a := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c")),
+			Attempt: 2,
+		},
+	}
+
+	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posterTau)
+	s.GetPriorStates().SetGammaA(gamma_a)
+
+	CreateWinningTickets()
+
+	if s.GetIntermediateHeaderPointer().GetTicketsMark() == nil {
+		t.Errorf("Tickets mark should not be nil")
+	}
+}
+
+// Different epoch, no epoch marker should be created
+func TestCreateWinningTicketsDifferentEpoch(t *testing.T) {
+	// Prepare test data
+	s := store.GetInstance()
+
+	// Simulate different epoch and pass slot index condition
+	priorTau := types.TimeSlot(types.Y - 1)
+	posterTau := types.TimeSlot(types.Y + types.EpochLength)
+	gamma_a := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c")),
+			Attempt: 2,
+		},
+	}
+
+	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posterTau)
+	s.GetPriorStates().SetGammaA(gamma_a)
+
+	CreateWinningTickets()
+
+	// Check if epoch marker is nil
+	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+		t.Errorf("Tickets mark should be nil")
+	}
+}
+
+// The slot index isn't the end of the submission (m < Y <= m')
+// No winning tickets should be created
+func TestCreateWinningTicketsSlotIndexNotEndOfSubmission(t *testing.T) {
+	// Prepare test data
+	s := store.GetInstance()
+
+	priorTau := types.TimeSlot(0)
+	posterTau := types.TimeSlot(1)
+	gamma_a := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c")),
+			Attempt: 2,
+		},
+	}
+
+	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posterTau)
+	s.GetPriorStates().SetGammaA(gamma_a)
+
+	CreateWinningTickets()
+
+	// Check if epoch marker is nil
+	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+		t.Errorf("Tickets mark should be nil")
+	}
+}
+
+// |gamma_a| != EpochLength
+// No winning tickets should be created
+func TestCreateWinningTicketsGammaALengthNotEqualEpochLength(t *testing.T) {
+	// Prepare test data
+	s := store.GetInstance()
+
+	priorTau := types.TimeSlot(types.Y - 1)
+	posterTau := types.TimeSlot(types.Y)
+	gamma_a := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+	}
+
+	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posterTau)
+	s.GetPriorStates().SetGammaA(gamma_a)
+
+	CreateWinningTickets()
+
+	// Check if epoch marker is nil
+	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+		t.Errorf("Tickets mark should be nil")
+	}
+}
+
+// 425530_009.json -> 425530_010.json
+func TestCreateWinningTicketsWithJamTestNet(t *testing.T) {
+	testPriorEpochIndex := 425530
+	testPosteriorEpochIndex := 425530
+	testPriorSlotIndex := 9
+	testPosteriorSlotIndex := 10
+
+	// Prepare test data
+	s := store.GetInstance()
+
+	// Simulate different epoch and pass slot index condition
+	priorTau := types.TimeSlot(testPriorEpochIndex*types.EpochLength + testPriorSlotIndex)
+	posterTau := types.TimeSlot(testPosteriorEpochIndex*types.EpochLength + testPosteriorSlotIndex)
+	gamma_a := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c")),
+			Attempt: 2,
+		},
+	}
+
+	s.GetPriorStates().SetTau(priorTau)
+	s.GetPosteriorStates().SetTau(posterTau)
+	s.GetPriorStates().SetGammaA(gamma_a)
+
+	// Expected tickets mark
+	expectedTicketsMark := types.TicketsAccumulator{
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8")),
+			Attempt: 2,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a")),
+			Attempt: 0,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4")),
+			Attempt: 1,
+		},
+		types.TicketBody{
+			Id:      types.TicketId(hexToBytes("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c")),
+			Attempt: 0,
+		},
+	}
+
+	CreateWinningTickets()
+
+	if s.GetIntermediateHeaderPointer().GetTicketsMark() == nil {
+		t.Errorf("Tickets mark should not be nil")
+	}
+
+	if len(*s.GetIntermediateHeaderPointer().GetTicketsMark()) != len(expectedTicketsMark) {
+		t.Errorf("Tickets mark length is incorrect")
+	}
+
+	// Check if tickets mark is correct
+	ticketsMark := s.GetIntermediateHeaderPointer().GetTicketsMark()
+	for i, ticket := range *ticketsMark {
+		if ticket.Id != expectedTicketsMark[i].Id {
+			t.Errorf("Tickets mark id is incorrect")
+		}
+
+		if ticket.Attempt != expectedTicketsMark[i].Attempt {
+			t.Errorf("Tickets mark attempt is incorrect")
 		}
 	}
 }

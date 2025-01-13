@@ -17,6 +17,7 @@ var (
 
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes      = 1
+	Y                       = 10 // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 )
 
 var (

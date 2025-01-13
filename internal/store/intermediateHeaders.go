@@ -49,3 +49,15 @@ func (i *IntermediateHeader) SetEpochMark(epochMark *types.EpochMark) {
 	defer i.mu.Unlock()
 	i.Header.EpochMark = epochMark
 }
+
+func (i *IntermediateHeader) GetTicketsMark() *types.TicketsMark {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.TicketsMark
+}
+
+func (i *IntermediateHeader) SetTicketsMark(ticketsMark *types.TicketsMark) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.TicketsMark = ticketsMark
+}
