@@ -64,3 +64,9 @@ func (s *PriorStates) SetTau(tau types.TimeSlot) {
 	defer s.mu.Unlock()
 	s.state.Tau = tau
 }
+
+func (s *PriorStates) SetGammaA(gammaA []types.TicketBody) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}
