@@ -49,3 +49,9 @@ func (i *IntermediateHeader) SetEntropySource(entropy types.BandersnatchVrfSigna
 	defer i.mu.Unlock()
 	i.Header.EntropySource = entropy
 }
+
+func (i *IntermediateHeader) SetAuthorIndex(index types.ValidatorIndex) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.AuthorIndex = index
+}
