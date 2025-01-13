@@ -89,6 +89,12 @@ func (s *PosteriorStates) SetEta(Eta types.EntropyBuffer) {
 	s.state.Eta = Eta
 }
 
+func (s *PosteriorStates) SetEta0(Entropy types.Entropy) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta[0] = Entropy
+}
+
 func (s *PosteriorStates) SetGammaS(GammaS types.TicketsOrKeys) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
