@@ -5,7 +5,7 @@ import (
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // (9.4) // Remain Check this function
@@ -35,27 +35,6 @@ func CheckAccountExistence() {
 	store.GetInstance().GetIntermediateStates().SetDelta(delta)
 }
 
-// // (9.5)
-// func historicalLookupFunction(account types.ServiceAccount, timestamp int64, hash types.OpaqueHash) types.ByteSequence {
-// 	deltas := store.GetInstance().GetIntermediateStates().GetDelta()
-// 	for _, block := range blocks {
-// 		// 僅檢查在指定時間戳範圍內的區塊
-// 		if block.Timestamp > timestamp {
-// 			continue
-// 		}
-
-// 		// 遍歷區塊中的前影數據
-// 		for _, preimage := range block.Preimages {
-// 			if preimage.Hash == hash {
-// 				return preimage.Data, true
-// 			}
-// 		}
-// 	}
-
-// 	// 若未找到匹配的前影，返回空值
-// 	return string{}
-// }
-
 // (9.6) Invariant
 
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
@@ -80,7 +59,7 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 	return exists
 }
 
-// (9.7) historicalLookupFunction Lambda Λ
+// (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
 func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) types.ByteSequence {
 	/*
 		Λ(a, t, h) ≡
@@ -130,6 +109,7 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 	case 3:
 		return (l[0] <= t && t < l[1]) || l[2] <= t
 	default:
+		// ⟦N_T⟧_{∶3}
 		return false
 	}
 }
@@ -150,15 +130,18 @@ func UpdateSerivecAccount() {
 			type ServiceAccountState(delta) map[ServiceId]ServiceAccount
 		*/
 		account := delta[id]
-		account = types.ServiceAccount{
-			Items:   calcKeys(account),
-			Bytes:   calcUsedOctets(account),
-			Balance: calcThresholdBalance(account),
+		// calculate derivative invariants
+		accountDer := types.ServiceAccountDerivatives{
+			Items:      calcKeys(account),
+			Bytes:      calcUsedOctets(account),
+			Minbalance: calcThresholdBalance(account),
 		}
-		// set value back to delta
-		delta[id] = account
+		deltaDer := types.ServiceAccountStateDerivatives{}
+		deltaDer[id] = accountDer
+
+		// set invariants back to deltaDer
+		store.GetInstance().GetIntermediateStates().SetDeltaDer(deltaDer)
 	}
-	store.GetInstance().GetIntermediateStates().SetDelta(delta)
 }
 
 // calculate number of items(keys) in storage
