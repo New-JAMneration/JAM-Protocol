@@ -174,7 +174,7 @@ func UpdateHeaderEntropy() {
 	inter.SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
 }
 
-func UpdateSlotKeySequence() (GammaS types.TicketsOrKeys) {
+func UpdateSlotKeySequence() {
 	/*
 		Slot Key Sequence Update
 						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
@@ -210,5 +210,4 @@ func UpdateSlotKeySequence() (GammaS types.TicketsOrKeys) {
 		}
 	}
 	s.GetPosteriorStates().SetGammaS(new_GammaS)
-	return GammaS
 }
