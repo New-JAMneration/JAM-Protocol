@@ -2,7 +2,7 @@ package types
 
 import "time"
 
-// changeable constants for chainspec
+// changeable constants depends on chainspec
 
 // tiny
 var (
@@ -24,9 +24,9 @@ var (
 
 // permanent constants
 var (
-	AdditionalBalancePerItem  = 10  // B_I
-	AdditionalBalancePerOctet = 1   // B_L
-	BasicMinimumBalance       = 100 // B_S
+	AdditionalMinBalancePerItem  = 10  // B_I
+	AdditionalMinBalancePerOctet = 1   // B_L
+	BasicMinBalance              = 100 // B_S
 
 	SlotPeriod   = 6
 	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)

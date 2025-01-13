@@ -13,7 +13,9 @@ func CheckAccountExistence() {
 	delta := store.GetInstance().GetPriorStates().GetState().Delta
 	for id := range delta {
 		// take out value(account) from delta
-		// type ServiceAccountState(delta) map[ServiceId]ServiceAccount
+		/*
+			type ServiceAccountState(delta) map[ServiceId]ServiceAccount
+		*/
 		account := delta[id]
 
 		// check if CodeHash exists in PreimageLookup
@@ -132,7 +134,8 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 	}
 }
 
-func CalcAccountInFo() {
+// (9.8) shoud be updated once values in service account changed
+func UpdateSerivecAccount() {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -140,41 +143,60 @@ func CalcAccountInFo() {
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
+	delta := store.GetInstance().GetPriorStates().GetState().Delta
+	for id := range delta {
+		// take out value(account) from delta
+		/*
+			type ServiceAccountState(delta) map[ServiceId]ServiceAccount
+		*/
+		account := delta[id]
+		account = types.ServiceAccount{
+			Items:   calcKeys(account),
+			Bytes:   calcUsedOctets(account),
+			Balance: calcThresholdBalance(account),
+		}
+		// set value back to delta
+		delta[id] = account
+	}
+	store.GetInstance().GetIntermediateStates().SetDelta(delta)
 }
 
-func CalculateInternalSize(account types.ServiceAccount) int {
+// calculate number of items(keys) in storage
+func calcKeys(account types.ServiceAccount) types.U32 {
 	/*
 		a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
 	*/
-	keySize := len(account.LookupDict) * 2
-	stateSize := len(account.StorageDict)
-	return keySize + stateSize
+	lookupDictKeySize := len(account.LookupDict) * 2
+	storageDictKeySize := len(account.StorageDict)
+	return types.U32(lookupDictKeySize + storageDictKeySize)
 }
 
-func CalculateExternalSize(account types.ServiceAccount) int {
+// calculate total number of octets(datas) used in storage
+func calcUsedOctets(account types.ServiceAccount) types.U64 {
 	/*
-		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	32 + |x| ]
+		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]
 	*/
-	// 計算鍵集合貢獻
+	// calculate all (81 + preiamge lookup length in keysize)
 	keyContribution := 0
-	for _, key := range account.LookupDict {
-		keyContribution += 81 + len(key)
+	for key := range account.LookupDict {
+		keyContribution += 81 + int(key.Length)
 	}
 
-	// 計算狀態集合貢獻
+	//  calculate all [ 32(size of key) + size of data ]
 	stateContribution := 0
 	for _, x := range account.StorageDict {
 		stateContribution += 32 + len(x)
 	}
 
-	return keyContribution + stateContribution
+	return types.U64(keyContribution + stateContribution)
 }
 
-func CalculateTotalSize(account types.ServiceAccount) int {
+// calculate threshold(minimum) balance needed for any account in terms of storage footprint
+func calcThresholdBalance(account types.ServiceAccount) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
-	aI := CalculateInternalSize(account)
-	aO := CalculateExternalSize(account)
-	return types.BasicMinimumBalance + types.AdditionalBalancePerItem*aI + types.AdditionalBalancePerOctet*aO
+	aI := calcKeys(account)
+	aO := calcUsedOctets(account)
+	return types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
 }

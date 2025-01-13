@@ -94,11 +94,11 @@ type ServiceId U32
 
 type ServiceInfo struct {
 	CodeHash   OpaqueHash `json:"code_hash,omitempty"`
-	Balance    U64        `json:"balance,omitempty"`
+	Balance    U64        `json:"balance,omitempty"` // a_t
 	MinItemGas Gas        `json:"min_item_gas,omitempty"`
 	MinMemoGas Gas        `json:"min_memo_gas,omitempty"`
-	Bytes      U64        `json:"bytes,omitempty"`
-	Items      U32        `json:"items,omitempty"`
+	Bytes      U64        `json:"bytes,omitempty"` // a_o
+	Items      U32        `json:"items,omitempty"` // a_i
 }
 
 // Availability Assignments
