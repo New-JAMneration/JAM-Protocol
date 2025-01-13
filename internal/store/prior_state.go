@@ -52,3 +52,9 @@ func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
 }
+
+func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = eta
+}
