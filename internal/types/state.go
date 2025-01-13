@@ -42,10 +42,6 @@ type ServiceAccount struct {
 	Balance        U64                           // a_b
 	MinItemGas     Gas                           // a_g
 	MinMemoGas     Gas                           // a_m
-	// derivative terms
-	Items      U32 `json:"items,omitempty"`   // a_i
-	Bytes      U64 `json:"bytes,omitempty"`   // a_o
-	Minbalance U64 `json:"balance,omitempty"` // a_t
 }
 
 type DictionaryKey struct {
@@ -54,6 +50,13 @@ type DictionaryKey struct {
 }
 
 type TimeSlotSet []TimeSlot
+
+type ServiceAccountStateDerivatives map[ServiceId]ServiceAccountDerivatives
+type ServiceAccountDerivatives struct {
+	Items      U32 `json:"items,omitempty"` // a_i
+	Bytes      U64 `json:"bytes,omitempty"` // a_o
+	Minbalance U64 // a_t
+}
 
 // (9.9)
 type PrivilegedServices struct {
