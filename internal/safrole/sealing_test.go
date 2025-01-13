@@ -182,3 +182,63 @@ func TestUpdateEntropy(t *testing.T) {
 		}
 	}
 }
+
+func createTicketBody(id string, attempt uint8) types.TicketBody {
+	idBytes := hexToByteArray32(id)
+	return types.TicketBody{Id: types.TicketId(idBytes), Attempt: types.TicketAttempt(attempt)}
+}
+
+func TestUpdateSlotKeySequence(t *testing.T) {
+	s := store.GetInstance()
+	eta := types.EntropyBuffer{
+		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
+		types.Entropy(hexToByteArray32("0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa")),
+		types.Entropy(hexToByteArray32("0x491db955568b306018eee09f2966f873bb665a20b703584ad868454b81b17e76")),
+		types.Entropy(hexToByteArray32("0x0de5a58e78d62b28af21e63fc7f901e1435165a1e8324fa3b20c18afd901c29b")),
+	}
+	s.GetPriorStates().SetTau(types.TimeSlot(types.EpochLength - 1))
+	s.GetPriorStates().SetEta(eta)
+	s.GetPosteriorStates().SetTau(types.TimeSlot(types.EpochLength))
+
+	old_gamma_a := []types.TicketBody{
+		createTicketBody("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d", 2),
+		createTicketBody("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331", 1),
+		createTicketBody("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef", 0),
+		createTicketBody("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8", 2),
+		createTicketBody("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2", 1),
+		createTicketBody("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4", 1),
+		createTicketBody("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c", 0),
+		createTicketBody("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a", 0),
+		createTicketBody("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074", 1),
+		createTicketBody("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec", 2),
+		createTicketBody("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7", 1),
+		createTicketBody("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c", 2),
+	}
+
+	expected_new_gamma_s := []types.TicketBody{
+		createTicketBody("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d", 2),
+		createTicketBody("0x71dd32fb8a1580b4aa3213c3616d8fbbcb9edc00467c4e4548ff8a1fd815811c", 2),
+		createTicketBody("0x1912baa74049a4cad89dc3f0646144459b691b926cf8b9c1c4a5bbfa1ee0c331", 1),
+		createTicketBody("0x6b5cc620ed50042cd517ec8267706c82482f07ebcb3c65bfb6288ef5984141a7", 1),
+		createTicketBody("0x22fdcfa858e5195e222174597d7d33bd66d97748c413b876f7a132134ce9baef", 0),
+		createTicketBody("0x665df13fd353ffe92e9bd68ae952f4511681f04bd2ffb9a6da1b1f5f706c53ec", 2),
+		createTicketBody("0x23bd628fd365a0f3ecd10db746dd04ec5efe61f96da19ae070c44b97d3c9a7b8", 2),
+		createTicketBody("0x39f7d99b86f90cada4aa3b08adfe310024813fca0bdcdff944873a2cc2e47074", 1),
+		createTicketBody("0x31d6a25525ff4bd6e47e611646d7b5835b94b5c0a69c225371b2b762c93095a2", 1),
+		createTicketBody("0x39e2d23807ff3788156eac40cc0a622a9fd23e9468bf962aebe48079c0fd2f1a", 0),
+		createTicketBody("0x31e9b8070f42d7c9083eca5879e5528191259a395761b8fcc068dcdd36b06be4", 1),
+		createTicketBody("0x39120d5b82981c7f5aba8247925f358afb9539839b61602a0726f51efb35ef4c", 0),
+	}
+
+	s.GetPriorStates().SetGammaA(old_gamma_a)
+
+	UpdateSlotKeySequence()
+
+	gamma_s := s.GetPosteriorState().Gamma.GammaS.Tickets
+
+	for i := 0; i < len(expected_new_gamma_s); i++ {
+		if !bytes.Equal(gamma_s[i].Id[:], expected_new_gamma_s[i].Id[:]) {
+			t.Errorf("UpdateEntropy() = %v, want %v", gamma_s[i].Id[i], expected_new_gamma_s[i].Id[i])
+		}
+	}
+}

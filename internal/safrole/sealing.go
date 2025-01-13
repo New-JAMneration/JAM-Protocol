@@ -193,4 +193,5 @@ func UpdateSlotKeySequence() {
 		}
 	}
 	s.GetPosteriorStates().SetGammaS(new_GammaS)
+
 }
