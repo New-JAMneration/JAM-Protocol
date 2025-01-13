@@ -82,3 +82,9 @@ func (s *PosteriorStates) SetGammaZ(gammaZ types.BandersnatchRingCommitment) {
 	defer s.mu.Unlock()
 	s.state.Gamma.GammaZ = gammaZ
 }
+
+func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}
