@@ -20,6 +20,7 @@ var (
 )
 
 var (
-	SlotPeriod   = 6
-	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	SlotPeriod        = 6
+	JamCommonEra      = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	SlotSubmissionEnd = 10 // Y
 )

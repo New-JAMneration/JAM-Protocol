@@ -3,7 +3,6 @@ package safrole
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -44,15 +43,14 @@ func TestCalculateNewEntropy(t *testing.T) {
 	}
 
 	publicKey := types.BandersnatchPublic(hexToByteArray32("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc"))
-	entropySource := types.BandersnatchVrfSignature(hex2Bytes("0x274a0906a0612d7b34eee7470106e4f5d52f946d590cffd3957d48ad7c68ae8df5698fbbfdabfa471b70524c199e724de5c1501a07a283b17098f0e395487e1c2f179c7b81b164bd172c93d2c4ca9d7aacb61198dc1653a67988bc15e683ed0e"))
+	entropySource := types.BandersnatchVrfSignature(hex2Bytes("0x4cc4f71f2a4e3404632ba128c1de4a56e961d50d408d3bba17e31f99fb082a8a998e6e03d797bed2fd1e0c50f777c0df5d6c9e19720ea85d7ad106bbb9a7141ad530fa180d36b0e6fc4fdae845113377e12a0117943c91ac4751eeb4eb66e416")) // next epoch first block header
 
 	expectedEntropy := types.Entropy(hexToByteArray32("0x8c89c318db72cd8b6edf1cd42e2e5501afc76d7fc4d84d7af95d84f64a96daf0"))
 	// fmt.Println((len(expectedEntropy)))
 	actualEntropy := CalculateNewEntropy(publicKey, entropySource, eta)
-	if bytes.Equal(actualEntropy[:], expectedEntropy[:]) {
-		fmt.Println("SUCCESS MACTHING")
+	if !bytes.Equal(actualEntropy[:], expectedEntropy[:]) {
+		t.Errorf("CalculateHeaderEntropy() = %v, want %v", actualEntropy, expectedEntropy)
 	}
-	t.Errorf("CalculateHeaderEntrop() = %v, want %v", actualEntropy, expectedEntropy)
 }
 
 func TestCalculateHeaderEntropy(t *testing.T) {
@@ -68,6 +66,32 @@ func TestCalculateHeaderEntropy(t *testing.T) {
 	}
 }
 
+/*
+func TestSeal(t *testing.T) {
+	"header": {
+        "parent": "0xa6abed6e5112f9a912aa2eae7230038e7df0f2f3f88e9a1558b84f743246920a",
+        "parent_state_root": "0x25f8086b89b911077d7eb0c62d04984e65ee01dbddd9d0ebef69779f2aa9338a",
+        "extrinsic_hash": "0xe06438f6d29edace8e2f0594aef34ab0da579122a54f104983dd97bc039b5e8e",
+        "slot": 5106408,
+        "epoch_mark": {
+            "entropy": "0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7",
+            "tickets_entropy": "0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa",
+            "validators": [
+                "0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d",
+                "0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0",
+                "0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc",
+                "0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33",
+                "0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3",
+                "0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d"
+            ]
+        },
+        "tickets_mark": null,
+        "offenders_mark": [],
+        "author_index": 4,
+        "entropy_source": "0x4cc4f71f2a4e3404632ba128c1de4a56e961d50d408d3bba17e31f99fb082a8a998e6e03d797bed2fd1e0c50f777c0df5d6c9e19720ea85d7ad106bbb9a7141ad530fa180d36b0e6fc4fdae845113377e12a0117943c91ac4751eeb4eb66e416",
+        "seal": "0x31ccb8f7f7d2822a67398b4f512a4fb56a0d0df51be7b664a28824da34f0aa0d879f9e2daca096b9cb323afd4841944072dbb5f1f1257ca2bbaa8a3ecb42070ac29779c9d9dfe351954d3a46e7644f70ab664e56d7d577216c2fa3497067971c"
+    }
+}*/
 /*
 [
   {

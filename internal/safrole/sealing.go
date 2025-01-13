@@ -10,7 +10,6 @@ import (
 var kJamEntropy = "jam_entropy"            // XE
 var kJamFallbackSeal = "jam_fallback_seal" // XF
 var kJamTicketSeal = "jam_ticket_seal"     // XT
-var kSlotSubmissionEnd = 500               // Y
 
 func SealingByTickets(state types.State, header types.Header, eta_p types.EntropyBuffer) (sign []byte, vrf []byte) {
 	/*
@@ -31,7 +30,7 @@ func SealingByTickets(state types.State, header types.Header, eta_p types.Entrop
 
 	handler, _ := CreateVRFHandler(public_key, 0)
 	signature, _ := handler.IETFSign(context, message)
-	vrf_output, _ := handler.VRFOutput(signature)
+	vrf_output, _ := handler.VRFRingOutput(signature)
 
 	sign = signature
 	vrf = vrf_output
@@ -67,7 +66,7 @@ func SealingByBandersnatchs(state types.State, header types.Header, eta_p types.
 func CalculateNewEntropy(public_key types.BandersnatchPublic, entropy_source types.BandersnatchVrfSignature, eta types.EntropyBuffer) types.Entropy {
 	// η′0 ≡ H(η0 ⌢ Y(Hv))
 	handler, _ := CreateVRFHandler(public_key, 0)
-	vrfOutput, _ := handler.VRFOutput(entropy_source[:])
+	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
 	hash_input := append(eta[0][:], vrfOutput...)
 	return types.Entropy(hash.Blake2bHash(hash_input))
 }
@@ -107,7 +106,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	var message types.ByteSequence                                   // message: []
 	var context types.ByteSequence                                   //context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(kJamEntropy[:])...) // XE
-	vrf, _ := handler.VRFOutput(seal[:])
+	vrf, _ := handler.VRFRingOutput(seal[:])
 	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
 	signature, _ := handler.IETFSign(context, message)    // F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	return signature
@@ -127,7 +126,7 @@ func UpdateSlotKeySequence(state types.State, slot_index types.TimeSlot, eta_p t
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-	if len(state.Gamma.GammaA) == types.EpochLength && int(slot_index) >= kSlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+	if len(state.Gamma.GammaA) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 		GammaS.Tickets = OutsideInSequencer(&state.Gamma.GammaA)
 	} else { //F(η′2, κ′) otherwise
 		GammaS.Keys = FallbackKeySequence(eta_p[2], state.Kappa)
