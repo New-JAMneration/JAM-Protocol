@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -109,16 +110,13 @@ func TestGStarLambda(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-
-	state := types.State{
-		Tau:    120,
-		Eta:    dummyEta,
-		Kappa:  dummyKappa,
-		Lambda: dummyLambda,
-	}
+	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
+	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
+	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
+	store.GetInstance().GetPosteriorStates().SetTau(120)
 
 	// act
-	gStarVal := GStar(state)
+	gStarVal := GStarFunc()
 
 	// assert
 	// Because Tau=120, E=12, and R=10, we check which epoch segment it falls into:
@@ -160,16 +158,17 @@ func TestGStarKappa(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-
-	state := types.State{
-		Tau:    130,
-		Eta:    dummyEta,
-		Kappa:  dummyKappa,
-		Lambda: dummyLambda,
-	}
+	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
+	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
+	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
+	store.GetInstance().GetPosteriorStates().SetTau(130)
 
 	// act
-	gStarVal := GStar(state)
+	gStarVal := GStarFunc()
+
+	if len(gStarVal.PublicKeys) != 2 {
+		t.Fatalf("got error in publickeys size")
+	}
 
 	// assert
 	// Because Tau=130, E=12, and R=10, we check which epoch segment it falls into:
@@ -190,4 +189,46 @@ func TestGStarKappa(t *testing.T) {
 	if !reflect.DeepEqual(gStarVal.CoreAssignments, expected) {
 		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gStarVal.CoreAssignments)
 	}
+}
+
+func TestGFunc(t *testing.T) {
+	// arrange
+	// Suppose state.Tau = 120, E=20, R=10. Then subEpoch boundary checks can be tested.
+	// We'll create a dummy State with known eta and kappa/lambda.
+	dummyEta := [4]types.Entropy{
+		[32]byte{0x01}, // eta_prime[0]
+		[32]byte{0x02}, // eta_prime[1]
+		[32]byte{0x03}, // eta_prime[2]
+		[32]byte{0x04}, // eta_prime[3]
+	}
+	// Also define dummyKappa and dummyLambda
+	dummyKappa := types.ValidatorsData{
+		{Ed25519: [32]byte{0xAA}},
+		{Ed25519: [32]byte{0xBB}},
+	}
+	dummyLambda := types.ValidatorsData{
+		{Ed25519: [32]byte{0xCC}},
+		{Ed25519: [32]byte{0xDD}},
+	}
+	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
+	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
+	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
+	store.GetInstance().GetPosteriorStates().SetTau(120)
+
+	// act
+	gVal := GFunc()
+
+	if gVal.PublicKeys[0] != dummyKappa[0].Ed25519 {
+		t.Errorf("expected G to use kappa's public key[0], got something else")
+	}
+	if gVal.PublicKeys[1] != dummyKappa[1].Ed25519 {
+		t.Errorf("expected G to use kappa's public key[1], got something else")
+	}
+
+	expected := []types.CoreIndex{0, 0, 0, 1, 1, 1}
+
+	if !reflect.DeepEqual(gVal.CoreAssignments, expected) {
+		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gVal.CoreAssignments)
+	}
+
 }
