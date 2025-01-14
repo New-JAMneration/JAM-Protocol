@@ -71,6 +71,12 @@ func (s *PosteriorStates) SetLambda(lambda types.ValidatorsData) {
 	s.state.Lambda = lambda
 }
 
+func (s *PosteriorStates) SetGammaA(gammaA types.TicketsAccumulator) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}
+
 func (s *PosteriorStates) SetGammaK(gammaK types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
