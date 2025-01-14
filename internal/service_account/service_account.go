@@ -5,34 +5,34 @@ import (
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	util "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// (9.4) // Remain Check this function
-func CheckAccountExistence() {
+// TODO: check if PVM uses this type
+// type ServiceAccountStateDerivatives map[types.ServiceId]ServiceAccountDerivatives
+type ServiceAccountDerivatives struct {
+	Items      types.U32 `json:"items,omitempty"` // a_i
+	Bytes      types.U64 `json:"bytes,omitempty"` // a_o
+	Minbalance types.U64 // a_t
+}
+
+// (9.4)
+func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.ByteSequence) {
+	/*
+		∀a ∈ A ∶ a_c ≡⎧ a_p[a_c] if a_c ∈ a_p
+		               ⎨ ∅        otherwise
+	*/
 	delta := store.GetInstance().GetPriorStates().GetState().Delta
-	for id := range delta {
-		// take out value(account) from delta
-		/*
-			type ServiceAccountState(delta) map[ServiceId]ServiceAccount
-		*/
-		account := delta[id]
+	account := delta[id]
 
-		// check if CodeHash exists in PreimageLookup
-		if value, exists := account.PreimageLookup[account.CodeHash]; exists {
-			fmt.Println("CodeHash exists in PreimageLookup", id, value)
-			// account.CodeHash = value
-		} else {
-			// default is empty
-			account.CodeHash = types.OpaqueHash{}
-		}
-
-		// set value back to delta
-		delta[id] = account
+	// check if CodeHash exists in PreimageLookup
+	if blob, exists := account.PreimageLookup[account.CodeHash]; exists {
+		return blob
+	} else {
+		// default is empty
+		return types.ByteSequence{}
 	}
-
-	// set new delta to IntermediateStates
-	store.GetInstance().GetIntermediateStates().SetDelta(delta)
 }
 
 // (9.6) Invariant
@@ -41,9 +41,9 @@ func CheckAccountExistence() {
 func ValidateAccount(account types.ServiceAccount) error {
 	for codeHash, preimage := range account.PreimageLookup {
 		// h = H(p)
-		preimageHash := hash.Blake2bHash(preimage)
+		preimageHash := hash.Blake2bHash(util.MapWarpper{Value: account.PreimageLookup}.Serialize())
 		if codeHash != preimageHash || !existsInLookupDict(account, codeHash, preimage) {
-			return fmt.Errorf("validation failed for CodeHash: %v, PreimageHash: %v", codeHash, preimageHash)
+			return fmt.Errorf("\nvalidation failed for CodeHash: %v, \nPreimageHash: %v", codeHash, preimageHash)
 		}
 	}
 	return nil
@@ -60,6 +60,7 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 }
 
 // (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
+
 func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) types.ByteSequence {
 	/*
 		Λ(a, t, h) ≡
@@ -114,8 +115,8 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 	}
 }
 
-// (9.8) shoud be updated once values in service account changed
-func UpdateSerivecAccount() {
+// (9.8) You can use this function to get account derivatives
+func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -124,24 +125,15 @@ func UpdateSerivecAccount() {
 		⎩
 	*/
 	delta := store.GetInstance().GetPriorStates().GetState().Delta
-	for id := range delta {
-		// take out value(account) from delta
-		/*
-			type ServiceAccountState(delta) map[ServiceId]ServiceAccount
-		*/
-		account := delta[id]
-		// calculate derivative invariants
-		accountDer := types.ServiceAccountDerivatives{
-			Items:      calcKeys(account),
-			Bytes:      calcUsedOctets(account),
-			Minbalance: calcThresholdBalance(account),
-		}
-		deltaDer := types.ServiceAccountStateDerivatives{}
-		deltaDer[id] = accountDer
 
-		// set invariants back to deltaDer
-		store.GetInstance().GetIntermediateStates().SetDeltaDer(deltaDer)
+	account := delta[id]
+	// calculate derivative invariants
+	accountDer = ServiceAccountDerivatives{
+		Items:      calcKeys(account),
+		Bytes:      calcUsedOctets(account),
+		Minbalance: calcThresholdBalance(account),
 	}
+	return accountDer
 }
 
 // calculate number of items(keys) in storage

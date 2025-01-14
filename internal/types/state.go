@@ -51,13 +51,6 @@ type DictionaryKey struct {
 
 type TimeSlotSet []TimeSlot
 
-type ServiceAccountStateDerivatives map[ServiceId]ServiceAccountDerivatives
-type ServiceAccountDerivatives struct {
-	Items      U32 `json:"items,omitempty"` // a_i
-	Bytes      U64 `json:"bytes,omitempty"` // a_o
-	Minbalance U64 // a_t
-}
-
 // (9.9)
 type PrivilegedServices struct {
 	ManagerServiceIndex     U32         `json:"chi_m"`

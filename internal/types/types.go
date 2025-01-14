@@ -94,7 +94,7 @@ type ServiceId U32
 
 type ServiceInfo struct {
 	CodeHash   OpaqueHash `json:"code_hash,omitempty"`
-	Balance    U64        `json:"balance,omitempty"` // a_t
+	Balance    U64        `json:"balance,omitempty"`
 	MinItemGas Gas        `json:"min_item_gas,omitempty"`
 	MinMemoGas Gas        `json:"min_memo_gas,omitempty"`
 	Bytes      U64        `json:"bytes,omitempty"` // a_o
