@@ -55,3 +55,35 @@ func (i *IntermediateHeader) SetAuthorIndex(index types.ValidatorIndex) {
 	defer i.mu.Unlock()
 	i.Header.AuthorIndex = index
 }
+
+func (i *IntermediateHeader) SetParent(parent types.HeaderHash) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.Parent = parent
+}
+
+func (i *IntermediateHeader) SetParentStateRoot(parent_state_root types.StateRoot) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.ParentStateRoot = parent_state_root
+}
+
+func (i *IntermediateHeader) SetExtrinsicHash(extrinsic_hash types.OpaqueHash) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.ExtrinsicHash = extrinsic_hash
+}
+
+func (i *IntermediateHeader) SetSlot(timeslot types.TimeSlot) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.Slot = timeslot
+}
+
+func (i *IntermediateHeader) SetEpochMark(epoch_mark types.EpochMark) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	// Assign the entire EpochMark struct to the pointer
+	i.Header.EpochMark = &epoch_mark
+}
