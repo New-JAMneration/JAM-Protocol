@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
@@ -53,8 +54,6 @@ func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
 	return rotated
 }
 
-// (11.21) G(e, t, k) = (P(e, t), H_K)
-// G ≡ (P (η′2, τ ′), Φ(κ′))
 func NewGuranatorAssignments(
 	epochEntropy types.Entropy,
 	currentSlot types.TimeSlot,
@@ -78,19 +77,34 @@ func NewGuranatorAssignments(
 	}
 }
 
+// (11.21) G(e, t, k) = (P(e, t), H_K)
+// G ≡ (P (η′2, τ ′), Φ(κ′))
+func GFunc() GuranatorAssignments {
+	s := store.GetInstance()
+	state := s.GetPosteriorState()
+	etaPrime := state.Eta
+
+	// (η′2, κ′)
+	e := etaPrime[2]
+	validators := state.Kappa
+
+	return NewGuranatorAssignments(e, state.Tau, validators)
+}
+
 // (11.22) G∗ ≡ (P (e, τ ′ − R), Φ(k))
-func GStar(state types.State) GuranatorAssignments {
+func GStarFunc() GuranatorAssignments {
+	state := store.GetInstance().GetPosteriorState()
 	var e types.Entropy
 	var validators types.ValidatorsData
 
-	eta_prime := state.Eta
+	etaPrime := state.Eta
 	if (int(state.Tau)-R)/E == int(state.Tau)/E {
 		// (η′2, κ′)
-		e = eta_prime[2]
+		e = etaPrime[2]
 		validators = state.Kappa
 	} else {
 		// (η′3, λ′)
-		e = eta_prime[3]
+		e = etaPrime[3]
 		validators = state.Lambda
 	}
 
