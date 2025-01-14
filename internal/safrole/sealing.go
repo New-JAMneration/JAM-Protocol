@@ -7,23 +7,22 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
+// TODO VERIFY 6.15 6.16
 func SealingByTickets() {
-	/*
-				F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
-		See section 3.8.
-	*/
 	/*
 							  iy = Y(Hs)
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
 	*/
 	s := store.GetInstance()
-	state := s.GetPriorState()
-	if len(state.Gamma.GammaS.Tickets) == 0 {
+	posterior_state := s.GetPosteriorState()
+	if len(posterior_state.Gamma.GammaS.Tickets) == 0 {
 		return
 	}
 	header := s.GetIntermediateHeader()
-	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
-	i_r := state.Gamma.GammaS.Tickets[GetSlotIndex(header.Slot)].Attempt // header.Slot or  GetSlotIndex(state.Tau) or ????
+	index := uint(header.Slot) % uint(len(posterior_state.Gamma.GammaS.Keys))
+	ticket := posterior_state.Gamma.GammaS.Tickets[index]
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	i_r := ticket.Attempt
 	message := utilities.HeaderUSerialization(header)
 	eta_prime := s.GetPosteriorState().Eta
 
@@ -32,34 +31,29 @@ func SealingByTickets() {
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
 	context = append(context, types.ByteSequence([]byte{uint8(i_r)})...)     // ir
 
-	handler, _ := CreateVRFHandler(public_key, 0)
+	handler, _ := CreateVRFHandler(public_key)
 	signature, _ := handler.IETFSign(context, message)
-	// vrf_output, _ := handler.VRFRingOutput(signature)
 
 	s.GetIntermediateHeaders().SetSeal(types.BandersnatchVrfSignature(signature))
-	// return sign, vrf
 }
 
 func SealingByBandersnatchs() {
 	/*
-		F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
-		See section 3.8.
-	*/
-	/*
 		(6.16) γ′s ∈ ⟦HB⟧  Hs ∈ F EU(H) Ha ⟨XF ⌢ η′3⟩
 	*/
 	/*
-		public key: Ha  Bandersnatch key of the block author  header.AuthorIndex
+		public key: Ha
 		message: EU (H)
 		context: XF ⌢ η′3
 	*/
 	s := store.GetInstance()
-	state := s.GetPriorState()
-	if len(state.Gamma.GammaS.Keys) == 0 {
+	posterior_state := s.GetPosteriorState()
+	if len(posterior_state.Gamma.GammaS.Keys) == 0 {
 		return
 	}
 	header := s.GetIntermediateHeader()
-	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	index := uint(header.Slot) % uint(len(posterior_state.Gamma.GammaS.Keys))
+	public_key := posterior_state.Gamma.GammaS.Keys[index]
 	message := utilities.HeaderUSerialization(header)
 	eta_prime := s.GetPosteriorState().Eta
 
@@ -67,27 +61,24 @@ func SealingByBandersnatchs() {
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
 
-	handler, _ := CreateVRFHandler(public_key, 0)
+	handler, _ := CreateVRFHandler(public_key)
 	signature, _ := handler.IETFSign(context, message)
-
 	s.GetIntermediateHeaders().SetSeal(types.BandersnatchVrfSignature(signature))
 }
 
 func UpdateEtaPrime0() {
 	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
 
-	// CalculateNewEntropy
 	s := store.GetInstance()
 
-	// Get prior state
-	state := s.GetPriorState()
-
+	posterior_state := s.GetPosteriorState()
+	prior_state := s.GetPriorState()
 	header := s.GetIntermediateHeader()
 
-	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 	entropy_source := header.EntropySource
-	eta := state.Eta
-	handler, _ := CreateVRFHandler(public_key, 0)
+	eta := prior_state.Eta
+	handler, _ := CreateVRFHandler(public_key)
 	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
 	hash_input := append(eta[0][:], vrfOutput...)
 	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
@@ -100,24 +91,19 @@ func UpdateEntropy() {
 								(η1, η2, η3) otherwise
 	*/
 
-	// CalculateNewEntropy
 	s := store.GetInstance()
 
-	// Get prior state
-	priorState := s.GetPriorState()
+	prior_state := s.GetPriorState()
 
-	// Get posterior state
-	posteriorState := s.GetPosteriorState()
+	posterior_state := s.GetPosteriorState()
 
-	// Get previous time slot index
-	tau := priorState.Tau
+	tau := prior_state.Tau
 
-	// Get current time slot index
-	tauPrime := posteriorState.Tau
+	tauPrime := posterior_state.Tau
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
-	eta := priorState.Eta
+	eta := prior_state.Eta
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {
 			eta[i+1] = eta[i]
@@ -134,7 +120,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	/*
 		(6.17) Hv ∈ F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	*/
-	handler, _ := CreateVRFHandler(public_key, 0)
+	handler, _ := CreateVRFHandler(public_key)
 	var message types.ByteSequence                                        // message: []
 	var context types.ByteSequence                                        //context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
@@ -148,12 +134,12 @@ func UpdateHeaderEntropy() {
 	s := store.GetInstance()
 
 	// Get prior state
-	state := s.GetPriorState()
+	posterior_state := s.GetPosteriorState()
 
 	header := s.GetIntermediateHeader()
 
-	public_key := state.Kappa[header.AuthorIndex].Bandersnatch // Ha
-	seal := header.Seal                                        // Hs
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch // Ha
+	seal := header.Seal                                                  // Hs
 	s.GetIntermediateHeaders().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
 }
 
@@ -189,7 +175,7 @@ func UpdateSlotKeySequence() {
 		if len(priorState.Gamma.GammaA) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 			new_GammaS.Tickets = OutsideInSequencer(&priorState.Gamma.GammaA)
 		} else { //F(η′2, κ′) otherwise
-			new_GammaS.Keys = FallbackKeySequence(eta_prime[2], priorState.Kappa)
+			new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.Kappa)
 		}
 	}
 	s.GetPosteriorStates().SetGammaS(new_GammaS)
