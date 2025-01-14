@@ -646,3 +646,17 @@ func TestSerializeWorkPackage(t *testing.T) {
 		t.Errorf("\nExpected Serialization result: %v, \nGot: %v", expectedResult, serializationResult)
 	}
 }
+
+func TestDeferredTransferSerialization(t *testing.T) {
+	// Create a default RefineContext with sample values
+	defaultDeferredTransfer := types.DeferredTransfer{}
+
+	// Expected output (adjust based on SerializeByteArray and SerializeFixedLength behavior)
+	expectedOutput := make([]byte, 152)
+
+	result := DeferredTransferSerialization(defaultDeferredTransfer)
+
+	if !bytes.Equal(result, expectedOutput) {
+		t.Errorf("RefineContextSerialization() = %v, want %v", result, expectedOutput)
+	}
+}
