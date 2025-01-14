@@ -53,6 +53,24 @@ func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
 	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
 }
 
+func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = eta
+}
+
+func (s *PriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}
+
+func (s *PriorStates) SetGammaA(gammaA []types.TicketBody) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}
+
 func (s *PriorStates) SetPsiG(psiG []types.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
