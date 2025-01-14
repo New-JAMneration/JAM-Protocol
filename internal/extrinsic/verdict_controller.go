@@ -222,12 +222,14 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			clearReports[types.OpaqueHash(verdict.ReportHash)] = true
 		}
 	}
-	intermediateStatesRho := priorStatesRho
-	for _, item := range intermediateStatesRho {
-		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(item.Report))
+	for i := range priorStatesRho {
+		if priorStatesRho[i] == nil {
+			continue
+		}
+		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(priorStatesRho[i].Report))
 		if clearReports[hashReport] {
-			item = nil
+			priorStatesRho[i] = nil
 		}
 	}
-	store.GetInstance().GetIntermediateStates().SetRhoDagger(intermediateStatesRho)
+	store.GetInstance().GetIntermediateStates().SetRhoDagger(priorStatesRho)
 }
