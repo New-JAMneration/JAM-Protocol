@@ -3,47 +3,82 @@ package store
 import (
 	"sync"
 
-	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-type States struct {
+type PriorStates struct {
 	mu    sync.RWMutex
 	state *types.State
 }
 
-func NewStates() *States {
-	return &States{
+func NewPriorStates() *PriorStates {
+	return &PriorStates{
 		state: &types.State{},
 	}
 }
 
-func (s *States) GetState() types.State {
+func (s *PriorStates) GetState() types.State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return *s.state
 }
 
-func (s *States) GenerateGenesisState(state types.State) {
+func (s *PriorStates) GenerateGenesisState(state types.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state = &state
 }
 
-func (s *States) SetKappa(kappa types.ValidatorsData) {
+func (s *PriorStates) SetBeta(beta types.BlocksHistory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta = beta
+}
+
+func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Kappa = kappa
-
 }
 
-func (s *States) SetLambda(lambda types.ValidatorsData) {
+func (s *PriorStates) SetLambda(lambda types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Lambda = lambda
 }
 
-func (s *States) AddPsiOffenders(offender types.Ed25519Public) {
+func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
+}
+
+func (s *PriorStates) SetPsiG(psiG []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Good = psiG
+}
+
+func (s *PriorStates) SetPsiB(psiB []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Bad = psiB
+}
+
+func (s *PriorStates) SetPsiW(psiW []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Wonky = psiW
+}
+
+func (s *PriorStates) SetPsiO(psiO []types.Ed25519Public) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Offenders = psiO
+}
+
+func (s *PriorStates) SetRho(rho types.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Rho = rho
 }
