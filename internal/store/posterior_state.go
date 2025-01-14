@@ -106,3 +106,15 @@ func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
 	defer s.mu.Unlock()
 	s.state.Tau = tau
 }
+
+func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}
+
+func (s *PosteriorStates) SetEta(eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = eta
+}

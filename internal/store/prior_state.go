@@ -70,3 +70,33 @@ func (s *PriorStates) SetGammaA(gammaA []types.TicketBody) {
 	defer s.mu.Unlock()
 	s.state.Gamma.GammaA = gammaA
 }
+
+func (s *PriorStates) SetPsiG(psiG []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Good = psiG
+}
+
+func (s *PriorStates) SetPsiB(psiB []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Bad = psiB
+}
+
+func (s *PriorStates) SetPsiW(psiW []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Wonky = psiW
+}
+
+func (s *PriorStates) SetPsiO(psiO []types.Ed25519Public) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Offenders = psiO
+}
+
+func (s *PriorStates) SetRho(rho types.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Rho = rho
+}

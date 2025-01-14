@@ -7,6 +7,9 @@ var (
 	CoresCount      = 2
 	EpochLength     = 12
 
+	// R: The rotation period of validator-core assignments, in timeslots.
+	RotationPeriod = 4
+
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
 
