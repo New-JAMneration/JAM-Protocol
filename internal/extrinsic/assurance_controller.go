@@ -155,10 +155,10 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 	availableNumber := jam_types.ValidatorsCount * 2 / 3
 	totalAvailable := make([]int, jam_types.CoresCount)
 
+	// compute total availability of a report | at this moment of the workflow, the bitfield is transformed into a binary sequence.
 	for i := 0; i < len(a.AvailAssurances); i++ {
-		byteIndex, bitIndex := 0, 0
 		for j := 0; j < jam_types.CoresCount; j++ {
-			if a.AvailAssurances[i].Bitfield[byteIndex]&(1<<bitIndex) == 1 {
+			if a.AvailAssurances[i].Bitfield[j] == 1 {
 				totalAvailable[j]++
 			}
 		}
