@@ -44,16 +44,16 @@ func (d *DisputeController) ValidateFaults() error {
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
 func (d *DisputeController) ValidateCulprits() error {
-	culpritMap := make(map[types.WorkReportHash]bool)
+	culpritMap := make(map[types.WorkReportHash]int)
 
 	for _, report := range d.CulpritController.Culprits {
-		culpritMap[report.Target] = true
+		culpritMap[report.Target]++
 	}
 
 	bad := 0
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == bad {
-			if !culpritMap[types.WorkReportHash(report.ReportHash)] {
+			if culpritMap[types.WorkReportHash(report.ReportHash)] < 2 {
 				return fmt.Errorf("not_enough_culprits")
 			}
 		}
