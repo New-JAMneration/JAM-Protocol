@@ -51,7 +51,7 @@ func ExtrinsicPreimageSerialization(preimages types.PreimagesExtrinsic) (output 
 	output = append(output, SerializeU64(types.U64(len(preimages)))...)
 	for _, preimage := range preimages {
 		// Preimage.Requester
-		output = append(output, SerializeU64(types.U64(preimage.Requester))...)
+		output = append(output, SerializeFixedLength(types.U32(preimage.Requester), 4)...)
 		// Preimagt.Blob
 		output = append(output, SerializeU64(types.U64(len(preimage.Blob)))...)
 		output = append(output, SerializeByteSequence(preimage.Blob[:])...)
@@ -77,7 +77,7 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 		// Signature
 		output = append(output, SerializeU64(types.U64(len(guarantee.Signatures)))...)
 		for _, signature := range guarantee.Signatures {
-			output = append(output, SerializeU64(types.U64(signature.ValidatorIndex))...)
+			output = append(output, SerializeFixedLength(types.U32(signature.ValidatorIndex), 2)...)
 			output = append(output, SerializeByteSequence(signature.Signature[:])...)
 		}
 	}
