@@ -3,9 +3,10 @@ package extrinsic
 import (
 	"bytes"
 	"fmt"
+	"sort"
+
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"sort"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -29,14 +30,15 @@ func NewCulpritController() *CulpritController {
 }
 
 // VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.5
-func (c *CulpritController) VerifyCulpritValidity() {
+func (c *CulpritController) VerifyCulpritValidity() error {
 	// if the culprits are not valid return error
 	if err := c.VerifyReportHashValidty(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
 	if err := c.ExcludeOffenders(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
+	return nil
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
@@ -70,7 +72,7 @@ func (c *CulpritController) ExcludeOffenders() error {
 	length := len(c.Culprits)
 
 	for i := 0; i < length; i++ { // culprit index
-		if !excludeMap[c.Culprits[i].Key] {
+		if excludeMap[c.Culprits[i].Key] {
 			return fmt.Errorf("CulpritController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}
