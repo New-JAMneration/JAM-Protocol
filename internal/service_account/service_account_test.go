@@ -11,6 +11,8 @@ import (
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // Custom input struct for json
@@ -20,8 +22,8 @@ type Input_json struct {
 }
 
 type preimage_json struct {
-	Hash string `json:"hash,omitempty"`
-	Blob string `json:"blob,omitempty"`
+	Requester string `json:"hash,omitempty"`
+	Blob      string `json:"blob,omitempty"`
 }
 type state_json struct {
 	Accounts []serviceAccount_json `json:"accounts,omitempty"`
@@ -34,8 +36,8 @@ type serviceAccount_json struct {
 
 type serviceAccountInfo_json struct {
 	// StorageDict    map[types.OpaqueHash]types.ByteSequence   `json:"storage_dict,omitempty"`
-	PreimageLookup []preimage_json `json:"preimages,omitempty"`
-	LookupDict     []history_json  `json:"history,omitempty"`
+	PreimageLookup []preimagelookup_json `json:"preimages,omitempty"`
+	LookupDict     []history_json        `json:"history,omitempty"`
 	// CodeHash       types.OpaqueHash `json:"code_hash,omitempty"`
 	// Balance        types.U64        `json:"balance,omitempty"`
 	// MinItemGas     types.Gas        `json:"min_item_gas,omitempty"`
@@ -43,6 +45,11 @@ type serviceAccountInfo_json struct {
 	// Items          types.U32        `json:"items,omitempty"`
 	// Bytes          types.U64        `json:"bytes,omitempty"`
 	// Minbalance     types.U64        `json:"minbalance,omitempty"`
+}
+
+type preimagelookup_json struct {
+	Hash string `json:"hash,omitempty"`
+	Blob string `json:"blob,omitempty"`
 }
 
 type history_json struct {
@@ -63,7 +70,7 @@ type testVector_json struct {
 
 // mytypes
 type myInput struct {
-	Preimages map[types.OpaqueHash]types.ByteSequence
+	Preimages types.PreimagesExtrinsic
 	Slot      types.TimeSlot
 }
 
@@ -101,28 +108,31 @@ func loadInputFromJSON(filePath string) (my myTestVector, err error) {
 	}
 	err = json.Unmarshal(data, &vector_json)
 
+	// initialize a empty myTestVector
+	my = myTestVector{
+		Input: myInput{},
+		PreState: types.State{
+			Delta: make(map[types.ServiceId]types.ServiceAccount),
+		},
+		Output: vector_json.Output,
+		PostState: types.State{
+			Delta: make(map[types.ServiceId]types.ServiceAccount),
+		},
+	}
 	// convert json to mytypes
 
 	// myTestVector.Input: Input_json -> myInput
 	/*
 		type Input_json struct {		type myInput struct {
-			Preimages []preimage_json -> 	map[types.OpaqueHash]types.ByteSequence
+			Preimages []preimage_json -> 	Preimages types.PreimagesExtrinsic (no need)
 			Slot      int             -> 	types.TimeSlot
 		}								}
 	*/
-	my.Input.Preimages = make(map[types.OpaqueHash]types.ByteSequence)
 	var (
 		slot       = vector_json.Input.Slot
 		slot_types = types.TimeSlot(slot)
 	)
-	for _, preimage := range vector_json.Input.Preimages {
-		var (
-			inputHash, _    = hexToOpaqueHash(preimage.Hash)
-			inputHash_types = types.OpaqueHash(inputHash)
-			length_types    = types.ByteSequence(preimage.Blob)
-		)
-		my.Input.Preimages[inputHash_types] = length_types
-	}
+	my.Input.Slot = slot_types
 
 	// myTestVector.PreState: state_json -> types.State
 	/*
@@ -130,7 +140,6 @@ func loadInputFromJSON(filePath string) (my myTestVector, err error) {
 			Accounts []serviceAccount_json ->     Delta map[types.ServiceId]types.ServiceAccount
 		}									  }
 	*/
-	my.PreState.Delta = make(map[types.ServiceId]types.ServiceAccount)
 	for _, account := range vector_json.PreState.Accounts {
 		var (
 			id_types             = types.ServiceId(account.Id)
@@ -182,7 +191,6 @@ func loadInputFromJSON(filePath string) (my myTestVector, err error) {
 			Accounts []serviceAccount_json ->     Delta map[types.ServiceId]types.ServiceAccount
 		}									  }
 	*/
-	my.PostState.Delta = make(map[types.ServiceId]types.ServiceAccount)
 	for _, account := range vector_json.PostState.Accounts {
 		var (
 			id_types             = types.ServiceId(account.Id)
@@ -191,14 +199,24 @@ func loadInputFromJSON(filePath string) (my myTestVector, err error) {
 			lookupDict_types     = make(map[types.DictionaryKey]types.TimeSlotSet)
 		)
 		// convert preimageLookup
-		for _, preimage := range info.PreimageLookup {
+		for _, preimagelookup := range info.PreimageLookup {
 			var (
-				pHash, _    = hexToOpaqueHash(preimage.Hash)
-				pHash_types = types.OpaqueHash(pHash)
+				pHash, _ = hexToOpaqueHash(preimagelookup.Hash)
+				pHash1   = HexToByteArray32(preimagelookup.Hash)
 
-				pBlob_types = types.ByteSequence(preimage.Blob)
+				pHash_types = types.OpaqueHash(pHash1)
+
+				pBlob_types = types.ByteSequence(preimagelookup.Blob)
+				blobHash    = hash.Blake2bHash(utilities.WrapByteSequence(pBlob_types).Serialize())
 			)
 			preimageLookup_types[pHash_types] = pBlob_types
+			fmt.Println("\npreimage.Hash:", preimagelookup.Hash)
+			fmt.Println("\npHash:", pHash)
+			fmt.Println("\npHash1:", pHash1)
+			fmt.Println("\npreimage.Blob:", preimagelookup.Blob)
+			fmt.Println("\npBlob_types:", pBlob_types)
+			fmt.Println("\nblobHash:", blobHash)
+			fmt.Println("\npreimageLookup_types:", preimageLookup_types)
 		}
 		// convert lookupDict
 		for _, history := range info.LookupDict {
@@ -228,18 +246,12 @@ func loadInputFromJSON(filePath string) (my myTestVector, err error) {
 
 	// Finally, we construct myTestVector
 	my = myTestVector{
-		Input: myInput{
-			// Preimages: make(map[types.OpaqueHash]types.ByteSequence),
-			Slot: slot_types,
-		},
-		// PostState: types.State{
-		// 	Delta: make(map[types.ServiceId]types.ServiceAccount),
-		// },
-		Output: vector_json.Output,
-		// PostState: types.State{
-		// 	Delta: make(map[types.ServiceId]types.ServiceAccount),
-		// },
+		Input:     my.Input,
+		PreState:  my.PreState,
+		Output:    vector_json.Output,
+		PostState: my.PostState,
 	}
+	// fmt.Println("\nmy:", my)
 	return my, err
 }
 
@@ -250,72 +262,89 @@ func TestServiceAccount(t *testing.T) {
 		// "../../pkg/test_data/jam-test-vectors/preimages/data/preimage_needed-2.json",
 	}
 
-	for i, vector := range vectors {
-		my, err := loadInputFromJSON(vector)
-		if err != nil {
-			t.Fatalf("Failed to load input from JSON[%d]: %v", i, err)
-		}
+	for i, vec := range vectors {
+		vectorIdx, vector := i, vec
 
-		// Create a new ServiceAccount
-		var (
-			preimages = my.Input.Preimages
-			slot      = my.Input.Slot
-		)
-
-		// Store initialization
-		store.NewPriorStates()
-		store.NewIntermediateStates()
-		store.NewPosteriorStates()
-		store.GetInstance().GetPriorStates().SetDelta(my.PreState.Delta)
-		priorDelta := store.GetInstance().GetPriorStates().GetState().Delta
-
-		// Perform operations on the ServiceAccount
-		// 这里可以添加对 account 的操作，例如验证、更新等
-		// 例如：
-		t.Run("TestCheckAccountExistence", func(t *testing.T) {
-			// Update account
-			CheckAccountExistence()
-
-			intermediateDelta := store.GetInstance().GetIntermediateStates().GetDelta()
-			if !reflect.DeepEqual(intermediateDelta, priorDelta) {
-				t.Errorf("intermediateDelta does not match expected priorDelta for vector[%d]", i)
+		t.Run(fmt.Sprintf("Vector_%d", vectorIdx), func(t *testing.T) {
+			my, err := loadInputFromJSON(vector)
+			if err != nil {
+				t.Fatalf("Failed to load input from JSON[%d]: %v", vectorIdx, err)
 			}
+
+			// Store initialization
+			store.NewPriorStates()
+			store.GetInstance().GetPriorStates().SetDelta(my.PreState.Delta)
+			// t.Logf("my.PreState.Delta: %+v", my.PreState.Delta)
+			priorDelta := store.GetInstance().GetPriorStates().GetState().Delta
+			slot := my.Input.Slot
+
+			// Perform operations on the ServiceAccount
+			// 这里可以添加对 account 的操作，例如验证、更新等
+			// 例如：
+			// t.Logf("Load Prior Delta: %+v", priorDelta)
+
+			t.Run("AccountTests", func(t *testing.T) {
+
+				t.Logf("Prior Delta: %+v", priorDelta)
+				for id, account := range priorDelta {
+					Id, Account := id, account
+
+					t.Run(fmt.Sprintf("Account_%d", Id), func(t *testing.T) {
+						// t.Parallel()
+
+						t.Run("FetchCodeByHash", func(t *testing.T) {
+							// t.Parallel()
+							code := FetchCodeByHash(Id, Account.CodeHash)
+
+							expectedCode := priorDelta[Id].PreimageLookup[priorDelta[Id].CodeHash]
+
+							if !reflect.DeepEqual(code, expectedCode) {
+								t.Errorf("service %d fetches code \nwant: %v \nbut got %v", Id, expectedCode, code)
+							}
+						})
+
+						t.Log("PreimageLookup:", Account.PreimageLookup)
+						t.Run("ValidateAccount", func(t *testing.T) {
+							err = ValidateAccount(Account)
+							if err != nil {
+								t.Errorf("Validation failed for id: %d Account: %v", Id, err)
+							}
+						})
+
+						t.Run("HistoricalLookup", func(t *testing.T) {
+							// t.Parallel()
+							for hash := range account.PreimageLookup {
+								result := HistoricalLookupFunction(Account, slot, hash)
+								expected := account.PreimageLookup[hash]
+
+								if !reflect.DeepEqual(result, expected) {
+									t.Errorf("HistoricalLookupFunction for Account %v does not match expected result for vector[%d]", Account, vectorIdx)
+								}
+							}
+						})
+
+						t.Run("GetSerivecAccountDerivatives", func(t *testing.T) {
+							// t.Parallel()
+							accountDer := GetSerivecAccountDerivatives(Id)
+							t.Log("accountDer:", accountDer)
+							t.Log("a_i=2*|a_l|+|a_p|\n", accountDer.Items, 2*len(Account.LookupDict)+len(Account.PreimageLookup))
+							t.Log("a_o=[ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]\n", accountDer.Bytes, 81*len(Account.LookupDict)+len(Account.LookupDict), 32*len(Account.PreimageLookup)+len(Account.PreimageLookup))
+							t.Log("a_t = B_S + B_I*a_i + B_L*a_o\n", accountDer.Minbalance, types.U64(types.BasicMinBalance)+types.U64(types.U32(types.AdditionalMinBalancePerItem)*deltaDer[Id].Items)+types.U64(types.AdditionalMinBalancePerOctet)*deltaDer[Id].Bytes)
+						})
+					})
+				}
+				// Check output against expected output
+				// 这里可以添加对输出的检查，例如：
+				// if !reflect.DeepEqual(account, my.Output) {
+				//     t.Errorf("Output does not match expected output for vector[%d]", i)
+				// }
+
+				// Check post state
+				// postState := store.GetInstance().GetPosteriorStates().GetState()
+				// if !reflect.DeepEqual(postState, my.PostState) {
+				// 	t.Errorf("PostState does not match expected post state for vector[%d]", i)
+				// }
+			})
 		})
-
-		for id, account := range priorDelta {
-			t.Run("TestValidaeAccount", func(t *testing.T) {
-				// Validate account
-				err = ValidateAccount(account)
-				if err != nil {
-					t.Errorf("Validation failed for id: %d account: %v", id, err)
-				}
-			})
-
-			t.Run("TestHistoricalLookupFunction", func(t *testing.T) {
-				for hash := range preimages {
-					result := HistoricalLookupFunction(account, slot, hash)
-					expected := preimages[hash]
-
-					if !reflect.DeepEqual(result, expected) {
-						t.Errorf("HistoricalLookupFunction for account %v does not match expected result for vector[%d]", account, i)
-					}
-				}
-			})
-			t.Run("TestUpdateSerivecAccount", func(t *testing.T) {
-				UpdateSerivecAccount()
-			})
-		}
-
-		// Check output against expected output
-		// 这里可以添加对输出的检查，例如：
-		// if !reflect.DeepEqual(account, my.Output) {
-		//     t.Errorf("Output does not match expected output for vector[%d]", i)
-		// }
-
-		// Check post state
-		postState := store.GetInstance().GetPosteriorStates().GetState()
-		if !reflect.DeepEqual(postState, my.PostState) {
-			t.Errorf("PostState does not match expected post state for vector[%d]", i)
-		}
 	}
 }
