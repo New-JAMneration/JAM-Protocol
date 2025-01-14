@@ -1,0 +1,9 @@
+{
+    "service_id": 16909060,
+    "code_hash": "0x70a50829851e8f6a8c80f92806ae0e95eb7c06ad064e311cc39107b3219e532e",
+    "payload_hash": "0xfa99b97e72fcfaef616108de981a59dc3310e2a9f5e73cd44d702ecaaccd8696",
+    "accumulate_gas": 42,
+    "result": {
+        "ok": "0xaabbcc"
+    }
+}
