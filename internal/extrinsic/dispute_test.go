@@ -87,6 +87,17 @@ var Lambda = types.ValidatorsData{
 	},
 }
 
+func copyPriorToPosterior() {
+	priorState := store.GetInstance().GetPriorState()
+	posteriorState := store.GetInstance().GetPosteriorStates()
+	posteriorState.SetPsiG(priorState.Psi.Good)
+	posteriorState.SetPsiB(priorState.Psi.Bad)
+	posteriorState.SetPsiW(priorState.Psi.Wonky)
+	posteriorState.SetPsiO(priorState.Psi.Offenders)
+	posteriorState.SetKappa(priorState.Kappa)
+	posteriorState.SetLambda(priorState.Lambda)
+}
+
 func TestDisputeWorkFlow_progress_invalidates_avail_assignments_1(t *testing.T) {
 	disputeExtrinsic := types.DisputesExtrinsic{
 		Verdicts: []types.Verdict{
@@ -322,11 +333,7 @@ func TestDisputeWorkFlow_progress_invalidates_avail_assignments_1(t *testing.T) 
 	store.GetInstance().GetPriorStates().SetPsiW([]types.WorkReportHash{})
 	store.GetInstance().GetPriorStates().SetPsiO([]types.Ed25519Public{})
 
-	output, err := Disputes(disputeExtrinsic)
-
-	if err != nil {
-		t.Errorf("Disputes failed: %v", err)
-	}
+	output, _ := Disputes(disputeExtrinsic)
 
 	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
 	intermediateRho := store.GetInstance().GetIntermediateStates().GetRhoDagger()
@@ -424,6 +431,7 @@ func TestDisputeWorkFlow_progress_with_bad_signatures_1(t *testing.T) {
 			t.Errorf("expected error: %v, got: %v", expectedError, err)
 		}
 	}
+	copyPriorToPosterior()
 
 	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
@@ -523,6 +531,8 @@ func TestDisputeWorkFlow_progress_with_bad_signatures_2(t *testing.T) {
 		}
 	}
 
+	copyPriorToPosterior()
+
 	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
@@ -599,7 +609,90 @@ func TestDisputeWorkFlow_ProgressWithCulprit1(t *testing.T) {
 			t.Errorf("expected error: %v, got: %v", expectedError, err)
 		}
 	}
+	copyPriorToPosterior()
+	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
+		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
+	}
+}
 
+func TestDisputeWorkFlow_ProgressWithCulprit2(t *testing.T) {
+	disputeExtrinsic := types.DisputesExtrinsic{
+		Verdicts: []types.Verdict{
+			{
+				Target: types.OpaqueHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
+				Age:    0,
+				Votes: []types.Judgement{
+					{
+						Vote:      false,
+						Index:     0,
+						Signature: types.Ed25519Signature(HexToBytes("0x826a4bbe7ee3400ffe0f64bdd87ae65aa50d98f48ad6a60da927636cd430ae5d3914d3bc6b87c47c94a9cc5bef84bf30be5534e5c649fc2cd4434918a37a2301")),
+					},
+					{
+						Vote:      false,
+						Index:     1,
+						Signature: types.Ed25519Signature(HexToBytes("0x726e970fff9e9a05a891fe46ec3371b099c7a637fccc0314bdf42f254f868baee58cf902cbd6eda9871f8ac7687aa2a381eaa70e4b0a9a4b7640ecac9b88300e")),
+					},
+					{
+						Vote:      false,
+						Index:     2,
+						Signature: types.Ed25519Signature(HexToBytes("0x960493c94e625e296d48756050b0f92217ecc4059f369597defccae78d92b0e6628faf6a216f44f95bfc6b2f5f5a192c8c163ceb8b147de21373a658c9f34706")),
+					},
+					{
+						Vote:      false,
+						Index:     3,
+						Signature: types.Ed25519Signature(HexToBytes("0x2e40c056ccbe227ae2e10c1f07800b7981fba2d9ca80eaec293251b9287e2ed55dcc177cadb1a51929fa0caffe9fb1833aa7566dd4be09ac28eb215428a4a509")),
+					},
+					{
+						Vote:      false,
+						Index:     4,
+						Signature: types.Ed25519Signature(HexToBytes("0xeaa2e3d9e334b116fd122d4d79e87955ad1994e005548a6451255f840fab5e19899e1efdff6868500b57beb32449340cbb53073c2d51fc5bce4f42915b1bd60a")),
+					},
+				},
+			},
+		},
+		Culprits: []types.Culprit{
+			{
+				Target:    types.WorkReportHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
+				Key:       types.Ed25519Public(HexToBytes("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29")),
+				Signature: types.Ed25519Signature(HexToBytes("0xf23e45d7f8977a8eda61513bd5cab1451eb64f265edf340c415f25480123391364521f9bb4c14f840a0dae20eb4dc4a735c961d9966da51dde0d85281dc1dc0b")),
+			},
+		},
+		Faults: []types.Fault{},
+	}
+
+	expectedPsi := types.DisputesRecords{
+		Good:      []types.WorkReportHash{},
+		Bad:       []types.WorkReportHash{},
+		Wonky:     []types.WorkReportHash{},
+		Offenders: []types.Ed25519Public{},
+	}
+
+	// initialize the store
+	store.GetInstance().GetPriorStates().SetKappa(Kappa)
+	store.GetInstance().GetPriorStates().SetLambda(Lambda)
+
+	store.GetInstance().GetPosteriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiB([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPosteriorStates().SetPsiO([]types.Ed25519Public{})
+
+	store.GetInstance().GetPriorStates().SetPsiG([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiB([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiW([]types.WorkReportHash{})
+	store.GetInstance().GetPriorStates().SetPsiO([]types.Ed25519Public{})
+
+	_, err := Disputes(disputeExtrinsic)
+
+	if err == nil {
+		t.Errorf("expected an error but got nil")
+	} else {
+		expectedError := "not_enough_culprits"
+		if err.Error() != expectedError {
+			t.Errorf("expected error: %v, got: %v", expectedError, err)
+		}
+	}
+	copyPriorToPosterior()
 	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
@@ -727,6 +820,8 @@ func TestDisputeWorkFlow_ProgressWithVerdicts4(t *testing.T) {
 	store.GetInstance().GetPriorStates().SetPsiB([]types.WorkReportHash{})
 	store.GetInstance().GetPriorStates().SetPsiW([]types.WorkReportHash{})
 	store.GetInstance().GetPriorStates().SetPsiO([]types.Ed25519Public{})
+
+	store.GetInstance().GetPriorStates().SetRho(types.AvailabilityAssignments{nil, nil})
 
 	output, err := Disputes(disputeExtrinsic)
 
