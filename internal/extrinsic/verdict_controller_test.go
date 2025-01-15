@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 

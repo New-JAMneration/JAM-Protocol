@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -170,10 +170,10 @@ func (v *VoteWrapper) Swap(i, j int) {
 func (v *VerdictController) SetDisjoint() error {
 	// not in psi_g, psi_b, psi_w
 	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
-	psi := store.GetInstance().GetPriorState().Psi
-	psiGood := psi.Good
-	psiBad := psi.Bad
-	psiWonky := psi.Wonky
+	states := store.GetInstance().GetPriorStates()
+	psiGood := states.GetPsiG()
+	psiBad := states.GetPsiB()
+	psiWonky := states.GetPsiW()
 
 	uniqueMap := make(map[types.OpaqueHash]bool)
 

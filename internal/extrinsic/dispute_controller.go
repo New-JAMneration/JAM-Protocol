@@ -63,15 +63,16 @@ func (d *DisputeController) ValidateCulprits() error {
 
 // UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
 func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) {
-	priorPsi := store.GetInstance().GetPriorState().Psi
+	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
 	updateVerdicts := CompareVerdictsWithPsi(priorPsi, newVerdicts)
 
 	posteriorPsiG := UpdatePsiG(priorPsi, updateVerdicts)
 	posteriorPsiB := UpdatePsiB(priorPsi, updateVerdicts)
 	posteriorPsiW := UpdatePsiW(priorPsi, updateVerdicts)
-	store.GetInstance().GetPosteriorStates().SetPsiG(posteriorPsiG)
-	store.GetInstance().GetPosteriorStates().SetPsiB(posteriorPsiB)
-	store.GetInstance().GetPosteriorStates().SetPsiW(posteriorPsiW)
+	posteriorState := store.GetInstance().GetPosteriorStates()
+	posteriorState.SetPsiG(posteriorPsiG)
+	posteriorState.SetPsiB(posteriorPsiB)
+	posteriorState.SetPsiW(posteriorPsiW)
 }
 
 func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) types.DisputesRecords {
@@ -124,7 +125,7 @@ func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHa
 
 // UpdatePsiO updates the PsiO | Eq. 10.19
 func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.Fault) {
-	priorPsi := store.GetInstance().GetPriorState().Psi
+	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
 	offenderMap := make(map[types.Ed25519Public]bool)
 	for _, offender := range priorPsi.Offenders {
 		offenderMap[offender] = true
