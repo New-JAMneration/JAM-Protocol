@@ -15,12 +15,13 @@ type AuthorizationTestCase struct {
 This sequence is out of GP spec and derived from the Guarantees Extrinsic (E_G)
 
 For the sake of construction simplicity, we prefer not to include the complete
-	extrinsic here but rather focus only on the components relevant to advancing this subsystem's STF.
 
-	CoreAuthorizers[i] = CoreAuthorizer {
-    	core: E_G[i].w.core,
-    	auth-hash: E_G[i].w.auth-hash
-	}
+		extrinsic here but rather focus only on the components relevant to advancing this subsystem's STF.
+
+		CoreAuthorizers[i] = CoreAuthorizer {
+	    	core: E_G[i].w.core,
+	    	auth-hash: E_G[i].w.auth-hash
+		}
 */
 type CoreAuthorizer struct {
 	CoreIndex      types.CoreIndex  `json:"core"`
