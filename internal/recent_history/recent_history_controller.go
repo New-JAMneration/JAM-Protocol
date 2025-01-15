@@ -178,7 +178,7 @@ func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
 func STFBeta2BetaDagger() {
 	var (
 		rhc    = NewRecentHistoryController()
-		betas  = store.GetInstance().GetPriorStates().GetState().Beta
+		betas  = store.GetInstance().GetPriorStates().GetBeta()
 		block  = store.GetInstance().GetBlock()
 		header = block.Header
 	)
@@ -190,7 +190,7 @@ func STFBeta2BetaDagger() {
 func STFBetaDagger2BetaPrime() {
 	var (
 		rhc    = NewRecentHistoryController()
-		betas  = store.GetInstance().GetPriorStates().GetState().Beta
+		betas  = store.GetInstance().GetPriorStates().GetBeta()
 		block  = store.GetInstance().GetBlock()
 		c      = store.GetInstance().GetBeefyCommitmentOutput()
 		header = block.Header
