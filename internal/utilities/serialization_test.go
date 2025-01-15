@@ -285,3 +285,27 @@ func TestWrapOpaqueHash(t *testing.T) {
 		t.Errorf("Expected: %v, Got: %v", mockHash, wrapper.Value)
 	}
 }
+
+func TestWrapOpaqueHashMap(t *testing.T) {
+	// Mock inputs
+	input := map[types.OpaqueHash]types.ByteSequence{
+		types.OpaqueHash{7, 8, 9}: {10, 11, 12},
+		types.OpaqueHash{1, 2, 3}: {4, 5, 6},
+	}
+
+	// Expected outputs
+	expectedSerializableMap := map[Comparable]Serializable{
+		OpaqueHashWrapper{Value: types.OpaqueHash{1, 2, 3}}: WrapByteSequence(types.ByteSequence{4, 5, 6}),
+		OpaqueHashWrapper{Value: types.OpaqueHash{7, 8, 9}}: WrapByteSequence(types.ByteSequence{10, 11, 12}),
+	}
+
+	expectedOutput := MapWarpper{Value: expectedSerializableMap}
+
+	// Call the function
+	result := WrapOpaqueHashMap(input)
+
+	// Assertions
+	if bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
+		t.Errorf("The wrapped map should match the expected output.")
+	}
+}
