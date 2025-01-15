@@ -693,7 +693,7 @@ func TestDisputeWorkFlow_ProgressWithCulprit2(t *testing.T) {
 		}
 	}
 	copyPriorToPosterior()
-	posteriorPsi := store.GetInstance().GetPosteriorState().GetPsi()
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
 	}

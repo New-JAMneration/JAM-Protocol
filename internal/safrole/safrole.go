@@ -131,8 +131,8 @@ func KeyRotate() {
 
 	// Execute key rotation
 	//newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
-	e := GetEpochIndex(t)
-	ePrime := GetEpochIndex(tPrime)
+	e := GetEpochIndex(tau)
+	ePrime := GetEpochIndex(tauPrime)
 
 	if ePrime > e {
 		z, zErr := UpdateBandersnatchKeyRoot(priorState.GetGammaK())

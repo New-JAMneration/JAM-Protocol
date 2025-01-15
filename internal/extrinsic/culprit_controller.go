@@ -43,7 +43,7 @@ func (c *CulpritController) VerifyCulpritValidity() error {
 
 // VerifyReportHashValidty verifies the validity of the reports
 func (c *CulpritController) VerifyReportHashValidty() error {
-	psiBad := store.GetInstance().GetPosteriorStates().GetState().GetPsiB()
+	psiBad := store.GetInstance().GetPosteriorStates().GetPsiB()
 	checkMap := make(map[types.WorkReportHash]bool)
 
 	for _, report := range psiBad {
@@ -62,7 +62,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 func (c *CulpritController) ExcludeOffenders() error {
 
-	exclude := store.GetInstance().GetPriorStates().GetState().GetPsiO()
+	exclude := store.GetInstance().GetPriorStates().GetPsiO()
 
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {

@@ -56,14 +56,14 @@ func NewVerdictController() *VerdictController {
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
 
-	state := store.GetInstance().GetPriorState()
+	state := store.GetInstance().GetPriorStates()
 
-	a := types.U32(state.Tau) / types.U32(types.EpochLength)
+	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
 	var k types.ValidatorsData
 	if v.Verdict.Age == a {
-		k = state.Kappa
+		k = state.GetKappa()
 	} else {
-		k = state.Lambda
+		k = state.GetLambda()
 	}
 
 	// check if the judgement is valid
@@ -215,7 +215,7 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 
 // ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
-	priorStatesRho := store.GetInstance().GetPriorState().Rho
+	priorStatesRho := store.GetInstance().GetPriorStates().GetRho()
 	clearReports := make(map[types.OpaqueHash]bool)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {

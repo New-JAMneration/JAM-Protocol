@@ -233,7 +233,7 @@ func TestUpdateSlotKeySequence(t *testing.T) {
 
 	UpdateSlotKeySequence()
 
-	gamma_s := s.GetPosteriorState().Gamma.GammaS.Tickets
+	gamma_s := s.GetPosteriorStates().GetGammaS().Tickets
 
 	for i := 0; i < len(expected_new_gamma_s); i++ {
 		if !bytes.Equal(gamma_s[i].Id[:], expected_new_gamma_s[i].Id[:]) {
