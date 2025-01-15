@@ -1,0 +1,14 @@
+[
+    {
+        "anchor": "0x0cffbf67aae50aeed3c6f8f0d9bf7d854ffd87cef8358cbbaa587a9e3bd1a776",
+        "bitfield": "0x01",
+        "validator_index": 0,
+        "signature": "0x2d8ec7b235be3b3cbe9be3d5ff36f082942102d64a0dc5953709a95cca55b58b1af297f534d464264be77477b547f3c596b947edbca33f6631f1aa188d25a38b"
+    },
+    {
+        "anchor": "0x2398ce69c3585e1b1b574a5a7185a2a086350abd4606d15aace8b4610b494772",
+        "bitfield": "0x01",
+        "validator_index": 1,
+        "signature": "0xdda7a577f150ee83afedc9d3b50a4f00fcf21248e6f73097abcc4bb634f854aedc53769838d294b09c0184fb0e66f09bae8cc243f842a6cc401488591e9ffdb1"
+    }
+]
