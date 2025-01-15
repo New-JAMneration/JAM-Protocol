@@ -88,6 +88,10 @@ func (s *Store) GetIntermediateStates() *IntermediateStates {
 	return s.intermediateStates
 }
 
+func (s *Store) GetIntermediateHeaders() *IntermediateHeader {
+	return s.intermediateHeader
+}
+
 // Get
 func (s *Store) GetPosteriorState() types.State {
 	return s.posteriorStates.GetState()

@@ -51,7 +51,7 @@ func ExtrinsicPreimageSerialization(preimages types.PreimagesExtrinsic) (output 
 	output = append(output, SerializeU64(types.U64(len(preimages)))...)
 	for _, preimage := range preimages {
 		// Preimage.Requester
-		output = append(output, SerializeU64(types.U64(preimage.Requester))...)
+		output = append(output, SerializeFixedLength(types.U32(preimage.Requester), 4)...)
 		// Preimagt.Blob
 		output = append(output, SerializeU64(types.U64(len(preimage.Blob)))...)
 		output = append(output, SerializeByteSequence(preimage.Blob[:])...)
@@ -77,7 +77,7 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 		// Signature
 		output = append(output, SerializeU64(types.U64(len(guarantee.Signatures)))...)
 		for _, signature := range guarantee.Signatures {
-			output = append(output, SerializeU64(types.U64(signature.ValidatorIndex))...)
+			output = append(output, SerializeFixedLength(types.U32(signature.ValidatorIndex), 2)...)
 			output = append(output, SerializeByteSequence(signature.Signature[:])...)
 		}
 	}
@@ -277,8 +277,8 @@ func WorkReportSerialization(work_report types.WorkReport) (output types.ByteSeq
 	*/
 	output = append(output, WorkPackageSpecSerialization(work_report.PackageSpec)...) // xs
 	output = append(output, RefineContextSerialization(work_report.Context)...)       // xx
-	output = append(output, SerializeU64(types.U64(work_report.CoreIndex))...)        // xc
-	output = append(output, SerializeByteSequence(work_report.AuthorizerHash[:])...)  // xa
+	output = append(output, SerializeFixedLength(types.U64(work_report.CoreIndex), 2)...)
+	output = append(output, WrapOpaqueHash(work_report.AuthorizerHash).Serialize()...) // xa
 	// xo
 	output = append(output, SerializeU64(types.U64(len(work_report.AuthOutput)))...)
 	output = append(output, SerializeByteSequence(work_report.AuthOutput[:])...)
@@ -411,6 +411,7 @@ func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequ
 		for key, value := range result {
 			if key == "ok" {
 				output = append(output, SerializeU64(types.U64(0))...)
+				output = append(output, SerializeU64(types.U64(len(value)))...)
 				output = append(output, SerializeByteSequence(value)...) // (0, ↕o)
 			} else if key == "out-of-gas" {
 				output = append(output, SerializeU64(types.U64(1))...)

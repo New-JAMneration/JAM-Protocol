@@ -5,7 +5,7 @@ import (
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
-	util "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -17,18 +17,18 @@ type ServiceAccountDerivatives struct {
 	Minbalance types.U64 // a_t
 }
 
-// (9.4)
+// (9.4) Not sure how to design input for this function
 func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.ByteSequence) {
 	/*
-		∀a ∈ A ∶ a_c ≡⎧ a_p[a_c] if a_c ∈ a_p
-		               ⎨ ∅        otherwise
+		∀a ∈ A ∶ a_code ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
+		                  ⎨ ∅               otherwise
 	*/
 	delta := store.GetInstance().GetPriorStates().GetState().Delta
 	account := delta[id]
 
 	// check if CodeHash exists in PreimageLookup
-	if blob, exists := account.PreimageLookup[account.CodeHash]; exists {
-		return blob
+	if code, exists := account.PreimageLookup[codeHash]; exists {
+		return code
 	} else {
 		// default is empty
 		return types.ByteSequence{}
@@ -38,12 +38,20 @@ func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.
 // (9.6) Invariant
 
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
-func ValidateAccount(account types.ServiceAccount) error {
+func ValidatePreimageLookupDict(id types.ServiceId) error {
+	delta := store.GetInstance().GetPriorStates().GetState().Delta
+	account := delta[id]
+
 	for codeHash, preimage := range account.PreimageLookup {
-		// h = H(p)
-		preimageHash := hash.Blake2bHash(util.MapWarpper{Value: account.PreimageLookup}.Serialize())
-		if codeHash != preimageHash || !existsInLookupDict(account, codeHash, preimage) {
-			return fmt.Errorf("\nvalidation failed for CodeHash: %v, \nPreimageHash: %v", codeHash, preimageHash)
+		// // h = H(p)
+		// mapSerialization := utils.WrapOpaqueHashMap(account.PreimageLookup)
+		// preimageHash := hash.Blake2bHash(mapSerialization.Serialize())
+		preimageHash := hash.Blake2bHash(utils.ByteSequenceWrapper{Value: preimage}.Serialize())
+		if codeHash != preimageHash {
+			return fmt.Errorf("\nCodeHash: %v \nshould equal to PreimageHash: %v", codeHash, preimageHash)
+		}
+		if !existsInLookupDict(account, codeHash, preimage) {
+			return fmt.Errorf("\nCodeHash: %v, Preimage: %v not found in LookupDict keysize", codeHash, preimage)
 		}
 	}
 	return nil

@@ -58,3 +58,51 @@ func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
 }
+
+func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = eta
+}
+
+func (s *PriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}
+
+func (s *PriorStates) SetGammaA(gammaA []types.TicketBody) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}
+
+func (s *PriorStates) SetPsiG(psiG []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Good = psiG
+}
+
+func (s *PriorStates) SetPsiB(psiB []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Bad = psiB
+}
+
+func (s *PriorStates) SetPsiW(psiW []types.WorkReportHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Wonky = psiW
+}
+
+func (s *PriorStates) SetPsiO(psiO []types.Ed25519Public) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Offenders = psiO
+}
+
+func (s *PriorStates) SetRho(rho types.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Rho = rho
+}
