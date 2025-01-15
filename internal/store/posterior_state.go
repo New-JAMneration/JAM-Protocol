@@ -82,3 +82,27 @@ func (s *PosteriorStates) SetGammaZ(gammaZ types.BandersnatchRingCommitment) {
 	defer s.mu.Unlock()
 	s.state.Gamma.GammaZ = gammaZ
 }
+
+func (s *PosteriorStates) SetEta(Eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = Eta
+}
+
+func (s *PosteriorStates) SetEta0(Entropy types.Entropy) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta[0] = Entropy
+}
+
+func (s *PosteriorStates) SetGammaS(GammaS types.TicketsOrKeys) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaS = GammaS
+}
+
+func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Tau = tau
+}

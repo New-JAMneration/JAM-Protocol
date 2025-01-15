@@ -10,6 +10,9 @@ var (
 	CoresCount      = 2
 	EpochLength     = 12
 
+	// R: The rotation period of validator-core assignments, in timeslots.
+	RotationPeriod = 4
+
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
 
@@ -27,7 +30,10 @@ var (
 	AdditionalMinBalancePerItem  = 10  // B_I
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
-
-	SlotPeriod   = 6
-	JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	SlotPeriod                   = 6
+	JamCommonEra                 = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	SlotSubmissionEnd            = 10                  // Y
+	JamEntropy                   = "jam_entropy"       // XE
+	JamFallbackSeal              = "jam_fallback_seal" // XF
+	JamTicketSeal                = "jam_ticket_seal"   // XT
 )
