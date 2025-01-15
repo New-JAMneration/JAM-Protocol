@@ -168,7 +168,7 @@ func TestUpdateEntropy(t *testing.T) {
 	s.GetPriorStates().SetEta(eta)
 	s.GetPosteriorStates().SetTau(types.TimeSlot(types.EpochLength))
 	UpdateEntropy()
-	etaPrime := s.GetPosteriorState().Eta
+	etaPrime := s.GetPosteriorStates().GetEta()
 	expect_etaPrime := types.EntropyBuffer{
 		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
 		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),

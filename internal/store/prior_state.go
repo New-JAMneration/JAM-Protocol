@@ -6,97 +6,456 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// PriorStates represents a thread-safe global state container
 type PriorStates struct {
 	mu    sync.RWMutex
 	state *types.State
 }
 
+// NewPriorStates creates a new instance of PriorStates
 func NewPriorStates() *PriorStates {
 	return &PriorStates{
 		state: &types.State{},
 	}
 }
 
+// GetState returns the current state
 func (s *PriorStates) GetState() types.State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return *s.state
 }
 
+// GenerateGenesisState generates a genesis state
 func (s *PriorStates) GenerateGenesisState(state types.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state = &state
 }
 
+// SetAlpha sets the alpha value
+func (s *PriorStates) SetAlpha(alpha types.AuthPools) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Alpha = alpha
+}
+
+// GetAlpha returns the alpha value
+func (s *PriorStates) GetAlpha() types.AuthPools {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Alpha
+}
+
+// SetBeta sets the beta value
 func (s *PriorStates) SetBeta(beta types.BlocksHistory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta = beta
 }
 
-func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Kappa = kappa
+// GetBeta returns the beta value
+func (s *PriorStates) GetBeta() types.BlocksHistory {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Beta
 }
 
-func (s *PriorStates) SetLambda(lambda types.ValidatorsData) {
+// SetGamma sets the gamma value
+func (s *PriorStates) SetGamma(gamma types.Gamma) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Lambda = lambda
+	s.state.Gamma = gamma
 }
 
-func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
+// GetGamma returns the gamma value
+func (s *PriorStates) GetGamma() types.Gamma {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Gamma
+}
+
+// SetGammaK sets the gammaK value
+func (s *PriorStates) SetGammaK(gammaK types.ValidatorsData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
+	s.state.Gamma.GammaK = gammaK
 }
 
+// GetGammaK returns the gammaK value
+func (s *PriorStates) GetGammaK() types.ValidatorsData {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Gamma.GammaK
+}
+
+// SetGammaZ sets the gammaZ value
+func (s *PriorStates) SetGammaZ(gammaZ types.BandersnatchRingCommitment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaZ = gammaZ
+}
+
+// GetGammaZ returns the gammaZ value
+func (s *PriorStates) GetGammaZ() types.BandersnatchRingCommitment {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Gamma.GammaZ
+}
+
+// SetGammaS sets the gammaS value
+func (s *PriorStates) SetGammaS(gammaS types.TicketsOrKeys) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaS = gammaS
+}
+
+// GetGammaS returns the gammaS value
+func (s *PriorStates) GetGammaS() types.TicketsOrKeys {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Gamma.GammaS
+}
+
+// SetGammaA sets the gammaA value
+func (s *PriorStates) SetGammaA(gammaA types.TicketsAccumulator) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Gamma.GammaA = gammaA
+}
+
+// GetGammaA returns the gammaA value
+func (s *PriorStates) GetGammaA() types.TicketsAccumulator {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Gamma.GammaA
+}
+
+// SetDelta sets the delta value
+func (s *PriorStates) SetDelta(delta types.ServiceAccountState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Delta = delta
+}
+
+// GetDelta returns the delta value
+func (s *PriorStates) GetDelta() types.ServiceAccountState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Delta
+}
+
+// SetEta sets the eta value
 func (s *PriorStates) SetEta(eta types.EntropyBuffer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Eta = eta
 }
 
+// GetEta returns the eta value
+func (s *PriorStates) GetEta() types.EntropyBuffer {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Eta
+}
+
+// SetIota sets the iota value
+func (s *PriorStates) SetIota(variota types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Iota = variota
+}
+
+// GetIota returns the iota value
+func (s *PriorStates) GetIota() types.ValidatorsData {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Iota
+}
+
+// SetKappa sets the kappa value
+func (s *PriorStates) SetKappa(kappa types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Kappa = kappa
+}
+
+// GetKappa returns the kappa value
+func (s *PriorStates) GetKappa() types.ValidatorsData {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Kappa
+}
+
+// SetLambda sets the lambda value
+func (s *PriorStates) SetLambda(lambda types.ValidatorsData) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Lambda = lambda
+}
+
+// GetLambda returns the lambda value
+func (s *PriorStates) GetLambda() types.ValidatorsData {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Lambda
+}
+
+// SetRho sets the rho value
+func (s *PriorStates) SetRho(rho types.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Rho = rho
+}
+
+// GetRho returns the rho value
+func (s *PriorStates) GetRho() types.AvailabilityAssignments {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Rho
+}
+
+// SetTau sets the tau value
 func (s *PriorStates) SetTau(tau types.TimeSlot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Tau = tau
 }
 
-func (s *PriorStates) SetGammaA(gammaA []types.TicketBody) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Gamma.GammaA = gammaA
+// GetTau returns the tau value
+func (s *PriorStates) GetTau() types.TimeSlot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Tau
 }
 
+// SetVarphi sets the varphi value
+func (s *PriorStates) SetVarphi(varphi types.AuthQueues) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Varphi = varphi
+}
+
+// GetVarphi returns the varphi value
+func (s *PriorStates) GetVarphi() types.AuthQueues {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Varphi
+}
+
+// SetChi sets the chi value
+func (s *PriorStates) SetChi(chi types.PrivilegedServices) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Chi = chi
+}
+
+// GetChi returns the chi value
+func (s *PriorStates) GetChi() types.PrivilegedServices {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Chi
+}
+
+// SetManagerServiceIndex sets the managerServiceIndex value
+func (s *PriorStates) SetManagerServiceIndex(managerServiceIndex types.U32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Chi.ManagerServiceIndex = managerServiceIndex
+}
+
+// GetManagerServiceIndex returns the managerServiceIndex value
+func (s *PriorStates) GetManagerServiceIndex() types.U32 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Chi.ManagerServiceIndex
+}
+
+// SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
+func (s *PriorStates) SetAlterPhiServiceIndex(alterPhiServiceIndex types.U32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Chi.AlterPhiServiceIndex = alterPhiServiceIndex
+}
+
+// GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
+func (s *PriorStates) GetAlterPhiServiceIndex() types.U32 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Chi.AlterPhiServiceIndex
+}
+
+// SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
+func (s *PriorStates) SetAlterIotaServiceIndex(alterIotaServiceIndex types.U32) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Chi.AlterIotaServiceIndex = alterIotaServiceIndex
+}
+
+// GetAlterIotaServiceIndex returns the alterIotaServiceIndex value
+func (s *PriorStates) GetAlterIotaServiceIndex() types.U32 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Chi.AlterIotaServiceIndex
+}
+
+// SetAutoAccumulateGasLimits sets the autoAccumulateGasLimits value
+func (s *PriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits map[types.U32]types.U64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Chi.AutoAccumulateGasLimits = autoAccumulateGasLimits
+}
+
+// GetAutoAccumulateGasLimits returns the autoAccumulateGasLimits value
+func (s *PriorStates) GetAutoAccumulateGasLimits() map[types.U32]types.U64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Chi.AutoAccumulateGasLimits
+}
+
+// SetPsi sets the psi value
+func (s *PriorStates) SetPsi(psi types.DisputesRecords) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi = psi
+}
+
+// GetPsi returns the psi value
+func (s *PriorStates) GetPsi() types.DisputesRecords {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Psi
+}
+
+// AddPsiOffenders adds a new offender
+func (s *PriorStates) AddPsiOffenders(offender types.Ed25519Public) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Psi.Offenders = append(s.state.Psi.Offenders, offender)
+}
+
+// SetPsiG sets the psiG value
 func (s *PriorStates) SetPsiG(psiG []types.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Good = psiG
 }
 
+// GetPsiG returns the psiG value
+func (s *PriorStates) GetPsiG() []types.WorkReportHash {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Psi.Good
+}
+
+// SetPsiB sets the psiB value
 func (s *PriorStates) SetPsiB(psiB []types.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Bad = psiB
 }
 
+// GetPsiB returns the psiB value
+func (s *PriorStates) GetPsiB() []types.WorkReportHash {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Psi.Bad
+}
+
+// SetPsiW sets the psiW value
 func (s *PriorStates) SetPsiW(psiW []types.WorkReportHash) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Wonky = psiW
 }
 
+// GetPsiW returns the psiW value
+func (s *PriorStates) GetPsiW() []types.WorkReportHash {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Psi.Wonky
+}
+
+// SetPsiO sets the psiO value
 func (s *PriorStates) SetPsiO(psiO []types.Ed25519Public) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Psi.Offenders = psiO
 }
 
-func (s *PriorStates) SetRho(rho types.AvailabilityAssignments) {
+// GetPsiO returns the psiO value
+func (s *PriorStates) GetPsiO() []types.Ed25519Public {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Psi.Offenders
+}
+
+// SetPi sets the pi value
+func (s *PriorStates) SetPi(pi types.Statistics) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Rho = rho
+	s.state.Pi = pi
+}
+
+// GetPi returns the pi value
+func (s *PriorStates) GetPi() types.Statistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi
+}
+
+// SetPiCurrent sets the pi.Current value
+func (s *PriorStates) SetPiCurrent(current types.ActivityRecords) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Current = current
+}
+
+// GetPiCurrent returns the pi.Current value
+func (s *PriorStates) GetPiCurrent() types.ActivityRecords {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Current
+}
+
+// SetPiLast sets the pi Last.value
+func (s *PriorStates) SetPiLast(last types.ActivityRecords) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Last = last
+}
+
+// GetPiLast returns the pi.Last value
+func (s *PriorStates) GetPiLast() types.ActivityRecords {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Last
+}
+
+// SetTheta sets the theta value
+func (s *PriorStates) SetTheta(theta types.UnaccumulateWorkReports) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Theta = theta
+}
+
+// GetTheta returns the theta value
+func (s *PriorStates) GetTheta() types.UnaccumulateWorkReports {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Theta
+}
+
+// SetXi sets the xi value
+func (s *PriorStates) SetXi(xi types.AccumulatedHistories) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Xi = xi
+}
+
+// GetXi returns the xi value
+func (s *PriorStates) GetXi() types.AccumulatedHistories {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Xi
 }

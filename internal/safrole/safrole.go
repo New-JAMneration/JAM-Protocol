@@ -42,8 +42,8 @@ func ValidatorIsOffender(validator types.Validator, offendersMark types.Offender
 func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 	// Get offendersMark (Psi_O) from posterior state
 	s := store.GetInstance()
-	posteriorState := s.GetPosteriorState()
-	offendersMark := posteriorState.Psi.Offenders
+	posteriorState := s.GetPosteriorStates()
+	offendersMark := posteriorState.GetPsiO()
 
 	for i, validator := range validators {
 		if ValidatorIsOffender(validator, offendersMark) {
@@ -118,10 +118,10 @@ func KeyRotate() {
 	s := store.GetInstance()
 
 	// Get prior state
-	priorState := s.GetPriorState()
+	priorState := s.GetPriorStates()
 
 	// Get previous time slot index
-	tau := priorState.Tau
+	tau := priorState.GetTau()
 
 	// Get current time slot
 	now := time.Now().UTC()
@@ -129,7 +129,7 @@ func KeyRotate() {
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 
 	// Execute key rotation
-	newSafroleState := keyRotation(tau, tauPrime, priorState)
+	newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
 
 	// Update state to posterior state
 	s.GetPosteriorStates().SetGammaK(newSafroleState.Gamma.GammaK)

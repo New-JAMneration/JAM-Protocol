@@ -142,8 +142,8 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 
 func TestKeyRotate(t *testing.T) {
 	s := store.GetInstance()
-	priorState := s.GetPriorState()
-	posteriorState := s.GetPosteriorState()
+	priorState := s.GetPriorStates()
+	posteriorState := s.GetPosteriorStates()
 
 	now := time.Now().UTC()
 	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
@@ -160,7 +160,7 @@ func TestKeyRotate(t *testing.T) {
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{})
 
 	// Simulate previous time slot to trigger key rotation
-	priorState.Tau = tauPrime - types.TimeSlot(types.EpochLength)
+	priorState.SetTau(tauPrime - types.TimeSlot(types.EpochLength))
 
 	fakeValidators := LoadFakeValidators()
 

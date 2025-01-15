@@ -80,13 +80,12 @@ func NewGuranatorAssignments(
 // (11.21) G(e, t, k) = (P(e, t), H_K)
 // G ≡ (P (η′2, τ ′), Φ(κ′))
 func GFunc() GuranatorAssignments {
-	s := store.GetInstance()
-	state := s.GetPosteriorState()
-	etaPrime := state.Eta
+	state := store.GetInstance().GetPosteriorState()
+	etaPrime := state.GetEta()
 
 	// (η′2, κ′)
 	e := etaPrime[2]
-	validators := state.Kappa
+	validators := state.GetKappa()
 
 	return NewGuranatorAssignments(e, state.Tau, validators)
 }
@@ -97,15 +96,15 @@ func GStarFunc() GuranatorAssignments {
 	var e types.Entropy
 	var validators types.ValidatorsData
 
-	etaPrime := state.Eta
+	etaPrime := state.GetEta()
 	if (int(state.Tau)-R)/E == int(state.Tau)/E {
 		// (η′2, κ′)
 		e = etaPrime[2]
-		validators = state.Kappa
+		validators = state.GetKappa()
 	} else {
 		// (η′3, λ′)
 		e = etaPrime[3]
-		validators = state.Lambda
+		validators = state.GetLambda()
 	}
 
 	return NewGuranatorAssignments(e, state.Tau-types.TimeSlot(R), validators)

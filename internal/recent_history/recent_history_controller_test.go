@@ -250,10 +250,10 @@ func TestCheckDuplicate(t *testing.T) {
 	store.NewPriorStates()
 	store.NewIntermediateStates()
 	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates().GetState()
+	priorState := store.GetInstance().GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
-	rhc.Betas = priorState.Beta
+	rhc.Betas = priorState.GetBeta()
 
 	// Start test CheckDuplicate
 	if rhc.Betas != nil { // Beta is empty -> not need to remove duplicate
@@ -291,10 +291,10 @@ func TestAddToBetaDagger(t *testing.T) {
 	store.NewPriorStates()
 	store.NewIntermediateStates()
 	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates().GetState()
+	priorState := store.GetInstance().GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
-	rhc.Betas = priorState.Beta
+	rhc.Betas = priorState.GetBeta()
 
 	// Start test AddToBetaDagger
 	var mockHeader = types.Header{
@@ -332,10 +332,10 @@ func TestAddToBetaPrime(t *testing.T) {
 	store.NewIntermediateStates()
 	store.NewPosteriorStates()
 	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates().GetState()
+	priorState := store.GetInstance().GetPriorStatess()
 
 	// Put input beta to rhc.Betas as priorState.Beta
-	rhc.Betas = priorState.Beta
+	rhc.Betas = priorState.GetBeta()
 
 	// Start test AddToBetaPrime
 
@@ -402,7 +402,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	rhc.AddToBetaPrime(items)
 
 	// Get result of (7.4), beta^prime, from store
-	betaPrime := store.GetInstance().GetPosteriorStates().GetState().Beta
+	betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
 
 	if len(betaPrime) < 1 {
 		t.Errorf("Expected BetaPrime length to be 1, got %d", len(betaPrime))
@@ -478,10 +478,10 @@ func TestSTFBetaDagger2BetaPrime(t *testing.T) {
 	store.NewIntermediateStates()
 	store.NewPosteriorStates()
 	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates().GetState()
+	priorState := store.GetInstance().GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
-	rhc.Betas = priorState.Beta
+	rhc.Betas = priorState.GetBeta()
 
 	var mockBlock = types.Block{
 		Header: types.Header{
@@ -496,7 +496,7 @@ func TestSTFBetaDagger2BetaPrime(t *testing.T) {
 	STFBetaDagger2BetaPrime()
 
 	// Get result of (7.4), beta^prime, from store
-	betaPrime := store.GetInstance().GetPosteriorStates().GetState().Beta
+	betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
 
 	if len(betaPrime) < 1 {
 		t.Errorf("Expected BetaPrime length to be 1, got %d", len(betaPrime))
@@ -639,7 +639,7 @@ func TestRecentHistory(t *testing.T) {
 		rhc.AddToBetaPrime(items)
 
 		// Get result of (7.4), beta^prime, from store
-		betaPrime := store.GetInstance().GetPosteriorStates().GetState().Beta
+		betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
 
 		if len(betaPrime) < 1 {
 			t.Errorf("[%d]Expected BetaPrime length to be 1, got %d", i, len(betaPrime))
@@ -680,10 +680,10 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		store.NewIntermediateStates()
 		store.NewPosteriorStates()
 		store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-		priorState := store.GetInstance().GetPriorStates().GetState()
+		priorState := store.GetInstance().GetPriorStates()
 
 		// Put preState beta to rhc.Betas as priorState.Beta
-		rhc.Betas = priorState.Beta
+		rhc.Betas = priorState.GetBeta()
 
 		// Test STF functions
 		// β† ≺ (H, β) (4.6)
@@ -736,7 +736,7 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		STFBetaDagger2BetaPrime()
 
 		// Get result of (7.4), beta^prime, from store
-		betaPrime := store.GetInstance().GetPosteriorStates().GetState().Beta
+		betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
 
 		if len(betaPrime) < 1 {
 			t.Errorf("[%d]Expected BetaPrime length to be 1, got %d", i, len(betaPrime))
