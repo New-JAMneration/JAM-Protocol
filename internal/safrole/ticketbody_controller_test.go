@@ -1,10 +1,10 @@
-package safrole_test
+package safrole
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	//"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -13,7 +13,7 @@ func TestTicketsBodiesController(t *testing.T) {
 	types.EpochLength = 5
 
 	// Test initialization
-	controller := safrole.NewTicketsBodiesController()
+	controller := NewTicketsBodiesController()
 	if controller == nil {
 		t.Fatal("Controller should be initialized successfully")
 	}
