@@ -12,15 +12,17 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
-	BetaDagger types.BlocksHistory
-	RhoDagger  types.AvailabilityAssignments
+	BetaDagger      types.BlocksHistory
+	RhoDagger       types.AvailabilityAssignments
+	RhoDoubleDagger types.AvailabilityAssignments
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaDagger: types.BlocksHistory{},
-			RhoDagger:  types.AvailabilityAssignments{},
+			BetaDagger:      types.BlocksHistory{},
+			RhoDagger:       types.AvailabilityAssignments{},
+			RhoDoubleDagger: types.AvailabilityAssignments{},
 		},
 	}
 }
@@ -49,4 +51,16 @@ func (s *IntermediateStates) SetRhoDagger(rhoDagger types.AvailabilityAssignment
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.RhoDagger = rhoDagger
+}
+
+func (s *IntermediateStates) SetRhoDoubleDagger(RhoDoubleDagger types.AvailabilityAssignments) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.RhoDoubleDagger = RhoDoubleDagger
+}
+
+func (s *IntermediateStates) GetRhoDoubleDagger() types.AvailabilityAssignments {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.RhoDoubleDagger
 }
