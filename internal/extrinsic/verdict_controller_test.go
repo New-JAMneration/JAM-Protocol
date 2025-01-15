@@ -317,10 +317,4 @@ func TestSortUnique(t *testing.T) {
 	})
 
 	disputeController.VerdictController.SortUnique()
-	for _, v := range disputeController.VerdictController.Verdicts {
-		fmt.Println(v.Verdict.Target)
-		for _, vote := range v.Verdict.Votes {
-			fmt.Println(vote.Index)
-		}
-	}
 }
