@@ -332,7 +332,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	store.NewIntermediateStates()
 	store.NewPosteriorStates()
 	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStatess()
+	priorState := store.GetInstance().GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
 	rhc.Betas = priorState.GetBeta()

@@ -207,29 +207,29 @@ func TestKeyRotate(t *testing.T) {
 	gammaZ := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
 	priorGammaZ := types.BandersnatchRingCommitment(hex2Bytes(gammaZ))
 
-	priorState.Kappa = priorKappa
-	priorState.Lambda = priorLambda
-	priorState.Iota = priorIota
-	priorState.Gamma.GammaK = priorGammaK
-	priorState.Gamma.GammaZ = priorGammaZ
+	priorState.SetKappa(priorKappa)
+	priorState.SetLambda(priorLambda)
+	priorState.SetIota(priorIota)
+	priorState.SetGammaK(priorGammaK)
+	priorState.SetGammaZ(priorGammaZ)
 
-	s.GenerateGenesisState(priorState)
+	s.GenerateGenesisState(priorState.GetState())
 
 	KeyRotate()
 
 	// Get posterior state
-	posteriorState = s.GetPosteriorState()
-	if !reflect.DeepEqual(posteriorState.Gamma.GammaK, priorIota) {
-		t.Errorf("Expected GammaK to be %v, got %v", priorIota, posteriorState.Gamma.GammaK)
+	posteriorState = s.GetPosteriorStates()
+	if !reflect.DeepEqual(posteriorState.GetGammaK(), priorIota) {
+		t.Errorf("Expected GammaK to be %v, got %v", priorIota, posteriorState.GetGammaK())
 	}
-	if !reflect.DeepEqual(posteriorState.Kappa, priorGammaK) {
-		t.Errorf("Expected Kappa to be %v, got %v", priorGammaK, posteriorState.Kappa)
+	if !reflect.DeepEqual(posteriorState.GetKappa(), priorGammaK) {
+		t.Errorf("Expected Kappa to be %v, got %v", priorGammaK, posteriorState.GetKappa())
 	}
-	if !reflect.DeepEqual(posteriorState.Lambda, priorKappa) {
-		t.Errorf("Expected Lambda to be %v, got %v", priorKappa, posteriorState.Lambda)
+	if !reflect.DeepEqual(posteriorState.GetLambda(), priorKappa) {
+		t.Errorf("Expected Lambda to be %v, got %v", priorKappa, posteriorState.GetLambda())
 	}
-	if posteriorState.Gamma.GammaZ != priorGammaZ {
-		t.Errorf("Expected GammaZ to be %v, got %v", priorGammaZ, posteriorState.Gamma.GammaZ)
+	if posteriorState.GetGammaZ() != priorGammaZ {
+		t.Errorf("Expected GammaZ to be %v, got %v", priorGammaZ, posteriorState.GetGammaZ())
 	}
 }
 
