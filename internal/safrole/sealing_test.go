@@ -9,22 +9,12 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-/*
-	func CalculateNewEntropy(eta types.EntropyBuffer, public_key types.BandersnatchPublic, entropy_source types.BandersnatchVrfSignature) types.Entropy {
-		handler, _ := CreateVRFHandler(public_key, 0)
-		vrfOutput, _ := handler.VRFOutput(entropy_source[:])
-		hash_input := append(eta[0][:], vrfOutput...)
-		return types.Entropy(hash.Blake2bHash(hash_input))
-	}
-*/
-
 func hexToByteArray32(hexString string) types.ByteArray32 {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
 		return types.ByteArray32{}
 	}
 
-	// Check if the decoded byte slice has the correct length
 	if len(bytes) != 32 {
 		return types.ByteArray32{}
 	}
@@ -36,7 +26,6 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 }
 
 func TestUpdateEtaPrime0(t *testing.T) {
-	// input from safrole/state_snapshots/425530_011.json
 	eta := types.EntropyBuffer{
 		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
 		types.Entropy(hexToByteArray32("0x4346d1d2300d8a705e8d0165384f2b778e114a7498fbf881343b2f59b4450efa")),
@@ -346,21 +335,6 @@ func TestSealingByBender(t *testing.T) {
 		t.Errorf("UpdateEntropy() = %v, want %v", expectedSeal, actualSeal)
 	}
 }
-
-/*
-"header": {
-        "parent": "0x61a0942cea9fa3ae1dc2f3e9235c379966bbe97ef5ee8db802cf59d061e8bd1a",
-        "parent_state_root": "0x319609cc1c7d5dfadfaad29cbab35c7f2289414a8aea0709af54a22f812273fd",
-        "extrinsic_hash": "0xc75d11d284d5f2da6ee593034d1a883e5a752ef9d7d8a89343d793082837e552",
-        "slot": 5462738,
-        "epoch_mark": null,
-        "tickets_mark": null,
-        "offenders_mark": [],
-        "author_index": 4,
-        "entropy_source": "0x9f9f647b5fe173545f735cfca7432b3edfb757f258e4b66980f672d2066b513863b8fcbab8533327586ae3adc6ed6ddbd5a5454f4bc3afc53e61d48a3fba15072f35e3ab005fcf3cb43471036d80f506f0410a65021738d4ca46e9d94afe2610",
-        "seal": "0x3f0c489bcce6f070afa5d47151e75594eb9d84ba8b684f011addf723f2cb912f680602f4178a6f4a6295f339c711aca4e404cd885fec5a8a82196f3e1306130f6805447470a3d0c29cf23b1a38459bdd7b53c97cba4577a2dd5f9862bab28013"
-    },
-*/
 
 func TestSealingByTicket(t *testing.T) {
 	var header types.Header
