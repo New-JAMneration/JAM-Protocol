@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -43,8 +43,9 @@ func (f *FaultController) VerifyFaultValidity() error {
 
 // VerifyReportHashValidty verifies the validity of the reports
 func (f *FaultController) VerifyReportHashValidty() error {
-	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
-	psiGood := store.GetInstance().GetPosteriorStates().GetState().Psi.Good
+	posteriorStates := store.GetInstance().GetPosteriorStates()
+	psiBad := posteriorStates.GetPsiB()
+	psiGood := posteriorStates.GetPsiG()
 
 	badMap := make(map[types.WorkReportHash]bool)
 	for _, report := range psiBad {
@@ -72,7 +73,7 @@ func (f *FaultController) VerifyReportHashValidty() error {
 // ExcludeOffenders excludes the offenders from the validator set
 func (f *FaultController) ExcludeOffenders() error {
 
-	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+	exclude := store.GetInstance().GetPriorStates().GetPsiO()
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list

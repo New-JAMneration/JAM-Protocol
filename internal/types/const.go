@@ -30,3 +30,10 @@ var (
 	JamFallbackSeal   = "jam_fallback_seal" // XF
 	JamTicketSeal     = "jam_ticket_seal"   // XT
 )
+
+var (
+	MaximumWorkItems                 = 4 // I
+	MaximumDependencyItems           = 8 // J
+	WorkReportTimeout                = 5 // U
+	WorkReportOutputBlobsMaximumSize = 48 * 1024
+)
