@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -88,14 +88,14 @@ var Lambda = types.ValidatorsData{
 }
 
 func copyPriorToPosterior() {
-	priorState := store.GetInstance().GetPriorState()
+	priorState := store.GetInstance().GetPriorStates()
 	posteriorState := store.GetInstance().GetPosteriorStates()
-	posteriorState.SetPsiG(priorState.Psi.Good)
-	posteriorState.SetPsiB(priorState.Psi.Bad)
-	posteriorState.SetPsiW(priorState.Psi.Wonky)
-	posteriorState.SetPsiO(priorState.Psi.Offenders)
-	posteriorState.SetKappa(priorState.Kappa)
-	posteriorState.SetLambda(priorState.Lambda)
+	posteriorState.SetPsiG(priorState.GetPsiG())
+	posteriorState.SetPsiB(priorState.GetPsiB())
+	posteriorState.SetPsiW(priorState.GetPsiW())
+	posteriorState.SetPsiO(priorState.GetPsiO())
+	posteriorState.SetKappa(priorState.GetKappa())
+	posteriorState.SetLambda(priorState.GetLambda())
 }
 
 func TestDisputeWorkFlow_progress_invalidates_avail_assignments_1(t *testing.T) {
@@ -335,7 +335,7 @@ func TestDisputeWorkFlow_progress_invalidates_avail_assignments_1(t *testing.T) 
 
 	output, _ := Disputes(disputeExtrinsic)
 
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	intermediateRho := store.GetInstance().GetIntermediateStates().GetRhoDagger()
 	if intermediateRho[0] != expectedRho[0] {
 		t.Errorf("expected rho[0] to be nil, got: %v", intermediateRho[0])
@@ -433,7 +433,7 @@ func TestDisputeWorkFlow_progress_with_bad_signatures_1(t *testing.T) {
 	}
 	copyPriorToPosterior()
 
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
 	}
@@ -533,7 +533,7 @@ func TestDisputeWorkFlow_progress_with_bad_signatures_2(t *testing.T) {
 
 	copyPriorToPosterior()
 
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
 	}
@@ -610,7 +610,7 @@ func TestDisputeWorkFlow_ProgressWithCulprit1(t *testing.T) {
 		}
 	}
 	copyPriorToPosterior()
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
 	}
@@ -693,7 +693,7 @@ func TestDisputeWorkFlow_ProgressWithCulprit2(t *testing.T) {
 		}
 	}
 	copyPriorToPosterior()
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
 	}
@@ -829,7 +829,7 @@ func TestDisputeWorkFlow_ProgressWithVerdicts4(t *testing.T) {
 		t.Errorf("Disputes failed: %v", err)
 	}
 
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)
@@ -928,7 +928,7 @@ func TestDisputeWorkFlow_ProgressWithVerdicts6(t *testing.T) {
 		t.Errorf("Disputes failed: %v", err)
 	}
 
-	posteriorPsi := store.GetInstance().GetPosteriorState().Psi
+	posteriorPsi := store.GetInstance().GetPosteriorStates().GetPsi()
 
 	if err := compareDisputesRecords(posteriorPsi, expectedPsi); err != nil {
 		t.Errorf("posteriorPsi does not match expectedPsi: %v", err)

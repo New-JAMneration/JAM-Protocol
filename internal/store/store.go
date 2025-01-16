@@ -68,22 +68,11 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	log.Println("🚀 Genesis block generated")
 }
 
-// Get
-func (s *Store) GetPriorState() types.State {
-	return s.priorStates.GetState()
-}
-
 // Set
 func (s *Store) GetPriorStates() *PriorStates {
 	return s.priorStates
 }
 
-// // Get
-// func (s *Store) GetIntermediateState() types.State {
-// 	return s.intermediateStates.GetState()
-// }
-
-// Set
 func (s *Store) GetIntermediateStates() *IntermediateStates {
 	return s.intermediateStates
 }
@@ -92,12 +81,6 @@ func (s *Store) GetIntermediateHeaders() *IntermediateHeader {
 	return s.intermediateHeader
 }
 
-// Get
-func (s *Store) GetPosteriorState() types.State {
-	return s.posteriorStates.GetState()
-}
-
-// Set
 func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
 }

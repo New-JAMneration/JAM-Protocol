@@ -42,8 +42,8 @@ func ValidatorIsOffender(validator types.Validator, offendersMark types.Offender
 func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 	// Get offendersMark (Psi_O) from posterior state
 	s := store.GetInstance()
-	posteriorState := s.GetPosteriorState()
-	offendersMark := posteriorState.Psi.Offenders
+	posteriorState := s.GetPosteriorStates()
+	offendersMark := posteriorState.GetPsiO()
 
 	for i, validator := range validators {
 		if ValidatorIsOffender(validator, offendersMark) {
@@ -89,6 +89,7 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 
 // keyRotation rotates the keys, it updates the state with the new Safrole state
 // Equation (6.13)
+/*
 func keyRotation(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State) (newSafroleState types.State) {
 	e := GetEpochIndex(t)
 	ePrime := GetEpochIndex(tPrime)
@@ -110,7 +111,7 @@ func keyRotation(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.Sta
 		return safroleState
 	}
 }
-
+*/
 // KeyRotate rotates the keys
 // Update the state with the new Safrole state
 // (6.13)
@@ -118,10 +119,10 @@ func KeyRotate() {
 	s := store.GetInstance()
 
 	// Get prior state
-	priorState := s.GetPriorState()
+	priorState := s.GetPriorStates()
 
 	// Get previous time slot index
-	tau := priorState.Tau
+	tau := priorState.GetTau()
 
 	// Get current time slot
 	now := time.Now().UTC()
@@ -129,11 +130,26 @@ func KeyRotate() {
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 
 	// Execute key rotation
-	newSafroleState := keyRotation(tau, tauPrime, priorState)
+	//newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
+	e := GetEpochIndex(tau)
+	ePrime := GetEpochIndex(tauPrime)
 
-	// Update state to posterior state
-	s.GetPosteriorStates().SetGammaK(newSafroleState.Gamma.GammaK)
-	s.GetPosteriorStates().SetKappa(newSafroleState.Kappa)
-	s.GetPosteriorStates().SetLambda(newSafroleState.Lambda)
-	s.GetPosteriorStates().SetGammaZ(newSafroleState.Gamma.GammaZ)
+	if ePrime > e {
+		z, zErr := UpdateBandersnatchKeyRoot(priorState.GetGammaK())
+		if zErr != nil {
+			fmt.Printf("Error updating Bandersnatch key root: %v\n", zErr)
+			return
+		}
+
+		// Update state to posterior state
+		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
+		s.GetPosteriorStates().SetKappa(priorState.GetGammaK())
+		s.GetPosteriorStates().SetLambda(priorState.GetKappa())
+		s.GetPosteriorStates().SetGammaZ(z)
+	} else {
+		s.GetPosteriorStates().SetGammaK(priorState.GetGammaK())
+		s.GetPosteriorStates().SetKappa(priorState.GetKappa())
+		s.GetPosteriorStates().SetLambda(priorState.GetLambda())
+		s.GetPosteriorStates().SetGammaZ(priorState.GetGammaZ())
+	}
 }
