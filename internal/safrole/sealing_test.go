@@ -230,7 +230,8 @@ func TestUpdateSlotKeySequence(t *testing.T) {
 	}
 }
 
-func TestSealingByBender(t *testing.T) {
+func TestSealingByBenderSnatchs(t *testing.T) {
+	// 455227_000.json
 	var header types.Header
 	header.Parent = types.HeaderHash(hex2Bytes("0x0000000000000000000000000000000000000000000000000000000000000000"))
 	header.ParentStateRoot = types.StateRoot(hex2Bytes("0x14aee91ef5e8e22daf2946eab3d688190b84edd7dececbecf5007fcbd0ecd7eb"))
@@ -337,6 +338,7 @@ func TestSealingByBender(t *testing.T) {
 }
 
 func TestSealingByTicket(t *testing.T) {
+	// 455228_002.json
 	var header types.Header
 	header.Parent = types.HeaderHash(hex2Bytes("0x61a0942cea9fa3ae1dc2f3e9235c379966bbe97ef5ee8db802cf59d061e8bd1a"))
 	header.ParentStateRoot = types.StateRoot(hex2Bytes("0x319609cc1c7d5dfadfaad29cbab35c7f2289414a8aea0709af54a22f812273fd"))
