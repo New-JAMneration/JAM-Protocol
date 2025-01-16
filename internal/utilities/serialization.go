@@ -214,6 +214,14 @@ func (w OpaqueHashWrapper) Serialize() types.ByteSequence {
 	return types.ByteSequence(w.Value[:])
 }
 
+func (w OpaqueHashWrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(OpaqueHashWrapper); ok {
+		// Compare the byte arrays lexicographically
+		return bytes.Compare(otherKey.Value[:], otherKey.Value[:]) < 0
+	}
+	return false
+}
+
 func WrapOpaqueHash(v types.OpaqueHash) Serializable {
 	return OpaqueHashWrapper{Value: v}
 }
@@ -264,6 +272,19 @@ func (b BitSequenceWrapper) Serialize() types.ByteSequence {
 // C.1.6. Dictionary Encoding.
 type MapWarpper struct {
 	Value map[Comparable]Serializable
+}
+
+// For serialize preImageLookup
+func WrapOpaqueHashMap(input map[types.OpaqueHash]types.ByteSequence) MapWarpper {
+	serializableMap := map[Comparable]Serializable{}
+
+	for key, value := range input {
+		newKey := OpaqueHashWrapper{Value: key}
+		newValue := WrapByteSequence(value)
+		serializableMap[newKey] = newValue
+	}
+
+	return MapWarpper{Value: serializableMap}
 }
 
 func (m *MapWarpper) Serialize() types.ByteSequence {
