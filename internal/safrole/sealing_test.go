@@ -230,7 +230,7 @@ func TestUpdateSlotKeySequence(t *testing.T) {
 	}
 }
 
-func TestSealingByBenderSnatchs(t *testing.T) {
+func TestSealingByBanderSnatchs(t *testing.T) {
 	// 455227_000.json
 	var header types.Header
 	header.Parent = types.HeaderHash(hex2Bytes("0x0000000000000000000000000000000000000000000000000000000000000000"))
