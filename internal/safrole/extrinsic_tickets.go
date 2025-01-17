@@ -11,6 +11,121 @@ import (
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
+// (6.30)
+// If the current time slot is in the epoch tail, we should not receive any
+// tickets.
+// Return error code: UnexpectedTicket
+func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
+	s := store.GetInstance()
+
+	// Get posterior state
+	posteriorState := s.GetPosteriorState()
+
+	// Get current time slot index
+	tauPrime := posteriorState.Tau
+
+	// m'
+	mPrime := GetSlotIndex(tauPrime)
+
+	// m' < Y => |E_T| <= K
+	if mPrime < types.TimeSlot(types.Y) {
+		if len(tickets) > types.ValidatorsCount {
+			err := types.UnexpectedTicket
+			return &err
+		}
+	} else {
+		if len(tickets) != 0 {
+			err := types.UnexpectedTicket
+			return &err
+		}
+	}
+
+	return nil
+}
+
+// (6.31)
+// VerifyTicketsProof verifies the proof of the tickets
+// If the proof is valid, return the ticket bodies
+func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
+	s := store.GetInstance()
+	posteriorState := s.GetPosteriorState()
+	gammaK := posteriorState.Gamma.GammaK
+	ring := []byte{}
+	for _, validator := range gammaK {
+		ring = append(ring, []byte(validator.Bandersnatch[:])...)
+	}
+	ringSize := uint(len(gammaK))
+
+	verifier, err := vrf.NewVerifier(ring, ringSize)
+	if err != nil {
+		fmt.Printf("Failed to create verifier: %v\n", err)
+	}
+	defer verifier.Free()
+
+	newTickets := types.TicketsAccumulator{}
+	for _, ticket := range tickets {
+		// print eta3 hex string
+		context := createSignatureContext(types.JamTicketSeal, posteriorState.Eta[2], ticket.Attempt)
+		message := []byte{}
+		signature := ticket.Signature[:]
+		output, verifyErr := verifier.RingVerify(context, message, signature)
+
+		if verifyErr != nil {
+			err := types.BadTicketProof
+			return nil, &err
+		}
+
+		// If the proof is valid, append the ticket body to the new tickets
+		newTickets = append(newTickets, types.TicketBody{
+			Id:      types.TicketId(output),
+			Attempt: ticket.Attempt,
+		})
+	}
+
+	return newTickets, nil
+}
+
+// (6.32)
+// Tickets must be sorted by ticket signature
+func VerifyTicketsOrder(tickets types.TicketsAccumulator) *types.ErrorCode {
+	for i := 1; i < len(tickets); i++ {
+		if bytes.Compare(tickets[i-1].Id[:], tickets[i].Id[:]) > 0 {
+			err := types.BadTicketOrder
+			return &err
+		}
+	}
+
+	return nil
+}
+
+// (6.32) The extrinsic tickets must not contain any duplicate tickets
+// (6.33) The new ticket accumulator must not contain any duplicate tickets
+// (Validators should not submit the same ticket)
+func VerifyTicketsDuplicate(tickets types.TicketsAccumulator) *types.ErrorCode {
+	for i := 1; i < len(tickets); i++ {
+		if bytes.Equal(tickets[i-1].Id[:], tickets[i].Id[:]) {
+			err := types.DuplicateTicket
+			return &err
+		}
+	}
+
+	return nil
+}
+
+// Tickets Attempt must be less than or equal to TicketsPerValidator
+func VerifyTicketsAttempt(tickets types.TicketsExtrinsic) *types.ErrorCode {
+	for _, ticket := range tickets {
+		// ticket.Attempt is an entry index (0-based)
+		if ticket.Attempt >= types.TicketAttempt(types.TicketsPerValidator) {
+			err := types.BadTicketAttempt
+			return &err
+		}
+	}
+
+	return nil
+}
+
+// createSignatureContext creates the context for the VRF signature
 func createSignatureContext(_X_T string, _posteriorEta2 types.Entropy, _r types.TicketAttempt) []byte {
 	X_T := []byte(_X_T)
 	posteriorEta2 := _posteriorEta2[:]
@@ -25,7 +140,10 @@ func createSignatureContext(_X_T string, _posteriorEta2 types.Entropy, _r types.
 }
 
 // (6.32)
-func removeAndSortDuplicateTickets(tickets types.TicketsAccumulator) types.TicketsAccumulator {
+// This function is not used in the current implementation, becasue we throw an
+// error if we find a duplicate ticket in the new ticket (from extrinsic
+// tickets).
+func RemoveAndSortDuplicateTickets(tickets types.TicketsAccumulator) types.TicketsAccumulator {
 	if len(tickets) == 0 {
 		return tickets
 	}
@@ -45,7 +163,7 @@ func removeAndSortDuplicateTickets(tickets types.TicketsAccumulator) types.Ticke
 	return tickets[:j+1]
 }
 
-func contains(tickets types.TicketsAccumulator, ticketId types.TicketId) bool {
+func Contains(tickets types.TicketsAccumulator, ticketId types.TicketId) bool {
 	for _, ticket := range tickets {
 		if bytes.Equal(ticket.Id[:], ticketId[:]) {
 			return true
@@ -56,10 +174,12 @@ func contains(tickets types.TicketsAccumulator, ticketId types.TicketId) bool {
 }
 
 // (6.33)
-func removeTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.TicketsAccumulator {
+// This function is not used in the current implementation, becasue we throw an
+// error if we find a duplicate ticket in the new ticket accumulator.
+func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.TicketsAccumulator {
 	result := types.TicketsAccumulator{}
 	for _, ticket := range tickets {
-		if !contains(gammaA, ticket.Id) {
+		if !Contains(gammaA, ticket.Id) {
 			result = append(result, ticket)
 		}
 	}
@@ -67,56 +187,8 @@ func removeTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.Ticke
 	return result
 }
 
-// (6.31) (6.32) (6.33)
-// n: the set of new tickets
-func createNewTickets(extrinsicTickets types.TicketsExtrinsic) types.TicketsAccumulator {
-	s := store.GetInstance()
-	posteriorState := s.GetPosteriorState()
-	gammaK := posteriorState.Gamma.GammaK
-	ring := []byte{}
-	for _, validator := range gammaK {
-		ring = append(ring, []byte(validator.Bandersnatch[:])...)
-	}
-
-	skBytes := []byte{}
-	ringSize := uint(len(gammaK))
-	proverIdx := uint(0)
-	ringVRFHandler, err := vrf.NewHandler(ring, skBytes, ringSize, proverIdx)
-	if err != nil {
-		fmt.Printf("Failed to create RingVRF Handler: %v\n", err)
-	}
-
-	n := types.TicketsAccumulator{}
-	for _, ticket := range extrinsicTickets {
-		context := createSignatureContext(types.JamTicketSeal, posteriorState.Eta[2], ticket.Attempt)
-		message := []byte{}
-		signature := ticket.Signature[:]
-		output, err := ringVRFHandler.RingVerify(context, message, signature)
-		if err != nil {
-			fmt.Printf("Failed to verify signature: %v\n", err)
-		}
-
-		ticket := types.TicketBody{
-			Id:      types.TicketId(output), // y
-			Attempt: ticket.Attempt,         // r
-		}
-
-		n = append(n, ticket)
-	}
-
-	// (6.32)
-	n = removeAndSortDuplicateTickets(n)
-
-	// (6.33)
-	gammaA := posteriorState.Gamma.GammaA
-	n = removeTicketsInGammaA(n, gammaA)
-
-	return n
-}
-
 // (6.34)
-// gamma_a: Previous ticket accumulator
-func getExistentTickets() types.TicketsAccumulator {
+func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	s := store.GetInstance()
 
 	// Get prior state
@@ -143,22 +215,82 @@ func getExistentTickets() types.TicketsAccumulator {
 }
 
 // (6.34)
-// gamma_a': New ticket accumulator
-func CreateNewTicketAccumulator(extrinsicTickets types.TicketsExtrinsic) {
-	n := createNewTickets(extrinsicTickets)
-	existentTickets := getExistentTickets()
+// create gamma_a'(New ticket accumulator)
+func CreateNewTicketAccumulator(extrinsicTickets types.TicketsExtrinsic) *types.ErrorCode {
+	// 1. Verify the epoch tail
+	// 2. Verify the attempt of the tickets
+	// 3. Verify the tickets proof (return the new tickets)
+	// 4. Verify the new tickets order
+	// 5. Verify the new tickets duplicate
+	// 6. Get the previous ticket accumulator
+	// 7. Concatenate the new tickets and the previous ticket accumulator
+	// 8. Sort the tickets by ticket id
+	// 9. Select E tickets from the sorted tickets for the new ticket accumulator
+	// 10. Set the new ticket accumulator to the posterior state
 
-	tickets := append(existentTickets, n...)
+	// (6.30) Verify the epoch tail
+	err := VerifyEpochTail(extrinsicTickets)
+	if err != nil {
+		return err
+	}
 
-	// sort the tickets by ticket id
-	sort.Slice(tickets, func(i, j int) bool {
-		return bytes.Compare(tickets[i].Id[:], tickets[j].Id[:]) < 0
+	// Verify the attempt of the tickets
+	err = VerifyTicketsAttempt(extrinsicTickets)
+	if err != nil {
+		// Extrinsic tickets attempt is invalid
+		return err
+	}
+
+	// (6.31) Verify the tickets proof
+	newTickets, err := VerifyTicketsProof(extrinsicTickets)
+	if err != nil {
+		// Extrinsic tickets proof is invalid
+		return err
+	}
+
+	// (6.32) Verify the new tickets order
+	err = VerifyTicketsOrder(newTickets)
+	if err != nil {
+		// Extrinsic tickets order is invalid
+		return err
+	}
+
+	// (6.32) Verify the new tickets duplicate
+	err = VerifyTicketsDuplicate(newTickets)
+	if err != nil {
+		// Extrinsic tickets duplicate is invalid
+		return err
+	}
+
+	// (6.34) Get previous ticket accumulator
+	previousTicketsAccumulator := GetPreviousTicketsAccumulator()
+
+	// (6.34) Concatenate the new tickets and the previous ticket accumulator
+	newTicketsAccumulator := append(newTickets, previousTicketsAccumulator...)
+
+	// (6.34) sort the tickets by ticket id
+	// We already verified the duplicate tickets, so the newTicketsAccumulator
+	// should not contain any duplicate tickets
+	sort.Slice(newTicketsAccumulator, func(i, j int) bool {
+		return bytes.Compare(newTicketsAccumulator[i].Id[:], newTicketsAccumulator[j].Id[:]) < 0
 	})
 
-	// select E tickets from the sorted tickets for the new ticket accumulator
-	newTicketAccumulator := tickets[:types.EpochLength]
+	// (6.33) Verify the new tickets accmuulator
+	err = VerifyTicketsDuplicate(newTicketsAccumulator)
+	if err != nil {
+		// Found a ticket duplicate (Someone submitted the same ticket)
+		return err
+	}
 
-	// set the new ticket accumulator to the posterior state
+	// (6.34) select E tickets from the sorted tickets for the new ticket accumulator
+	maxTicketsAccumulatorSize := types.EpochLength
+	if len(newTicketsAccumulator) > maxTicketsAccumulatorSize {
+		newTicketsAccumulator = newTicketsAccumulator[:maxTicketsAccumulatorSize]
+	}
+
+	// (6.34) set the new ticket accumulator to the posterior state
 	s := store.GetInstance()
-	s.GetPosteriorStates().SetGammaA(newTicketAccumulator)
+	s.GetPosteriorStates().SetGammaA(newTicketsAccumulator)
+
+	return nil
 }

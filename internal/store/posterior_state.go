@@ -94,3 +94,15 @@ func (s *PosteriorStates) SetTau(tau types.TimeSlot) {
 	defer s.mu.Unlock()
 	s.state.Tau = tau
 }
+
+func (s *PosteriorStates) SetEta(eta types.EntropyBuffer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Eta = eta
+}
+
+func (s *PosteriorStates) GetGammaA() types.TicketsAccumulator {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.Gamma.GammaA
+}
