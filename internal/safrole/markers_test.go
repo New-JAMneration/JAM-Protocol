@@ -223,8 +223,8 @@ func TestCreateWinningTicketsPassFullConditions(t *testing.T) {
 	s := store.GetInstance()
 
 	// Simulate different epoch and pass slot index condition
-	priorTau := types.TimeSlot(types.Y - 1)
-	posterTau := types.TimeSlot(types.Y)
+	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
+	posterTau := types.TimeSlot(types.SlotSubmissionEnd)
 	gamma_a := types.TicketsAccumulator{
 		types.TicketBody{
 			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
@@ -293,8 +293,8 @@ func TestCreateWinningTicketsDifferentEpoch(t *testing.T) {
 	s := store.GetInstance()
 
 	// Simulate different epoch and pass slot index condition
-	priorTau := types.TimeSlot(types.Y - 1)
-	posterTau := types.TimeSlot(types.Y + types.EpochLength)
+	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
+	posterTau := types.TimeSlot(types.SlotSubmissionEnd + types.EpochLength)
 	gamma_a := types.TicketsAccumulator{
 		types.TicketBody{
 			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
@@ -435,8 +435,8 @@ func TestCreateWinningTicketsGammaALengthNotEqualEpochLength(t *testing.T) {
 	// Prepare test data
 	s := store.GetInstance()
 
-	priorTau := types.TimeSlot(types.Y - 1)
-	posterTau := types.TimeSlot(types.Y)
+	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
+	posterTau := types.TimeSlot(types.SlotSubmissionEnd)
 	gamma_a := types.TicketsAccumulator{
 		types.TicketBody{
 			Id:      types.TicketId(hexToBytes("0x0b7537993b0a700def26bb16e99ed0bfb530f616e4c13cf63ecb60bcbe83387d")),
