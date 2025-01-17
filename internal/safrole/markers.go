@@ -11,17 +11,11 @@ import (
 func CreateEpochMarker() {
 	s := store.GetInstance()
 
-	// Get prior state
-	priorState := s.GetPriorState()
-
-	// Get posterior state
-	posteriorState := s.GetPosteriorState()
-
 	// Get previous time slot index
-	tau := priorState.Tau
+	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := posteriorState.Tau
+	tauPrime := s.GetPosteriorStates().GetTau()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
@@ -29,21 +23,20 @@ func CreateEpochMarker() {
 	if ePrime > e {
 		// New epoch, create epoch marker
 		// Get eta_0, eta_1
-		eta_0 := priorState.Eta[0]
-		eta_1 := priorState.Eta[1]
+		eta := s.GetPriorStates().GetEta()
 
 		// Get gamma_k from posterior state
-		gamma_k := s.GetPosteriorState().Gamma.GammaK
+		gammaK := s.GetPosteriorStates().GetGammaK()
 
 		// Get bandersnatch key from gamma_k
 		bandersnatchKeys := []types.BandersnatchPublic{}
-		for _, validator := range gamma_k {
+		for _, validator := range gammaK {
 			bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
 		}
 
 		epochMarker := &types.EpochMark{
-			Entropy:        eta_0,
-			TicketsEntropy: eta_1,
+			Entropy:        eta[0],
+			TicketsEntropy: eta[1],
 			Validators:     bandersnatchKeys,
 		}
 
@@ -60,17 +53,11 @@ func CreateEpochMarker() {
 func CreateWinningTickets() {
 	s := store.GetInstance()
 
-	// Get prior state
-	priorState := s.GetPriorState()
-
-	// Get posterior state
-	posteriorState := s.GetPosteriorState()
-
 	// Get previous time slot index
-	tau := priorState.Tau
+	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := posteriorState.Tau
+	tauPrime := s.GetPosteriorStates().GetTau()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
@@ -78,15 +65,15 @@ func CreateWinningTickets() {
 	m := GetSlotIndex(tau)
 	mPrime := GetSlotIndex(tauPrime)
 
-	gamma_a := priorState.Gamma.GammaA
+	gammaA := s.GetPriorStates().GetGammaA()
 
 	condition1 := ePrime == e
-	condition2 := m < types.TimeSlot(types.Y) && mPrime >= types.TimeSlot(types.Y)
-	condition3 := len(gamma_a) == types.EpochLength
+	condition2 := m < types.TimeSlot(types.SlotSubmissionEnd) && mPrime >= types.TimeSlot(types.SlotSubmissionEnd)
+	condition3 := len(gammaA) == types.EpochLength
 
 	if condition1 && condition2 && condition3 {
 		// Z(gamma_a)
-		ticketsMark := types.TicketsMark(OutsideInSequencer(&gamma_a))
+		ticketsMark := types.TicketsMark(OutsideInSequencer(&gammaA))
 		s.GetIntermediateHeaderPointer().SetTicketsMark(&ticketsMark)
 	} else {
 		// The epoch is the same

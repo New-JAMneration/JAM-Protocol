@@ -8,6 +8,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
@@ -18,24 +19,21 @@ import (
 func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 	s := store.GetInstance()
 
-	// Get posterior state
-	posteriorState := s.GetPosteriorState()
-
 	// Get current time slot index
-	tauPrime := posteriorState.Tau
+	tauPrime := s.GetPosteriorStates().GetTau()
 
 	// m'
 	mPrime := GetSlotIndex(tauPrime)
 
 	// m' < Y => |E_T| <= K
-	if mPrime < types.TimeSlot(types.Y) {
+	if mPrime < types.TimeSlot(types.SlotSubmissionEnd) {
 		if len(tickets) > types.ValidatorsCount {
-			err := types.UnexpectedTicket
+			err := SafroleErrorCode.UnexpectedTicket
 			return &err
 		}
 	} else {
 		if len(tickets) != 0 {
-			err := types.UnexpectedTicket
+			err := SafroleErrorCode.UnexpectedTicket
 			return &err
 		}
 	}
@@ -48,8 +46,7 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
-	posteriorState := s.GetPosteriorState()
-	gammaK := posteriorState.Gamma.GammaK
+	gammaK := s.GetPosteriorStates().GetGammaK()
 	ring := []byte{}
 	for _, validator := range gammaK {
 		ring = append(ring, []byte(validator.Bandersnatch[:])...)
@@ -63,15 +60,16 @@ func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulato
 	defer verifier.Free()
 
 	newTickets := types.TicketsAccumulator{}
+	posteriorEta := s.GetPosteriorStates().GetEta()
 	for _, ticket := range tickets {
 		// print eta3 hex string
-		context := createSignatureContext(types.JamTicketSeal, posteriorState.Eta[2], ticket.Attempt)
+		context := createSignatureContext(types.JamTicketSeal, posteriorEta[2], ticket.Attempt)
 		message := []byte{}
 		signature := ticket.Signature[:]
 		output, verifyErr := verifier.RingVerify(context, message, signature)
 
 		if verifyErr != nil {
-			err := types.BadTicketProof
+			err := SafroleErrorCode.BadTicketProof
 			return nil, &err
 		}
 
@@ -90,7 +88,7 @@ func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulato
 func VerifyTicketsOrder(tickets types.TicketsAccumulator) *types.ErrorCode {
 	for i := 1; i < len(tickets); i++ {
 		if bytes.Compare(tickets[i-1].Id[:], tickets[i].Id[:]) > 0 {
-			err := types.BadTicketOrder
+			err := SafroleErrorCode.BadTicketOrder
 			return &err
 		}
 	}
@@ -104,7 +102,7 @@ func VerifyTicketsOrder(tickets types.TicketsAccumulator) *types.ErrorCode {
 func VerifyTicketsDuplicate(tickets types.TicketsAccumulator) *types.ErrorCode {
 	for i := 1; i < len(tickets); i++ {
 		if bytes.Equal(tickets[i-1].Id[:], tickets[i].Id[:]) {
-			err := types.DuplicateTicket
+			err := SafroleErrorCode.DuplicateTicket
 			return &err
 		}
 	}
@@ -117,7 +115,7 @@ func VerifyTicketsAttempt(tickets types.TicketsExtrinsic) *types.ErrorCode {
 	for _, ticket := range tickets {
 		// ticket.Attempt is an entry index (0-based)
 		if ticket.Attempt >= types.TicketAttempt(types.TicketsPerValidator) {
-			err := types.BadTicketAttempt
+			err := SafroleErrorCode.BadTicketAttempt
 			return &err
 		}
 	}
@@ -191,17 +189,11 @@ func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.Ticke
 func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	s := store.GetInstance()
 
-	// Get prior state
-	priorState := s.GetPriorState()
-
-	// Get posterior state
-	posteriorState := s.GetPosteriorState()
-
 	// Get previous time slot index
-	tau := priorState.Tau
+	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := posteriorState.Tau
+	tauPrime := s.GetPosteriorStates().GetTau()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
@@ -209,7 +201,7 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	if ePrime > e {
 		return types.TicketsAccumulator{}
 	} else {
-		gammaA := priorState.Gamma.GammaA
+		gammaA := s.GetPriorStates().GetGammaA()
 		return gammaA
 	}
 }

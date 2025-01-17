@@ -7,12 +7,13 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SaforleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 )
 
 // publish-tickets-no-mark-1.json
 // Submit an extrinsic with a bad ticket attempt number.
 func TestCheckTicketsAttempt(t *testing.T) {
-	ticketAttemptErr := types.BadTicketAttempt
+	ticketAttemptErr := SaforleErrorCode.BadTicketAttempt
 	testCases := []struct {
 		tickets     types.TicketsExtrinsic
 		expectedErr *types.ErrorCode
@@ -75,7 +76,7 @@ func TestCheckTicketsAttempt(t *testing.T) {
 // publish-tickets-no-mark-3.json
 // Submit one ticket already recorded in the state.
 func TestVerifyTicketsDuplicate(t *testing.T) {
-	duplicateTicketErr := types.DuplicateTicket
+	duplicateTicketErr := SaforleErrorCode.DuplicateTicket
 	testCases := []struct {
 		slot        types.TimeSlot
 		pks         []types.BandersnatchPublic
@@ -192,7 +193,7 @@ func TestVerifyTicketsDuplicate(t *testing.T) {
 // publish-tickets-no-mark-4.json
 // Submit tickets in bad order.
 func TestVerifyTicketsOrder(t *testing.T) {
-	ticketOrderErr := types.BadTicketOrder
+	ticketOrderErr := SaforleErrorCode.BadTicketOrder
 	testCases := []struct {
 		pks         []types.BandersnatchPublic
 		entropy     types.Entropy
@@ -289,7 +290,7 @@ func TestVerifyTicketsOrder(t *testing.T) {
 // publish-tickets-no-mark-5.json
 // Submit tickets with bad ring proof.
 func TestVerifyTicketsProof(t *testing.T) {
-	badTicketProofErr := types.BadTicketProof
+	badTicketProofErr := SaforleErrorCode.BadTicketProof
 	testCases := []struct {
 		pks         []types.BandersnatchPublic // from gamma_k
 		entropy     types.Entropy
@@ -390,7 +391,7 @@ func TestVerifyTicketsProof(t *testing.T) {
 // publish-tickets-no-mark-7.json
 // Submit tickets when epoch's lottery is over.
 func TestVerifyEpochTail(t *testing.T) {
-	unexpectedTicketErr := types.UnexpectedTicket
+	unexpectedTicketErr := SaforleErrorCode.UnexpectedTicket
 	testCases := []struct {
 		slot        types.TimeSlot
 		tickets     types.TicketsExtrinsic
@@ -402,7 +403,7 @@ func TestVerifyEpochTail(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			slot: types.TimeSlot(types.Y - 1),
+			slot: types.TimeSlot(types.SlotSubmissionEnd - 1),
 			tickets: types.TicketsExtrinsic{
 				{
 					Attempt:   1,
@@ -422,7 +423,7 @@ func TestVerifyEpochTail(t *testing.T) {
 		// publish-tickets-no-mark-7.json
 		// Submit tickets when epoch's lottery is over.
 		{
-			slot: types.TimeSlot(types.Y),
+			slot: types.TimeSlot(types.SlotSubmissionEnd),
 			tickets: types.TicketsExtrinsic{
 				{
 					Attempt:   0,
