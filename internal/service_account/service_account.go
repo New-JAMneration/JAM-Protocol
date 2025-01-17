@@ -29,10 +29,9 @@ func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.
 	// check if CodeHash exists in PreimageLookup
 	if code, exists := account.PreimageLookup[codeHash]; exists {
 		return code
-	} else {
-		// default is empty
-		return nil
 	}
+	// default is empty
+	return nil
 }
 
 // (9.6) Invariant <- TODO: check if PVM calls this function
