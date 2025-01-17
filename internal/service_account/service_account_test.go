@@ -454,7 +454,7 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 // 			store.NewPriorStates()
 // 			store.GetInstance().GetPriorStates().SetDelta(my.PreState.Delta)
 // 			// t.Logf("my.PreState.Delta: %+v", my.PreState.Delta)
-// 			priorDelta := store.GetInstance().GetPriorStates().GetState().Delta
+// 			priorDelta := store.GetInstance().GetPriorStates().GetDelta()
 // 			slot := my.Input.Slot
 
 // 			// Perform operations on the ServiceAccount
