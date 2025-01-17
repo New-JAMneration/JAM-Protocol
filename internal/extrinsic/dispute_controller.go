@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"fmt"
+
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -43,16 +44,16 @@ func (d *DisputeController) ValidateFaults() error {
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
 func (d *DisputeController) ValidateCulprits() error {
-	culpritMap := make(map[types.WorkReportHash]bool)
+	culpritMap := make(map[types.WorkReportHash]int)
 
 	for _, report := range d.CulpritController.Culprits {
-		culpritMap[report.Target] = true
+		culpritMap[report.Target]++
 	}
 
 	bad := 0
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == bad {
-			if !culpritMap[types.WorkReportHash(report.ReportHash)] {
+			if culpritMap[types.WorkReportHash(report.ReportHash)] < 2 {
 				return fmt.Errorf("not_enough_culprits")
 			}
 		}
@@ -62,15 +63,16 @@ func (d *DisputeController) ValidateCulprits() error {
 
 // UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
 func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) {
-	priorPsi := store.GetInstance().GetPriorState().Psi
+	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
 	updateVerdicts := CompareVerdictsWithPsi(priorPsi, newVerdicts)
 
 	posteriorPsiG := UpdatePsiG(priorPsi, updateVerdicts)
 	posteriorPsiB := UpdatePsiB(priorPsi, updateVerdicts)
 	posteriorPsiW := UpdatePsiW(priorPsi, updateVerdicts)
-	store.GetInstance().GetPosteriorStates().SetPsiG(posteriorPsiG)
-	store.GetInstance().GetPosteriorStates().SetPsiB(posteriorPsiB)
-	store.GetInstance().GetPosteriorStates().SetPsiW(posteriorPsiW)
+	posteriorState := store.GetInstance().GetPosteriorStates()
+	posteriorState.SetPsiG(posteriorPsiG)
+	posteriorState.SetPsiB(posteriorPsiB)
+	posteriorState.SetPsiW(posteriorPsiW)
 }
 
 func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) types.DisputesRecords {
@@ -123,7 +125,7 @@ func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHa
 
 // UpdatePsiO updates the PsiO | Eq. 10.19
 func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.Fault) {
-	priorPsi := store.GetInstance().GetPriorState().Psi
+	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
 	offenderMap := make(map[types.Ed25519Public]bool)
 	for _, offender := range priorPsi.Offenders {
 		offenderMap[offender] = true
@@ -145,7 +147,7 @@ func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.
 		}
 	}
 
-	store.GetInstance().GetPosteriorStates().SetPsiO(posteriorPsiO)
+	store.GetInstance().GetPosteriorStates().SetPsiO(append(priorPsi.Offenders, posteriorPsiO...))
 }
 
 // HeaderOffenders returns the offenders markers | Eq. 10.20
