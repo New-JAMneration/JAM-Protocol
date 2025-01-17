@@ -5,6 +5,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SaforleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -595,6 +596,100 @@ func TestCreateWinningTicketsWithJamTestNet(t *testing.T) {
 
 		if ticket.Attempt != expectedTicketsMark[i].Attempt {
 			t.Errorf("Tickets mark attempt is incorrect")
+		}
+	}
+}
+
+// jam-test-vectors: enact-epoch-change-with-no-tickets-2.json
+// Progress from slot X to slot X.
+// Timeslot must be strictly monotonic.
+func TestCreateEpochMarkerGetBadSlotError(t *testing.T) {
+	badSlotErr := SaforleErrorCode.BadSlot
+	testCases := []struct {
+		slot        types.TimeSlot
+		entropy     types.Entropy
+		extrinsic   []types.TicketsExtrinsic
+		preTau      types.TimeSlot
+		preEta      types.EntropyBuffer
+		pks         []types.BandersnatchPublic // from gamma_k
+		expectedErr *types.ErrorCode
+	}{
+		{
+			slot:      1,
+			entropy:   types.Entropy(hexToBytes("0xe4b188579aa828f694f769a31a965a11f2017288fbfdfa8734aadc80685ffff7")),
+			extrinsic: []types.TicketsExtrinsic{},
+			preTau:    1,
+			preEta: types.EntropyBuffer{
+				types.Entropy(hexToBytes("0xa0243a82952899598fcbc74aff0df58a71059a9882d4416919055c5d64bf2a45")),
+				types.Entropy(hexToBytes("0xee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25")),
+				types.Entropy(hexToBytes("0xbb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa")),
+				types.Entropy(hexToBytes("0xe88bd757ad5b9bedf372d8d3f0cf6c962a469db61a265f6418e1ffed86da29ec")),
+			},
+			pks: []types.BandersnatchPublic{
+				types.BandersnatchPublic(hexToBytes("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
+				types.BandersnatchPublic(hexToBytes("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
+				types.BandersnatchPublic(hexToBytes("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
+				types.BandersnatchPublic(hexToBytes("0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33")),
+				types.BandersnatchPublic(hexToBytes("0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3")),
+				types.BandersnatchPublic(hexToBytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
+			},
+			expectedErr: &badSlotErr,
+		},
+		{
+			slot:      1,
+			entropy:   types.Entropy(hexToBytes("0x8c2e6d327dfaa6ff8195513810496949210ad20a96e2b0672a3e1b9335080801")),
+			extrinsic: []types.TicketsExtrinsic{},
+			preTau:    0,
+			preEta: types.EntropyBuffer{
+				types.Entropy(hexToBytes("0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314")),
+				types.Entropy(hexToBytes("0xee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25")),
+				types.Entropy(hexToBytes("0xbb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa")),
+				types.Entropy(hexToBytes("0xe88bd757ad5b9bedf372d8d3f0cf6c962a469db61a265f6418e1ffed86da29ec")),
+			},
+			pks: []types.BandersnatchPublic{
+				types.BandersnatchPublic(hexToBytes("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
+				types.BandersnatchPublic(hexToBytes("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
+				types.BandersnatchPublic(hexToBytes("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
+				types.BandersnatchPublic(hexToBytes("0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33")),
+				types.BandersnatchPublic(hexToBytes("0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3")),
+				types.BandersnatchPublic(hexToBytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		s := store.GetInstance()
+
+		// Set the time slot
+		s.GetPriorStates().SetTau(tc.preTau)
+		s.GetPosteriorStates().SetTau(tc.slot)
+
+		gammaK := types.ValidatorsData{}
+		for _, pk := range tc.pks {
+			gammaK = append(gammaK, types.Validator{
+				Bandersnatch: pk,
+				Ed25519:      types.Ed25519Public{},
+				Bls:          types.BlsPublic{},
+				Metadata:     types.ValidatorMetadata{},
+			})
+		}
+
+		s.GetPosteriorStates().SetGammaK(gammaK)
+
+		// Set Eta
+		s.GetPriorStates().SetEta(tc.preEta)
+
+		err := CreateEpochMarker()
+
+		if tc.expectedErr == nil {
+			if err != nil {
+				t.Errorf("expected nil, got %v", err)
+			}
+		} else {
+			if err == nil || *err != *tc.expectedErr {
+				t.Errorf("expected %v, got %v", *tc.expectedErr, err)
+			}
 		}
 	}
 }
