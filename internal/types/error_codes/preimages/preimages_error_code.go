@@ -1,11 +1,7 @@
 package types
 
-import (
-	. "github.com/New-JAMneration/JAM-Protocol/internal/types"
-)
-
-type PreimageErrorCode ErrorCode
+import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 const (
-	PreimageUnneeded PreimageErrorCode = iota // 0
+	PreimageUnneeded types.ErrorCode = iota // 0
 )
