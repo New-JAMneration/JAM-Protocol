@@ -23,7 +23,7 @@ func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.
 		∀a ∈ A ∶ a_code ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
 		                  ⎨ ∅               otherwise
 	*/
-	delta := store.GetInstance().GetPriorStates().GetState().Delta
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	account := delta[id]
 
 	// check if CodeHash exists in PreimageLookup
@@ -31,15 +31,15 @@ func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.
 		return code
 	} else {
 		// default is empty
-		return types.ByteSequence{}
+		return nil
 	}
 }
 
-// (9.6) Invariant
+// (9.6) Invariant <- TODO: check if PVM calls this function
 
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
 func ValidatePreimageLookupDict(id types.ServiceId) error {
-	delta := store.GetInstance().GetPriorStates().GetState().Delta
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	account := delta[id]
 
 	for codeHash, preimage := range account.PreimageLookup {
@@ -132,7 +132,7 @@ func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccount
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
-	delta := store.GetInstance().GetPriorStates().GetState().Delta
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 
 	account := delta[id]
 	// calculate derivative invariants
