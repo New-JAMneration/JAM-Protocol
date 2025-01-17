@@ -3,9 +3,10 @@ package extrinsic
 import (
 	"bytes"
 	"fmt"
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"sort"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -29,19 +30,20 @@ func NewCulpritController() *CulpritController {
 }
 
 // VerifyCulpritValidity verifies the validity of the culprits | Eq. 10.5
-func (c *CulpritController) VerifyCulpritValidity() {
+func (c *CulpritController) VerifyCulpritValidity() error {
 	// if the culprits are not valid return error
 	if err := c.VerifyReportHashValidty(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
 	if err := c.ExcludeOffenders(); err != nil {
-		fmt.Println("Error ocurred : ", err.Error())
+		return err
 	}
+	return nil
 }
 
 // VerifyReportHashValidty verifies the validity of the reports
 func (c *CulpritController) VerifyReportHashValidty() error {
-	psiBad := store.GetInstance().GetPosteriorStates().GetState().Psi.Bad
+	psiBad := store.GetInstance().GetPosteriorStates().GetPsiB()
 	checkMap := make(map[types.WorkReportHash]bool)
 
 	for _, report := range psiBad {
@@ -60,7 +62,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 func (c *CulpritController) ExcludeOffenders() error {
 
-	exclude := store.GetInstance().GetPriorState().Psi.Offenders
+	exclude := store.GetInstance().GetPriorStates().GetPsiO()
 
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
@@ -70,7 +72,7 @@ func (c *CulpritController) ExcludeOffenders() error {
 	length := len(c.Culprits)
 
 	for i := 0; i < length; i++ { // culprit index
-		if !excludeMap[c.Culprits[i].Key] {
+		if excludeMap[c.Culprits[i].Key] {
 			return fmt.Errorf("CulpritController.ExcludeOffenders failed : offenders_already_judged")
 		}
 	}

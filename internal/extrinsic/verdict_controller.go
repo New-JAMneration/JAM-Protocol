@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -56,14 +56,14 @@ func NewVerdictController() *VerdictController {
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() []int {
 
-	state := store.GetInstance().GetPriorState()
+	state := store.GetInstance().GetPriorStates()
 
-	a := types.U32(state.Tau) / types.U32(types.EpochLength)
+	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
 	var k types.ValidatorsData
 	if v.Verdict.Age == a {
-		k = state.Kappa
+		k = state.GetKappa()
 	} else {
-		k = state.Lambda
+		k = state.GetLambda()
 	}
 
 	// check if the judgement is valid
@@ -170,10 +170,10 @@ func (v *VoteWrapper) Swap(i, j int) {
 func (v *VerdictController) SetDisjoint() error {
 	// not in psi_g, psi_b, psi_w
 	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
-	psi := store.GetInstance().GetPriorState().Psi
-	psiGood := psi.Good
-	psiBad := psi.Bad
-	psiWonky := psi.Wonky
+	states := store.GetInstance().GetPriorStates()
+	psiGood := states.GetPsiG()
+	psiBad := states.GetPsiB()
+	psiWonky := states.GetPsiW()
 
 	uniqueMap := make(map[types.OpaqueHash]bool)
 
@@ -188,7 +188,7 @@ func (v *VerdictController) SetDisjoint() error {
 	}
 
 	for _, v := range v.Verdicts {
-		if !uniqueMap[v.Verdict.Target] {
+		if uniqueMap[v.Verdict.Target] {
 			return fmt.Errorf("offender already judged")
 		}
 	}
@@ -215,19 +215,21 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 
 // ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
-	priorStatesRho := store.GetInstance().GetPriorState().Rho
+	priorStatesRho := store.GetInstance().GetPriorStates().GetRho()
 	clearReports := make(map[types.OpaqueHash]bool)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
 			clearReports[types.OpaqueHash(verdict.ReportHash)] = true
 		}
 	}
-	intermediateStatesRho := priorStatesRho
-	for _, item := range intermediateStatesRho {
-		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(item.Report))
+	for i := range priorStatesRho {
+		if priorStatesRho[i] == nil {
+			continue
+		}
+		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(priorStatesRho[i].Report))
 		if clearReports[hashReport] {
-			item = nil
+			priorStatesRho[i] = nil
 		}
 	}
-	store.GetInstance().GetIntermediateStates().SetRhoDagger(intermediateStatesRho)
+	store.GetInstance().GetIntermediateStates().SetRhoDagger(priorStatesRho)
 }
