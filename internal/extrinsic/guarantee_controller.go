@@ -265,7 +265,7 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 			checkPackageSet[types.OpaqueHash(w.Hash)] = true
 		}
 	}
-	for k, _ := range packageSet {
+	for k := range packageSet {
 		if !checkPackageSet[k] {
 			return fmt.Errorf("invalid_work_package_hash")
 		}
