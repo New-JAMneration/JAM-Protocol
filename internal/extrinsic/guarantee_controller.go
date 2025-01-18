@@ -231,7 +231,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	betaMap := make(map[types.WorkPackageHash]bool)
 	for _, v := range beta {
 		for _, w := range v.Reported {
-			betaMap[types.WorkPackageHash(hash.KeccakHash(w.Hash[:]))] = true
+			betaMap[types.WorkPackageHash(w.Hash)] = true
 		}
 	}
 	for _, workPackageHash := range workPackageHashes {
@@ -240,6 +240,93 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 		}
 	}
 	return nil
+}
+
+// CheckExtrinsicOrRecentHistory | Eq. 11.39
+func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
+	w := g.WorkReportSet()
+	beta := store.GetInstance().GetPriorStates().GetBeta()
+	packageSet := make(map[types.OpaqueHash]bool)
+	for _, v := range w {
+		for _, w := range v.Context.Prerequisites {
+			packageSet[types.OpaqueHash(w)] = true
+		}
+		for _, w := range v.SegmentRootLookup {
+			packageSet[types.OpaqueHash(w.WorkPackageHash)] = true
+		}
+	}
+	p := g.WorkPackageHashSet()
+	checkPackageSet := make(map[types.OpaqueHash]bool)
+	for _, v := range p {
+		checkPackageSet[types.OpaqueHash(v)] = true
+	}
+	for _, v := range beta {
+		for _, w := range v.Reported {
+			checkPackageSet[types.OpaqueHash(w.Hash)] = true
+		}
+	}
+	for k, _ := range packageSet {
+		if !checkPackageSet[k] {
+			return fmt.Errorf("invalid_work_package_hash")
+		}
+	}
+	return nil
+}
+
+// CheckSegmentRootLookup | Eq. 11.40-11.41
+func (g *GuaranteeController) CheckSegmentRootLookup() error {
+	blockDicSet := make(map[types.WorkPackageHash]types.OpaqueHash)
+	for _, guarantee := range g.Guarantees {
+		for _, segmentRootLookup := range guarantee.Report.SegmentRootLookup {
+			blockDicSet[segmentRootLookup.WorkPackageHash] = segmentRootLookup.SegmentTreeRoot
+		}
+	}
+	beta := store.GetInstance().GetPriorStates().GetBeta()
+	for _, v := range beta {
+		for _, w := range v.Reported {
+			blockDicSet[types.WorkPackageHash(w.Hash)] = types.OpaqueHash(w.ExportsRoot)
+		}
+	}
+	w := g.WorkReportSet()
+	for _, v := range w {
+		for _, w := range v.SegmentRootLookup {
+			if blockDicSet[w.WorkPackageHash] != w.SegmentTreeRoot {
+				return fmt.Errorf("invalid_segment_root_lookup")
+			}
+		}
+	}
+	return nil
+}
+
+// CheckWorkResult | Eq. 11.42
+func (g *GuaranteeController) CheckWorkResult() error {
+	w := g.WorkReportSet()
+	delta := store.GetInstance().GetPosteriorStates().GetDelta()
+	for _, v := range w {
+		for _, w := range v.Results {
+			if w.CodeHash != delta[w.ServiceId].CodeHash {
+				return fmt.Errorf("invalid_work_result")
+			}
+		}
+	}
+	return nil
+}
+
+// Transitioning for work reports | Eq. 11.43
+func (g *GuaranteeController) TransitionWorkReport() {
+	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
+	posteriorTau := store.GetInstance().GetPosteriorStates().GetState().Tau
+	coreIndexMap := make(map[types.CoreIndex]bool)
+	for _, guarantee := range g.Guarantees {
+		coreIndexMap[guarantee.Report.CoreIndex] = true
+	}
+	for i := range rhoDoubleDagger {
+		if coreIndexMap[types.CoreIndex(i)] {
+			rhoDoubleDagger[i].Report = g.Guarantees[i].Report
+			rhoDoubleDagger[i].Timeout = posteriorTau
+		}
+	}
+	store.GetInstance().GetPosteriorStates().SetRho(rhoDoubleDagger)
 }
 
 // Set sets the ReportGuarantee slice
