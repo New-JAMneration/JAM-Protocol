@@ -208,7 +208,7 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 
 // (6.34)
 // create gamma_a'(New ticket accumulator)
-func CreateNewTicketAccumulator(extrinsicTickets types.TicketsExtrinsic) *types.ErrorCode {
+func CreateNewTicketAccumulator() *types.ErrorCode {
 	// 1. Verify the epoch tail
 	// 2. Verify the attempt of the tickets
 	// 3. Verify the tickets proof (return the new tickets)
@@ -219,6 +219,10 @@ func CreateNewTicketAccumulator(extrinsicTickets types.TicketsExtrinsic) *types.
 	// 8. Sort the tickets by ticket id
 	// 9. Select E tickets from the sorted tickets for the new ticket accumulator
 	// 10. Set the new ticket accumulator to the posterior state
+
+	// Get extrinsic tickets
+	s := store.GetInstance()
+	extrinsicTickets := s.GetProcessingBlockPointer().GetTicketsExtrinsic()
 
 	// (6.30) Verify the epoch tail
 	err := VerifyEpochTail(extrinsicTickets)
@@ -281,7 +285,6 @@ func CreateNewTicketAccumulator(extrinsicTickets types.TicketsExtrinsic) *types.
 	}
 
 	// (6.34) set the new ticket accumulator to the posterior state
-	s := store.GetInstance()
 	s.GetPosteriorStates().SetGammaA(newTicketsAccumulator)
 
 	return nil

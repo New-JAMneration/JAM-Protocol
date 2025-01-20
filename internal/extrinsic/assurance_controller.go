@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"fmt"
+	"sort"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-
-	"sort"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
@@ -88,7 +88,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 
 // ValidateSignature validates the signature of the AvailAssurance | Eq. 11.13, 11.14
 func (a *AvailAssuranceController) ValidateSignature() error {
-	kappaPrime := store.GetInstance().GetPosteriorState().Kappa
+	kappaPrime := store.GetInstance().GetPosteriorStates().GetKappa()
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
@@ -174,5 +174,4 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 		}
 	}
 	store.GetInstance().GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
-
 }

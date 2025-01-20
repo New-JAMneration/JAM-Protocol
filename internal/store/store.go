@@ -17,7 +17,8 @@ type Store struct {
 	mu sync.RWMutex
 
 	// INFO: Add more fields here
-	blocks                     *Blocks
+	unfinalizedBlocks          *UnfinalizedBlocks
+	processingBlock            *ProcessingBlock
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
 	posteriorStates            *PosteriorStates
@@ -32,7 +33,8 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			blocks:                     NewBlocks(),
+			unfinalizedBlocks:          NewUnfinalizedBlocks(),
+			processingBlock:            NewProcessingBlock(),
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
 			posteriorStates:            NewPosteriorStates(),
@@ -47,24 +49,28 @@ func GetInstance() *Store {
 }
 
 func (s *Store) AddBlock(block types.Block) {
-	s.blocks.AddBlock(block)
+	s.unfinalizedBlocks.AddBlock(block)
 }
 
 func (s *Store) GetBlocks() []types.Block {
-	return s.blocks.GetAllAncientBlocks()
+	return s.unfinalizedBlocks.GetAllAncientBlocks()
 }
 
 func (s *Store) GetBlock() types.Block {
-	return s.blocks.GetLatestBlock()
+	return s.unfinalizedBlocks.GetLatestBlock()
 }
 
 func (s *Store) GetLatestBlock() types.Block {
-	return s.blocks.GetLatestBlock()
+	return s.unfinalizedBlocks.GetLatestBlock()
+}
+
+func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
+	return s.processingBlock
 }
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
-	s.blocks.GenerateGenesisBlock(block)
-	s.blocks.AddBlock(block)
+	s.unfinalizedBlocks.GenerateGenesisBlock(block)
+	s.unfinalizedBlocks.AddBlock(block)
 	log.Println("🚀 Genesis block generated")
 }
 

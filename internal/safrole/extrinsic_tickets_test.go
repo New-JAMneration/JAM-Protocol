@@ -176,7 +176,9 @@ func TestVerifyTicketsDuplicate(t *testing.T) {
 		s.GetPosteriorStates().SetTau(tc.slot)
 		s.GetPriorStates().SetGammaA(tc.gammaA)
 
-		err := CreateNewTicketAccumulator(tc.tickets)
+		s.GetProcessingBlockPointer().SetTicketsExtrinsic(tc.tickets)
+
+		err := CreateNewTicketAccumulator()
 
 		if tc.expectedErr == nil {
 			if err != nil {
@@ -593,8 +595,9 @@ func TestCreatCreateNewTicketAccumulator(t *testing.T) {
 		s.GetPosteriorStates().SetEta(eta)
 		s.GetPosteriorStates().SetTau(tc.slot)
 		s.GetPriorStates().SetGammaA(tc.preGammaA)
+		s.GetProcessingBlockPointer().SetTicketsExtrinsic(tc.tickets)
 
-		err := CreateNewTicketAccumulator(tc.tickets)
+		err := CreateNewTicketAccumulator()
 
 		if tc.expectedErr == nil {
 			if err != nil {
