@@ -9,9 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 	"io/ioutil"
 	"os"
+
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
 // Simple
@@ -97,12 +98,12 @@ func (v ValidatorsData) Validate() error {
 type ServiceId U32
 
 type ServiceInfo struct {
-	CodeHash   OpaqueHash `json:"code_hash,omitempty"`
-	Balance    U64        `json:"balance,omitempty"`
-	MinItemGas Gas        `json:"min_item_gas,omitempty"`
-	MinMemoGas Gas        `json:"min_memo_gas,omitempty"`
-	Bytes      U64        `json:"bytes,omitempty"` // a_o
-	Items      U32        `json:"items,omitempty"` // a_i
+	CodeHash   OpaqueHash `json:"code_hash,omitempty"`    // a_c
+	Balance    U64        `json:"balance,omitempty"`      // a_b
+	MinItemGas Gas        `json:"min_item_gas,omitempty"` // a_g
+	MinMemoGas Gas        `json:"min_memo_gas,omitempty"` // a_m
+	Bytes      U64        `json:"bytes,omitempty"`        // a_o
+	Items      U32        `json:"items,omitempty"`        // a_i
 }
 
 // Availability Assignments

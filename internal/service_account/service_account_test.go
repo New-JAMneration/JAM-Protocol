@@ -1,6 +1,7 @@
 package service_account
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -316,8 +317,8 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 	// set up test data
 	var (
 		// mockCodeHash = hash(mockCode) -> preimage of mockCodeHash = mockCode
-		// mockCode     = types.ByteSequence("0x123456789")
-		mockCode     = types.ByteSequence("0x92cdf578c47085a5992256f0dcf97d0b19f1")
+		// mockCode     = types.ByteSequence("0x92cdf578c47085a5992256f0dcf97d0b19f1")
+		mockCode     = types.ByteSequence("0x5b5477bef56d05dd59b758c2c4672c88aa8a71a2949f3921f37a25a9a167aeba")
 		mockCodeHash = hash.Blake2bHash(utils.ByteSequenceWrapper{Value: mockCode}.Serialize())
 		// mockCodeHash_bs  = types.ByteSequence(mockCodeHash[:])
 		// mockCodeHash_str = hex.EncodeToString(mockCodeHash_bs)
@@ -336,6 +337,8 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 			},
 		}
 	)
+	fmt.Println("mockCode:", len(mockCode))
+	fmt.Println("mockCodeHash:", len(mockCodeHash))
 	// fmt.Printf("mockCodeHash: %v\n", mockCodeHash)
 	// fmt.Printf("mockCodeHash_bs: %v\n", mockCodeHash_bs)
 	// fmt.Printf("mockCodeHash_str: %v\n", mockCodeHash_str)

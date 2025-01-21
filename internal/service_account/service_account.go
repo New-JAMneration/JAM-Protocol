@@ -43,8 +43,6 @@ func ValidatePreimageLookupDict(id types.ServiceId) error {
 
 	for codeHash, preimage := range account.PreimageLookup {
 		// // h = H(p)
-		// mapSerialization := utils.WrapOpaqueHashMap(account.PreimageLookup)
-		// preimageHash := hash.Blake2bHash(mapSerialization.Serialize())
 		preimageHash := hash.Blake2bHash(utils.ByteSequenceWrapper{Value: preimage}.Serialize())
 		if codeHash != preimageHash {
 			return fmt.Errorf("\nCodeHash: %v \nshould equal to PreimageHash: %v", codeHash, preimageHash)
