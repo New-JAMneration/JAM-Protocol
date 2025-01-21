@@ -38,6 +38,18 @@ func (i *IntermediateHeader) ResetHeader() {
 	i.Header = types.Header{}
 }
 
+func (i *IntermediateHeader) GetTicketsMark() *types.TicketsMark {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.TicketsMark
+}
+
+func (i *IntermediateHeader) SetTicketsMark(ticketsMark *types.TicketsMark) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.Header.TicketsMark = ticketsMark
+}
+
 func (i *IntermediateHeader) SetSeal(seal types.BandersnatchVrfSignature) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
@@ -80,12 +92,16 @@ func (i *IntermediateHeader) SetSlot(timeslot types.TimeSlot) {
 	i.Header.Slot = timeslot
 }
 
-func (i *IntermediateHeader) SetEpochMark(epoch_mark types.EpochMark) {
+func (i *IntermediateHeader) GetEpochMark() *types.EpochMark {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.EpochMark
+}
+
+func (i *IntermediateHeader) SetEpochMark(epochMark *types.EpochMark) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-
-	// Assign the entire EpochMark struct to the pointer
-	i.Header.EpochMark = &epoch_mark
+	i.Header.EpochMark = epochMark
 }
 
 func (i *IntermediateHeader) SetHeader(header types.Header) {
