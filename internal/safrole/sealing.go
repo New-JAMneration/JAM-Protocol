@@ -20,7 +20,7 @@ func SealingByTickets() {
 		return
 	}
 	header := s.GetIntermediateHeader()
-	index := uint(header.Slot) % uint(len(posterior_state.GetGammaS().Keys))
+	index := uint(header.Slot) % uint(len(posterior_state.GetGammaS().Tickets))
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	i_r := ticket.Attempt

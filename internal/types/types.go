@@ -66,6 +66,7 @@ type (
 	ErasureRoot     OpaqueHash
 )
 
+type ErrorCode U8
 type Gas U64
 
 type (
