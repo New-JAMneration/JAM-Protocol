@@ -87,3 +87,11 @@ func (i *IntermediateHeader) SetEpochMark(epoch_mark types.EpochMark) {
 	// Assign the entire EpochMark struct to the pointer
 	i.Header.EpochMark = &epoch_mark
 }
+
+func (i *IntermediateHeader) SetHeader(header types.Header) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	// Assign the entire EpochMark struct to the pointer
+	i.Header = header
+}
