@@ -72,7 +72,7 @@ func TestStatistics(t *testing.T) {
 
 		// Set input to store
 		s := store.GetInstance()
-		s.GetIntermediateHeaders().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
+		s.GetProcessingBlockPointer().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
 		s.GetPriorStates().SetTau(statisticsTestCase.PreState.Tau)
 		s.GetPosteriorStates().SetTau(statisticsTestCase.Input.Slot)
 		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Pi)

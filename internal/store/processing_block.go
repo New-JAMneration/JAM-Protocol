@@ -95,3 +95,123 @@ func (b *ProcessingBlock) SetDisputesExtrinsic(disputes types.DisputesExtrinsic)
 	defer b.mu.Unlock()
 	b.block.Extrinsic.Disputes = disputes
 }
+
+func (b *ProcessingBlock) GetParent() types.HeaderHash {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.Parent
+}
+
+func (b *ProcessingBlock) SetParent(parent types.HeaderHash) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.Parent = parent
+}
+
+func (b *ProcessingBlock) GetParentStateRoot() types.StateRoot {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.ParentStateRoot
+}
+
+func (b *ProcessingBlock) SetParentStateRoot(parentStateRoot types.StateRoot) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.ParentStateRoot = parentStateRoot
+}
+
+func (b *ProcessingBlock) GetExtrinsicHash() types.OpaqueHash {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.ExtrinsicHash
+}
+
+func (b *ProcessingBlock) SetExtrinsicHash(extrinsicHash types.OpaqueHash) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.ExtrinsicHash = extrinsicHash
+}
+
+func (b *ProcessingBlock) GetSlot() types.TimeSlot {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.Slot
+}
+
+func (b *ProcessingBlock) SetSlot(slot types.TimeSlot) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.Slot = slot
+}
+
+func (b *ProcessingBlock) GetEpochMark() *types.EpochMark {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.EpochMark
+}
+
+func (b *ProcessingBlock) SetEpochMark(epochMark *types.EpochMark) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.EpochMark = epochMark
+}
+
+func (b *ProcessingBlock) GetTicketsMark() *types.TicketsMark {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.TicketsMark
+}
+
+func (b *ProcessingBlock) SetTicketsMark(ticketsMark *types.TicketsMark) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.TicketsMark = ticketsMark
+}
+
+func (b *ProcessingBlock) GetOffendersMark() types.OffendersMark {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.OffendersMark
+}
+
+func (b *ProcessingBlock) SetOffendersMark(offendersMark types.OffendersMark) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.OffendersMark = offendersMark
+}
+
+func (b *ProcessingBlock) GetAuthorIndex() types.ValidatorIndex {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.AuthorIndex
+}
+
+func (b *ProcessingBlock) SetAuthorIndex(authorIndex types.ValidatorIndex) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.AuthorIndex = authorIndex
+}
+
+func (b *ProcessingBlock) GetEntropySource() types.BandersnatchVrfSignature {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.EntropySource
+}
+
+func (b *ProcessingBlock) SetEntropySource(entropySource types.BandersnatchVrfSignature) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.EntropySource = entropySource
+}
+
+func (b *ProcessingBlock) GetSeal() types.BandersnatchVrfSignature {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header.Seal
+}
+
+func (b *ProcessingBlock) SetSeal(seal types.BandersnatchVrfSignature) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header.Seal = seal
+}
