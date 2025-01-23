@@ -61,9 +61,7 @@ func UpdateReportStatistics(statistics *types.Statistics, authorIndex types.Vali
 	// If the author is in the reporters set R, then update the statistics.
 	for _, report := range reports {
 		for _, signature := range report.Signatures {
-			if authorIndex == signature.ValidatorIndex {
-				statistics.Current[authorIndex].Guarantees++
-			}
+			statistics.Current[signature.ValidatorIndex].Guarantees++
 		}
 	}
 }
@@ -71,9 +69,7 @@ func UpdateReportStatistics(statistics *types.Statistics, authorIndex types.Vali
 // a: The number of availability assurances made by the validator.
 func UpdateAvailabilityStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, assurances types.AssurancesExtrinsic) {
 	for _, assurance := range assurances {
-		if authorIndex == assurance.ValidatorIndex {
-			statistics.Current[authorIndex].Assurances++
-		}
+		statistics.Current[assurance.ValidatorIndex].Assurances++
 	}
 }
 
