@@ -78,7 +78,7 @@ func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	s := store.GetInstance()
 
 	// Get author index
-	authorIndex := s.GetIntermediateHeaders().GetAuthorIndex()
+	authorIndex := s.GetProcessingBlockPointer().GetAuthorIndex()
 
 	// Get statistics
 	statistics := s.GetPosteriorStates().GetPi()
