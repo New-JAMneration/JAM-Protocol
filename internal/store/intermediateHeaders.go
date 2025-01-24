@@ -68,6 +68,12 @@ func (i *IntermediateHeader) SetAuthorIndex(index types.ValidatorIndex) {
 	i.Header.AuthorIndex = index
 }
 
+func (i *IntermediateHeader) GetAuthorIndex() types.ValidatorIndex {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.AuthorIndex
+}
+
 func (i *IntermediateHeader) SetParent(parent types.HeaderHash) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
