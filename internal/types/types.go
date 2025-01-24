@@ -9,9 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 	"io/ioutil"
 	"os"
+
+	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
 // Simple
@@ -985,6 +986,15 @@ func hexToBytes(hexString string) []byte {
 }
 
 func parseFixedByteArray(data []byte, expectedLen int) ([]byte, error) {
+	// Peek at first byte to see if it starts with '[' or '"'
+	if len(data) > 0 && data[0] == '[' {
+		arr, err := parseNormalByteArray(data, expectedLen)
+		if err != nil {
+			return nil, err
+		}
+		return arr, nil
+	}
+
 	var hexStr string
 	if err := json.Unmarshal(data, &hexStr); err != nil {
 		return nil, err
@@ -1004,6 +1014,23 @@ func parseFixedByteArray(data []byte, expectedLen int) ([]byte, error) {
 	}
 
 	return decoded, nil
+}
+
+func parseNormalByteArray(data []byte, size int) ([]byte, error) {
+	// Peek at first byte to see if it starts with '[' or '"'
+	if len(data) > 0 && data[0] == '[' {
+		// Data is an array like [0,255,34,...]
+		var arr []byte
+		if err := json.Unmarshal(data, &arr); err != nil {
+			return arr, err
+		}
+		if len(arr) != size {
+			return nil, fmt.Errorf("invalid length: expected 32 bytes, got %d", len(arr))
+		}
+		return arr, nil
+	}
+
+	return nil, fmt.Errorf("invalid format for parseNormalByteArray")
 }
 
 func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
