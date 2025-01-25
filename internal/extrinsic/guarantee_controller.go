@@ -219,11 +219,13 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	}
 	aMap := make(map[types.WorkPackageHash]bool)
 	for _, v := range rho {
-		aMap[v.Report.PackageSpec.Hash] = true
+		if v != nil {
+			aMap[v.Report.PackageSpec.Hash] = true
+		}
 	}
 	xiMap := make(map[types.WorkPackageHash]bool)
 	for _, v := range xi {
-		for _, w := range v {
+		for _, w := range v.WorkPackageHash {
 			xiMap[w] = true
 		}
 	}
