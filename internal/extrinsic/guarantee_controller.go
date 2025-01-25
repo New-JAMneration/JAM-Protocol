@@ -276,22 +276,20 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 
 // CheckSegmentRootLookup | Eq. 11.40-11.41
 func (g *GuaranteeController) CheckSegmentRootLookup() error {
-	blockDicSet := make(map[types.WorkPackageHash]types.OpaqueHash)
+	pSet := make(map[types.WorkPackageHash]types.ExportsRoot)
 	for _, guarantee := range g.Guarantees {
-		for _, segmentRootLookup := range guarantee.Report.SegmentRootLookup {
-			blockDicSet[segmentRootLookup.WorkPackageHash] = segmentRootLookup.SegmentTreeRoot
-		}
+		pSet[guarantee.Report.PackageSpec.Hash] = guarantee.Report.PackageSpec.ExportsRoot
 	}
 	beta := store.GetInstance().GetPriorStates().GetBeta()
 	for _, v := range beta {
 		for _, w := range v.Reported {
-			blockDicSet[types.WorkPackageHash(w.Hash)] = types.OpaqueHash(w.ExportsRoot)
+			pSet[types.WorkPackageHash(w.Hash)] = w.ExportsRoot
 		}
 	}
 	w := g.WorkReportSet()
 	for _, v := range w {
 		for _, w := range v.SegmentRootLookup {
-			if blockDicSet[w.WorkPackageHash] != w.SegmentTreeRoot {
+			if pSet[w.WorkPackageHash] != types.ExportsRoot(w.SegmentTreeRoot) {
 				return fmt.Errorf("invalid_segment_root_lookup")
 			}
 		}
