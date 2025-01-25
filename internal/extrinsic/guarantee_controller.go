@@ -27,7 +27,7 @@ func NewGuaranteeController() *GuaranteeController {
 
 // Validate Guarantee extrinsic | Eq. 11.23
 func (g *GuaranteeController) Validate() error {
-	if len(g.Guarantees) != types.CoresCount {
+	if len(g.Guarantees) <= types.CoresCount {
 		return fmt.Errorf("GuaranteeController.Validate failed: bad_guarantee_count")
 	}
 	for _, guarantee := range g.Guarantees {
