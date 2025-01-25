@@ -67,17 +67,16 @@ func SortUniqueSignatures(signatures []types.ValidatorSignature) {
 
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
-	state := store.GetInstance().GetPosteriorStates().GetState()
-
+	tau := store.GetInstance().GetPosteriorStates().GetTau()
 	var guranatorAssignments GuranatorAssignments
 	for _, guarantee := range g.Guarantees {
-		if (int(state.Tau))/R == int(state.Tau)/int(guarantee.Slot) {
+		if (int(tau))/R == int(tau)/int(guarantee.Slot) {
 			guranatorAssignments = GFunc()
 		} else {
 			guranatorAssignments = GStarFunc()
 		}
 
-		if !((int(state.Tau)/R-1)*R <= int(guarantee.Slot) && int(guarantee.Slot) <= int(state.Tau)) {
+		if !((int(tau)/R-1)*R <= int(guarantee.Slot) && int(guarantee.Slot) <= int(tau)) {
 			return fmt.Errorf("invalid_slot")
 		}
 		message := []byte(jam_types.JamGuarantee)
@@ -315,7 +314,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 // Transitioning for work reports | Eq. 11.43
 func (g *GuaranteeController) TransitionWorkReport() {
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
-	posteriorTau := store.GetInstance().GetPosteriorStates().GetState().Tau
+	posteriorTau := store.GetInstance().GetPosteriorStates().GetTau()
 	coreIndexMap := make(map[types.CoreIndex]bool)
 	for _, guarantee := range g.Guarantees {
 		coreIndexMap[guarantee.Report.CoreIndex] = true
