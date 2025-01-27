@@ -36,4 +36,6 @@ var (
 	MaximumDependencyItems           = 8 // J
 	WorkReportTimeout                = 5 // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024
+	GasLimit                         = 10000000
+	MaxLookupAge                     = 14400 //L
 )
