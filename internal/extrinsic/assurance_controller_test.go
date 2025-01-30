@@ -2,14 +2,24 @@ package extrinsic
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+func hexToBytes(hexString string) []byte {
+	bytes, err := hex.DecodeString(hexString[2:])
+	if err != nil {
+		fmt.Printf("failed to decode hex string: %v", err)
+	}
+	return bytes
+}
 
 func TestAvailAssuranceController(t *testing.T) {
 	AvailAssurances := NewAvailAssuranceController()
@@ -24,7 +34,6 @@ type InputWrapper[T any] struct {
 }
 
 func ParseData[t any](fileName string) (InputWrapper[t], error) {
-
 	file, err := os.Open(fileName)
 	if err != nil {
 		fmt.Printf("Error opening file %s: %v\n", fileName, err)
@@ -437,7 +446,8 @@ func TestBitfieldOctetSequenceToBinarySequence(t *testing.T) {
 
 	assuranceExtrinsic.AvailAssurances = append(assuranceExtrinsic.AvailAssurances,
 		types.AvailAssurance{
-			Bitfield: []byte{0x03}})
+			Bitfield: []byte{0x03},
+		})
 
 	assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
 	expected := []byte{1, 1, 0, 0, 0, 0, 0, 0}
@@ -445,5 +455,4 @@ func TestBitfieldOctetSequenceToBinarySequence(t *testing.T) {
 	if bytes.Compare(assuranceExtrinsic.AvailAssurances[0].Bitfield, expected) != 0 {
 		t.Errorf("BitfieldOctetSequenceToBinarySequence failed")
 	}
-
 }
