@@ -133,10 +133,15 @@ func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccount
 
 	account := delta[id]
 	// calculate derivative invariants
+	var (
+		Items      = calcKeys(account)
+		Bytes      = calcUsedOctets(account)
+		Minbalance = calcThresholdBalance(Items, Bytes)
+	)
 	accountDer = ServiceAccountDerivatives{
-		Items:      calcKeys(account),
-		Bytes:      calcUsedOctets(account),
-		Minbalance: calcThresholdBalance(account),
+		Items:      Items,
+		Bytes:      Bytes,
+		Minbalance: Minbalance,
 	}
 	return accountDer
 }
@@ -172,11 +177,9 @@ func calcUsedOctets(account types.ServiceAccount) types.U64 {
 }
 
 // calculate threshold(minimum) balance needed for any account in terms of storage footprint
-func calcThresholdBalance(account types.ServiceAccount) types.U64 {
+func calcThresholdBalance(aI types.U32, aO types.U64) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
-	aI := calcKeys(account)
-	aO := calcUsedOctets(account)
 	return types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
 }
