@@ -32,7 +32,7 @@ var (
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
 	JamCommonEra                 = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	SlotSubmissionEnd            = 10                  // Y
+	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
@@ -43,4 +43,6 @@ var (
 	MaximumDependencyItems           = 8 // J
 	WorkReportTimeout                = 5 // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024
+	GasLimit                         = 10000000
+	MaxLookupAge                     = 14400 //L
 )
