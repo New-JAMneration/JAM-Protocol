@@ -225,7 +225,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	}
 	xiMap := make(map[types.WorkPackageHash]bool)
 	for _, v := range xi {
-		for _, w := range v.WorkPackageHash {
+		for _, w := range v {
 			xiMap[w] = true
 		}
 	}
