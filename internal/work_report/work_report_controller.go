@@ -2,6 +2,7 @@ package work_report
 
 import (
 	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -29,7 +30,7 @@ func NewWorkReportController(workReport *types.WorkReport) *WorkReportController
 
 // ValidateWorkItemsNumbers checks if the number of work items is between 1 and 4 | Eq. 11.2
 func (w *WorkReportController) ValidateWorkItemsNumbers() error {
-	if len(w.WorkReport.Results) < 1 || len(w.WorkReport.Results) > types.I {
+	if len(w.WorkReport.Results) < 1 || len(w.WorkReport.Results) > types.MaximumWorkItems {
 		return fmt.Errorf("WorkReport Results must have between 1 and 4 items, but got %d", len(w.WorkReport.Results))
 	}
 	return nil
@@ -37,8 +38,8 @@ func (w *WorkReportController) ValidateWorkItemsNumbers() error {
 
 // ValidateLookupDictAndPrerequisites checks the number of SegmentRootLookup and Prerequisites < J | Eq. 11.3
 func (w *WorkReportController) ValidateLookupDictAndPrerequisites() error {
-	if len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites) > types.J {
-		return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", types.J, len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites))
+	if len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites) > types.MaximumDependencyItems {
+		return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", types.MaximumDependencyItems, len(w.WorkReport.SegmentRootLookup)+len(w.WorkReport.Context.Prerequisites))
 	}
 	return nil
 }
