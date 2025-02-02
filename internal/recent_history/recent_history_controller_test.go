@@ -90,7 +90,7 @@ func loadInputFromJSON(filePath string) (my myVector, err error) {
 	}
 	err = json.Unmarshal(data, &vector_json)
 
-	// convert json to mytype
+	// convert json to mytypes
 	// MyVector.Input: json to myHistory
 	var (
 		// string to HeaderHash
