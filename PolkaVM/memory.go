@@ -1,6 +1,4 @@
-package polkavm
-
-import "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
+package PolkaVM
 
 type MemoryAccess int
 
@@ -9,15 +7,15 @@ type Memory struct {
 }
 
 type MemorySegment struct {
-	Address  jam_types.U32          // Starting Address
-	Databyte jam_types.ByteSequence // Data Content
-	Access   MemoryAccess           // Access Permissions
+	Address  uint32       // Starting Address
+	Databyte []byte       // Data Content
+	Access   MemoryAccess // Access Permissions
 }
 
 type MemorySegmentStartEnd struct {
-	StartAddress jam_types.U32          // Starting Address
-	EndAddress   jam_types.U32          // Ending Address
-	Databyte     jam_types.ByteSequence // Data Content
+	StartAddress uint32 // Starting Address
+	EndAddress   uint32 // Ending Address
+	Databyte     []byte // Data Content
 }
 
 const (
