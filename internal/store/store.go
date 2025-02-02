@@ -149,3 +149,15 @@ func (s *Store) GetBeefyCommitmentOutput() types.BeefyCommitmentOutput {
 func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
 	return s.beefyCommitmentOutput
 }
+
+// // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)
+
+// // Get
+// func (s *Store) GetServiceAccountDerivatives() types.ServiceAccountDerivatives {
+// 	return s.serviceAccountDerivatives.GetServiceAccountDerivatives()
+// }
+
+// // Set
+// func (s *Store) GetServiceAccountDerivatives() *ServiceAccountDerivatives {
+// 	return s.serviceAccountDerivatives
+// }

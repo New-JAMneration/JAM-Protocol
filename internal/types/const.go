@@ -2,6 +2,9 @@ package types
 
 import "time"
 
+// changeable constants depends on chainspec
+
+// tiny
 var (
 	ValidatorsCount = 6
 	CoresCount      = 2
@@ -22,13 +25,17 @@ var (
 	AvailBitfieldBytes      = 1
 )
 
+// permanent constants
 var (
-	SlotPeriod        = 6
-	JamCommonEra      = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	SlotSubmissionEnd = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
-	JamEntropy        = "jam_entropy"       // XE
-	JamFallbackSeal   = "jam_fallback_seal" // XF
-	JamTicketSeal     = "jam_ticket_seal"   // XT
+	AdditionalMinBalancePerItem  = 10  // B_I
+	AdditionalMinBalancePerOctet = 1   // B_L
+	BasicMinBalance              = 100 // B_S
+	SlotPeriod                   = 6
+	JamCommonEra                 = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
+	JamEntropy                   = "jam_entropy"       // XE
+	JamFallbackSeal              = "jam_fallback_seal" // XF
+	JamTicketSeal                = "jam_ticket_seal"   // XT
 )
 
 var (
