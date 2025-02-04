@@ -12,6 +12,9 @@ func TestUnsignedToSigned(t *testing.T) {
 		result int64
 		err    error
 	}{
+		{0, 0, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{1, 0, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{1, 10, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{0, 1, 0, nil},
 		{1, 1, 1, nil},
 		{32, 1, 32, nil},
@@ -46,8 +49,10 @@ func TestSignedToUnsigned(t *testing.T) {
 		result uint64
 		err    error
 	}{
+		{0, 0, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{0, 1, 0, nil},
 		{1, 1, 1, nil},
+		{1, 10, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{32, 1, 32, nil},
 		{100, 1, 100, nil},
 		{127, 1, 127, nil},
@@ -80,6 +85,8 @@ func TestUnsignedToBits(t *testing.T) {
 		result []bool
 		err    error
 	}{
+		{0, 0, nil, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{1, 10, nil, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{0, 1, []bool{false, false, false, false, false, false, false, false}, nil},
 		{1, 1, []bool{false, false, false, false, false, false, false, true}, nil},
 		{32, 1, []bool{false, false, true, false, false, false, false, false}, nil},
@@ -112,6 +119,8 @@ func TestBitsToUnsigned(t *testing.T) {
 		result uint64
 		err    error
 	}{
+		{[]bool{false, false, false, false, false, false, false, false}, 0, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{[]bool{false, false, false, false, false, false, false, false}, 10, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{[]bool{false, false, false, false, false, false, false, false}, 1, 0, nil},
 		{[]bool{false, false, false, false, false, false, false, true}, 1, 1, nil},
 		{[]bool{false, false, true, false, false, false, false, false}, 1, 32, nil},
@@ -140,6 +149,8 @@ func TestReverseUnsignedToBits(t *testing.T) {
 		result []bool
 		err    error
 	}{
+		{0, 0, nil, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{1, 10, nil, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{0, 1, []bool{false, false, false, false, false, false, false, false}, nil},
 		{1, 1, []bool{true, false, false, false, false, false, false, false}, nil},
 		{32, 1, []bool{false, false, false, false, false, true, false, false}, nil},
@@ -175,6 +186,8 @@ func TestReverseBitsToUnsigned(t *testing.T) {
 		result uint64
 		err    error
 	}{
+		{[]bool{false, false, false, false, false, false, false, false}, 0, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
+		{[]bool{false, false, false, false, false, false, false, false}, 10, 0, fmt.Errorf("n should be in the range of 1 ~ 8")},
 		{[]bool{false, false, false, false, false, false, false, false}, 1, 0, nil},
 		{[]bool{true, false, false, false, false, false, false, false}, 1, 1, nil},
 		{[]bool{false, false, false, false, false, true, false, false}, 1, 32, nil},
