@@ -36,10 +36,10 @@ func TestInvocation(t *testing.T) {
 		p, pc, gas, reg, mem int
 		want                 string
 	}{
-		// {1, 0, 10, 0, 1, "CONTINUE (▸)"},                          // CONTINUE
-		{1, 0, 10, 0, 0, "Page fault (F) at RAM address: 0"},        // PAGE_FAULT
-		{1, 0, 0, 0, 1, "Out-Of-Gas (∞)"},                           // OUT_OF_GAS
-		{1, 0, 10, 0, 1, "Host-Call identifier (̵h): mockHostCall"}, // HOST_CALL
+		// {1, 0, 10, 0, 1, "Continue (▸)"},                     // CONTINUE
+		{1, 0, 10, 0, 0, "Page fault (F) at RAM address: 0"}, // PAGE_FAULT
+		{1, 0, 0, 0, 1, "Out-Of-Gas (∞)"},                    // OUT_OF_GAS
+		{1, 0, 10, 0, 1, "Host-Call identifier (̵h): 1"},     // HOST_CALL
 	}
 
 	for _, tt := range tests {
@@ -57,7 +57,6 @@ func TestInvocation(t *testing.T) {
 func ExPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// call Psi1 to renew states first
 	newPc, newGas, newReg, newMem, epsilon := Psi1(1, 2, 3, pc, gas, reg, mem)
-	mockHC := "mockHostCall"
 
 	if errors.Is(epsilon, PVMExitTuple(CONTINUE, nil)) {
 		return ExPsi(p, newPc, newGas, newReg, newMem)
@@ -65,7 +64,7 @@ func ExPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 		return newPc, newGas, newReg, newMem, epsilon
 	} else if errors.Is(epsilon, PVMExitTuple(PAGE_FAULT, newMem)) { // test page fault
 		return newPc, newGas, newReg, newMem, epsilon
-	} else if errors.Is(epsilon, PVMExitTuple(HOST_CALL, mockHC)) { // test host call
+	} else if errors.Is(epsilon, PVMExitTuple(HOST_CALL, newMem)) { // test host call
 		return newPc, newGas, newReg, newMem, epsilon
 	} else {
 		return newPc, newGas, newReg, newMem, epsilon
@@ -87,5 +86,5 @@ func Psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 		return newPc, newGas, newReg, newMem, PVMExitTuple(PAGE_FAULT, uint64(newMem))
 	}
 	// return newPc, newGas, newReg, newMem, PVMExitTuple(CONTINUE, nil)
-	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, "mockHostCall")
+	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }

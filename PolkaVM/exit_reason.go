@@ -27,7 +27,7 @@ var exitMessages = map[ExitReasonTypes]string{
 // varepsilon ε
 type PVMExitReason struct {
 	Reason    ExitReasonTypes // exit types: "HALT", "PANIC", "OUT_OF_GAS", "PAGE_FAULT", "HOST_CALL"
-	HostCall  *string         // if Type = "HOST_CALL", store Host-Call identifier
+	HostCall  *uint64         // if Type = "HOST_CALL", store Host-Call identifier
 	FaultAddr *uint64         // if Type = "PAGE_FAULT", store wrong RAM address
 }
 
@@ -45,7 +45,7 @@ func (e *PVMExitReason) Error() string {
 		}
 	case HOST_CALL:
 		if e.HostCall != nil {
-			return fmt.Sprintf("%s: %s", msg, *e.HostCall)
+			return fmt.Sprintf("%s: %d", msg, *e.HostCall)
 		}
 	}
 	return msg
@@ -59,7 +59,7 @@ func PVMExitTuple(reason ExitReasonTypes, meta interface{}) error {
 			return &PVMExitReason{Reason: PAGE_FAULT, FaultAddr: &addr}
 		}
 	case HOST_CALL:
-		if call, ok := meta.(string); ok { // string types may change in the future
+		if call, ok := meta.(uint64); ok { // string types may change in the future
 			return &PVMExitReason{Reason: HOST_CALL, HostCall: &call}
 		}
 	}
