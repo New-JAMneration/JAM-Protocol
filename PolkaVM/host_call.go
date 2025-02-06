@@ -1,7 +1,7 @@
 package PolkaVM
 
 type Psi_H_ReturnType struct {
-	Pagefault        bool            // exit reason is page fault
+	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
 	ExitReason       ExitReasonTypes // exit reason
 	Counter          uint64          // new instruction counter
 	Gas              uint64          // gas remain
@@ -12,7 +12,7 @@ type Psi_H_ReturnType struct {
 }
 
 type OmegaReturnType struct {
-	Pagefault        bool            // exit reason is page fault
+	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
 	ExitReason       ExitReasonTypes // exit reason
 	GasRemain        Gas             // gas remain
 	Register         Registers       // new registers
@@ -39,7 +39,7 @@ func Psi_H(
 
 // (A.32) Ω⟨X⟩
 type Omega func(
-	uint64,
+	uint64, // instruction
 	Gas, // gas counter
 	Registers, // registers
 	PageMap, // memory
