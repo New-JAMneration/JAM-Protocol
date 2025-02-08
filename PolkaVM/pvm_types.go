@@ -39,22 +39,21 @@ type TestCase struct {
 	ExpectedPageFaultAddress uint32      `json:"expected-page-fault-address,omitempty"`
 }
 
-type HostCallResultConstants uint64
-
+// HostCallResultConstants
 const (
-	INNERHALT HostCallResultConstants = iota // OK
+	INNERHALT uint64 = iota // OK
 	INNERPANIC
 	INNERFAULT
 	INNERHOST
 	INNEROOG
 
-	HUH  HostCallResultConstants = ^HostCallResultConstants(8)
-	LOW  HostCallResultConstants = ^HostCallResultConstants(7)
-	CASH HostCallResultConstants = ^HostCallResultConstants(6)
-	CORE HostCallResultConstants = ^HostCallResultConstants(5)
-	FULL HostCallResultConstants = ^HostCallResultConstants(4)
-	WHO  HostCallResultConstants = ^HostCallResultConstants(3)
-	OOB  HostCallResultConstants = ^HostCallResultConstants(2)
-	WHAT HostCallResultConstants = ^HostCallResultConstants(1)
-	NONE HostCallResultConstants = ^HostCallResultConstants(0) // 2^64 - 1
+	HUH  uint64 = ^uint64(8)
+	LOW  uint64 = ^uint64(7)
+	CASH uint64 = ^uint64(6)
+	CORE uint64 = ^uint64(5)
+	FULL uint64 = ^uint64(4)
+	WHO  uint64 = ^uint64(3)
+	OOB  uint64 = ^uint64(2)
+	WHAT uint64 = ^uint64(1)
+	NONE uint64 = ^uint64(0) // 2^64 - 1
 )
