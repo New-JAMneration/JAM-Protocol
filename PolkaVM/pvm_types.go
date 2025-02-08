@@ -41,12 +41,7 @@ type TestCase struct {
 
 // HostCallResultConstants
 const (
-	INNERHALT uint64 = iota // OK
-	INNERPANIC
-	INNERFAULT
-	INNERHOST
-	INNEROOG
-
+	OK   uint64 = 0
 	HUH  uint64 = ^uint64(8)
 	LOW  uint64 = ^uint64(7)
 	CASH uint64 = ^uint64(6)
@@ -56,4 +51,13 @@ const (
 	OOB  uint64 = ^uint64(2)
 	WHAT uint64 = ^uint64(1)
 	NONE uint64 = ^uint64(0) // 2^64 - 1
+)
+
+// Inner PVM invocations called by Omega_k(invoke)
+const (
+	INNERHALT uint64 = iota
+	INNERPANIC
+	INNERFAULT
+	INNERHOST
+	INNEROOG
 )
