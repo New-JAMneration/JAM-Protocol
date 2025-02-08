@@ -88,3 +88,23 @@ func Psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// return newPc, newGas, newReg, newMem, PVMExitTuple(CONTINUE, nil)
 	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }
+
+// ---
+
+func omega() any {
+	register := [13]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	newRegister := register
+	newRegister[7] = INNERHALT
+	return newRegister
+}
+
+func TestOmega(t *testing.T) {
+	// 測試 omega 函數
+	got := omega()
+	want := uint64(INNERHALT)
+
+	// 檢查第七位的值
+	if got.([13]uint64)[7] != want {
+		t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
+	}
+}
