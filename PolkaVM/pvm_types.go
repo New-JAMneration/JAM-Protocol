@@ -38,3 +38,23 @@ type TestCase struct {
 	ExpectedGas              int64       `json:"expected-gas"`
 	ExpectedPageFaultAddress uint32      `json:"expected-page-fault-address,omitempty"`
 }
+
+type HostCallResultConstants uint64
+
+const (
+	INNERHALT HostCallResultConstants = iota // OK
+	INNERPANIC
+	INNERFAULT
+	INNERHOST
+	INNEROOG
+
+	HUH  HostCallResultConstants = ^HostCallResultConstants(8)
+	LOW  HostCallResultConstants = ^HostCallResultConstants(7)
+	CASH HostCallResultConstants = ^HostCallResultConstants(6)
+	CORE HostCallResultConstants = ^HostCallResultConstants(5)
+	FULL HostCallResultConstants = ^HostCallResultConstants(4)
+	WHO  HostCallResultConstants = ^HostCallResultConstants(3)
+	OOB  HostCallResultConstants = ^HostCallResultConstants(2)
+	WHAT HostCallResultConstants = ^HostCallResultConstants(1)
+	NONE HostCallResultConstants = ^HostCallResultConstants(0) // 2^64 - 1
+)
