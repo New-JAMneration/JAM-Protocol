@@ -99,11 +99,10 @@ func omega() any {
 }
 
 func TestOmega(t *testing.T) {
-	// 測試 omega 函數
 	got := omega()
 	want := uint64(INNERHALT)
 
-	// 檢查第七位的值
+	// test 7th bit in register
 	if got.([13]uint64)[7] != want {
 		t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
 	}
