@@ -88,3 +88,43 @@ func Psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// return newPc, newGas, newReg, newMem, PVMExitTuple(CONTINUE, nil)
 	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }
+
+func TestParseMemoryAccessError(t *testing.T) {
+	testCases := []struct {
+		name               string
+		invalidAddresses   []uint64
+		expectedExitReason ExitReasonTypes
+		expectedError      error
+	}{
+		{
+			name:               "NoError",
+			invalidAddresses:   []uint64{}, // Changed to a slice
+			expectedExitReason: CONTINUE,
+			expectedError:      nil,
+		},
+		{
+			"PageFaultError1",
+			[]uint64{0x1000, 0x2000, 0x3000},
+			PAGE_FAULT,
+			PVMExitTuple(PAGE_FAULT, 0x1000/ZP),
+		},
+		{
+			"LowAddressAccessError",
+			[]uint64{0x100, 0x2000},
+			PANIC,
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			exitReason, err := ParseMemoryAccessError(tc.invalidAddresses)
+			if exitReason != tc.expectedExitReason {
+				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
+			}
+			if err != nil && tc.expectedError != nil && err.Error() != tc.expectedError.Error() {
+				t.Errorf("Expected error message %q, but got %q", tc.expectedError, err)
+			}
+		})
+	}
+}
