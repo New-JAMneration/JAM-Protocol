@@ -2,12 +2,21 @@ package utilities
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+
+	// jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
+	// jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
+	// jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	// jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
 
 func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
@@ -54,7 +63,7 @@ func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
 	return byteValue, nil
 }
 
-func TestEncoder(t *testing.T) {
+func TestEncodeCodec(t *testing.T) {
 	testCases := map[reflect.Type][]string{
 		reflect.TypeOf(types.AssurancesExtrinsic{}): {
 			"assurances_extrinsic",
@@ -125,5 +134,110 @@ func TestEncoder(t *testing.T) {
 				t.Errorf("encoded data does not match the binary data")
 			}
 		}
+	}
+}
+
+func getTargetExtensionFiles(dir string, extension string) ([]string, error) {
+	// Get all files in the directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all files with the target extension
+	var targetFiles []string
+	for _, file := range files {
+		fileName := file.Name()
+		if fileName[len(fileName)-len(extension):] == extension {
+			targetFiles = append(targetFiles, fileName)
+		}
+	}
+
+	return targetFiles, nil
+}
+
+func TestEncodeJAMTestStatistics(t *testing.T) {
+	mode := "tiny" // tiny or full
+	dir := "../../pkg/test_data/jam-test-vectors/statistics/" + mode + "/"
+	jsonExtention := ".json"
+	binExtention := ".bin"
+
+	// Get json files
+	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	if err != nil {
+		t.Errorf("Failed to get json files: %v", err)
+	}
+
+	// Read the json files
+	for _, jsonFile := range jsonFiles {
+		// Load the json file
+		filePath := dir + jsonFile
+		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_statistics.StatisticsTestCase{}))
+		if err != nil {
+			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
+		}
+
+		// Encode the data
+		encoder := NewEncoder()
+		encodeResult, err := encoder.Encode(data)
+		if err != nil {
+			t.Errorf("Failed to encode test case from %s: %v", jsonFile, err)
+		}
+
+		// Load the bin file
+		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
+		binFile := filename + binExtention
+		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+
+		// compare the encoded data with the binary data
+		if string(encodeResult) != string(binData) {
+			t.Errorf("encoded data does not match the binary data")
+		}
+
+		fmt.Println("✅", "[", mode, "]", filename)
+	}
+}
+
+func TestEncodeJAMTestSafrole(t *testing.T) {
+	mode := "tiny" // tiny or full
+	dir := "../../pkg/test_data/jam-test-vectors/safrole/" + mode + "/"
+	jsonExtention := ".json"
+	binExtention := ".bin"
+
+	// Get json files
+	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	if err != nil {
+		t.Errorf("Failed to get json files: %v", err)
+	}
+
+	// Read the json files
+	for _, jsonFile := range jsonFiles {
+		// Load the json file
+		filePath := dir + jsonFile
+		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_safrole.SafroleTestCase{}))
+		if err != nil {
+			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
+		}
+
+		data = data.(jamtests_safrole.SafroleTestCase)
+
+		// Encode the data
+		encoder := NewEncoder()
+		encodeResult, err := encoder.Encode(data)
+		if err != nil {
+			t.Errorf("Failed to encode test case from %s: %v", jsonFile, err)
+		}
+
+		// Load the bin file
+		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
+		binFile := filename + binExtention
+		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+
+		// compare the encoded data with the binary data
+		if string(encodeResult) != string(binData) {
+			t.Errorf("encoded data does not match the binary data")
+		}
+
+		fmt.Println("✅", "[", mode, "]", filename)
 	}
 }
