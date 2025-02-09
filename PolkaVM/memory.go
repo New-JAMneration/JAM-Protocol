@@ -23,3 +23,5 @@ const (
 	MemoryReadOnly                         // R Read only
 	MemoryReadWrite                        // W Read + Write
 )
+
+const ZP = 4096 // PVM memory page size.
