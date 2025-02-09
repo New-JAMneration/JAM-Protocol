@@ -41,6 +41,8 @@ var limitSizeArrayTypeList = []reflect.Type{
 	reflect.TypeOf([]types.TicketBody{}),
 	reflect.TypeOf(types.AvailabilityAssignments{}),
 	reflect.TypeOf(types.AuthPools{}),
+	reflect.TypeOf(types.AuthQueue{}),
+	reflect.TypeOf(types.AuthQueues{}),
 }
 
 func typeInList(t reflect.Type, typeList []reflect.Type) bool {
