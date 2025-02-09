@@ -60,6 +60,18 @@ func (r *RedisClient) Get(key string) ([]byte, error) {
 	return val, nil
 }
 
+func (r *RedisClient) Exists(key string) (bool, error) {
+	_, err := r.client.Get(key).Bytes()
+	if err != nil {
+		if err == redis.Nil {
+			// Key not found
+			return false, nil
+		}
+		return false, fmt.Errorf("Get failed: %w", err)
+	}
+	return true, nil
+}
+
 // Delete removes a given key from Redis.
 func (r *RedisClient) Delete(key string) error {
 	fmt.Printf("DELETE key=%s\n", key)
@@ -149,4 +161,71 @@ func (r *RedisClient) GetBlock(ctx context.Context, slot types.TimeSlot) (*types
 func (r *RedisClient) DeleteBlock(ctx context.Context, slot types.TimeSlot) error {
 	key := fmt.Sprintf("block:%d", slot)
 	return r.Delete(key)
+}
+
+// SAdd inserts one or more members into a Redis set.
+func (r *RedisClient) SAdd(key string, members ...[]byte) error {
+	// For logging/tracing:
+	for _, m := range members {
+		log.Printf("SADD key=%s member(hex)=%s", key, hex.EncodeToString(m))
+	}
+
+	// Convert []byte members to interface{}
+	interfaceVals := make([]interface{}, len(members))
+	for i, mb := range members {
+		interfaceVals[i] = mb
+	}
+
+	err := r.client.SAdd(key, interfaceVals...).Err()
+	if err != nil {
+		return fmt.Errorf("SAdd failed: %w", err)
+	}
+	return nil
+}
+
+// SRem removes one or more members from a Redis set.
+func (r *RedisClient) SRem(key string, members ...[]byte) error {
+	for _, m := range members {
+		log.Printf("SREM key=%s member(hex)=%s", key, hex.EncodeToString(m))
+	}
+
+	interfaceVals := make([]interface{}, len(members))
+	for i, mb := range members {
+		interfaceVals[i] = mb
+	}
+
+	err := r.client.SRem(key, interfaceVals...).Err()
+	if err != nil {
+		return fmt.Errorf("SRem failed: %w", err)
+	}
+	return nil
+}
+
+// SMembers retrieves all members of a Redis set, returning them as [][]byte.
+func (r *RedisClient) SMembers(key string) ([][]byte, error) {
+	log.Printf("SMEMBERS key=%s", key)
+
+	strVals, err := r.client.SMembers(key).Result()
+	if err != nil {
+		return nil, fmt.Errorf("SMembers failed: %w", err)
+	}
+
+	// Convert from string -> []byte
+	byteVals := make([][]byte, 0, len(strVals))
+	for _, s := range strVals {
+		byteVals = append(byteVals, []byte(s))
+	}
+
+	return byteVals, nil
+}
+
+// SIsMember checks if a given member is in the set at key.
+func (r *RedisClient) SIsMember(key string, member []byte) (bool, error) {
+	log.Printf("SISMEMBER key=%s member(hex)=%s", key, hex.EncodeToString(member))
+
+	ok, err := r.client.SIsMember(key, member).Result()
+	if err != nil {
+		return false, fmt.Errorf("SIsMember failed: %w", err)
+	}
+	return ok, nil
 }
