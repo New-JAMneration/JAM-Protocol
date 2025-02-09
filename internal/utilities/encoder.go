@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 )
 
 // ANSI color codes
@@ -22,6 +23,8 @@ var (
 
 var debugMode = false
 
+// var debugMode = true
+
 func cLog(color string, string string) {
 	if debugMode {
 		fmt.Printf("%s%s%s\n", color, string, Reset)
@@ -32,6 +35,9 @@ var limitSizeArrayTypeList = []reflect.Type{
 	reflect.TypeOf([]types.BandersnatchPublic{}),
 	reflect.TypeOf([]types.Judgement{}),
 	reflect.TypeOf(types.TicketsMark{}),
+	reflect.TypeOf(types.ActivityRecords{}),
+	reflect.TypeOf(types.ValidatorsData{}),
+	reflect.TypeOf([]types.TicketBody{}),
 }
 
 func typeInList(t reflect.Type, typeList []reflect.Type) bool {
@@ -69,6 +75,26 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 	// ------------------------------
 	if e.isStruct(v) {
 		cLog(Magenta, "Struct")
+
+		if e.isTicketsOrKeys(v) {
+			cLog(Magenta, "TicketsOrKeys")
+
+			if err := e.encodeTicketsOrKeys(v.Interface()); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		if e.isSafroleOutput(v) {
+			cLog(Magenta, "SafroleOutput")
+
+			if err := e.encodeSafroleOutput(v.Interface()); err != nil {
+				return err
+			}
+
+			return nil
+		}
 
 		// If the type is struct, encode each field
 		for i := 0; i < v.NumField(); i++ {
@@ -155,11 +181,10 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 		// If the slice is in the limitSizeArrayTypeList, don't encode the length of
 		// the slice.
 		if !typeInList(v.Type(), limitSizeArrayTypeList) {
+			cLog(Yellow, "Not in the limitSizeArrayTypeList")
+
 			// Calculate length of the slice
-			length := uint32(v.Len())
-			lengthBytes := []byte{byte(length)}
-			e.output = append(e.output, lengthBytes...)
-			cLog(Yellow, fmt.Sprintf("Length: %v", lengthBytes))
+			e.encodeLength(uint64(v.Len()))
 		}
 
 		// Get element in the slice and encode it
@@ -181,6 +206,15 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 	if e.isU8Array(v) {
 		cLog(Magenta, "Uint8 Array")
 		e.encodeU8Array(v.Interface())
+		return nil
+	}
+
+	// ------------------------------
+	// Array
+	// ------------------------------
+	if e.isArray(v) {
+		cLog(Magenta, "Array")
+		e.encodeArray(v)
 		return nil
 	}
 
@@ -229,12 +263,6 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 }
 
 func (e *Encoder) encodeArray(v reflect.Value) {
-	// calculate the length of array
-	// FIXME: 如果 array 的長度超過 255?
-	length := uint32(v.Len())
-	lengthBytes := []byte{byte(length)}
-	e.output = append(e.output, lengthBytes...)
-
 	// Get element in the array
 	for i := 0; i < v.Len(); i++ {
 		element := v.Index(i)
@@ -278,6 +306,10 @@ func (e *Encoder) isSlice(v reflect.Value) bool {
 	return v.Kind() == reflect.Slice
 }
 
+func (e *Encoder) isArray(v reflect.Value) bool {
+	return v.Kind() == reflect.Array
+}
+
 func (e *Encoder) isU8Array(v reflect.Value) bool {
 	return v.Kind() == reflect.Array && v.Type().Elem().Kind() == reflect.Uint8
 }
@@ -291,6 +323,14 @@ func (e *Encoder) isBitField(v reflect.Value) bool {
 		return v.Type() == reflect.TypeOf([]byte{})
 	}
 	return false
+}
+
+func (e *Encoder) isTicketsOrKeys(v reflect.Value) bool {
+	return v.Type() == reflect.TypeOf(types.TicketsOrKeys{})
+}
+
+func (e *Encoder) isSafroleOutput(v reflect.Value) bool {
+	return v.Type() == reflect.TypeOf(jamtests_safrole.SafroleOutput{})
 }
 
 func (e *Encoder) isMap(v reflect.Value) bool {
@@ -334,6 +374,54 @@ func (e *Encoder) encodeWorkExecResult(value interface{}) error {
 	return nil
 }
 
+func (e *Encoder) encodeSafroleOutput(value interface{}) error {
+	v := reflect.ValueOf(value)
+
+	// Check the output is ok or err
+	isOk := !v.Field(0).IsNil()
+	isErr := !v.Field(1).IsNil()
+
+	if isOk && isErr {
+		return fmt.Errorf("SafroleOutput should not contain both ok and err")
+	}
+
+	if !isOk && !isErr {
+		return fmt.Errorf("SafroleOutput should contain either ok or err")
+	}
+
+	if isOk {
+		// append prefix 0
+		prefix := []byte{0}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is ok: %v", prefix))
+
+		// encode the ok value
+		okValue := v.Field(0).Elem()
+		if err := e.encodeValue(okValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if isErr {
+		// append prefix 1
+		prefix := []byte{1}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is err: %v", prefix))
+
+		// encode the error code
+		errValue := v.Field(1).Elem()
+		if err := e.encodeValue(errValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
 // OpaqueHash, PublicKey, Signature, Metadata...
 // Fixed length array
 func (e *Encoder) encodeU8Array(value interface{}) {
@@ -351,10 +439,7 @@ func (e *Encoder) encodeU8Slice(value interface{}) {
 	v := reflect.ValueOf(value)
 
 	// Calculate length of the slice
-	length := uint32(v.Len())
-	lengthBytes := []byte{byte(length)}
-	e.output = append(e.output, lengthBytes...)
-	cLog(Yellow, fmt.Sprintf("Length: %v", lengthBytes))
+	e.encodeLength(uint64(v.Len()))
 
 	tmp := make([]byte, v.Len())
 	reflect.Copy(reflect.ValueOf(tmp), v) // copy the value to the byte array
@@ -397,6 +482,7 @@ func (e *Encoder) encodeInt(value interface{}) {
 	}
 }
 
+// TODO: error handling
 func (e *Encoder) encodeUintWithLength(value uint64, l int) []byte {
 	if l == 0 {
 		return []byte{}
@@ -411,6 +497,7 @@ func (e *Encoder) encodeUintWithLength(value uint64, l int) []byte {
 	return out
 }
 
+// TODO: error handling
 func (e *Encoder) encodeUint(value uint64) []byte {
 	// If x = 0: E(x) = [0]
 	if value == 0 {
@@ -457,4 +544,58 @@ func (e *Encoder) encodeBool(value interface{}) {
 	e.output = append(e.output, resultBytes...)
 
 	cLog(Yellow, fmt.Sprintf("Bool: %v", resultBytes))
+}
+
+func (e *Encoder) encodeTicketsOrKeys(value interface{}) error {
+	v := reflect.ValueOf(value)
+
+	isTickets := v.Field(0).Len() != 0
+	isKeys := v.Field(1).Len() != 0
+
+	if isTickets && isKeys {
+		return fmt.Errorf("TicketsOrKeys should not contain both tickets and keys")
+	}
+
+	if !isTickets && !isKeys {
+		return fmt.Errorf("TicketsOrKeys should contain either tickets or keys")
+	}
+
+	if isTickets {
+		// append prefix 0
+		prefix := []byte{0}
+		e.output = append(e.output, prefix...)
+
+		cLog(Yellow, fmt.Sprintf("is tickets: %v", prefix))
+
+		// encode the tickets
+		tickets := v.Field(0)
+		if err := e.encodeValue(tickets); err != nil {
+			return err
+		}
+	}
+
+	if isKeys {
+		// append prefix 1
+		prefix := []byte{1}
+		e.output = append(e.output, prefix...)
+
+		cLog(Yellow, fmt.Sprintf("is keys: %v", prefix))
+
+		// encode the keys
+		keys := v.Field(1)
+		if err := e.encodeValue(keys); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *Encoder) encodeLength(length uint64) error {
+	encodedLength := e.encodeUint(length)
+	e.output = append(e.output, encodedLength...)
+
+	cLog(Yellow, fmt.Sprintf("Length: %v", encodedLength))
+
+	return nil
 }
