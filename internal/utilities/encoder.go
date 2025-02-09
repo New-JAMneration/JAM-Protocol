@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 )
 
@@ -38,6 +39,8 @@ var limitSizeArrayTypeList = []reflect.Type{
 	reflect.TypeOf(types.ActivityRecords{}),
 	reflect.TypeOf(types.ValidatorsData{}),
 	reflect.TypeOf([]types.TicketBody{}),
+	reflect.TypeOf(types.AvailabilityAssignments{}),
+	reflect.TypeOf(types.AuthPools{}),
 }
 
 func typeInList(t reflect.Type, typeList []reflect.Type) bool {
@@ -90,6 +93,16 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 			cLog(Magenta, "SafroleOutput")
 
 			if err := e.encodeSafroleOutput(v.Interface()); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		if e.isReportsOutput(v) {
+			cLog(Magenta, "ReportsOutput")
+
+			if err := e.encodeReportsOutput(v.Interface()); err != nil {
 				return err
 			}
 
@@ -333,6 +346,10 @@ func (e *Encoder) isSafroleOutput(v reflect.Value) bool {
 	return v.Type() == reflect.TypeOf(jamtests_safrole.SafroleOutput{})
 }
 
+func (e *Encoder) isReportsOutput(v reflect.Value) bool {
+	return v.Type() == reflect.TypeOf(jamtests_reports.ReportsOutput{})
+}
+
 func (e *Encoder) isMap(v reflect.Value) bool {
 	return v.Kind() == reflect.Map
 }
@@ -387,6 +404,54 @@ func (e *Encoder) encodeSafroleOutput(value interface{}) error {
 
 	if !isOk && !isErr {
 		return fmt.Errorf("SafroleOutput should contain either ok or err")
+	}
+
+	if isOk {
+		// append prefix 0
+		prefix := []byte{0}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is ok: %v", prefix))
+
+		// encode the ok value
+		okValue := v.Field(0).Elem()
+		if err := e.encodeValue(okValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if isErr {
+		// append prefix 1
+		prefix := []byte{1}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is err: %v", prefix))
+
+		// encode the error code
+		errValue := v.Field(1).Elem()
+		if err := e.encodeValue(errValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
+func (e *Encoder) encodeReportsOutput(value interface{}) error {
+	v := reflect.ValueOf(value)
+
+	// Check the output is ok or err
+	isOk := !v.Field(0).IsNil()
+	isErr := !v.Field(1).IsNil()
+
+	if isOk && isErr {
+		return fmt.Errorf("ReportsOutput should not contain both ok and err")
+	}
+
+	if !isOk && !isErr {
+		return fmt.Errorf("ReportsOutput should contain either ok or err")
 	}
 
 	if isOk {

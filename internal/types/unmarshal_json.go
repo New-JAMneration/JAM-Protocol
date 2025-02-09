@@ -928,11 +928,6 @@ type AccountInfo struct {
 	History   AccountInfoHistory `json:"history"`
 }
 
-type AccountsMapEntry struct {
-	Id   ServiceId   `json:"id"`
-	Info AccountInfo `json:"info"`
-}
-
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
 		Key   DictionaryKey `json:"key"`
