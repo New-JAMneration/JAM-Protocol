@@ -1,6 +1,9 @@
 package jamtests
 
 import (
+	"encoding/json"
+	"errors"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -19,7 +22,7 @@ type AssuranceInput struct {
 
 type AssuranceOutputData struct {
 	//  Items removed from ρ† to get ρ'
-	Reported []types.WorkReport `json:"report"`
+	Reported []types.WorkReport `json:"reported"`
 }
 
 type AssuranceOutput struct {
@@ -28,8 +31,8 @@ type AssuranceOutput struct {
 }
 
 type AssuranceState struct {
-	Rho   types.AvailabilityAssignments `json:"rho"`
-	Kappa types.ValidatorsData          `json:"kappa"`
+	AvailAssignments types.AvailabilityAssignments `json:"avail_assignments"`
+	CurrValidators   types.ValidatorsData          `json:"curr_validators"`
 }
 
 /*
@@ -46,3 +49,24 @@ const (
 	BadSignature                                        // 3
 	NotSortedOrUniqueAssurers                           // 4
 )
+
+var assuranceErrorMap = map[string]AssuranceErrorCode{
+	"bad_attestation_parent":        BadAttestationParent,
+	"bad_validator_index":           BadValidatorIndex,
+	"core_not_engaged":              CoreNotEngaged,
+	"bad_signature":                 BadSignature,
+	"not_sorted_or_unique_assurers": NotSortedOrUniqueAssurers,
+}
+
+func (e *AssuranceErrorCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if val, ok := assuranceErrorMap[str]; ok {
+			*e = val
+			return nil
+		}
+		return errors.New("invalid error code name: " + str)
+	}
+
+	return errors.New("invalid error code format, expected string")
+}

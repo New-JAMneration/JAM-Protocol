@@ -10,10 +10,12 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 
-	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
+	// jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	// jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 	// jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
@@ -131,7 +133,10 @@ func TestEncodeCodec(t *testing.T) {
 
 			// compare the encoded data with the binary data
 			if string(encodeResult) != string(binData) {
+				fmt.Println("❌", "[Codec]", filename)
 				t.Errorf("encoded data does not match the binary data")
+			} else {
+				fmt.Println("✅", "[Codec]", filename)
 			}
 		}
 	}
@@ -191,10 +196,11 @@ func TestEncodeJAMTestStatistics(t *testing.T) {
 
 		// compare the encoded data with the binary data
 		if string(encodeResult) != string(binData) {
+			fmt.Println("❌", "[", mode, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
+		} else {
+			fmt.Println("✅", "[", mode, "]", filename)
 		}
-
-		fmt.Println("✅", "[", mode, "]", filename)
 	}
 }
 
@@ -233,10 +239,11 @@ func TestEncodeJAMTestSafrole(t *testing.T) {
 
 		// compare the encoded data with the binary data
 		if string(encodeResult) != string(binData) {
+			fmt.Println("❌", "[", mode, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
+		} else {
+			fmt.Println("✅", "[", mode, "]", filename)
 		}
-
-		fmt.Println("✅", "[", mode, "]", filename)
 	}
 }
 
@@ -275,10 +282,11 @@ func TestEncodeJAMTestReport(t *testing.T) {
 
 		// compare the encoded data with the binary data
 		if string(encodeResult) != string(binData) {
+			fmt.Println("❌", "[", mode, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
+		} else {
+			fmt.Println("✅", "[", mode, "]", filename)
 		}
-
-		fmt.Println("✅", "[", mode, "]", filename)
 	}
 }
 
@@ -317,9 +325,53 @@ func TestEncodeJAMTestAuthorizations(t *testing.T) {
 
 		// compare the encoded data with the binary data
 		if string(encodeResult) != string(binData) {
+			fmt.Println("❌", "[", mode, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
+		} else {
+			fmt.Println("✅", "[", mode, "]", filename)
+		}
+	}
+}
+
+func TestEncodeJAMTestAssurances(t *testing.T) {
+	mode := "tiny" // tiny or full
+	dir := "../../pkg/test_data/jam-test-vectors/assurances/" + mode + "/"
+	jsonExtention := ".json"
+	binExtention := ".bin"
+
+	// Get json files
+	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	if err != nil {
+		t.Errorf("Failed to get json files: %v", err)
+	}
+
+	// Read the json files
+	for _, jsonFile := range jsonFiles {
+		// Load the json file
+		filePath := dir + jsonFile
+		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_assurances.AssuranceTestCase{}))
+		if err != nil {
+			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
 
-		fmt.Println("✅", "[", mode, "]", filename)
+		// Encode the data
+		encoder := NewEncoder()
+		encodeResult, err := encoder.Encode(data)
+		if err != nil {
+			t.Errorf("Failed to encode test case from %s: %v", jsonFile, err)
+		}
+
+		// Load the bin file
+		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
+		binFile := filename + binExtention
+		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+
+		// compare the encoded data with the binary data
+		if string(encodeResult) != string(binData) {
+			fmt.Println("❌", "[", mode, "]", filename)
+			t.Errorf("encoded data does not match the binary data")
+		} else {
+			fmt.Println("✅", "[", mode, "]", filename)
+		}
 	}
 }
