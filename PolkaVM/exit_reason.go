@@ -69,23 +69,23 @@ func PVMExitTuple(reason ExitReasonTypes, meta interface{}) error {
 
 // (A.8) (A.9) ParseMemoryAccessError parses the memory access error based on the given
 // invalid addresses.
-func ParseMemoryAccessError(invalid_addresses []uint64) (ExitReasonTypes, error) {
-	for i := range invalid_addresses {
-		invalid_addresses[i] = invalid_addresses[i] % (1 << 32)
+func ParseMemoryAccessError(invalidAddresses []uint64) (ExitReasonTypes, error) {
+	for i := range invalidAddresses {
+		invalidAddresses[i] = invalidAddresses[i] % (1 << 32)
 	}
 	// Iterate over read addresses and check for errors.0
-	if len(invalid_addresses) == 0 {
+	if len(invalidAddresses) == 0 {
 		return CONTINUE, nil
 	}
 
-	min_address := uint32(math.MaxUint32)
-	for _, addr := range invalid_addresses {
-		if addr < ZP {
+	minAddress := uint32(math.MaxUint32)
+	for _, addr := range invalidAddresses {
+		if addr < ZZ {
 			return PANIC, nil
 		}
-		if uint32(addr) < min_address {
-			min_address = uint32(addr)
+		if uint32(addr) < minAddress {
+			minAddress = uint32(addr)
 		}
 	}
-	return PAGE_FAULT, PVMExitTuple(PAGE_FAULT, min_address/ZP)
+	return PAGE_FAULT, PVMExitTuple(PAGE_FAULT, minAddress/ZP)
 }
