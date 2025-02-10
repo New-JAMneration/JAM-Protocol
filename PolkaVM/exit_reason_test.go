@@ -104,9 +104,9 @@ func TestParseMemoryAccessError(t *testing.T) {
 		},
 		{
 			"PageFaultError1",
-			[]uint64{0x1000, 0x2000, 0x3000},
+			[]uint64{0x1000000, 0x2000000, 0x3000000},
 			PAGE_FAULT,
-			PVMExitTuple(PAGE_FAULT, 0x1000/ZP),
+			PVMExitTuple(PAGE_FAULT, 0x1000000/ZP),
 		},
 		{
 			"LowAddressAccessError",
