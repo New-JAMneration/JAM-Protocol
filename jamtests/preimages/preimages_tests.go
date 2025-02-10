@@ -25,9 +25,7 @@ type PreimageOutputData struct {
 }
 
 type PreimageOutput struct {
-	// Ok interface{} // output is nil, so use interface since there is no nil type
-	Ok *bool `json:"ok,omitempty"`
-	// Ok  *PreimageOutputData `json:"ok"` // output is nil, so use interface since there is no nil type
+	Ok  interface{}        `json:"ok,omitempty"`
 	Err *PreimageErrorCode `json:"err,omitempty"`
 }
 

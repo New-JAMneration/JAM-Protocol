@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
@@ -46,6 +47,8 @@ var limitSizeArrayTypeList = []reflect.Type{
 	reflect.TypeOf(types.AuthPools{}),
 	reflect.TypeOf(types.AuthQueue{}),
 	reflect.TypeOf(types.AuthQueues{}),
+	reflect.TypeOf(types.ReadyQueue{}),
+	reflect.TypeOf(types.AccumulatedQueue{}),
 }
 
 func typeInList(t reflect.Type, typeList []reflect.Type) bool {
@@ -138,6 +141,16 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 			cLog(Magenta, "PreimageErrorCode")
 
 			if err := e.encodePreimageOutput(v.Interface()); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		if e.isAccumulateErrorCode(v) {
+			cLog(Magenta, "AccumulateErrorCode")
+
+			if err := e.encodeAccumulateOutput(v.Interface()); err != nil {
 				return err
 			}
 
@@ -395,6 +408,10 @@ func (e *Encoder) isDisputesErrorCode(v reflect.Value) bool {
 
 func (e *Encoder) isPreimageErrorCode(v reflect.Value) bool {
 	return v.Type() == reflect.TypeOf(jamtests_preimages.PreimageOutput{})
+}
+
+func (e *Encoder) isAccumulateErrorCode(v reflect.Value) bool {
+	return v.Type() == reflect.TypeOf(jamtests_accumulate.AccumulateOutput{})
 }
 
 func (e *Encoder) isMap(v reflect.Value) bool {
@@ -664,6 +681,47 @@ func (e *Encoder) encodePreimageOutput(value interface{}) error {
 		if err := e.encodeValue(errValue); err != nil {
 			return err
 		}
+
+		return nil
+	}
+
+	return nil
+}
+
+func (e *Encoder) encodeAccumulateOutput(value interface{}) error {
+	v := reflect.ValueOf(value)
+
+	// Check the output is ok or err
+	isOk := !v.Field(0).IsNil()
+	isErr := !v.Field(1).IsNil()
+
+	// if two fields are nil, it is ok
+	if v.Field(0).IsNil() && v.Field(1).IsNil() {
+		isErr = true
+	}
+
+	if isOk {
+		// append prefix 0
+		prefix := []byte{0}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is ok: %v", prefix))
+
+		// encode the ok value
+		okValue := v.Field(0).Elem()
+		if err := e.encodeValue(okValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if isErr {
+		// append prefix 1
+		prefix := []byte{1}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is err: %v", prefix))
+
+		// Accumulate output err is null, so we don't need to encode anything
 
 		return nil
 	}
