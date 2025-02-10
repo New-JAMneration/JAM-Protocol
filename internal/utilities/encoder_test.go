@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -19,6 +20,14 @@ import (
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
+)
+
+// Constants
+const (
+	MODE                 = "tiny" // tiny or full
+	JSON_EXTENTION       = ".json"
+	BIN_EXTENTION        = ".bin"
+	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
 )
 
 func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
@@ -65,7 +74,48 @@ func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
 	return byteValue, nil
 }
 
-func TestEncodeCodec(t *testing.T) {
+func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
+	// Get all files in the directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all files with the target extension
+	var targetFiles []string
+	for _, file := range files {
+		fileName := file.Name()
+		if fileName[len(fileName)-len(extension):] == extension {
+			targetFiles = append(targetFiles, fileName)
+		}
+	}
+
+	return targetFiles, nil
+}
+
+func CompareBinaryData(data1 []byte, data2 []byte) bool {
+	if len(data1) != len(data2) {
+		return false
+	}
+
+	for i := 0; i < len(data1); i++ {
+		if data1[i] != data2[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func GetJsonFilename(filename string) string {
+	return filename + JSON_EXTENTION
+}
+
+func GetBinFilename(filename string) string {
+	return filename + BIN_EXTENTION
+}
+
+func TestEncodeJamTestVectorsCodec(t *testing.T) {
 	testCases := map[reflect.Type][]string{
 		reflect.TypeOf(types.AssurancesExtrinsic{}): {
 			"assurances_extrinsic",
@@ -110,65 +160,46 @@ func TestEncodeCodec(t *testing.T) {
 		},
 	}
 
-	dir := "../../pkg/test_data/jam-test-vectors/codec/data/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", "data")
 
 	for structType, fileNames := range testCases {
 		for _, filename := range fileNames {
-			filePath := dir + filename + jsonExtention
-			data, err := LoadJAMTestJsonCase(filePath, structType)
+			// Read the json file
+			jsonFileName := GetJsonFilename(filename)
+			jsonFilePath := filepath.Join(dir, jsonFileName)
+			data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
 			if err != nil {
 				t.Errorf("Failed to load test case from %s: %v", filename, err)
 			}
 
+			// Encode the data
 			encoder := NewEncoder()
 			encodeResult, err := encoder.Encode(data)
 			if err != nil {
 				t.Errorf("Failed to encode test case from %s: %v", filename, err)
 			}
 
-			binFilePath := dir + filename + binExtention
+			// Read the binary file
+			binFilename := GetBinFilename(filename)
+			binFilePath := filepath.Join(dir, binFilename)
 			binData, err := LoadJAMTestBinaryCase(binFilePath)
 
-			// compare the encoded data with the binary data
-			if string(encodeResult) != string(binData) {
-				fmt.Println("❌", "[Codec]", filename)
+			// Compare the encoded data with the binary data
+			if !CompareBinaryData(encodeResult, binData) {
+				fmt.Println("❌", "[ ---- ]", filename)
 				t.Errorf("encoded data does not match the binary data")
 			} else {
-				fmt.Println("✅", "[Codec]", filename)
+				fmt.Println("✅", "[ ---- ]", filename)
 			}
 		}
 	}
 }
 
-func getTargetExtensionFiles(dir string, extension string) ([]string, error) {
-	// Get all files in the directory
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all files with the target extension
-	var targetFiles []string
-	for _, file := range files {
-		fileName := file.Name()
-		if fileName[len(fileName)-len(extension):] == extension {
-			targetFiles = append(targetFiles, fileName)
-		}
-	}
-
-	return targetFiles, nil
-}
-
-func TestEncodeJAMTestStatistics(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/statistics/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsStatistics(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -176,8 +207,8 @@ func TestEncodeJAMTestStatistics(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_statistics.StatisticsTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_statistics.StatisticsTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -190,28 +221,26 @@ func TestEncodeJAMTestStatistics(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestSafrole(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/safrole/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsSafrole(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "safrole", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -219,8 +248,8 @@ func TestEncodeJAMTestSafrole(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_safrole.SafroleTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_safrole.SafroleTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -233,28 +262,26 @@ func TestEncodeJAMTestSafrole(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestReport(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/reports/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsReport(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "reports", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -262,8 +289,8 @@ func TestEncodeJAMTestReport(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_reports.ReportsTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_reports.ReportsTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -276,28 +303,26 @@ func TestEncodeJAMTestReport(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestAuthorizations(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/authorizations/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsAuthorizations(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "authorizations", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -305,8 +330,8 @@ func TestEncodeJAMTestAuthorizations(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_authorizations.AuthorizationTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_authorizations.AuthorizationTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -319,28 +344,26 @@ func TestEncodeJAMTestAuthorizations(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestAssurances(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/assurances/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsAssurances(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "assurances", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -348,8 +371,8 @@ func TestEncodeJAMTestAssurances(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_assurances.AssuranceTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_assurances.AssuranceTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -362,28 +385,26 @@ func TestEncodeJAMTestAssurances(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestDisputes(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/disputes/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsDisputes(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -391,8 +412,8 @@ func TestEncodeJAMTestDisputes(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_disputes.DisputeTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_disputes.DisputeTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -405,28 +426,26 @@ func TestEncodeJAMTestDisputes(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestAccumulate(t *testing.T) {
-	mode := "tiny" // tiny or full
-	dir := "../../pkg/test_data/jam-test-vectors/accumulate/" + mode + "/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", MODE)
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -434,8 +453,8 @@ func TestEncodeJAMTestAccumulate(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_accmuluate.AccumulateTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_accmuluate.AccumulateTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -448,27 +467,26 @@ func TestEncodeJAMTestAccumulate(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", "[", mode, "]", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[", MODE, "]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", "[", mode, "]", filename)
+			fmt.Println("✅", "[", MODE, "]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestPreimages(t *testing.T) {
-	dir := "../../pkg/test_data/jam-test-vectors/preimages/data/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsPreimages(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "preimages", "data")
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -476,8 +494,8 @@ func TestEncodeJAMTestPreimages(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_preimages.PreimageTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_preimages.PreimageTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -490,27 +508,26 @@ func TestEncodeJAMTestPreimages(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[ ---- ]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", filename)
+			fmt.Println("✅", "[ ---- ]", filename)
 		}
 	}
 }
 
-func TestEncodeJAMTestHistory(t *testing.T) {
-	dir := "../../pkg/test_data/jam-test-vectors/history/data/"
-	jsonExtention := ".json"
-	binExtention := ".bin"
+func TestEncodeJamTestVectorsHistory(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "history", "data")
 
 	// Get json files
-	jsonFiles, err := getTargetExtensionFiles(dir, jsonExtention)
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 	if err != nil {
 		t.Errorf("Failed to get json files: %v", err)
 	}
@@ -518,8 +535,8 @@ func TestEncodeJAMTestHistory(t *testing.T) {
 	// Read the json files
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
-		filePath := dir + jsonFile
-		data, err := LoadJAMTestJsonCase(filePath, reflect.TypeOf(jamtests_history.HistoryTestCase{}))
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_history.HistoryTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -532,16 +549,17 @@ func TestEncodeJAMTestHistory(t *testing.T) {
 		}
 
 		// Load the bin file
-		filename := jsonFile[:len(jsonFile)-len(jsonExtention)]
-		binFile := filename + binExtention
-		binData, err := LoadJAMTestBinaryCase(dir + binFile)
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
 
 		// compare the encoded data with the binary data
-		if string(encodeResult) != string(binData) {
-			fmt.Println("❌", filename)
+		if !CompareBinaryData(encodeResult, binData) {
+			fmt.Println("❌", "[ ---- ]", filename)
 			t.Errorf("encoded data does not match the binary data")
 		} else {
-			fmt.Println("✅", filename)
+			fmt.Println("✅", "[ ---- ]", filename)
 		}
 	}
 }
