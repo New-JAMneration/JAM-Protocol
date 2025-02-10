@@ -3,7 +3,7 @@ package types
 // Reminder: When using jam_types, check if a Validate function exists.
 // If a Validate function is available, remember to use it.
 // If the desired Validate function is not found, please implement one yourself. :)
-//version = 0.5.3
+// version = 0.5.3
 import (
 	"encoding/hex"
 	"encoding/json"
@@ -67,8 +67,10 @@ type (
 	ErasureRoot     OpaqueHash
 )
 
-type ErrorCode U8
-type Gas U64
+type (
+	ErrorCode U8
+	Gas       U64
+)
 
 type (
 	Entropy       OpaqueHash
@@ -639,8 +641,7 @@ func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("preimagesextrinsic", p)
 }
 
-//11.2.1 Assurances
-
+// 11.2.1 Assurances
 type AvailAssurance struct {
 	Anchor         OpaqueHash       `json:"anchor,omitempty"`
 	Bitfield       []byte           `json:"bitfield,omitempty"`
@@ -950,7 +951,6 @@ type InputWrapper[T any] struct {
 }
 
 func ParseData[t any](fileName string) (InputWrapper[t], error) {
-
 	file, err := os.Open(fileName)
 	if err != nil {
 		fmt.Printf("Error opening file %s: %v\n", fileName, err)
@@ -1130,3 +1130,33 @@ type DeferredTransfer struct {
 	Memo       [128]byte `json:"memo"`
 	GasLimit   Gas       `json:"gas"`
 }
+
+// --------------------------------------------
+// -- Accumulation
+// --------------------------------------------
+
+type ReadyRecord struct {
+	Report       WorkReport
+	Dependencies []WorkPackageHash
+}
+
+type (
+	ReadyQueueItem       []ReadyRecord
+	ReadyQueue           []ReadyQueueItem // SEQUENCE (SIZE(epoch-length)) OF ReadyQueueItem
+	AccumulatedQueueItem []WorkPackageHash
+	AccumulatedQueue     []AccumulatedQueueItem // SEQUENCE (SIZE(epoch-length)) OF AccumulatedQueueItem
+)
+
+type AlwaysAccumulateMapItem struct {
+	ID  ServiceId `json:"id"`
+	Gas Gas       `json:"gas"`
+}
+
+type Privileges struct {
+	Bless       ServiceId
+	Assign      ServiceId
+	Designate   ServiceId
+	AlwaysAccum []AlwaysAccumulateMapItem
+}
+
+type AccumulateRoot OpaqueHash
