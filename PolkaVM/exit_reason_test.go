@@ -89,7 +89,6 @@ func psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }
 
-
 func TestParseMemoryAccessError(t *testing.T) {
 	testCases := []struct {
 		name               string
@@ -125,6 +124,10 @@ func TestParseMemoryAccessError(t *testing.T) {
 			}
 			if err != nil && tc.expectedError != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Expected error message %q, but got %q", tc.expectedError, err)
+			}
+		})
+	}
+}
 
 func naiveGeneralFunction(con uint64) any {
 	register := [13]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
