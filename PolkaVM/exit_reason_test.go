@@ -4,6 +4,7 @@ package PolkaVM
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -165,6 +166,74 @@ func TestOmega(t *testing.T) {
 			// fmt.Printf("want: %v\n", want)
 			if got.([13]uint64)[7] != want {
 				t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
+			}
+		})
+	}
+}
+
+func TestGetInvalidAddress(t *testing.T) {
+	tests := []struct {
+		name           string
+		readAddresses  []uint64
+		writeAddresses []uint64
+		readable       map[int]bool
+		writeable      map[int]bool
+		want           []uint64
+	}{
+		{
+			name:           "all valid",
+			readAddresses:  []uint64{1, 2, 3},
+			writeAddresses: []uint64{3, 4, 5},
+			readable:       map[int]bool{1: true, 2: true, 3: true, 4: true},
+			writeable:      map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true},
+			want:           []uint64{},
+		},
+		{
+			name:           "one read address invalid",
+			readAddresses:  []uint64{1, 2, 4},
+			writeAddresses: []uint64{3, 4, 5},
+			readable:       map[int]bool{1: true, 2: true, 3: true},
+			writeable:      map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true},
+			want:           []uint64{4},
+		},
+		{
+			name:           "one write address invalid",
+			readAddresses:  []uint64{1, 2, 3},
+			writeAddresses: []uint64{3, 4, 6},
+			readable:       map[int]bool{1: true, 2: true, 3: true, 4: true},
+			writeable:      map[int]bool{1: true, 2: true, 3: true, 4: true, 5: true},
+			want:           []uint64{6},
+		},
+		{
+			name:           "multiple invalid addresses",
+			readAddresses:  []uint64{1, 2, 4},
+			writeAddresses: []uint64{3, 4, 6},
+			readable:       map[int]bool{1: true, 2: true, 3: true},
+			writeable:      map[int]bool{1: true, 2: true, 3: true, 5: true},
+			want:           []uint64{4, 6},
+		},
+		{
+			name:           "empty input",
+			readAddresses:  []uint64{},
+			writeAddresses: []uint64{},
+			readable:       map[int]bool{},
+			writeable:      map[int]bool{},
+			want:           []uint64{},
+		},
+		{
+			name:           "duplicate invalid addresses",
+			readAddresses:  []uint64{1, 2, 4, 4},
+			writeAddresses: []uint64{3, 4, 6, 6},
+			readable:       map[int]bool{1: true, 2: true, 3: true},
+			writeable:      map[int]bool{1: true, 2: true, 3: true, 5: true},
+			want:           []uint64{4, 6},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetInvalidAddress(tt.readAddresses, tt.writeAddresses, tt.readable, tt.writeable); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetInvalidAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}
