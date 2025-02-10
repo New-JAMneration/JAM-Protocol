@@ -6,6 +6,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
@@ -117,6 +118,16 @@ func (e *Encoder) encodeValue(v reflect.Value) error {
 			cLog(Magenta, "AssuranceErrorCode")
 
 			if err := e.encodeAssuranceOutput(v.Interface()); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		if e.isDisputesErrorCode(v) {
+			cLog(Magenta, "DisputesErrorCode")
+
+			if err := e.encodeDisputesOutput(v.Interface()); err != nil {
 				return err
 			}
 
@@ -378,6 +389,10 @@ func (e *Encoder) isAssuranceErrorCode(v reflect.Value) bool {
 	return v.Type() == reflect.TypeOf(jamtests_assurances.AssuranceOutput{})
 }
 
+func (e *Encoder) isDisputesErrorCode(v reflect.Value) bool {
+	return v.Type() == reflect.TypeOf(jamtests_disputes.DisputeOutput{})
+}
+
 func (e *Encoder) isPreimageErrorCode(v reflect.Value) bool {
 	return v.Type() == reflect.TypeOf(jamtests_preimages.PreimageOutput{})
 }
@@ -532,6 +547,54 @@ func (e *Encoder) encodeAssuranceOutput(value interface{}) error {
 
 	if !isOk && !isErr {
 		return fmt.Errorf("AssuranceOutput should contain either ok or err")
+	}
+
+	if isOk {
+		// append prefix 0
+		prefix := []byte{0}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is ok: %v", prefix))
+
+		// encode the ok value
+		okValue := v.Field(0).Elem()
+		if err := e.encodeValue(okValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if isErr {
+		// append prefix 1
+		prefix := []byte{1}
+		e.output = append(e.output, prefix...)
+		cLog(Yellow, fmt.Sprintf("Output is err: %v", prefix))
+
+		// encode the error code
+		errValue := v.Field(1).Elem()
+		if err := e.encodeValue(errValue); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
+func (e *Encoder) encodeDisputesOutput(value interface{}) error {
+	v := reflect.ValueOf(value)
+
+	// Check the output is ok or err
+	isOk := !v.Field(0).IsNil()
+	isErr := !v.Field(1).IsNil()
+
+	if isOk && isErr {
+		return fmt.Errorf("DisputesOutput should not contain both ok and err")
+	}
+
+	if !isOk && !isErr {
+		return fmt.Errorf("DisputesOutput should contain either ok or err")
 	}
 
 	if isOk {
