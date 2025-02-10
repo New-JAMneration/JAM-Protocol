@@ -44,7 +44,7 @@ func TestInvocation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("p=%d, pc=%d, gas=%d, reg=%d, mem=%d", tt.p, tt.pc, tt.gas, tt.reg, tt.mem), func(t *testing.T) {
-			_, _, _, _, got := ExPsi(tt.p, tt.pc, tt.gas, tt.reg, tt.mem)
+			_, _, _, _, got := exPsi(tt.p, tt.pc, tt.gas, tt.reg, tt.mem)
 			gotStr := got.Error()
 			if gotStr != tt.want {
 				t.Errorf("ExPsi(%d, %d, %d, %d, %d) = %v, want %v", tt.p, tt.pc, tt.gas, tt.reg, tt.mem, got, tt.want)
@@ -54,12 +54,12 @@ func TestInvocation(t *testing.T) {
 }
 
 // test all exit types of invocation function
-func ExPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
+func exPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// call Psi1 to renew states first
-	newPc, newGas, newReg, newMem, epsilon := Psi1(1, 2, 3, pc, gas, reg, mem)
+	newPc, newGas, newReg, newMem, epsilon := psi1(1, 2, 3, pc, gas, reg, mem)
 
 	if errors.Is(epsilon, PVMExitTuple(CONTINUE, nil)) {
-		return ExPsi(p, newPc, newGas, newReg, newMem)
+		return exPsi(p, newPc, newGas, newReg, newMem)
 	} else if errors.Is(epsilon, PVMExitTuple(OUT_OF_GAS, nil)) || errors.Is(epsilon, PVMExitTuple(HALT, nil)) {
 		return newPc, newGas, newReg, newMem, epsilon
 	} else if errors.Is(epsilon, PVMExitTuple(PAGE_FAULT, newMem)) { // test page fault
@@ -71,7 +71,7 @@ func ExPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 	}
 }
 
-func Psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
+func psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	var (
 		newPc  = pc + 1 // + skip()
 		newGas = gas - 10
@@ -88,6 +88,7 @@ func Psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// return newPc, newGas, newReg, newMem, PVMExitTuple(CONTINUE, nil)
 	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }
+
 
 func TestParseMemoryAccessError(t *testing.T) {
 	testCases := []struct {
@@ -124,6 +125,43 @@ func TestParseMemoryAccessError(t *testing.T) {
 			}
 			if err != nil && tc.expectedError != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Expected error message %q, but got %q", tc.expectedError, err)
+
+func naiveGeneralFunction(con uint64) any {
+	register := [13]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+	newRegister := register
+	newRegister[7] = con
+	return newRegister
+}
+
+func TestOmega(t *testing.T) {
+	constants := []struct {
+		given uint64
+		want  uint64
+	}{
+		{OK, 0},
+		{HUH, ^uint64(8)},
+		{LOW, ^uint64(7)},
+		{CASH, ^uint64(6)},
+		{CORE, ^uint64(5)},
+		{FULL, ^uint64(4)},
+		{WHO, ^uint64(3)},
+		{OOB, ^uint64(2)},
+		{WHAT, ^uint64(1)},
+		{NONE, ^uint64(0)},
+		{INNERHALT, 0},
+		{INNERPANIC, 1},
+		{INNERFAULT, 2},
+		{INNERHOST, 3},
+		{INNEROOG, 4},
+	}
+	for _, tt := range constants {
+		t.Run(fmt.Sprintf("given=%d", tt.given), func(t *testing.T) {
+			got := naiveGeneralFunction(tt.given)
+			want := tt.want
+			// test 7th bit in register
+			// fmt.Printf("want: %v\n", want)
+			if got.([13]uint64)[7] != want {
+				t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
 			}
 		})
 	}
