@@ -225,10 +225,12 @@ func TestSignExtend(t *testing.T) {
 		{"ValidInput3", 8, 123456, 123456, nil},
 		{"ValidInput4", 3, 123456, 0x1e240, nil},
 		{"ValidInput5", 4, 123456789, 0x75bcd15, nil},
+		{"ValidInput6", 0, 0, 0, nil},
 		{"InvalidInput1", 9, 0, 0, fmt.Errorf("invalid byte count")},
 		{"InvalidInput2", -1, 0, 0, fmt.Errorf("invalid byte count")},
 		{"InvalidInput3", 1, 1000, 0, fmt.Errorf("x (1000) exceeds the maximum value for 8 bytes")},
 		{"InvalidInput4", 7, 11, 0, fmt.Errorf("invalid byte count")},
+		{"InvalidInput5", 0, 1, 0, fmt.Errorf("x (1) exceeds the maximum value for 0 bytes")},
 	}
 
 	for _, tc := range testCases {
