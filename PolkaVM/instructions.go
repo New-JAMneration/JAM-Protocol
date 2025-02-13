@@ -160,3 +160,24 @@ var Zeta = map[opcode]string{
 	229: "min",
 	230: "min_u",
 }
+
+// (A.32 v0.6.2) smod function
+func smod(a int, b int) int {
+	if b == 0 {
+		return a
+	}
+
+	mod := abs(a) % abs(b)
+
+	if a < 0 {
+		return -mod
+	}
+	return mod
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
