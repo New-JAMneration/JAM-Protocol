@@ -211,3 +211,35 @@ func TestReverseBitsToUnsigned(t *testing.T) {
 		}
 	}
 }
+
+func TestSignExtend(t *testing.T) {
+	testCases := []struct {
+		name           string
+		n              int
+		x              uint64
+		expectedOutput uint64
+		expectedError  error
+	}{
+		{"ValidInput1", 1, 151, 0xffffffffffffff97, nil},
+		{"ValidInput2", 2, 11121, 0x2b71, nil},
+		{"ValidInput3", 8, 123456, 123456, nil},
+		{"ValidInput4", 3, 123456, 0x1e240, nil},
+		{"ValidInput5", 4, 123456789, 0x75bcd15, nil},
+		{"InvalidInput1", 9, 0, 0, fmt.Errorf("invalid byte count")},
+		{"InvalidInput2", -1, 0, 0, fmt.Errorf("invalid byte count")},
+		{"InvalidInput3", 1, 1000, 0, fmt.Errorf("x (1000) exceeds the maximum value for 8 bytes")},
+		{"InvalidInput4", 7, 11, 0, fmt.Errorf("invalid byte count")},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := SignExtend(tc.n, tc.x)
+			if output != tc.expectedOutput {
+				t.Errorf("Expected output %x, but got %x", tc.expectedOutput, output)
+			}
+			if (err != nil && tc.expectedError == nil) || (err == nil && tc.expectedError != nil) || (err != nil && tc.expectedError != nil && err.Error() != tc.expectedError.Error()) {
+				t.Errorf("Expected error %v, but got %v", tc.expectedError, err)
+			}
+		})
+	}
+}

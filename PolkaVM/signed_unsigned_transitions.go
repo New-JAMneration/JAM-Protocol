@@ -1,6 +1,8 @@
 package PolkaVM
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // graypaper 0.6.1
 
@@ -150,4 +152,28 @@ func ReverseBitsToUnsigned(x []bool, n uint) (uint64, error) {
 	}
 
 	return y, nil
+}
+
+func SignExtend(n int, x uint64) (uint64, error) {
+	if n < 0 || n > 8 || n == 5 || n == 6 || n == 7 {
+		return 0, fmt.Errorf("invalid byte count")
+	}
+	if n == 8 {
+		return x, nil
+	}
+	if x >= (1 << (8 * n)) {
+		return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
+	}
+	if n == 8 {
+		return x, nil
+	}
+	var mul, add uint64
+	add = x >> (8*n - 1)
+	mul = 0
+	for i := 8 * n; i < 64; i++ {
+		mul |= (1 << i)
+	}
+	add *= mul
+	x += add
+	return x, nil
 }
