@@ -6,13 +6,6 @@ type StandardCodeFormat []byte // p
 type Argument []byte           // a
 type Instructions []byte       // c
 
-const (
-	ZZ = 1 << 16 // pvm program initialization zone size
-	ZI = 1 << 24 // pvm program initialization input data size
-	ZP = 1 << 12 // pvm memory page size
-	ZA = 2       // pvm dynamic address alignment factor
-)
-
 func P(x int) uint32 {
 	return ZP * ((uint32(x) + ZP - 1) / ZP)
 }
