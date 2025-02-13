@@ -159,7 +159,7 @@ func SignExtend(n int, x uint64) (uint64, error) {
 	if n < 0 || n > 8 || n == 5 || n == 6 || n == 7 {
 		return 0, fmt.Errorf("invalid byte count")
 	}
-	if n == 8 {
+	if n == 8 || n == 0 {
 		return x, nil
 	}
 	if x >= (1 << (8 * n)) {
