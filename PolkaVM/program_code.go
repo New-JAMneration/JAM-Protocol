@@ -1,6 +1,8 @@
 package PolkaVM
 
 import (
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
@@ -19,19 +21,16 @@ type ProgramBlob struct {
 func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) {
 	// E_(|j|) : size of jumpTable
 	// will rewrite after the refactor of Deserialization is complete
-	var jumpTableSize types.U64
-	var err error
-	for i := 0; i < 8; i++ {
-		jumpTableSize, err = utilities.DeserializeU64(data[i:9])
-		if err == nil {
-			data = data[i:]
-			break
-		}
+	// fmt.Println(data[:16])
+	jumpTableSize, data, err := ReadUintVariable(data)
+	fmt.Println("jumpTableSize : ", jumpTableSize)
+	if err != nil {
+		return
 	}
+	// fmt.Println(data[:16])
 	// E_1(z) : length of jumpTableLength
-	var jumpTableLength types.U64
-	jumpTableLength, err = utilities.DeserializeFixedLength(data[:1], types.U64(1))
-	data = data[1:]
+	jumpTableLength, data, err := ReadUintFixed(data, 1)
+	fmt.Println("jumpTableLength : ", jumpTableLength)
 	if err != nil {
 		return
 	}
@@ -52,7 +51,7 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 		jumpTables[i] = uint64(tmp)
 	}
 
-	data = data[:jumpTableLength*jumpTableSize]
+	// data = data[:jumpTableLength*jumpTableSize]
 	// bitmasks
 	instructions := data[:instSize]
 	bitmaskRaw := data[instSize:]
@@ -103,4 +102,49 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 	}
 
 	return true
+}
+
+func ReadUintVariable(data []byte) (uint64, []byte, error) {
+	if len(data) < 1 {
+		return 0, data, fmt.Errorf("not enough data to read a uint")
+	}
+
+	firstByte := data[0]
+	data = data[1:]
+
+	valueMask, bytesToRead, err := decodeUintFirstByte(firstByte)
+	if err != nil {
+		return 0, data, err
+	}
+	fmt.Println("byteToRead : ", bytesToRead)
+	fmt.Println("valueMask : ", valueMask)
+	valueFromFirstByte := uint64(firstByte & valueMask)
+	fmt.Println("valueFromFirstByte : ", valueFromFirstByte)
+	valueFromRemainingBytes, data, err := ReadUintFixed(data, bytesToRead)
+	if err != nil {
+		return 0, data, err
+	}
+
+	return valueFromFirstByte<<(8*bytesToRead) | valueFromRemainingBytes, data[bytesToRead:], nil
+}
+
+// return (mask, bytes to read)
+func decodeUintFirstByte(firstByte byte) (byte, int, error) {
+	leadingBits := []byte{
+		0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01,
+	}
+
+	lengthMask := byte(0)
+	for index, leadingBit := range leadingBits {
+		// first N + 1 bits are N bits of 1 followed by 1 bit of 0
+		// e.g. N = 0 and the first bit is 0
+		//      N = 3 and the first 4 bits are 1110
+		if firstByte&(lengthMask|leadingBit) == lengthMask {
+			return 0xff - (lengthMask | leadingBit), index, nil
+		}
+
+		lengthMask |= leadingBit
+	}
+
+	return 0, 8, nil
 }
