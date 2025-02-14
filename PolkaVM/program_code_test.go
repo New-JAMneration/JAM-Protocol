@@ -1,3 +1,4 @@
+// nolint:ST1003
 package PolkaVM
 
 import (
@@ -29,11 +30,11 @@ func TestLoadPVMFile(t *testing.T) {
 		}
 
 		// exitReason will not be used in this test
-		// programBlob, _ := DeBlobProgramCode(programCode)
+		programBlob, _ := DeBlobProgramCode(programCode)
 
-		// fmt.Println("JumpTableLength : ", programBlob.JumpTableLength)
-		//	fmt.Println("InstructionData : ", programBlob.InstructionData[:10])
-		//	fmt.Println(len(programBlob.Bitmasks) == len(programBlob.InstructionData))
+		fmt.Println("JumpTableLength : ", programBlob.JumpTableLength)
+		fmt.Println("InstructionData : ", programBlob.InstructionData[:10])
+		fmt.Println(len(programBlob.Bitmasks) == len(programBlob.InstructionData))
 	}
 }
 
