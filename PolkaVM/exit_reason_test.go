@@ -4,6 +4,7 @@ package PolkaVM
 import (
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -127,6 +128,110 @@ func TestOmega(t *testing.T) {
 			// fmt.Printf("want: %v\n", want)
 			if got.([13]uint64)[7] != want {
 				t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
+			}
+		})
+	}
+}
+
+func TestBranch(t *testing.T) {
+	testCases := []struct {
+		name               string
+		target             uint32
+		condition          bool
+		basicBlocks        []uint32
+		expectedExitReason ExitReasonTypes
+		expectedPC         uint32
+	}{
+		{
+			"BranchNotTaken",
+			8,
+			false,
+			[]uint32{0, 4, 8},
+			CONTINUE,
+			1,
+		},
+		{
+			"BranchTaken",
+			8,
+			true,
+			[]uint32{0, 4, 8},
+			CONTINUE,
+			8,
+		},
+		{
+			"BranchToInvalidTarget",
+			10,
+			true,
+			[]uint32{0, 4, 8},
+			PANIC,
+			1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			exitReason, newPC := Branch(tc.target, tc.condition, tc.basicBlocks)
+			if exitReason != tc.expectedExitReason {
+				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
+			}
+			if newPC != tc.expectedPC {
+				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
+			}
+		})
+	}
+}
+
+func TestDjump(t *testing.T) {
+	testCases := []struct {
+		name               string
+		target             uint32
+		jumpTable          []uint32
+		basicBlocks        []uint32
+		expectedExitReason ExitReasonTypes
+		expectedPC         uint32
+	}{
+		{
+			"DjumpToValidTarget",
+			2,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			CONTINUE,
+			4,
+		},
+		{
+			"DjumpToInvalidTarget",
+			3,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			PANIC,
+			3,
+		},
+		{
+			"DjumpToZero",
+			0,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			PANIC,
+			0,
+		},
+		{
+			"DjumpToSpecialCase",
+			math.MaxUint32 - ZZ + 1,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			HALT,
+			math.MaxUint32 - ZZ + 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			exitReason, newPC := Djump(tc.target, tc.jumpTable, tc.basicBlocks)
+			if exitReason != tc.expectedExitReason {
+				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
+			}
+			if newPC != tc.expectedPC {
+				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
 			}
 		})
 	}
