@@ -45,24 +45,3 @@ func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable
 
 	return exitReason, programCounter, gas, registers, memory
 }
-
-// skip computes the distance to the next opcode  A.3
-func skip(i int, bitmask []byte) uint32 {
-	j := 1
-	for ; j < len(bitmask); j++ {
-		if bitmask[j] == byte(1) {
-			break
-		}
-	}
-	return uint32(min(24, i+1+j))
-}
-
-func inBasicBlock(data []byte, bitmask []byte, n int) bool {
-	if bitmask[n] != byte(1) {
-		return false
-	}
-	// TODO data[n] is in defined opcodes, need to wait for opcodes defined
-	// data[n]
-
-	return true
-}

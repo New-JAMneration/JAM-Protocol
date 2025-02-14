@@ -1,19 +1,11 @@
 package PolkaVM
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
-/*
-   instructions will be saved as block-based instructions
-
-*/
-
-type BasicBlock [][]byte // each sequence is a instruction
-
+// type BasicBlock [][]byte // each sequence is a instruction
 type ProgramBlob struct {
 	InstructionData []byte   // c , includes opcodes & instruction variables
 	Bitmasks        []byte   // k
@@ -86,66 +78,29 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 	}, CONTINUE
 }
 
-func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
-	if numBytes == 0 {
-		return 0, data, nil
+// skip computes the distance to the next opcode  A.3
+func skip(i int, bitmask []byte) uint32 {
+	j := 1
+	for ; j < len(bitmask); j++ {
+		if bitmask[j+i] == byte(1) {
+			break
+		}
 	}
-	if numBytes > 8 || numBytes < 0 {
-		return 0, data, fmt.Errorf("invalid number of octets to read")
-	}
-	if len(data) < numBytes {
-		return 0, data, fmt.Errorf("not enough data to read a uint")
-	}
-
-	var result uint64
-	for i := 0; i < numBytes; i++ {
-		// little-endian
-		result |= uint64(data[i]) << (8 * i)
-	}
-
-	return result, data[numBytes:], nil
+	return uint32(min(24, j))
 }
 
-func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
-	if uint64(len(data)) < numBytes {
-		return nil, data, fmt.Errorf("not enough data to read %d bytes", numBytes)
+func inBasicBlock(data []byte, bitmask []byte, n int) bool {
+	if data[n-1] != byte(0) {
+		return false
 	}
 
-	return data[:numBytes], data[numBytes:], nil
-}
-
-/*
-type ProgramBlob struct {
-	// JumpTableSize   uint64
-	JumpTableLength uint64
-	JumpTables      []uint64 // j
-	InstructionSize uint64
-	InstructionData []byte // c , includes opcodes & instruction variables
-	Bitmasks        []byte // k
-}
-*/
-
-/*
-type StandardProgram struct {
-	ROData      []byte
-	RWData      []byte
-	PaddingPage uint16
-	Stack       uint32
-	ProgramBlob []byte
-}
-
-func ReadFile(fileName string) ([]byte, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
+	if bitmask[n] != byte(1) {
+		return false
 	}
 
-	return data, nil
+	if _, exists := Zeta[opcode(data[n])]; !exists {
+		return false
+	}
+
+	return true
 }
-*/
