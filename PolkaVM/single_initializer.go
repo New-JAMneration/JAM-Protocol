@@ -77,17 +77,11 @@ func allocateMemorySegment(mem *Memory, start, end uint32, content []byte, acces
 		}
 		pageSize := min(len(content), int(ZP))
 
-		// if content is less than ZP, fill with 0
-		if pageSize == ZP {
-			mem.Pages[pageNum] = &Page{
-				Value:  content[:pageSize],
-				Access: access,
-			}
-		} else {
-			mem.Pages[pageNum] = &Page{
-				Value:  append(content[:pageSize], make([]byte, ZP-pageSize)...),
-				Access: access,
-			}
+		page := make([]byte, ZP)
+		copy(page, content[:pageSize])
+		mem.Pages[pageNum] = &Page{
+			Value:  page,
+			Access: access,
 		}
 		content = content[pageSize:]
 	}
