@@ -1,0 +1,1214 @@
+package types
+
+import (
+	"encoding/binary"
+	"fmt"
+)
+
+// HeaderHash
+func (h *HeaderHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding HeaderHash")
+
+	var val HeaderHash
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("HeaderHash: %v", val))
+
+	*h = val
+	return nil
+}
+
+// StateRoot
+func (s *StateRoot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding StateRoot")
+
+	var val StateRoot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("StateRoot: %v", val))
+
+	*s = val
+	return nil
+}
+
+// OpaqueHash
+func (o *OpaqueHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding OpaqueHash")
+
+	var val OpaqueHash
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("OpaqueHash: %v", val))
+
+	*o = val
+	return nil
+}
+
+// TimeSlot
+func (t *TimeSlot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TimeSlot")
+
+	var val TimeSlot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("TimeSlot: %v", val))
+
+	*t = val
+	return nil
+}
+
+// EpochMark
+func (e *EpochMark) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding EpochMark")
+
+	var err error
+	if err = e.Entropy.Decode(d); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("Entropy: %v", e.Entropy))
+
+	if err = e.TicketsEntropy.Decode(d); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("TicketsEntropy: %v", e.TicketsEntropy))
+
+	// make the slice with validators count
+	e.Validators = make([]BandersnatchPublic, ValidatorsCount)
+	for i := 0; i < ValidatorsCount; i++ {
+		if err = e.Validators[i].Decode(d); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("Validators[%d]: %v", i, e.Validators[i]))
+	}
+
+	return nil
+}
+
+// Entropy
+func (e *Entropy) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Entropy")
+
+	var val Entropy
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+
+	*e = val
+	return nil
+}
+
+// BandersnatchPublic
+func (b *BandersnatchPublic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BandersnatchPublic")
+
+	var val BandersnatchPublic
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+
+	*b = val
+	return nil
+}
+
+// TicketId
+func (t *TicketId) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketId")
+
+	var val TicketId
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("TicketId: %v", val))
+
+	*t = val
+	return nil
+}
+
+// TicketAttempt
+func (t *TicketAttempt) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketAttempt")
+
+	var val TicketAttempt
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", val))
+
+	*t = val
+	return nil
+}
+
+func (t *TicketBody) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketBody")
+
+	var err error
+	if err = t.Id.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.Attempt.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TicketsMark
+func (t *TicketsMark) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketsMark")
+
+	var err error
+
+	// make the slice with epoch length
+	tickets := make([]TicketBody, EpochLength)
+	for i := 0; i < EpochLength; i++ {
+		if err = tickets[i].Decode(d); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("Tickets[%d]: %v", i, tickets[i]))
+	}
+
+	*t = tickets
+
+	return nil
+}
+
+// Ed25519Public
+func (e *Ed25519Public) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Ed25519Public")
+
+	var val Ed25519Public
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+
+	*e = val
+	return nil
+}
+
+// OffendersMark
+// type OffendersMark []Ed25519Public
+func (o *OffendersMark) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding OffendersMark")
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	offenders := make([]Ed25519Public, length)
+	for i := uint64(0); i < length; i++ {
+		if err = offenders[i].Decode(d); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("Offenders[%d]: %v", i, offenders[i]))
+	}
+
+	*o = offenders
+
+	return nil
+}
+
+// ValidatorIndex
+func (v *ValidatorIndex) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ValidatorIndex")
+
+	var val ValidatorIndex
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ValidatorIndex: %v", val))
+
+	*v = val
+	return nil
+}
+
+// BandersnatchVrfSignature
+func (b *BandersnatchVrfSignature) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BandersnatchVrfSignature")
+
+	var val BandersnatchVrfSignature
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BandersnatchVrfSignature: %v", val))
+
+	*b = val
+	return nil
+}
+
+// Header
+func (t *Header) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TestHeader")
+
+	var err error
+
+	if err = t.Parent.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.ParentStateRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.ExtrinsicHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	epochMarkPointerFlag, err := d.ReadPointerFlag()
+	epochMarkPointerIsNil := epochMarkPointerFlag == 0
+	if epochMarkPointerIsNil {
+		cLog(Yellow, "EpochMark is nil")
+	} else {
+		cLog(Yellow, "EpochMark is not nil")
+		if t.EpochMark == nil {
+			t.EpochMark = &EpochMark{}
+		}
+
+		if err = t.EpochMark.Decode(d); err != nil {
+			return err
+		}
+	}
+
+	ticketsMarkPointerFlag, err := d.ReadPointerFlag()
+	ticketsMarkPointerIsNil := ticketsMarkPointerFlag == 0
+	if ticketsMarkPointerIsNil {
+		cLog(Yellow, "TicketsMark is nil")
+	} else {
+		cLog(Yellow, "TicketsMark is not nil")
+		if t.TicketsMark == nil {
+			t.TicketsMark = &TicketsMark{}
+		}
+
+		if err = t.TicketsMark.Decode(d); err != nil {
+			return err
+		}
+	}
+
+	if err = t.OffendersMark.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.AuthorIndex.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.EntropySource.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.Seal.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BandersnatchRingVrfSignature
+func (b *BandersnatchRingVrfSignature) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BandersnatchRingVrfSignature")
+
+	var val BandersnatchRingVrfSignature
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BandersnatchRingVrfSignature: %v", val))
+
+	*b = val
+	return nil
+}
+
+func (t *TicketEnvelope) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketEnvelope")
+
+	var err error
+
+	if err = t.Attempt.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TicketsExtrinsic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketsExtrinsic")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	tickets := make([]TicketEnvelope, length)
+	for i := uint64(0); i < length; i++ {
+		if err = tickets[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*t = tickets
+
+	return nil
+}
+
+// ServiceId
+func (s *ServiceId) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceId")
+
+	var val ServiceId
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+
+	*s = val
+	return nil
+}
+
+// ByteSequence
+func (b *ByteSequence) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ByteSequence")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	byteSequence := make([]byte, length)
+	_, err = d.buf.Read(byteSequence)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ByteSequence: %v", byteSequence))
+
+	*b = byteSequence
+
+	return nil
+}
+
+// Preimage
+func (p *Preimage) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Preimage")
+
+	var err error
+
+	if err = p.Requester.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.Blob.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PreimagesExtrinsic
+func (p *PreimagesExtrinsic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding PreimagesExtrinsic")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	preimages := make([]Preimage, length)
+	for i := uint64(0); i < length; i++ {
+		if err = preimages[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*p = preimages
+
+	return nil
+}
+
+// type GuaranteesExtrinsic []ReportGuarantee
+// type ReportGuarantee struct {
+// 	Report     WorkReport           `json:"report"`
+// 	Slot       TimeSlot             `json:"slot,omitempty"`
+// 	Signatures []ValidatorSignature `json:"signatures,omitempty"`
+// }
+
+// Ed25519Signature
+func (e *Ed25519Signature) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Ed25519Signature")
+
+	var val Ed25519Signature
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Ed25519Signature: %v", val))
+
+	*e = val
+	return nil
+}
+
+// ValidatorSignature
+func (v *ValidatorSignature) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ValidatorSignature")
+
+	var err error
+
+	if err = v.ValidatorIndex.Decode(d); err != nil {
+		return err
+	}
+
+	if err = v.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// type WorkPackageSpec struct {
+// 	Hash         WorkPackageHash `json:"hash,omitempty"`
+// 	Length       U32             `json:"length,omitempty"`
+// 	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
+// 	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
+// 	ExportsCount U16             `json:"exports_count,omitempty"`
+// }
+
+// ErausreRoot
+func (e *ErasureRoot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ErasureRoot")
+
+	var val ErasureRoot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ErasureRoot: %v", val))
+
+	*e = val
+	return nil
+}
+
+// ExportsRoot
+func (e *ExportsRoot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ExportsRoot")
+
+	var val ExportsRoot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExportsRoot: %v", val))
+
+	*e = val
+	return nil
+}
+
+// WorkPackageSpec
+func (w *WorkPackageSpec) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkPackageSpec")
+
+	var err error
+
+	if err = w.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Length.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.ErasureRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.ExportsRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.ExportsCount.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BeefyRoot
+func (b *BeefyRoot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BeefyRoot")
+
+	var val BeefyRoot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BeefyRoot: %v", val))
+
+	*b = val
+	return nil
+}
+
+func (r *RefineContext) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding RefineContext")
+
+	var err error
+
+	if err = r.Anchor.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.StateRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.BeefyRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.LookupAnchor.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.LookupAnchorSlot.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	prerequisites := make([]OpaqueHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = prerequisites[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	r.Prerequisites = prerequisites
+
+	return nil
+}
+
+// CoreIndex
+func (c *CoreIndex) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding CoreIndex")
+
+	var val CoreIndex
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("CoreIndex: %v", val))
+
+	*c = val
+	return nil
+}
+
+// WorkPackageHash
+func (w *WorkPackageHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkPackageHash")
+
+	var val WorkPackageHash
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("WorkPackageHash: %v", val))
+
+	*w = val
+	return nil
+}
+
+// SegementRootLookupItem
+func (s *SegmentRootLookupItem) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding SegmentRootLookupItem")
+
+	var err error
+
+	if err = s.WorkPackageHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.SegmentTreeRoot.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SegmentRootLookup
+func (s *SegmentRootLookup) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding SegmentRootLookup")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	segmentRootLookup := make([]SegmentRootLookupItem, length)
+	for i := uint64(0); i < length; i++ {
+		if err = segmentRootLookup[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*s = segmentRootLookup
+
+	return nil
+}
+
+// WorkExecResult
+func (w *WorkExecResult) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkExecResult")
+
+	var err error
+
+	// Get the first byte
+	firstByte, err := d.buf.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	// make the map
+	*w = WorkExecResult{}
+
+	cLog(Yellow, "WorkExecResult is error")
+
+	switch firstByte {
+	case 0:
+		cLog(Yellow, "WorkExecResultOk")
+
+		// decode byteseuqnce
+		var byteSequence ByteSequence
+		if err = byteSequence.Decode(d); err != nil {
+			return err
+		}
+
+		// set the map
+		(*w)["ok"] = byteSequence
+	case 1:
+		cLog(Yellow, "WorkExecResultOutOfGas")
+		(*w)["out-of-gas"] = nil
+	case 2:
+		cLog(Yellow, "WorkExecResultPanic")
+		(*w)["panic"] = nil
+	case 3:
+		cLog(Yellow, "WorkExecResultBadExports")
+		(*w)["bad-exports"] = nil
+	case 4:
+		cLog(Yellow, "WorkExecResultBadCode")
+		(*w)["bad-code"] = nil
+	case 5:
+		cLog(Yellow, "WorkExecResultCodeOversize")
+		(*w)["code-oversize"] = nil
+	}
+
+	return nil
+}
+
+// Gas
+func (g *Gas) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Gas")
+
+	var val Gas
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Gas: %v", val))
+
+	*g = val
+	return nil
+}
+
+func (w *WorkResult) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkResult")
+
+	var err error
+
+	if err = w.ServiceId.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.CodeHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.PayloadHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.AccumulateGas.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Result.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WorkReport
+func (w *WorkReport) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkReport")
+
+	var err error
+
+	if err = w.PackageSpec.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Context.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.CoreIndex.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.AuthorizerHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.AuthOutput.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.SegmentRootLookup.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	results := make([]WorkResult, length)
+	for i := uint64(0); i < length; i++ {
+		if err = results[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	w.Results = results
+
+	return nil
+}
+
+// ReportGuarantee
+func (r *ReportGuarantee) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ReportGuarantee")
+
+	var err error
+
+	// Report
+	if err = r.Report.Decode(d); err != nil {
+		return err
+	}
+
+	// Slot
+	if err = r.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	// Signatures
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	signatures := make([]ValidatorSignature, length)
+	for i := uint64(0); i < length; i++ {
+		if err = signatures[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	r.Signatures = signatures
+
+	return nil
+}
+
+// GuaranteesExtrinsic
+func (g *GuaranteesExtrinsic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding GuaranteesExtrinsic")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	guarantees := make([]ReportGuarantee, length)
+	for i := uint64(0); i < length; i++ {
+		if err = guarantees[i].Decode(d); err != nil {
+			return err
+		}
+	}
+	*g = guarantees
+
+	return nil
+}
+
+// AvailAssurance
+func (a *AvailAssurance) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AvailAssurance")
+
+	var err error
+
+	if err = a.Anchor.Decode(d); err != nil {
+		return err
+	}
+
+	bitfield := make([]byte, AvailBitfieldBytes)
+	_, err = d.buf.Read(bitfield)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BitField: %v", bitfield))
+
+	a.Bitfield = bitfield
+
+	if err = a.ValidatorIndex.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AssurancesExtrinsic
+func (a *AssurancesExtrinsic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AssurancesExtrinsic")
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	assurances := make([]AvailAssurance, length)
+	for i := uint64(0); i < length; i++ {
+		if err = assurances[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = assurances
+
+	return nil
+}
+
+// WorkReportHash
+func (w *WorkReportHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkReportHash")
+
+	var val WorkReportHash
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("WorkReportHash: %v", val))
+
+	*w = val
+	return nil
+}
+
+// Culprit
+func (c *Culprit) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Culprit")
+
+	var err error
+
+	if err = c.Target.Decode(d); err != nil {
+		return err
+	}
+
+	if err = c.Key.Decode(d); err != nil {
+		return err
+	}
+
+	if err = c.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Fault
+func (f *Fault) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Fault")
+
+	var err error
+
+	if err = f.Target.Decode(d); err != nil {
+		return err
+	}
+
+	// read a byte for bool
+	vote, err := d.buf.ReadByte()
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Vote: %v", vote))
+
+	f.Vote = vote == 1
+
+	if err = f.Key.Decode(d); err != nil {
+		return err
+	}
+
+	if err = f.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// U8
+func (u *U8) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding U8")
+
+	var val U8
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("U8: %v", val))
+
+	*u = val
+	return nil
+}
+
+// U16
+func (u *U16) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding U16")
+
+	var val U16
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("U16: %v", val))
+
+	*u = val
+	return nil
+}
+
+// U32
+func (u *U32) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding U32")
+
+	var val U32
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("U32: %v", val))
+
+	*u = val
+	return nil
+}
+
+// U64
+func (u *U64) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding U64")
+
+	var val U64
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("U64: %v", val))
+
+	*u = val
+	return nil
+}
+
+// Judgement
+func (j *Judgement) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Judgement")
+
+	var err error
+
+	// read a byte for bool
+	vote, err := d.buf.ReadByte()
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Vote: %v", vote))
+
+	j.Vote = vote == 1
+
+	if err = j.Index.Decode(d); err != nil {
+		return err
+	}
+
+	if err = j.Signature.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *Verdict) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Verdict")
+
+	var err error
+
+	if err = v.Target.Decode(d); err != nil {
+		return err
+	}
+
+	if err = v.Age.Decode(d); err != nil {
+		return err
+	}
+
+	length := ValidatorsSuperMajority
+
+	// make the slice with length
+	votes := make([]Judgement, length)
+	for i := 0; i < length; i++ {
+		if err = votes[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	v.Votes = votes
+
+	return nil
+}
+
+// DisputesExtrinsic
+func (d *DisputesExtrinsic) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding DisputesExtrinsic")
+
+	var err error
+
+	length, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	verdicts := make([]Verdict, length)
+	for i := uint64(0); i < length; i++ {
+		if err = verdicts[i].Decode(decoder); err != nil {
+			return err
+		}
+	}
+
+	d.Verdicts = verdicts
+
+	length, err = decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	culprits := make([]Culprit, length)
+	for i := uint64(0); i < length; i++ {
+		if err = culprits[i].Decode(decoder); err != nil {
+			return err
+		}
+	}
+
+	d.Culprits = culprits
+
+	length, err = decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// make the slice with length
+	faults := make([]Fault, length)
+	for i := uint64(0); i < length; i++ {
+		if err = faults[i].Decode(decoder); err != nil {
+			return err
+		}
+	}
+
+	d.Faults = faults
+
+	return nil
+}
+
+// Extrinsic
+func (e *Extrinsic) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Extrinsic")
+
+	var err error
+
+	if err = e.Tickets.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Preimages.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Guarantees.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Assurances.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Disputes.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Block
+func (b *Block) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Block")
+
+	var err error
+
+	if err = b.Header.Decode(d); err != nil {
+		return err
+	}
+
+	if err = b.Extrinsic.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
