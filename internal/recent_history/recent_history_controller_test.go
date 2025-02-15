@@ -579,10 +579,10 @@ func TestRecentHistory(t *testing.T) {
 			}
 			// Test non-existing header hash
 			if rhc.CheckDuplicate(my.Input.HeaderHash) != false {
-				t.Errorf("[%d] Expected false for non-existing header hash %x", i, my.Input.HeaderHash)
+				t.Errorf("[%d] Expected false for non-existing header hash %x :", i, my.Input.HeaderHash)
 			}
 		} else if rhc.Betas == nil {
-			fmt.Printf("[%d]PreState Beta is empty\n", i)
+			fmt.Printf("[%d] PreState Beta is empty\n", i)
 		}
 
 		// Test AddToBetaDagger

@@ -22,5 +22,5 @@ type HistoryOutput struct { // null
 }
 
 type HistoryState struct {
-	Beta BlocksHistory `json:"beta"`
+	Beta types.BlocksHistory `json:"beta"`
 }
