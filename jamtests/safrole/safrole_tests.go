@@ -1,6 +1,9 @@
 package jamtests
 
 import (
+	"encoding/json"
+	"errors"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -39,7 +42,7 @@ type SafroleState struct {
 	GammaA        types.TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
 	GammaS        types.TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
 	GammaZ        types.BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
-	PostOffenders []types.Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
+	PostOffenders []types.Ed25519Public            `json:"post_offenders"` // Posterior offenders sequence
 }
 
 const (
@@ -51,3 +54,25 @@ const (
 	Reserved                                 // 5 Reserved
 	DuplicateTicket                          // 6 Found a ticket duplicate
 )
+
+var safroleErrorMap = map[string]SafroleErrorCode{
+	"bad_slot":           BadSlot,
+	"unexpected_ticket":  UnexpectedTicket,
+	"bad_ticket_order":   BadTicketOrder,
+	"bad_ticket_proof":   BadTicketProof,
+	"bad_ticket_attempt": BadTicketAttempt,
+	"reserved":           Reserved,
+	"duplicate_ticket":   DuplicateTicket,
+}
+
+func (e *SafroleErrorCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if val, ok := safroleErrorMap[str]; ok {
+			*e = val
+			return nil
+		}
+		return errors.New("invalid error code name: " + str)
+	}
+	return errors.New("invalid error code format, expected string")
+}
