@@ -83,12 +83,12 @@ func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint
 // djump implements the dynamic jump function (A.18)
 func Djump(target uint32, jumpTable []uint32, basicBlocks []uint32) (ExitReasonTypes, uint32) {
 	if target == math.MaxUint32-ZZ+1 {
-		return HALT, target // Special case: return the address as is.
+		return HALT, target // Special case: return the address as is. // TODO design for returning iota
 	}
-	if target == 0 || target > uint32(len(jumpTable))*ZA || target%ZA != 0 || !IsBasicBlock(jumpTable[target/ZA-1], basicBlocks) {
-		return PANIC, target // If the target is invalid, panic.
+	if target == 0 || target > uint32(len(jumpTable))*ZA || target%ZA != 0 || !IsBasicBlock(jumpTable[target/ZA], basicBlocks) {
+		return PANIC, target // If the target is invalid, panic. // TODO design for returning iota
 	}
-	return CONTINUE, jumpTable[target/ZA-1] // Otherwise, jump to the target.
+	return CONTINUE, jumpTable[target/ZA] // Otherwise, jump to the target.
 }
 
 // contains checks if a slice contains a specific value.
