@@ -208,6 +208,10 @@ func (o *OffendersMark) Decode(d *Decoder) error {
 		return err
 	}
 
+	if length == 0 {
+		return nil
+	}
+
 	// make the slice with length
 	offenders := make([]Ed25519Public, length)
 	for i := uint64(0); i < length; i++ {
@@ -365,6 +369,10 @@ func (t *TicketsExtrinsic) Decode(d *Decoder) error {
 		return err
 	}
 
+	if length == 0 {
+		return nil
+	}
+
 	// make the slice with length
 	tickets := make([]TicketEnvelope, length)
 	for i := uint64(0); i < length; i++ {
@@ -402,6 +410,10 @@ func (b *ByteSequence) Decode(d *Decoder) error {
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	// make the slice with length
@@ -443,6 +455,10 @@ func (p *PreimagesExtrinsic) Decode(d *Decoder) error {
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	// make the slice with length
@@ -496,14 +512,6 @@ func (v *ValidatorSignature) Decode(d *Decoder) error {
 
 	return nil
 }
-
-// type WorkPackageSpec struct {
-// 	Hash         WorkPackageHash `json:"hash,omitempty"`
-// 	Length       U32             `json:"length,omitempty"`
-// 	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
-// 	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-// 	ExportsCount U16             `json:"exports_count,omitempty"`
-// }
 
 // ErausreRoot
 func (e *ErasureRoot) Decode(d *Decoder) error {
@@ -606,7 +614,12 @@ func (r *RefineContext) Decode(d *Decoder) error {
 		return err
 	}
 
-	// make the slice with length
+	// Default slice is nil, you can't make a slice with length 0
+	if length == 0 {
+		return nil
+	}
+
+	// Make the slice with length
 	prerequisites := make([]OpaqueHash, length)
 	for i := uint64(0); i < length; i++ {
 		if err = prerequisites[i].Decode(d); err != nil {
@@ -673,6 +686,10 @@ func (s *SegmentRootLookup) Decode(d *Decoder) error {
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	// make the slice with length
@@ -814,6 +831,10 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 
+	if length == 0 {
+		return nil
+	}
+
 	// make the slice with length
 	results := make([]WorkResult, length)
 	for i := uint64(0); i < length; i++ {
@@ -849,6 +870,10 @@ func (r *ReportGuarantee) Decode(d *Decoder) error {
 		return err
 	}
 
+	if length == 0 {
+		return nil
+	}
+
 	// make the slice with length
 	signatures := make([]ValidatorSignature, length)
 	for i := uint64(0); i < length; i++ {
@@ -871,6 +896,10 @@ func (g *GuaranteesExtrinsic) Decode(d *Decoder) error {
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	// make the slice with length
@@ -922,6 +951,10 @@ func (a *AssurancesExtrinsic) Decode(d *Decoder) error {
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
+	}
+
+	if length == 0 {
+		return nil
 	}
 
 	// make the slice with length
@@ -1124,45 +1157,50 @@ func (d *DisputesExtrinsic) Decode(decoder *Decoder) error {
 		return err
 	}
 
-	// make the slice with length
-	verdicts := make([]Verdict, length)
-	for i := uint64(0); i < length; i++ {
-		if err = verdicts[i].Decode(decoder); err != nil {
-			return err
+	if length != 0 {
+		// make the slice with length
+		verdicts := make([]Verdict, length)
+		for i := uint64(0); i < length; i++ {
+			if err = verdicts[i].Decode(decoder); err != nil {
+				return err
+			}
 		}
+		d.Verdicts = verdicts
 	}
-
-	d.Verdicts = verdicts
 
 	length, err = decoder.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	// make the slice with length
-	culprits := make([]Culprit, length)
-	for i := uint64(0); i < length; i++ {
-		if err = culprits[i].Decode(decoder); err != nil {
-			return err
+	if length != 0 {
+		// make the slice with length
+		culprits := make([]Culprit, length)
+		for i := uint64(0); i < length; i++ {
+			if err = culprits[i].Decode(decoder); err != nil {
+				return err
+			}
 		}
-	}
 
-	d.Culprits = culprits
+		d.Culprits = culprits
+	}
 
 	length, err = decoder.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	// make the slice with length
-	faults := make([]Fault, length)
-	for i := uint64(0); i < length; i++ {
-		if err = faults[i].Decode(decoder); err != nil {
-			return err
+	if length != 0 {
+		// make the slice with length
+		faults := make([]Fault, length)
+		for i := uint64(0); i < length; i++ {
+			if err = faults[i].Decode(decoder); err != nil {
+				return err
+			}
 		}
-	}
 
-	d.Faults = faults
+		d.Faults = faults
+	}
 
 	return nil
 }
@@ -1209,6 +1247,169 @@ func (b *Block) Decode(d *Decoder) error {
 	if err = b.Extrinsic.Decode(d); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// ImportSpec
+func (i *ImportSpec) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ImportSpec")
+
+	var err error
+
+	if err = i.TreeRoot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = i.Index.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ExtrinsicSpec
+func (e *ExtrinsicSpec) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ExtrinsicSpec")
+
+	var err error
+
+	if err = e.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Len.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WorkItem
+func (w *WorkItem) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkItem")
+
+	var err error
+
+	if err = w.Service.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.CodeHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Payload.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.RefineGasLimit.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.AccumulateGasLimit.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	importSegments := make([]ImportSpec, length)
+	for i := uint64(0); i < length; i++ {
+		if err = importSegments[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	w.ImportSegments = importSegments
+
+	length, err = d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	extrinsic := make([]ExtrinsicSpec, length)
+	for i := uint64(0); i < length; i++ {
+		if err = extrinsic[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	w.Extrinsic = extrinsic
+
+	if err = w.ExportCount.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Authorizer
+func (a *Authorizer) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Authorizer")
+
+	var err error
+
+	if err = a.CodeHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Params.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WorkPackage
+func (w *WorkPackage) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkPackage")
+
+	var err error
+
+	if err = w.Authorization.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.AuthCodeHost.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Authorizer.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Context.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	items := make([]WorkItem, length)
+	for i := uint64(0); i < length; i++ {
+		if err = items[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	w.Items = items
 
 	return nil
 }

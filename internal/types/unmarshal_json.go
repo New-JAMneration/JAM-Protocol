@@ -331,6 +331,7 @@ func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 }
 
 func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
+	fmt.Println("SegmentRootLookupItem")
 	var temp struct {
 		WorkPackageHash string `json:"work_package_hash,omitempty"`
 		SegmentTreeRoot string `json:"segment_tree_root,omitempty"`
@@ -953,5 +954,44 @@ func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	copy(a[:], decoded)
+	return nil
+}
+
+// SegmentRootLookup
+func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []SegmentRootLookupItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*s = temp
+	return nil
+}
+
+// OffendersMark
+func (o *OffendersMark) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	for _, offender := range temp {
+		offenderBytes, err := hex.DecodeString(offender[2:])
+		if err != nil {
+			return err
+		}
+		*o = append(*o, Ed25519Public(offenderBytes))
+	}
+
 	return nil
 }

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 // Constants
@@ -20,50 +19,6 @@ const (
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
 )
-
-func TestDecoderBlock(t *testing.T) {
-	blockBinPath := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", "data", "block.bin")
-	blockBinData, err := LoadJAMTestBinaryCase(blockBinPath)
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-
-	block := types.Block{}
-	decoder := types.NewDecoder()
-	err = decoder.Decode(blockBinData, &block)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Load json file
-	blockJsonPath := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", "data", "block.json")
-	blockJsonData, err := LoadJAMTestJsonCase(blockJsonPath, reflect.TypeOf(types.Block{}))
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-
-	// Convert blockJsonData to Block struct
-	blockJson := blockJsonData.(types.Block)
-
-	// convert the block to string and compare
-	blockString, _ := json.Marshal(block)
-	blockJsonString, _ := json.Marshal(blockJson)
-
-	if string(blockString) != string(blockJsonString) {
-		t.Errorf("Error: %v", err)
-	}
-
-	encoder := utilities.NewEncoder()
-	encodedBlock, err := encoder.Encode(block)
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-
-	// Compare the two blocks
-	if !reflect.DeepEqual(blockBinData, encodedBlock) {
-		t.Errorf("Error: %v", err)
-	}
-}
 
 func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
 	// Create a new instance of the struct
@@ -107,4 +62,86 @@ func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
 	}
 
 	return byteValue, nil
+}
+
+func TestDecodeJamTestVectorsCodec(t *testing.T) {
+	testCases := map[reflect.Type][]string{
+		reflect.TypeOf(types.AssurancesExtrinsic{}): {
+			"assurances_extrinsic",
+		},
+		reflect.TypeOf(types.Block{}): {
+			"block",
+		},
+		reflect.TypeOf(types.DisputesExtrinsic{}): {
+			"disputes_extrinsic",
+		},
+		reflect.TypeOf(types.Extrinsic{}): {
+			"extrinsic",
+		},
+		reflect.TypeOf(types.GuaranteesExtrinsic{}): {
+			"guarantees_extrinsic",
+		},
+		reflect.TypeOf(types.Header{}): {
+			"header_0",
+			"header_1",
+		},
+		reflect.TypeOf(types.PreimagesExtrinsic{}): {
+			"preimages_extrinsic",
+		},
+		reflect.TypeOf(types.RefineContext{}): {
+			"refine_context",
+		},
+		reflect.TypeOf(types.TicketsExtrinsic{}): {
+			"tickets_extrinsic",
+		},
+		reflect.TypeOf(types.WorkItem{}): {
+			"work_item",
+		},
+		reflect.TypeOf(types.WorkPackage{}): {
+			"work_package",
+		},
+		reflect.TypeOf(types.WorkReport{}): {
+			"work_report",
+		},
+		reflect.TypeOf(types.WorkResult{}): {
+			"work_result_0",
+			"work_result_1",
+		},
+	}
+
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", "data")
+
+	for structType, fileNames := range testCases {
+		for _, filename := range fileNames {
+			// Read the binary file
+			binPath := filepath.Join(dir, filename+BIN_EXTENTION)
+			binData, err := LoadJAMTestBinaryCase(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			structValue := reflect.New(structType).Elem()
+			err = decoder.Decode(binData, structValue.Addr().Interface())
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			jsonPath := filepath.Join(dir, filename+JSON_EXTENTION)
+			jsonData, err := LoadJAMTestJsonCase(jsonPath, structType)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(structValue.Interface(), jsonData) {
+				log.Println("❌", "[ ---- ]", filename)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Println("✅", "[ ---- ]", filename)
+			}
+		}
+	}
 }

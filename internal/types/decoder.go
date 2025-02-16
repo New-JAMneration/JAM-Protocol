@@ -200,9 +200,13 @@ func (d *Decoder) DecodeLength() (uint64, error) {
 	// Read lengthBytes bytes to know the length of the slice
 	// first byte + remaining bytes
 	remainingLengthBytes := make([]byte, remaningByteSize)
-	_, err = d.buf.Read(remainingLengthBytes)
-	if err != nil {
-		return 0, err
+
+	// Avoid getting an error if the cursor is at the end of the buffer
+	if remaningByteSize != 0 {
+		_, err = d.buf.Read(remainingLengthBytes)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// Concatenate the lengthFlag and the remaining bytes
