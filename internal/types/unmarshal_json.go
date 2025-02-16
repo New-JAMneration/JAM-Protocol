@@ -928,11 +928,6 @@ type AccountInfo struct {
 	History   AccountInfoHistory `json:"history"`
 }
 
-type AccountsMapEntry struct {
-	Id   ServiceId   `json:"id"`
-	Info AccountInfo `json:"info"`
-}
-
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
 		Key   DictionaryKey `json:"key"`
@@ -948,5 +943,15 @@ func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 		(*aih)[item.Key] = item.Value
 	}
 
+	return nil
+}
+
+// unmarshal AccumulateRoot
+func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(a[:], decoded)
 	return nil
 }
