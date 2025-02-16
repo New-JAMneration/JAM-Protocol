@@ -1,24 +1,27 @@
 package types
 
 import (
+	"log"
 	"os"
 	"time"
 )
 
-var TEST_MDOE = "tiny"
+var TEST_MODE = "tiny"
 
 func SetTestMode() {
-	TEST_MDOE = os.Getenv("TEST_MODE")
-	if TEST_MDOE == "" {
+	TEST_MODE = os.Getenv("TEST_MODE")
+	if TEST_MODE == "" {
 		return
 	}
 
-	if TEST_MDOE == "tiny" {
+	if TEST_MODE == "tiny" {
+		log.Println("🚀 Tiny mode activated")
 		SetTinyMode()
 		return
 	}
 
-	if TEST_MDOE == "full" {
+	if TEST_MODE == "full" {
+		log.Println("🚀 Full mode activated")
 		SetFullMode()
 		return
 	}
