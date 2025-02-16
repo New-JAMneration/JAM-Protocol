@@ -134,48 +134,52 @@ func TestOmega(t *testing.T) {
 }
 
 func TestBranch(t *testing.T) {
-	testCases := []struct {
-		name               string
-		target             uint32
-		condition          bool
-		basicBlocks        []uint32
-		expectedExitReason ExitReasonTypes
-		expectedPC         uint32
+	tests := []struct {
+		name        string
+		pc          ProgramCounter
+		offset      uint32
+		condition   bool
+		basicBlocks []uint32
+		wantExit    ExitReasonTypes
+		wantPC      ProgramCounter
 	}{
 		{
-			"BranchNotTaken",
-			8,
-			false,
-			[]uint32{0, 4, 8},
-			CONTINUE,
-			1,
+			name:        "ContinueExecution",
+			pc:          0,
+			offset:      10,
+			condition:   false,
+			basicBlocks: []uint32{0, 10, 20, 30},
+			wantExit:    CONTINUE,
+			wantPC:      0,
 		},
 		{
-			"BranchTaken",
-			8,
-			true,
-			[]uint32{0, 4, 8},
-			CONTINUE,
-			8,
+			name:        "JumpToBasicBlock",
+			pc:          0,
+			offset:      10,
+			condition:   true,
+			basicBlocks: []uint32{0, 10, 20, 30},
+			wantExit:    CONTINUE,
+			wantPC:      10,
 		},
 		{
-			"BranchToInvalidTarget",
-			10,
-			true,
-			[]uint32{0, 4, 8},
-			PANIC,
-			1,
+			name:        "InvalidTarget",
+			pc:          0,
+			offset:      10,
+			condition:   true,
+			basicBlocks: []uint32{0, 20, 30}, // 10 is not a basic block
+			wantExit:    PANIC,
+			wantPC:      0,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			exitReason, newPC := Branch(tc.target, tc.condition, tc.basicBlocks)
-			if exitReason != tc.expectedExitReason {
-				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exitReason, newPC := Branch(tt.pc, tt.offset, tt.condition, tt.basicBlocks)
+			if exitReason != tt.wantExit {
+				t.Errorf("Branch() exitReason = %v, want %v", exitReason, tt.wantExit)
 			}
-			if newPC != tc.expectedPC {
-				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
+			if newPC != tt.wantPC {
+				t.Errorf("Branch() newPC = %v, want %v", newPC, tt.wantPC)
 			}
 		})
 	}
