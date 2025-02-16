@@ -61,11 +61,13 @@ type PreimageState struct {
 type PreimageErrorCode types.ErrorCode
 
 const (
-	PreimageUnneeded PreimageErrorCode = iota // 0
+	PreimageUnneeded         PreimageErrorCode = iota // 0
+	PreimagesNotSortedUnique PreimageErrorCode = 1
 )
 
 var preimageErrorMap = map[string]PreimageErrorCode{
-	"preimage_unneeded": PreimageUnneeded,
+	"preimage_unneeded":           PreimageUnneeded,
+	"preimages_not_sorted_unique": PreimagesNotSortedUnique,
 }
 
 func (e *PreimageErrorCode) UnmarshalJSON(data []byte) error {
