@@ -68,7 +68,7 @@ func GetTestJsonFiles(dir string) []string {
 }
 
 func TestStatistics(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MDOE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
 	for _, file := range jsonFiles {
 		filename := filepath.Join(dir, file)
