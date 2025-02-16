@@ -1,6 +1,9 @@
 package jamtests
 
 import (
+	"encoding/json"
+	"errors"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -12,7 +15,7 @@ type DisputeTestCase struct {
 }
 
 type DisputeInput struct {
-	disputes types.DisputesExtrinsic `json:"disputes"`
+	Disputes types.DisputesExtrinsic `json:"disputes"`
 }
 
 type DisputeOutputData struct {
@@ -50,3 +53,32 @@ const (
 	BadValidatorIndex                                 // 12
 	BadSignature                                      // 13
 )
+
+var disputeErrorMap = map[string]DisputeErrorCode{
+	"already_judged":               AlreadyJudged,
+	"bad_vote_split":               BadVoteSplit,
+	"verdicts_not_sorted_unique":   VerdictsNotSortedUnique,
+	"judgements_not_sorted_unique": JudgementsNotSortedUnique,
+	"culprits_not_sorted_unique":   CulpritsNotSortedUnique,
+	"faults_not_sorted_unique":     FaultsNotSortedUnique,
+	"not_enough_culprits":          NotEnoughCulprits,
+	"not_enough_faults":            NotEnoughFaults,
+	"culprits_verdict_not_bad":     CulpritsVerdictNotBad,
+	"fault_verdict_wrong":          FaultVerdictWrong,
+	"offender_already_reported":    OffenderAlreadyReported,
+	"bad_judgement_age":            BadJudgementAge,
+	"bad_validator_index":          BadValidatorIndex,
+	"bad_signature":                BadSignature,
+}
+
+func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if val, ok := disputeErrorMap[str]; ok {
+			*e = val
+			return nil
+		}
+		return errors.New("invalid error code name: " + str)
+	}
+	return errors.New("invalid error code format, expected string")
+}
