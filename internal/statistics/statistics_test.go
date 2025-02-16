@@ -9,8 +9,16 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
+
+var JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
+
+func TestMain(m *testing.M) {
+	types.SetTestMode()
+	m.Run()
+}
 
 func LoadStatisticsTestCase(filename string) (jamtests.StatisticsTestCase, error) {
 	file, err := os.Open(filename)
@@ -60,10 +68,10 @@ func GetTestJsonFiles(dir string) []string {
 }
 
 func TestStatistics(t *testing.T) {
-	dir := "../../pkg/test_data/jam-test-vectors/statistics/tiny/"
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
 	for _, file := range jsonFiles {
-		filename := dir + file
+		filename := filepath.Join(dir, file)
 		statisticsTestCase, err := LoadStatisticsTestCase(filename)
 		if err != nil {
 			t.Errorf("Error loading statistics test case: %v", err)
