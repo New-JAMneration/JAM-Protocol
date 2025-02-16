@@ -4,6 +4,7 @@ package PolkaVM
 import (
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -127,6 +128,114 @@ func TestOmega(t *testing.T) {
 			// fmt.Printf("want: %v\n", want)
 			if got.([13]uint64)[7] != want {
 				t.Errorf("omega() = %v, want %v", got.([13]uint64)[7], want)
+			}
+		})
+	}
+}
+
+func TestBranch(t *testing.T) {
+	tests := []struct {
+		name        string
+		pc          ProgramCounter
+		offset      uint32
+		condition   bool
+		basicBlocks []uint32
+		wantExit    ExitReasonTypes
+		wantPC      ProgramCounter
+	}{
+		{
+			name:        "ContinueExecution",
+			pc:          0,
+			offset:      10,
+			condition:   false,
+			basicBlocks: []uint32{0, 10, 20, 30},
+			wantExit:    CONTINUE,
+			wantPC:      0,
+		},
+		{
+			name:        "JumpToBasicBlock",
+			pc:          0,
+			offset:      10,
+			condition:   true,
+			basicBlocks: []uint32{0, 10, 20, 30},
+			wantExit:    CONTINUE,
+			wantPC:      10,
+		},
+		{
+			name:        "InvalidTarget",
+			pc:          0,
+			offset:      10,
+			condition:   true,
+			basicBlocks: []uint32{0, 20, 30}, // 10 is not a basic block
+			wantExit:    PANIC,
+			wantPC:      0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exitReason, newPC := Branch(tt.pc, tt.offset, tt.condition, tt.basicBlocks)
+			if exitReason != tt.wantExit {
+				t.Errorf("Branch() exitReason = %v, want %v", exitReason, tt.wantExit)
+			}
+			if newPC != tt.wantPC {
+				t.Errorf("Branch() newPC = %v, want %v", newPC, tt.wantPC)
+			}
+		})
+	}
+}
+
+func TestDjump(t *testing.T) {
+	testCases := []struct {
+		name               string
+		target             uint32
+		jumpTable          []uint32
+		basicBlocks        []uint32
+		expectedExitReason ExitReasonTypes
+		expectedPC         uint32
+	}{
+		{
+			"DjumpToValidTarget",
+			2,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			CONTINUE,
+			8,
+		},
+		{
+			"DjumpToInvalidTarget",
+			3,
+			[]uint32{4, 8, 12},
+			[]uint32{0, 4, 8},
+			PANIC,
+			3,
+		},
+		{
+			"InvalidJump_TargetNotBasicBlock",
+			4,
+			[]uint32{10, 20, 30, 40},
+			[]uint32{0, 10, 20, 30}, // 40 is not in basicBlocks
+			CONTINUE,
+			30,
+		},
+		{
+			"SpecialCase_Halt",
+			math.MaxUint32 - ZZ + 1,
+			[]uint32{10, 20, 30, 40},
+			[]uint32{0, 10, 20, 30, 40},
+			HALT,
+			math.MaxUint32 - ZZ + 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			exitReason, newPC := Djump(tc.target, tc.jumpTable, tc.basicBlocks)
+			if exitReason != tc.expectedExitReason {
+				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
+			}
+			if newPC != tc.expectedPC {
+				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
 			}
 		})
 	}
