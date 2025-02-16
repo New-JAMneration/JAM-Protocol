@@ -68,12 +68,14 @@ func PVMExitTuple(reason ExitReasonTypes, meta interface{}) error {
 }
 
 // Branch implements the branch function (A.17)
-func Branch(target uint32, condition bool, basicBlocks []uint32) (ExitReasonTypes, uint32) {
+func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint32) (ExitReasonTypes, ProgramCounter) {
+	// instructions table will define different offset
+	target := pc + ProgramCounter(offset)
 	if !condition {
-		return CONTINUE, 1 // Condition is false, continue execution at next instruction.
+		return CONTINUE, pc // Condition is false, continue execution at next instruction.
 	}
-	if !IsBasicBlock(target, basicBlocks) {
-		return PANIC, 1 // Target is not basic block, panic.
+	if !IsBasicBlock(uint32(target), basicBlocks) {
+		return PANIC, pc // Target is not basic block, panic.
 	}
 	return CONTINUE, target // Otherwise, jump to the target.
 }
