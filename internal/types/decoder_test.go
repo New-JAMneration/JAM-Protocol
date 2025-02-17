@@ -10,15 +10,33 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+
+	// jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	// jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	// jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
+	// jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
+	// jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	// jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
 
 // Constants
 const (
-	MODE                 = "tiny" // tiny or full
+	MODE                 = "full" // tiny or full
 	JSON_EXTENTION       = ".json"
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
 )
+
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
 
 func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
 	// Create a new instance of the struct
@@ -64,7 +82,41 @@ func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
 	return byteValue, nil
 }
 
+func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
+	// Get all files in the directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all files with the target extension
+	var targetFiles []string
+	for _, file := range files {
+		fileName := file.Name()
+		if fileName[len(fileName)-len(extension):] == extension {
+			targetFiles = append(targetFiles, fileName)
+		}
+	}
+
+	return targetFiles, nil
+}
+
+func GetJsonFilename(filename string) string {
+	return filename + JSON_EXTENTION
+}
+
+func GetBinFilename(filename string) string {
+	return filename + BIN_EXTENTION
+}
+
 func TestDecodeJamTestVectorsCodec(t *testing.T) {
+	// The Codec test cases only support tiny mode
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  Codec test cases only support tiny mode")
+	}
+
 	testCases := map[reflect.Type][]string{
 		reflect.TypeOf(types.AssurancesExtrinsic{}): {
 			"assurances_extrinsic",
@@ -137,11 +189,107 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 
 			// Compare the two structs
 			if !reflect.DeepEqual(structValue.Interface(), jsonData) {
-				log.Println("❌", "[ ---- ]", filename)
+				log.Printf("❌ [%s] %s", types.TEST_MODE, filename)
 				t.Errorf("Error: %v", err)
 			} else {
-				log.Println("✅", "[ ---- ]", filename)
+				log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
 			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestDecodeJamTestVectorsStatistics(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		statistics := &jamtests_statistics.StatisticsTestCase{}
+		err = decoder.Decode(binData, statistics)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Read the json file
+		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
+		jsonFileName := GetJsonFilename(filename)
+		jsonFilePath := filepath.Join(dir, jsonFileName)
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_statistics.StatisticsTestCase{}))
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Compare the two structs
+		if !reflect.DeepEqual(statistics, jsonData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Errorf("Error: %v", err)
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+}
+
+// Safrole
+func TestDecodeJamTestVectorsSafrole(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		safrole := &jamtests_safrole.SafroleTestCase{}
+		err = decoder.Decode(binData, safrole)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Read the json file
+		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
+		jsonFileName := GetJsonFilename(filename)
+		jsonFilePath := filepath.Join(dir, jsonFileName)
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_safrole.SafroleTestCase{}))
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Compare the two structs
+		if !reflect.DeepEqual(safrole, jsonData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Errorf("Error: %v", err)
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, binFile)
 		}
 	}
 }
