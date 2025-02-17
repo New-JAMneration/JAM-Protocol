@@ -15,6 +15,7 @@ require (
 require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/google/go-cmp v0.6.0
 	github.com/test-go/testify v1.1.4
 )
 

@@ -137,21 +137,29 @@ func KeyRotate() {
 	tau := priorState.GetTau()
 
 	// Get current time slot
-	now := time.Now().UTC()
-	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-
+	// tauPrime := s.GetIntermediateStates().GetTauInput()
+	var tauPrime types.TimeSlot
+	if s.GetIntermediateStates().GetTauInput() != 0 {
+		now := time.Now().UTC()
+		timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+		tauPrime = types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+	} else {
+		tauPrime = s.GetIntermediateStates().GetTauInput()
+	}
 	// Execute key rotation
 	// newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
-
+	fmt.Println("e: ", e, "\nePrime: ", ePrime)
 	if ePrime > e {
-		z, zErr := UpdateBandersnatchKeyRoot(priorState.GetGammaK())
+		fmt.Println("e: ", e, "\nePrime: ", ePrime)
+
+		z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
 		if zErr != nil {
 			fmt.Printf("Error updating Bandersnatch key root: %v\n", zErr)
 			return
 		}
+		fmt.Println("z: ", z)
 
 		// Update state to posterior state
 		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))

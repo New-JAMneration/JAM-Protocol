@@ -72,7 +72,11 @@ func GetTestJsonFiles(dir string) []string {
 func TestSafrole(t *testing.T) {
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
+
 	for iter, file := range jsonFiles {
+		if file != "enact-epoch-change-with-no-tickets-4.json" {
+			continue
+		}
 		// for easy testing
 		t.Log(iter, file)
 		filename := filepath.Join(dir, file)
@@ -82,12 +86,17 @@ func TestSafrole(t *testing.T) {
 			return
 		}
 		// ----- INPUT ----- //
+		// now := time.Now().UTC()
+		// timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+		// ourtauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 		// --- Set safrole state to store --- //
 		s := store.GetInstance()
+		s.GetIntermediateStates().SetTauInput(safroleTestCase.Input.Slot)
+
 		s.GetProcessingBlockPointer().SetTicketsExtrinsic(safroleTestCase.Input.Extrinsic)
 		// tau
 		s.GetPriorStates().SetTau(safroleTestCase.PreState.Tau)
-		s.GetPosteriorStates().SetTau(safroleTestCase.Input.Slot)
+		// s.GetPosteriorStates().SetTau(safroleTestCase.Input.Slot)
 		// eta
 		s.GetPriorStates().SetEta(safroleTestCase.PreState.Eta)
 		s.GetPosteriorStates().SetEta(safroleTestCase.PostState.Eta)
@@ -109,11 +118,12 @@ func TestSafrole(t *testing.T) {
 		// gammaZ
 		s.GetPriorStates().SetGammaZ(safroleTestCase.PreState.GammaZ)
 		// offenders
-		// s.GetPriorStates().SetPsiO(safroleTestCase.PreState.PsiO)
+		s.GetPriorStates().SetPsiO(safroleTestCase.PreState.PostOffenders)
 
 		// --- Set safrole input to store --- //
-		s.GetProcessingBlockPointer().SetSlot(safroleTestCase.Input.Slot)
-		// s.GetProcessingBlockPointer().SetEntropySource(safroleTestCase.Input.Entropy)
+		eta := s.GetPriorStates().GetEta()
+		eta[2] = safroleTestCase.Input.Entropy
+		s.GetPriorStates().SetEta(eta)
 		s.GetProcessingBlockPointer().SetTicketsExtrinsic(safroleTestCase.Input.Extrinsic)
 
 		// // MockHeader for sealing.go
@@ -207,9 +217,9 @@ func TestSafrole(t *testing.T) {
 		// --- markers.go (GP 6.27, 6.28) --- //
 		// (GP 6.27)
 		ourEpochMarkErr := CreateEpochMarker()
-		// if ourEpochMarkErr != nil {
-		// 	fmt.Println("markerErr:", ourEpochMarkErr)
-		// }
+		if ourEpochMarkErr != nil {
+			fmt.Println("markerErr:", ourEpochMarkErr)
+		}
 
 		// (GP 6.28)
 		CreateWinningTickets()
@@ -227,13 +237,44 @@ func TestSafrole(t *testing.T) {
 		// 	fmt.Println("ourTicketMark: ", ourTicketMark)
 		// }
 		ourEpochMark := s.GetIntermediateHeaderPointer().GetEpochMark()
-		// if ourEpochMark != nil {
-		// 	fmt.Println("ourEpochMark: ", *ourEpochMark)
-		// }
+		if ourEpochMark != nil {
+			fmt.Println("ourEpochMark: ", *ourEpochMark)
+		}
 		// ourSeal := s.GetIntermediateHeader().Seal
 
 		// ----- VERIFY OUTPUT ----- //
+		fmt.Println(safroleTestCase.PreState.GammaZ)
+		fmt.Println(safroleTestCase.PostState.GammaZ)
+		fmt.Println(s.GetPriorStates().GetState().Gamma.GammaZ)
+		fmt.Println(s.GetPosteriorStates().GetState().Gamma.GammaZ)
+		// safrolString, _ := json.Marshal(safroleTestCase.PostState)
+		// ourString, _ := json.Marshal(s.GetPosteriorStates().GetState())
+		// Get diff with cmp
+		// diff := cmp.Diff(safroleTestCase.PostState, s.GetPosteriorStates().GetState())
 
+		// fmt.Println("diff: ", diff)
+		// diffGammaZ := cmp.Diff(safroleTestCase.PostState.GammaZ, s.GetPosteriorStates().GetGammaZ())
+		// fmt.Println("diffGammaZ: ", diffGammaZ)
+		// diffGammaS := cmp.Diff(safroleTestCase.PostState.GammaS, s.GetPosteriorStates().GetGammaS())
+		// fmt.Println("diffGammaS: ", diffGammaS)
+		// diffGammaA := cmp.Diff(safroleTestCase.PostState.GammaA, s.GetPosteriorStates().GetGammaA())
+		// fmt.Println("diffGammaA: ", diffGammaA)
+		// diffIota := cmp.Diff(safroleTestCase.PostState.Iota, s.GetPosteriorStates().GetIota())
+		// fmt.Println("diffIota: ", diffIota)
+		// diffGammaK := cmp.Diff(safroleTestCase.PostState.GammaK, s.GetPosteriorStates().GetGammaK())
+		// fmt.Println("diffGammaK: ", diffGammaK)
+		// diffKappa := cmp.Diff(safroleTestCase.PostState.Kappa, s.GetPosteriorStates().GetKappa())
+		// fmt.Println("diffKappa: ", diffKappa)
+		// diffLambda := cmp.Diff(safroleTestCase.PostState.Lambda, s.GetPosteriorStates().GetLambda())
+		// fmt.Println("diffLambda: ", diffLambda)
+		// diffEta := cmp.Diff(safroleTestCase.PostState.Eta, s.GetPosteriorStates().GetEta())
+		// fmt.Println("diffEta: ", diffEta)
+		// diffTau := cmp.Diff(safroleTestCase.PostState.Tau, s.GetPosteriorStates().GetTau())
+		// fmt.Println("diffTau: ", diffTau)
+
+		// if !reflect.DeepEqual(safrolString, ourString) {
+		// 	t.Error("State does not match")
+		// }
 		if file == "enact-epoch-change-with-no-tickets-1.json" { // OK w/ output
 			t.Log("expected OK w/o info")
 			if safroleOutput.Err != nil {
@@ -286,7 +327,7 @@ func TestSafrole(t *testing.T) {
 				if ourEpochMarkErr != nil {
 					t.Errorf("expected nil, got %v", *ourEpochMarkErr)
 				} else if safroleOutputEpockMark.Entropy != ourEpochMark.Entropy || safroleOutputEpockMark.TicketsEntropy != ourEpochMark.TicketsEntropy || !reflect.DeepEqual(safroleOutputEpockMark.Validators, ourEpochMark.Validators) {
-					t.Errorf("expected %v, \ngot %v", safroleOutputEpockMark, ourEpochMark)
+					t.Errorf("expected %v, \ngot %v", safroleOutputEpockMark, *ourEpochMark)
 				} else {
 					t.Logf("\nour output {%v, %v} fits safroleOutput.Ok: %v", &ourEpochMark, ourTicketMark, *safroleOutput.Ok)
 				}

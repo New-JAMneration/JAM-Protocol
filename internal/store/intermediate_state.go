@@ -15,6 +15,7 @@ type IntermediateState struct {
 	BetaDagger      types.BlocksHistory
 	RhoDagger       types.AvailabilityAssignments
 	RhoDoubleDagger types.AvailabilityAssignments
+	TauInput        types.TimeSlot
 }
 
 func NewIntermediateStates() *IntermediateStates {
@@ -23,6 +24,7 @@ func NewIntermediateStates() *IntermediateStates {
 			BetaDagger:      types.BlocksHistory{},
 			RhoDagger:       types.AvailabilityAssignments{},
 			RhoDoubleDagger: types.AvailabilityAssignments{},
+			TauInput:        0,
 		},
 	}
 }
@@ -38,6 +40,19 @@ func (s *IntermediateStates) SetBetaDagger(betaDagger types.BlocksHistory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.BetaDagger = betaDagger
+}
+
+// TauInput
+func (s *IntermediateStates) GetTauInput() types.TimeSlot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.TauInput
+}
+
+func (s *IntermediateStates) SetTauInput(TauInput types.TimeSlot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.TauInput = TauInput
 }
 
 // RhoDagger
