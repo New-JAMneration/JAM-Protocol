@@ -91,25 +91,23 @@ func ParseMemoryAccessError(invalidAddresses []uint64) (ExitReasonTypes, error) 
 	return PAGE_FAULT, PVMExitTuple(PAGE_FAULT, minAddress/ZP)
 }
 
-// (A.8) get invalid address
+// (A.8) get invalid address // TODO design/align with 4.26 4.27
 func GetInvalidAddress(readAddresses []uint64, writeAddresses []uint64, readableAddresses map[int]bool, writeableAddresses map[int]bool) []uint64 {
 	var invalidAddresses []uint64
 	for _, addr := range readAddresses {
-		if !readableAddresses[int(addr)] {
+		if !readableAddresses[int(addr)/ZP] {
 			invalidAddresses = append(invalidAddresses, addr)
 		}
 	}
 	for _, addr := range writeAddresses {
-		if !writeableAddresses[int(addr)] {
+		if !writeableAddresses[int(addr)/ZP] {
 			invalidAddresses = append(invalidAddresses, addr)
 		}
 	}
-	// 排序並去重
+	// sort + unique
 	sort.Slice(invalidAddresses, func(i, j int) bool {
 		return invalidAddresses[i] < invalidAddresses[j]
 	})
-
-	// 使用 map 去重
 	uniqueAddresses := []uint64{}
 	for i, addr := range invalidAddresses {
 		if i > 0 && invalidAddresses[i] == invalidAddresses[i-1] {
