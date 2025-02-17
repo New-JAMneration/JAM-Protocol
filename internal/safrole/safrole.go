@@ -7,6 +7,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 // GetEpochIndex returns the epoch index of the most recent block't timeslot
@@ -60,16 +61,22 @@ func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
 func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
-	var proverIdx uint = 0
-	vrfHandler, handlerErr := CreateRingVRFHandler(bandersnatchKeys, proverIdx)
-	if handlerErr != nil {
-		return types.BandersnatchRingCommitment{}, handlerErr
-	}
-	defer vrfHandler.Free()
+	ringBytes := []byte{}
+	ringSize := uint(len(bandersnatchKeys))
 
-	commitment, commitmentErr := vrfHandler.GetCommitment()
+	for _, bandersnatch := range bandersnatchKeys {
+		ringBytes = append(ringBytes, bandersnatch[:]...)
+	}
+
+	verifier, err := vrf.NewVerifier(ringBytes, ringSize)
+	if err != nil {
+		fmt.Printf("Failed to create verifier: %v\n", err)
+	}
+	defer verifier.Free()
+
+	commitment, commitmentErr := verifier.GetCommitment()
 	if commitmentErr != nil {
-		return types.BandersnatchRingCommitment{}, commitmentErr
+		fmt.Printf("Failed to get commitment %v\n", commitmentErr)
 	}
 
 	return types.BandersnatchRingCommitment(commitment), nil
@@ -130,7 +137,7 @@ func KeyRotate() {
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 
 	// Execute key rotation
-	//newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
+	// newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
 
