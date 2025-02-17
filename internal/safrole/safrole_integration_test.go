@@ -132,8 +132,8 @@ func TestSafrole(t *testing.T) {
 			if safroleOutput.Ok.TicketsMark != nil {
 				safroleOutputTicketsMark = *safroleOutput.Ok.TicketsMark
 			}
-			// fmt.Println("epockMark: ", epockMark)
-			// fmt.Println("ticketsMark: ", ticketsMark)
+			fmt.Println("safroleOutputEpockMark: ", &safroleOutputEpockMark)
+			fmt.Println("safroleOutputTicketsMark: ", &safroleOutputTicketsMark)
 		} else if safroleOutput.Ok == nil && safroleOutput.Err != nil {
 			t.Log("input safroleErr:", *safroleOutput.Err)
 			// conver to int
@@ -207,26 +207,33 @@ func TestSafrole(t *testing.T) {
 		// --- markers.go (GP 6.27, 6.28) --- //
 		// (GP 6.27)
 		ourEpochMarkErr := CreateEpochMarker()
-		if ourEpochMarkErr != nil {
-			fmt.Println("markerErr:", *ourEpochMarkErr)
-		}
+		// if ourEpochMarkErr != nil {
+		// 	fmt.Println("markerErr:", ourEpochMarkErr)
+		// }
 
 		// (GP 6.28)
 		CreateWinningTickets()
 
 		// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-		outEtErr := CreateNewTicketAccumulator()
-		if outEtErr != nil {
-			fmt.Println("outEtErr:", *outEtErr)
-		}
+		ourEtErr := CreateNewTicketAccumulator()
+		// if ourEtErr != nil {
+		// 	fmt.Println("outEtErr:", ourEtErr)
+		// }
 		// ----- END PROCESS SAFROLE LOGIC ----- //
 
 		// ----- EXTRACT OUR OUTPUT RESULT ----- //
 		ourTicketMark := s.GetIntermediateHeaderPointer().GetTicketsMark()
+		// if ourTicketMark != nil {
+		// 	fmt.Println("ourTicketMark: ", ourTicketMark)
+		// }
 		ourEpochMark := s.GetIntermediateHeaderPointer().GetEpochMark()
+		// if ourEpochMark != nil {
+		// 	fmt.Println("ourEpochMark: ", *ourEpochMark)
+		// }
 		// ourSeal := s.GetIntermediateHeader().Seal
 
 		// ----- VERIFY OUTPUT ----- //
+
 		if file == "enact-epoch-change-with-no-tickets-1.json" { // OK w/ output
 			t.Log("expected OK w/o info")
 			if safroleOutput.Err != nil {
@@ -318,14 +325,66 @@ func TestSafrole(t *testing.T) {
 			if safroleOutput.Err == nil {
 				t.Errorf("expected %v, got nil", jamtests.BadTicketAttempt)
 			} else {
-				if outEtErr == nil || safroleOutputErrCode != int(*outEtErr) {
-					t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*outEtErr))
+				if ourEtErr == nil || safroleOutputErrCode != int(*ourEtErr) {
+					t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*ourEtErr))
 				} else {
-					t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*outEtErr), safroleOutputErrCode)
+					t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*ourEtErr), safroleOutputErrCode)
 				}
 			}
 		}
-		if file == "publish-tickets-no-mark-2.json" {
+		// if file == "publish-tickets-no-mark-2.json" { // VerificationFailure with CreateNewTicketAccumulator
+		// 	t.Log("expected OK w/o info")
+		// 	if safroleOutput.Err != nil {
+		// 		t.Errorf("expected nil, got %v", *safroleOutput.Err)
+		// 	} else {
+		// 		if ourEpochMarkErr != nil {
+		// 			t.Errorf("expected nil, got %v", *ourEpochMarkErr)
+		// 		} else if ourEpochMark != nil {
+		// 			t.Errorf("expected nil, got %v", *ourEpochMark)
+		// 		} else if ourTicketMark != nil {
+		// 			t.Errorf("expected nil, got %v", *ourTicketMark)
+		// 		} else {
+		// 			t.Logf("\nour output {%v, %v} fits safroleOutput.Ok: %v", ourEpochMark, ourTicketMark, *safroleOutput.Ok)
+		// 		}
+		// 	}
+		// }
+		// if file == "publish-tickets-no-mark-3.json" { // VerificationFailure with CreateNewTicketAccumulator
+		// 	t.Log("expected \"duplicate_ticket\"(6) error")
+		// 	if safroleOutput.Err == nil {
+		// 		t.Errorf("expected %v, got nil", jamtests.BadTicketAttempt)
+		// 	} else {
+		// 		if ourEtErr == nil || safroleOutputErrCode != int(*ourEtErr) {
+		// 			t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*ourEtErr))
+		// 		} else {
+		// 			t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*ourEtErr), safroleOutputErrCode)
+		// 		}
+		// 	}
+		// }
+		// if file == "publish-tickets-no-mark-4.json" { // got wrong errorCode
+		// 	t.Log("expected \"bad_ticket_order\"(2) error")
+		// 	if safroleOutput.Err == nil {
+		// 		t.Errorf("expected %v, got nil", jamtests.BadTicketOrder)
+		// 	} else {
+		// 		if ourEtErr == nil || safroleOutputErrCode != int(*ourEtErr) {
+		// 			t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*ourEtErr))
+		// 		} else {
+		// 			t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*ourEtErr), safroleOutputErrCode)
+		// 		}
+		// 	}
+		// }
+		if file == "publish-tickets-no-mark-5.json" { // OK w/ output
+			t.Log("expected \"bad_ticket_proof\"(3) error")
+			if safroleOutput.Err == nil {
+				t.Errorf("expected %v, got nil", jamtests.BadTicketOrder)
+			} else {
+				if ourEtErr == nil || safroleOutputErrCode != int(*ourEtErr) {
+					t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*ourEtErr))
+				} else {
+					t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*ourEtErr), safroleOutputErrCode)
+				}
+			}
+		}
+		if file == "publish-tickets-no-mark-6.json" { // OK w/ output
 			t.Log("expected OK w/o info")
 			if safroleOutput.Err != nil {
 				t.Errorf("expected nil, got %v", *safroleOutput.Err)
@@ -337,19 +396,49 @@ func TestSafrole(t *testing.T) {
 				} else if ourTicketMark != nil {
 					t.Errorf("expected nil, got %v", *ourTicketMark)
 				} else {
-					t.Logf("\nour output {%v, %v} fits safroleOutput.Ok: %v", ourEpochMark, ourTicketMark, *safroleOutput.Ok)
+					t.Log("safroleOutput.Ok: ", *safroleOutput.Ok)
 				}
 			}
 		}
-		if file == "publish-tickets-no-mark-3.json" {
-			t.Log("expected \"duplicate_ticket\"(6) error")
+		if file == "publish-tickets-no-mark-7.json" { // OK w/ output
+			t.Log("expected \"unexpected_ticket\"(1) error")
 			if safroleOutput.Err == nil {
-				t.Errorf("expected %v, got nil", jamtests.BadTicketAttempt)
+				t.Errorf("expected %v, got nil", jamtests.BadTicketOrder)
 			} else {
-				if outEtErr == nil || safroleOutputErrCode != int(*outEtErr) {
-					t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*outEtErr))
+				if ourEtErr == nil || safroleOutputErrCode != int(*ourEtErr) {
+					t.Errorf("expected %v, got %v", safroleOutputErrCode, int(*ourEtErr))
 				} else {
-					t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*outEtErr), safroleOutputErrCode)
+					t.Logf("\nour output %v fits safroleOutputErrCode %v", int(*ourEtErr), safroleOutputErrCode)
+				}
+			}
+		}
+		if file == "publish-tickets-no-mark-8.json" { // OK w/ output
+			t.Log("expected OK w/o info")
+			if safroleOutput.Err != nil {
+				t.Errorf("expected nil, got %v", *safroleOutput.Err)
+			} else {
+				if ourEpochMarkErr != nil {
+					t.Errorf("expected nil, got %v", *ourEpochMarkErr)
+				} else if ourEpochMark != nil {
+					t.Errorf("expected nil, got %v", *ourEpochMark)
+				} else if ourTicketMark != nil {
+					t.Errorf("expected nil, got %v", *ourTicketMark)
+				} else {
+					t.Log("safroleOutput.Ok: ", *safroleOutput.Ok)
+				}
+			}
+		}
+		if file == "publish-tickets-no-mark-9.json" { // OK w/ output
+			t.Log("expected OK w/ epochmark")
+			if safroleOutput.Err != nil {
+				t.Errorf("expected nil, got %v", *safroleOutput.Err)
+			} else {
+				if ourEpochMarkErr != nil {
+					t.Errorf("expected nil, got %v", *ourEpochMarkErr)
+				} else if safroleOutputEpockMark.Entropy != ourEpochMark.Entropy || safroleOutputEpockMark.TicketsEntropy != ourEpochMark.TicketsEntropy || !reflect.DeepEqual(safroleOutputEpockMark.Validators, ourEpochMark.Validators) {
+					t.Errorf("expected %v, \ngot %v", safroleOutputEpockMark, ourEpochMark)
+				} else {
+					t.Logf("\nour output {%v, %v} fits safroleOutput.Ok: %v", &ourEpochMark, ourTicketMark, *safroleOutput.Ok)
 				}
 			}
 		}
@@ -411,6 +500,20 @@ func TestSafrole(t *testing.T) {
 				t.Errorf("expected %v, \ngot %v", safroleOutputTicketsMark, *ourTicketMark)
 			} else {
 				t.Log("safroleOutput.Ok: ", *safroleOutput.Ok)
+			}
+		}
+		if file == "publish-tickets-with-mark-5.json" { // OK w/ output
+			t.Log("expected OK w/ epochmark")
+			if safroleOutput.Err != nil {
+				t.Errorf("expected nil, got %v", *safroleOutput.Err)
+			} else {
+				if ourEpochMarkErr != nil {
+					t.Errorf("expected nil, got %v", *ourEpochMarkErr)
+				} else if safroleOutputEpockMark.Entropy != ourEpochMark.Entropy || safroleOutputEpockMark.TicketsEntropy != ourEpochMark.TicketsEntropy || !reflect.DeepEqual(safroleOutputEpockMark.Validators, ourEpochMark.Validators) {
+					t.Errorf("expected %v, \ngot %v", safroleOutputEpockMark, ourEpochMark)
+				} else {
+					t.Logf("\nour output {%v, %v} fits safroleOutput.Ok: %v", &ourEpochMark, ourTicketMark, *safroleOutput.Ok)
+				}
 			}
 		}
 
