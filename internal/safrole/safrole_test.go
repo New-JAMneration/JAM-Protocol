@@ -130,12 +130,12 @@ func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
 		types.BandersnatchPublic(hex2Bytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
 	}
 
-	var proverIdx uint = 0
-	vrfHandler, _ := CreateRingVRFHandler(bandersnatchKeys, proverIdx)
-	defer vrfHandler.Free()
-	commitment, _ := vrfHandler.GetCommitment()
+	commitment, err := GetBandersnatchRingRootCommmitment(bandersnatchKeys)
+	if err != nil {
+		t.Errorf("Failed to get commitment %v", err)
+	}
 
-	if types.BandersnatchRingCommitment(commitment) != expectedCommitment {
+	if commitment != expectedCommitment {
 		t.Errorf("Expected commitment %v, got %v", expectedCommitment, commitment)
 	}
 }
