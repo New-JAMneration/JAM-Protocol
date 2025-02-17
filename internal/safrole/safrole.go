@@ -47,8 +47,11 @@ func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 
 	for i, validator := range validators {
 		if ValidatorIsOffender(validator, offendersMark) {
-			// Replace the validator's Ed25519 key with a null key
+			// Replace the validator's keys with a null key
+			validators[i].Bandersnatch = types.BandersnatchPublic{}
 			validators[i].Ed25519 = types.Ed25519Public{}
+			validators[i].Bls = types.BlsPublic{}
+			validators[i].Metadata = types.ValidatorMetadata{}
 		}
 	}
 
@@ -130,7 +133,7 @@ func KeyRotate() {
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 
 	// Execute key rotation
-	//newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
+	// newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
 
