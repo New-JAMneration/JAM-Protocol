@@ -206,6 +206,7 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	}
 }
 
+// This is outside usage of extrinsic_tickets.go
 // (6.34)
 // create gamma_a'(New ticket accumulator)
 func CreateNewTicketAccumulator() *types.ErrorCode {

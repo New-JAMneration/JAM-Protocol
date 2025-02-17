@@ -126,7 +126,7 @@ func keyRotation(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.Sta
 // --- KeyRotate() is the outside usage of this safrole.go --- //
 // KeyRotate rotates the keys
 // Update the state with the new Safrole state
-// (6.13)
+// (6.2, 6.13, 6.14)
 func KeyRotate() {
 	s := store.GetInstance()
 
