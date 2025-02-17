@@ -61,6 +61,15 @@ func (d *Decoder) ReadLegnthFlag() (byte, error) {
 	return firstByte, nil
 }
 
+func (d *Decoder) ReadErrorByte() (byte, error) {
+	cLog(Cyan, "Reading error byte")
+	firstByte, err := d.buf.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	return firstByte, nil
+}
+
 func (d *Decoder) DecodeUint(data []byte) (uint64, error) {
 	if len(data) == 0 {
 		return 0, errors.New("no data to deserialize U64")
@@ -132,6 +141,8 @@ func (d *Decoder) DecodeUint(data []byte) (uint64, error) {
 }
 
 func (d *Decoder) IdentifyLength(byteValue byte) (uint8, error) {
+	cLog(Cyan, "Identifying length")
+	cLog(Yellow, fmt.Sprintf("Byte Value: %v", byteValue))
 	// l = 0：0 -> 數值範圍將會是 0 <= x < 128
 	// l = 1：128 -> 10000000 -> 代表要再讀取 1 個 byte
 	// l = 2：192 -> 11000000 -> 代表要再讀取 2 個 byte
@@ -146,31 +157,31 @@ func (d *Decoder) IdentifyLength(byteValue byte) (uint8, error) {
 		return 0, nil
 	}
 
-	if byteValue == 128 {
+	if byteValue >= 128 && byteValue < 192 {
 		return 1, nil
 	}
 
-	if byteValue == 192 {
+	if byteValue >= 192 && byteValue < 224 {
 		return 2, nil
 	}
 
-	if byteValue == 224 {
+	if byteValue >= 224 && byteValue < 240 {
 		return 3, nil
 	}
 
-	if byteValue == 240 {
+	if byteValue >= 240 && byteValue < 248 {
 		return 4, nil
 	}
 
-	if byteValue == 248 {
+	if byteValue >= 248 && byteValue < 252 {
 		return 5, nil
 	}
 
-	if byteValue == 252 {
+	if byteValue >= 252 && byteValue < 254 {
 		return 6, nil
 	}
 
-	if byteValue == 254 {
+	if byteValue >= 254 && byteValue < 255 {
 		return 7, nil
 	}
 
