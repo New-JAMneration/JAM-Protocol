@@ -14,7 +14,7 @@ import (
 	// jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	// jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	// jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
-	// jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 	// jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
@@ -333,6 +333,51 @@ func TestDecodeJamTestVectorsReports(t *testing.T) {
 
 		// Compare the two structs
 		if !reflect.DeepEqual(reports, jsonData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Errorf("Error: %v", err)
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+}
+
+// Disputes
+func TestDecodeJamTestVectorsDisputes(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		disputes := &jamtests_disputes.DisputesTestCase{}
+		err = decoder.Decode(binData, disputes)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Read the json file
+		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
+		jsonFileName := GetJsonFilename(filename)
+		jsonFilePath := filepath.Join(dir, jsonFileName)
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_disputes.DisputesTestCase{}))
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Compare the two structs
+		if !reflect.DeepEqual(disputes, jsonData) {
 			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Errorf("Error: %v", err)
 		} else {

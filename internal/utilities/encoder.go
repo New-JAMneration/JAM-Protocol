@@ -403,7 +403,7 @@ func (e *Encoder) isAssuranceErrorCode(v reflect.Value) bool {
 }
 
 func (e *Encoder) isDisputesErrorCode(v reflect.Value) bool {
-	return v.Type() == reflect.TypeOf(jamtests_disputes.DisputeOutput{})
+	return v.Type() == reflect.TypeOf(jamtests_disputes.DisputesOutput{})
 }
 
 func (e *Encoder) isPreimageErrorCode(v reflect.Value) bool {

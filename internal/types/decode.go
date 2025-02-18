@@ -1931,3 +1931,84 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 
 	return nil
 }
+
+// DisputesRecords
+func (d *DisputesRecords) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding DisputesRecords")
+
+	var err error
+
+	// Good
+	goodLength, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if goodLength != 0 {
+		good := make([]WorkReportHash, goodLength)
+		for i := uint64(0); i < goodLength; i++ {
+			if err = good[i].Decode(decoder); err != nil {
+				return err
+			}
+		}
+		cLog(Yellow, fmt.Sprintf("Good: %v", good))
+
+		d.Good = good
+	}
+
+	// Bad
+	badLength, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if badLength != 0 {
+		bad := make([]WorkReportHash, badLength)
+		for i := uint64(0); i < badLength; i++ {
+			if err = bad[i].Decode(decoder); err != nil {
+				return err
+			}
+		}
+		cLog(Yellow, fmt.Sprintf("Bad: %v", bad))
+
+		d.Bad = bad
+	}
+
+	// Wonky
+	wonkyLength, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if wonkyLength != 0 {
+		wonky := make([]WorkReportHash, wonkyLength)
+		for i := uint64(0); i < wonkyLength; i++ {
+			if err = wonky[i].Decode(decoder); err != nil {
+				return err
+			}
+		}
+		cLog(Yellow, fmt.Sprintf("Wonky: %v", wonky))
+
+		d.Wonky = wonky
+	}
+
+	// Offenders
+	offendersLength, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if offendersLength != 0 {
+		offenders := make([]Ed25519Public, offendersLength)
+		for i := uint64(0); i < offendersLength; i++ {
+			if err = offenders[i].Decode(decoder); err != nil {
+				return err
+			}
+		}
+		cLog(Yellow, fmt.Sprintf("Offenders: %v", offenders))
+
+		d.Offenders = offenders
+	}
+
+	return nil
+}
