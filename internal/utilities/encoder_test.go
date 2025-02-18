@@ -413,7 +413,7 @@ func TestEncodeJamTestVectorsDisputes(t *testing.T) {
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
-		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_disputes.DisputeTestCase{}))
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_disputes.DisputesTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
