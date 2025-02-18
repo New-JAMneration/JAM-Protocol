@@ -3,19 +3,21 @@ package store
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 type RedisBackend struct {
-	client *RedisClient
+	client  *RedisClient
+	encoder *utilities.Encoder
+	decoder *types.Decoder
 }
 
 // NewRedisBackend initializes and returns a new RedisBackend.
 func NewRedisBackend(client *RedisClient) *RedisBackend {
-	return &RedisBackend{client: client}
+	return &RedisBackend{client: client, encoder: utilities.NewEncoder(), decoder: types.NewDecoder()}
 }
 
 func hexOf(h types.OpaqueHash) string {
@@ -63,7 +65,7 @@ func (r *RedisBackend) GetHeads(ctx context.Context) ([]types.OpaqueHash, error)
 // Blocks By Hash
 func (r *RedisBackend) StoreBlockByHash(ctx context.Context, block *types.Block, blockHash types.OpaqueHash) error {
 	key := fmt.Sprintf("block:%s", hexOf(blockHash))
-	data, err := json.Marshal(block)
+	data, err := r.encoder.Encode(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
@@ -81,7 +83,7 @@ func (r *RedisBackend) GetBlockByHash(ctx context.Context, blockHash types.Opaqu
 		return nil, nil // not found
 	}
 	var block types.Block
-	if err := json.Unmarshal(data, &block); err != nil {
+	if err := r.decoder.Decode(data, &block); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
 	}
 	return &block, nil
