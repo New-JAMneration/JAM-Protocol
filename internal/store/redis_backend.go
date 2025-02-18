@@ -80,7 +80,7 @@ func (r *RedisBackend) GetBlockByHash(ctx context.Context, blockHash types.Opaqu
 		return nil, err
 	}
 	if data == nil {
-		return nil, nil // not found
+		return nil, nil
 	}
 	var block types.Block
 	if err := r.decoder.Decode(data, &block); err != nil {
@@ -91,11 +91,34 @@ func (r *RedisBackend) GetBlockByHash(ctx context.Context, blockHash types.Opaqu
 
 // Blocks By Slot
 func (r *RedisBackend) StoreBlockBySlot(ctx context.Context, block types.Block) error {
-	return r.client.StoreBlock(block)
+	// Create key based on slot
+	key := fmt.Sprintf("block:%d", block.Header.Slot)
+
+	data, err := r.encoder.Encode(block)
+	if err != nil {
+		return fmt.Errorf("failed to marshal block: %w", err)
+	}
+
+	return r.client.Put(key, data)
 }
 
-func (r *RedisBackend) FetchBlockBySlot(ctx context.Context, slot types.TimeSlot) (*types.Block, error) {
-	return r.client.GetBlock(ctx, slot)
+func (r *RedisBackend) GetBlockBySlot(ctx context.Context, slot types.TimeSlot) (*types.Block, error) {
+	key := fmt.Sprintf("block:%d", slot)
+
+	data, err := r.client.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	var block types.Block
+	if err := r.decoder.Decode(data, &block); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
+	}
+
+	return &block, nil
 }
 
 func (r *RedisBackend) DeleteBlockBySlot(ctx context.Context, slot types.TimeSlot) error {
