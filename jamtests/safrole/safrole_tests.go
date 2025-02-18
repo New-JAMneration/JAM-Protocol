@@ -126,8 +126,6 @@ func (s *SafroleState) UnmarshalJSON(data []byte) error {
 	s.GammaS = state.GammaS
 	s.GammaZ = state.GammaZ
 
-	// if state.PostOffenders == nil {
-	// 	return nil
 	if len(state.PostOffenders) == 0 {
 		return nil
 	}
