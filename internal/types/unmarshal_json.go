@@ -1164,3 +1164,18 @@ func (a *AvailabilityAssignments) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// AuthQueues
+func (a *AuthQueues) UnmarshalJSON(data []byte) error {
+	var temp []AuthQueue
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+	return nil
+}
