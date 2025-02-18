@@ -331,7 +331,6 @@ func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 }
 
 func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
-	fmt.Println("SegmentRootLookupItem")
 	var temp struct {
 		WorkPackageHash string `json:"work_package_hash,omitempty"`
 		SegmentTreeRoot string `json:"segment_tree_root,omitempty"`
@@ -475,7 +474,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.StateRoot = StateRoot(stateRootBytes)
 
-	b.Reported = temp.Reported
+	if len(temp.Reported) == 0 {
+		b.Reported = nil
+	} else {
+		b.Reported = temp.Reported
+	}
 
 	return nil
 }
@@ -1094,5 +1097,70 @@ func (t *TicketsAccumulator) UnmarshalJSON(data []byte) error {
 	}
 
 	*t = temp
+	return nil
+}
+
+// AuthPool
+func (a *AuthPool) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []AuthorizerHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AuthPools
+func (a *AuthPools) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []AuthPool
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*a = temp
+	return nil
+}
+
+// AvailabilityAssignment
+func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Report  WorkReport `json:"report"`
+		Timeout TimeSlot   `json:"timeout,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Report = temp.Report
+	a.Timeout = temp.Timeout
+
+	return nil
+}
+
+// AvailabilityAssignments
+func (a *AvailabilityAssignments) UnmarshalJSON(data []byte) error {
+	var temp []*AvailabilityAssignment
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	for i := range temp {
+		item := AvailabilityAssignmentsItem(temp[i])
+		*a = append(*a, item)
+	}
+
 	return nil
 }

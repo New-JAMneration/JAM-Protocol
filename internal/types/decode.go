@@ -1658,3 +1658,276 @@ func (b *BandersnatchRingCommitment) Decode(d *Decoder) error {
 	*b = val
 	return nil
 }
+
+// AvailabilityAssignment
+func (a *AvailabilityAssignment) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AvailabilityAssignment")
+
+	var err error
+
+	if err = a.Report.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Timeout.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// type AvailabilityAssignments []AvailabilityAssignmentsItem
+func (a *AvailabilityAssignments) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AvailabilityAssignments")
+
+	for i := 0; i < CoresCount; i++ {
+		pointerFlag, err := d.ReadPointerFlag()
+		if err != nil {
+			return err
+		}
+
+		pointerIsNil := pointerFlag == 0
+		if pointerIsNil {
+			cLog(Yellow, "AvailabilityAssignmentsItem is nil")
+			item := (*AvailabilityAssignment)(nil)
+			*a = append(*a, item)
+			continue
+		}
+
+		cLog(Yellow, "AvailabilityAssignmentsItem is not nil")
+
+		// Decode the AvailabilityAssignment
+		var assignment AvailabilityAssignment
+		if err = assignment.Decode(d); err != nil {
+			return err
+		}
+
+		item := &assignment
+		*a = append(*a, item)
+	}
+
+	return nil
+}
+
+// Mmr
+func (m *Mmr) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Mmr")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return nil
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	peaks := make([]MmrPeak, length)
+	for i := uint64(0); i < length; i++ {
+		// check pointer flag
+		pointerFlag, err := d.ReadPointerFlag()
+		if err != nil {
+			return err
+		}
+		pointerIsNil := pointerFlag == 0
+		if pointerIsNil {
+			cLog(Yellow, "MmrPeak is nil")
+		}
+
+		if !pointerIsNil {
+			cLog(Yellow, "MmrPeak is not nil")
+			var val OpaqueHash
+			if err = val.Decode(d); err != nil {
+				return err
+			}
+			peaks[i] = MmrPeak(&val)
+		}
+	}
+
+	m.Peaks = peaks
+
+	return nil
+}
+
+// ReportedWorkPackage
+func (r *ReportedWorkPackage) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ReportedWorkPackage")
+
+	var err error
+
+	if err = r.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.ExportsRoot.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockInfo
+func (b *BlockInfo) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BlockInfo")
+
+	var err error
+
+	if err = b.HeaderHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = b.Mmr.Decode(d); err != nil {
+		return err
+	}
+
+	if err = b.StateRoot.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	reported := make([]ReportedWorkPackage, length)
+	for i := uint64(0); i < length; i++ {
+		if err = reported[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	b.Reported = reported
+
+	return nil
+}
+
+// BlocksHistory
+func (b *BlocksHistory) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding BlocksHistory")
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	history := make([]BlockInfo, length)
+	for i := uint64(0); i < length; i++ {
+		if err = history[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*b = history
+
+	return nil
+}
+
+// AuthorizerHash
+func (a *AuthorizerHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthorizerHash")
+
+	var val AuthorizerHash
+	if err := val.Decode(d); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("AuthorizerHash: %x", val))
+
+	*a = val
+	return nil
+}
+
+// AuthPool
+func (a *AuthPool) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthPool")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	pool := make([]OpaqueHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = pool[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// convert to AuthPool
+	for i := 0; i < len(pool); i++ {
+		// convert to AuthorizerHash
+		authorizerHash := AuthorizerHash(pool[i])
+		// append value to AuthPool
+		*a = append(*a, authorizerHash)
+	}
+
+	return nil
+}
+
+// AuthPools
+func (a *AuthPools) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthPools")
+
+	// make the slice with length
+	pools := make([]AuthPool, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		if err := pools[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = pools
+
+	return nil
+}
+
+// ServiceInfo
+func (s *ServiceInfo) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceInfo")
+
+	var err error
+
+	if err = s.CodeHash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Balance.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.MinItemGas.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.MinMemoGas.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Bytes.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Items.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
