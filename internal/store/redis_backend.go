@@ -122,7 +122,8 @@ func (r *RedisBackend) GetBlockBySlot(ctx context.Context, slot types.TimeSlot) 
 }
 
 func (r *RedisBackend) DeleteBlockBySlot(ctx context.Context, slot types.TimeSlot) error {
-	return r.client.DeleteBlock(ctx, slot)
+	key := fmt.Sprintf("block:%d", slot)
+	return r.client.Delete(key)
 }
 
 func (r *RedisBackend) SetFinalizedHead(ctx context.Context, hash types.OpaqueHash) error {

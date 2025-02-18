@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -118,43 +117,6 @@ func (r *RedisClient) Batch(ctx context.Context, operations []BatchOperation) er
 	}
 
 	return nil
-}
-
-// StoreBlock serializes the Block to JSON and stores under key = "block:<slot>".
-func (r *RedisClient) StoreBlock(block types.Block) error {
-	// Create key based on slot
-	key := fmt.Sprintf("block:%d", block.Header.Slot)
-
-	// Marshal to JSON
-	data, err := json.Marshal(block)
-	if err != nil {
-		return fmt.Errorf("failed to marshal block: %w", err)
-	}
-
-	// Put in Redis
-	return r.Put(key, data)
-}
-
-// GetBlock fetches the block by slot and unmarshals from JSON.
-func (r *RedisClient) GetBlock(ctx context.Context, slot types.TimeSlot) (*types.Block, error) {
-	key := fmt.Sprintf("block:%d", slot)
-
-	data, err := r.Get(key)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		// Key doesn't exist
-		return nil, nil
-	}
-
-	// Unmarshal JSON
-	var block types.Block
-	if err := json.Unmarshal(data, &block); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal block: %w", err)
-	}
-
-	return &block, nil
 }
 
 // DeleteBlock removes the block by slot.
