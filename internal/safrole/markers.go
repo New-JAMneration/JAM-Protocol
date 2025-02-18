@@ -16,7 +16,8 @@ func CreateEpochMarker() *types.ErrorCode {
 	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	// tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
@@ -66,7 +67,8 @@ func CreateWinningTickets() {
 	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	// tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)

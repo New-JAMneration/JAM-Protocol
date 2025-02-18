@@ -73,18 +73,23 @@ func UpdateEtaPrime0() {
 
 	s := store.GetInstance()
 
-	posterior_state := s.GetPosteriorStates()
+	// posterior_state := s.GetPosteriorStates()
 	prior_state := s.GetPriorStates()
-	header := s.GetIntermediateHeader()
-
-	//public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
-	entropy_source := header.EntropySource
+	// header := s.GetIntermediateHeader()
 	eta := prior_state.GetEta()
-	handler, _ := CreateVRFHandler(public_key)
-	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
-	hash_input := append(eta[0][:], vrfOutput...)
-	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+
+	// //public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	// public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
+	// entropy_source := header.EntropySource
+	// handler, _ := CreateVRFHandler(public_key)
+	// vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
+	vrfOutput := s.GetIntermediateStates().GetEntropyInput()
+
+	hash_input := append(eta[0][:], vrfOutput[:]...)
+	newEta0 := types.Entropy(hash.Blake2bHash(utilities.SerializeByteSequence(hash_input)))
+
+	s.GetPosteriorStates().SetEta0(newEta0)
+	// s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(utilities.SerializeByteSequence(hash_input))))
 }
 
 func UpdateEntropy() {
@@ -102,17 +107,19 @@ func UpdateEntropy() {
 
 	tau := prior_state.GetTau()
 
-	tauPrime := posterior_state.GetTau()
+	// tauPrime := posterior_state.GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
 	eta := prior_state.GetEta()
+
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {
 			eta[i+1] = eta[i]
 		}
 	}
-	posterior_state.SetEta(eta)
+	posterior_state.SetEta123(eta)
 }
 
 func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.BandersnatchVrfSignature) (sign []byte) {
@@ -143,7 +150,9 @@ func UpdateHeaderEntropy() {
 
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch // Ha
 	seal := header.Seal                                                       // Hs
-	s.GetIntermediateHeaders().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
+	headerVRF := CalculateHeaderEntropy(public_key, seal)
+
+	s.GetIntermediateHeaders().SetEntropySource(types.BandersnatchVrfSignature(headerVRF))
 }
 
 func UpdateSlotKeySequence() {
@@ -166,7 +175,8 @@ func UpdateSlotKeySequence() {
 	tau := priorState.GetTau()
 
 	// Get current time slot index
-	tauPrime := posteriorState.GetTau()
+	// tauPrime := posteriorState.GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)

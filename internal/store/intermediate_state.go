@@ -16,6 +16,7 @@ type IntermediateState struct {
 	RhoDagger       types.AvailabilityAssignments
 	RhoDoubleDagger types.AvailabilityAssignments
 	TauInput        types.TimeSlot
+	EntropyInput    types.Entropy
 }
 
 func NewIntermediateStates() *IntermediateStates {
@@ -25,6 +26,7 @@ func NewIntermediateStates() *IntermediateStates {
 			RhoDagger:       types.AvailabilityAssignments{},
 			RhoDoubleDagger: types.AvailabilityAssignments{},
 			TauInput:        0,
+			EntropyInput:    types.Entropy{},
 		},
 	}
 }
@@ -53,6 +55,19 @@ func (s *IntermediateStates) SetTauInput(TauInput types.TimeSlot) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.TauInput = TauInput
+}
+
+// EntropyInput Y(H_v)
+func (s *IntermediateStates) GetEntropyInput() types.Entropy {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.EntropyInput
+}
+
+func (s *IntermediateStates) SetEntropyInput(EntropyInput types.Entropy) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.EntropyInput = EntropyInput
 }
 
 // RhoDagger

@@ -145,10 +145,12 @@ func (s *PosteriorStates) GetDelta() types.ServiceAccountState {
 }
 
 // SetEta sets the eta value
-func (s *PosteriorStates) SetEta(eta types.EntropyBuffer) {
+func (s *PosteriorStates) SetEta123(eta types.EntropyBuffer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Eta = eta
+	s.state.Eta[1] = eta[1]
+	s.state.Eta[2] = eta[2]
+	s.state.Eta[3] = eta[3]
 }
 
 // GetEta returns the eta value

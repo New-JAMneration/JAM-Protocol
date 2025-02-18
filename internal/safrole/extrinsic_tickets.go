@@ -20,7 +20,8 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 	s := store.GetInstance()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	// tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	// m'
 	mPrime := GetSlotIndex(tauPrime)
@@ -46,7 +47,9 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
-	gammaK := s.GetPosteriorStates().GetGammaK()
+	// gammaK := s.GetPosteriorStates().GetGammaK()
+	// I change this because everyone can verify if their ticket is valid?
+	gammaK := s.GetPriorStates().GetGammaK()
 	ring := []byte{}
 	for _, validator := range gammaK {
 		ring = append(ring, []byte(validator.Bandersnatch[:])...)
@@ -193,7 +196,8 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	tau := s.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	// tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
