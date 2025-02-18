@@ -2012,3 +2012,42 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 
 	return nil
 }
+
+// AuthQueue
+func (a *AuthQueue) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthQueue")
+
+	// make the slice with length
+	queue := make([]OpaqueHash, AuthQueueSize)
+	for i := 0; i < AuthQueueSize; i++ {
+		if err := queue[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// convert to AuthQueue
+	for i := 0; i < len(queue); i++ {
+		// convert to AuthorizerHash
+		authorizerHash := AuthorizerHash(queue[i])
+		// append value to AuthQueue
+		*a = append(*a, authorizerHash)
+	}
+
+	return nil
+}
+
+// AuthQueues
+func (a *AuthQueues) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthQueues")
+
+	queues := make([]AuthQueue, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		if err := queues[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = queues
+
+	return nil
+}

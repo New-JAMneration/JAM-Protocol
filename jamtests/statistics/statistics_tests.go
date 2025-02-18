@@ -31,19 +31,19 @@ func (t *StatisticsTestCase) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = t.Input.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = t.PreState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = t.Output.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = t.PostState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
