@@ -384,7 +384,13 @@ func (w *WorkReport) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	w.AuthOutput = ByteSequence(authOutputBytes)
+
+	// if authOutputBytes is empty, set to nil
+	if len(authOutputBytes) == 0 {
+		w.AuthOutput = nil
+	} else {
+		w.AuthOutput = ByteSequence(authOutputBytes)
+	}
 
 	w.SegmentRootLookup = temp.SegmentRootLookup
 	w.Results = temp.Results
@@ -468,7 +474,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.StateRoot = StateRoot(stateRootBytes)
 
-	b.Reported = temp.Reported
+	if len(temp.Reported) == 0 {
+		b.Reported = nil
+	} else {
+		b.Reported = temp.Reported
+	}
 
 	return nil
 }
@@ -515,22 +525,20 @@ func (t *TicketBody) UnmarshalJSON(data []byte) error {
 
 func (t *TicketsOrKeys) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Tickets []TicketBody `json:"tickets,omitempty"`
-		Keys    []string     `json:"keys,omitempty"`
+		Tickets []TicketBody         `json:"tickets,omitempty"`
+		Keys    []BandersnatchPublic `json:"keys,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	t.Tickets = temp.Tickets
+	if len(temp.Tickets) > 0 {
+		t.Tickets = temp.Tickets
+	}
 
-	for _, key := range temp.Keys {
-		keyBytes, err := hex.DecodeString(key[2:])
-		if err != nil {
-			return err
-		}
-		t.Keys = append(t.Keys, BandersnatchPublic(keyBytes))
+	if len(temp.Keys) > 0 {
+		t.Keys = temp.Keys
 	}
 
 	return nil
@@ -883,7 +891,12 @@ func (w *WorkExecResult) UnmarshalJSON(data []byte) error {
 				return fmt.Errorf("failed to decode hex for key %s: %w", key, err)
 			}
 
-			(*w)[resultType] = decoded
+			// if decoded is empty, set to nil
+			if len(decoded) == 0 {
+				(*w)[resultType] = nil
+			} else {
+				(*w)[resultType] = decoded
+			}
 		}
 
 		if value == "" {
@@ -928,11 +941,6 @@ type AccountInfo struct {
 	History   AccountInfoHistory `json:"history"`
 }
 
-type AccountsMapEntry struct {
-	Id   ServiceId   `json:"id"`
-	Info AccountInfo `json:"info"`
-}
-
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
 		Key   DictionaryKey `json:"key"`
@@ -946,6 +954,212 @@ func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	*aih = make(AccountInfoHistory)
 	for _, item := range raw {
 		(*aih)[item.Key] = item.Value
+	}
+
+	return nil
+}
+
+// unmarshal AccumulateRoot
+func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(a[:], decoded)
+	return nil
+}
+
+// SegmentRootLookup
+func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []SegmentRootLookupItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*s = temp
+	return nil
+}
+
+// OffendersMark
+func (o *OffendersMark) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	for _, offender := range temp {
+		offenderBytes, err := hex.DecodeString(offender[2:])
+		if err != nil {
+			return err
+		}
+		*o = append(*o, Ed25519Public(offenderBytes))
+	}
+
+	return nil
+}
+
+// DisputesExtrinsic
+func (d *DisputesExtrinsic) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Verdicts []Verdict `json:"verdicts,omitempty"`
+		Culprits []Culprit `json:"culprits,omitempty"`
+		Faults   []Fault   `json:"faults,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Verdicts) == 0 {
+		d.Verdicts = nil
+	} else {
+		d.Verdicts = temp.Verdicts
+	}
+
+	if len(temp.Culprits) == 0 {
+		d.Culprits = nil
+	} else {
+		d.Culprits = temp.Culprits
+	}
+
+	if len(temp.Faults) == 0 {
+		d.Faults = nil
+	} else {
+		d.Faults = temp.Faults
+	}
+
+	return nil
+}
+
+// Extrinsic
+func (e *Extrinsic) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Tickets    TicketsExtrinsic    `json:"tickets,omitempty"`
+		Preimages  PreimagesExtrinsic  `json:"preimages"`
+		Guarantees GuaranteesExtrinsic `json:"guarantees"`
+		Assurances AssurancesExtrinsic `json:"assurances,omitempty"`
+		Disputes   DisputesExtrinsic   `json:"disputes"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Tickets) == 0 {
+		e.Tickets = nil
+	} else {
+		e.Tickets = temp.Tickets
+	}
+
+	if len(temp.Preimages) == 0 {
+		e.Preimages = nil
+	} else {
+		e.Preimages = temp.Preimages
+	}
+
+	if len(temp.Guarantees) == 0 {
+		e.Guarantees = nil
+	} else {
+		e.Guarantees = temp.Guarantees
+	}
+
+	if len(temp.Assurances) == 0 {
+		e.Assurances = nil
+	} else {
+		e.Assurances = temp.Assurances
+	}
+
+	e.Disputes = temp.Disputes
+
+	return nil
+}
+
+// TicketsAccumulator
+func (t *TicketsAccumulator) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []TicketBody
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*t = temp
+	return nil
+}
+
+// AuthPool
+func (a *AuthPool) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []AuthorizerHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AuthPools
+func (a *AuthPools) UnmarshalJSON(data []byte) error {
+	// if array is empty, return
+	if string(data) == "[]" {
+		return nil
+	}
+
+	var temp []AuthPool
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	*a = temp
+	return nil
+}
+
+// AvailabilityAssignment
+func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Report  WorkReport `json:"report"`
+		Timeout TimeSlot   `json:"timeout,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Report = temp.Report
+	a.Timeout = temp.Timeout
+
+	return nil
+}
+
+// AvailabilityAssignments
+func (a *AvailabilityAssignments) UnmarshalJSON(data []byte) error {
+	var temp []*AvailabilityAssignment
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	for i := range temp {
+		item := AvailabilityAssignmentsItem(temp[i])
+		*a = append(*a, item)
 	}
 
 	return nil
