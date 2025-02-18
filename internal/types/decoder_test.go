@@ -12,7 +12,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 	// jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
-	// jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	// jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
 	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
@@ -378,6 +378,51 @@ func TestDecodeJamTestVectorsDisputes(t *testing.T) {
 
 		// Compare the two structs
 		if !reflect.DeepEqual(disputes, jsonData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Errorf("Error: %v", err)
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+}
+
+// Assurances
+func TestDecodeJamTestVectorsAssurances(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "assurances", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		assurances := &jamtests_assurances.AssurancesTestCase{}
+		err = decoder.Decode(binData, assurances)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Read the json file
+		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
+		jsonFileName := GetJsonFilename(filename)
+		jsonFilePath := filepath.Join(dir, jsonFileName)
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_assurances.AssurancesTestCase{}))
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Compare the two structs
+		if !reflect.DeepEqual(assurances, jsonData) {
 			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Errorf("Error: %v", err)
 		} else {

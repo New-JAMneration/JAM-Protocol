@@ -399,7 +399,7 @@ func (e *Encoder) isReportsOutput(v reflect.Value) bool {
 }
 
 func (e *Encoder) isAssuranceErrorCode(v reflect.Value) bool {
-	return v.Type() == reflect.TypeOf(jamtests_assurances.AssuranceOutput{})
+	return v.Type() == reflect.TypeOf(jamtests_assurances.AssurancesOutput{})
 }
 
 func (e *Encoder) isDisputesErrorCode(v reflect.Value) bool {
