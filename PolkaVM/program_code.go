@@ -23,14 +23,12 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 	// will rewrite after the refactor of Deserialization is complete
 	// fmt.Println(data[:16])
 	jumpTableSize, data, err := ReadUintVariable(data)
-	fmt.Println("jumpTableSize : ", jumpTableSize)
 	if err != nil {
 		return
 	}
 	// fmt.Println(data[:16])
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
-	fmt.Println("jumpTableLength : ", jumpTableLength)
 	if err != nil {
 		return
 	}
@@ -62,7 +60,7 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 		bitmaskSize++
 	}
 	if len(bitmaskRaw) != int(bitmaskSize) {
-		// return PANIC
+		return ProgramBlob{}, PANIC
 	}
 
 	bitmask := make([]byte, instSize)
