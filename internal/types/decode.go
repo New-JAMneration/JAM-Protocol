@@ -2012,3 +2012,239 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 
 	return nil
 }
+
+// AuthQueue
+func (a *AuthQueue) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthQueue")
+
+	// make the slice with length
+	queue := make([]OpaqueHash, AuthQueueSize)
+	for i := 0; i < AuthQueueSize; i++ {
+		if err := queue[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// convert to AuthQueue
+	for i := 0; i < len(queue); i++ {
+		// convert to AuthorizerHash
+		authorizerHash := AuthorizerHash(queue[i])
+		// append value to AuthQueue
+		*a = append(*a, authorizerHash)
+	}
+
+	return nil
+}
+
+// AuthQueues
+func (a *AuthQueues) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AuthQueues")
+
+	queues := make([]AuthQueue, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		if err := queues[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = queues
+
+	return nil
+}
+
+// AccumulateRoot
+func (a *AccumulateRoot) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulateRoot")
+
+	var val AccumulateRoot
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %x", val))
+
+	*a = val
+	return nil
+
+	return nil
+}
+
+// ReadyRecord
+func (r *ReadyRecord) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ReadyRecord")
+
+	var err error
+
+	if err = r.Report.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	dependencies := make([]WorkPackageHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = dependencies[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	r.Dependencies = dependencies
+
+	return nil
+}
+
+// 	ReadyQueueItem       []ReadyRecord
+
+// ReadyQueueItem
+func (r *ReadyQueueItem) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ReadyQueueItem")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	records := make([]ReadyRecord, length)
+	for i := uint64(0); i < length; i++ {
+		if err = records[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*r = records
+
+	return nil
+}
+
+// ReadyQueue
+func (r *ReadyQueue) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ReadyQueue")
+
+	// make the slice with epoch length
+	queue := make([]ReadyQueueItem, EpochLength)
+	for i := 0; i < EpochLength; i++ {
+		if err := queue[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*r = queue
+
+	return nil
+}
+
+// AccumulatedQueueItem
+func (a *AccumulatedQueueItem) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedQueueItem")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	items := make([]WorkPackageHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = items[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = items
+
+	return nil
+}
+
+// AccumulatedQueue
+func (a *AccumulatedQueue) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedQueue")
+
+	// make the slice with epoch length
+	queue := make([]AccumulatedQueueItem, EpochLength)
+	for i := 0; i < EpochLength; i++ {
+		if err := queue[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = queue
+
+	return nil
+}
+
+// AlwaysAccumulateMapItem
+func (a *AlwaysAccumulateMapItem) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AlwaysAccumulateMapItem")
+
+	var err error
+
+	if err = a.ID.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Gas.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Privileges
+func (p *Privileges) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Privileges")
+
+	var err error
+
+	if err = p.Bless.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.Assign.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.Designate.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	alwaysAccum := make([]AlwaysAccumulateMapItem, length)
+	for i := uint64(0); i < length; i++ {
+		if err = alwaysAccum[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	p.AlwaysAccum = alwaysAccum
+
+	return nil
+}

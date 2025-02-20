@@ -286,6 +286,10 @@ func (r *ReportsOutput) Decode(d *types.Decoder) error {
 	var err error
 
 	okOrErr, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
 	isOk := okOrErr == 0
 	if isOk {
 		cLog(Yellow, "ReportsOutput is ok")
@@ -410,19 +414,19 @@ func (r *ReportsTestCase) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = r.Input.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.PreState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.Output.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.PostState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil

@@ -31,30 +31,30 @@ func cLog(color string, string string) {
 	}
 }
 
-type AssurancesTestCase struct {
-	Input     AssurancesInput  `json:"input"`
-	PreState  AssurancesState  `json:"pre_state"`
-	Output    AssurancesOutput `json:"output"`
-	PostState AssurancesState  `json:"post_state"`
+type AssuranceTestCase struct {
+	Input     AssuranceInput  `json:"input"`
+	PreState  AssuranceState  `json:"pre_state"`
+	Output    AssuranceOutput `json:"output"`
+	PostState AssuranceState  `json:"post_state"`
 }
 
-type AssurancesInput struct {
+type AssuranceInput struct {
 	Assurances types.AssurancesExtrinsic `json:"assurances,omitempty"`
 	Slot       types.TimeSlot            `json:"slot"`
 	Parent     types.HeaderHash          `json:"parent,omitempty"`
 }
 
-type AssurancesOutputData struct {
+type AssuranceOutputData struct {
 	//  Items removed from ρ† to get ρ'
 	Reported []types.WorkReport `json:"reported"`
 }
 
-type AssurancesOutput struct {
-	Ok  *AssurancesOutputData `json:"ok,omitempty"`
-	Err *AssurancesErrorCode  `json:"err,omitempty"`
+type AssuranceOutput struct {
+	Ok  *AssuranceOutputData `json:"ok,omitempty"`
+	Err *AssuranceErrorCode  `json:"err,omitempty"`
 }
 
-type AssurancesState struct {
+type AssuranceState struct {
 	AvailAssignments types.AvailabilityAssignments `json:"avail_assignments"`
 	CurrValidators   types.ValidatorsData          `json:"curr_validators"`
 }
@@ -64,17 +64,17 @@ type AssurancesState struct {
 -- Error codes **are not specified** in the the Graypaper.
 -- Feel free to ignore the actual value.
 */
-type AssurancesErrorCode types.ErrorCode
+type AssuranceErrorCode types.ErrorCode
 
 const (
-	BadAttestationParent      AssurancesErrorCode = iota // 0
-	BadValidatorIndex                                    // 1
-	CoreNotEngaged                                       // 2
-	BadSignature                                         // 3
-	NotSortedOrUniqueAssurers                            // 4
+	BadAttestationParent      AssuranceErrorCode = iota // 0
+	BadValidatorIndex                                   // 1
+	CoreNotEngaged                                      // 2
+	BadSignature                                        // 3
+	NotSortedOrUniqueAssurers                           // 4
 )
 
-var assurancesErrorMap = map[string]AssurancesErrorCode{
+var assurancesErrorMap = map[string]AssuranceErrorCode{
 	"bad_attestation_parent":        BadAttestationParent,
 	"bad_validator_index":           BadValidatorIndex,
 	"core_not_engaged":              CoreNotEngaged,
@@ -82,7 +82,7 @@ var assurancesErrorMap = map[string]AssurancesErrorCode{
 	"not_sorted_or_unique_assurers": NotSortedOrUniqueAssurers,
 }
 
-func (e *AssurancesErrorCode) UnmarshalJSON(data []byte) error {
+func (e *AssuranceErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
 		if val, ok := assurancesErrorMap[str]; ok {
@@ -96,9 +96,9 @@ func (e *AssurancesErrorCode) UnmarshalJSON(data []byte) error {
 }
 
 // AssurancesInput UnmarshalJSON
-func (a *AssurancesInput) UnmarshalJSON(data []byte) error {
+func (a *AssuranceInput) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling AssurancesInput")
-	type Alias AssurancesInput
+	type Alias AssuranceInput
 	aux := &struct {
 		*Alias
 	}{
@@ -117,9 +117,9 @@ func (a *AssurancesInput) UnmarshalJSON(data []byte) error {
 }
 
 // AssurancesOutputData UnmarshalJSON
-func (a *AssurancesOutputData) UnmarshalJSON(data []byte) error {
+func (a *AssuranceOutputData) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling AssurancesOutput")
-	type Alias AssurancesOutputData
+	type Alias AssuranceOutputData
 	aux := &struct {
 		*Alias
 	}{
@@ -138,7 +138,7 @@ func (a *AssurancesOutputData) UnmarshalJSON(data []byte) error {
 }
 
 // AssurancesInput
-func (a *AssurancesInput) Decode(d *types.Decoder) error {
+func (a *AssuranceInput) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AssurancesInput")
 	var err error
 
@@ -158,7 +158,7 @@ func (a *AssurancesInput) Decode(d *types.Decoder) error {
 }
 
 // AssurancesOutputData
-func (a *AssurancesOutputData) Decode(d *types.Decoder) error {
+func (a *AssuranceOutputData) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AssurancesOutputData")
 
 	length, err := d.DecodeLength()
@@ -183,17 +183,21 @@ func (a *AssurancesOutputData) Decode(d *types.Decoder) error {
 }
 
 // AssurancesOutput
-func (a *AssurancesOutput) Decode(d *types.Decoder) error {
+func (a *AssuranceOutput) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AssurancesOutput")
 	var err error
 
 	okOrErr, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
 	isOk := okOrErr == 0
 	if isOk {
 		cLog(Yellow, "AssurancesOutput is ok")
 
 		if a.Ok == nil {
-			a.Ok = &AssurancesOutputData{}
+			a.Ok = &AssuranceOutputData{}
 		}
 
 		if err = a.Ok.Decode(d); err != nil {
@@ -211,7 +215,7 @@ func (a *AssurancesOutput) Decode(d *types.Decoder) error {
 			return err
 		}
 
-		a.Err = (*AssurancesErrorCode)(&errByte)
+		a.Err = (*AssuranceErrorCode)(&errByte)
 
 		cLog(Yellow, fmt.Sprintf("SafroleErrorCode: %v", *a.Err))
 	}
@@ -220,7 +224,7 @@ func (a *AssurancesOutput) Decode(d *types.Decoder) error {
 }
 
 // AssurancesState
-func (a *AssurancesState) Decode(d *types.Decoder) error {
+func (a *AssuranceState) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AssurancesState")
 	var err error
 
@@ -236,24 +240,24 @@ func (a *AssurancesState) Decode(d *types.Decoder) error {
 }
 
 // AssurancesTestCase
-func (a *AssurancesTestCase) Decode(d *types.Decoder) error {
+func (a *AssuranceTestCase) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AssurancesTestCase")
 	var err error
 
 	if err = a.Input.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = a.PreState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = a.Output.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = a.PostState.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
