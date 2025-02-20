@@ -1179,3 +1179,67 @@ func (a *AuthQueues) UnmarshalJSON(data []byte) error {
 	*a = temp
 	return nil
 }
+
+// ReadyQueueItem
+func (r *ReadyQueueItem) UnmarshalJSON(data []byte) error {
+	var temp []ReadyRecord
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*r = temp
+
+	return nil
+}
+
+// ReadyQueue
+func (r *ReadyQueue) UnmarshalJSON(data []byte) error {
+	var temp []ReadyQueueItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*r = temp
+
+	return nil
+}
+
+// AccumulatedQueueItem
+func (a *AccumulatedQueueItem) UnmarshalJSON(data []byte) error {
+	var temp []WorkPackageHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AccumulatedQueue
+func (a *AccumulatedQueue) UnmarshalJSON(data []byte) error {
+	var temp []AccumulatedQueueItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}

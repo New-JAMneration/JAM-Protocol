@@ -11,7 +11,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 
-	// jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	// jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 	// jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
@@ -468,6 +468,51 @@ func TestDecodeJamTestVectorsAuthorizations(t *testing.T) {
 
 		// Compare the two structs
 		if !reflect.DeepEqual(authorizations, jsonData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Errorf("Error: %v", err)
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+}
+
+// accumulate
+func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		accumulate := &jamtests_accmuluate.AccumulateTestCase{}
+		err = decoder.Decode(binData, accumulate)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Read the json file
+		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
+		jsonFileName := GetJsonFilename(filename)
+		jsonFilePath := filepath.Join(dir, jsonFileName)
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_accmuluate.AccumulateTestCase{}))
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Compare the two structs
+		if !reflect.DeepEqual(accumulate, jsonData) {
 			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Errorf("Error: %v", err)
 		} else {
