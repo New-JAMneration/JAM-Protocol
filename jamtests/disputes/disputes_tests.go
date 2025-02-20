@@ -31,27 +31,27 @@ func cLog(color string, string string) {
 	}
 }
 
-type DisputesTestCase struct {
-	Input     DisputesInput  `json:"input"`
-	PreState  DisputesState  `json:"pre_state"`
-	Output    DisputesOutput `json:"output"`
-	PostState DisputesState  `json:"post_state"`
+type DisputeTestCase struct {
+	Input     DisputeInput  `json:"input"`
+	PreState  DisputeState  `json:"pre_state"`
+	Output    DisputeOutput `json:"output"`
+	PostState DisputeState  `json:"post_state"`
 }
 
-type DisputesInput struct {
+type DisputeInput struct {
 	Disputes types.DisputesExtrinsic `json:"disputes"`
 }
 
-type DisputesOutputData struct {
+type DisputeOutputData struct {
 	OffendersMark types.OffendersMark `json:"offenders_mark"`
 }
 
-type DisputesOutput struct {
-	Ok  *DisputesOutputData `json:"ok,omitempty"`
-	Err *DisputesErrorCode  `json:"err,omitempty"`
+type DisputeOutput struct {
+	Ok  *DisputeOutputData `json:"ok,omitempty"`
+	Err *DisputeErrorCode  `json:"err,omitempty"`
 }
 
-type DisputesState struct {
+type DisputeState struct {
 	Psi    types.DisputesRecords         `json:"psi"`
 	Rho    types.AvailabilityAssignments `json:"rho"`
 	Tau    types.TimeSlot                `json:"tau"`
@@ -59,26 +59,26 @@ type DisputesState struct {
 	Lambda types.ValidatorsData          `json:"lambda"`
 }
 
-type DisputesErrorCode types.ErrorCode
+type DisputeErrorCode types.ErrorCode
 
 const (
-	AlreadyJudged             DisputesErrorCode = iota // 0
-	BadVoteSplit                                       // 1
-	VerdictsNotSortedUnique                            // 2
-	JudgementsNotSortedUnique                          // 3
-	CulpritsNotSortedUnique                            // 4
-	FaultsNotSortedUnique                              // 5
-	NotEnoughCulprits                                  // 6
-	NotEnoughFaults                                    // 7
-	CulpritsVerdictNotBad                              // 8
-	FaultVerdictWrong                                  // 9
-	OffenderAlreadyReported                            // 10
-	BadJudgementAge                                    // 11
-	BadValidatorIndex                                  // 12
-	BadSignature                                       // 13
+	AlreadyJudged             DisputeErrorCode = iota // 0
+	BadVoteSplit                                      // 1
+	VerdictsNotSortedUnique                           // 2
+	JudgementsNotSortedUnique                         // 3
+	CulpritsNotSortedUnique                           // 4
+	FaultsNotSortedUnique                             // 5
+	NotEnoughCulprits                                 // 6
+	NotEnoughFaults                                   // 7
+	CulpritsVerdictNotBad                             // 8
+	FaultVerdictWrong                                 // 9
+	OffenderAlreadyReported                           // 10
+	BadJudgementAge                                   // 11
+	BadValidatorIndex                                 // 12
+	BadSignature                                      // 13
 )
 
-var disputesErrorMap = map[string]DisputesErrorCode{
+var disputeErrorMap = map[string]DisputeErrorCode{
 	"already_judged":               AlreadyJudged,
 	"bad_vote_split":               BadVoteSplit,
 	"verdicts_not_sorted_unique":   VerdictsNotSortedUnique,
@@ -95,10 +95,10 @@ var disputesErrorMap = map[string]DisputesErrorCode{
 	"bad_signature":                BadSignature,
 }
 
-func (e *DisputesErrorCode) UnmarshalJSON(data []byte) error {
+func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := disputesErrorMap[str]; ok {
+		if val, ok := disputeErrorMap[str]; ok {
 			*e = val
 			return nil
 		}
@@ -108,7 +108,7 @@ func (e *DisputesErrorCode) UnmarshalJSON(data []byte) error {
 }
 
 // DisputesInput
-func (di *DisputesInput) Decode(d *types.Decoder) error {
+func (di *DisputeInput) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding DisputesInput")
 	var err error
 
@@ -120,7 +120,7 @@ func (di *DisputesInput) Decode(d *types.Decoder) error {
 }
 
 // DisputesOutputData
-func (dod *DisputesOutputData) Decode(d *types.Decoder) error {
+func (dod *DisputeOutputData) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding DisputesOutputData")
 	var err error
 
@@ -144,7 +144,7 @@ func (dod *DisputesOutputData) Decode(d *types.Decoder) error {
 }
 
 // DisputesOutput
-func (do *DisputesOutput) Decode(d *types.Decoder) error {
+func (do *DisputeOutput) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding DisputesOutput")
 	var err error
 
@@ -154,7 +154,7 @@ func (do *DisputesOutput) Decode(d *types.Decoder) error {
 		cLog(Yellow, "DisputesOutput is ok")
 
 		if do.Ok == nil {
-			do.Ok = new(DisputesOutputData)
+			do.Ok = new(DisputeOutputData)
 		}
 		if err = do.Ok.Decode(d); err != nil {
 			return err
@@ -170,7 +170,7 @@ func (do *DisputesOutput) Decode(d *types.Decoder) error {
 			return err
 		}
 
-		do.Err = (*DisputesErrorCode)(&errByte)
+		do.Err = (*DisputeErrorCode)(&errByte)
 
 		cLog(Yellow, fmt.Sprintf("DisputesErrorCode: %d", *do.Err))
 	}
@@ -179,7 +179,7 @@ func (do *DisputesOutput) Decode(d *types.Decoder) error {
 }
 
 // DisputesState
-func (ds *DisputesState) Decode(d *types.Decoder) error {
+func (ds *DisputeState) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding DisputesState")
 	var err error
 
@@ -207,7 +207,7 @@ func (ds *DisputesState) Decode(d *types.Decoder) error {
 }
 
 // DisputesTestCase
-func (dtc *DisputesTestCase) Decode(d *types.Decoder) error {
+func (dtc *DisputeTestCase) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding DisputesTestCase")
 	var err error
 

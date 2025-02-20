@@ -361,7 +361,7 @@ func TestDecodeJamTestVectorsDisputes(t *testing.T) {
 
 		// Decode the binary data
 		decoder := types.NewDecoder()
-		disputes := &jamtests_disputes.DisputesTestCase{}
+		disputes := &jamtests_disputes.DisputeTestCase{}
 		err = decoder.Decode(binData, disputes)
 		if err != nil {
 			t.Errorf("Error: %v", err)
@@ -371,7 +371,7 @@ func TestDecodeJamTestVectorsDisputes(t *testing.T) {
 		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
 		jsonFileName := GetJsonFilename(filename)
 		jsonFilePath := filepath.Join(dir, jsonFileName)
-		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_disputes.DisputesTestCase{}))
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_disputes.DisputeTestCase{}))
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -406,7 +406,7 @@ func TestDecodeJamTestVectorsAssurances(t *testing.T) {
 
 		// Decode the binary data
 		decoder := types.NewDecoder()
-		assurances := &jamtests_assurances.AssurancesTestCase{}
+		assurances := &jamtests_assurances.AssuranceTestCase{}
 		err = decoder.Decode(binData, assurances)
 		if err != nil {
 			t.Errorf("Error: %v", err)
@@ -416,7 +416,7 @@ func TestDecodeJamTestVectorsAssurances(t *testing.T) {
 		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
 		jsonFileName := GetJsonFilename(filename)
 		jsonFilePath := filepath.Join(dir, jsonFileName)
-		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_assurances.AssurancesTestCase{}))
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_assurances.AssuranceTestCase{}))
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
