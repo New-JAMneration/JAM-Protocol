@@ -174,14 +174,14 @@ func UpdateSlotKeySequence() {
 
 	slot_index := GetSlotIndex(tau)
 	var new_GammaS types.TicketsOrKeys
-	if ePrime == e+1 {
-		gammaA := priorState.GetGammaA()
-		if len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
-			new_GammaS.Tickets = OutsideInSequencer(&gammaA)
-		} else { //F(η′2, κ′) otherwise
-			new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
-		}
+	gammaA := priorState.GetGammaA()
+	if ePrime == e+1 && len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		new_GammaS.Tickets = OutsideInSequencer(&gammaA)
+	} else if ePrime == e { // γs if e′ = e
+		new_GammaS = priorState.GetGammaS()
+	} else { //F(η′2, κ′) otherwise
+		new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
+		posteriorState.SetGammaS(new_GammaS)
 	}
-	posteriorState.SetGammaS(new_GammaS)
 
 }
