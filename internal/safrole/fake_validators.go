@@ -96,34 +96,13 @@ func LoadFakeValidators() FakeValidators {
 	return MapFakeValidators(fakeValidatorDTOs)
 }
 
-// INFO: This function only for GetBandersnatchRingRootCommmitment
-func CreateRingVRFHandler(bandersnatchKeys []types.BandersnatchPublic, proverIdx uint) (*vrf.Handler, error) {
-	if proverIdx >= uint(len(bandersnatchKeys)) {
-		return nil, fmt.Errorf("proverIdx is out of range: %v", proverIdx)
-	}
-
-	// Only the secret key of the prover is needed
-	fakeValidators := LoadFakeValidators()
-	skBytes := fakeValidators[proverIdx].BandersnatchPrivate[:]
-
-	// Use input bandersnatch keys to create the ring
-	ringBytes := []byte{}
-	ringSize := uint(len(bandersnatchKeys))
-
-	for _, bandersnatch := range bandersnatchKeys {
-		ringBytes = append(ringBytes, bandersnatch[:]...)
-	}
-
-	return vrf.NewHandler(ringBytes, skBytes, ringSize, proverIdx)
-}
-
 func CreateVRFHandler(bandersnatchKey types.BandersnatchPublic) (*vrf.Handler, error) {
 	// Only the secret key of the prover is needed
 	fakeValidators := LoadFakeValidators()
 	var private BandersnatchPrivate
 	for _, bandersnatch := range fakeValidators {
-		//fmt.Println(bandersnatchKey)
-		//fmt.Println(bandersnatch.Bandersnatch)
+		// fmt.Println(bandersnatchKey)
+		// fmt.Println(bandersnatch.Bandersnatch)
 		if bandersnatch.Bandersnatch == bandersnatchKey {
 			private = bandersnatch.BandersnatchPrivate
 			// proverIdx = uint(idx)

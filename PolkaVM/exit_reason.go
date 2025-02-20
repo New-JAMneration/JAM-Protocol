@@ -3,7 +3,10 @@ package PolkaVM
 import (
 	"fmt"
 	"math"
+<<<<<<< HEAD
 	"sort"
+=======
+>>>>>>> main
 )
 
 type ExitReasonTypes int
@@ -68,6 +71,7 @@ func PVMExitTuple(reason ExitReasonTypes, meta interface{}) error {
 	return &PVMExitReason{Reason: reason}
 }
 
+<<<<<<< HEAD
 // (A.9) ParseMemoryAccessError parses the memory access error based on the given
 // invalid addresses.
 func ParseMemoryAccessError(invalidAddresses []uint64) (ExitReasonTypes, error) {
@@ -117,4 +121,38 @@ func GetInvalidAddress(readAddresses []uint64, writeAddresses []uint64, readable
 	}
 
 	return uniqueAddresses
+=======
+// Branch implements the branch function (A.17)
+func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint32) (ExitReasonTypes, ProgramCounter) {
+	// instructions table will define different offset
+	target := pc + ProgramCounter(offset)
+	if !condition {
+		return CONTINUE, pc // Condition is false, continue execution at next instruction.
+	}
+	if !IsBasicBlock(uint32(target), basicBlocks) {
+		return PANIC, pc // Target is not basic block, panic.
+	}
+	return CONTINUE, target // Otherwise, jump to the target.
+}
+
+// djump implements the dynamic jump function (A.18)
+func Djump(target uint32, jumpTable []uint32, basicBlocks []uint32) (ExitReasonTypes, uint32) {
+	if target == math.MaxUint32-ZZ+1 {
+		return HALT, target // Special case: return the address as is. // TODO design for returning iota
+	}
+	if target == 0 || target > uint32(len(jumpTable))*ZA || target%ZA != 0 || !IsBasicBlock(jumpTable[target/ZA], basicBlocks) {
+		return PANIC, target // If the target is invalid, panic. // TODO design for returning iota
+	}
+	return CONTINUE, jumpTable[target/ZA] // Otherwise, jump to the target.
+}
+
+// contains checks if a slice contains a specific value.
+func IsBasicBlock(target uint32, basicBlocks []uint32) bool {
+	for _, basicBlock := range basicBlocks {
+		if target == basicBlock {
+			return true
+		}
+	}
+	return false
+>>>>>>> main
 }
