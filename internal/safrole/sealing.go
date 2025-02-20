@@ -181,7 +181,6 @@ func UpdateSlotKeySequence() {
 		new_GammaS = priorState.GetGammaS()
 	} else { //F(η′2, κ′) otherwise
 		new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
-		posteriorState.SetGammaS(new_GammaS)
 	}
-
+	posteriorState.SetGammaS(new_GammaS)
 }
