@@ -45,6 +45,7 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // (6.31)
 // VerifyTicketsProof verifies the proof of the tickets
 // If the proof is valid, return the ticket bodies
+// withdraw from DB: PreGammaK, PostEta[2]
 func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
 	// gammaK := s.GetPosteriorStates().GetGammaK()

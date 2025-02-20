@@ -1,0 +1,3244 @@
+2025/02/20 18:33:51 🚀 Tiny mode activated
+=== RUN   TestSafrole
+    safrole_integration_test.go:108: 0 enact-epoch-change-with-no-tickets-1.json
+2025/02/20 18:33:51 🚀 Store initialized
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 0 -> tauPrime 1
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Successfully set RingContext
+Initializing ring...
+tau:  0
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m0[0m
+[31m1[0m
+[32m0[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:307: expected OK w/o info
+    safrole_integration_test.go:318: 
+        our output {<nil>, <nil>} fits safroleOutput.Ok: {<nil> <nil>}
+    safrole_integration_test.go:108: 1 enact-epoch-change-with-no-tickets-2.json
+    safrole_integration_test.go:161: input safroleErr: 0
+    safrole_integration_test.go:164: input safroleOutputErrCode:  0
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 1
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  1
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m1[0m
+[31m1[0m
+[32m1[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:323: expected "bad_slot"(0) error
+    safrole_integration_test.go:330: 
+        our output 0 fits safroleOutputErrCode 0
+    safrole_integration_test.go:108: 2 enact-epoch-change-with-no-tickets-3.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 10
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  1
+tauPrime:  10
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m1[0m
+[31m10[0m
+[32m1[0m
+[32m10[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 10,
+- 		Eta: types.EntropyBuffer{
+- 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 10,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:335: expected OK w/o info
+    safrole_integration_test.go:346: 
+        our output {<nil>, <nil>} fits safroleOutput.Ok: {<nil> <nil>}
+    safrole_integration_test.go:108: 3 enact-epoch-change-with-no-tickets-4.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {0xc0002bb2c0 <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 10 -> tauPrime 15
+    safrole_integration_test.go:191: e:  0 -> ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  10
+tauPrime:  15
+e:  0
+ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+otherwise
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m10[0m
+[31m15[0m
+[32m10[0m
+[32m15[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 15,
+- 		Eta: types.EntropyBuffer{
+- 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xf1, 0x64, 0xce, 0x89, ...},
+- 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, 0x87, 0xe3, 0x9f, 0xb3, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xf1, 0x64, 0xce, 0x89, ...},
++ 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 15,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:351: expected OK w/ epochmark
+    safrole_integration_test.go:360: 
+        our output {0xc000124188, <nil>} fits safroleOutput.Ok: {0xc0002bb2c0 <nil>}
+    safrole_integration_test.go:108: 4 publish-tickets-no-mark-1.json
+    safrole_integration_test.go:161: input safroleErr: 4
+    safrole_integration_test.go:164: input safroleOutputErrCode:  4
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 0 -> tauPrime 1
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+    safrole_integration_test.go:203: outEtErr: 4
+tau:  0
+tauPrime:  0
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m0[0m
+[31m0[0m
+[32m0[0m
+[32m0[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Eta: types.EntropyBuffer{
+- 			{0x03, 0x17, 0x0a, 0x2e, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0x03, 0x17, 0x0a, 0x2e, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:393: expected "bad_ticket_attempt"(4) error
+    safrole_integration_test.go:400: 
+        our output 4 fits safroleOutputErrCode 4
+    safrole_integration_test.go:108: 5 publish-tickets-no-mark-2.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 0 -> tauPrime 1
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+tau:  0
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m0[0m
+[31m1[0m
+[32m0[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}, Attempt: 1},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:108: 6 publish-tickets-no-mark-3.json
+    safrole_integration_test.go:161: input safroleErr: 6
+    safrole_integration_test.go:164: input safroleOutputErrCode:  6
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 2
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+    safrole_integration_test.go:203: outEtErr: 6
+tau:  1
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m1[0m
+[31m1[0m
+[32m1[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}, Attempt: 1},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:108: 7 publish-tickets-no-mark-4.json
+    safrole_integration_test.go:161: input safroleErr: 2
+    safrole_integration_test.go:164: input safroleOutputErrCode:  2
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 2
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+    safrole_integration_test.go:203: outEtErr: 2
+tau:  1
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m1[0m
+[31m1[0m
+[32m1[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}, Attempt: 1},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:108: 8 publish-tickets-no-mark-5.json
+    safrole_integration_test.go:161: input safroleErr: 3
+    safrole_integration_test.go:164: input safroleOutputErrCode:  3
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 2
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verification failure: VerificationFailure
+    safrole_integration_test.go:203: outEtErr: 3
+tau:  1
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m1[0m
+[31m1[0m
+[32m1[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}, Attempt: 1},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:445: expected "bad_ticket_proof"(3) error
+    safrole_integration_test.go:452: 
+        our output 3 fits safroleOutputErrCode 3
+    safrole_integration_test.go:108: 9 publish-tickets-no-mark-6.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 2
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+tau:  1
+tauPrime:  2
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m1[0m
+[31m2[0m
+[32m1[0m
+[32m2[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 2,
+- 		Eta: types.EntropyBuffer{
+- 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 2,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:457: expected OK w/o info
+    safrole_integration_test.go:468: safroleOutput.Ok:  {<nil> <nil>}
+    safrole_integration_test.go:108: 10 publish-tickets-no-mark-7.json
+    safrole_integration_test.go:161: input safroleErr: 1
+    safrole_integration_test.go:164: input safroleOutputErrCode:  1
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 2 -> tauPrime 10
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+    safrole_integration_test.go:203: outEtErr: 1
+tau:  2
+tauPrime:  2
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+    safrole_integration_test.go:257: markerErr: 0
+[31m2[0m
+[31m2[0m
+[32m2[0m
+[32m2[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 2,
+- 		Eta: types.EntropyBuffer{
+- 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 2,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:473: expected "unexpected_ticket"(1) error
+    safrole_integration_test.go:480: 
+        our output 1 fits safroleOutputErrCode 1
+    safrole_integration_test.go:108: 11 publish-tickets-no-mark-8.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 2 -> tauPrime 10
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  2
+tauPrime:  10
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m2[0m
+[31m10[0m
+[32m2[0m
+[32m10[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 10,
+- 		Eta: types.EntropyBuffer{
+- 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 2},
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 10,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:485: expected OK w/o info
+    safrole_integration_test.go:496: safroleOutput.Ok:  {<nil> <nil>}
+    safrole_integration_test.go:108: 12 publish-tickets-no-mark-9.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {0xc0002f8180 <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 10 -> tauPrime 12
+    safrole_integration_test.go:191: e:  0 -> ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  10
+tauPrime:  12
+e:  0
+ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+otherwise
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m10[0m
+[31m12[0m
+[32m10[0m
+[32m12[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 12,
+- 		Eta: types.EntropyBuffer{
+- 			{0xfc, 0x1f, 0xdd, 0xb5, ...}, {0x76, 0x06, 0x12, 0xc5, ...},
+- 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, 0x87, 0xe3, 0x9f, 0xb3, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xfc, 0x1f, 0xdd, 0xb5, ...}, {0x76, 0x06, 0x12, 0xc5, ...},
++ 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 12,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:501: expected OK w/ epochmark
+    safrole_integration_test.go:510: 
+        our output {0xc000124278, <nil>} fits safroleOutput.Ok: {0xc0002f8180 <nil>}
+    safrole_integration_test.go:108: 13 publish-tickets-with-mark-1.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 0 -> tauPrime 1
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+tau:  0
+tauPrime:  1
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m0[0m
+[31m1[0m
+[32m0[0m
+[32m1[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 1,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}, Attempt: 1},
+- 			...,
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 1,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:515: expected OK w/o info
+    safrole_integration_test.go:526: safroleOutput.Ok:  {<nil> <nil>}
+    safrole_integration_test.go:108: 14 publish-tickets-with-mark-2.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 1 -> tauPrime 2
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+tau:  1
+tauPrime:  2
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m1[0m
+[31m2[0m
+[32m1[0m
+[32m2[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 2,
+- 		Eta: types.EntropyBuffer{
+- 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}, Attempt: 2}, ...,
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xf1, 0x64, 0xce, 0x89, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 2,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:531: expected OK w/o info
+    safrole_integration_test.go:542: safroleOutput.Ok:  {<nil> <nil>}
+    safrole_integration_test.go:108: 15 publish-tickets-with-mark-3.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 2 -> tauPrime 3
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Ring signature verified
+Ring signature verified
+Ring signature verified
+tau:  2
+tauPrime:  3
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m2[0m
+[31m3[0m
+[32m2[0m
+[32m3[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 3,
+- 		Eta: types.EntropyBuffer{
+- 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}}, ...,
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0x76, 0x06, 0x12, 0xc5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 3,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:547: expected OK w/o info
+    safrole_integration_test.go:558: safroleOutput.Ok:  {<nil> <nil>}
+    safrole_integration_test.go:108: 16 publish-tickets-with-mark-4.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {<nil> 0xc000290468}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 3 -> tauPrime 11
+    safrole_integration_test.go:191: e:  0 -> ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  3
+tauPrime:  11
+e:  0
+ePrime:  0
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m3[0m
+[31m11[0m
+[32m3[0m
+[32m11[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 11,
+- 		Eta: types.EntropyBuffer{
+- 			{0xfc, 0x1f, 0xdd, 0xb5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
+- 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA: types.TicketsAccumulator{
+- 			{Id: types.TicketId{...}, Attempt: 1}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}, Attempt: 2}, {Id: types.TicketId{...}, Attempt: 1},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}, Attempt: 2},
+- 			{Id: types.TicketId{...}}, {Id: types.TicketId{...}}, ...,
+- 		},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, 0xd7, 0x54, 0xd6, 0x83, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xa9, 0x49, 0xa6, 0x0a, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{{...}, {...}, {...}, {...}, ...},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xfc, 0x1f, 0xdd, 0xb5, ...}, {0xee, 0x15, 0x5a, 0xce, ...},
++ 			{0xbb, 0x30, 0xa4, 0x2c, ...}, {0xe8, 0x8b, 0xd7, 0x57, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 11,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:563: expected OK w/ ticketmark
+    safrole_integration_test.go:571: safroleOutput.Ok:  {<nil> 0xc000290468}
+    safrole_integration_test.go:108: 17 publish-tickets-with-mark-5.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {0xc000512c00 <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 11 -> tauPrime 12
+    safrole_integration_test.go:191: e:  0 -> ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  11
+tauPrime:  12
+e:  0
+ePrime:  1
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+ePrime == e+1
+    safrole_integration_test.go:248: sealing with keys
+[31m11[0m
+[31m12[0m
+[32m11[0m
+[32m12[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 12,
+- 		Eta: types.EntropyBuffer{
+- 			{0xe6, 0xf6, 0x4b, 0xbc, ...}, {0xfc, 0x1f, 0xdd, 0xb5, ...},
+- 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Tickets: []types.TicketBody{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, 0x87, 0xe3, 0x9f, 0xb3, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, ...},
++ 			GammaS: types.TicketsOrKeys{Tickets: []types.TicketBody{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xe6, 0xf6, 0x4b, 0xbc, ...}, {0xfc, 0x1f, 0xdd, 0xb5, ...},
++ 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 12,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:575: expected OK w/ epochmark
+    safrole_integration_test.go:584: 
+        our output {0xc000444048, <nil>} fits safroleOutput.Ok: {0xc000512c00 <nil>}
+    safrole_integration_test.go:108: 18 skip-epoch-tail-1.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {0xc0004888a0 <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 45 -> tauPrime 48
+    safrole_integration_test.go:191: e:  3 -> ePrime:  4
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  45
+tauPrime:  48
+e:  3
+ePrime:  4
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+otherwise
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m45[0m
+[31m48[0m
+[32m45[0m
+[32m48[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 48,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0x03, 0x17, 0x0a, 0x2e, ...},
+- 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, 0x87, 0xe3, 0x9f, 0xb3, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0x03, 0x17, 0x0a, 0x2e, ...},
++ 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 48,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:379: expected OK w/ epochmark
+    safrole_integration_test.go:388: 
+        our output {0xc0004440c8, <nil>} fits safroleOutput.Ok: {0xc0004888a0 <nil>}
+    safrole_integration_test.go:108: 19 skip-epochs-1.json
+    safrole_integration_test.go:151: input safroleOkInfo:  {0xc000467200 <nil>}
+    safrole_integration_test.go:178: Fallback Mode
+    safrole_integration_test.go:190: tau 10 -> tauPrime 46
+    safrole_integration_test.go:191: e:  0 -> ePrime:  3
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+tau:  10
+tauPrime:  46
+e:  0
+ePrime:  3
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 6
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+otherwise
+    safrole_integration_test.go:248: sealing with keys
+input is nil
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring...
+Reading SRS file from: /home/yu2c/jam/NewJAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
+Ring Size: 1
+Successfully deserialized PcsParams
+Successfully created RingContext
+Failed to set RingContext: already initialized
+Ring context already initialized
+Initializing ring: size = 1
+[31m10[0m
+[31m46[0m
+[32m10[0m
+[32m46[0m
+diff:    any(
+- 	jamtests.SafroleState{
+- 		Tau: 46,
+- 		Eta: types.EntropyBuffer{
+- 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0x03, 0x17, 0x0a, 0x2e, ...},
+- 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
+- 		},
+- 		Lambda: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Kappa: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaK: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		Iota: types.ValidatorsData{
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
+- 		},
+- 		GammaA:        types.TicketsAccumulator{},
+- 		GammaS:        types.TicketsOrKeys{Keys: []types.BandersnatchPublic{{...}, {...}, {...}, {...}, ...}},
+- 		GammaZ:        types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, 0x87, 0xe3, 0x9f, 0xb3, ...},
+- 		PostOffenders: []types.Ed25519Public{},
+- 	},
++ 	types.State{
++ 		Gamma: types.Gamma{
++ 			GammaK: types.ValidatorsData{{...}, {...}, {...}, {...}, ...},
++ 			GammaZ: types.BandersnatchRingCommitment{0xb3, 0x75, 0x0b, 0xba, ...},
++ 			GammaS: types.TicketsOrKeys{Keys: []types.BandersnatchPublic{...}},
++ 			GammaA: types.TicketsAccumulator{},
++ 		},
++ 		Eta: types.EntropyBuffer{
++ 			{0xa0, 0x24, 0x3a, 0x82, ...}, {0x03, 0x17, 0x0a, 0x2e, ...},
++ 			{0xee, 0x15, 0x5a, 0xce, ...}, {0xbb, 0x30, 0xa4, 0x2c, ...},
++ 		},
++ 		Iota: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Kappa: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Lambda: types.ValidatorsData{
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 			{Bandersnatch: types.BandersnatchPublic{...}, Ed25519: types.Ed25519Public{...}},
++ 		},
++ 		Tau: 46,
++ 	},
+  )
+
+diffGammaZ:  
+diffGammaS:  
+diffGammaA:  
+diffIota:  
+diffGammaK:  
+diffKappa:  
+diffLambda:  
+diffEta:  
+diffTau:  
+    safrole_integration_test.go:365: expected OK w/ epochmark
+    safrole_integration_test.go:374: 
+        our output {0xc000444088, <nil>} fits safroleOutput.Ok: {0xc000467200 <nil>}
+--- PASS: TestSafrole (3.72s)
+PASS
+ok  	github.com/New-JAMneration/JAM-Protocol/internal/safrole	3.729s

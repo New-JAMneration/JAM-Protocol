@@ -1,6 +1,8 @@
 package safrole
 
 import (
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -73,25 +75,35 @@ func UpdateEtaPrime0() {
 
 	s := store.GetInstance()
 
-	// posterior_state := s.GetPosteriorStates()
+	posterior_state := s.GetPosteriorStates()
 	prior_state := s.GetPriorStates()
 	// header := s.GetIntermediateHeader()
+	tau := prior_state.GetTau()
+	tauPrime := s.GetIntermediateStates().GetTauInput()
+
+	// e := GetEpochIndex(tau)
+	// ePrime := GetEpochIndex(tauPrime)
 	eta := prior_state.GetEta()
+	if tauPrime > tau {
 
-	// //public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-	// public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
-	// entropy_source := header.EntropySource
-	// handler, _ := CreateVRFHandler(public_key)
-	// vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
-	vrfOutput := s.GetIntermediateStates().GetEntropyInput()
+		// //public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+		// public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
+		// entropy_source := header.EntropySource
+		// handler, _ := CreateVRFHandler(public_key)
+		// vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
+		vrfOutput := s.GetIntermediateStates().GetEntropyInput()
 
-	hash_input := append(eta[0][:], vrfOutput[:]...)
-	newEta0 := types.Entropy(hash.Blake2bHash(utilities.SerializeByteSequence(hash_input)))
+		hash_input := append(eta[0][:], vrfOutput[:]...)
+		newEta0 := types.Entropy(hash.Blake2bHash(utilities.SerializeByteSequence(hash_input)))
 
-	s.GetPosteriorStates().SetEta0(newEta0)
+		posterior_state.SetEta0(newEta0)
+	} else {
+		posterior_state.SetEta0(eta[0])
+	}
 	// s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(utilities.SerializeByteSequence(hash_input))))
 }
 
+// UpdateEntropy updates the entropy0123
 func UpdateEntropy() {
 	/*
 								(η0, η1, η2) if e′ > e
@@ -184,14 +196,19 @@ func UpdateSlotKeySequence() {
 
 	slot_index := GetSlotIndex(tau)
 	var new_GammaS types.TicketsOrKeys
-	if ePrime == e+1 {
-		gammaA := priorState.GetGammaA()
-		if len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
-			new_GammaS.Tickets = OutsideInSequencer(&gammaA)
-		} else { //F(η′2, κ′) otherwise
-			new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
-		}
+	gammaA := priorState.GetGammaA()
+
+	if ePrime == e+1 && len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		fmt.Println("ePrime == e+1")
+		new_GammaS.Tickets = OutsideInSequencer(&gammaA)
+	} else if ePrime == e { // γs if e′ = e
+		fmt.Println("ePrime == e")
+		new_GammaS = priorState.GetGammaS()
+	} else { //F(η′2, κ′) otherwise
+		fmt.Println("otherwise")
+		new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
 	}
+
 	posteriorState.SetGammaS(new_GammaS)
 
 }

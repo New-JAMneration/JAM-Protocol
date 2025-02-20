@@ -3,7 +3,6 @@ package safrole
 import (
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -138,24 +137,29 @@ func KeyRotate() {
 
 	// Get current time slot
 	// tauPrime := s.GetIntermediateStates().GetTauInput()
-	var tauPrime types.TimeSlot
-	if s.GetIntermediateStates().GetTauInput() == 0 {
-		now := time.Now().UTC()
-		timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-		tauPrime = types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-	} else {
-		tauPrime = s.GetIntermediateStates().GetTauInput()
-	}
+	// var tauPrime types.TimeSlot
+	// if s.GetIntermediateStates().GetTauInput() == 0 {
+	// 	fmt.Println("tauPrime is 0")
+	// 	now := time.Now().UTC()
+	// 	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+	// 	tauPrime = types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+	// 	s.GetIntermediateStates().SetTauInput(tauPrime)
+	// } else {
+	// 	tauPrime = s.GetIntermediateStates().GetTauInput()
+	// }
+	tauPrime := s.GetIntermediateStates().GetTauInput()
 	// Execute key rotation
 	// newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
+	fmt.Println("tau: ", tau)
+	fmt.Println("tauPrime: ", tauPrime)
+	fmt.Println("e: ", e)
+	fmt.Println("ePrime: ", ePrime)
 	// iota isn't change
 	iota := priorState.GetIota()
 	s.GetPosteriorStates().SetIota(iota)
 	s.GetPosteriorStates().SetTau(tauPrime)
-	fmt.Printf("Epoch: %v, Epoch Prime: %v\n", e, ePrime)
-	fmt.Printf("tau: %v, tauPrime: %v\n", tau, tauPrime)
 	if ePrime > e {
 		// Update state to posterior state
 		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(iota))

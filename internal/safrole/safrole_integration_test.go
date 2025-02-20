@@ -98,12 +98,12 @@ func TestSafrole(t *testing.T) {
 	jsonFiles := GetTestJsonFiles(dir)
 
 	for iter, file := range jsonFiles {
-		// if file != "enact-epoch-change-with-no-tickets-4.json" {
+		// if file != "publish-tickets-with-mark-1.json" {
 		// 	continue
 		// }
-		if file == "enact-epoch-change-with-padding-1.json" {
-			break
-		}
+		// if file == "enact-epoch-change-with-padding-1.json" {
+		// 	t.Skip("skipping test for now")
+		// }
 		// for easy testing
 		t.Log(iter, file)
 		filename := filepath.Join(dir, file)
@@ -113,14 +113,11 @@ func TestSafrole(t *testing.T) {
 			return
 		}
 		// ----- INPUT ----- //
-		// now := time.Now().UTC()
-		// timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
-		// ourtauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
 		// --- Set safrole state to store --- //
 		s := store.GetInstance()
+
 		// tau
 		s.GetPriorStates().SetTau(safroleTestCase.PreState.Tau)
-		// s.GetPosteriorStates().SetTau(safroleTestCase.Input.Slot)
 		// eta
 		s.GetPriorStates().SetEta(safroleTestCase.PreState.Eta)
 		// lambda
@@ -145,9 +142,6 @@ func TestSafrole(t *testing.T) {
 		s.GetIntermediateStates().SetEntropyInput(safroleTestCase.Input.Entropy)
 		s.GetProcessingBlockPointer().SetTicketsExtrinsic(safroleTestCase.Input.Extrinsic)
 
-		// // MockHeader for sealing.go
-		// s.GetIntermediateHeaders().SetHeader(header)
-
 		// --- HANDLE SAFROLEOUT ERROR --- //
 		safroleOutput := safroleTestCase.Output
 		safroleOutputEpockMark := types.EpochMark{}
@@ -171,13 +165,12 @@ func TestSafrole(t *testing.T) {
 		} else {
 			t.Errorf("expected one of Ok or Err, got %v", safroleOutput)
 		}
-		// fmt.Println("safroleErr:", safroleErr)
-		// err2 := safroleErr.UnmarshalJSON([]byte("bad_slot"))
-		// fmt.Println("err2: ", err2)
 
 		// ----- END INPUT ----- //
 
 		// ----- PROCESS SAFROLE LOGIC ----- //
+
+		// --- STEP 1 Get Safrole Mode --- //
 		gammaS := s.GetPriorStates().GetGammaS()
 		var safroleMode string
 		if gammaS.Keys != nil {
@@ -189,8 +182,26 @@ func TestSafrole(t *testing.T) {
 		} else {
 			t.Error("Unknown Mode")
 		}
+		// --- STEP 2 Get Epoch --- //
+		tau := s.GetPriorStates().GetTau()
+		tauPrime := s.GetIntermediateStates().GetTauInput()
+		e := GetEpochIndex(tau)
+		ePrime := GetEpochIndex(tauPrime)
+		t.Log("tau", tau, "-> tauPrime", tauPrime)
+		t.Log("e: ", e, "-> ePrime: ", ePrime)
 
-		// STEP 1 GET EPOCH AND ROTATE KEYS TO POSTSTATE
+		// --- STEP 3 Update Entropy123 --- //
+		// (GP 6.23)
+		UpdateEntropy()
+
+		// --- STEP 4 Check TicketExtrinsic --- //
+		// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
+
+		ourEtErr := CreateNewTicketAccumulator()
+		if ourEtErr != nil {
+			s.GetIntermediateStates().SetTauInput(s.GetPriorStates().GetTau())
+			t.Log("outEtErr:", int(*ourEtErr))
+		}
 		// --- safrole.go (GP 6.2, 6.13, 6.14) --- //
 		// (6.2, 6.13, 6.14)
 		KeyRotate()
@@ -212,20 +223,11 @@ func TestSafrole(t *testing.T) {
 			}
 		*/
 
-		// (GP 6.23)
-		UpdateEntropy()
 		// (GP 6.22)
 		UpdateEtaPrime0()
 
 		// (GP 6.17)
-		// UpdateHeaderEntropy()
-
-		// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-
-		ourEtErr := CreateNewTicketAccumulator()
-		// if ourEtErr != nil {
-		// 	fmt.Println("outEtErr:", ourEtErr)
-		// }
+		UpdateHeaderEntropy()
 
 		// (GP 6.28)
 		CreateWinningTickets()
@@ -268,11 +270,11 @@ func TestSafrole(t *testing.T) {
 		// }
 		// ourSeal := s.GetIntermediateHeader().Seal
 
-		// // ----- VERIFY OUTPUT ----- //
-		// CLog(Red, fmt.Sprint(safroleTestCase.PreState.Eta))
-		// CLog(Red, fmt.Sprint(safroleTestCase.PostState.Eta))
-		// CLog(Green, fmt.Sprint(s.GetPriorStates().GetState().Eta))
-		// CLog(Green, fmt.Sprint(s.GetPosteriorStates().GetState().Eta))
+		// ----- VERIFY OUTPUT ----- //
+		CLog(Red, fmt.Sprint(safroleTestCase.PreState.Tau))
+		CLog(Red, fmt.Sprint(safroleTestCase.PostState.Tau))
+		CLog(Green, fmt.Sprint(s.GetPriorStates().GetState().Tau))
+		CLog(Green, fmt.Sprint(s.GetPosteriorStates().GetState().Tau))
 		// safrolString, _ := json.Marshal(safroleTestCase.PostState)
 		// ourString, _ := json.Marshal(s.GetPosteriorStates().GetState())
 		// Get diff with cmp
