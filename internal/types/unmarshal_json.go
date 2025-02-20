@@ -1243,3 +1243,19 @@ func (a *AccumulatedQueue) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// BlocksHistory
+func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
+	var temp []BlockInfo
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*b = temp
+
+	return nil
+}
