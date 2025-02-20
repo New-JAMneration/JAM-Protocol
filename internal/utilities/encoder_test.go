@@ -372,7 +372,7 @@ func TestEncodeJamTestVectorsAssurances(t *testing.T) {
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
-		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_assurances.AssurancesTestCase{}))
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_assurances.AssuranceTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
@@ -413,7 +413,7 @@ func TestEncodeJamTestVectorsDisputes(t *testing.T) {
 	for _, jsonFile := range jsonFiles {
 		// Load the json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
-		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_disputes.DisputesTestCase{}))
+		data, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(jamtests_disputes.DisputeTestCase{}))
 		if err != nil {
 			t.Errorf("Failed to load test case from %s: %v", jsonFile, err)
 		}
