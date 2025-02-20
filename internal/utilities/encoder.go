@@ -399,11 +399,11 @@ func (e *Encoder) isReportsOutput(v reflect.Value) bool {
 }
 
 func (e *Encoder) isAssuranceErrorCode(v reflect.Value) bool {
-	return v.Type() == reflect.TypeOf(jamtests_assurances.AssurancesOutput{})
+	return v.Type() == reflect.TypeOf(jamtests_assurances.AssuranceOutput{})
 }
 
 func (e *Encoder) isDisputesErrorCode(v reflect.Value) bool {
-	return v.Type() == reflect.TypeOf(jamtests_disputes.DisputesOutput{})
+	return v.Type() == reflect.TypeOf(jamtests_disputes.DisputeOutput{})
 }
 
 func (e *Encoder) isPreimageErrorCode(v reflect.Value) bool {

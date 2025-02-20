@@ -3,9 +3,33 @@ package jamtests
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+// ANSI color codes
+var (
+	Reset   = "\033[0m"
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	Gray    = "\033[37m"
+	White   = "\033[97m"
+)
+
+var debugMode = false
+
+// var debugMode = true
+
+func cLog(color string, string string) {
+	if debugMode {
+		fmt.Printf("%s%s%s\n", color, string, Reset)
+	}
+}
 
 type PreimagesMapEntry struct {
 	Hash types.OpaqueHash   `json:"hash"`
@@ -48,6 +72,62 @@ type AccumulateTestCase struct {
 	PostState AccumulateState  `json:"post_state"`
 }
 
+// AccumulateInput
+func (a *AccumulateInput) UnmarshalJSON(data []byte) error {
+	cLog(Cyan, "Unmarshalling AccumulateInput")
+
+	var temp struct {
+		Slot    types.TimeSlot     `json:"slot"`
+		Reports []types.WorkReport `json:"reports"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Slot = temp.Slot
+
+	if len(temp.Reports) != 0 {
+		a.Reports = temp.Reports
+	}
+
+	return nil
+}
+
+// AccumulateState
+func (a *AccumulateState) UnmarshalJSON(data []byte) error {
+	cLog(Cyan, "Unmarshalling AccumulateState")
+
+	var temp struct {
+		Slot        types.TimeSlot         `json:"slot"`
+		Entropy     types.Entropy          `json:"entropy"`
+		ReadyQueue  types.ReadyQueue       `json:"ready_queue"`
+		Accumulated types.AccumulatedQueue `json:"accumulated"`
+		Privileges  types.Privileges       `json:"privileges"`
+		Accounts    []AccountsMapEntry     `json:"accounts"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Slot = temp.Slot
+	a.Entropy = temp.Entropy
+
+	if len(temp.ReadyQueue) != 0 {
+		a.ReadyQueue = temp.ReadyQueue
+	}
+
+	if len(temp.Accumulated) != 0 {
+		a.Accumulated = temp.Accumulated
+	}
+
+	a.Privileges = temp.Privileges
+	a.Accounts = temp.Accounts
+
+	return nil
+}
+
 func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Hash string `json:"hash,omitempty"`
@@ -71,6 +151,233 @@ func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
 	}
 
 	p.Blob = types.ByteSequence(blobBytes)
+
+	return nil
+}
+
+// Unmarshal json Account
+func (a *Account) UnmarshalJSON(data []byte) error {
+	cLog(Cyan, "Unmarshalling Account")
+
+	var temp struct {
+		Service   types.ServiceInfo   `json:"service"`
+		Preimages []PreimagesMapEntry `json:"preimages"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Service = temp.Service
+	a.Preimages = temp.Preimages
+
+	return nil
+}
+
+// Unmarshal json AccountsMapEntry
+func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
+	cLog(Cyan, "Unmarshalling AccountsMapEntry")
+
+	var temp struct {
+		Id   types.ServiceId `json:"id"`
+		Data Account         `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Id = temp.Id
+	a.Data = temp.Data
+
+	return nil
+}
+
+// AccumulateInput
+func (a *AccumulateInput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding AccumulateInput")
+
+	var err error
+
+	if err = a.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	a.Reports = make([]types.WorkReport, length)
+	for i := uint64(0); i < length; i++ {
+		if err = a.Reports[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulateOutput
+func (a *AccumulateOutput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding AccumulateOutput")
+	var err error
+
+	okOrErr, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
+	isOk := okOrErr == 0
+	if isOk {
+		cLog(Cyan, "AccumulateOutput is ok")
+
+		if a.Ok == nil {
+			a.Ok = &types.AccumulateRoot{}
+		}
+
+		if err = a.Ok.Decode(d); err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		cLog(Cyan, "AccumulateOutput is err")
+		cLog(Yellow, "AccumulateOutput.Err is nil")
+
+		// AccumulateOutput.Err is NULL
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
+	var err error
+
+	if err = p.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.Blob.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Account
+func (a *Account) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding Account")
+	var err error
+
+	if err = a.Service.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	a.Preimages = make([]PreimagesMapEntry, length)
+	for i := uint64(0); i < length; i++ {
+		if err = a.Preimages[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccountsMapEntry
+func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding AccountsMapEntry")
+	var err error
+
+	if err = a.Id.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Data.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulateState
+func (a *AccumulateState) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding AccumulateState")
+	var err error
+
+	if err = a.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Entropy.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.ReadyQueue.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Accumulated.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Privileges.Decode(d); err != nil {
+		return err
+	}
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	a.Accounts = make([]AccountsMapEntry, length)
+	for i := uint64(0); i < length; i++ {
+		if err = a.Accounts[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulateTestCase
+func (t *AccumulateTestCase) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding AccumulateTestCase")
+	var err error
+
+	if err = t.Input.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.PreState.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.Output.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.PostState.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }
