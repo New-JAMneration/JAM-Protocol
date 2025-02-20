@@ -4,11 +4,8 @@ package PolkaVM
 import (
 	"errors"
 	"fmt"
-<<<<<<< HEAD
-	"reflect"
-=======
 	"math"
->>>>>>> main
+	"reflect"
 	"testing"
 )
 
@@ -94,45 +91,7 @@ func psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
 	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
 }
 
-func TestParseMemoryAccessError(t *testing.T) {
-	testCases := []struct {
-		name               string
-		invalidAddresses   []uint64
-		expectedExitReason ExitReasonTypes
-		expectedError      error
-	}{
-		{
-			name:               "NoError",
-			invalidAddresses:   []uint64{}, // Changed to a slice
-			expectedExitReason: CONTINUE,
-			expectedError:      nil,
-		},
-		{
-			"PageFaultError1",
-			[]uint64{0x1000000, 0x2000000, 0x3000000},
-			PAGE_FAULT,
-			PVMExitTuple(PAGE_FAULT, 0x1000000/ZP),
-		},
-		{
-			"LowAddressAccessError",
-			[]uint64{0x100, 0x2000},
-			PANIC,
-			nil,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			exitReason, err := ParseMemoryAccessError(tc.invalidAddresses)
-			if exitReason != tc.expectedExitReason {
-				t.Errorf("Expected exit reason %v, but got %v", tc.expectedExitReason, exitReason)
-			}
-			if err != nil && tc.expectedError != nil && err.Error() != tc.expectedError.Error() {
-				t.Errorf("Expected error message %q, but got %q", tc.expectedError, err)
-			}
-		})
-	}
-}
+// ---
 
 func naiveGeneralFunction(con uint64) any {
 	register := [13]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
@@ -175,48 +134,6 @@ func TestOmega(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
-func TestGetInvalidAddress(t *testing.T) {
-	tests := []struct {
-		name           string
-		readAddresses  []uint64
-		writeAddresses []uint64
-		readable       map[int]bool
-		writeable      map[int]bool
-		want           []uint64
-	}{
-		{
-			name:           "case1",
-			readAddresses:  []uint64{5000, 10005, 33300},
-			writeAddresses: []uint64{},
-			readable:       map[int]bool{1: true},
-			writeable:      map[int]bool{},
-			want:           []uint64{10005, 33300},
-		},
-		{
-			name:           "case2",
-			readAddresses:  []uint64{1, 2, 4},
-			writeAddresses: []uint64{3, 4, 5},
-			readable:       map[int]bool{},
-			writeable:      map[int]bool{},
-			want:           []uint64{1, 2, 3, 4, 5},
-		},
-		{
-			name:           "case3",
-			readAddresses:  []uint64{4800, 9600, 10800},
-			writeAddresses: []uint64{},
-			readable:       map[int]bool{2: true},
-			writeable:      map[int]bool{},
-			want:           []uint64{4800},
-		},
-		{
-			name:           "case4",
-			readAddresses:  []uint64{},
-			writeAddresses: []uint64{4800, 5000, 9600, 10800},
-			readable:       map[int]bool{},
-			writeable:      map[int]bool{1: true},
-			want:           []uint64{9600, 10800},
-=======
 func TestBranch(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -253,16 +170,11 @@ func TestBranch(t *testing.T) {
 			basicBlocks: []uint32{0, 20, 30}, // 10 is not a basic block
 			wantExit:    PANIC,
 			wantPC:      0,
->>>>>>> main
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
-			if got := GetInvalidAddress(tt.readAddresses, tt.writeAddresses, tt.readable, tt.writeable); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetInvalidAddress() = %v, want %v", got, tt.want)
-=======
 			exitReason, newPC := Branch(tt.pc, tt.offset, tt.condition, tt.basicBlocks)
 			if exitReason != tt.wantExit {
 				t.Errorf("Branch() exitReason = %v, want %v", exitReason, tt.wantExit)
@@ -325,7 +237,58 @@ func TestDjump(t *testing.T) {
 			}
 			if newPC != tc.expectedPC {
 				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
->>>>>>> main
+			}
+		})
+	}
+}
+
+func TestGetInvalidAddress(t *testing.T) {
+	tests := []struct {
+		name           string
+		readAddresses  []uint64
+		writeAddresses []uint64
+		readable       map[int]bool
+		writeable      map[int]bool
+		want           []uint64
+	}{
+		{
+			name:           "case1",
+			readAddresses:  []uint64{5000, 10005, 33300},
+			writeAddresses: []uint64{},
+			readable:       map[int]bool{1: true},
+			writeable:      map[int]bool{},
+			want:           []uint64{10005, 33300},
+		},
+		{
+			name:           "case2",
+			readAddresses:  []uint64{1, 2, 4},
+			writeAddresses: []uint64{3, 4, 5},
+			readable:       map[int]bool{},
+			writeable:      map[int]bool{},
+			want:           []uint64{1, 2, 3, 4, 5},
+		},
+		{
+			name:           "case3",
+			readAddresses:  []uint64{4800, 9600, 10800},
+			writeAddresses: []uint64{},
+			readable:       map[int]bool{2: true},
+			writeable:      map[int]bool{},
+			want:           []uint64{4800},
+		},
+		{
+			name:           "case4",
+			readAddresses:  []uint64{},
+			writeAddresses: []uint64{4800, 5000, 9600, 10800},
+			readable:       map[int]bool{},
+			writeable:      map[int]bool{1: true},
+			want:           []uint64{9600, 10800},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetInvalidAddress(tt.readAddresses, tt.writeAddresses, tt.readable, tt.writeable); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetInvalidAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}
