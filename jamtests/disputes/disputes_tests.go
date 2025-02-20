@@ -1,8 +1,35 @@
 package jamtests
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+// ANSI color codes
+var (
+	Reset   = "\033[0m"
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	Gray    = "\033[37m"
+	White   = "\033[97m"
+)
+
+var debugMode = false
+
+// var debugMode = true
+
+func cLog(color string, string string) {
+	if debugMode {
+		fmt.Printf("%s%s%s\n", color, string, Reset)
+	}
+}
 
 type DisputeTestCase struct {
 	Input     DisputeInput  `json:"input"`
@@ -12,7 +39,7 @@ type DisputeTestCase struct {
 }
 
 type DisputeInput struct {
-	disputes types.DisputesExtrinsic `json:"disputes"`
+	Disputes types.DisputesExtrinsic `json:"disputes"`
 }
 
 type DisputeOutputData struct {
@@ -50,3 +77,155 @@ const (
 	BadValidatorIndex                                 // 12
 	BadSignature                                      // 13
 )
+
+var disputeErrorMap = map[string]DisputeErrorCode{
+	"already_judged":               AlreadyJudged,
+	"bad_vote_split":               BadVoteSplit,
+	"verdicts_not_sorted_unique":   VerdictsNotSortedUnique,
+	"judgements_not_sorted_unique": JudgementsNotSortedUnique,
+	"culprits_not_sorted_unique":   CulpritsNotSortedUnique,
+	"faults_not_sorted_unique":     FaultsNotSortedUnique,
+	"not_enough_culprits":          NotEnoughCulprits,
+	"not_enough_faults":            NotEnoughFaults,
+	"culprits_verdict_not_bad":     CulpritsVerdictNotBad,
+	"fault_verdict_wrong":          FaultVerdictWrong,
+	"offender_already_reported":    OffenderAlreadyReported,
+	"bad_judgement_age":            BadJudgementAge,
+	"bad_validator_index":          BadValidatorIndex,
+	"bad_signature":                BadSignature,
+}
+
+func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		if val, ok := disputeErrorMap[str]; ok {
+			*e = val
+			return nil
+		}
+		return errors.New("invalid error code name: " + str)
+	}
+	return errors.New("invalid error code format, expected string")
+}
+
+// DisputesInput
+func (di *DisputeInput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesInput")
+	var err error
+
+	if err = di.Disputes.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesOutputData
+func (dod *DisputeOutputData) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesOutputData")
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	dod.OffendersMark = make(types.OffendersMark, length)
+	for i := uint64(0); i < length; i++ {
+		if err = dod.OffendersMark[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DisputesOutput
+func (do *DisputeOutput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesOutput")
+	var err error
+
+	okOrErr, err := d.ReadPointerFlag()
+	isOk := okOrErr == 0
+	if isOk {
+		cLog(Yellow, "DisputesOutput is ok")
+
+		if do.Ok == nil {
+			do.Ok = new(DisputeOutputData)
+		}
+		if err = do.Ok.Decode(d); err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		cLog(Yellow, "DisputesOutput is err")
+		cLog(Yellow, "Decoding DisputesErrorCode")
+
+		errByte, err := d.ReadErrorByte()
+		if err != nil {
+			return err
+		}
+
+		do.Err = (*DisputeErrorCode)(&errByte)
+
+		cLog(Yellow, fmt.Sprintf("DisputesErrorCode: %d", *do.Err))
+	}
+
+	return nil
+}
+
+// DisputesState
+func (ds *DisputeState) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesState")
+	var err error
+
+	if err = ds.Psi.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Rho.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Tau.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Kappa.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Lambda.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesTestCase
+func (dtc *DisputeTestCase) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesTestCase")
+	var err error
+
+	if err = dtc.Input.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.PreState.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.Output.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.PostState.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
