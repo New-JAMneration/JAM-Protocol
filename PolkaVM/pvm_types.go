@@ -1,13 +1,15 @@
 package PolkaVM
 
-type Registers [13]uint64
-type ProgramCode []byte // program blob "p" in A.2
-type Instruction []byte // instruction "c" in A.2
-type Gas int64
-type ProgramCounter uint32 // "ı" in GP
+type (
+	Registers      [13]uint64
+	ProgramCode    []byte // program blob "p" in A.2
+	Instruction    []byte // instruction "c" in A.2
+	Gas            int64
+	ProgramCounter uint32 // "ı" in GP
+)
 
 type MemoryChunk struct {
-	Addres   uint32 `json:"address"`
+	Address  uint32 `json:"address"`
 	Contents []byte `json:"contents"`
 }
 
@@ -28,7 +30,7 @@ type TestCase struct {
 	InitialPageMap        PageMap     `json:"initial-page-map"`
 	InitialMemory         MemoryChunk `json:"initial-memory"`
 	InitialGas            Gas         `json:"initial-gas"`
-	ProgramBlob           uint8       `json:"program"`
+	ProgramBlob           []byte      `json:"program"`
 
 	// expected-status -> panic, halt, page-fault
 	ExpectedStatus string `json:"expected-status"`
