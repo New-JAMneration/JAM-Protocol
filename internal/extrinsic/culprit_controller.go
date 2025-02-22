@@ -3,7 +3,6 @@ package extrinsic
 import (
 	"bytes"
 	"fmt"
-	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -52,7 +51,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 
 	for _, report := range c.Culprits {
 		if !checkMap[report.Target] {
-			return fmt.Errorf("CulpritController.VerifyReportHashValidty failed : culprits_not_in_bad")
+			return fmt.Errorf("bad_vote_split")
 		}
 	}
 	return nil
@@ -73,39 +72,50 @@ func (c *CulpritController) ExcludeOffenders() error {
 
 	for i := 0; i < length; i++ { // culprit index
 		if excludeMap[c.Culprits[i].Key] {
-			return fmt.Errorf("CulpritController.ExcludeOffenders failed : offenders_already_judged")
+			return fmt.Errorf("offender_already_reported")
 		}
 	}
 	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
-func (c *CulpritController) SortUnique() {
-	c.Unique()
-	c.Sort()
+func (c *CulpritController) CheckSortUnique() error {
+	if err := c.CheckUnique(); err != nil {
+		return err
+	}
+	if err := c.CheckSorted(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Unique removes duplicates
-func (c *CulpritController) Unique() {
+func (c *CulpritController) CheckUnique() error {
 	if len(c.Culprits) == 0 {
-		return
+		return nil
 	}
 
-	uniqueMap := make(map[types.Ed25519Public]bool)
+	uniqueKeyMap := make(map[types.Ed25519Public]bool)
 	result := make([]types.Culprit, 0)
-
 	for _, culprit := range c.Culprits {
-		if !uniqueMap[culprit.Key] {
-			uniqueMap[culprit.Key] = true
-			result = append(result, culprit)
+		if uniqueKeyMap[culprit.Key] {
+			return fmt.Errorf("duplicate_culprit_key")
 		}
+		uniqueKeyMap[culprit.Key] = true
+		result = append(result, culprit)
 	}
 	c.Culprits = result
+	return nil
 }
 
-// Sort sorts the slice
-func (c *CulpritController) Sort() {
-	sort.Sort(c)
+func (v *CulpritController) CheckSorted() error {
+	for i := 1; i < len(v.Culprits); i++ {
+		if bytes.Compare(v.Culprits[i-1].Key[:], v.Culprits[i].Key[:]) > 0 {
+			return fmt.Errorf("culprits_not_sorted_by_key")
+		}
+	}
+
+	return nil
 }
 
 func (c *CulpritController) Less(i, j int) bool {
