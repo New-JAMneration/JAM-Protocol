@@ -3,7 +3,6 @@ package extrinsic
 import (
 	"bytes"
 	"fmt"
-	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -64,7 +63,7 @@ func (f *FaultController) VerifyReportHashValidty() error {
 		inGood := goodMap[f.Faults[i].Target] && !badMap[f.Faults[i].Target]
 		inBad := !goodMap[f.Faults[i].Target] && badMap[f.Faults[i].Target]
 		if (vote && inGood) || (!vote && inBad) {
-			return fmt.Errorf("FaultController.VerifyReportHashValidty failed : fault_verdict_wrong")
+			return fmt.Errorf("fault_verdict_wrong")
 		}
 	}
 	return nil
@@ -82,28 +81,48 @@ func (f *FaultController) ExcludeOffenders() error {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ { // culprit index
 		if excludeMap[f.Faults[i].Key] {
-			return fmt.Errorf("FaultController.ExcludeOffenders failed : offenders_already_judged")
+			return fmt.Errorf("offender_already_reported")
 		}
 	}
 	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.8
-func (f *FaultController) SortUnique() {
-	f.Sort()
-	f.Unique()
+func (f *FaultController) CheckSortUnique() error {
+	if err := f.CheckUnique(); err != nil {
+		return err
+	}
+	if err := f.CheckSorted(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Unique removes duplicates
-func (f *FaultController) Unique() {
+func (f *FaultController) CheckUnique() error {
 	if len(f.Faults) == 0 {
-		return
+		return nil
 	}
+	uniqueMap := make(map[types.Ed25519Public]bool)
+	uniqueFaults := make([]types.Fault, 0)
+	for _, fault := range f.Faults {
+		if uniqueMap[fault.Key] {
+			return fmt.Errorf("faults_key_not_unique")
+		}
+		uniqueMap[fault.Key] = true
+		uniqueFaults = append(uniqueFaults, fault)
+	}
+	f.Faults = uniqueFaults
+	return nil
 }
 
-// Sort sorts the faults
-func (f *FaultController) Sort() {
-	sort.Sort(f)
+func (f *FaultController) CheckSorted() error {
+	for i := 1; i < len(f.Faults); i++ {
+		if bytes.Compare(f.Faults[i-1].Key[:], f.Faults[i].Key[:]) > 0 {
+			return fmt.Errorf("faults_not_sorted")
+		}
+	}
+	return nil
 }
 
 func (f *FaultController) Less(i, j int) bool {

@@ -6,7 +6,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func Disputes(disputeExtrinsic types.DisputesExtrinsic) ([]types.Ed25519Public, error) {
+func Disputes(disputeExtrinsic types.DisputesExtrinsic) (types.OffendersMark, error) {
 	// init controllers
 	verdictController := NewVerdictController()
 	for _, verdict := range disputeExtrinsic.Verdicts {
@@ -16,18 +16,20 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) ([]types.Ed25519Public, 
 	culpritController.Culprits = disputeExtrinsic.Culprits
 	faultController := NewFaultController()
 	faultController.Faults = disputeExtrinsic.Faults
-
 	// verify verdicts
 	for i := 0; i < len(verdictController.Verdicts); i++ {
 		VerdictPtr := &verdictController.Verdicts[i]
-		invalid := VerdictPtr.VerifySignature()
-		if len(invalid) > 0 {
-			return nil, fmt.Errorf("bad_signature")
+		err := VerdictPtr.VerifySignature()
+		if err != nil {
+			return nil, err
 		}
 	}
-	verdictController.SortUnique()
+
+	if err := verdictController.CheckSortUnique(); err != nil {
+		return nil, err
+	}
 	if err := verdictController.SetDisjoint(); err != nil {
-		return nil, fmt.Errorf("bad_signature")
+		return nil, err
 	}
 
 	verdictController.GenerateVerdictSumSequence()
@@ -40,8 +42,12 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) ([]types.Ed25519Public, 
 		return nil, err
 	}
 
-	culpritController.SortUnique()
-	faultController.SortUnique()
+	if err := culpritController.CheckSortUnique(); err != nil {
+		return nil, fmt.Errorf("culprits_not_sorted_unique")
+	}
+	if err := faultController.CheckSortUnique(); err != nil {
+		return nil, fmt.Errorf("faults_not_sorted_unique")
+	}
 
 	// update state
 	verdictController.ClearWorkReports(verdictController.VerdictSumSequence)
@@ -56,6 +62,6 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) ([]types.Ed25519Public, 
 
 	disputeController.UpdatePsiO(culpritController.Culprits, faultController.Faults)
 	output := disputeController.HeaderOffenders(culpritController.Culprits, faultController.Faults)
-
-	return output, nil
+	offendersMark := types.OffendersMark(output)
+	return offendersMark, nil
 }
