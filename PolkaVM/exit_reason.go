@@ -17,12 +17,12 @@ const (
 )
 
 var exitMessages = map[ExitReasonTypes]string{
-	CONTINUE:   "Continue (▸)",
-	HALT:       "Regular halt (∎)",
-	PANIC:      "Panic (☇)",
-	OUT_OF_GAS: "Out-Of-Gas (∞)",
-	PAGE_FAULT: "Page fault (F)",
-	HOST_CALL:  "Host-Call identifier (̵h)",
+	CONTINUE:   "continue",
+	HALT:       "halt",
+	PANIC:      "panic",
+	OUT_OF_GAS: "out-of-gas",
+	PAGE_FAULT: "page-fault",
+	HOST_CALL:  "host-call identifier",
 }
 
 // varepsilon ε

@@ -95,7 +95,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 		return false
 	}
 
-	if _, exists := Zeta[opcode(data[n])]; !exists {
+	if _, exists := zeta[opcode(data[n])]; !exists {
 		return false
 	}
 
