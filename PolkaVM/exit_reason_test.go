@@ -13,12 +13,12 @@ func TestExitReasonsTypes(t *testing.T) {
 		reason ExitReasonTypes
 		want   string
 	}{
-		{CONTINUE, "Continue (▸)"},
-		{HALT, "Regular halt (∎)"},
-		{PANIC, "Panic (☇)"},
-		{OUT_OF_GAS, "Out-Of-Gas (∞)"},
-		{PAGE_FAULT, "Page fault (F)"},
-		{HOST_CALL, "Host-Call identifier (̵h)"},
+		{CONTINUE, "continue"},
+		{HALT, "halt"},
+		{PANIC, "panic"},
+		{OUT_OF_GAS, "out-of-gas"},
+		{PAGE_FAULT, "page-fault"},
+		{HOST_CALL, "host-call identifier"},
 	}
 
 	for _, tt := range tests {
@@ -38,9 +38,9 @@ func TestInvocation(t *testing.T) {
 		want                 string
 	}{
 		// {1, 0, 10, 0, 1, "Continue (▸)"},                     // CONTINUE
-		{1, 0, 10, 0, 0, "Page fault (F) at RAM address: 0"}, // PAGE_FAULT
-		{1, 0, 0, 0, 1, "Out-Of-Gas (∞)"},                    // OUT_OF_GAS
-		{1, 0, 10, 0, 1, "Host-Call identifier (̵h): 1"},     // HOST_CALL
+		{1, 0, 10, 0, 0, "page-fault at RAM address: 0"}, // PAGE_FAULT
+		{1, 0, 0, 0, 1, "out-of-gas"},                    // OUT_OF_GAS
+		{1, 0, 10, 0, 1, "host-call identifier: 1"},      // HOST_CALL
 	}
 
 	for _, tt := range tests {
@@ -57,7 +57,7 @@ func TestInvocation(t *testing.T) {
 // test all exit types of invocation function
 func exPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 	// call Psi1 to renew states first
-	newPc, newGas, newReg, newMem, epsilon := psi1(1, 2, 3, pc, gas, reg, mem)
+	newPc, newGas, newReg, newMem, epsilon := psi1(pc, gas, reg, mem)
 
 	if errors.Is(epsilon, PVMExitTuple(CONTINUE, nil)) {
 		return exPsi(p, newPc, newGas, newReg, newMem)
@@ -72,7 +72,7 @@ func exPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
 	}
 }
 
-func psi1(c, k, j, pc, gas, reg, mem int) (int, int, int, int, error) {
+func psi1(pc, gas, reg, mem int) (int, int, int, int, error) {
 	var (
 		newPc  = pc + 1 // + skip()
 		newGas = gas - 10
