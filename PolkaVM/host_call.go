@@ -35,7 +35,6 @@ func Psi_H(
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
-	// TODO: Implement Ψ_H function.
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, uint32(counter), gas, reg, ram)
 	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
 	if exitreason_prime == HALT || exitreason_prime == PANIC || exitreason_prime == OUT_OF_GAS || exitreason_prime == PAGE_FAULT {
@@ -47,9 +46,7 @@ func Psi_H(
 		psi_result.Ram = memory_prime
 		psi_result.Addition = addition
 	} else if exitreason_prime == HOST_CALL {
-		// TODO address
-		var inst uint64
-		inst = 0
+		var inst uint64 // TODO How to get the address(h)
 		omega_result := omega(inst, gas_prime, reg_prime, ram, addition)
 		if omega_result.Pagefault {
 			psi_result.Pagefault = true
@@ -61,7 +58,8 @@ func Psi_H(
 			psi_result.ExitReason = PAGE_FAULT
 			psi_result.Addition = addition
 		} else if omega_result.ExitReason == CONTINUE {
-			return Psi_H(code, ProgramCounter(counter_prime+1), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition) // TODO SKIP??
+			return Psi_H(code, ProgramCounter(counter_prime+1), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition)
+			// TODO HOW TO USE SKIP??
 		} else if omega_result.ExitReason == PANIC || omega_result.ExitReason == OUT_OF_GAS || omega_result.ExitReason == HALT {
 			psi_result.Pagefault = false
 			psi_result.ExitReason = omega_result.ExitReason
