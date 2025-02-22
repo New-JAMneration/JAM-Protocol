@@ -419,8 +419,8 @@ func (m *Mmr) UnmarshalJSON(data []byte) error {
 
 func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Hash        string `json:"hash,omitempty"`
-		ExportsRoot string `json:"exports_root,omitempty"`
+		Hash        string `json:"work_package_hash,omitempty"`
+		ExportsRoot string `json:"segment_tree_root,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
