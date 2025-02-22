@@ -7,9 +7,6 @@
 [submodule "pkg/test_data/jamtestnet"]
 	path = pkg/test_data/jamtestnet
 	url = git@github.com:jam-duna/jamtestnet.git
-[submodule "pkg/instruction"]
-	path = pkg/instruction
-	url = https://github.com/koute/jamtestvectors.git
 [submodule "pkg/test_data/instruction"]
 	path = pkg/test_data/instruction
 	url = https://github.com/koute/jamtestvectors.git
