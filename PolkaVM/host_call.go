@@ -1,12 +1,14 @@
 package PolkaVM
 
+import "fmt"
+
 type Psi_H_ReturnType struct {
 	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
 	ExitReason       ExitReasonTypes // exit reason
 	Counter          uint64          // new instruction counter
-	Gas              uint64          // gas remain
+	Gas              Gas             // gas remain
 	Reg              Registers       // new registers
-	Ram              PageMap         // new memory
+	Ram              Memory          // new memory
 	Addition         any             // addition host-call context
 	PagefaultAddress uint64          // page fault address, only use for page fault
 }
@@ -16,7 +18,7 @@ type OmegaReturnType struct {
 	ExitReason       ExitReasonTypes // exit reason
 	GasRemain        Gas             // gas remain
 	Register         Registers       // new registers
-	Ram              PageMap         // new memory
+	Ram              Memory          // new memory
 	Addition         any             // addition host-call context
 	PagefaultAddress uint64          // page fault address, only use for page fault
 }
@@ -27,13 +29,49 @@ func Psi_H(
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
-	ram PageMap, // memory
+	ram Memory, // memory
 	omega Omega, // jump table
 	addition any, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
 	// TODO: Implement Ψ_H function.
+	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, uint32(counter), gas, reg, ram)
+	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+	if exitreason_prime == HALT || exitreason_prime == PANIC || exitreason_prime == OUT_OF_GAS || exitreason_prime == PAGE_FAULT {
+		psi_result.Pagefault = false
+		psi_result.ExitReason = exitreason_prime
+		psi_result.Counter = uint64(counter_prime)
+		psi_result.Gas = gas_prime
+		psi_result.Reg = reg_prime
+		psi_result.Ram = memory_prime
+		psi_result.Addition = addition
+	} else if exitreason_prime == HOST_CALL {
+		// TODO address
+		var inst uint64
+		inst = 0
+		omega_result := omega(inst, gas_prime, reg_prime, ram, addition)
+		if omega_result.Pagefault {
+			psi_result.Pagefault = true
+			psi_result.PagefaultAddress = omega_result.PagefaultAddress
+			psi_result.Counter = uint64(counter_prime)
+			psi_result.Gas = gas_prime
+			psi_result.Reg = reg_prime
+			psi_result.Ram = memory_prime
+			psi_result.ExitReason = PAGE_FAULT
+			psi_result.Addition = addition
+		} else if omega_result.ExitReason == CONTINUE {
+			return Psi_H(code, ProgramCounter(counter_prime+1), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition) // TODO SKIP??
+		} else if omega_result.ExitReason == PANIC || omega_result.ExitReason == OUT_OF_GAS || omega_result.ExitReason == HALT {
+			psi_result.Pagefault = false
+			psi_result.ExitReason = omega_result.ExitReason
+			psi_result.Counter = uint64(counter_prime)
+			psi_result.Gas = omega_result.GasRemain
+			psi_result.Reg = omega_result.Register
+			psi_result.Ram = omega_result.Ram
+			psi_result.Addition = omega_result.Addition
+		}
+	}
 	return
 }
 
@@ -42,6 +80,6 @@ type Omega func(
 	uint64, // instruction
 	Gas, // gas counter
 	Registers, // registers
-	PageMap, // memory
+	Memory, // memory
 	any, // host-call context
 ) OmegaReturnType
