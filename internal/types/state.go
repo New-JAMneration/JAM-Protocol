@@ -1,6 +1,8 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // (4.4)
 type State struct {
@@ -18,7 +20,7 @@ type State struct {
 	Chi    PrivilegedServices      `json:"chi"`
 	Psi    DisputesRecords         `json:"psi"`
 	Pi     Statistics              `json:"pi"`
-	Theta  UnaccumulateWorkReports `json:"theta"`
+	Theta  AccumulationQueue       `json:"theta"`
 	Xi     AccumulatedHistories    `json:"xi"`
 }
 
@@ -30,18 +32,18 @@ type Gamma struct {
 	GammaA TicketsAccumulator         `json:"gamma_a"`
 }
 
-// (9.2) delta
+// (9.2)
 type ServiceAccountState map[ServiceId]ServiceAccount
 
 // (9.3)
 type ServiceAccount struct {
-	StorageDict    map[OpaqueHash]ByteSequence   // a_s
-	PreimageLookup map[OpaqueHash]ByteSequence   // a_p
-	LookupDict     map[DictionaryKey]TimeSlotSet // a_l
-	CodeHash       OpaqueHash                    // a_c
-	Balance        U64                           // a_b
-	MinItemGas     Gas                           // a_g
-	MinMemoGas     Gas                           // a_m
+	StorageDict    map[OpaqueHash]ByteSequence
+	PreimageLookup map[OpaqueHash]ByteSequence
+	LookupDict     map[DictionaryKey]TimeSlotSet
+	CodeHash       OpaqueHash
+	Balance        U64
+	MinItemGas     Gas
+	MinMemoGas     Gas
 }
 
 type DictionaryKey struct {
@@ -71,8 +73,8 @@ func (accumulationQueue AccumulationQueue) Validate() error {
 }
 
 type UnaccumulateWorkReport struct {
-	WorkReport        WorkReport
-	UnaccumulatedDeps []WorkPackageHash
+	WorkReport        WorkReport        `json:"report"`
+	UnaccumulatedDeps []WorkPackageHash `json:"dependencies"`
 }
 
 // (12.1)
