@@ -1,8 +1,6 @@
 package types
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // (4.4)
 type State struct {
