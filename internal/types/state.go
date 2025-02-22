@@ -32,18 +32,18 @@ type Gamma struct {
 	GammaA TicketsAccumulator         `json:"gamma_a"`
 }
 
-// (9.2)
+// (9.2) delta
 type ServiceAccountState map[ServiceId]ServiceAccount
 
 // (9.3)
 type ServiceAccount struct {
-	StorageDict    map[OpaqueHash]ByteSequence
-	PreimageLookup map[OpaqueHash]ByteSequence
-	LookupDict     map[DictionaryKey]TimeSlotSet
-	CodeHash       OpaqueHash
-	Balance        U64
-	MinItemGas     Gas
-	MinMemoGas     Gas
+	StorageDict    map[OpaqueHash]ByteSequence   // a_s
+	PreimageLookup map[OpaqueHash]ByteSequence   // a_p
+	LookupDict     map[DictionaryKey]TimeSlotSet // a_l
+	CodeHash       OpaqueHash                    // a_c
+	Balance        U64                           // a_b
+	MinItemGas     Gas                           // a_g
+	MinMemoGas     Gas                           // a_m
 }
 
 type DictionaryKey struct {
