@@ -54,7 +54,7 @@ const (
 	BadSignature                                      // 13
 )
 
-var disputeErrorMap = map[string]DisputeErrorCode{
+var DisputeErrorMap = map[string]DisputeErrorCode{
 	"already_judged":               AlreadyJudged,
 	"bad_vote_split":               BadVoteSplit,
 	"verdicts_not_sorted_unique":   VerdictsNotSortedUnique,
@@ -74,11 +74,15 @@ var disputeErrorMap = map[string]DisputeErrorCode{
 func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := disputeErrorMap[str]; ok {
+		if val, ok := DisputeErrorMap[str]; ok {
 			*e = val
 			return nil
 		}
 		return errors.New("invalid error code name: " + str)
 	}
 	return errors.New("invalid error code format, expected string")
+}
+
+func (d *DisputeOutput) IsError() bool {
+	return d.Err != nil
 }
