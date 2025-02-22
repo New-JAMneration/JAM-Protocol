@@ -89,6 +89,13 @@ var (
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
+	JamValid                     = "jam_valid"
+	JamInvalid                   = "jam_invalid"
+	JamAvailable                 = "jam_available"
+	JamBeefy                     = "jam_beefy"
+	JamGuarantee                 = "jam_guarantee"
+	JamAnnounce                  = "jam_announce"
+	JamAudit                     = "jam_audit"
 )
 
 var (
