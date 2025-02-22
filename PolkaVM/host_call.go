@@ -58,9 +58,8 @@ func Psi_H(
 			psi_result.ExitReason = PAGE_FAULT
 			psi_result.Addition = addition
 		} else if omega_result.ExitReason == CONTINUE {
-			return Psi_H(code, ProgramCounter(counter_prime+1), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition)
-			// TODO HOW TO USE SKIP??
-			// programCounter += uint32(1) + skip(int(programCounter), bitmask)
+			return Psi_H(code, ProgramCounter(counter_prime), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition)
+			// NEED TO USE SKIP??
 		} else if omega_result.ExitReason == PANIC || omega_result.ExitReason == OUT_OF_GAS || omega_result.ExitReason == HALT {
 			psi_result.Pagefault = false
 			psi_result.ExitReason = omega_result.ExitReason
