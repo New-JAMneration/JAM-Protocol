@@ -1811,3 +1811,39 @@ func (d *DisputesRecords) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// AuthQueue
+func (aq *AuthQueue) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AuthQueue")
+
+	// AuthQueueSize
+	if len(*aq) != int(AuthQueueSize) {
+		return fmt.Errorf("AuthQueue length is not equal to AuthQueueSize")
+	}
+
+	for _, authorizerHash := range *aq {
+		if err := authorizerHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AuthQueues
+func (aq *AuthQueues) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AuthQueues")
+
+	// CoresCount
+	if len(*aq) != int(CoresCount) {
+		return fmt.Errorf("AuthQueues length is not equal to CoresCount")
+	}
+
+	for _, authQueue := range *aq {
+		if err := authQueue.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
