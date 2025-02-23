@@ -18,7 +18,7 @@ type State struct {
 	Chi    PrivilegedServices      `json:"chi"`
 	Psi    DisputesRecords         `json:"psi"`
 	Pi     Statistics              `json:"pi"`
-	Theta  UnaccumulateWorkReports `json:"theta"`
+	Theta  AccumulationQueue       `json:"theta"`
 	Xi     AccumulatedHistories    `json:"xi"`
 }
 
@@ -71,8 +71,8 @@ func (accumulationQueue AccumulationQueue) Validate() error {
 }
 
 type UnaccumulateWorkReport struct {
-	WorkReport        WorkReport
-	UnaccumulatedDeps []WorkPackageHash
+	WorkReport        WorkReport        `json:"report"`
+	UnaccumulatedDeps []WorkPackageHash `json:"dependencies"`
 }
 
 // (12.1)
