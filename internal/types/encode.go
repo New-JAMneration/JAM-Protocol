@@ -38,6 +38,23 @@ func (u *U32) Encode(e *Encoder) error {
 	return nil
 }
 
+// U64
+func (u *U64) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding U64")
+	encoded, err := e.EncodeUintWithLength(uint64(*u), 8)
+	if err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("U64: %v", encoded))
+
+	if _, err := e.buf.Write(encoded); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // HeaderHash
 func (h *HeaderHash) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding HeaderHash")
@@ -1503,6 +1520,242 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+// AvailabilityAssignment
+func (a *AvailabilityAssignment) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AvailabilityAssignment")
+
+	// Report
+	if err := a.Report.Encode(e); err != nil {
+		return err
+	}
+
+	// Timeout
+	if err := a.Timeout.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AvailabilityAssignments
+func (a *AvailabilityAssignments) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AvailabilityAssignments")
+
+	if len(*a) != int(CoresCount) {
+		return fmt.Errorf("AvailabilityAssignments length is not equal to CoresCount")
+	}
+
+	for _, item := range *a {
+		if item == nil {
+			cLog(Yellow, "AvailabilityAssignments item is nil")
+			cLog(Yellow, "Appending 0 to the buffer")
+			if _, err := e.buf.Write([]byte{0}); err != nil {
+				return err
+			}
+		} else {
+			cLog(Yellow, "AvailabilityAssignments item is not nil")
+			cLog(Yellow, "Appending 1 to the buffer")
+			if _, err := e.buf.Write([]byte{1}); err != nil {
+				return err
+			}
+
+			if err := (*item).Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Mmr
+func (m *Mmr) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Mmr")
+
+	if err := e.EncodeLength(uint64(len(m.Peaks))); err != nil {
+		return err
+	}
+
+	for _, peak := range m.Peaks {
+		// Encode pointer
+		if peak == nil {
+			if err := e.EncodeLength(0); err != nil {
+				return err
+			}
+		} else {
+			if err := e.EncodeLength(1); err != nil {
+				return err
+			}
+
+			// Encode the peak
+			if err := (*peak).Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// ReportedWorkPackage
+func (r *ReportedWorkPackage) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ReportedWorkPackage")
+
+	// Hash
+	if err := r.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// ExportsRoot
+	if err := r.ExportsRoot.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BlockInfo
+func (bi *BlockInfo) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding BlockInfo")
+
+	// HeaderHash
+	if err := bi.HeaderHash.Encode(e); err != nil {
+		return err
+	}
+
+	// Mmr
+	if err := bi.Mmr.Encode(e); err != nil {
+		return err
+	}
+
+	// StateRoot
+	if err := bi.StateRoot.Encode(e); err != nil {
+		return err
+	}
+
+	// Reported
+	if err := e.EncodeLength(uint64(len(bi.Reported))); err != nil {
+		return err
+	}
+
+	for _, reportedWorkPackage := range bi.Reported {
+		if err := reportedWorkPackage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// BlocksHistory
+func (bh *BlocksHistory) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding BlocksHistory")
+
+	if len(*bh) > int(MaxBlocksHistory) {
+		return fmt.Errorf("BlocksHistory length is greater than BlocksHistoryLength")
+	}
+
+	if err := e.EncodeLength(uint64(len(*bh))); err != nil {
+		return err
+	}
+
+	for _, blockInfo := range *bh {
+		if err := blockInfo.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AuthorizerHash
+func (ah *AuthorizerHash) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AuthorizerHash")
+	if _, err := e.buf.Write(ah[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("AuthorizerHash: %v", ah[:]))
+
+	return nil
+}
+
+// AuthPool
+func (ap *AuthPool) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AuthPool")
+
+	if len(*ap) > int(AuthPoolMaxSize) {
+		return fmt.Errorf("AuthPool length is greater than AuthPoolMaxSize")
+	}
+
+	if err := e.EncodeLength(uint64(len(*ap))); err != nil {
+		return err
+	}
+
+	for _, authorizerHash := range *ap {
+		if err := authorizerHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AuthPools
+func (ap *AuthPools) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AuthPools")
+
+	// CoresCount
+	if len(*ap) != int(CoresCount) {
+		return fmt.Errorf("AuthPools length is not equal to CoresCount")
+	}
+
+	for _, authPool := range *ap {
+		if err := authPool.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ServiceInfo
+func (s *ServiceInfo) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceInfo")
+
+	// CodeHash
+	if err := s.CodeHash.Encode(e); err != nil {
+		return err
+	}
+
+	// Balance
+	if err := s.Balance.Encode(e); err != nil {
+		return err
+	}
+
+	// MinItemGas
+	if err := s.MinItemGas.Encode(e); err != nil {
+		return err
+	}
+
+	// MinMemoGas
+	if err := s.MinMemoGas.Encode(e); err != nil {
+		return err
+	}
+
+	// Bytes
+	if err := s.Bytes.Encode(e); err != nil {
+		return err
+	}
+
+	// Items
+	if err := s.Items.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
