@@ -19,7 +19,6 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 	if err != nil {
 		return
 	}
-
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
@@ -81,7 +80,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 		return false
 	}
 
-	if _, exists := Zeta[opcode(data[n])]; !exists {
+	if _, exists := zeta[opcode(data[n])]; !exists {
 		return false
 	}
 
