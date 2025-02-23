@@ -1847,3 +1847,156 @@ func (aq *AuthQueues) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// ReadyRecord
+func (r *ReadyRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ReadyRecord")
+
+	// Report
+	if err := r.Report.Encode(e); err != nil {
+		return err
+	}
+
+	// Dependencies
+	if err := e.EncodeLength(uint64(len(r.Dependencies))); err != nil {
+		return err
+	}
+
+	for _, dependency := range r.Dependencies {
+		if err := dependency.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ReadyQueueItem
+func (r *ReadyQueueItem) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ReadyQueueItem")
+
+	if err := e.EncodeLength(uint64(len(*r))); err != nil {
+		return err
+	}
+
+	for _, readyRecord := range *r {
+		if err := readyRecord.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ReadyQueue
+func (rq *ReadyQueue) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ReadyQueue")
+
+	if len(*rq) != int(EpochLength) {
+		return fmt.Errorf("ReadyQueue length is not equal to EpochLength")
+	}
+
+	for _, readyQueueItem := range *rq {
+		if err := readyQueueItem.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulatedQueueItem
+func (a *AccumulatedQueueItem) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulateQueueItem")
+
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
+		return err
+	}
+
+	for _, workPackageHash := range *a {
+		if err := workPackageHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulatedQueue
+func (aq *AccumulatedQueue) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulateQueue")
+
+	if len(*aq) != int(EpochLength) {
+		return fmt.Errorf("AccumulateQueue length is not equal to EpochLength")
+	}
+
+	for _, accumulatedQueueItem := range *aq {
+		if err := accumulatedQueueItem.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AlwaysAccumulateMapItem
+func (a *AlwaysAccumulateMapItem) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AlwaysAccumulateMapItem")
+
+	// ID
+	if err := a.ID.Encode(e); err != nil {
+		return err
+	}
+
+	// Gas
+	if err := a.Gas.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Privileges
+func (p *Privileges) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Privileges")
+
+	// Bless
+	if err := p.Bless.Encode(e); err != nil {
+		return err
+	}
+
+	// Assign
+	if err := p.Assign.Encode(e); err != nil {
+		return err
+	}
+
+	// Designate
+	if err := p.Designate.Encode(e); err != nil {
+		return err
+	}
+
+	// AlwaysAccum
+	if err := e.EncodeLength(uint64(len(p.AlwaysAccum))); err != nil {
+		return err
+	}
+
+	for _, alwaysAccumulateMapItem := range p.AlwaysAccum {
+		if err := alwaysAccumulateMapItem.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulateRoot
+func (a *AccumulateRoot) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulateRoot")
+	if _, err := e.buf.Write(a[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %v", a[:]))
+
+	return nil
+}

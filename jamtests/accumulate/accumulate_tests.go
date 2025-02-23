@@ -381,3 +381,170 @@ func (t *AccumulateTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// AccumulateInput
+func (a *AccumulateInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccumulateInput")
+	var err error
+
+	if err = a.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(a.Reports))); err != nil {
+		return err
+	}
+
+	for _, report := range a.Reports {
+		if err = report.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimagesMapEntry")
+	var err error
+
+	if err = p.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = p.Blob.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Account
+func (a *Account) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding Account")
+	var err error
+
+	if err = a.Service.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(a.Preimages))); err != nil {
+		return err
+	}
+
+	for _, preimage := range a.Preimages {
+		if err = preimage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccountsMapEntry
+func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccountsMapEntry")
+	var err error
+
+	if err = a.Id.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Data.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulateState
+func (a *AccumulateState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccumulateState")
+	var err error
+
+	if err = a.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Entropy.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.ReadyQueue.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Accumulated.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Privileges.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(a.Accounts))); err != nil {
+		return err
+	}
+
+	for _, account := range a.Accounts {
+		if err = account.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulateOutput
+func (a *AccumulateOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccumulateOutput")
+	var err error
+
+	if a.Ok != nil {
+		cLog(Yellow, "AccumulateOutput is ok")
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Encode AccumulateOutput
+		if err = a.Ok.Encode(e); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// AccumulateOutput.Err is NULL
+
+	return nil
+}
+
+// AccumulateTestCase
+func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccumulateTestCase")
+	var err error
+
+	if err = t.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
