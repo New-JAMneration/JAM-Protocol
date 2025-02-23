@@ -1,12 +1,19 @@
 package PolkaVM
 
+import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+)
+
 // Instruction tables
 
 // result of "ζı" should be a opcode
-type opcode byte
+type opcode int
 
 // define "ζ"
-var Zeta = map[opcode]string{
+var zeta = map[opcode]string{
 	// Ins w/o Arg
 	0: "trap",
 	1: "fallthrough",
@@ -180,4 +187,54 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// input: instructionCode, programCounter, skipLength, registers, memory
+var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory) (error, ProgramCounter, Gas, Registers, Memory){
+	0:  instTrap,
+	1:  instFallthrough,
+	10: instEcalli,
+	20: instLoadImm64,
+	// register more instructions here
+}
+
+func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	lX := min(4, int(skipLength))
+
+	// zeta_{iota+1,...,lX}
+	instLength := instructionCode[pc+1 : pc+ProgramCounter(lX)+1]
+	x, err := utils.DeserializeFixedLength(instLength, types.U64(lX))
+	if err != nil {
+		fmt.Println("insEcalli deserialization raise error:", err)
+	}
+	nuX, err := SignExtend(lX, uint64(x))
+	if err != nil {
+		fmt.Println("insEcalli sign extension raise error:", err)
+	}
+	return PVMExitTuple(HOST_CALL, nuX), pc, gasDelta, reg, mem
+}
+func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	rA := min(12, (int(instructionCode[pc+1]) % 16))
+	// zeta_{iota+2,...,+8}
+	instLength := instructionCode[pc+2 : pc+10]
+	nuX, err := utils.DeserializeFixedLength(instLength, types.U64(8))
+	if err != nil {
+		fmt.Println("insLoadImm64 deserialization raise error:", err)
+	}
+	reg[rA] = uint64(nuX)
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
