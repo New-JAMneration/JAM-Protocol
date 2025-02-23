@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
 
@@ -137,6 +138,54 @@ func TestEncodeJamTestVectorsStatistics(t *testing.T) {
 		// read json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
 		structType := reflect.TypeOf(jamtests_statistics.StatisticsTestCase{})
+		data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
+		if err != nil {
+			t.Fatalf("Failed to read JSON file: %v", err)
+		}
+
+		structValue := reflect.New(structType).Elem()
+		structValue.Set(reflect.ValueOf(data))
+
+		// Encode the JSON data
+		encoder := types.NewEncoder()
+		encoded, err := encoder.Encode(structValue.Addr().Interface())
+		if err != nil {
+			t.Fatalf("Failed to encode JSON data: %v", err)
+		}
+
+		// Read binary file
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read binary file: %v", err)
+		}
+
+		// Compare the binary data
+		if !CompareBinaryData(encoded, binData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, filename)
+			t.Fatalf("Binary data is not equal to the expected data")
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
+		}
+	}
+}
+
+// Safrole
+func TestEncodeJamTestVectorsSafrole(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+
+	// Read json files
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+	if err != nil {
+		t.Errorf("Failed to get JSON files: %v", err)
+	}
+
+	for _, jsonFile := range jsonFiles {
+		// read json file
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		structType := reflect.TypeOf(jamtests_safrole.SafroleTestCase{})
 		data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
 		if err != nil {
 			t.Fatalf("Failed to read JSON file: %v", err)

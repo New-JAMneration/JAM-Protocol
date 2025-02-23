@@ -109,3 +109,9 @@ func (e *Encoder) EncodeLength(length uint64) error {
 
 	return nil
 }
+
+// Write a byte
+func (e *Encoder) WriteByte(b byte) error {
+	cLog(Cyan, "Writing Byte")
+	return e.buf.WriteByte(b)
+}
