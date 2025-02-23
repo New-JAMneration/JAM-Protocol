@@ -1760,3 +1760,54 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// DisputesRecords
+func (d *DisputesRecords) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DisputesRecords")
+
+	// Good
+	if err := e.EncodeLength(uint64(len(d.Good))); err != nil {
+		return err
+	}
+
+	for _, good := range d.Good {
+		if err := good.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Bad
+	if err := e.EncodeLength(uint64(len(d.Bad))); err != nil {
+		return err
+	}
+
+	for _, bad := range d.Bad {
+		if err := bad.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Wonky
+	if err := e.EncodeLength(uint64(len(d.Wonky))); err != nil {
+		return err
+	}
+
+	for _, wonky := range d.Wonky {
+		if err := wonky.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Offenders
+	if err := e.EncodeLength(uint64(len(d.Offenders))); err != nil {
+		return err
+	}
+
+	for _, offender := range d.Offenders {
+		if err := offender.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
