@@ -1,8 +1,9 @@
 package PolkaVM
 
+// Memory related constants
 const (
-	ZZ = 1 << 16 // pvm program initialization zone size
-	ZI = 1 << 24 // pvm program initialization input data size
-	ZP = 1 << 12 // pvm memory page size
-	ZA = 2       // pvm dynamic address alignment factor
+	ZA = 2       // PVM dynamic address alignment factor.
+	ZI = 1 << 24 // standard PVM program initialization input data size.
+	ZP = 1 << 12 // the PVM memory page size.
+	ZZ = 1 << 16 // standard PVM program initialization zone size
 )

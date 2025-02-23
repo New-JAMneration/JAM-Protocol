@@ -3,6 +3,7 @@ package PolkaVM
 import (
 	"fmt"
 	"math"
+	"sort"
 )
 
 type ExitReasonTypes int
@@ -99,4 +100,55 @@ func IsBasicBlock(target uint32, basicBlocks []uint32) bool {
 		}
 	}
 	return false
+}
+
+// (A.9) ParseMemoryAccessError parses the memory access error based on the given
+// invalid addresses.
+func ParseMemoryAccessError(invalidAddresses []uint64) (ExitReasonTypes, error) {
+	for i := range invalidAddresses {
+		invalidAddresses[i] = invalidAddresses[i] % (1 << 32)
+	}
+	// Iterate over read addresses and check for errors.0
+	if len(invalidAddresses) == 0 {
+		return CONTINUE, nil
+	}
+
+	minAddress := uint32(math.MaxUint32)
+	for _, addr := range invalidAddresses {
+		if addr < ZZ {
+			return PANIC, nil
+		}
+		if uint32(addr) < minAddress {
+			minAddress = uint32(addr)
+		}
+	}
+	return PAGE_FAULT, PVMExitTuple(PAGE_FAULT, minAddress/ZP)
+}
+
+// (A.8) get invalid address // TODO design/align with 4.26 4.27
+func GetInvalidAddress(readAddresses []uint64, writeAddresses []uint64, readableAddresses map[int]bool, writeableAddresses map[int]bool) []uint64 {
+	var invalidAddresses []uint64
+	for _, addr := range readAddresses {
+		if !readableAddresses[int(addr)/ZP] {
+			invalidAddresses = append(invalidAddresses, addr)
+		}
+	}
+	for _, addr := range writeAddresses {
+		if !writeableAddresses[int(addr)/ZP] {
+			invalidAddresses = append(invalidAddresses, addr)
+		}
+	}
+	// sort + unique
+	sort.Slice(invalidAddresses, func(i, j int) bool {
+		return invalidAddresses[i] < invalidAddresses[j]
+	})
+	uniqueAddresses := []uint64{}
+	for i, addr := range invalidAddresses {
+		if i > 0 && invalidAddresses[i] == invalidAddresses[i-1] {
+			continue
+		}
+		uniqueAddresses = append(uniqueAddresses, addr)
+	}
+
+	return uniqueAddresses
 }

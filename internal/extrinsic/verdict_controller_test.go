@@ -146,8 +146,8 @@ func TestVerifySignature(t *testing.T) {
 	for i := 0; i < len(verdictController.Verdicts); i++ {
 		//_ = VerifyJudgementSignature(&verdictController.Verdicts[i])
 		VerdictPtr := &verdictController.Verdicts[i]
-		invalid := VerdictPtr.VerifySignature()
-		if len(invalid) > 0 {
+		err := VerdictPtr.VerifySignature()
+		if err != nil {
 			t.Errorf("invalid signature in verdict %d", i)
 		} else {
 			fmt.Println("All signatures are valid")
@@ -196,9 +196,9 @@ func TestVerifySignature(t *testing.T) {
 	for i := 0; i < len(verdictController.Verdicts); i++ {
 		//_ = VerifyJudgementSignature(&verdictController.Verdicts[i])
 		VerdictPtr := &verdictController.Verdicts[i]
-		invalid := VerdictPtr.VerifySignature()
-		if len(invalid) > 0 {
-			fmt.Println("Invalid signature at index", invalid)
+		err := VerdictPtr.VerifySignature()
+		if err != nil {
+			fmt.Println("Invalid signature at index")
 		}
 	}
 }
@@ -316,5 +316,5 @@ func TestSortUnique(t *testing.T) {
 		},
 	})
 
-	disputeController.VerdictController.SortUnique()
+	disputeController.VerdictController.CheckSortUnique()
 }

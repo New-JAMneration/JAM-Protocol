@@ -2,25 +2,51 @@ package extrinsic
 
 import (
 	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Assurance is a struct that contains a slice of Assurance
-func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) {
-	assurances := NewAvailAssuranceController() // input data
-	assurances.AvailAssurances = assuranceExtrinsic
+func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) (err error) {
+	assurances := AvailAssuranceController{AvailAssurances: assuranceExtrinsic}
 
-	assurances.ValidateAnchor()
+	err = assurances.ValidateAnchor()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 
-	assurances.SortUnique()
+	err = assurances.CheckValidatorIndex()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 
-	assurances.ValidateSignature()
+	err = assurances.SortUnique()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 
+	if err == nil || err.Error() != "bad_validator_index" {
+		err = assurances.ValidateSignature()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+	}
 	assurances.BitfieldOctetSequenceToBinarySequence()
 
-	if err := assurances.ValidateBitField(); err != nil {
+	err = assurances.ValidateBitField()
+	if err != nil {
 		fmt.Println(err)
+		return err
 	}
 
 	assurances.FilterAvailableReports()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
 }
