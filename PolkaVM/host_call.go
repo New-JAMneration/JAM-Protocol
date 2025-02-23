@@ -31,7 +31,7 @@ func Psi_H(
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
-	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, uint32(counter), gas, reg, ram)
+	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, counter, gas, reg, ram)
 	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
