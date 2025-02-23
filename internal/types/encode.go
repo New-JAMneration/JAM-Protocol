@@ -1408,3 +1408,102 @@ func (v *ValidatorsData) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// EntropyBuffer
+func (e *EntropyBuffer) Encode(enc *Encoder) error {
+	cLog(Cyan, "Encoding EntropyBuffer")
+
+	if len(*e) != int(4) {
+		return fmt.Errorf("EntropyBuffer length is not equal to 4")
+	}
+
+	for _, entropy := range *e {
+		if err := entropy.Encode(enc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TicketsAccumulator
+func (t *TicketsAccumulator) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding TicketsAccumulator")
+
+	if err := e.EncodeLength(uint64(len(*t))); err != nil {
+		return err
+	}
+
+	for _, ticketBody := range *t {
+		if err := ticketBody.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// BandersnatchRingCommitment
+func (b *BandersnatchRingCommitment) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding BandersnatchRingCommitment")
+
+	if _, err := e.buf.Write(b[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("BandersnatchRingCommitment: %v", b[:]))
+
+	return nil
+}
+
+// TicketsOrKeys
+func (t *TicketsOrKeys) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding TicketsOrKeys")
+
+	// if tickets is nil, append 0 to the buffer, else append 1
+
+	if t.Tickets == nil && t.Keys == nil {
+		return fmt.Errorf("Tickets and Keys are both nil")
+	}
+
+	if t.Tickets != nil && t.Keys != nil {
+		return fmt.Errorf("Tickets and Keys are both not nil")
+	}
+
+	// Tickets
+	if t.Tickets != nil {
+		// prefix
+		e.buf.Write([]byte{0})
+
+		// Encode Tickets
+		if len(t.Tickets) != EpochLength {
+			return fmt.Errorf("Tickets length is not equal to EpochLength")
+		}
+
+		for _, ticketBody := range t.Tickets {
+			if err := ticketBody.Encode(e); err != nil {
+				return err
+			}
+		}
+
+	}
+
+	// Keys
+	if t.Keys != nil {
+		// prefix
+		e.buf.Write([]byte{1})
+
+		// Encode Keys
+		if len(t.Keys) != EpochLength {
+			return fmt.Errorf("Keys length is not equal to EpochLength")
+		}
+
+		for _, key := range t.Keys {
+			if err := key.Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
