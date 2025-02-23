@@ -419,7 +419,9 @@ func (m *Mmr) UnmarshalJSON(data []byte) error {
 
 func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Hash        string `json:"work_package_hash,omitempty"`
+		// Hash        string `json:"hash,omitempty"`// jam-test-vectors
+		// ExportsRoot string `json:"exports_root,omitempty"`
+		Hash        string `json:"work_package_hash,omitempty"` // jamtestnet
 		ExportsRoot string `json:"segment_tree_root,omitempty"`
 	}
 
