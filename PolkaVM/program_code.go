@@ -7,7 +7,7 @@ import (
 // type BasicBlock [][]byte // each sequence is a instruction
 type ProgramBlob struct {
 	InstructionData []byte   // c , includes opcodes & instruction variables
-	Bitmasks        []byte   // k
+	Bitmasks        []bool   // k
 	JumpTables      []uint64 // j
 	JumpTableLength uint64
 }
@@ -50,9 +50,9 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 		return ProgramBlob{}, PANIC
 	}
 
-	bitmask := make([]byte, instSize)
+	bitmask := make([]bool, instSize)
 	for i := range instSize {
-		bitmask[i] = bitmaskRaw[i/8] & (1 << (i % 8))
+		bitmask[i] = bitmaskRaw[i/8]&(1<<(i%8)) > 0
 	}
 	return ProgramBlob{
 		JumpTables:      jumpTables,   // j
@@ -62,14 +62,14 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 }
 
 // skip computes the distance to the next opcode  A.3
-func skip(i int, bitmask []byte) uint32 {
+func skip(i int, bitmask []bool) uint32 {
 	j := 1
 	for ; j < len(bitmask); j++ {
-		if bitmask[j+i] == byte(1) {
+		if bitmask[j+i] {
 			break
 		}
 	}
-	return uint32(min(24, j))
+	return uint32(min(24, j-1))
 }
 
 func inBasicBlock(data []byte, bitmask []byte, n int) bool {
