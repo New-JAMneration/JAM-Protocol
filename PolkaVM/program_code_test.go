@@ -4,6 +4,7 @@ package PolkaVM
 import (
 	"io"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -19,7 +20,6 @@ func TestLoadPVMFile(t *testing.T) {
 			continue
 		}
 
-		// TODO : registers & memory initialization
 		programCode, _, _, err := SingleInitializer(data, []byte{})
 		if err != nil {
 			t.Errorf("Error parsing %s: %v", filename, err)
@@ -66,13 +66,51 @@ func ReadFile(filename string) ([]byte, error) {
 }
 
 func TestSkip(t *testing.T) {
-	bitmask := []byte{1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1}
-	skipIndex := []int{0, 3, 7, 10}
-	expectedDistance := []int{3, 4, 3, 2}
-	for i := 0; i < len(skipIndex); i++ {
-		if skip(skipIndex[i], bitmask) != uint32(expectedDistance[i]) {
-			t.Errorf("Expected %d, but got %d", expectedDistance[i], skip(skipIndex[i], bitmask))
+	filenames := []string{
+		"test-file/jam-bootstrap-service.pvm",
+	}
+
+	for _, filename := range filenames {
+		data, err := ReadFile(filename)
+		if err != nil {
+			t.Errorf("Error reading %s: %v", filename, err)
+			continue
 		}
+
+		programCode, _, _, err := SingleInitializer(data, []byte{})
+		if err != nil {
+			t.Errorf("Error parsing %s: %v", filename, err)
+		}
+
+		// exitReason will not be used in this test
+		programBlob, _ := DeBlobProgramCode(programCode)
+
+		// the expected is stick to pvm debugger and only get the program counter < 40 instructions
+		expected := [][]byte{
+			{0x28, 0x67, 0x17, 0x00, 0x00},
+			{0x28, 0xc3, 0x1f, 0x00, 0x00},
+			{0x28, 0x6d, 0x41},
+			{0x95, 0x11, 0xa0, 0xfe},
+			{0x7b, 0x10, 0x58, 0x01},
+			{0x7b, 0x15, 0x50, 0x01},
+			{0x7b, 0x16, 0x48, 0x01},
+			{0x64, 0x96},
+			{0x7b, 0x18, 0x18},
+			{0x82, 0x8a, 0x08},
+			{0x14, 0x08, 0xf1, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0},
+		}
+
+		for pc, j := 0, 0; pc < 40; j++ {
+			l := skip(pc, programBlob.Bitmasks)
+			if !reflect.DeepEqual(expected[j], programBlob.InstructionData[pc:pc+int(l)+1]) {
+				t.Errorf("Expected %v, but got %v", expected[j], programBlob.InstructionData[pc:pc+int(l)+1])
+			}
+			pc = pc + 1 + int(l)
+			if pc > 40 {
+				break
+			}
+		}
+
 	}
 }
 

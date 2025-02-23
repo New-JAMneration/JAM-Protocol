@@ -35,7 +35,7 @@ func SingleStepInvoke(programBlob []byte, programCounter uint32,
 }
 
 // SingleStepStateTransition is A.6, A.7
-func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable []uint64,
+func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable []uint64,
 	programCounter uint32, gas Gas, registers Registers, memory Memory) (
 	ExitReasonTypes, uint32, Gas, Registers, Memory,
 ) {
