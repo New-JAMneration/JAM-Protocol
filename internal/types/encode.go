@@ -1232,6 +1232,7 @@ func (w *WorkItem) Encode(e *Encoder) error {
 	return nil
 }
 
+// WorkPackage
 func (w *WorkPackage) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkPackage")
 
@@ -1262,6 +1263,145 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 
 	for _, item := range w.Items {
 		if err := item.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ActivityRecord
+func (a *ActivityRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ActivityRecord")
+
+	// Blocks
+	if err := a.Blocks.Encode(e); err != nil {
+		return err
+	}
+
+	// Tickets
+	if err := a.Tickets.Encode(e); err != nil {
+		return err
+	}
+
+	// PreImages
+	if err := a.PreImages.Encode(e); err != nil {
+		return err
+	}
+
+	// PreImagesSize
+	if err := a.PreImagesSize.Encode(e); err != nil {
+		return err
+	}
+
+	// Guarantees
+	if err := a.Guarantees.Encode(e); err != nil {
+		return err
+	}
+
+	// Assurances
+	if err := a.Assurances.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ActivityRecords
+func (a *ActivityRecords) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ActivityRecords")
+
+	if len(*a) != int(ValidatorsCount) {
+		return fmt.Errorf("ActivityRecords length is not equal to ValidatorsCount")
+	}
+
+	for _, record := range *a {
+		if err := record.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Statistics
+func (s *Statistics) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Statistics")
+
+	// Current
+	if err := s.Current.Encode(e); err != nil {
+		return err
+	}
+
+	// Last
+	if err := s.Last.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidatorMetadata
+func (v *ValidatorMetadata) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ValidatorMetadata")
+	if _, err := e.buf.Write(v[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("ValidatorMetadata: %v", v[:]))
+
+	return nil
+}
+
+// BlsPublic
+func (b *BlsPublic) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding BlsPublic")
+	if _, err := e.buf.Write(b[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("BlsPublic: %v", b[:]))
+
+	return nil
+}
+
+// Validator
+func (v *Validator) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Validator")
+
+	// Bandersnatch
+	if err := v.Bandersnatch.Encode(e); err != nil {
+		return err
+	}
+
+	// Ed25519
+	if err := v.Ed25519.Encode(e); err != nil {
+		return err
+	}
+
+	// Bls
+	if err := v.Bls.Encode(e); err != nil {
+		return err
+	}
+
+	// Metadata
+	if err := v.Metadata.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidatorsData
+func (v *ValidatorsData) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ValidatorsData")
+
+	if len(*v) != int(ValidatorsCount) {
+		return fmt.Errorf("ValidatorsData length is not equal to ValidatorsCount")
+	}
+
+	for _, validator := range *v {
+		if err := validator.Encode(e); err != nil {
 			return err
 		}
 	}
