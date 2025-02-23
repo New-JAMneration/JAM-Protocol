@@ -123,3 +123,76 @@ func (h *HistoryTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// HistoryInput
+func (h *HistoryInput) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = h.HeaderHash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = h.ParentStateRoot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = h.AccumulateRoot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(h.WorkPackages))); err != nil {
+		return err
+	}
+
+	for i := range h.WorkPackages {
+		if err = h.WorkPackages[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// HistoryOutput
+func (h *HistoryOutput) Encode(e *types.Encoder) error {
+	return nil
+}
+
+// HistoryState
+func (h *HistoryState) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = h.Beta.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// HistoryTestCase
+func (h *HistoryTestCase) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = h.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = h.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = h.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = h.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

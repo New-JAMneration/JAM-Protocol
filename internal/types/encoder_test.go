@@ -11,6 +11,7 @@ import (
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
 	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
@@ -487,6 +488,67 @@ func TestEncodeJamTestVectorsPreimages(t *testing.T) {
 		// read json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
 		structType := reflect.TypeOf(jamtests_preimages.PreimageTestCase{})
+		data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
+		if err != nil {
+			t.Fatalf("Failed to read JSON file: %v", err)
+		}
+
+		structValue := reflect.New(structType).Elem()
+		structValue.Set(reflect.ValueOf(data))
+
+		// Encode the JSON data
+		encoder := types.NewEncoder()
+		encoded, err := encoder.Encode(structValue.Addr().Interface())
+		if err != nil {
+			t.Fatalf("Failed to encode JSON data: %v", err)
+		}
+
+		// Read binary file
+		filename := jsonFile[:len(jsonFile)-len(JSON_EXTENTION)]
+		binFileName := GetBinFilename(filename)
+		binFilePath := filepath.Join(dir, binFileName)
+		binData, err := LoadJAMTestBinaryCase(binFilePath)
+		if err != nil {
+			t.Fatalf("Failed to read binary file: %v", err)
+		}
+
+		// Compare the binary data
+		if !CompareBinaryData(encoded, binData) {
+			log.Printf("❌ [%s] %s", types.TEST_MODE, filename)
+			t.Fatalf("Binary data is not equal to the expected data")
+		} else {
+			log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+// History
+func TestEncodeJamTestVectorsHistory(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  History test cases only support tiny mode")
+	}
+
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "history", "data")
+
+	// Read json files
+	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+	if err != nil {
+		t.Errorf("Failed to get JSON files: %v", err)
+	}
+
+	for _, jsonFile := range jsonFiles {
+		// read json file
+		jsonFilePath := filepath.Join(dir, jsonFile)
+		structType := reflect.TypeOf(jamtests_history.HistoryTestCase{})
 		data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
 		if err != nil {
 			t.Fatalf("Failed to read JSON file: %v", err)
