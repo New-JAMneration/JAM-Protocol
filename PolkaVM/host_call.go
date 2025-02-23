@@ -37,17 +37,17 @@ func Psi_H(
 ) {
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, uint32(counter), gas, reg, ram)
 	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
-	if exitreason_prime == HALT || exitreason_prime == PANIC || exitreason_prime == OUT_OF_GAS || exitreason_prime == PAGE_FAULT {
+	reason := exitreason_prime.(*PVMExitReason)
+	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.Pagefault = false
-		psi_result.ExitReason = exitreason_prime
+		psi_result.ExitReason = reason.Reason
 		psi_result.Counter = uint64(counter_prime)
 		psi_result.Gas = gas_prime
 		psi_result.Reg = reg_prime
 		psi_result.Ram = memory_prime
 		psi_result.Addition = addition
-	} else if exitreason_prime == HOST_CALL {
-		var inst uint64 // TODO How to get the address(h)
-		omega_result := omega(inst, gas_prime, reg_prime, ram, addition)
+	} else if reason.Reason == HOST_CALL {
+		omega_result := omega(*reason.FaultAddr, gas_prime, reg_prime, ram, addition)
 		if omega_result.Pagefault {
 			psi_result.Pagefault = true
 			psi_result.PagefaultAddress = omega_result.PagefaultAddress
