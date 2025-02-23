@@ -1,7 +1,7 @@
 package PolkaVM
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -21,12 +21,10 @@ type ProgramBlob struct {
 func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) {
 	// E_(|j|) : size of jumpTable
 	// will rewrite after the refactor of Deserialization is complete
-	// fmt.Println(data[:16])
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
 		return
 	}
-	// fmt.Println(data[:16])
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
@@ -95,7 +93,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 		return false
 	}
 
-	if _, exists := Zeta[opcode(data[n])]; !exists {
+	if _, exists := zeta[opcode(data[n])]; !exists {
 		return false
 	}
 
@@ -104,7 +102,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 
 func ReadUintVariable(data []byte) (uint64, []byte, error) {
 	if len(data) < 1 {
-		return 0, data, fmt.Errorf("not enough data to read a uint")
+		return 0, data, errors.New("not enough data to read a uint")
 	}
 
 	firstByte := data[0]
@@ -114,10 +112,7 @@ func ReadUintVariable(data []byte) (uint64, []byte, error) {
 	if err != nil {
 		return 0, data, err
 	}
-	fmt.Println("byteToRead : ", bytesToRead)
-	fmt.Println("valueMask : ", valueMask)
 	valueFromFirstByte := uint64(firstByte & valueMask)
-	fmt.Println("valueFromFirstByte : ", valueFromFirstByte)
 	valueFromRemainingBytes, data, err := ReadUintFixed(data, bytesToRead)
 	if err != nil {
 		return 0, data, err
