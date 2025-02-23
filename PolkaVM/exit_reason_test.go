@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"testing"
 )
 
@@ -236,6 +237,58 @@ func TestDjump(t *testing.T) {
 			}
 			if newPC != tc.expectedPC {
 				t.Errorf("Expected PC %d, but got %d", tc.expectedPC, newPC)
+			}
+		})
+	}
+}
+
+func TestGetInvalidAddress(t *testing.T) {
+	tests := []struct {
+		name           string
+		readAddresses  []uint64
+		writeAddresses []uint64
+		readable       map[int]bool
+		writeable      map[int]bool
+		want           []uint64
+	}{
+		{
+			name:           "case1",
+			readAddresses:  []uint64{5000, 10005, 33300},
+			writeAddresses: []uint64{},
+			readable:       map[int]bool{1: true},
+			writeable:      map[int]bool{},
+			want:           []uint64{10005, 33300},
+		},
+		{
+			name:           "case2",
+			readAddresses:  []uint64{1, 2, 4},
+			writeAddresses: []uint64{3, 4, 5},
+			readable:       map[int]bool{},
+			writeable:      map[int]bool{},
+			want:           []uint64{1, 2, 3, 4, 5},
+		},
+		{
+			name:           "case3",
+			readAddresses:  []uint64{4800, 9600, 10800},
+			writeAddresses: []uint64{},
+			readable:       map[int]bool{2: true},
+			writeable:      map[int]bool{},
+			want:           []uint64{4800},
+		},
+		{
+			name:           "case4",
+			readAddresses:  []uint64{},
+			writeAddresses: []uint64{4800, 5000, 9600, 10800},
+			readable:       map[int]bool{},
+			writeable:      map[int]bool{1: true},
+			want:           []uint64{9600, 10800},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetInvalidAddress(tt.readAddresses, tt.writeAddresses, tt.readable, tt.writeable); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetInvalidAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}

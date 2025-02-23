@@ -3,7 +3,7 @@ package extrinsic
 import (
 	"bytes"
 	"crypto/ed25519"
-	"fmt"
+	"errors"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -39,34 +39,54 @@ func (a *AvailAssuranceController) ValidateAnchor() error {
 
 	for _, availAssurance := range a.AvailAssurances {
 		if !bytes.Equal(availAssurance.Anchor[:], headerParent[:]) {
-			return fmt.Errorf("AvailAssuranceController.ValidateAnchor failed : bad_attestation_parent")
+			return errors.New("bad_attestation_parent")
 		}
 	}
 
 	return nil
 }
 
+func (a *AvailAssuranceController) CheckValidatorIndex() error {
+	for _, availAssurance := range a.AvailAssurances {
+		if int(availAssurance.ValidatorIndex) >= types.ValidatorsCount {
+			return errors.New("bad_validator_index")
+		}
+	}
+	return nil
+}
+
 // SortUnique sorts the AvailAssurance slice and removes duplicates | Eq. 11.12
-func (a *AvailAssuranceController) SortUnique() {
-	a.Unique()
+func (a *AvailAssuranceController) SortUnique() error {
+	err := a.Unique()
 	a.Sort()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Unique removes duplicates
-func (a *AvailAssuranceController) Unique() {
+func (a *AvailAssuranceController) Unique() error {
 	if len(a.AvailAssurances) == 0 {
-		return
+		return nil
 	}
 
 	uniqueMap := make(map[types.ValidatorIndex]bool)
 	result := make([]types.AvailAssurance, 0)
 
-	for _, availAssurance := range a.AvailAssurances {
-		if !uniqueMap[availAssurance.ValidatorIndex] {
+	for i, availAssurance := range a.AvailAssurances {
+		if !uniqueMap[availAssurance.ValidatorIndex] && int(availAssurance.ValidatorIndex) == i {
 			uniqueMap[availAssurance.ValidatorIndex] = true
 			result = append(result, availAssurance)
+		} else {
+			return errors.New("not_sorted_or_unique_assurers")
 		}
 	}
+
+	a.AvailAssurances = result
+
+	return nil
 }
 
 // Sort sorts the AvailAssurance slice
@@ -93,17 +113,16 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
 		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield)}.Serialize()
+		hased := hash.Blake2bHash(append(anchor, bitfield...))
 		message := []byte(jam_types.JamAvailable)
-		message = append(message, anchor...)
-		message = append(message, bitfield...)
-		hashed := hash.Blake2bHash(message)
-		message = hashed[:]
+		message = append(message, hased[:]...)
 
-		publicKey := kappaPrime[availAssurance.ValidatorIndex].Ed25519[:]
-		if !ed25519.Verify(publicKey, message, availAssurance.Signature[:]) {
-			return fmt.Errorf("invalid_signature")
+		publicKey := kappaPrime[availAssurance.ValidatorIndex].Ed25519
+		if !ed25519.Verify(publicKey[:], message, availAssurance.Signature[:]) {
+			return errors.New("invalid_signature")
 		}
 	}
+
 	return nil
 }
 
@@ -115,8 +134,8 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 		for j := 0; j < jam_types.CoresCount; j++ {
 			// rhoDagger[j] nil : core j has no report to be process
 			// assurers can not set nil core
-			if a.AvailAssurances[i].Bitfield[j] == 1 && rhoDagger[j] != nil {
-				return fmt.Errorf("AvailAssuranceController.ValidateBitField failed : core_engaged")
+			if a.AvailAssurances[i].Bitfield[j] == byte(1) && rhoDagger[j] == nil {
+				return errors.New("core_engaged")
 			}
 		}
 	}
@@ -126,16 +145,22 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 // BitfieldOctetSequenceToBinarySequence transform the input octet bitfield to a binary sequence
 func (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
 	// input (bitfield) : octet sequence ,  output	(binaryBitfield) : binary sequence
-	length := len(a.AvailAssurances[0].Bitfield)
-	bitLength := length * 8
-
+	if len(a.AvailAssurances) <= 0 {
+		return
+	}
+	/*
+		length := len(a.AvailAssurances[0].Bitfield)
+		bitLength := length * 8
+	*/
+	bitLength := types.CoresCount
 	for assuranceIndex := 0; assuranceIndex < len(a.AvailAssurances); assuranceIndex++ {
 		binaryBitfield := make([]byte, bitLength)
 
-		// LSB-first
-
-		for i := 0; i < length; i++ {
+		for i := 0; i < len(a.AvailAssurances[0].Bitfield); i++ {
 			for j := 0; j < 8; j++ {
+				if i*8+j >= bitLength {
+					break
+				}
 				if a.AvailAssurances[assuranceIndex].Bitfield[i]&(1<<j) != 0 {
 					binaryBitfield[i*8+j] = 1
 				} else {
@@ -151,6 +176,10 @@ func (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() {
+	if len(a.AvailAssurances) == 0 {
+		return
+	}
+
 	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
 	availableNumber := jam_types.ValidatorsCount * 2 / 3
 	totalAvailable := make([]int, jam_types.CoresCount)
@@ -169,6 +198,9 @@ func (a *AvailAssuranceController) FilterAvailableReports() {
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
 
 	for i := 0; i < jam_types.CoresCount; i++ {
+		if rhoDoubleDagger[i] == nil {
+			continue
+		}
 		if totalAvailable[i] > availableNumber || headerTimeSlot >= rhoDagger[i].Timeout+types.TimeSlot(types.WorkReportTimeout) {
 			rhoDoubleDagger[i] = nil
 		}
