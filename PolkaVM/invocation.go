@@ -1,47 +1,59 @@
 package PolkaVM
 
+import "fmt"
+
 // SingleStepInvoke is A.1 (v0.6.2)
-func SingleStepInvoke(programBlob []byte, programCounter uint32,
+func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 	gas Gas, registers Registers, memory Memory) (
-	ExitReasonTypes, uint32, Gas, Registers, Memory,
+	error, ProgramCounter, Gas, Registers, Memory,
 ) {
 	// deblob programCodeBlob (c, k, j)  A.2
 	programCodeBlob, err := DeBlobProgramCode(programBlob)
 	if err == PANIC {
-		return err, programCounter, gas, registers, memory
+		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
 	}
 
-	var exitReason ExitReasonTypes
-	exitReason, programCounter, gas, registers, memory = SingleStepStateTransition(
-		programBlob, programCodeBlob.Bitmasks,
+	var exitReason error
+	exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
+		programCodeBlob.InstructionData, programCodeBlob.Bitmasks,
 		programCodeBlob.JumpTables, programCounter, gas,
 		registers, memory)
 
 	if gas < 0 {
-		return OUT_OF_GAS, programCounter, gas, registers, memory
+		return PVMExitTuple(OUT_OF_GAS, nil), programCounter, gas, registers, memory
 	}
 
 	switch exitReason {
-	case CONTINUE:
-		SingleStepInvoke(programBlob, programCounter, gas, registers, memory)
-	case HALT:
-	case PANIC:
-		return exitReason, 0, gas, registers, memory
+	case PVMExitTuple(CONTINUE, nil):
+		SingleStepInvoke(programBlob, programCounterPrime, gasPrime, registersPrime, memoryPrime)
+	case PVMExitTuple(HALT, nil):
+	case PVMExitTuple(PANIC, nil):
+		return exitReason, 0, gasPrime, registersPrime, memoryPrime
 	default:
-		return exitReason, programCounter, gas, registers, memory
+		return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
 	}
 
-	return exitReason, programCounter, gas, registers, memory
+	return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
 }
 
-// SingleStepStateTransition is A.6, A.7
+// (v.6.2 A.6, A.7) SingleStepStateTransition
 func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable []uint64,
-	programCounter uint32, gas Gas, registers Registers, memory Memory) (
-	ExitReasonTypes, uint32, Gas, Registers, Memory,
+	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
+	error, ProgramCounter, Gas, Registers, Memory,
 ) {
+	var exitReason error
+	gasDelta := Gas(0)
+	// (v.6.2 A.4) append zero to trap
+	instructionCode = append(instructionCode, 0, 0)
+	// (v.6.2 A.19) l = skip(iota)
+	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
+	opcode := instructionCode[programCounter]
+	exitReason, programCounter, gasDelta, registers, memory = execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory)
+	// recently, set all gasDelta = 2 for consistent with testvector
+	gas -= gasDelta
 	// TODO : execute instructions and output exit-reason, registers, memory
-	var exitReason ExitReasonTypes
-	programCounter += uint32(1) + skip(int(programCounter), bitmask)
+	programCounter += skipLength
 
+	fmt.Println("run opcode", opcode)
 	return exitReason, programCounter, gas, registers, memory
 }
