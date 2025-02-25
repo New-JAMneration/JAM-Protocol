@@ -28,6 +28,7 @@ func Psi_H(
 	ram Memory, // memory
 	omega Omega, // jump table
 	addition any, // host-call context
+	program StandardProgram,
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
@@ -52,8 +53,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(code, ProgramCounter(counter_prime), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition)
-			// NEED TO USE SKIP??
+			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition, program)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint64(counter_prime)
