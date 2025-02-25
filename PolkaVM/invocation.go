@@ -9,8 +9,8 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 ) {
 	// deblob programCodeBlob (c, k, j)  A.2
 	programCodeBlob, err := DeBlobProgramCode(programBlob)
-	if err == PANIC {
-		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
+	if err == PVMExitTuple(PANIC, nil) {
+		return err, programCounter, gas, registers, memory
 	}
 
 	var exitReason error

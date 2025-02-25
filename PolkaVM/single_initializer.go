@@ -2,9 +2,11 @@ package PolkaVM
 
 import "fmt"
 
-type StandardCodeFormat []byte // p
-type Argument []byte           // a
-type Instructions []byte       // c
+type (
+	StandardCodeFormat []byte // p
+	Argument           []byte // a
+	Instructions       []byte // c
+)
 
 func P(x int) uint32 {
 	return ZP * ((uint32(x) + ZP - 1) / ZP)
@@ -15,7 +17,6 @@ func Z(x int) uint32 {
 }
 
 func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Registers, Memory, error) {
-
 	c, o, w, z, s, err := DecodeSerializedValues(p)
 	if err != nil {
 		return nil, Registers{}, Memory{}, err
@@ -178,4 +179,26 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+type StandardProgram struct {
+	Memory      Memory
+	Registers   Registers
+	ProgramBlob ProgramBlob
+	ExitReason  error
+}
+
+func StandardProgramInit(p StandardCodeFormat, a Argument) StandardProgram {
+	programCode, registers, memory, err := SingleInitializer(p, []byte{})
+	if err != nil {
+		return StandardProgram{ExitReason: PVMExitTuple(PANIC, nil)}
+	}
+	programBlob, exitReason := DeBlobProgramCode(programCode)
+	standardProgram := StandardProgram{
+		Memory:      memory,
+		Registers:   registers,
+		ProgramBlob: programBlob,
+		ExitReason:  exitReason,
+	}
+	return standardProgram
 }

@@ -13,7 +13,7 @@ type ProgramBlob struct {
 }
 
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
-func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) {
+func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
@@ -46,7 +46,7 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 		bitmaskSize++
 	}
 	if len(bitmaskRaw) != int(bitmaskSize) {
-		return ProgramBlob{}, PANIC
+		return ProgramBlob{}, PVMExitTuple(PANIC, nil)
 	}
 
 	bitmask := make([]bool, instSize)
@@ -57,7 +57,7 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) 
 		JumpTables:      jumpTables,   // j
 		Bitmasks:        bitmask,      // k
 		InstructionData: instructions, // c
-	}, CONTINUE
+	}, PVMExitTuple(CONTINUE, nil)
 }
 
 // skip computes the distance to the next opcode  A.3
