@@ -9,8 +9,8 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 ) {
 	// deblob programCodeBlob (c, k, j)  A.2
 	programCodeBlob, err := DeBlobProgramCode(programBlob)
-	if err == PANIC {
-		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
+	if err == PVMExitTuple(PANIC, nil) {
+		return err, programCounter, gas, registers, memory
 	}
 
 	var exitReason error
@@ -37,7 +37,7 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 }
 
 // (v.6.2 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable []uint64,
+func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable []uint64,
 	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
@@ -52,7 +52,7 @@ func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable
 	// recently, set all gasDelta = 2 for consistent with testvector
 	gas -= gasDelta
 	// TODO : execute instructions and output exit-reason, registers, memory
-	programCounter += skipLength
+	programCounter += skipLength + 1
 
 	fmt.Println("run opcode", opcode)
 	return exitReason, programCounter, gas, registers, memory
