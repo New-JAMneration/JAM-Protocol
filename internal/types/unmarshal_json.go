@@ -971,14 +971,13 @@ func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
 
 // SegmentRootLookup
 func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
-	// if array is empty, return
-	if string(data) == "[]" {
-		return nil
-	}
-
 	var temp []SegmentRootLookupItem
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
 	}
 
 	*s = temp
@@ -987,14 +986,13 @@ func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
 
 // OffendersMark
 func (o *OffendersMark) UnmarshalJSON(data []byte) error {
-	// if array is empty, return
-	if string(data) == "[]" {
-		return nil
-	}
-
 	var temp []string
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
 	}
 
 	for _, offender := range temp {
@@ -1086,14 +1084,13 @@ func (e *Extrinsic) UnmarshalJSON(data []byte) error {
 
 // TicketsAccumulator
 func (t *TicketsAccumulator) UnmarshalJSON(data []byte) error {
-	// if array is empty, return
-	if string(data) == "[]" {
-		return nil
-	}
-
 	var temp []TicketBody
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
 	}
 
 	*t = temp
@@ -1102,14 +1099,13 @@ func (t *TicketsAccumulator) UnmarshalJSON(data []byte) error {
 
 // AuthPool
 func (a *AuthPool) UnmarshalJSON(data []byte) error {
-	// if array is empty, return
-	if string(data) == "[]" {
-		return nil
-	}
-
 	var temp []AuthorizerHash
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
 	}
 
 	*a = temp
@@ -1119,14 +1115,13 @@ func (a *AuthPool) UnmarshalJSON(data []byte) error {
 
 // AuthPools
 func (a *AuthPools) UnmarshalJSON(data []byte) error {
-	// if array is empty, return
-	if string(data) == "[]" {
-		return nil
-	}
-
 	var temp []AuthPool
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
 	}
 
 	*a = temp
