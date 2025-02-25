@@ -4,7 +4,7 @@ import "fmt"
 
 type Psi_H_ReturnType struct {
 	ExitReason error     // exit reason
-	Counter    uint64    // new instruction counter
+	Counter    uint32    // new instruction counter
 	Gas        Gas       // gas remain
 	Reg        Registers // new registers
 	Ram        Memory    // new memory
@@ -37,7 +37,7 @@ func Psi_H(
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
-		psi_result.Counter = uint64(counter_prime)
+		psi_result.Counter = uint32(counter_prime)
 		psi_result.Gas = gas_prime
 		psi_result.Reg = reg_prime
 		psi_result.Ram = memory_prime
@@ -46,7 +46,7 @@ func Psi_H(
 		omega_result := omega(*reason.FaultAddr, gas_prime, reg_prime, ram, addition)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
-			psi_result.Counter = uint64(counter_prime)
+			psi_result.Counter = uint32(counter_prime)
 			psi_result.Gas = gas_prime
 			psi_result.Reg = reg_prime
 			psi_result.Ram = memory_prime
@@ -56,7 +56,7 @@ func Psi_H(
 			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition, program)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
-			psi_result.Counter = uint64(counter_prime)
+			psi_result.Counter = uint32(counter_prime)
 			psi_result.Gas = omega_result.GasRemain
 			psi_result.Reg = omega_result.Register
 			psi_result.Ram = omega_result.Ram
