@@ -340,3 +340,183 @@ func (s *SafroleState) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// SafroleInput
+func (i *SafroleInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleInput")
+	var err error
+
+	if err = i.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = i.Entropy.Encode(e); err != nil {
+		return err
+	}
+
+	if err = i.Extrinsic.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SafroleOutputData
+func (o *SafroleOutputData) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleOutputData")
+
+	if o.EpochMark == nil {
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+	} else {
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+
+		if err := o.EpochMark.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if o.TicketsMark == nil {
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+	} else {
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+		if err := o.TicketsMark.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SafroleErrorCode
+func (e *SafroleErrorCode) Encode(enc *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleErrorCode")
+
+	return nil
+}
+
+// SafroleOutput
+func (o *SafroleOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleOutput")
+	// Write a pointer flag
+	// Ok = 0, Err = 1
+	if o.Ok != nil {
+		cLog(Yellow, "SafroleOutput is ok")
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Encode SafroleOutputData
+		if err := o.Ok.Encode(e); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if o.Err != nil {
+		cLog(Yellow, "SafroleOutput is err")
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+
+		// Encode SafroleErrorCode
+		if err := e.WriteByte(byte(*o.Err)); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("SafroleErrorCode: %v", *o.Err))
+	}
+
+	return nil
+}
+
+// SafroleState
+func (s *SafroleState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleState")
+	var err error
+
+	if err = s.Tau.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Eta.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Lambda.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Kappa.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.GammaK.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Iota.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.GammaA.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.GammaS.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.GammaZ.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(s.PostOffenders))); err != nil {
+		return err
+	}
+
+	for i := range s.PostOffenders {
+		if err = s.PostOffenders[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SafroleTestCase
+func (t *SafroleTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding SafroleTestCase")
+	var err error
+
+	if err = t.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -437,3 +437,195 @@ func (t *PreimageTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// PreimageInput
+func (i *PreimageInput) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = i.Preimages.Encode(e); err != nil {
+		return err
+	}
+
+	if err = i.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PreimageOutput
+func (o *PreimageOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimageOutput")
+	var err error
+
+	if o.Err != nil {
+		cLog(Cyan, "PreimageOutput is Err")
+		if err = e.WriteByte(1); err != nil {
+			return err
+		}
+
+		if err = e.WriteByte(byte(*o.Err)); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if o.Ok == nil {
+		cLog(Cyan, "PreimageOutput is Ok")
+		if err = e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Ok value is empty
+
+		return nil
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimagesMapEntry")
+	var err error
+
+	if err = p.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = p.Blob.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapkey")
+	var err error
+
+	if err = l.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = l.Length.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapEntry")
+	var err error
+
+	if err = l.Key.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(l.Val))); err != nil {
+		return err
+	}
+
+	for _, timeSlot := range l.Val {
+		if err = timeSlot.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Account
+func (a *Account) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding Account")
+	var err error
+
+	if err = e.EncodeLength(uint64(len(a.Preimages))); err != nil {
+		return err
+	}
+
+	for _, preimage := range a.Preimages {
+		if err = preimage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if err = e.EncodeLength(uint64(len(a.LookupMeta))); err != nil {
+		return err
+	}
+
+	for _, lookupMeta := range a.LookupMeta {
+		if err = lookupMeta.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccountsMapEntry
+func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccountsMapEntry")
+	var err error
+
+	if err = a.Id.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Data.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PreimageState
+func (p *PreimageState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimageState")
+	var err error
+
+	if err = e.EncodeLength(uint64(len(p.Accounts))); err != nil {
+		return err
+	}
+
+	for _, account := range p.Accounts {
+		if err = account.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PreimageTestCase
+func (t *PreimageTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimageTestCase")
+	var err error
+
+	if err = t.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
