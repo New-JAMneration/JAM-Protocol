@@ -431,3 +431,206 @@ func (r *ReportsTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// ReportsInput
+func (r *ReportsInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportsInput")
+	var err error
+
+	if err = r.Guarantees.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = r.Slot.Encode(e); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// ReportsOutput
+func (r *ReportsOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportsOutput")
+	var err error
+
+	if r.Ok != nil {
+		cLog(Yellow, "ReportsOutput is ok")
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Encode ReportsOutputData
+		if err = r.Ok.Encode(e); err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		cLog(Yellow, "ReportsOutput is err")
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+
+		// Encode ReportsErrorCode
+		if err = e.WriteByte(byte(*r.Err)); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("ReportsErrorCode: %v", *r.Err))
+	}
+
+	return nil
+}
+
+// ReportedPackage
+func (r *ReportedPackage) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportedPackage")
+	var err error
+
+	if err = r.WorkPackageHash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = r.SegmentTreeRoot.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReportsOutputData
+func (r *ReportsOutputData) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportsOutputData")
+	var err error
+
+	if err = e.EncodeLength(uint64(len(r.Reported))); err != nil {
+		return err
+	}
+
+	for i := range r.Reported {
+		if err = r.Reported[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if err = e.EncodeLength(uint64(len(r.Reporters))); err != nil {
+		return err
+	}
+
+	for i := range r.Reporters {
+		if err = r.Reporters[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Account
+func (a *Account) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding Account")
+	var err error
+
+	if err = a.Service.Encode(e); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// AccountsMapEntry
+func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AccountsMapEntry")
+	var err error
+
+	if err = a.Id.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Info.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReportsState
+func (r *ReportsState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportsState")
+	var err error
+
+	if err = r.AvailAssignments.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = r.CurrValidators.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = r.PrevValidators.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = r.Entropy.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = e.EncodeLength(uint64(len(r.Offenders))); err != nil {
+		return err
+	}
+
+	for i := range r.Offenders {
+		if err = r.Offenders[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if err = r.RecentBlocks.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = r.AuthPools.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = e.EncodeLength(uint64(len(r.Accounts))); err != nil {
+		return err
+	}
+
+	for i := range r.Accounts {
+		if err = r.Accounts[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ReportsTestCase
+func (r *ReportsTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding ReportsTestCase")
+	var err error
+
+	if err = r.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = r.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = r.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = r.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
