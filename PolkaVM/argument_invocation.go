@@ -32,19 +32,21 @@ func Psi_M(
 
 // (A.41) R
 func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
-	if Psi_H_Return.ExitReason.(*PVMExitReason).Reason == OUT_OF_GAS {
+	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
+	case OUT_OF_GAS:
 		return Psi_H_Return.Gas, OUT_OF_GAS, Psi_H_Return.Addition
-	} else if Psi_H_Return.ExitReason.(*PVMExitReason).Reason == HALT && isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8]) {
-		startPage := Psi_H_Return.Reg[7] / ZP
-		endPage := Psi_H_Return.Reg[7] + Psi_H_Return.Reg[8]/ZP
-		value := []byte{}
-		for i := startPage; i <= endPage; i++ {
-			value = append(value, Psi_H_Return.Ram.Pages[uint32(i)].Value...)
+	case HALT:
+		if isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
+			startPage := Psi_H_Return.Reg[7] / ZP
+			endPage := (Psi_H_Return.Reg[7] + Psi_H_Return.Reg[8]) / ZP
+			value := []byte{}
+			for i := startPage; i <= endPage; i++ {
+				value = append(value, Psi_H_Return.Ram.Pages[uint32(i)].Value...)
+			}
+			return Psi_H_Return.Gas, value, Psi_H_Return.Addition
 		}
-		return Psi_H_Return.Gas, value, Psi_H_Return.Addition
-	} else if Psi_H_Return.ExitReason.(*PVMExitReason).Reason == HALT && !isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
 		return Psi_H_Return.Gas, []byte{}, Psi_H_Return.Addition
-	} else {
+	default:
 		return Psi_H_Return.Gas, PANIC, Psi_H_Return.Addition
 	}
 }
