@@ -262,3 +262,130 @@ func (a *AssuranceTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// AssurancesInput
+func (a *AssuranceInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AssurancesInput")
+	var err error
+
+	if err = a.Assurances.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Parent.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AssurancesOutputData
+func (a *AssuranceOutputData) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AssurancesOutputData")
+
+	if err := e.EncodeLength(uint64(len(a.Reported))); err != nil {
+		return err
+	}
+
+	for _, report := range a.Reported {
+		if err := report.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AssurancesOutput
+func (a *AssuranceOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AssurancesOutput")
+
+	if a.Ok != nil && a.Err != nil {
+		return errors.New("both Ok and Err are set")
+	}
+
+	if a.Ok == nil && a.Err == nil {
+		return errors.New("neither Ok nor Err are set")
+	}
+
+	if a.Ok != nil {
+		cLog(Yellow, "AssurancesOutput is ok")
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Encode AssuranceOutputData
+		if err := a.Ok.Encode(e); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if a.Err != nil {
+		cLog(Yellow, "AssurancesOutput is err")
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+
+		// Encode DisputeErrorCode
+		if err := e.WriteByte(byte(*a.Err)); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("AssuranceErrorCode: %d", *a.Err))
+
+		return nil
+	}
+
+	return nil
+}
+
+// AssurancesState
+func (a *AssuranceState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AssurancesState")
+	var err error
+
+	if err = a.AvailAssignments.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.CurrValidators.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AssurancesTestCase
+func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AssurancesTestCase")
+	var err error
+
+	if err = a.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

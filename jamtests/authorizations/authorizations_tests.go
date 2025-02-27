@@ -214,3 +214,92 @@ func (a *AuthorizationTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// CoreAuthorizer
+func (c *CoreAuthorizer) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding CoreAuthorizer")
+	var err error
+
+	if err = c.CoreIndex.Encode(e); err != nil {
+		return err
+	}
+
+	if err = c.AuthorizerHash.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AuthorizationInput
+func (i *AuthorizationInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AuthorizationInput")
+	var err error
+
+	if err = i.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(i.Auths))); err != nil {
+		return err
+	}
+
+	for j := range i.Auths {
+		if err = i.Auths[j].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AuthorizationState
+func (s *AuthorizationState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AuthorizationState")
+	var err error
+
+	if err = s.Alpha.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Varphi.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AuthorizationOutput
+func (o *AuthorizationOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AuthorizationOutput")
+	return nil
+}
+
+// AuthorizationTestCase
+func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding AuthorizationTestCase")
+	var err error
+
+	if err = a.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
