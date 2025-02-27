@@ -95,3 +95,74 @@ func (s *StatisticsState) Decode(d *types.Decoder) error {
 type Decodable interface {
 	Decode(d *types.Decoder) error
 }
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// StatisticsInput
+func (i *StatisticsInput) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = i.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err = i.AuthorIndex.Encode(e); err != nil {
+		return err
+	}
+
+	if err = i.Extrinsic.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// StatisticsOutput
+func (o *StatisticsOutput) Encode(e *types.Encoder) error {
+	return nil
+}
+
+// StatisitcsState
+func (s *StatisticsState) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = s.Pi.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Tau.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Kappa.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// StatisticsTestCase
+func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = t.Input.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PreState.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.Output.Encode(e); err != nil {
+		return err
+	}
+
+	if err = t.PostState.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
