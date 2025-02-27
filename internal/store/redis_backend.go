@@ -6,18 +6,17 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 type RedisBackend struct {
 	client  *RedisClient
-	encoder *utilities.Encoder
+	encoder *types.Encoder
 	decoder *types.Decoder
 }
 
 // NewRedisBackend initializes and returns a new RedisBackend.
 func NewRedisBackend(client *RedisClient) *RedisBackend {
-	return &RedisBackend{client: client, encoder: utilities.NewEncoder(), decoder: types.NewDecoder()}
+	return &RedisBackend{client: client, encoder: types.NewEncoder(), decoder: types.NewDecoder()}
 }
 
 func hexOf(h types.OpaqueHash) string {
@@ -65,7 +64,7 @@ func (r *RedisBackend) GetHeads(ctx context.Context) ([]types.OpaqueHash, error)
 // Blocks By Hash
 func (r *RedisBackend) StoreBlockByHash(ctx context.Context, block *types.Block, blockHash types.OpaqueHash) error {
 	key := fmt.Sprintf("block:%s", hexOf(blockHash))
-	data, err := r.encoder.Encode(*block)
+	data, err := r.encoder.Encode(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
@@ -90,11 +89,11 @@ func (r *RedisBackend) GetBlockByHash(ctx context.Context, blockHash types.Opaqu
 }
 
 // Blocks By Slot
-func (r *RedisBackend) StoreBlockBySlot(ctx context.Context, block *types.Block) error {
+func (r *RedisBackend) StoreBlockBySlot(ctx context.Context, block *types.Block, ts types.TimeSlot) error {
 	// Create key based on slot
-	key := fmt.Sprintf("block:%d", block.Header.Slot)
+	key := fmt.Sprintf("block:%d", ts)
 
-	data, err := r.encoder.Encode(*block)
+	data, err := r.encoder.Encode(block)
 	if err != nil {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}

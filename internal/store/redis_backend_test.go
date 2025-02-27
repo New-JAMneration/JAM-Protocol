@@ -110,6 +110,54 @@ func TestRedisBackend_StoreBlockByHash(t *testing.T) {
 	}
 }
 
+// TestRedisBackend_StoreBlockBySlot checks storing & retrieving a block by slot.
+func TestRedisBackend_StoreBlockBySlot(t *testing.T) {
+	ctx := context.Background()
+
+	rdb, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	backend := NewRedisBackend(rdb)
+
+	// We'll use a TimeSlot as the key
+	var ts types.TimeSlot
+	ts = 123
+	extrinsicHash := types.OpaqueHash{}
+	copy(extrinsicHash[:], []byte("extrinsic-hash-32-bytes"))
+
+	// Create a sample block
+	block := &types.Block{
+		Header: types.Header{
+			Slot:          123,
+			Parent:        types.HeaderHash{},
+			ExtrinsicHash: extrinsicHash,
+		},
+	}
+
+	// Store the block by hash
+	if err := backend.StoreBlockBySlot(ctx, block, ts); err != nil {
+		t.Fatalf("StoreBlockByHash failed: %v", err)
+	}
+
+	// Retrieve it
+	gotBlock, err := backend.GetBlockBySlot(ctx, ts)
+	if err != nil {
+		t.Fatalf("GetBlockBySlot failed: %v", err)
+	}
+	if gotBlock == nil {
+		t.Fatalf("expected to retrieve a block, got nil")
+	}
+
+	// Check some fields
+	if gotBlock.Header.Slot != block.Header.Slot {
+		t.Errorf("Slot mismatch: want %d, got %d", block.Header.Slot, gotBlock.Header.Slot)
+	}
+
+	if gotBlock.Header.ExtrinsicHash != block.Header.ExtrinsicHash {
+		t.Errorf("ExtrinsicHash mismatch: want %s, got %s", block.Header.ExtrinsicHash, gotBlock.Header.ExtrinsicHash)
+	}
+}
+
 func TestRedisBackend_UpdateHead(t *testing.T) {
 	ctx := context.Background()
 
