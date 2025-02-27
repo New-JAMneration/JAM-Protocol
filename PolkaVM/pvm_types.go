@@ -23,23 +23,22 @@ type PageMap struct {
 
 type PageMaps []PageMap
 
-type TestCase struct {
-	Name                  string      `json:"name"`
-	InitialRegisters      [13]uint64  `json:"initial-regs"`
-	InitialProgramCounter uint32      `json:"initial-pc"`
-	InitialPageMap        PageMap     `json:"initial-page-map"`
-	InitialMemory         MemoryChunk `json:"initial-memory"`
-	InitialGas            Gas         `json:"initial-gas"`
-	ProgramBlob           []byte      `json:"program"`
+type InstructionTestCase struct {
+	Name                  string         `json:"name"`
+	InitialRegisters      Registers      `json:"initial-regs"`
+	InitialProgramCounter ProgramCounter `json:"initial-pc"`
+	InitialPageMap        PageMaps       `json:"initial-page-map"`
+	InitialMemory         MemoryChunks   `json:"initial-memory"`
+	InitialGas            Gas            `json:"initial-gas"`
+	ProgramBlob           []byte         `json:"program"`
 
 	// expected-status -> panic, halt, page-fault
-	ExpectedStatus string `json:"expected-status"`
-
-	ExpectedRegisters        [13]uint64  `json:"expected-regs"`
-	ExpectedProgramCounter   uint32      `json:"expected-pc"`
-	ExpectedMemory           MemoryChunk `json:"expected-memory"`
-	ExpectedGas              int64       `json:"expected-gas"`
-	ExpectedPageFaultAddress uint32      `json:"expected-page-fault-address,omitempty"`
+	ExpectedStatus           string         `json:"expected-status"`
+	ExpectedRegisters        Registers      `json:"expected-regs"`
+	ExpectedProgramCounter   ProgramCounter `json:"expected-pc"`
+	ExpectedMemory           MemoryChunks   `json:"expected-memory"`
+	ExpectedGas              Gas            `json:"expected-gas"`
+	ExpectedPageFaultAddress uint32         `json:"expected-page-fault-address,omitempty"`
 }
 
 // HostCallResultConstants

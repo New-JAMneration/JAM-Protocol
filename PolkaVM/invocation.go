@@ -1,18 +1,21 @@
 package PolkaVM
 
+import "fmt"
+
 // SingleStepInvoke is A.1 (v0.6.2)
-func SingleStepInvoke(programBlob []byte, programCounter uint32,
+func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 	gas Gas, registers Registers, memory Memory) (
-	error, uint32, Gas, Registers, Memory,
+	error, ProgramCounter, Gas, Registers, Memory,
 ) {
 	// deblob programCodeBlob (c, k, j)  A.2
 	programCodeBlob, err := DeBlobProgramCode(programBlob)
-	if err == PANIC {
-		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
+	if err == PVMExitTuple(PANIC, nil) {
+		return err, programCounter, gas, registers, memory
 	}
 
+	var exitReason error
 	exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
-		programBlob, programCodeBlob.Bitmasks,
+		programCodeBlob.InstructionData, programCodeBlob.Bitmasks,
 		programCodeBlob.JumpTables, programCounter, gas,
 		registers, memory)
 
@@ -33,14 +36,24 @@ func SingleStepInvoke(programBlob []byte, programCounter uint32,
 	return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
 }
 
-// SingleStepStateTransition is A.6, A.7
-func SingleStepStateTransition(instructionCode []byte, bitmask []byte, jumpTable []uint64,
-	programCounter uint32, gas Gas, registers Registers, memory Memory) (
-	error, uint32, Gas, Registers, Memory,
+// (v.6.2 A.6, A.7) SingleStepStateTransition
+func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable []uint64,
+	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
+	error, ProgramCounter, Gas, Registers, Memory,
 ) {
-	// TODO : execute instructions and return PVM state with prime
-	var err error
-	programCounter += uint32(1) + skip(int(programCounter), bitmask)
+	var exitReason error
+	gasDelta := Gas(0)
+	// (v.6.2 A.4) append zero to trap
+	instructionCode = append(instructionCode, 0, 0)
+	// (v.6.2 A.19) l = skip(iota)
+	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
+	opcode := instructionCode[programCounter]
+	exitReason, programCounter, gasDelta, registers, memory = execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory)
+	// recently, set all gasDelta = 2 for consistent with testvector
+	gas -= gasDelta
+	// TODO : execute instructions and output exit-reason, registers, memory
+	programCounter += skipLength + 1
 
-	return err, programCounter, gas, registers, memory
+	fmt.Println("run opcode", opcode)
+	return exitReason, programCounter, gas, registers, memory
 }
