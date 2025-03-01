@@ -160,12 +160,35 @@ func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
 	}
 
 	var result uint64
-	for i := 0; i < numBytes; i++ {
+	for i := range numBytes {
 		// little-endian
 		result |= uint64(data[i]) << (8 * i)
 	}
 
 	return result, data[numBytes:], nil
+}
+
+func ReadUintSignExtended(data []byte, numBytes int) (uint64, []byte, error) {
+	value, data, err := ReadUintFixed(data, numBytes)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	value, err = SignExtend(numBytes, value)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return value, data, nil
+}
+
+func ReadIntFixed(data []byte, numBytes int) (int64, []byte, error) {
+	value, data, err := ReadUintSignExtended(data, numBytes)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return int64(value), data, nil
 }
 
 func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
