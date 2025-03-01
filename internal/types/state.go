@@ -22,6 +22,25 @@ type State struct {
 	Xi     AccumulatedHistories    `json:"xi"`
 }
 
+type StateTest struct {
+	Alpha  AuthPools               `json:"alpha"`
+	Beta   BlocksHistory           `json:"beta"`
+	Gamma  Gamma                   `json:"gamma"`
+	Delta  ServiceAccountState     `json:"delta"`
+	Eta    EntropyBuffer           `json:"eta"`
+	Iota   ValidatorsData          `json:"iota"`
+	Kappa  ValidatorsData          `json:"kappa"`
+	Lambda ValidatorsData          `json:"lambda"`
+	Rho    AvailabilityAssignments `json:"rho"`
+	Tau    TimeSlot                `json:"tau"`
+	Varphi AuthQueues              `json:"varphi"`
+	Chi    PrivilegedServices      `json:"chi"`
+	Psi    DisputesRecords         `json:"psi"`
+	Pi     Statistics              `json:"pi"`
+	//Xi     AccumulatedHistories    `json:"xi"`
+}
+
+
 // (6.3)
 type Gamma struct {
 	GammaK ValidatorsData             `json:"gamma_k"`
