@@ -205,7 +205,8 @@ func getInstArgOfTwoReg(instructionCode []byte, pc ProgramCounter, reg Registers
 	return rD, rA, newReg
 }
 
-var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory) (error, ProgramCounter, Gas, Registers, Memory){
+// input: instructionCode, programCounter, skipLength, registers, memory
+var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, []bool) (error, ProgramCounter, Gas, Registers, Memory){
 	0:  instTrap,
 	1:  instFallthrough,
 	10: instEcalli,
@@ -225,15 +226,15 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	// register more instructions here
 }
 
-func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
-func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
-func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 
 	lX := min(4, int(skipLength))
@@ -252,7 +253,7 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 20
-func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 
 	rA := min(12, (int(instructionCode[pc+1]) % 16))
@@ -269,7 +270,7 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 100
-func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -281,7 +282,7 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 102
-func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -304,7 +305,7 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 103
-func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -327,7 +328,7 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 104
-func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -351,7 +352,7 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 }
 
 // opcode 105
-func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -375,7 +376,7 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 }
 
 // opcode 106
-func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -399,7 +400,7 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 }
 
 // opcode 107
-func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -423,7 +424,7 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 }
 
 // opcode 108
-func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -444,7 +445,7 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 109
-func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -465,7 +466,7 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 110
-func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -478,7 +479,7 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 111
-func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
 
@@ -493,4 +494,91 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 	// TODO: Why panic?
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	offset, err := decodeOneOffset(instructionCode, pc, skipLength)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	reason, pc := branch(pc+ProgramCounter(offset), true, bitmask)
+
+	return PVMExitTuple(reason, nil), pc, Gas(2), reg, mem
+}
+
+func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instLoadImmJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchEqImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchNeImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLeUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGeUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLeSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGeSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchEq(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchNe(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGeU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instBranchGeS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
+}
+
+func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	panic("not implemented")
 }
