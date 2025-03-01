@@ -29,6 +29,11 @@ type config struct {
 		ValidatorsSuperMajority int `json:"validators_super_majority"`
 		AvailBitfieldBytes      int `json:"avail_bitfield_bytes"`
 	} `json:"const"`
+	Redis struct {
+		Address  string `json:"address"`
+		Port     int    `json:"port"`
+		Password string `json:"password"`
+	} `json:"redis"`
 }
 
 func InitConfig() {
