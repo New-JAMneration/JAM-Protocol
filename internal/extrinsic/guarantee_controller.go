@@ -214,9 +214,13 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	xi := store.GetInstance().GetPriorStates().GetXi()
 	beta := store.GetInstance().GetPriorStates().GetBeta()
 	qMap := make(map[types.WorkPackageHash]bool)
+
 	for _, v := range theta {
-		qMap[v.WorkReport.PackageSpec.Hash] = true
+		for _, w := range v {
+			qMap[w.WorkReport.PackageSpec.Hash] = true
+		}
 	}
+
 	aMap := make(map[types.WorkPackageHash]bool)
 	for _, v := range rho {
 		if v != nil {
