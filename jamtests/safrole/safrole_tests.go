@@ -214,6 +214,10 @@ func (o *SafroleOutputData) Decode(d *types.Decoder) error {
 	var err error
 
 	epochMarkPointerFlag, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
 	epochMarkPointerIsNil := epochMarkPointerFlag == 0
 	if epochMarkPointerIsNil {
 		cLog(Yellow, "EpochMark is nil")
@@ -229,6 +233,10 @@ func (o *SafroleOutputData) Decode(d *types.Decoder) error {
 	}
 
 	ticketsMarkPointerFlag, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
 	ticketsMarkPointerIsNil := ticketsMarkPointerFlag == 0
 	if ticketsMarkPointerIsNil {
 		cLog(Yellow, "TicketsMark is nil")
@@ -252,6 +260,10 @@ func (o *SafroleOutput) Decode(d *types.Decoder) error {
 	var err error
 
 	okOrErr, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
 	isOk := okOrErr == 0
 	if isOk {
 		cLog(Yellow, "SafroleOutput is ok")

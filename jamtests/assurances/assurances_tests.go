@@ -74,7 +74,7 @@ const (
 	NotSortedOrUniqueAssurers                           // 4
 )
 
-var assurancesErrorMap = map[string]AssuranceErrorCode{
+var assuranceErrorMap = map[string]AssuranceErrorCode{
 	"bad_attestation_parent":        BadAttestationParent,
 	"bad_validator_index":           BadValidatorIndex,
 	"core_not_engaged":              CoreNotEngaged,
@@ -85,7 +85,7 @@ var assurancesErrorMap = map[string]AssuranceErrorCode{
 func (e *AssuranceErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := assurancesErrorMap[str]; ok {
+		if val, ok := assuranceErrorMap[str]; ok {
 			*e = val
 			return nil
 		}

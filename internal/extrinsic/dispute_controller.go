@@ -3,9 +3,9 @@ package extrinsic
 import (
 	"fmt"
 
-	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	input "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // DisputeController is a struct that contains a slice of Dispute (for controller logic)

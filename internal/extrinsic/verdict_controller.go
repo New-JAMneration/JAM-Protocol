@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 
-	input "github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	input "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -54,11 +54,15 @@ func NewVerdictController() *VerdictController {
 
 // VerifySignature verifies the signatures of the judgement in the verdict   , Eq. 10.3
 // currently return []int to check the test, it might change after connect other components in Ch.10
-func (v *VerdictWrapper) VerifySignature() []int {
+func (v *VerdictWrapper) VerifySignature() error {
 
 	state := store.GetInstance().GetPriorStates()
 
 	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
+	if v.Verdict.Age != a && v.Verdict.Age != a-1 {
+		return fmt.Errorf("bad_judgement_age")
+	}
+
 	var k types.ValidatorsData
 	if v.Verdict.Age == a {
 		k = state.GetKappa()
@@ -89,55 +93,84 @@ func (v *VerdictWrapper) VerifySignature() []int {
 		}
 	}
 
-	return invalidVotes
+	if len(invalidVotes) > 0 {
+		return fmt.Errorf("bad_signature")
+	}
+	return nil
 }
 
 // SortUnique sorts the verdicts and removes duplicates | Eq. 10.7, Eq. 10.10
-func (v *VerdictController) SortUnique() {
-	v.Unique()
-	v.Sort()
-
+func (v *VerdictController) CheckSortUnique() error {
+	if err := v.CheckUnique(); err != nil {
+		return err
+	}
+	if err := v.CheckSorted(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Unique removes duplicates
-func (v *VerdictController) Unique() {
+func (v *VerdictController) CheckUnique() error {
 	if len(v.Verdicts) == 0 {
-		return
+		return nil
 	}
 	// Eq. 10.7 unique
 	uniqueMap := make(map[types.OpaqueHash]bool)
 	result := make([]VerdictWrapper, 0)
 
 	for _, v := range v.Verdicts {
-		if !uniqueMap[v.Verdict.Target] {
-			uniqueMap[v.Verdict.Target] = true
-			result = append(result, v)
+		if uniqueMap[v.Verdict.Target] {
+			return fmt.Errorf("verdicts_not_sorted_unique")
 		}
+		uniqueMap[v.Verdict.Target] = true
+		result = append(result, v)
 	}
 	(*v).Verdicts = result
 	// Eq. 10.10 unique
 	for _, v := range v.Verdicts {
-		for i := 0; i < len(v.Verdict.Votes); i++ {
-			uniqueJudgementMap := make(map[types.ValidatorIndex]bool)
-			votesResult := make([]types.Judgement, 0)
-			for j := 0; j < len(v.Verdict.Votes); j++ {
-				if !uniqueJudgementMap[v.Verdict.Votes[j].Index] {
-					uniqueJudgementMap[v.Verdict.Votes[j].Index] = true
-					votesResult = append(votesResult, v.Verdict.Votes[j])
-				}
-				v.Verdict.Votes = votesResult
+		uniqueJudgementMap := make(map[types.ValidatorIndex]bool)
+		votesResult := make([]types.Judgement, 0)
+		for _, vote := range v.Verdict.Votes {
+			if uniqueJudgementMap[vote.Index] {
+				return fmt.Errorf("judgements_not_sorted_unique")
 			}
+			uniqueJudgementMap[vote.Index] = true
+			votesResult = append(votesResult, vote)
 		}
+		v.Verdict.Votes = votesResult
 	}
+	return nil
 }
 
-// Sort sorts the verdicts
-func (v *VerdictController) Sort() {
-	sort.Sort(v)
-	for _, v := range v.Verdicts {
-		votes := VoteWrapper(v.Verdict.Votes)
-		sort.Sort(&votes)
+func (v *VerdictController) CheckSorted() error {
+	// Check if Verdicts are sorted by target
+	for i := 1; i < len(v.Verdicts); i++ {
+		if CompareOpaqueHash(v.Verdicts[i-1].Verdict.Target, v.Verdicts[i].Verdict.Target) > 0 {
+			return fmt.Errorf("verdicts_not_sorted_unique")
+		}
 	}
+
+	// Check if Votes are sorted by index
+	for _, verdict := range v.Verdicts {
+		votes := VoteWrapper(verdict.Verdict.Votes)
+		if !sort.IsSorted(&votes) {
+			return fmt.Errorf("judgements_not_sorted_unique")
+		}
+	}
+
+	return nil
+}
+
+func CompareOpaqueHash(a, b types.OpaqueHash) int {
+	for i := 0; i < len(a); i++ {
+		if a[i] < b[i] {
+			return -1
+		} else if a[i] > b[i] {
+			return 1
+		}
+	}
+	return 0
 }
 
 func (v *VerdictController) Less(i, j int) bool {
@@ -189,7 +222,7 @@ func (v *VerdictController) SetDisjoint() error {
 
 	for _, v := range v.Verdicts {
 		if uniqueMap[v.Verdict.Target] {
-			return fmt.Errorf("offender already judged")
+			return fmt.Errorf("already_judged")
 		}
 	}
 	return nil
