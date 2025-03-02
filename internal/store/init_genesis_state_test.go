@@ -16,40 +16,39 @@ func TestGetInitGenesisState(t *testing.T) {
 	}
 
 	// 宣告並初始化一個 AuthPool 變數
-    var authPool types.AuthPool = []types.AuthorizerHash{
-        types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-        types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-    }
+	var authPool types.AuthPool = []types.AuthorizerHash{
+		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+	}
 
-    // 宣告並初始化一個 AuthPools 變數
-    var expectedAlpha types.AuthPools = []types.AuthPool{
-        authPool,
-        {
+	// 宣告並初始化一個 AuthPools 變數
+	var expectedAlpha types.AuthPools = []types.AuthPool{
+		authPool,
+		{
 			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-
-            },
-    }
+		},
+	}
 
 	// Expected Varphi data
-    var authQueue types.AuthQueue = []types.AuthorizerHash{
-        types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-        types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+	var authQueue types.AuthQueue = []types.AuthorizerHash{
 		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-    }
+		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+	}
 
 	var expectedVarphi types.AuthQueues = []types.AuthQueue{
 		authQueue,
 		{
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
-		types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
+			types.AuthorizerHash(HexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 		},
 	}
 
@@ -94,8 +93,8 @@ func TestGetInitGenesisState(t *testing.T) {
 
 	// Expected Rho data
 	var expectedRho types.AvailabilityAssignments = []types.AvailabilityAssignmentsItem{
-		nil,nil,
-    }	
+		nil, nil,
+	}
 	// Expected Tau data
 	expectedTau := 0
 
@@ -110,7 +109,7 @@ func TestGetInitGenesisState(t *testing.T) {
 	expectedPi := types.Statistics{
 		Current: types.ActivityRecords{
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
-			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},	
+			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
@@ -118,7 +117,7 @@ func TestGetInitGenesisState(t *testing.T) {
 		},
 		Last: types.ActivityRecords{
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
-			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},	
+			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
 			{Blocks: 0, Tickets: 0, PreImages: 0, PreImagesSize: 0, Guarantees: 0, Assurances: 0},
@@ -191,4 +190,3 @@ func TestGetInitGenesisState(t *testing.T) {
 	}
 
 }
-
