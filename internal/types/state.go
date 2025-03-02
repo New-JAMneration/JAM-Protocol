@@ -22,6 +22,25 @@ type State struct {
 	Xi     AccumulatedHistories    `json:"xi"`
 }
 
+type StateTest struct {
+	Alpha AuthPools     `json:"alpha"`
+	Beta  BlocksHistory `json:"beta"`
+	Gamma Gamma         `json:"gamma"`
+	// Delta  ServiceAccountState     `json:"delta"`
+	Eta    EntropyBuffer           `json:"eta"`
+	Iota   ValidatorsData          `json:"iota"`
+	Kappa  ValidatorsData          `json:"kappa"`
+	Lambda ValidatorsData          `json:"lambda"`
+	Rho    AvailabilityAssignments `json:"rho"`
+	Tau    TimeSlot                `json:"tau"`
+	Varphi AuthQueues              `json:"varphi"`
+	Chi    PrivilegedServices      `json:"chi"`
+	Psi    DisputesRecords         `json:"psi"`
+	Pi     Statistics              `json:"pi"`
+	// Theta  UnaccumulateWorkReports `json:"theta"`
+	// Xi     AccumulatedHistories    `json:"xi"`
+}
+
 // (6.3)
 type Gamma struct {
 	GammaK ValidatorsData             `json:"gamma_k"`
@@ -60,8 +79,10 @@ type PrivilegedServices struct {
 }
 
 // (12.3)
-type AccumulationQueue []UnaccumulateWorkReports
-type UnaccumulateWorkReports []UnaccumulateWorkReport
+type (
+	AccumulationQueue       []UnaccumulateWorkReports
+	UnaccumulateWorkReports []UnaccumulateWorkReport
+)
 
 func (accumulationQueue AccumulationQueue) Validate() error {
 	if len(accumulationQueue) != EpochLength {
@@ -76,8 +97,10 @@ type UnaccumulateWorkReport struct {
 }
 
 // (12.1)
-type AccumulatedHistories []AccumulatedHistory
-type AccumulatedHistory []WorkPackageHash
+type (
+	AccumulatedHistories []AccumulatedHistory
+	AccumulatedHistory   []WorkPackageHash
+)
 
 func (accumulatedHistories AccumulatedHistories) Validate() error {
 	if len(accumulatedHistories) != EpochLength {
