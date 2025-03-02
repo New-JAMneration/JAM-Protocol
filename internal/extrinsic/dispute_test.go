@@ -102,6 +102,10 @@ func TestDisputes(t *testing.T) {
 			if disputeErr != nil {
 				t.Errorf("Expected no error, but got %v", disputeErr)
 			} else {
+				if expectedOutput.Ok.OffendersMark == nil {
+					expectedOutput.Ok.OffendersMark = types.OffendersMark{}
+				}
+
 				if !reflect.DeepEqual(output, expectedOutput.Ok.OffendersMark) {
 					t.Errorf("Expected ok %v, got %v", expectedOutput.Ok.OffendersMark, output)
 				}

@@ -3,9 +3,33 @@ package jamtests
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+// ANSI color codes
+var (
+	Reset   = "\033[0m"
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	Gray    = "\033[37m"
+	White   = "\033[97m"
+)
+
+var debugMode = false
+
+// var debugMode = true
+
+func cLog(color string, string string) {
+	if debugMode {
+		fmt.Printf("%s%s%s\n", color, string, Reset)
+	}
+}
 
 type DisputeTestCase struct {
 	Input     DisputeInput  `json:"input"`
@@ -81,6 +105,266 @@ func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
 		return errors.New("invalid error code name: " + str)
 	}
 	return errors.New("invalid error code format, expected string")
+}
+
+// DisputesInput
+func (di *DisputeInput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesInput")
+	var err error
+
+	if err = di.Disputes.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesOutputData
+func (dod *DisputeOutputData) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesOutputData")
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	dod.OffendersMark = make(types.OffendersMark, length)
+	for i := uint64(0); i < length; i++ {
+		if err = dod.OffendersMark[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DisputesOutput
+func (do *DisputeOutput) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesOutput")
+	var err error
+
+	okOrErr, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+
+	isOk := okOrErr == 0
+	if isOk {
+		cLog(Yellow, "DisputesOutput is ok")
+
+		if do.Ok == nil {
+			do.Ok = new(DisputeOutputData)
+		}
+		if err = do.Ok.Decode(d); err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		cLog(Yellow, "DisputesOutput is err")
+		cLog(Yellow, "Decoding DisputesErrorCode")
+
+		errByte, err := d.ReadErrorByte()
+		if err != nil {
+			return err
+		}
+
+		do.Err = (*DisputeErrorCode)(&errByte)
+
+		cLog(Yellow, fmt.Sprintf("DisputesErrorCode: %d", *do.Err))
+	}
+
+	return nil
+}
+
+// DisputesState
+func (ds *DisputeState) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesState")
+	var err error
+
+	if err = ds.Psi.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Rho.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Tau.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Kappa.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = ds.Lambda.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesTestCase
+func (dtc *DisputeTestCase) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding DisputesTestCase")
+	var err error
+
+	if err = dtc.Input.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.PreState.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.Output.Decode(d); err != nil {
+		return nil
+	}
+
+	if err = dtc.PostState.Decode(d); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// Encode
+type Encodable interface {
+	Encode(e *types.Encoder) error
+}
+
+// DisputesInput
+func (di *DisputeInput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding DisputesInput")
+	var err error
+
+	if err = di.Disputes.Encode(e); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesOutputData
+func (dod *DisputeOutputData) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding DisputesOutputData")
+	var err error
+
+	if err = e.EncodeLength(uint64(len(dod.OffendersMark))); err != nil {
+		return err
+	}
+
+	for i := range dod.OffendersMark {
+		if err = dod.OffendersMark[i].Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DisputesOutput
+func (do *DisputeOutput) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding DisputesOutput")
+	var err error
+
+	if do.Ok != nil && do.Err != nil {
+		return errors.New("both ok and err are not nil")
+	}
+
+	if do.Ok == nil && do.Err == nil {
+		return errors.New("both ok and err are nil")
+	}
+
+	if do.Ok != nil {
+		cLog(Yellow, "DisputesOutput is ok")
+		if err := e.WriteByte(0); err != nil {
+			return err
+		}
+
+		// Encode DisputeOutputData
+		if err = do.Ok.Encode(e); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if do.Err != nil {
+		cLog(Yellow, "DisputesOutput is err")
+		if err := e.WriteByte(1); err != nil {
+			return err
+		}
+
+		// Encode DisputeErrorCode
+		if err = e.WriteByte(byte(*do.Err)); err != nil {
+			return err
+		}
+
+		cLog(Yellow, fmt.Sprintf("DisputeErrorCode: %d", *do.Err))
+
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesState
+func (ds *DisputeState) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding DisputesState")
+	var err error
+
+	if err = ds.Psi.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = ds.Rho.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = ds.Tau.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = ds.Kappa.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = ds.Lambda.Encode(e); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// DisputesTestCase
+func (dtc *DisputeTestCase) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding DisputesTestCase")
+	var err error
+
+	if err = dtc.Input.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = dtc.PreState.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = dtc.Output.Encode(e); err != nil {
+		return nil
+	}
+
+	if err = dtc.PostState.Encode(e); err != nil {
+		return nil
+	}
+
+	return nil
 }
 
 func (d *DisputeOutput) IsError() bool {

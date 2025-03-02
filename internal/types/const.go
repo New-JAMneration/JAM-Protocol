@@ -10,24 +10,25 @@ var TEST_MODE = "tiny"
 
 func SetTestMode() {
 	TEST_MODE = os.Getenv("TEST_MODE")
-	if TEST_MODE == "" {
-		return
-	}
-
 	if TEST_MODE == "tiny" {
-		log.Println("🚀 Tiny mode activated")
+		log.Println("⚙️  Tiny mode activated")
 		SetTinyMode()
 		return
 	}
 
 	if TEST_MODE == "full" {
-		log.Println("🚀 Full mode activated")
+		log.Println("⚙️  Full mode activated")
 		SetFullMode()
 		return
 	}
+
+	log.Println("⚙️  Default(Tiny) mode activated")
+	SetTinyMode()
 }
 
 func SetTinyMode() {
+	log.Println("⚙️  Tiny mode activated")
+	TEST_MODE = "tiny"
 	ValidatorsCount = 6
 	CoresCount = 2
 	EpochLength = 12
@@ -42,6 +43,8 @@ func SetTinyMode() {
 }
 
 func SetFullMode() {
+	log.Println("⚙️  Full mode activated")
+	TEST_MODE = "full"
 	ValidatorsCount = 1023
 	CoresCount = 341
 	EpochLength = 600
