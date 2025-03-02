@@ -432,14 +432,14 @@ func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
 }
 
 // SetTheta sets the theta value
-func (s *PosteriorStates) SetTheta(theta types.UnaccumulateWorkReports) {
+func (s *PosteriorStates) SetTheta(theta types.AccumulationQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Theta = theta
 }
 
 // GetTheta returns the theta value
-func (s *PosteriorStates) GetTheta() types.UnaccumulateWorkReports {
+func (s *PosteriorStates) GetTheta() types.AccumulationQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Theta

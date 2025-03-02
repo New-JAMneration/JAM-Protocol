@@ -33,11 +33,6 @@ var disputeErrorReverseMap = map[jamtests.DisputeErrorCode]string{
 
 var JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
 
-func TestMain(m *testing.M) {
-	types.SetTestMode()
-	m.Run()
-}
-
 func LoadDisputesTestCase(filename string) (jamtests.DisputeTestCase, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -59,30 +54,6 @@ func LoadDisputesTestCase(filename string) (jamtests.DisputeTestCase, error) {
 	}
 
 	return testCases, nil
-}
-
-func GetTestJsonFiles(dir string) []string {
-	jsonFiles := []string{}
-
-	f, err := os.Open(dir)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-
-	files, err := f.Readdir(-1)
-	if err != nil {
-		return nil
-	}
-
-	extension := ".json"
-	for _, file := range files {
-		if filepath.Ext(file.Name()) == extension {
-			jsonFiles = append(jsonFiles, file.Name())
-		}
-	}
-
-	return jsonFiles
 }
 
 func TestDisputes(t *testing.T) {
