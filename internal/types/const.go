@@ -10,6 +10,10 @@ var TEST_MODE = "tiny"
 
 func SetTestMode() {
 	TEST_MODE = os.Getenv("TEST_MODE")
+	if TEST_MODE == "" {
+		return
+	}
+
 	if TEST_MODE == "tiny" {
 		log.Println("🚀 Tiny mode activated")
 		SetTinyMode()
@@ -90,6 +94,13 @@ var (
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
+	JamValid                     = "jam_valid"
+	JamInvalid                   = "jam_invalid"
+	JamAvailable                 = "jam_available"
+	JamBeefy                     = "jam_beefy"
+	JamGuarantee                 = "jam_guarantee"
+	JamAnnounce                  = "jam_announce"
+	JamAudit                     = "jam_audit"
 )
 
 var (
