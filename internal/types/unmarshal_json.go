@@ -331,6 +331,7 @@ func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 }
 
 func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
+	// jam-test-vectors
 	var temp struct {
 		WorkPackageHash string `json:"work_package_hash,omitempty"`
 		SegmentTreeRoot string `json:"segment_tree_root,omitempty"`
@@ -338,6 +339,22 @@ func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	// To read file from different test data source (davxy/jam-test-vectors, jam-duna/jamtestnet)
+	if temp.WorkPackageHash == "" && temp.SegmentTreeRoot == "" {
+		// jamtestnet
+		var temp2 struct {
+			WorkPackageHash string `json:"hash,omitempty"`
+			SegmentTreeRoot string `json:"exports_root,omitempty"`
+		}
+
+		if err := json.Unmarshal(data, &temp2); err != nil {
+			return err
+		}
+
+		temp.WorkPackageHash = temp2.WorkPackageHash
+		temp.SegmentTreeRoot = temp2.SegmentTreeRoot
 	}
 
 	workPackageHashBytes, err := hex.DecodeString(temp.WorkPackageHash[2:])
@@ -425,10 +442,8 @@ func (m *Mmr) UnmarshalJSON(data []byte) error {
 
 func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		// Hash        string `json:"hash,omitempty"`// jam-test-vectors
-		// ExportsRoot string `json:"exports_root,omitempty"`
-		Hash        string `json:"work_package_hash,omitempty"` // jamtestnet
-		ExportsRoot string `json:"segment_tree_root,omitempty"`
+		Hash        string `json:"hash,omitempty"`
+		ExportsRoot string `json:"exports_root,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
