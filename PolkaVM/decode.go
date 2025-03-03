@@ -1,5 +1,12 @@
 package PolkaVM
 
+func getRegModIndex(instructionCode []byte, pc ProgramCounter) int {
+	return min(12, (int(instructionCode[pc+1]) % 16))
+}
+func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) int {
+	return min(12, (int(instructionCode[pc+1]) >> 4))
+}
+
 func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
 	panic("not implemented")
 }
@@ -44,8 +51,11 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 	panic("not implemented")
 }
 
-func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, error) {
-	panic("not implemented")
+func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD int, rA int) {
+	rD = getRegModIndex(instructionCode, pc)
+	rA = getRegFloorIndex(instructionCode, pc)
+
+	return rD, rA
 }
 
 func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
@@ -60,6 +70,10 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 	panic("not implemented")
 }
 
-func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
-	panic("not implemented")
+func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA int, rB int, rD int) {
+	rA = getRegModIndex(instructionCode, pc)
+	rB = getRegFloorIndex(instructionCode, pc)
+	rD = min(12, int(instructionCode[pc+2]))
+
+	return rA, rB, rD
 }
