@@ -1,12 +1,19 @@
 package PolkaVM
 
+import (
+	"log"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+)
+
 // Instruction tables
 
 // result of "ζı" should be a opcode
-type opcode byte
+type opcode int
 
 // define "ζ"
-var Zeta = map[opcode]string{
+var zeta = map[opcode]string{
 	// Ins w/o Arg
 	0: "trap",
 	1: "fallthrough",
@@ -180,4 +187,310 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint64 {
+	return uint64(min(12, (int(instructionCode[pc+1]) % 16)))
+}
+func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint64 {
+	return uint64(min(12, (int(instructionCode[pc+1]) >> 4)))
+}
+
+func getInstArgOfTwoReg(instructionCode []byte, pc ProgramCounter, reg Registers) (rD uint64, rA uint64, newReg Registers) {
+	rD = getRegModIndex(instructionCode, pc)
+	newReg[rD] = reg[rD]
+	rA = getRegFloorIndex(instructionCode, pc)
+	newReg[rA] = reg[rA]
+
+	return rD, rA, newReg
+}
+
+var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory) (error, ProgramCounter, Gas, Registers, Memory){
+	0:  instTrap,
+	1:  instFallthrough,
+	10: instEcalli,
+	20: instLoadImm64, // passed testvector
+	// register more instructions here
+	100: instMoveReg, // passed testvector
+	102: instCountSetBits64,
+	103: instCountSetBits32,
+	104: instLeadingZeroBits64,
+	105: instLeadingZeroBits32,
+	106: instTrailZeroBits64,
+	107: instTrailZeroBits32,
+	108: instSignExtend8,
+	109: instSignExtend16,
+	110: instZeroExtend16,
+	111: instReverseBytes,
+	// register more instructions here
+}
+
+func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	lX := min(4, int(skipLength))
+
+	// zeta_{iota+1,...,lX}
+	instLength := instructionCode[pc+1 : pc+ProgramCounter(lX)+1]
+	x, err := utils.DeserializeFixedLength(instLength, types.U64(lX))
+	if err != nil {
+		log.Println("insEcalli deserialization raise error:", err)
+	}
+	nuX, err := SignExtend(lX, uint64(x))
+	if err != nil {
+		log.Println("insEcalli sign extension raise error:", err)
+	}
+	return PVMExitTuple(HOST_CALL, nuX), pc, gasDelta, reg, mem
+}
+
+// opcode 20
+func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	rA := min(12, (int(instructionCode[pc+1]) % 16))
+	// zeta_{iota+2,...,+8}
+	instLength := instructionCode[pc+2 : pc+10]
+	nuX, err := utils.DeserializeFixedLength(instLength, types.U64(8))
+	if err != nil {
+		log.Println("insLoadImm64 deserialization raise error:", err)
+	}
+	reg[rA] = uint64(nuX)
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 100
+func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	newReg[rD] = reg[rA]
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 102
+func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits(regA, 8)
+	if err != nil {
+		log.Println("insCountSetBits64 raise error:", err)
+	}
+	var sum uint64 = 0
+	for i := 0; i < 64; i++ {
+		if bitslice[i] {
+			sum++
+		}
+	}
+	newReg[rD] = sum
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 103
+func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
+	if err != nil {
+		log.Println("instCountSetBits32 raise error:", err)
+	}
+	var sum uint64 = 0
+	for i := 0; i < 32; i++ {
+		if bitslice[i] {
+			sum++
+		}
+	}
+	newReg[rD] = sum
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 104
+func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits(regA, 8)
+	if err != nil {
+		log.Println("instLeadingZeroBits64 raise error:", err)
+	}
+	var n uint64 = 0
+	for i := 0; i < 64; i++ {
+		n++
+		if bitslice[i] {
+			break
+		}
+	}
+	newReg[rD] = n
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 105
+func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
+	if err != nil {
+		log.Println("instLeadingZeroBits32 raise error:", err)
+	}
+	var n uint64 = 0
+	for i := 0; i < 32; i++ {
+		n++
+		if bitslice[i] {
+			break
+		}
+	}
+	newReg[rD] = n
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 106
+func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits(regA, 8)
+	if err != nil {
+		log.Println("instTrailZeroBits64 raise error:", err)
+	}
+	var n uint64 = 0
+	for i := 63; i >= 0; i-- {
+		n++
+		if bitslice[i] {
+			break
+		}
+	}
+	newReg[rD] = n
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 107
+func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
+	if err != nil {
+		log.Println("instTrailZeroBits32 raise error:", err)
+	}
+	var n uint64 = 0
+	for i := 31; i >= 0; i-- {
+		n++
+		if bitslice[i] {
+			break
+		}
+	}
+	newReg[rD] = n
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 108
+func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	signedInt, err := UnsignedToSigned((regA % (1 << 8)), 1)
+	if err != nil {
+		log.Println("instSignExtend8 UnsignedToSigned raise error:", err)
+	}
+	unsignedInt, err := SignedToUnsigned(signedInt, 8)
+	if err != nil {
+		log.Println("instSignExtend8 SignedToUnsigned raise error:", err)
+	}
+	newReg[rD] = unsignedInt
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 109
+func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	signedInt, err := UnsignedToSigned((regA % (1 << 16)), 2)
+	if err != nil {
+		log.Println("instSignExtend16 UnsignedToSigned raise error:", err)
+	}
+	unsignedInt, err := SignedToUnsigned(signedInt, 8)
+	if err != nil {
+		log.Println("instSignExtend16 SignedToUnsigned raise error:", err)
+	}
+	newReg[rD] = unsignedInt
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 110
+func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := reg[rA]
+	newReg[rD] = regA % (1 << 16)
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+}
+
+// opcode 111
+func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+
+	// mutation
+	regA := types.U64(reg[rA])
+	bytes := utils.SerializeFixedLength(regA, types.U64(8))
+	var reversedBytes uint64 = 0
+	for i := uint8(0); i < 8; i++ {
+		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
+	}
+	newReg[rD] = reversedBytes
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
 }
