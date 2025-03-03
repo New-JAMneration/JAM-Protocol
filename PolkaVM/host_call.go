@@ -2,7 +2,7 @@ package PolkaVM
 import "fmt"
 import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
-type Psi_H_ReturnType struct {
+type Psi_A_ReturnType struct {
 	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
 	ExitReason       ExitReasonTypes // exit reason
 	Counter          uint32          // new instruction counter
