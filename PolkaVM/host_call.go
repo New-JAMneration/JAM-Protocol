@@ -9,7 +9,7 @@ import (
 type Psi_H_ReturnType struct {
 	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
 	ExitReason       ExitReasonTypes // exit reason
-	Counter          uint64          // new instruction counter
+	Counter          uint32          // new instruction counter
 	Gas              uint64          // gas remain
 	Reg              Registers       // new registers
 	Ram              PageMap         // new memory
@@ -63,7 +63,7 @@ type OmegaOutput struct {
 	NewRegisters    Registers                 // New Register
 	NewMemory       PageMap                   // New Memory
 	NewAccountState types.ServiceAccountState // New State
-	Counter         int64                     // For calculate run count
+	Counter         uint32                    // For calculate run count
 	History         *HistoryState             // For roll back
 	Addition        []any                     // addition host-call context
 }
@@ -84,7 +84,7 @@ type OmegaInput struct {
 // (A.31) Ψ_H
 func Psi_H(
 	code ProgramCode, // program code
-	counter ProgramCounter, // program counter
+	counter uint64, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
