@@ -97,7 +97,7 @@ func TestInstruction(t *testing.T) {
 
 	for _, file := range jsonFiles {
 		// Control specific test case
-		if file != "inst_move_reg.json" {
+		if file != "inst_rem_unsigned_64_by_zero.json" {
 			continue
 		}
 		t.Run(file, func(t *testing.T) {
@@ -106,6 +106,8 @@ func TestInstruction(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error loading test case %s: %v", file, err)
 			}
+			t.Logf("%x", testCase.InitialRegisters)
+			t.Logf("%x", testCase.InitialRegisters[9])
 
 			ourStatus, pc, gas, reg, _ := SingleStepInvoke(
 				testCase.ProgramBlob,
@@ -122,6 +124,7 @@ func TestInstruction(t *testing.T) {
 				t.Errorf("expected gas %d, got %d", testCase.ExpectedGas, gas)
 			}
 			if !reflect.DeepEqual(reg, testCase.ExpectedRegisters) {
+				t.Logf("%x, %x", testCase.ExpectedRegisters[9], reg[9])
 				t.Errorf("expected registers %v, got %v", testCase.ExpectedRegisters, reg)
 			}
 			if ourStatus.Error() != testCase.ExpectedStatus {

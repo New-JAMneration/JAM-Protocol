@@ -5,6 +5,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"golang.org/x/exp/constraints"
 )
 
 // Instruction tables
@@ -169,12 +170,12 @@ var zeta = map[opcode]string{
 }
 
 // (A.32 v0.6.2) smod function
-func smod(a int, b int) int {
+func smod[T constraints.Signed](a, b T) T {
 	if b == 0 {
 		return a
 	}
 
-	mod := abs(a) % abs(b)
+	mod := T(abs(a) % abs(b))
 
 	if a < 0 {
 		return -mod
@@ -182,27 +183,11 @@ func smod(a int, b int) int {
 	return mod
 }
 
-func abs(x int) int {
+func abs[T constraints.Signed](x T) T {
 	if x < 0 {
 		return -x
 	}
 	return x
-}
-
-func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint64 {
-	return uint64(min(12, (int(instructionCode[pc+1]) % 16)))
-}
-func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint64 {
-	return uint64(min(12, (int(instructionCode[pc+1]) >> 4)))
-}
-
-func getInstArgOfTwoReg(instructionCode []byte, pc ProgramCounter, reg Registers) (rD uint64, rA uint64, newReg Registers) {
-	rD = getRegModIndex(instructionCode, pc)
-	newReg[rD] = reg[rD]
-	rA = getRegFloorIndex(instructionCode, pc)
-	newReg[rA] = reg[rA]
-
-	return rD, rA, newReg
 }
 
 // input: instructionCode, programCounter, skipLength, registers, memory
@@ -224,16 +209,29 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	110: instZeroExtend16,
 	111: instReverseBytes,
 	// register more instructions here
+	200: instAdd64,
+	201: instSub64,
+	202: instMul64,
+	203: instDivU64,
+	204: instDivS64,
+	205: instRemU64,
+	206: instRemS64,
+	// register more instructions here
 }
 
+// opcode 0
 func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
+
+// opcode 1
 func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
+
+// opcode 10
 func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 
@@ -272,19 +270,19 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 100
 func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
-	newReg[rD] = reg[rA]
+	reg[rD] = reg[rA]
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 102
 func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -298,16 +296,16 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 			sum++
 		}
 	}
-	newReg[rD] = sum
+	reg[rD] = sum
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 103
 func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -321,16 +319,16 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 			sum++
 		}
 	}
-	newReg[rD] = sum
+	reg[rD] = sum
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 104
 func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -345,16 +343,16 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 			break
 		}
 	}
-	newReg[rD] = n
+	reg[rD] = n
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 105
 func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -369,16 +367,16 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 			break
 		}
 	}
-	newReg[rD] = n
+	reg[rD] = n
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 106
 func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -393,16 +391,16 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 			break
 		}
 	}
-	newReg[rD] = n
+	reg[rD] = n
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 107
 func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -417,16 +415,16 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 			break
 		}
 	}
-	newReg[rD] = n
+	reg[rD] = n
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 108
 func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -438,16 +436,16 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	if err != nil {
 		log.Println("instSignExtend8 SignedToUnsigned raise error:", err)
 	}
-	newReg[rD] = unsignedInt
+	reg[rD] = unsignedInt
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 109
 func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
@@ -459,29 +457,29 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	if err != nil {
 		log.Println("instSignExtend16 SignedToUnsigned raise error:", err)
 	}
-	newReg[rD] = unsignedInt
+	reg[rD] = unsignedInt
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 110
 func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := reg[rA]
-	newReg[rD] = regA % (1 << 16)
+	reg[rD] = regA % (1 << 16)
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 111
 func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA, newReg := getInstArgOfTwoReg(instructionCode, pc, reg)
+	rD, rA := decodeTwoRegisters(instructionCode, pc)
 
 	// mutation
 	regA := types.U64(reg[rA])
@@ -490,10 +488,10 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	for i := uint8(0); i < 8; i++ {
 		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
 	}
-	newReg[rD] = reversedBytes
+	reg[rD] = reversedBytes
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, newReg, mem
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
 func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
@@ -581,4 +579,146 @@ func instBranchGeS(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	panic("not implemented")
+}
+
+// opcode 200
+func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	reg[rD] = reg[rA] + reg[rB]
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 201
+func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	reg[rD] = reg[rA] + (^reg[rB] + 1)
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 202
+func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	reg[rD] = reg[rA] * reg[rB]
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 203
+func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	if reg[rB] == 0 {
+		reg[rD] = ^uint64(0) // 2^64 - 1
+	} else {
+		reg[rD] = reg[rA] / reg[rB]
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 204
+func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	// log.Println(reg[rA], reg[rB], reg[rD])
+	// if reg[rA] > (^uint64(0)) {
+	// 	log.Println("instDivS64 reg[rA] > (^uint64(0))")
+	// }
+	// signedRegA, err := UnsignedToSigned(reg[rA], 8)
+	// if err != nil {
+	// 	log.Println("instDivS64 signedRegA raise error:", err)
+	// }
+	// signedRegB, err := UnsignedToSigned(reg[rB], 8)
+	// if err != nil {
+	// 	log.Println("instDivS64 signedRegB raise error:", err)
+	// }
+	// if reg[rB] == 0 {
+	// 	reg[rD] = ^uint64(0) // 2^64 - 1
+	// } else if signedRegA == -(1<<63) && signedRegB == -1 {
+	// 	reg[rD] = reg[rA]
+	// } else {
+	// 	unsignedRegD, err := SignedToUnsigned((signedRegA / signedRegB), 8)
+	// 	if err != nil {
+	// 		log.Println("instDivS64 unsignedRegD raise error:", err)
+	// 	}
+	// 	reg[rD] = unsignedRegD
+	// }
+	if reg[rB] == 0 {
+		reg[rD] = ^uint64(0) // 2^64 - 1
+	} else if int64(reg[rA]) == -(1<<63) && int64(reg[rB]) == -1 {
+		reg[rD] = reg[rA]
+	} else {
+		reg[rD] = uint64((int64(reg[rA]) / int64(reg[rB])))
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 205
+func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	if reg[rB] == 0 {
+		reg[rD] = reg[rA]
+	} else {
+		reg[rD] = reg[rA] % reg[rB]
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 206
+func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
+
+	// mutation
+	// signedRegA, err := UnsignedToSigned(reg[rA], 8)
+	// if err != nil {
+	// 	log.Println("instRemS64 signedRegA raise error:", err)
+	// }
+	// signedRegB, err := UnsignedToSigned(reg[rB], 8)
+	// if err != nil {
+	// 	log.Println("instRemS64 signedRegB raise error:", err)
+	// }
+	// if signedRegA == -(1<<63) && signedRegB == -1 {
+	// 	reg[rD] = 0
+	// } else {
+	// 	unsignedRegD, err := SignedToUnsigned(smod(signedRegA, signedRegB), 8)
+	// 	if err != nil {
+	// 		log.Println("instRemS64 unsignedRegD raise error:", err)
+	// 	}
+	// 	reg[rD] = unsignedRegD
+	// }
+	if int64(reg[rA]) == -(1<<63) && int64(reg[rB]) == -1 {
+		reg[rD] = 0
+	} else {
+		reg[rD] = uint64(smod(int64(reg[rA]), int64(reg[rB])))
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
