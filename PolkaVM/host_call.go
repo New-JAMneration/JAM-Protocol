@@ -79,12 +79,14 @@ type OmegaInput struct {
 import "fmt"
 
 type Psi_H_ReturnType struct {
-	ExitReason error     // exit reason
-	Counter    uint32    // new instruction counter
-	Gas        Gas       // gas remain
-	Reg        Registers // new registers
-	Ram        Memory    // new memory
-	Addition   any       // addition host-call context
+	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
+	ExitReason       ExitReasonTypes // exit reason
+	Counter          uint32          // new instruction counter
+	Gas              uint64          // gas remain
+	Reg              Registers       // new registers
+	Ram              PageMap         // new memory
+	Addition         any             // addition host-call context
+	PagefaultAddress uint64          // page fault address, only use for page fault
 }
 
 type OmegaReturnType struct {
