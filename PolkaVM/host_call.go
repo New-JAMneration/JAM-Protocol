@@ -1,8 +1,6 @@
 package PolkaVM
 
-import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-)
+import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 type Psi_H_ReturnType struct {
 	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
