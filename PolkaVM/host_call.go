@@ -1,6 +1,10 @@
 package PolkaVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+)
 
 type Psi_H_ReturnType struct {
 	Pagefault        bool            // exit reason is page fault (for handling multiple return type)
@@ -11,22 +15,6 @@ type Psi_H_ReturnType struct {
 	Ram              PageMap         // new memory
 	Addition         any             // addition host-call context
 	PagefaultAddress uint64          // page fault address, only use for page fault
-}
-
-// (A.31) Ψ_H
-func Psi_H(
-	code ProgramCode, // program code
-	counter ProgramCounter, // program counter
-	gas Gas, // gas counter
-	reg Registers, // registers
-	ram PageMap, // memory
-	omega GeneralFunction, // function
-	addition any, // host-call context
-) (
-	psi_result Psi_H_ReturnType,
-) {
-	// TODO: Implement Ψ_H function.
-	return
 }
 
 // OperationType Enum
@@ -91,4 +79,51 @@ type OmegaInput struct {
 	AccountState types.ServiceAccountState // State
 	History      *HistoryState             // For storing history state
 	Args         []any                     // Extra parameter for each host-call function
+}
+
+// (A.31) Ψ_H
+func Psi_H(
+	code ProgramCode, // program code
+	counter ProgramCounter, // program counter
+	gas Gas, // gas counter
+	reg Registers, // registers
+	ram Memory, // memory
+	omega GeneralFunction, // jump table
+	addition any, // host-call context
+	program StandardProgram,
+) (
+	psi_result Psi_H_ReturnType,
+) {
+	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, counter, gas, reg, ram)
+	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+	reason := exitreason_prime.(*PVMExitReason)
+	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
+		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
+		psi_result.Counter = uint32(counter_prime)
+		psi_result.Gas = gas_prime
+		psi_result.Reg = reg_prime
+		psi_result.Ram = memory_prime
+		psi_result.Addition = addition
+	} else if reason.Reason == HOST_CALL {
+		omega_result := omega(*reason.FaultAddr, gas_prime, reg_prime, ram, addition)
+		omega_reason := omega_result.ExitReason.(*PVMExitReason)
+		if omega_reason.Reason == PAGE_FAULT {
+			psi_result.Counter = uint32(counter_prime)
+			psi_result.Gas = gas_prime
+			psi_result.Reg = reg_prime
+			psi_result.Ram = memory_prime
+			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
+			psi_result.Addition = addition
+		} else if omega_reason.Reason == CONTINUE {
+			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition, program)
+		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
+			psi_result.ExitReason = omega_result.ExitReason
+			psi_result.Counter = uint32(counter_prime)
+			psi_result.Gas = omega_result.GasRemain
+			psi_result.Reg = omega_result.Register
+			psi_result.Ram = omega_result.Ram
+			psi_result.Addition = omega_result.Addition
+		}
+	}
+	return
 }
