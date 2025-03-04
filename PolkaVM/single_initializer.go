@@ -1,6 +1,8 @@
 package PolkaVM
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type (
 	StandardCodeFormat []byte // p
@@ -172,13 +174,6 @@ func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	}
 
 	return data[:numBytes], data[numBytes:], nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 type StandardProgram struct {

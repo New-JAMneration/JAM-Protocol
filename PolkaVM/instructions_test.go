@@ -97,7 +97,7 @@ func TestInstruction(t *testing.T) {
 
 	for _, file := range jsonFiles {
 		// Control specific test case
-		if file != "inst_move_reg.json" {
+		if file != "inst_rem_unsigned_64_by_zero.json" {
 			continue
 		}
 		t.Run(file, func(t *testing.T) {
