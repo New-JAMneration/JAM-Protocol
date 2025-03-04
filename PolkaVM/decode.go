@@ -1,14 +1,24 @@
 package PolkaVM
 
-func getRegModIndex(instructionCode []byte, pc ProgramCounter) int {
-	return min(12, (int(instructionCode[pc+1]) % 16))
+import (
+	"fmt"
+)
+
+func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint8 {
+	return min(12, (instructionCode[pc+1])%16)
 }
-func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) int {
-	return min(12, (int(instructionCode[pc+1]) >> 4))
+func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint8 {
+	return min(12, (instructionCode[pc+1])>>4)
 }
 
 func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
-	panic("not implemented")
+	lX := min(4, skipLength)
+	immediateData := instructionCode[pc+1 : pc+lX]
+	immediate, _, err := ReadUintFixed(immediateData, len(immediateData))
+	if err != nil {
+		return 0, err
+	}
+	return int(immediate), nil
 }
 
 func decodeOneRegisterAndOneExtendedWidthImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, uint64, error) {
@@ -51,11 +61,13 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 	panic("not implemented")
 }
 
-func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD int, rA int) {
+func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA uint8, err error) {
+	if int(pc+1) >= len(instructionCode) {
+		return 0, 0, fmt.Errorf("pc out of bound")
+	}
 	rD = getRegModIndex(instructionCode, pc)
 	rA = getRegFloorIndex(instructionCode, pc)
-
-	return rD, rA
+	return rD, rA, nil
 }
 
 func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
@@ -70,10 +82,12 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 	panic("not implemented")
 }
 
-func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA int, rB int, rD int) {
+func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, rB uint8, rD uint8, err error) {
+	if int(pc+2) >= len(instructionCode) {
+		return 0, 0, 0, fmt.Errorf("pc out of bound")
+	}
 	rA = getRegModIndex(instructionCode, pc)
 	rB = getRegFloorIndex(instructionCode, pc)
-	rD = min(12, int(instructionCode[pc+2]))
-
-	return rA, rB, rD
+	rD = min(12, instructionCode[pc+2])
+	return rA, rB, rD, nil
 }
