@@ -174,20 +174,7 @@ func smod[T constraints.Signed](a, b T) T {
 	if b == 0 {
 		return a
 	}
-
-	mod := T(abs(a) % abs(b))
-
-	if a < 0 {
-		return -mod
-	}
-	return mod
-}
-
-func abs[T constraints.Signed](x T) T {
-	if x < 0 {
-		return -x
-	}
-	return x
+	return T(a % b)
 }
 
 // input: instructionCode, programCounter, skipLength, registers, memory
@@ -270,8 +257,10 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 100
 func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	reg[rD] = reg[rA]
 
@@ -282,8 +271,10 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 102
 func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits(regA, 8)
@@ -305,8 +296,10 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 103
 func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
@@ -328,8 +321,10 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 104
 func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits(regA, 8)
@@ -352,8 +347,10 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 // opcode 105
 func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
@@ -376,8 +373,10 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 // opcode 106
 func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits(regA, 8)
@@ -400,8 +399,10 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 // opcode 107
 func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
@@ -424,8 +425,10 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 // opcode 108
 func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	signedInt, err := UnsignedToSigned((regA % (1 << 8)), 1)
@@ -445,8 +448,10 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 109
 func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	signedInt, err := UnsignedToSigned((regA % (1 << 16)), 2)
@@ -466,8 +471,10 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 110
 func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := reg[rA]
 	reg[rD] = regA % (1 << 16)
@@ -479,8 +486,10 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 111
 func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rD, rA := decodeTwoRegisters(instructionCode, pc)
-
+	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	regA := types.U64(reg[rA])
 	bytes := utils.SerializeFixedLength(regA, types.U64(8))
@@ -584,8 +593,10 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 200
 func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	reg[rD] = reg[rA] + reg[rB]
 
@@ -596,8 +607,10 @@ func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 201
 func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	reg[rD] = reg[rA] + (^reg[rB] + 1)
 
@@ -608,8 +621,10 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 202
 func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	reg[rD] = reg[rA] * reg[rB]
 
@@ -620,8 +635,10 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 203
 func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	if reg[rB] == 0 {
 		reg[rD] = ^uint64(0) // 2^64 - 1
@@ -636,32 +653,11 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 204
 func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
-	// log.Println(reg[rA], reg[rB], reg[rD])
-	// if reg[rA] > (^uint64(0)) {
-	// 	log.Println("instDivS64 reg[rA] > (^uint64(0))")
-	// }
-	// signedRegA, err := UnsignedToSigned(reg[rA], 8)
-	// if err != nil {
-	// 	log.Println("instDivS64 signedRegA raise error:", err)
-	// }
-	// signedRegB, err := UnsignedToSigned(reg[rB], 8)
-	// if err != nil {
-	// 	log.Println("instDivS64 signedRegB raise error:", err)
-	// }
-	// if reg[rB] == 0 {
-	// 	reg[rD] = ^uint64(0) // 2^64 - 1
-	// } else if signedRegA == -(1<<63) && signedRegB == -1 {
-	// 	reg[rD] = reg[rA]
-	// } else {
-	// 	unsignedRegD, err := SignedToUnsigned((signedRegA / signedRegB), 8)
-	// 	if err != nil {
-	// 		log.Println("instDivS64 unsignedRegD raise error:", err)
-	// 	}
-	// 	reg[rD] = unsignedRegD
-	// }
 	if reg[rB] == 0 {
 		reg[rD] = ^uint64(0) // 2^64 - 1
 	} else if int64(reg[rA]) == -(1<<63) && int64(reg[rB]) == -1 {
@@ -677,8 +673,10 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 205
 func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
 	if reg[rB] == 0 {
 		reg[rD] = reg[rA]
@@ -693,26 +691,11 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 206
 func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, rB, rD := decodeThreeRegisters(instructionCode, pc)
-
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
 	// mutation
-	// signedRegA, err := UnsignedToSigned(reg[rA], 8)
-	// if err != nil {
-	// 	log.Println("instRemS64 signedRegA raise error:", err)
-	// }
-	// signedRegB, err := UnsignedToSigned(reg[rB], 8)
-	// if err != nil {
-	// 	log.Println("instRemS64 signedRegB raise error:", err)
-	// }
-	// if signedRegA == -(1<<63) && signedRegB == -1 {
-	// 	reg[rD] = 0
-	// } else {
-	// 	unsignedRegD, err := SignedToUnsigned(smod(signedRegA, signedRegB), 8)
-	// 	if err != nil {
-	// 		log.Println("instRemS64 unsignedRegD raise error:", err)
-	// 	}
-	// 	reg[rD] = unsignedRegD
-	// }
 	if int64(reg[rA]) == -(1<<63) && int64(reg[rB]) == -1 {
 		reg[rD] = 0
 	} else {
