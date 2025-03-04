@@ -43,10 +43,6 @@ func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable
 ) {
 	var exitReason error
 	gasDelta := Gas(0)
-	// (v.6.2 A.4) append zero to trap
-	// TODO: resolve this line.
-	// Do not do this as this will overwrite the next two bytes
-	instructionCode = append(instructionCode, 0, 0)
 	// (v.6.2 A.19) l = skip(iota)
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
 	opcode := instructionCode[programCounter]
