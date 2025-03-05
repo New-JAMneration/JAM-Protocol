@@ -4,12 +4,17 @@ import (
 	"errors"
 )
 
+type JumpTable struct {
+	Data   []byte // j
+	Length uint64 // z
+	Size   uint64 // |j|
+}
+
 // type BasicBlock [][]byte // each sequence is a instruction
 type ProgramBlob struct {
-	InstructionData []byte   // c , includes opcodes & instruction variables
-	Bitmasks        []bool   // k
-	JumpTables      []uint64 // j
-	JumpTableLength uint64
+	InstructionData []byte    // c , includes opcodes & instruction variables
+	Bitmasks        []bool    // k
+	JumpTable       JumpTable // j, z, |j|
 }
 
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
@@ -27,14 +32,9 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 	// E_(|c|) : size of instructions
 	instSize, data, err := ReadUintVariable(data)
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
-	jumpTables := make([]uint64, jumpTableSize)
-	for i := 0; i < int(jumpTableSize); i++ {
-		tmp, _, err := ReadUintFixed(data, int(jumpTableLength))
-		if err != nil {
-			return
-		}
-		data = data[jumpTableLength:]
-		jumpTables[i] = uint64(tmp)
+	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
+	if err != nil {
+		return
 	}
 
 	instructions := data[:instSize]
@@ -54,7 +54,11 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 		bitmask[i] = bitmaskRaw[i/8]&(1<<(i%8)) > 0
 	}
 	return ProgramBlob{
-		JumpTables:      jumpTables,   // j
+		JumpTable: JumpTable{
+			Data:   jumpTableData,   // j
+			Length: jumpTableLength, // z
+			Size:   jumpTableSize,   // |j|
+		},
 		Bitmasks:        bitmask,      // k
 		InstructionData: instructions, // c
 	}, PVMExitTuple(CONTINUE, nil)

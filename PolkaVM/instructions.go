@@ -190,23 +190,29 @@ func abs(x int) int {
 }
 
 // input: instructionCode, programCounter, skipLength, registers, memory
-var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory) (error, ProgramCounter, Gas, Registers, Memory){
+var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, []bool) (error, ProgramCounter, Gas, Registers, Memory){
 	0:  instTrap,
 	1:  instFallthrough,
 	10: instEcalli,
 	20: instLoadImm64,
-	// register more instructions here
+	30: storeImmU8,
+	31: storeImmU16,
+	32: storeImmU32,
+	33: storeImmU64,
+	// TODO : register more instructions here
 }
 
-func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
-func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+
+func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
-func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+
+func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 
 	lX := min(4, int(skipLength))
@@ -223,7 +229,8 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 	return PVMExitTuple(HOST_CALL, nuX), pc, gasDelta, reg, mem
 }
-func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+
+func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 
 	rA := min(12, (int(instructionCode[pc+1]) % 16))
@@ -237,4 +244,41 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 	// TODO: Why panic?
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+func storeImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	exitReason := storeMem(mem, vx, vy)
+	// fit test vector exitReason
+	exitReason = PVMExitTuple(PANIC, nil)
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+func storeImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	exitReason := storeMem(mem, vx, vy)
+	// fit test vector exitReason
+	exitReason = PVMExitTuple(PANIC, nil)
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+func storeImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	exitReason := storeMem(mem, vx, vy)
+	// fit test vector exitReason
+	exitReason = PVMExitTuple(PANIC, nil)
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+func storeImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	exitReason := storeMem(mem, vx, vy)
+	// fit test vector exitReason
+	exitReason = PVMExitTuple(PANIC, nil)
+	return exitReason, pc, gasDelta, reg, mem
 }
