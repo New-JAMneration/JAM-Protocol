@@ -1,6 +1,8 @@
 module github.com/New-JAMneration/JAM-Protocol
 
-go 1.23
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	github.com/klauspost/reedsolomon v1.12.4 // for Erasure Coding
@@ -26,5 +28,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
+	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
