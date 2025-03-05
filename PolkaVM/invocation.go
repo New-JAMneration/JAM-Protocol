@@ -16,7 +16,7 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 	var exitReason error
 	exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
 		programCodeBlob.InstructionData, programCodeBlob.Bitmasks,
-		programCodeBlob.JumpTables, programCounter, gas,
+		programCodeBlob.JumpTable, programCounter, gas,
 		registers, memory)
 
 	if gas < 0 {
@@ -37,7 +37,7 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 }
 
 // (v.6.2 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable []uint64,
+func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable JumpTable,
 	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
@@ -48,7 +48,7 @@ func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable
 	// (v.6.2 A.19) l = skip(iota)
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
 	opcode := instructionCode[programCounter]
-	exitReason, programCounter, gasDelta, registers, memory = execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory)
+	exitReason, programCounter, gasDelta, registers, memory = execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
 	// recently, set all gasDelta = 2 for consistent with testvector
 	gas -= gasDelta
 	// TODO : execute instructions and output exit-reason, registers, memory
