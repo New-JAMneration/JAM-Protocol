@@ -9,15 +9,15 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func TestGetInitGenesisBlock(t *testing.T) {
+func TestGetGenesisBlockFromJson(t *testing.T) {
 	testFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
-	block, err := GetInitGenesisBlock(testFile)
+	block, err := GetGenesisBlockFromJson(testFile)
 	if err != nil {
 		t.Errorf("Error loading genesis block: %v", err)
 		return
 	}
 
-	expectedBlock := types.Block{
+	expectedBlock := &types.Block{
 		Header: types.Header{
 			Parent:          types.HeaderHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
 			ParentStateRoot: types.StateRoot(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")),
@@ -55,4 +55,21 @@ func hexToBytes(hexString string) []byte {
 		fmt.Printf("failed to decode hex string: %v", err)
 	}
 	return bytes
+}
+
+func TestGetGenesisBlockFromBin(t *testing.T) {
+	genesisBlockFromBin, err := GetGenesisBlockFromBin()
+	if err != nil {
+		t.Errorf("failed to get genesis block: %v", err)
+	}
+
+	jsonFilename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+	genesisBlockFromJson, err := GetGenesisBlockFromJson(jsonFilename)
+	if err != nil {
+		t.Errorf("failed to get genesis block from json: %v", err)
+	}
+
+	if !reflect.DeepEqual(genesisBlockFromBin, genesisBlockFromJson) {
+		t.Error("blocks are not equal")
+	}
 }
