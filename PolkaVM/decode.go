@@ -7,12 +7,24 @@ import (
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
-// A.5.2
-func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
-	panic("not implemented")
+func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint8 {
+	return min(12, (instructionCode[pc+1])%16)
 }
 
-// A.5.3
+func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint8 {
+	return min(12, (instructionCode[pc+1])>>4)
+}
+
+func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
+	lX := min(4, skipLength)
+	immediateData := instructionCode[pc+1 : pc+lX]
+	immediate, _, err := ReadUintFixed(immediateData, len(immediateData))
+	if err != nil {
+		return 0, err
+	}
+	return int(immediate), nil
+}
+
 func decodeOneRegisterAndOneExtendedWidthImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, uint64, error) {
 	panic("not implemented")
 }
@@ -95,12 +107,15 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 	panic("not implemented")
 }
 
-// A.5.9
-func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, error) {
-	panic("not implemented")
+func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA uint8, err error) {
+	if int(pc+1) >= len(instructionCode) {
+		return 0, 0, fmt.Errorf("pc out of bound")
+	}
+	rD = getRegModIndex(instructionCode, pc)
+	rA = getRegFloorIndex(instructionCode, pc)
+	return rD, rA, nil
 }
 
-// A.5.10
 func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
 	panic("not implemented")
 }
@@ -116,8 +131,14 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 }
 
 // A.5.13
-func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
-	panic("not implemented")
+func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, rB uint8, rD uint8, err error) {
+	if int(pc+2) >= len(instructionCode) {
+		return 0, 0, 0, fmt.Errorf("pc out of bound")
+	}
+	rA = getRegModIndex(instructionCode, pc)
+	rB = getRegFloorIndex(instructionCode, pc)
+	rD = min(12, instructionCode[pc+2])
+	return rA, rB, rD, nil
 }
 
 func storeMem(mem Memory, vx uint64, vy uint64) error {

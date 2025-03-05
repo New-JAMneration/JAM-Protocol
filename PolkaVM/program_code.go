@@ -31,6 +31,10 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 	}
 	// E_(|c|) : size of instructions
 	instSize, data, err := ReadUintVariable(data)
+	if err != nil {
+		return
+	}
+
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
 	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
 	if err != nil {

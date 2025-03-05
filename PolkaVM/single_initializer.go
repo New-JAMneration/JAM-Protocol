@@ -2,8 +2,6 @@ package PolkaVM
 
 import (
 	"fmt"
-
-	"golang.org/x/exp/constraints"
 )
 
 type (
@@ -176,13 +174,6 @@ func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	}
 
 	return data[:numBytes], data[numBytes:], nil
-}
-
-func min[T constraints.Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 type StandardProgram struct {
