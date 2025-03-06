@@ -196,19 +196,19 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	110: instZeroExtend16,
 	111: instReverseBytes,
 	// register more instructions here
-	200: instAdd64,
-	201: instSub64,
-	202: instMul64,
-	203: instDivU64,
-	204: instDivS64,
-	205: instRemU64,
-	206: instRemS64,
-	207: instShloL64,
-	208: instShloR64,
-	209: instSharR64,
-	210: instAnd,
-	211: instXor,
-	212: instOr,
+	200: instAdd64,   // passed testvector
+	201: instSub64,   // passed testvector
+	202: instMul64,   // passed testvector
+	203: instDivU64,  // passed testvector
+	204: instDivS64,  // passed testvector
+	205: instRemU64,  // passed testvector
+	206: instRemS64,  // passed testvector
+	207: instShloL64, // passed testvector
+	208: instShloR64, // passed testvector
+	209: instSharR64, // passed testvector
+	210: instAnd,     // passed testvector
+	211: instXor,     // passed testvector
+	212: instOr,      // passed testvector
 	// register more instructions here
 }
 
