@@ -47,24 +47,22 @@ type HistoryState struct {
 }
 
 type OmegaInput struct {
-	Instruction  uint64                    // opcode
-	Operation    OperationType             // operation type
-	Gas          Gas                       // gas counter
-	Registers    Registers                 // PVM registers
-	Memory       PageMap                   // memory
-	AccountState types.ServiceAccountState // State
-	History      *HistoryState             // For storing history state
-	Args         []any                     // Extra parameter for each host-call function
+	Instruction uint64        // opcode
+	Operation   OperationType // operation type
+	Gas         Gas           // gas counter
+	Registers   Registers     // PVM registers
+	Memory      Memory        // memory
+	History     *HistoryState // For storing history state
+	Addition    []any         // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason      error                     // Exit reason
-	NewGas          Gas                       // New Gas
-	NewRegisters    Registers                 // New Register
-	NewMemory       PageMap                   // New Memory
-	NewAccountState types.ServiceAccountState // New State
-	Counter         uint32                    // For calculate run count
-	History         *HistoryState             // For roll back
-	Addition        []any                     // addition host-call context
+	ExitReason   error         // Exit reason
+	NewGas       Gas           // New Gas
+	NewRegisters Registers     // New Register
+	NewMemory    Memory        // New Memory
+	Counter      uint32        // For calculate run count
+	History      *HistoryState // For roll back
+	Addition     []any         // addition host-call context
 }
 
 // Ω⟨X⟩
@@ -76,7 +74,7 @@ type Psi_H_ReturnType struct {
 	Gas        Gas       // gas remain
 	Reg        Registers // new registers
 	Ram        Memory    // new memory
-	Addition   any       // addition host-call context
+	Addition   []any     // addition host-call context
 }
 
 // (A.31) Ψ_H
@@ -87,7 +85,7 @@ func Psi_H(
 	reg Registers, // registers
 	ram Memory, // memory
 	omega Omega, // jump table
-	addition any, // host-call context
+	addition []any, // host-call context
 	program StandardProgram,
 ) (
 	psi_result Psi_H_ReturnType,
@@ -103,7 +101,12 @@ func Psi_H(
 		psi_result.Ram = memory_prime
 		psi_result.Addition = addition
 	} else if reason.Reason == HOST_CALL {
-		omega_result := omega(*reason.FaultAddr, gas_prime, reg_prime, ram, addition)
+		var input OmegaInput
+		input.Gas = gas_prime
+		input.Registers = reg_prime
+		input.Memory = ram
+		input.Addition = addition
+		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(counter_prime)
@@ -113,13 +116,13 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.GasRemain, omega_result.Register, omega_result.Ram, omega, omega_result.Addition, program)
+			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
-			psi_result.Gas = omega_result.GasRemain
-			psi_result.Reg = omega_result.Register
-			psi_result.Ram = omega_result.Ram
+			psi_result.Gas = omega_result.NewGas
+			psi_result.Reg = omega_result.NewRegisters
+			psi_result.Ram = omega_result.NewMemory
 			psi_result.Addition = omega_result.Addition
 		}
 	}
