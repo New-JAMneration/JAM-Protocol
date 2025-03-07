@@ -19,39 +19,57 @@ func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
 		programCodeBlob.JumpTable, programCounter, gas,
 		registers, memory)
 
-	if gas < 0 {
-		return PVMExitTuple(OUT_OF_GAS, nil), programCounter, gas, registers, memory
-	}
-
-	switch exitReason {
-	case PVMExitTuple(CONTINUE, nil):
-		SingleStepInvoke(programBlob, programCounterPrime, gasPrime, registersPrime, memoryPrime)
-	case PVMExitTuple(HALT, nil):
-	case PVMExitTuple(PANIC, nil):
-		return exitReason, 0, gasPrime, registersPrime, memoryPrime
-	default:
+	if exitReason == ErrNotImplemented {
 		return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
 	}
 
-	return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
+	switch exitReason.(*PVMExitReason).Reason {
+	case CONTINUE:
+		if gasPrime < 0 {
+			return PVMExitTuple(OUT_OF_GAS, nil), programCounter, gas, registers, memory
+		}
+
+		return SingleStepInvoke(programBlob, programCounterPrime, gasPrime, registersPrime, memoryPrime)
+	case HALT:
+		fallthrough
+	case PANIC:
+		return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
+	default:
+		return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
+	}
 }
 
+var ErrNotImplemented = fmt.Errorf("instruction not implemented")
+
 // (v.6.2 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(instructionCode []byte, bitmask []bool, jumpTable JumpTable,
+func SingleStepStateTransition(instructionCode []byte, bitmask Bitmask, jumpTable JumpTable,
 	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
+	if int(programCounter) >= len(instructionCode) {
+		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
+	}
+
 	var exitReason error
 	gasDelta := Gas(0)
 	// (v.6.2 A.19) l = skip(iota)
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
+
 	opcode := instructionCode[programCounter]
-	exitReason, programCounter, gasDelta, registers, memory = execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
+
+	target := execInstructions[opcode]
+	if target == nil {
+		return ErrNotImplemented, programCounter, gas, registers, memory
+	}
+
+	exitReason, newProgramCounter, gasDelta, registers, memory := execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
+
 	// recently, set all gasDelta = 2 for consistent with testvector
 	gas -= gasDelta
-	// TODO : execute instructions and output exit-reason, registers, memory
-	programCounter += skipLength + 1
 
-	fmt.Println("run opcode", opcode)
-	return exitReason, programCounter, gas, registers, memory
+	if exitReason.(*PVMExitReason).Reason == CONTINUE && newProgramCounter == programCounter {
+		newProgramCounter += skipLength + 1
+	}
+
+	return exitReason, newProgramCounter, gas, registers, memory
 }
