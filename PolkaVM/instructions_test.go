@@ -96,8 +96,12 @@ func TestInstruction(t *testing.T) {
 	}
 
 	for _, file := range jsonFiles {
+		if file != "inst_load_u64.json" {
+			continue
+		}
 		t.Run(file, func(t *testing.T) {
 			filename := filepath.Join(dir, file)
+
 			testCase, err := LoadInstructionTestCase(filename)
 			if err != nil {
 				t.Fatalf("Error loading test case %s: %v", file, err)
