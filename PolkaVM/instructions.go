@@ -625,7 +625,8 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, Gas(0), reg, mem
 	}
 	// mutation
-	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^reg[rB]+1)))
+	bMod32 := uint32(reg[rB])
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
 
 	// TODO: Why panic?
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -711,7 +712,7 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	aMod32 := uint32(reg[rA])
 
 	if bMod32 == 0 {
-		reg[rD], err = SignExtend(4, uint64(reg[rA]))
+		reg[rD], err = SignExtend(4, uint64(aMod32))
 	} else {
 		reg[rD], err = SignExtend(4, uint64(aMod32%bMod32))
 	}
@@ -779,7 +780,7 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	modA := uint32(reg[rA])
 	shift := reg[rB] % 32
-	reg[rD], err = SignExtend(4, uint64(modA/(1<<shift)))
+	reg[rD], err = SignExtend(4, uint64(modA>>shift))
 	if err != nil {
 		return err, pc, Gas(0), reg, mem
 	}
