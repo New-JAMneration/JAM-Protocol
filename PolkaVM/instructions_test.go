@@ -97,7 +97,7 @@ func TestInstruction(t *testing.T) {
 
 	for _, file := range jsonFiles {
 		// Control specific test case
-		if file != "inst_xor.json" {
+		if file != "inst_store_imm_u16.json" {
 			continue
 		}
 		t.Run(file, func(t *testing.T) {
@@ -106,15 +106,15 @@ func TestInstruction(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error loading test case %s: %v", file, err)
 			}
-
-			ourStatus, pc, gas, reg, _ := SingleStepInvoke(
+			memory := loadTestCasePageMap(testCase.InitialPageMap)
+			memory = loadTestCaseMemory(memory, testCase.InitialMemory)
+			ourStatus, pc, gas, reg, memory := SingleStepInvoke(
 				testCase.ProgramBlob,
 				testCase.InitialProgramCounter,
 				testCase.InitialGas,
 				testCase.InitialRegisters,
-				Memory{},
+				memory,
 			)
-
 			if pc != testCase.ExpectedProgramCounter {
 				t.Errorf("expected PC %d, got %d", testCase.ExpectedProgramCounter, pc)
 			}
@@ -127,6 +127,64 @@ func TestInstruction(t *testing.T) {
 			if ourStatus.Error() != testCase.ExpectedStatus {
 				t.Errorf("expected status %v, got %v", testCase.ExpectedStatus, ourStatus.Error())
 			}
+			expectedMemory := loadTestCaseMemory(Memory{}, testCase.ExpectedMemory)
+
+			if len(memory.Pages) != len(expectedMemory.Pages) {
+				t.Errorf("expected memory length %d, got %d", len(expectedMemory.Pages), len(memory.Pages))
+			}
+
+			for pageNum, expectedPage := range expectedMemory.Pages {
+				// page := memory[pageNum]
+				if page, exists := memory.Pages[pageNum]; exists {
+					if !reflect.DeepEqual(page.Value, expectedPage.Value) {
+						t.Errorf("expected memory %v, got %v", expectedPage.Value, memory.Pages[pageNum].Value)
+					}
+				} else {
+					t.Errorf("expected memory %v, but not exists", testCase.ExpectedMemory)
+				}
+			}
 		})
 	}
+}
+
+func loadTestCasePageMap(initialPageMap PageMaps) Memory {
+	var memory Memory
+	memory.Pages = make(map[uint32]*Page)
+	if len(initialPageMap) > 0 {
+		for _, pageMap := range initialPageMap {
+			pageNum := pageMap.Address >> 12
+			page := Page{
+				Value:  make([]byte, 0),
+				Access: MemoryReadWrite,
+			}
+			memory.Pages[pageNum] = &page
+		}
+	}
+	return memory
+}
+
+func loadTestCaseMemory(memory Memory, initialMemory MemoryChunks) Memory {
+	if len(initialMemory) > 0 {
+		if memory.Pages == nil {
+			memory.Pages = make(map[uint32]*Page)
+			for _, memoryChunk := range initialMemory {
+				pageNum := memoryChunk.Address >> 12
+				page := Page{
+					Value:  memoryChunk.Contents,
+					Access: MemoryReadWrite,
+				}
+				memory.Pages[pageNum] = &page
+			}
+		} else {
+			for _, memoryChunk := range initialMemory {
+				pageNum := memoryChunk.Address >> 12
+				if mem, exists := memory.Pages[pageNum]; exists {
+					mem.Value = append(mem.Value, memoryChunk.Contents...)
+					// copy(mem.Value[:], memoryChunk.Contents)
+				}
+			}
+		}
+	}
+
+	return memory
 }
