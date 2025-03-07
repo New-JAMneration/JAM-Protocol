@@ -53,7 +53,6 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 		log.Printf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
 	}
 	vY, err := SignExtend(int(lY), uint64(decodedVy))
-	fmt.Println("signExtented vY : ", vY)
 	if err != nil {
 		return 0, 0
 	}
@@ -85,7 +84,7 @@ func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter,
 		return 0, 0, err
 	}
 
-	return rA, immediate, nil
+	return rA, immediate, PVMExitTuple(CONTINUE, nil)
 }
 
 // A.5.7
@@ -99,12 +98,21 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 		return 0, 0, 0, err
 	}
 	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	if err != nil {
+		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+	}
 
 	lY := min(4, max(0, skipLength-lX-1))
 	decodedVY, err := utils.DeserializeFixedLength(instructionCode[pcMargin:pcMargin+lY], types.U64(lY))
+	if err != nil {
+		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+	}
 	vY, err := SignExtend(int(lY), uint64(decodedVY))
+	if err != nil {
+		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+	}
 
-	return rA, vX, vY, err
+	return rA, vX, vY, PVMExitTuple(CONTINUE, nil)
 }
 
 // returns rA, vX, vY
@@ -194,34 +202,34 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
 	vX := uint32(memIndex)
 	pageNum := vX / ZP
-
+	pageIndex := memIndex % ZP
 	vY := utils.SerializeFixedLength(types.U64(Immediate), types.U64(offset))
 	if mem.Pages[pageNum] != nil { // page allocated
-		// try to allocated read-only memory --> page-fault
+		// try to allocate read-only memory --> page-fault
 		if mem.Pages[pageNum].Access != MemoryReadWrite {
 			return PVMExitTuple(PAGE_FAULT, memIndex)
 		}
-		originLength := len(mem.Pages[pageNum].Value)
-		fmt.Println("originLength : ", originLength)
-		if originLength+offset < 4096 { // data allocated do not exceed maxSize
-			tempPage := make([]byte, originLength+offset)
+
+		if pageIndex+uint32(offset) < 4096 { // data allocated do not exceed maxSize
+			tempPage := make([]byte, pageIndex+uint32(offset))
 			copy(tempPage, mem.Pages[pageNum].Value)
 			mem.Pages[pageNum].Value = tempPage
+
 			for i := range offset {
-				mem.Pages[pageNum].Value[i+originLength] = vY[i]
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
 			}
 		} else { // data allocated exceed maxSize
 			tempPage := make([]byte, ZP)
 			copy(tempPage, mem.Pages[pageNum].Value)
-			remainDataLength := ZP - originLength
+			remainDataLength := ZP - int(pageIndex)
 			for i := range remainDataLength {
-				mem.Pages[pageNum].Value[i+originLength] = vY[i]
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
 			}
 			vY = vY[remainDataLength:]
 			Immediate = Immediate % (1<<remainDataLength + 1) // filter allocated
 			remainDataLength = len(vY) - remainDataLength
 
-			err := storeIntoMemory(mem, remainDataLength, memIndex+ZP, Immediate)
+			err := storeIntoMemory(mem, remainDataLength, memIndex+uint32(remainDataLength), Immediate)
 			if err != PVMExitTuple(CONTINUE, nil) {
 				return PVMExitTuple(PAGE_FAULT, memIndex)
 			}
@@ -233,12 +241,6 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 			Value:  make([]byte, len(vY)),
 		}
 	}
-
-	memIndex %= ZP
-
-	for i := range len(vY) {
-		mem.Pages[pageNum].Value[memIndex] = vY[i]
-	}
 	return PVMExitTuple(CONTINUE, nil)
 }
 
@@ -246,17 +248,28 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	vX := uint32(vx)
 
 	pageNum := vX / ZP
+	pageIndex := vX % ZP
 	// load memory : the page must be exist and is not Inaccessible
-	if mem.Pages[pageNum] != nil || mem.Pages[pageNum].Access == MemoryInaccessible {
+	// Inaccessible should be appreciated ? memory : read-only, read-write, unallocated = Inaccessible
+
+	if mem.Pages[pageNum] == nil || mem.Pages[pageNum].Access == MemoryInaccessible {
 		return 0, PVMExitTuple(PAGE_FAULT, vx)
 	}
-
-	memBytes := mem.Pages[pageNum].Value[vx : vx+offset]
+	var memBytes []byte
+	if pageIndex+offset < 4096 {
+		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
+	} else {
+		if mem.Pages[pageNum+1] == nil || mem.Pages[pageNum+1].Access == MemoryInaccessible {
+			return 0, PVMExitTuple(PAGE_FAULT, vx)
+		}
+		memBytes = mem.Pages[pageNum].Value[pageIndex:]
+		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
+		memBytes = append(memBytes, remainBytes...)
+	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
 		log.Printf("loadMemory deserialize raise error memoryPage %d at index %d : %s ", pageNum, vx, err)
 		return 0, err
 	}
-
 	return uint64(memVal), PVMExitTuple(CONTINUE, nil)
 }

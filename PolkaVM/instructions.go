@@ -1,7 +1,6 @@
 package PolkaVM
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -379,8 +378,7 @@ func storeImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	offset := 1
 	vy = uint64(uint8(vy))
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
@@ -391,10 +389,8 @@ func storeImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
 	offset := 2
 	vy = uint64(uint16(vy))
-	fmt.Println("storeImmU16 vy : ", vy)
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
@@ -405,8 +401,7 @@ func storeImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	offset := 4
 	vy = uint64(uint32(vy))
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
@@ -416,8 +411,7 @@ func storeImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
@@ -436,25 +430,25 @@ func loadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 // opcode 52
 func loadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
+
 	offset := 1
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+
 	reg[rA] = memVal
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 53
 func loadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 1
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
@@ -464,33 +458,29 @@ func loadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 	}
 	reg[rA] = extend
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 54
 func loadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 2
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	reg[rA] = memVal
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 55
 func loadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 2
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
@@ -500,33 +490,29 @@ func loadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	}
 	reg[rA] = extend
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 56
 func loadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 4
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	reg[rA] = memVal
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 57
 func loadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 4
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
@@ -536,144 +522,132 @@ func loadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	}
 	reg[rA] = extend
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 58
 func loadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 	offset := 8
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	reg[rA] = memVal
 
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 59
 func storeU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 1
-	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint8(reg[rA])))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint8(reg[rA])))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 60
 func storeU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 2
-	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint16(reg[rA])))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint16(reg[rA])))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 61
 func storeU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 4
-	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint32(reg[rA])))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint32(reg[rA])))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 62
 func storeU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 8
-	exitReason := storeIntoMemory(mem, offset, uint32(vX), (reg[rA]))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), (reg[rA]))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 70
 func storeImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 1
-	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint8(vY)))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint8(vY)))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 71
 func storeImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 2
-	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint16(vY)))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint16(vY)))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 72
 func storeImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 4
-	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint32(vY)))
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint32(vY)))
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 73
 func storeImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
-	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
 	}
 
 	offset := 8
-	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), vY)
-	// fit test vector exitReason
-	exitReason = PVMExitTuple(PANIC, nil)
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), vY)
+
 	return exitReason, pc, gasDelta, reg, mem
 }
 
