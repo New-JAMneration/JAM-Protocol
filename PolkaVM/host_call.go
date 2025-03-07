@@ -2,8 +2,6 @@ package PolkaVM
 
 import (
 	"fmt"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // OperationType Enum
@@ -43,7 +41,6 @@ type HistoryState struct {
 	PreviousGas       Gas
 	PreviousRegisters Registers
 	PreviousMemory    PageMap
-	PreviousAccount   types.ServiceAccountState
 }
 
 type OmegaInput struct {
@@ -52,17 +49,15 @@ type OmegaInput struct {
 	Gas         Gas           // gas counter
 	Registers   Registers     // PVM registers
 	Memory      Memory        // memory
-	History     *HistoryState // For storing history state
 	Addition    []any         // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason   error         // Exit reason
-	NewGas       Gas           // New Gas
-	NewRegisters Registers     // New Register
-	NewMemory    Memory        // New Memory
-	Counter      uint32        // For calculate run count
-	History      *HistoryState // For roll back
-	Addition     []any         // addition host-call context
+	ExitReason   error     // Exit reason
+	NewGas       Gas       // New Gas
+	NewRegisters Registers // New Register
+	NewMemory    Memory    // New Memory
+	Counter      uint32    // For calculate run count
+	Addition     []any     // addition host-call context
 }
 
 // Ω⟨X⟩
