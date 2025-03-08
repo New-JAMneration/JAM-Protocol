@@ -245,12 +245,10 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	155: instShloLImmAlt64,
 	156: instShloRImmAlt64,
 	157: instSharRImmAlt64,
-	/*
-		158: instRotR64Imm,
-		159: instRotR64ImmAlt,
-		160: instRotR32Imm,
-		161: instRotR32ImmAlt,
-	*/
+	158: instRotR64Imm,
+	159: instRotR64ImmAlt,
+	160: instRotR32Imm,
+	161: instRotR32ImmAlt,
 	170: instBranch,
 	171: instBranch,
 	172: instBranch,
@@ -1104,29 +1102,60 @@ func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
-/*
 // opcode 158
 func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 
-	reg[rA] = uint64(int64(vX) >> (reg[rB] & 63))
+	// rotate right
+	reg[rA] = reg[rB] >> (vX & 31)
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 159
 func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	// rotate right
+	reg[rA] = vX >> (reg[rB] & 31)
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 160
 func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	// rotate right
+	imm := uint32(reg[rB]) >> (vX & 31)
+	val, err := SignExtend(4, uint64(imm))
+	if err != nil {
+		log.Println("instRotR32Imm sign extension raise error:", err)
+	}
+	reg[rA] = val
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 161
 func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	// rotate right
+	imm := uint32(vX) >> (reg[rB] & 31)
+	val, err := SignExtend(4, uint64(imm))
+	if err != nil {
+		log.Println("instRotR32ImmAlt sign extension raise error:", err)
+	}
+	reg[rA] = val
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
-*/
+
 // opcode in [170, 175]
 func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(instructionCode, pc, skipLength)
@@ -1385,7 +1414,6 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	shift := reg[rB] % 32
 	reg[rD], err = SignedToUnsigned(signedA/(1<<shift), 8)
-
 	if err != nil {
 		return err, pc, Gas(0), reg, mem
 	}
