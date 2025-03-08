@@ -44,19 +44,17 @@ type HistoryState struct {
 }
 
 type OmegaInput struct {
-	Instruction uint64        // opcode
-	Operation   OperationType // operation type
-	Gas         Gas           // gas counter
-	Registers   Registers     // PVM registers
-	Memory      Memory        // memory
-	Addition    []any         // Extra parameter for each host-call function
+	Operation OperationType // operation type
+	Gas       Gas           // gas counter
+	Registers Registers     // PVM registers
+	Memory    Memory        // memory
+	Addition  []any         // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
 	ExitReason   error     // Exit reason
 	NewGas       Gas       // New Gas
 	NewRegisters Registers // New Register
 	NewMemory    Memory    // New Memory
-	Counter      uint32    // For calculate run count
 	Addition     []any     // addition host-call context
 }
 
@@ -74,7 +72,6 @@ type Psi_H_ReturnType struct {
 
 // (A.31) Ψ_H
 func Psi_H(
-	code ProgramCode, // program code
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
@@ -85,7 +82,7 @@ func Psi_H(
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
-	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(code, counter, gas, reg, ram)
+	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, gas, reg, ram)
 	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
@@ -97,6 +94,7 @@ func Psi_H(
 		psi_result.Addition = addition
 	} else if reason.Reason == HOST_CALL {
 		var input OmegaInput
+		input.Operation = OperationType(*reason.HostCall)
 		input.Gas = gas_prime
 		input.Registers = reg_prime
 		input.Memory = ram
@@ -111,7 +109,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(code, ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
+			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
