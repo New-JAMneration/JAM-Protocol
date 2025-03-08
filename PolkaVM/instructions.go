@@ -207,6 +207,50 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	109: instSignExtend16,
 	110: instZeroExtend16,
 	111: instReverseBytes,
+	120: instStoreIndU8,
+	121: instStoreIndU16,
+	122: instStoreIndU32,
+	123: instStoreIndU64,
+	124: instLoadIndU8,
+	125: instLoadIndI8,
+	126: instLoadIndU16,
+	127: instLoadIndI16,
+	128: instLoadIndU32,
+	129: instLoadIndI32,
+	130: instLoadIndU64,
+	131: instAddImm32,
+	132: instAndImm,
+	133: instXORImm,
+	134: instORImm,
+	135: instMulImm32,
+	136: instSetLtUImm,
+	137: instSetLtSImm,
+	138: instShloLImm32,
+	139: instShloRImm32,
+	140: instSharRImm32,
+	141: instNegAddImm32,
+	142: instSetGtUImm,
+	143: instSetGtSImm,
+	144: instShloLImmAlt32,
+	145: instShloRImmAlt32,
+	146: instSharRImmAlt32,
+	147: instCmovIzImm,
+	148: instCmovNzImm,
+	149: instAddImm64,
+	150: instMulImm64,
+	151: instShloLImm64,
+	152: instShloRImm64,
+	153: instSharRImm64,
+	154: instNegAddImm64,
+	155: instShloLImmAlt64,
+	156: instShloRImmAlt64,
+	157: instSharRImmAlt64,
+	/*
+		158: instRotR64Imm,
+		159: instRotR64ImmAlt,
+		160: instRotR32Imm,
+		161: instRotR32ImmAlt,
+	*/
 	170: instBranch,
 	171: instBranch,
 	172: instBranch,
@@ -603,6 +647,476 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 }
 
+// opcode 120
+func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 1
+	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 121
+func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 2
+	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 122
+func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 4
+	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 123
+func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 8
+	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 124
+func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 1
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 125
+func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 1
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = uint64(int8(memVal))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 126
+func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 2
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 127
+func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 2
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = uint64(int16(memVal))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 128
+func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 4
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 129
+func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 4
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = uint64(int32(memVal))
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 130
+func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+	offset := 8
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(reg[rB]+vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 131
+func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	val, err := SignExtend(4, uint64(uint32(reg[rB]+vX)))
+	if err != nil {
+		log.Println("instAddImm32 sign extension raise error:", err)
+	}
+	reg[rA] = val
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 132
+func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = reg[rB] & reg[vX]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 133
+func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = reg[rB] ^ reg[vX]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 134
+func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = reg[rB] | reg[vX]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 135
+func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	val, err := SignExtend(4, uint64(uint32(reg[rB]*vX)))
+	if err != nil {
+		log.Println("instMulImm32 sign extension raise error:", err)
+	}
+	reg[rA] = val
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 136
+func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if reg[rB] < vX {
+		reg[rA] = 1
+	} else {
+		reg[rA] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 137
+func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if int64(reg[rB]) < int64(vX) {
+		reg[rA] = 1
+	} else {
+		reg[rA] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 138
+func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	vX = vX & 31 // % 32
+	imm, err := SignExtend(4, uint64(uint32(reg[rB]<<vX)))
+	if err != nil {
+		log.Println("instShloLImm32 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 139
+func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	vX = vX & 31 // % 32
+	imm, err := SignExtend(4, uint64(uint32(reg[rB])>>vX))
+	if err != nil {
+		log.Println("instShloRImm32 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 140
+func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	vX = vX & 31 // % 32
+	imm, err := SignExtend(4, uint64(int32(reg[rB])>>vX))
+	if err != nil {
+		log.Println("instShloRImm32 sign extension raise error:", err)
+	}
+	reg[rA] = uint64(imm)
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 141
+func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm, err := SignExtend(4, uint64(uint32(vX+(1<<32)-reg[rB])))
+	if err != nil {
+		log.Println("instNegAddImm32 sign extension raise error:", err)
+	}
+	reg[rA] = uint64(imm)
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 142
+func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if reg[rB] > vX {
+		reg[rA] = 1
+	} else {
+		reg[rA] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 143
+func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if int64(reg[rB]) > int64(vX) {
+		reg[rA] = 1
+	} else {
+		reg[rA] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 144
+func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm, err := SignExtend(4, uint64(uint32(vX<<(reg[rB]&31))))
+	if err != nil {
+		log.Println("instShloLImmAlt32 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 145
+func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm, err := SignExtend(4, uint64(uint32(vX)>>(reg[rB]&31)))
+	if err != nil {
+		log.Println("instShloLImmAlt32 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 146
+func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm := uint64(int32(uint32(vX)) >> (reg[rB] & 31))
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 147
+func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if reg[rB] == 0 {
+		reg[rA] = vX
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 148
+func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	if reg[rB] == 0 {
+		reg[rA] = vX
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 149
+func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = reg[rB] + vX
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 150
+func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = reg[rB] * vX
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 151
+func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm, err := SignExtend(8, reg[rB]<<(vX&63))
+	if err != nil {
+		log.Println("instShloLImm64 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 152
+func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	imm, err := SignExtend(8, reg[rB]>>(vX&63))
+	if err != nil {
+		log.Println("instShloLImm64 sign extension raise error:", err)
+	}
+	reg[rA] = imm
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 153
+func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = uint64(int64(reg[rB]) >> (vX & 63))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 154
+func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = vX + ^uint64(0) + 1 - reg[rB]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 155
+func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = vX << (reg[rB] & 63)
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 156
+func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = vX >> (reg[rB] & 63)
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 157
+func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = uint64(int64(vX) >> (reg[rB] & 63))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+/*
+// opcode 158
+func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, vX := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
+
+	reg[rA] = uint64(int64(vX) >> (reg[rB] & 63))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 159
+func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+}
+
+// opcode 160
+func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+}
+
+// opcode 161
+func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+}
+*/
 // opcode in [170, 175]
 func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(instructionCode, pc, skipLength)
