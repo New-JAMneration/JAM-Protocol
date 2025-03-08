@@ -1,6 +1,7 @@
 package PolkaVM
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -179,28 +180,33 @@ func smod[T constraints.Signed](a, b T) T {
 
 // input: instructionCode, programCounter, skipLength, registers, memory
 var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
-	0:   instTrap,
-	1:   instFallthrough,
-	10:  instEcalli,
-	20:  instLoadImm64, // passed testvector
-	30:  storeImmU8,
-	31:  storeImmU16,
-	32:  storeImmU32,
-	33:  storeImmU64,
+	// Instructiopns without Arguments
+	0: instTrap,
+	1: instFallthrough,
+	// Instructions with Arguments of One Immediate
+	10: instEcalli,
+	// Instructions with Arguments of One Register and One Extended With Immediate
+	20: instLoadImm64, // passed testvector
+	// Instructions with Arguments of Two Immediates
+	30: instStoreImmU8,
+	31: instStoreImmU16,
+	32: instStoreImmU32,
+	33: instStoreImmU64,
+	// Instructions with Arguments of One Offset
 	40:  instJump,
 	50:  instJumpInd,
-	51:  loadImm,
-	52:  loadU8,
-	53:  loadI8,
-	54:  loadU16,
-	55:  loadI16,
-	56:  loadU32,
-	57:  loadI32,
-	58:  loadU64,
-	59:  storeU8,
-	60:  storeU16,
-	61:  storeU32,
-	62:  storeU64,
+	51:  instLoadImm,
+	52:  instLoadU8,
+	53:  instLoadI8,
+	54:  instLoadU16,
+	55:  instLoadI16,
+	56:  instLoadU32,
+	57:  instLoadI32,
+	58:  instLoadU64,
+	59:  instStoreU8,
+	60:  instStoreU16,
+	61:  instStoreU32,
+	62:  instStoreU64,
 	80:  instImmediateBranch,
 	81:  instImmediateBranch,
 	82:  instImmediateBranch,
@@ -326,6 +332,287 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
 }
 
+// opcode 30
+func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	offset := 1
+	vy = uint64(uint8(vy))
+	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 31
+func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	offset := 2
+	vy = uint64(uint16(vy))
+	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 32
+func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	offset := 4
+	vy = uint64(uint32(vy))
+	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 33
+func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
+	offset := 8
+	fmt.Println("vy :", vy)
+	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 51
+func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	}
+	reg[rA] = uint64(vX)
+
+	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 52
+func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 1
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 53
+func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 1
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	extend, err := SignExtend(offset, memVal)
+	if err != nil {
+		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
+	}
+	reg[rA] = extend
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 54
+func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 2
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 55
+func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 2
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	extend, err := SignExtend(offset, memVal)
+	if err != nil {
+		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
+	}
+	reg[rA] = extend
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 56
+func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 4
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 57
+func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 4
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	extend, err := SignExtend(offset, memVal)
+	if err != nil {
+		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
+	}
+	reg[rA] = extend
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 58
+func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+	offset := 8
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	reg[rA] = memVal
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 59
+func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 1
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint8(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 60
+func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 2
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint16(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 61
+func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 4
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint32(reg[rA])))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 62
+func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 8
+	exitReason = storeIntoMemory(mem, offset, uint32(vX), (reg[rA]))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 70
+func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 1
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint8(vY)))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 71
+func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 2
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint16(vY)))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 72
+func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 4
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint32(vY)))
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 73
+func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
+	offset := 8
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), vY)
+
+	return exitReason, pc, gasDelta, reg, mem
+}
+
 // opcode in [80, 90]
 func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(instructionCode, pc, skipLength)
@@ -369,286 +656,6 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 	}
 
 	return PVMExitTuple(reason, nil), newPC, Gas(1), reg, mem
-}
-
-// opcode 30
-func storeImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
-	offset := 1
-	vy = uint64(uint8(vy))
-	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 31
-func storeImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-
-	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
-	offset := 2
-	vy = uint64(uint16(vy))
-	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 32
-func storeImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
-	offset := 4
-	vy = uint64(uint32(vy))
-	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 33
-func storeImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	vx, vy := decodeTwoImmediates(instructionCode, pc, skipLength)
-	offset := 8
-	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 51
-func loadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
-	}
-	reg[rA] = uint64(vX)
-
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
-}
-
-// opcode 52
-func loadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 1
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-
-	reg[rA] = memVal
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 53
-func loadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 1
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	extend, err := SignExtend(offset, memVal)
-	if err != nil {
-		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
-	}
-	reg[rA] = extend
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 54
-func loadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	reg[rA] = memVal
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 55
-func loadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	extend, err := SignExtend(offset, memVal)
-	if err != nil {
-		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
-	}
-	reg[rA] = extend
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 56
-func loadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 4
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	reg[rA] = memVal
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 57
-func loadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 4
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	extend, err := SignExtend(offset, memVal)
-	if err != nil {
-		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
-	}
-	reg[rA] = extend
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 58
-func loadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-	offset := 8
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
-	reg[rA] = memVal
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 59
-func storeU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 1
-	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint8(reg[rA])))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 60
-func storeU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 2
-	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint16(reg[rA])))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 61
-func storeU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 4
-	exitReason = storeIntoMemory(mem, offset, uint32(vX), uint64(uint32(reg[rA])))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 62
-func storeU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, exitReason := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 8
-	exitReason = storeIntoMemory(mem, offset, uint32(vX), (reg[rA]))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 70
-func storeImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 1
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint8(vY)))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 71
-func storeImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 2
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint16(vY)))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 72
-func storeImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 4
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint32(vY)))
-
-	return exitReason, pc, gasDelta, reg, mem
-}
-
-// opcode 73
-func storeImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
-	rA, vX, vY, exitReason := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
-	if exitReason.(*PVMExitReason).Reason == PANIC {
-		return exitReason, pc, gasDelta, reg, mem
-	}
-
-	offset := 8
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rA]+vX), vY)
-
-	return exitReason, pc, gasDelta, reg, mem
 }
 
 // opcode 100
