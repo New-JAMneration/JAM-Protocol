@@ -209,7 +209,10 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	61: instStoreU32,
 	62: instStoreU64,
 	// A.5.7 Instructions with Arguments of One Register & Two Immediates
-	// 70~73
+	70: instStoreImmIndU8,
+	71: instStoreImmIndU16,
+	72: instStoreImmIndU32,
+	73: instStoreImmIndU64,
 	// A.5.8 Instructions without Arguments of One Register, One Immediate and One Offset
 	80: instImmediateBranch,
 	81: instImmediateBranch,
@@ -309,39 +312,6 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
-// opcode 40
-func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	vX, err := decodeOneOffset(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
-	}
-
-	reason, newPC := branch(pc, vX, true, bitmask)
-
-	if reason != CONTINUE {
-		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
-	}
-
-	// TODO double-check gas expenditure
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
-}
-
-// opcode 50
-func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
-	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
-	}
-
-	dest := uint32(reg[rA] + vX)
-	reason, newPC := djump(pc, dest, jumpTable, bitmask)
-	if reason != CONTINUE {
-		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
-	}
-
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
-}
-
 // opcode 30
 func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
@@ -385,6 +355,39 @@ func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
 
 	return exitReason, pc, gasDelta, reg, mem
+}
+
+// opcode 40
+func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	vX, err := decodeOneOffset(instructionCode, pc, skipLength)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	reason, newPC := branch(pc, vX, true, bitmask)
+
+	if reason != CONTINUE {
+		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
+	}
+
+	// TODO double-check gas expenditure
+	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+}
+
+// opcode 50
+func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	dest := uint32(reg[rA] + vX)
+	reason, newPC := djump(pc, dest, jumpTable, bitmask)
+	if reason != CONTINUE {
+		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
+	}
+
+	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
 }
 
 // opcode 51
