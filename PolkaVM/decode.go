@@ -2,11 +2,16 @@ package PolkaVM
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint8 {
 	return min(12, (instructionCode[pc+1])%16)
 }
+
 func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint8 {
 	return min(12, (instructionCode[pc+1])>>4)
 }
@@ -89,8 +94,16 @@ func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA
 	return rD, rA, nil
 }
 
-func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
-	panic("not implemented")
+func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint8, uint64) {
+	rA := min(12, instructionCode[pc+1]&15)
+	rB := min(12, instructionCode[pc+1]>>4)
+	lX := min(4, max(0, skipLength-1))
+	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pc+2+lX], types.U64(lX))
+	if err != nil {
+		return 0, 0, 0
+	}
+	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	return rA, rB, vX
 }
 
 // returns rA, rB, vX
@@ -138,4 +151,79 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	rB = getRegFloorIndex(instructionCode, pc)
 	rD = min(12, instructionCode[pc+2])
 	return rA, rB, rD, nil
+}
+
+func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
+	vX := uint32(memIndex)
+	pageNum := vX / ZP
+	pageIndex := memIndex % ZP
+	vY := utils.SerializeFixedLength(types.U64(Immediate), types.U64(offset))
+	if mem.Pages[pageNum] != nil { // page allocated
+		// try to allocate read-only memory --> page-fault
+		if mem.Pages[pageNum].Access != MemoryReadWrite {
+			return PVMExitTuple(PAGE_FAULT, memIndex)
+		}
+
+		if pageIndex+uint32(offset) < 4096 { // data allocated do not exceed maxSize
+			tempPage := make([]byte, pageIndex+uint32(offset))
+			copy(tempPage, mem.Pages[pageNum].Value)
+			mem.Pages[pageNum].Value = tempPage
+
+			for i := range offset {
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
+			}
+		} else { // data allocated exceed maxSize
+			tempPage := make([]byte, ZP)
+			copy(tempPage, mem.Pages[pageNum].Value)
+			remainDataLength := ZP - int(pageIndex)
+			for i := range remainDataLength {
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
+			}
+			vY = vY[remainDataLength:]
+			Immediate = Immediate % (1<<remainDataLength + 1) // filter allocated
+			remainDataLength = len(vY) - remainDataLength
+
+			err := storeIntoMemory(mem, remainDataLength, memIndex+uint32(remainDataLength), Immediate)
+			if err != PVMExitTuple(CONTINUE, nil) {
+				return PVMExitTuple(PAGE_FAULT, memIndex)
+			}
+		}
+
+	} else { // page not allocated, allocate the page
+		mem.Pages[pageNum] = &Page{
+			Access: MemoryReadWrite,
+			Value:  make([]byte, len(vY)),
+		}
+	}
+	return PVMExitTuple(CONTINUE, nil)
+}
+
+func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
+	vX := uint32(vx)
+
+	pageNum := vX / ZP
+	pageIndex := vX % ZP
+	// load memory : the page must be exist and is not Inaccessible
+	// Inaccessible should be appreciated ? memory : read-only, read-write, unallocated = Inaccessible
+
+	if mem.Pages[pageNum] == nil || mem.Pages[pageNum].Access == MemoryInaccessible {
+		return 0, PVMExitTuple(PAGE_FAULT, vx)
+	}
+	var memBytes []byte
+	if pageIndex+offset < 4096 {
+		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
+	} else {
+		if mem.Pages[pageNum+1] == nil || mem.Pages[pageNum+1].Access == MemoryInaccessible {
+			return 0, PVMExitTuple(PAGE_FAULT, vx)
+		}
+		memBytes = mem.Pages[pageNum].Value[pageIndex:]
+		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
+		memBytes = append(memBytes, remainBytes...)
+	}
+	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
+	if err != nil {
+		log.Printf("loadMemory deserialize raise error memoryPage %d at index %d : %s ", pageNum, vx, err)
+		return 0, err
+	}
+	return uint64(memVal), PVMExitTuple(CONTINUE, nil)
 }
