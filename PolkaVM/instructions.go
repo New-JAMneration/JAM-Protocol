@@ -214,6 +214,16 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	174: instBranch,
 	175: instBranch,
 	180: instLoadImmJumpInd,
+	190: instAdd32,
+	191: instSub32,
+	192: instMul32,
+	193: instDivU32,
+	194: instDivS32,
+	195: instRemU32,
+	196: instRemS32,
+	197: instShloL32,
+	198: instShloR32,
+	199: instSharR32,
 	200: instAdd64,   // passed testvector
 	201: instSub64,   // passed testvector
 	202: instMul64,   // passed testvector
@@ -655,6 +665,219 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	}
 
 	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+}
+
+// opcode 190
+func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+reg[rB])))
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 191
+func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	bMod32 := uint32(reg[rB])
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 192
+func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]*reg[rB])))
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 193
+func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	bMod32 := uint32(reg[rB])
+	aMod32 := uint32(reg[rA])
+
+	if bMod32 == 0 {
+		reg[rD] = ^uint64(0) // 2^64 - 1
+	} else {
+		reg[rD], err = SignExtend(4, uint64(aMod32/bMod32))
+		if err != nil {
+			return err, pc, Gas(0), reg, mem
+		}
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 194
+func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	a, err := UnsignedToSigned(uint64(uint32(reg[rA])), 4)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	b, err := UnsignedToSigned(uint64(uint32(reg[rB])), 4)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	if b == 0 {
+		reg[rD] = ^uint64(0) // 2^64 - 1
+	} else if a == int64(-1<<31) && b == -1 {
+		reg[rD] = uint64(a)
+	} else {
+		reg[rD] = uint64(a / b)
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 195
+func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	bMod32 := uint32(reg[rB])
+	aMod32 := uint32(reg[rA])
+
+	if bMod32 == 0 {
+		reg[rD], err = SignExtend(4, uint64(aMod32))
+	} else {
+		reg[rD], err = SignExtend(4, uint64(aMod32%bMod32))
+	}
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 196
+func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	a, err := UnsignedToSigned(uint64(uint32(reg[rA])), 4)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	b, err := UnsignedToSigned(uint64(uint32(reg[rB])), 4)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	if a == int64(-1<<31) && b == -1 {
+		reg[rD] = 0
+	} else {
+		reg[rD], err = SignedToUnsigned(smod(a, b), 8)
+		if err != nil {
+			return err, pc, Gas(0), reg, mem
+		}
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 197
+func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	shift := reg[rB] % 32
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]<<shift)))
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 198
+func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	modA := uint32(reg[rA])
+	shift := reg[rB] % 32
+	reg[rD], err = SignExtend(4, uint64(modA>>shift))
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 199
+func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	signedA, err := UnsignedToSigned(uint64(uint32(reg[rA])), 4)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	shift := reg[rB] % 32
+	reg[rD], err = SignedToUnsigned(signedA/(1<<shift), 8)
+
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+
+	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 200
