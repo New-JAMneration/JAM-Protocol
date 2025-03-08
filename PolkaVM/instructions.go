@@ -668,7 +668,7 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 190
-func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -681,11 +681,11 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 191
-func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -696,11 +696,11 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 192
-func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -713,11 +713,11 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 193
-func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -737,11 +737,11 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 194
-func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -765,11 +765,11 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 195
-func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -788,11 +788,11 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 196
-func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -817,11 +817,11 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 197
-func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -834,11 +834,11 @@ func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 198
-func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -853,11 +853,11 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 199
-func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask []bool) (error, ProgramCounter, Gas, Registers, Memory) {
+func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasDelta := Gas(2)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -877,7 +877,7 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 200
