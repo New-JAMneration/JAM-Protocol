@@ -180,44 +180,49 @@ func smod[T constraints.Signed](a, b T) T {
 
 // input: instructionCode, programCounter, skipLength, registers, memory
 var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
-	// Instructiopns without Arguments
+	// A.5.1 Instructiopns without Arguments
 	0: instTrap,
 	1: instFallthrough,
-	// Instructions with Arguments of One Immediate
+	// A.5.2 Instructions with Arguments of One Immediate
 	10: instEcalli,
-	// Instructions with Arguments of One Register and One Extended With Immediate
+	// A.5.3 Instructions with Arguments of One Register & One Extended With Immediate
 	20: instLoadImm64, // passed testvector
-	// Instructions with Arguments of Two Immediates
+	// A.5.4 Instructions with Arguments of Two Immediates
 	30: instStoreImmU8,
 	31: instStoreImmU16,
 	32: instStoreImmU32,
 	33: instStoreImmU64,
-	// Instructions with Arguments of One Offset
-	40:  instJump,
-	50:  instJumpInd,
-	51:  instLoadImm,
-	52:  instLoadU8,
-	53:  instLoadI8,
-	54:  instLoadU16,
-	55:  instLoadI16,
-	56:  instLoadU32,
-	57:  instLoadI32,
-	58:  instLoadU64,
-	59:  instStoreU8,
-	60:  instStoreU16,
-	61:  instStoreU32,
-	62:  instStoreU64,
-	80:  instImmediateBranch,
-	81:  instImmediateBranch,
-	82:  instImmediateBranch,
-	83:  instImmediateBranch,
-	84:  instImmediateBranch,
-	85:  instImmediateBranch,
-	86:  instImmediateBranch,
-	87:  instImmediateBranch,
-	88:  instImmediateBranch,
-	89:  instImmediateBranch,
-	90:  instImmediateBranch,
+	// A.5.5 Instructions with Arguments of One Offset
+	40: instJump,
+	// A.5.6 Instructions with Arguments of One Register & One Immediate
+	50: instJumpInd,
+	51: instLoadImm,
+	52: instLoadU8,
+	53: instLoadI8,
+	54: instLoadU16,
+	55: instLoadI16,
+	56: instLoadU32,
+	57: instLoadI32,
+	58: instLoadU64,
+	59: instStoreU8,
+	60: instStoreU16,
+	61: instStoreU32,
+	62: instStoreU64,
+	// A.5.7 Instructions with Arguments of One Register & Two Immediates
+	// 70~73
+	// A.5.8 Instructions without Arguments of One Register, One Immediate and One Offset
+	80: instImmediateBranch,
+	81: instImmediateBranch,
+	82: instImmediateBranch,
+	83: instImmediateBranch,
+	84: instImmediateBranch,
+	85: instImmediateBranch,
+	86: instImmediateBranch,
+	87: instImmediateBranch,
+	88: instImmediateBranch,
+	89: instImmediateBranch,
+	90: instImmediateBranch,
+	// A.5.9 Instructions with arguments of Two Registers
 	100: instMoveReg, // passed testvector
 	102: instCountSetBits64,
 	103: instCountSetBits32,
@@ -229,13 +234,18 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	109: instSignExtend16,
 	110: instZeroExtend16,
 	111: instReverseBytes,
+	// A.5.10 Instructions with Arguments of Two Registers & One Immediate
+	// 120~161
+	// A.5.11 Instructions with Arguments of Two Registers & One Offset
 	170: instBranch,
 	171: instBranch,
 	172: instBranch,
 	173: instBranch,
 	174: instBranch,
 	175: instBranch,
+	// A.5.12 Instructions  with Arguments of Two Registers and Two Immediates
 	180: instLoadImmJumpInd,
+	// A.5.13 Instructions with Arguments of Three Registers
 	200: instAdd64,   // passed testvector
 	201: instSub64,   // passed testvector
 	202: instMul64,   // passed testvector
