@@ -20,14 +20,16 @@ const (
 	MaxTotalSize     = 12 * 1024 * 1024 // 12 MB (14.6)
 	MaxRefineGas     = 500000000
 	MaxAccumulateGas = 100000
-	MaxSegments      = 2048 // import/export segment total limit 2^11 (14.4)
+	MaxSegments      = 3072 // import/export segment total limit 3072 (14.4). graypaper 0.6.3
 	SegmentSize      = 4104 // size of segment
+	MaxExtrinsics    = 128  // T (14.4). graypaper 0.6.3
 )
 
 func (wp *WorkPackage) Validate() error {
 	totalSize := len(wp.Authorization) + len(wp.Authorizer.Params)
 	totalImportSegments := 0
 	totalExportSegments := 0
+	totalExtrinsics := 0
 
 	for _, item := range wp.WorkItems {
 		totalSize += len(item.Payload)
@@ -40,6 +42,8 @@ func (wp *WorkPackage) Validate() error {
 		}
 
 		totalExportSegments += int(item.ExportCount)
+
+		totalExtrinsics += len(item.Extrinsic)
 	}
 
 	// total size check (14.5)
@@ -50,6 +54,11 @@ func (wp *WorkPackage) Validate() error {
 	// import/export segment count check （14.4)
 	if totalImportSegments+totalExportSegments > MaxSegments {
 		return fmt.Errorf("total import and export segments exceed %d", MaxSegments)
+	}
+
+	// extrinsics count check (14.4)
+	if totalExtrinsics > MaxExtrinsics {
+		return fmt.Errorf("total extrinsics exceed %d", MaxExtrinsics)
 	}
 
 	// gas limit check (14.7)
