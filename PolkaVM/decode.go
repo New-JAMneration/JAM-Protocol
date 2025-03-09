@@ -33,33 +33,32 @@ func decodeOneRegisterAndOneExtendedWidthImmediate(instructionCode []byte, pc Pr
 }
 
 // A.5.4
-func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint64, uint64) {
+func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint64, uint64, error) {
 	lX := ProgramCounter(min(4, uint8(instructionCode[pc+1])))
 
 	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pc+2+lX], types.U64(lX))
 	if err != nil {
-		log.Printf("opcode %s(%d) at instruction %d deserialize vx raise error : %s", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
-		return 0, 0
+		return 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
 	vX, err := SignExtend(int(lX), uint64(decodedVX))
 	if err != nil {
-		log.Printf("opcode %s(%d) at instruction %d signExtend raise error : %s", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
-		return 0, 0
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 	lY := min(4, max(0, skipLength-lX-1))
 	decodedVy, err := utils.DeserializeFixedLength(instructionCode[pc+2+lX:pc+2+lX+lY], types.U64(lY))
 	if err != nil {
-		log.Printf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d deserialization vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 	vY, err := SignExtend(int(lY), uint64(decodedVy))
 	if err != nil {
-		return 0, 0
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	return vX, vY
+	return vX, vY, nil
 }
 
+// A.5.5
 // returns vX
 func decodeOneOffset(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (ProgramCounter, error) {
 	lX := min(4, skipLength)
@@ -72,6 +71,7 @@ func decodeOneOffset(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	return pc + ProgramCounter(offset), nil
 }
 
+// A.5.6
 // returns rA, vX
 func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint64, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -84,35 +84,34 @@ func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter,
 		return 0, 0, err
 	}
 
-	return rA, immediate, PVMExitTuple(CONTINUE, nil)
+	return rA, immediate, nil
 }
 
 // A.5.7
 func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int8, uint64, uint64, error) {
 	rA := int8(min(12, instructionCode[pc+1]%16))
-	lX := ProgramCounter(min(4, uint8((instructionCode[pc+1] >> 4))))
+	lX := min(4, ProgramCounter(uint8((instructionCode[pc+1] >> 4))))
 	pcMargin := pc + 2 + lX
 	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pcMargin], types.U64(lX))
 	if err != nil {
-		fmt.Printf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
-		return 0, 0, 0, err
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 	vX, err := SignExtend(int(lX), uint64(decodedVX))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
 	lY := min(4, max(0, skipLength-lX-1))
 	decodedVY, err := utils.DeserializeFixedLength(instructionCode[pcMargin:pcMargin+lY], types.U64(lY))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 	vY, err := SignExtend(int(lY), uint64(decodedVY))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	return rA, vX, vY, PVMExitTuple(CONTINUE, nil)
+	return rA, vX, vY, nil
 }
 
 // returns rA, vX, vY
@@ -151,6 +150,7 @@ func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter
 	panic("not implemented")
 }
 
+// A.5.11
 // returns rA, rB, vX
 func decodeTwoRegistersAndOneOffset(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint8, ProgramCounter, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -166,6 +166,7 @@ func decodeTwoRegistersAndOneOffset(instructionCode []byte, pc ProgramCounter, s
 	return rA, rB, pc + ProgramCounter(offset), nil
 }
 
+// A.5.12
 // returns rA, rB, vX, vY
 func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint8, uint64, uint64, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -209,37 +210,29 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 		if mem.Pages[pageNum].Access != MemoryReadWrite {
 			return PVMExitTuple(PAGE_FAULT, memIndex)
 		}
-
-		if pageIndex+uint32(offset) < 4096 { // data allocated do not exceed maxSize
-			tempPage := make([]byte, pageIndex+uint32(offset))
-			copy(tempPage, mem.Pages[pageNum].Value)
-			mem.Pages[pageNum].Value = tempPage
-
+		if pageIndex+uint32(offset) < ZP { // data allocated do not exceed maxSize
 			for i := range offset {
 				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
 			}
-		} else { // data allocated exceed maxSize
-			tempPage := make([]byte, ZP)
-			copy(tempPage, mem.Pages[pageNum].Value)
-			remainDataLength := ZP - int(pageIndex)
-			for i := range remainDataLength {
-				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
-			}
-			vY = vY[remainDataLength:]
-			Immediate = Immediate % (1<<remainDataLength + 1) // filter allocated
-			remainDataLength = len(vY) - remainDataLength
-
-			err := storeIntoMemory(mem, remainDataLength, memIndex+uint32(remainDataLength), Immediate)
-			if err != PVMExitTuple(CONTINUE, nil) {
+		} else { // data allocated exceed maxSize --> cross page
+			// check next page access
+			if mem.Pages[pageNum+1].Access != MemoryReadWrite {
 				return PVMExitTuple(PAGE_FAULT, memIndex)
+			}
+
+			currentPageLength := ZP - pageIndex
+			currentPageData := vY[:currentPageLength]
+			nextPageData := vY[currentPageLength:]
+			for i := range len(currentPageData) {
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = currentPageData[i]
+			}
+			for i := range len(nextPageData) {
+				mem.Pages[pageNum].Value[i] = nextPageData[i]
 			}
 		}
 
 	} else { // page not allocated, allocate the page
-		mem.Pages[pageNum] = &Page{
-			Access: MemoryReadWrite,
-			Value:  make([]byte, len(vY)),
-		}
+		return PVMExitTuple(PAGE_FAULT, memIndex)
 	}
 	return PVMExitTuple(CONTINUE, nil)
 }
@@ -249,22 +242,24 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 
 	pageNum := vX / ZP
 	pageIndex := vX % ZP
-	// load memory : the page must be exist and is not Inaccessible
-	// Inaccessible should be appreciated ? memory : read-only, read-write, unallocated = Inaccessible
-
-	if mem.Pages[pageNum] == nil || mem.Pages[pageNum].Access == MemoryInaccessible {
+	// load memory : the page must be exist and at least readable
+	// we allocated memory at least read-only
+	// => if the memory is not allocated -> it's Inaccessible
+	if mem.Pages[pageNum] == nil {
 		return 0, PVMExitTuple(PAGE_FAULT, vx)
 	}
-	var memBytes []byte
-	if pageIndex+offset < 4096 {
+	memBytes := make([]byte, offset)
+
+	if pageIndex+offset < ZP {
 		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
-	} else {
-		if mem.Pages[pageNum+1] == nil || mem.Pages[pageNum+1].Access == MemoryInaccessible {
+	} else { // cross page memory memory loading
+		if mem.Pages[pageNum+1] == nil {
 			return 0, PVMExitTuple(PAGE_FAULT, vx)
 		}
-		memBytes = mem.Pages[pageNum].Value[pageIndex:]
+
 		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
-		memBytes = append(memBytes, remainBytes...)
+		copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
+		copy(memBytes[:ZP-pageIndex], remainBytes)           // copy next page
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {

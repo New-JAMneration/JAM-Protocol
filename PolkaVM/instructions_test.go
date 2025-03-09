@@ -96,7 +96,7 @@ func TestInstruction(t *testing.T) {
 	}
 
 	for _, file := range jsonFiles {
-		if file != "inst_store_imm_u64.json" {
+		if file != "inst_store_imm_ind_u64.json" {
 			continue
 		}
 		t.Run(file, func(t *testing.T) {
@@ -142,8 +142,10 @@ func TestInstruction(t *testing.T) {
 			for pageNum, expectedPage := range expectedMemory.Pages {
 				// page := memory[pageNum]
 				if page, exists := memory.Pages[pageNum]; exists {
-					if !reflect.DeepEqual(page.Value, expectedPage.Value) {
-						t.Errorf("expected memory %v, got %v", expectedPage.Value, memory.Pages[pageNum].Value)
+					for i := range len(expectedPage.Value) {
+						if expectedPage.Value[i] != page.Value[i] {
+							t.Errorf("expected memory %v, got %v at addr=%d, index=%d", expectedPage.Value[i], memory.Pages[pageNum].Value[i], pageNum, i)
+						}
 					}
 				} else {
 					t.Errorf("expected memory %v, but not exists", testCase.ExpectedMemory)
@@ -160,7 +162,7 @@ func loadTestCasePageMap(initialPageMap PageMaps) Memory {
 		for _, pageMap := range initialPageMap {
 			pageNum := pageMap.Address >> 12
 			page := Page{
-				Value:  make([]byte, 0),
+				Value:  make([]byte, ZP),
 				Access: MemoryReadWrite,
 			}
 			memory.Pages[pageNum] = &page
@@ -185,8 +187,7 @@ func loadTestCaseMemory(memory Memory, initialMemory MemoryChunks) Memory {
 			for _, memoryChunk := range initialMemory {
 				pageNum := memoryChunk.Address >> 12
 				if mem, exists := memory.Pages[pageNum]; exists {
-					mem.Value = append(mem.Value, memoryChunk.Contents...)
-					// copy(mem.Value[:], memoryChunk.Contents)
+					copy(mem.Value[:], memoryChunk.Contents)
 				}
 			}
 		}
