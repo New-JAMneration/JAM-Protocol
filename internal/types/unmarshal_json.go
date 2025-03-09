@@ -1192,6 +1192,27 @@ func (a *AuthQueues) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ReadyRecord
+func (r *ReadyRecord) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Report       WorkReport
+		Dependencies []WorkPackageHash
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	r.Report = temp.Report
+
+	if len(temp.Dependencies) == 0 {
+		return nil
+	}
+	r.Dependencies = temp.Dependencies
+
+	return nil
+}
+
 // ReadyQueueItem
 func (r *ReadyQueueItem) UnmarshalJSON(data []byte) error {
 	var temp []ReadyRecord
@@ -1268,6 +1289,193 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 	}
 
 	*b = temp
+
+	return nil
+}
+
+// AccumulatedHistory
+func (a *AccumulatedHistory) UnmarshalJSON(data []byte) error {
+	var temp []WorkPackageHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AccumulatedHistories
+func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
+	var temp []AccumulatedHistory
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// Accounts
+func (a *Accounts) UnmarshalJSON(data []byte) error {
+	var temp []Account
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// Account
+func (a *Account) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Id   U32         `json:"id"`
+		Data AccountData `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Id = ServiceId(temp.Id)
+	a.Data = temp.Data
+
+	return nil
+}
+
+// AccountData
+func (a *AccountData) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Service    ServiceInfo          `json:"service"`
+		Preimages  []PreimagesMapEntry  `json:"preimages"`
+		LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+		Storage    Storage              `json:"storage"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Service = temp.Service
+
+	if len(temp.Preimages) == 0 {
+		a.Preimages = nil
+	} else {
+		a.Preimages = temp.Preimages
+	}
+
+	if len(temp.LookupMeta) == 0 {
+		a.LookupMeta = nil
+	} else {
+		a.LookupMeta = temp.LookupMeta
+	}
+
+	a.Storage = temp.Storage
+
+	return nil
+}
+
+// type Storage map[OpaqueHash]ByteSequence
+func (s *Storage) UnmarshalJSON(data []byte) error {
+	var temp map[string]string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*s = make(Storage)
+	for key, value := range temp {
+		keyBytes, err := hex.DecodeString(key[2:])
+		if err != nil {
+			return err
+		}
+
+		valueBytes, err := hex.DecodeString(value[2:])
+		if err != nil {
+			return err
+		}
+
+		(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Key LookupMetaMapkey `json:"key"`
+		Val []TimeSlot       `json:"value"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Key = temp.Key
+
+	if len(temp.Val) == 0 {
+		l.Val = nil
+	} else {
+		l.Val = temp.Val
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash   OpaqueHash `json:"hash"`
+		Length U32        `json:"length"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Hash = temp.Hash
+	l.Length = temp.Length
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash OpaqueHash `json:"hash"`
+		Blob string     `json:"blob"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	p.Hash = temp.Hash
+
+	blobBytes, err := hex.DecodeString(temp.Blob[2:])
+	if err != nil {
+		return err
+	}
+	p.Blob = blobBytes
 
 	return nil
 }
