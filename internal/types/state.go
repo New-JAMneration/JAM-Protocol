@@ -5,40 +5,39 @@ import "fmt"
 // (4.4)
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
+	Varphi AuthQueues              `json:"varphi"`
 	Beta   BlocksHistory           `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
-	Delta  ServiceAccountState     `json:"delta"`
+	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`
 	Iota   ValidatorsData          `json:"iota"`
 	Kappa  ValidatorsData          `json:"kappa"`
 	Lambda ValidatorsData          `json:"lambda"`
 	Rho    AvailabilityAssignments `json:"rho"`
 	Tau    TimeSlot                `json:"tau"`
-	Varphi AuthQueues              `json:"varphi"`
-	Chi    PrivilegedServices      `json:"chi"`
-	Psi    DisputesRecords         `json:"psi"`
+	Chi    Privileges              `json:"chi"`
 	Pi     Statistics              `json:"pi"`
-	Theta  AccumulationQueue       `json:"theta"`
+	Theta  ReadyQueue              `json:"theta"`
 	Xi     AccumulatedHistories    `json:"xi"`
+	Delta  Accounts                `json:"accounts"`
 }
 
-type StateTest struct {
-	Alpha AuthPools     `json:"alpha"`
-	Beta  BlocksHistory `json:"beta"`
-	Gamma Gamma         `json:"gamma"`
-	// Delta  ServiceAccountState     `json:"delta"`
+type TestState struct {
+	Alpha  AuthPools               `json:"alpha"`
+	Varphi AuthQueues              `json:"varphi"`
+	Beta   BlocksHistory           `json:"beta"`
+	Gamma  Gamma                   `json:"gamma"`
+	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`
 	Iota   ValidatorsData          `json:"iota"`
 	Kappa  ValidatorsData          `json:"kappa"`
 	Lambda ValidatorsData          `json:"lambda"`
 	Rho    AvailabilityAssignments `json:"rho"`
 	Tau    TimeSlot                `json:"tau"`
-	Varphi AuthQueues              `json:"varphi"`
-	Chi    PrivilegedServices      `json:"chi"`
-	Psi    DisputesRecords         `json:"psi"`
+	Chi    Privileges              `json:"chi"`
 	Pi     Statistics              `json:"pi"`
-	// Theta  UnaccumulateWorkReports `json:"theta"`
-	// Xi     AccumulatedHistories    `json:"xi"`
+	Theta  ReadyQueue              `json:"theta"`
+	Xi     AccumulatedHistories    `json:"xi"`
 }
 
 // (6.3)
@@ -48,6 +47,42 @@ type Gamma struct {
 	GammaS TicketsOrKeys              `json:"gamma_s"`
 	GammaA TicketsAccumulator         `json:"gamma_a"`
 }
+
+// INFO: New Account Struct for jamtestnet
+
+// from davxy asn
+type PreimagesMapEntry struct {
+	Hash OpaqueHash   `json:"hash"`
+	Blob ByteSequence `json:"blob"`
+}
+
+// from davxy asn
+type LookupMetaMapkey struct {
+	Hash   OpaqueHash `json:"hash"`
+	Length U32        `json:"length"`
+}
+
+// from davxy asn
+type LookupMetaMapEntry struct {
+	Key LookupMetaMapkey `json:"key"`
+	Val []TimeSlot       `json:"value"`
+}
+
+type Storage map[OpaqueHash]ByteSequence
+
+type AccountData struct {
+	Service    ServiceInfo          `json:"service"`
+	Preimages  []PreimagesMapEntry  `json:"preimages"`
+	LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+	Storage    Storage              `json:"storage"`
+}
+
+type Account struct {
+	Id   ServiceId   `json:"id"`
+	Data AccountData `json:"data"`
+}
+
+type Accounts []Account
 
 // (9.2) delta
 type ServiceAccountState map[ServiceId]ServiceAccount

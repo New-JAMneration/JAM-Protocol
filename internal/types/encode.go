@@ -2000,3 +2000,302 @@ func (a *AccumulateRoot) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// Gamma
+func (g *Gamma) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Gamma")
+
+	// GammaK
+	if err := g.GammaK.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaZ
+	if err := g.GammaZ.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaS
+	if err := g.GammaS.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaA
+	if err := g.GammaA.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedHistory
+func (ah *AccumulatedHistory) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedHistory")
+
+	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
+		return err
+	}
+
+	for _, workPackageHash := range *ah {
+		if err := workPackageHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulatedHistories
+func (ah *AccumulatedHistories) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
+
+	if len(*ah) != int(EpochLength) {
+		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
+	}
+
+	for _, accumulatedHistory := range *ah {
+		if err := accumulatedHistory.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Storage")
+
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	for key, val := range *s {
+		if err := key.Encode(e); err != nil {
+			return err
+		}
+
+		if err := val.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapkey")
+
+	// Hash
+	if err := l.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// Length
+	if err := l.Length.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapEntry")
+
+	// Key
+	if err := l.Key.Encode(e); err != nil {
+		return err
+	}
+
+	// Val
+	if err := e.EncodeLength(uint64(len(l.Val))); err != nil {
+		return err
+	}
+
+	for _, timeSlot := range l.Val {
+		if err := timeSlot.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding PreimagesMapEntry")
+
+	// Hash
+	if err := p.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// Blob
+	if err := p.Blob.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccountData
+func (a *AccountData) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccountData")
+
+	// Service
+	if err := a.Service.Encode(e); err != nil {
+		return err
+	}
+
+	// Preimages
+	if err := e.EncodeLength(uint64(len(a.Preimages))); err != nil {
+		return err
+	}
+
+	for _, preimage := range a.Preimages {
+		if err := preimage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// LookupMeta
+	if err := e.EncodeLength(uint64(len(a.LookupMeta))); err != nil {
+		return err
+	}
+
+	for _, lookupMeta := range a.LookupMeta {
+		if err := lookupMeta.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Storage
+	if err := a.Storage.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Account
+func (a *Account) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Account")
+
+	// Id
+	if err := a.Id.Encode(e); err != nil {
+		return err
+	}
+
+	// Data
+	if err := a.Data.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Accounts
+func (d *Accounts) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Accounts")
+
+	if err := e.EncodeLength(uint64(len(*d))); err != nil {
+		return err
+	}
+
+	for _, account := range *d {
+		if err := account.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// State
+func (s *State) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding State")
+
+	// Alpha
+	if err := s.Alpha.Encode(e); err != nil {
+		return err
+	}
+
+	// Varphi
+	if err := s.Varphi.Encode(e); err != nil {
+		return err
+	}
+
+	// Beta
+	if err := s.Beta.Encode(e); err != nil {
+		return err
+	}
+
+	// Gamma
+	if err := s.Gamma.Encode(e); err != nil {
+		return err
+	}
+
+	// Psi
+	if err := s.Psi.Encode(e); err != nil {
+		return err
+	}
+
+	// Eta
+	if err := s.Eta.Encode(e); err != nil {
+		return err
+	}
+
+	// Iota
+	if err := s.Iota.Encode(e); err != nil {
+		return err
+	}
+
+	// Kappa
+	if err := s.Kappa.Encode(e); err != nil {
+		return err
+	}
+
+	// Lambda
+	if err := s.Lambda.Encode(e); err != nil {
+		return err
+	}
+
+	// Rho
+	if err := s.Rho.Encode(e); err != nil {
+		return err
+	}
+
+	// Tau
+	if err := s.Tau.Encode(e); err != nil {
+		return err
+	}
+
+	// Chi
+	if err := s.Chi.Encode(e); err != nil {
+		return err
+	}
+
+	// Pi
+	if err := s.Pi.Encode(e); err != nil {
+		return err
+	}
+
+	// Theta
+	if err := s.Theta.Encode(e); err != nil {
+		return err
+	}
+
+	// Xi
+	if err := s.Xi.Encode(e); err != nil {
+		return err
+	}
+
+	// Delta
+	if err := s.Delta.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

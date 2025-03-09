@@ -28,6 +28,7 @@ const (
 	JSON_EXTENTION       = ".json"
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
+	JAM_TEST_NET_DIR     = "../../pkg/test_data/jam-test-net/"
 )
 
 func TestMain(m *testing.M) {
@@ -634,5 +635,95 @@ func TestDecodeJamTestVectorsHistory(t *testing.T) {
 		types.SetTinyMode()
 	} else {
 		types.SetFullMode()
+	}
+}
+
+func ReadBinaryFile(filename string) ([]byte, error) {
+	// read binary file and return byte array
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Read the file content
+	byteValue, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return byteValue, nil
+}
+
+func TestDecodeJamTestNetGenesisBlock(t *testing.T) {
+	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+
+	// Read the binary file
+	binData, err := ReadBinaryFile(filename)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Decode the binary data
+	decoder := types.NewDecoder()
+	block := &types.Block{}
+	err = decoder.Decode(binData, block)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Read the json file
+	jsonFilePath := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Compare the two structs
+	if !reflect.DeepEqual(block, jsonData) {
+		log.Printf("❌ [%s] %s", types.TEST_MODE, filename)
+		t.Errorf("Error: %v", err)
+	} else {
+		log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
+	}
+}
+
+func TestDecodeJamTestNetGenesisState(t *testing.T) {
+	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
+
+	// Read the binary file
+	binData, err := ReadBinaryFile(filename)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Read without accounts
+	// FIXME: We've submitted a issue to jamtestnet.
+	// After the issue is resolved, we can remove the start and end.
+	start := 0
+	end := 14692
+	binData = binData[start:end]
+
+	// Decode the binary data
+	decoder := types.NewDecoder()
+	state := &types.TestState{}
+	err = decoder.Decode(binData, state)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Read the json file
+	jsonFilePath := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.TestState{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Compare the two structs
+	if !reflect.DeepEqual(state, jsonData) {
+		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis-tiny")
+		t.Errorf("Error: %v", err)
+	} else {
+		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
 	}
 }
