@@ -25,10 +25,35 @@ func TestGenerateEd25519PrivateKey(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "alice",
+			name:     "Alice",
 			seed:     strToHex("0x0000000000000000000000000000000000000000000000000000000000000000"),
 			wantPriv: strToHex("0x0000000000000000000000000000000000000000000000000000000000000000"),
 			wantPub:  strToHex("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
+		}, {
+			name:     "Bob",
+			seed:     strToHex("0x0100000001000000010000000100000001000000010000000100000001000000"),
+			wantPriv: strToHex("0x0100000001000000010000000100000001000000010000000100000001000000"),
+			wantPub:  strToHex("0x22351e22105a19aabb42589162ad7f1ea0df1c25cebf0e4a9fcd261301274862"),
+		}, {
+			name:     "Carol",
+			seed:     strToHex("0x0200000002000000020000000200000002000000020000000200000002000000"),
+			wantPriv: strToHex("0x0200000002000000020000000200000002000000020000000200000002000000"),
+			wantPub:  strToHex("0xe68e0cf7f26c59f963b5846202d2327cc8bc0c4eff8cb9abd4012f9a71decf00"),
+		}, {
+			name:     "David",
+			seed:     strToHex("0x0300000003000000030000000300000003000000030000000300000003000000"),
+			wantPriv: strToHex("0x0300000003000000030000000300000003000000030000000300000003000000"),
+			wantPub:  strToHex("0xb3e0e096b02e2ec98a3441410aeddd78c95e27a0da6f411a09c631c0f2bea6e9"),
+		}, {
+			name:     "Eve",
+			seed:     strToHex("0x0400000004000000040000000400000004000000040000000400000004000000"),
+			wantPriv: strToHex("0x0400000004000000040000000400000004000000040000000400000004000000"),
+			wantPub:  strToHex("0x5c7f34a4bd4f2d04076a8c6f9060a0c8d2c6bdd082ceb3eda7df381cb260faff"),
+		}, {
+			name:     "Fergie",
+			seed:     strToHex("0x0500000005000000050000000500000005000000050000000500000005000000"),
+			wantPriv: strToHex("0x0500000005000000050000000500000005000000050000000500000005000000"),
+			wantPub:  strToHex("0x837ce344bc9defceb0d7de7e9e9925096768b7adb4dad932e532eb6551e0ea02"),
 		},
 	}
 	for _, tt := range tests {
@@ -57,7 +82,13 @@ func TestEncodeBase32(t *testing.T) {
 		args args
 		want string
 	}{
-		// TODO: Add test cases.
+		{
+			name: "test",
+			args: args{
+				data: []byte("test"),
+			},
+			want: "orsxg5a",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
