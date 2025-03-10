@@ -421,6 +421,10 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 	offset := 1
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
 	reg[rA] = memVal
 
 	return exitReason, pc, gasDelta, reg, mem
@@ -436,10 +440,14 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 	offset := 1
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
 	extend, err := SignExtend(offset, memVal)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 	}
+
 	reg[rA] = extend
 
 	return exitReason, pc, gasDelta, reg, mem
@@ -455,6 +463,9 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	offset := 2
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
 	reg[rA] = memVal
 
 	return exitReason, pc, gasDelta, reg, mem
@@ -470,6 +481,9 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	offset := 2
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
 	extend, err := SignExtend(offset, memVal)
 	if err != nil {
 		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
@@ -488,6 +502,10 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 	offset := 4
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
 	reg[rA] = memVal
 
 	return exitReason, pc, gasDelta, reg, mem
@@ -503,6 +521,10 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	offset := 4
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
 	extend, err := SignExtend(offset, memVal)
 	if err != nil {
 		log.Printf("PC = %d , instruction %d raise signExtend error : %s", pc, instructionCode[pc], err)
@@ -522,6 +544,10 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	offset := 8
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	if exitReason.(*PVMExitReason).Reason == PAGE_FAULT {
+		return exitReason, pc, gasDelta, reg, mem
+	}
+
 	reg[rA] = memVal
 
 	return exitReason, pc, gasDelta, reg, mem

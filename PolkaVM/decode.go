@@ -227,7 +227,7 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 				mem.Pages[pageNum].Value[i+int(pageIndex)] = currentPageData[i]
 			}
 			for i := range len(nextPageData) {
-				mem.Pages[pageNum].Value[i] = nextPageData[i]
+				mem.Pages[pageNum+1].Value[i] = nextPageData[i]
 			}
 		}
 
