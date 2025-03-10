@@ -12,17 +12,16 @@ func Psi_M(
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
-	c, w, u, err := SingleInitializer(code, argument)
-	if err != nil {
-		reason := PANIC
+	standardProgram := StandardProgramInit(code, argument)
+	if standardProgram.ExitReason != nil {
 		return Psi_M_ReturnType{
 			Gas:           gas,
-			ReasonOrBytes: &reason,
+			ReasonOrBytes: standardProgram.ExitReason,
 			Addition:      addition,
 		}
 	}
 
-	g, v, a := R(Psi_H(ProgramCode(c), counter, gas, w, u, omega, addition, program))
+	g, v, a := R(Psi_H(standardProgram.ProgramBlob.InstructionData, counter, gas, standardProgram.Registers, standardProgram.Memory, omega, addition, program))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
