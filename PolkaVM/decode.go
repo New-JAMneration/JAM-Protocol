@@ -266,5 +266,5 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 		log.Printf("loadMemory deserialize raise error memoryPage %d at index %d : %s ", pageNum, vx, err)
 		return 0, err
 	}
-	return uint64(memVal), PVMExitTuple(CONTINUE, nil)
+	return uint64(memVal), nil
 }
