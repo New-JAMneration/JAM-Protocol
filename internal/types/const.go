@@ -102,9 +102,9 @@ var (
 )
 
 var (
-	MaximumWorkItems                 = 4 // I
-	MaximumDependencyItems           = 8 // J
-	WorkReportTimeout                = 5 // U
+	MaximumWorkItems                 = 16 // I (graypaper 0.6.3)
+	MaximumDependencyItems           = 8  // J
+	WorkReportTimeout                = 5  // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024
 	GasLimit                         = 10000000
 	MaxLookupAge                     = 14400 // L
