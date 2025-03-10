@@ -509,7 +509,7 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	reg[rA] = memVal
 
-	return exitReason, pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 57
