@@ -263,8 +263,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
-		log.Printf("loadMemory deserialize raise error memoryPage %d at index %d : %s ", pageNum, vx, err)
-		return 0, err
+		return 0, PVMExitTuple(PANIC, nil)
 	}
 	return uint64(memVal), nil
 }
