@@ -2,15 +2,21 @@ package PolkaVM
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint8 {
 	return min(12, (instructionCode[pc+1])%16)
 }
+
 func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint8 {
 	return min(12, (instructionCode[pc+1])>>4)
 }
 
+// A.5.2
 func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
 	lX := min(4, skipLength)
 	immediateData := instructionCode[pc+1 : pc+lX]
@@ -21,14 +27,38 @@ func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	return int(immediate), nil
 }
 
+// A.5.3
 func decodeOneRegisterAndOneExtendedWidthImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, uint64, error) {
 	panic("not implemented")
 }
 
-func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, error) {
-	panic("not implemented")
+// A.5.4
+func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint64, uint64, error) {
+	lX := ProgramCounter(min(4, uint8(instructionCode[pc+1])))
+
+	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pc+2+lX], types.U64(lX))
+	if err != nil {
+		return 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+
+	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	if err != nil {
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+	lY := min(4, max(0, skipLength-lX-1))
+	decodedVy, err := utils.DeserializeFixedLength(instructionCode[pc+2+lX:pc+2+lX+lY], types.U64(lY))
+	if err != nil {
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d deserialization vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+	vY, err := SignExtend(int(lY), uint64(decodedVy))
+	if err != nil {
+		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+
+	return vX, vY, nil
 }
 
+// A.5.5
 // returns vX
 func decodeOneOffset(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (ProgramCounter, error) {
 	lX := min(4, skipLength)
@@ -41,6 +71,7 @@ func decodeOneOffset(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	return pc + ProgramCounter(offset), nil
 }
 
+// A.5.6
 // returns rA, vX
 func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint64, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -49,14 +80,38 @@ func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter,
 	immediateData := instructionCode[pc+2 : pc+2+lX]
 	immediate, _, err := ReadUintSignExtended(immediateData, len(immediateData))
 	if err != nil {
+		log.Printf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
 		return 0, 0, err
 	}
 
 	return rA, immediate, nil
 }
 
-func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
-	panic("not implemented")
+// A.5.7
+func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int8, uint64, uint64, error) {
+	rA := int8(min(12, instructionCode[pc+1]%16))
+	lX := min(4, ProgramCounter(uint8((instructionCode[pc+1] >> 4))))
+	pcMargin := pc + 2 + lX
+	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pcMargin], types.U64(lX))
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+
+	lY := min(4, max(0, skipLength-lX-1))
+	decodedVY, err := utils.DeserializeFixedLength(instructionCode[pcMargin:pcMargin+lY], types.U64(lY))
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+	vY, err := SignExtend(int(lY), uint64(decodedVY))
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
+	}
+
+	return rA, vX, vY, nil
 }
 
 // returns rA, vX, vY
@@ -80,6 +135,7 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 	return rA, immediate, pc + ProgramCounter(offset), nil
 }
 
+// A.5.9
 func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA uint8, err error) {
 	if int(pc+1) >= len(instructionCode) {
 		return 0, 0, fmt.Errorf("pc out of bound")
@@ -89,10 +145,12 @@ func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA
 	return rD, rA, nil
 }
 
+// A.5.10
 func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, int, int, error) {
 	panic("not implemented")
 }
 
+// A.5.11
 // returns rA, rB, vX
 func decodeTwoRegistersAndOneOffset(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint8, ProgramCounter, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -108,6 +166,7 @@ func decodeTwoRegistersAndOneOffset(instructionCode []byte, pc ProgramCounter, s
 	return rA, rB, pc + ProgramCounter(offset), nil
 }
 
+// A.5.12
 // returns rA, rB, vX, vY
 func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (uint8, uint8, uint64, uint64, error) {
 	rA := min(12, instructionCode[pc+1]%16)
@@ -130,6 +189,7 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 	return rA, rB, vX, vY, nil
 }
 
+// A.5.13
 func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, rB uint8, rD uint8, err error) {
 	if int(pc+2) >= len(instructionCode) {
 		return 0, 0, 0, fmt.Errorf("pc out of bound")
@@ -138,4 +198,72 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	rB = getRegFloorIndex(instructionCode, pc)
 	rD = min(12, instructionCode[pc+2])
 	return rA, rB, rD, nil
+}
+
+func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
+	vX := uint32(memIndex)
+	pageNum := vX / ZP
+	pageIndex := memIndex % ZP
+	vY := utils.SerializeFixedLength(types.U64(Immediate), types.U64(offset))
+	if mem.Pages[pageNum] != nil { // page allocated
+		// try to allocate read-only memory --> page-fault
+		if mem.Pages[pageNum].Access != MemoryReadWrite {
+			return PVMExitTuple(PAGE_FAULT, memIndex)
+		}
+		if pageIndex+uint32(offset) < ZP { // data allocated do not exceed maxSize
+			for i := range offset {
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = vY[i]
+			}
+		} else { // data allocated exceed maxSize --> cross page
+			// check next page access
+			if mem.Pages[pageNum+1].Access != MemoryReadWrite {
+				return PVMExitTuple(PAGE_FAULT, memIndex)
+			}
+
+			currentPageLength := ZP - pageIndex
+			currentPageData := vY[:currentPageLength]
+			nextPageData := vY[currentPageLength:]
+			for i := range len(currentPageData) {
+				mem.Pages[pageNum].Value[i+int(pageIndex)] = currentPageData[i]
+			}
+			for i := range len(nextPageData) {
+				mem.Pages[pageNum+1].Value[i] = nextPageData[i]
+			}
+		}
+
+	} else { // page not allocated, allocate the page
+		return PVMExitTuple(PAGE_FAULT, memIndex)
+	}
+	return PVMExitTuple(CONTINUE, nil)
+}
+
+func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
+	vX := uint32(vx)
+
+	pageNum := vX / ZP
+	pageIndex := vX % ZP
+	// load memory : the page must be exist and at least readable
+	// we allocated memory at least read-only
+	// => if the memory is not allocated -> it's Inaccessible
+	if mem.Pages[pageNum] == nil {
+		return 0, PVMExitTuple(PAGE_FAULT, vx)
+	}
+	memBytes := make([]byte, offset)
+
+	if pageIndex+offset < ZP {
+		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
+	} else { // cross page memory memory loading
+		if mem.Pages[pageNum+1] == nil {
+			return 0, PVMExitTuple(PAGE_FAULT, vx)
+		}
+
+		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
+		copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
+		copy(memBytes[:ZP-pageIndex], remainBytes)           // copy next page
+	}
+	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
+	if err != nil {
+		return 0, PVMExitTuple(PANIC, nil)
+	}
+	return uint64(memVal), nil
 }
