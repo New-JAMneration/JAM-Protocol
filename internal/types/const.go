@@ -81,13 +81,14 @@ var (
 	AvailBitfieldBytes      = 1
 )
 
+var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+
 // permanent constants
-var (
+const (
 	AdditionalMinBalancePerItem  = 10  // B_I
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
-	JamCommonEra                 = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
@@ -101,21 +102,21 @@ var (
 	JamAudit                     = "jam_audit"
 )
 
-var (
+const (
 	MaximumWorkItems                 = 16 // I (graypaper 0.6.3)
 	MaximumDependencyItems           = 8  // J
 	WorkReportTimeout                = 5  // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024
-	GasLimit                         = 10000000
+	GasLimit                         = 10_000_000
 	MaxLookupAge                     = 14400 // L
 )
 
 // work package constants
 const (
-	MaxTotalSize     = 12 * 1024 * 1024 // 12 MB (14.6)
-	MaxRefineGas     = 500000000
-	MaxAccumulateGas = 100000
-	MaxSegments      = 3072 // import/export segment total limit 3072 (14.4). graypaper 0.6.3
-	SegmentSize      = 4104 // size of segment
-	MaxExtrinsics    = 128  // T (14.4). graypaper 0.6.3
+	MaxTotalSize     = 12 * 1024 * 1024 // W_B=12 MB (14.6)
+	MaxRefineGas     = 5_000_000_000    // G_R v0.6.3
+	MaxAccumulateGas = 10_000_000       // G_A v0.6.3
+	MaxSegments      = 3072             // import/export segment total limit 3072 (14.4). graypaper 0.6.3
+	SegmentSize      = 4104             // size of segment
+	MaxExtrinsics    = 128              // T (14.4). graypaper 0.6.3
 )
