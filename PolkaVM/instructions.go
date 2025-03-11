@@ -186,7 +186,7 @@ func abs(x int64) int64 {
 }
 
 // input: instructionCode, programCounter, skipLength, registers, memory
-var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
+var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
 	0:   instTrap,
 	1:   instFallthrough,
 	10:  instEcalli,
