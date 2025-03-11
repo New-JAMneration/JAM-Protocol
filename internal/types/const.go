@@ -109,3 +109,13 @@ var (
 	GasLimit                         = 10000000
 	MaxLookupAge                     = 14400 // L
 )
+
+// work package constants
+const (
+	MaxTotalSize     = 12 * 1024 * 1024 // 12 MB (14.6)
+	MaxRefineGas     = 500000000
+	MaxAccumulateGas = 100000
+	MaxSegments      = 3072 // import/export segment total limit 3072 (14.4). graypaper 0.6.3
+	SegmentSize      = 4104 // size of segment
+	MaxExtrinsics    = 128  // T (14.4). graypaper 0.6.3
+)
