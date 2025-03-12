@@ -72,6 +72,22 @@ func TestEncodeU64(t *testing.T) {
 	}
 }
 
+func TestEncodeTimeSlot(t *testing.T) {
+	timeSlot := TimeSlot(970)
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&timeSlot)
+	if err != nil {
+		t.Errorf("Error encoding TimeSlot: %v", err)
+	}
+
+	expected := []byte{202, 3, 0, 0}
+
+	if !reflect.DeepEqual(encoded, expected) {
+		t.Errorf("Encoded TimeSlot does not match expected")
+	}
+}
+
 func TestEncodeHash(t *testing.T) {
 	hexString := "0xbd87fb6de829abf2bb25a15b82618432c94e82848d9dd204f5d775d4b880ae0d"
 	bytes := hexToBytes(hexString)

@@ -590,6 +590,43 @@ func TestEncodeJamTestVectorsHistory(t *testing.T) {
 	}
 }
 
+func TestEncodeJamTestNetGenesisBlock(t *testing.T) {
+	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+
+	// Read json file
+	structType := reflect.TypeOf(types.Block{})
+	data, err := LoadJAMTestJsonCase(filename, structType)
+	if err != nil {
+		t.Fatalf("Failed to read JSON file: %v", err)
+	}
+
+	structValue := reflect.New(structType).Elem()
+	structValue.Set(reflect.ValueOf(data))
+
+	// Encode the JSON data
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(structValue.Addr().Interface())
+	if err != nil {
+		t.Fatalf("Failed to encode JSON data: %v", err)
+	}
+
+	// Read binary file
+	binFilePath := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+
+	binData, err := LoadJAMTestBinaryCase(binFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read binary file: %v", err)
+	}
+
+	// Compare the binary data
+	if !CompareBinaryData(encoded, binData) {
+		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis")
+		t.Fatalf("Binary data is not equal to the expected data")
+	} else {
+		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis")
+	}
+}
+
 func TestEncodeJamTestNetGenesisState(t *testing.T) {
 	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
 
@@ -618,19 +655,119 @@ func TestEncodeJamTestNetGenesisState(t *testing.T) {
 		t.Fatalf("Failed to read binary file: %v", err)
 	}
 
-	// Read without accounts
-	// FIXME: We've submitted a issue to jamtestnet.
-	// After the issue is resolved, we can remove the start and end.
-	start := 0
-	end := 14692
-	binData = binData[start:end]
-	encoded = encoded[start:end]
-
 	// Compare the binary data
 	if !CompareBinaryData(encoded, binData) {
 		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis-tiny")
 		t.Fatalf("Binary data is not equal to the expected data")
 	} else {
 		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
+	}
+}
+
+func TestEncodeJamTestNetBlock(t *testing.T) {
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "blocks")
+
+		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			jsonPath := filepath.Join(dir, file)
+			structType := reflect.TypeOf(types.Block{})
+			data, err := LoadJAMTestJsonCase(jsonPath, structType)
+			if err != nil {
+				t.Fatalf("Failed to read JSON file: %v", err)
+			}
+
+			structValue := reflect.New(structType).Elem()
+			structValue.Set(reflect.ValueOf(data))
+
+			// Encode the JSON data
+			encoder := types.NewEncoder()
+			encoded, err := encoder.Encode(structValue.Addr().Interface())
+			if err != nil {
+				t.Fatalf("Failed to encode JSON data: %v", err)
+			}
+
+			// Read binary file
+			filename := file[:len(file)-len(JSON_EXTENTION)]
+			binFileName := GetBinFilename(filename)
+			binFilePath := filepath.Join(dir, binFileName)
+			binData, err := LoadJAMTestBinaryCase(binFilePath)
+			if err != nil {
+				t.Fatalf("Failed to read binary file: %v", err)
+			}
+
+			// Compare the binary data
+			if !CompareBinaryData(encoded, binData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Fatalf("Binary data is not equal to the expected data")
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+}
+
+func TestEncodeJamTestNetState(t *testing.T) {
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
+
+		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			jsonPath := filepath.Join(dir, file)
+			structType := reflect.TypeOf(types.State{})
+			data, err := LoadJAMTestJsonCase(jsonPath, structType)
+			if err != nil {
+				t.Fatalf("Failed to read JSON file: %v", err)
+			}
+
+			structValue := reflect.New(structType).Elem()
+			structValue.Set(reflect.ValueOf(data))
+
+			// Encode the JSON data
+			encoder := types.NewEncoder()
+			encoded, err := encoder.Encode(structValue.Addr().Interface())
+			if err != nil {
+				t.Fatalf("Failed to encode JSON data: %v", err)
+			}
+
+			// Read binary file
+			filename := file[:len(file)-len(JSON_EXTENTION)]
+			binFileName := GetBinFilename(filename)
+			binFilePath := filepath.Join(dir, binFileName)
+			binData, err := LoadJAMTestBinaryCase(binFilePath)
+			if err != nil {
+				t.Fatalf("Failed to read binary file: %v", err)
+			}
+
+			// Compare the binary data
+			if !CompareBinaryData(encoded, binData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Fatalf("Binary data is not equal to the expected data")
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
 	}
 }

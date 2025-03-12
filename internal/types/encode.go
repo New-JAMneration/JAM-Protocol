@@ -2071,6 +2071,11 @@ func (s *Storage) Encode(e *Encoder) error {
 	}
 
 	for key, val := range *s {
+		// Encode the length of the key
+		if err := e.EncodeLength(uint64(len(key))); err != nil {
+			return err
+		}
+
 		if err := key.Encode(e); err != nil {
 			return err
 		}

@@ -28,7 +28,7 @@ const (
 	JSON_EXTENTION       = ".json"
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
-	JAM_TEST_NET_DIR     = "../../pkg/test_data/jam-test-net/"
+	JAM_TEST_NET_DIR     = "../../pkg/test_data/jamtestnet/"
 )
 
 func TestMain(m *testing.M) {
@@ -688,6 +688,110 @@ func TestDecodeJamTestNetGenesisBlock(t *testing.T) {
 	}
 }
 
+func TestDecodeJamTestNetBlock(t *testing.T) {
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "blocks")
+
+		files, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := ReadBinaryFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			block := &types.Block{}
+			err = decoder.Decode(binData, block)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			filename := file[:len(file)-len(BIN_EXTENTION)]
+			jsonFileName := GetJsonFilename(filename)
+			jsonFilePath := filepath.Join(dir, jsonFileName)
+			jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(block, jsonData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+}
+
+func TestDecodeJamTestNetState(t *testing.T) {
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
+
+		files, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := ReadBinaryFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			state := &types.State{}
+			err = decoder.Decode(binData, state)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			filename := file[:len(file)-len(BIN_EXTENTION)]
+			jsonFileName := GetJsonFilename(filename)
+			jsonFilePath := filepath.Join(dir, jsonFileName)
+			jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.State{}))
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(state, jsonData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+}
+
 func TestDecodeJamTestNetGenesisState(t *testing.T) {
 	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
 
@@ -697,16 +801,9 @@ func TestDecodeJamTestNetGenesisState(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	}
 
-	// Read without accounts
-	// FIXME: We've submitted a issue to jamtestnet.
-	// After the issue is resolved, we can remove the start and end.
-	start := 0
-	end := 14692
-	binData = binData[start:end]
-
 	// Decode the binary data
 	decoder := types.NewDecoder()
-	state := &types.TestState{}
+	state := &types.State{}
 	err = decoder.Decode(binData, state)
 	if err != nil {
 		t.Errorf("Error: %v", err)
@@ -714,7 +811,7 @@ func TestDecodeJamTestNetGenesisState(t *testing.T) {
 
 	// Read the json file
 	jsonFilePath := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
-	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.TestState{}))
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.State{}))
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
