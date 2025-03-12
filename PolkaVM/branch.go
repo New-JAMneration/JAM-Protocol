@@ -15,11 +15,12 @@ func djump(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (E
 	switch {
 	case a == 0xffff0000:
 		return HALT, pc
-	case a == 0 || a > jumpTable.Length*ZA || a%jumpTable.Length != 0:
+		// jumpTable Size : |j|  , jumpTable Length E_1(z)
+	case a == 0 || a > jumpTable.Size*ZA || a%ZA != 0:
 		return PANIC, pc
 	}
 
-	index := a/ZA - 1
+	index := a/ZA - 1 // GP
 
 	dest, _, err := ReadUintFixed(jumpTable.Data[index:], int(jumpTable.Size))
 	if err != nil {
