@@ -2355,6 +2355,16 @@ func (s *Storage) Decode(d *Decoder) error {
 	// make the dictionary with length
 	storage := make(map[OpaqueHash]ByteSequence)
 	for i := uint64(0); i < length; i++ {
+		// Decode the of the key
+		length, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+
+		if length == 0 {
+			return nil
+		}
+
 		var key OpaqueHash
 		if err = key.Decode(d); err != nil {
 			return err
@@ -2511,8 +2521,7 @@ func (a *AccumulatedHistories) Decode(d *Decoder) error {
 }
 
 // State
-// FIXME: If duna fix the issue of the delta, we should rename the TestState and add the Delta field
-func (s *TestState) Decode(d *Decoder) error {
+func (s *State) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding State")
 
 	var err error
@@ -2577,9 +2586,9 @@ func (s *TestState) Decode(d *Decoder) error {
 		return err
 	}
 
-	// if err = s.Delta.Decode(d); err != nil {
-	// 	return err
-	// }
+	if err = s.Delta.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }

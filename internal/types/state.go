@@ -22,24 +22,6 @@ type State struct {
 	Delta  Accounts                `json:"accounts"`
 }
 
-type TestState struct {
-	Alpha  AuthPools               `json:"alpha"`
-	Varphi AuthQueues              `json:"varphi"`
-	Beta   BlocksHistory           `json:"beta"`
-	Gamma  Gamma                   `json:"gamma"`
-	Psi    DisputesRecords         `json:"psi"`
-	Eta    EntropyBuffer           `json:"eta"`
-	Iota   ValidatorsData          `json:"iota"`
-	Kappa  ValidatorsData          `json:"kappa"`
-	Lambda ValidatorsData          `json:"lambda"`
-	Rho    AvailabilityAssignments `json:"rho"`
-	Tau    TimeSlot                `json:"tau"`
-	Chi    Privileges              `json:"chi"`
-	Pi     Statistics              `json:"pi"`
-	Theta  ReadyQueue              `json:"theta"`
-	Xi     AccumulatedHistories    `json:"xi"`
-}
-
 // (6.3)
 type Gamma struct {
 	GammaK ValidatorsData             `json:"gamma_k"`
