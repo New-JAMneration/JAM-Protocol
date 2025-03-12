@@ -2,6 +2,7 @@ package PolkaVM
 
 import (
 	"log"
+	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -177,8 +178,15 @@ func smod[T constraints.Signed](a, b T) T {
 	return T(a % b)
 }
 
+func abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // input: instructionCode, programCounter, skipLength, registers, memory
-var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
+var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Gas, Registers, Memory){
 	// A.5.1 Instructiopns without Arguments
 	0: instTrap,
 	1: instFallthrough,
@@ -271,6 +279,24 @@ var execInstructions = [230]func([]byte, ProgramCounter, ProgramCounter, Registe
 	210: instAnd,     // passed testvector
 	211: instXor,     // passed testvector
 	212: instOr,      // passed testvector
+	213: instMulUpperSS,
+	214: instMulUpperUU,
+	215: instMulUpperSU,
+	216: instSetLtU,
+	217: instSetLtS,
+	218: instCmovIz,
+	219: instCmovNz,
+	220: instRotL64,
+	221: instRotL32,
+	222: instRotR64,
+	223: instRotR32,
+	224: instAndInv,
+	225: instOrInv,
+	226: instXnor,
+	227: instMax,
+	228: instMaxU,
+	229: instMin,
+	230: instMinU,
 	// register more instructions here
 }
 
@@ -1433,5 +1459,281 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 	reg[rD] = reg[rA] | reg[rB]
 
 	// TODO: Why panic?
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 213
+func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	signedA := int64(reg[rA])
+	signedB := int64(reg[rB])
+
+	hi, _ := bits.Mul64(uint64(abs(signedA)), uint64(abs(signedB)))
+
+	if (signedA < 0) == (signedB < 0) {
+		reg[rD] = hi
+	} else {
+		reg[rD] = uint64(-int64(hi))
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 214
+func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	hi, _ := bits.Mul64(reg[rA], reg[rB])
+	reg[rD] = hi
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 215
+func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	signedA := int64(rA)
+
+	hi, _ := bits.Mul64(uint64(abs(signedA)), reg[rB])
+
+	if signedA < 0 {
+		reg[rD] = uint64(-int64(hi))
+	} else {
+		reg[rD] = hi
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 216
+func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	if reg[rA] < reg[rB] {
+		reg[rD] = 1
+	} else {
+		reg[rD] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 217
+func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	if int64(reg[rA]) < int64(reg[rB]) {
+		reg[rD] = 1
+	} else {
+		reg[rD] = 0
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 218
+func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return err, pc, Gas(0), reg, mem
+	}
+	// mutation
+	if reg[rB] == 0 {
+		reg[rD] = reg[rA]
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 219
+func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	if reg[rB] != 0 {
+		reg[rD] = reg[rA]
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 220
+func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = bits.RotateLeft64(reg[rA], int(reg[rB]%64))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 221
+func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = uint64(bits.RotateLeft32(uint32(reg[rA]), int(reg[rB]%32)))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 222
+func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = bits.RotateLeft64(reg[rA], -int(reg[rB]%64))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 223
+func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = uint64(bits.RotateLeft32(uint32(reg[rA]), -int(reg[rB]%32)))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 224
+func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = reg[rA] & ^reg[rB]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 225
+func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = reg[rA] | ^reg[rB]
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 226
+func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+	// mutation
+	reg[rD] = ^(reg[rA] ^ reg[rB])
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 227
+func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	// mutation
+	reg[rD] = uint64(max(int64(rA), int64(rB)))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 228
+func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	// mutation
+	if reg[rA] > reg[rB] {
+		reg[rD] = reg[rA]
+	} else {
+		reg[rD] = reg[rB]
+	}
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 229
+func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	// mutation
+	reg[rD] = uint64(min(int64(rA), int64(rB)))
+
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
+}
+
+// opcode 230
+func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
+	gasDelta := Gas(2)
+	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
+	if err != nil {
+		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+	}
+
+	// mutation
+	if reg[rA] < reg[rB] {
+		reg[rD] = reg[rA]
+	} else {
+		reg[rD] = reg[rB]
+	}
+
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
