@@ -131,14 +131,14 @@ func (s *PosteriorStates) GetGammaA() types.TicketsAccumulator {
 }
 
 // SetDelta sets the delta value
-func (s *PosteriorStates) SetDelta(delta types.ServiceAccountState) {
+func (s *PosteriorStates) SetDelta(delta types.Accounts) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Delta = delta
 }
 
 // GetDelta returns the delta value
-func (s *PosteriorStates) GetDelta() types.ServiceAccountState {
+func (s *PosteriorStates) GetDelta() types.Accounts {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Delta
@@ -250,73 +250,73 @@ func (s *PosteriorStates) GetVarphi() types.AuthQueues {
 }
 
 // SetChi sets the chi value
-func (s *PosteriorStates) SetChi(chi types.PrivilegedServices) {
+func (s *PosteriorStates) SetChi(chi types.Privileges) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Chi = chi
 }
 
 // GetChi returns the chi value
-func (s *PosteriorStates) GetChi() types.PrivilegedServices {
+func (s *PosteriorStates) GetChi() types.Privileges {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi
 }
 
 // SetManagerServiceIndex sets the managerServiceIndex value
-func (s *PosteriorStates) SetManagerServiceIndex(managerServiceIndex types.U32) {
+func (s *PosteriorStates) SetManagerServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.ManagerServiceIndex = managerServiceIndex
+	s.state.Chi.Bless = serviceId
 }
 
 // GetManagerServiceIndex returns the managerServiceIndex value
-func (s *PosteriorStates) GetManagerServiceIndex() types.U32 {
+func (s *PosteriorStates) GetManagerServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.ManagerServiceIndex
+	return s.state.Chi.Bless
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PosteriorStates) SetAlterPhiServiceIndex(alterPhiServiceIndex types.U32) {
+func (s *PosteriorStates) SetAlterPhiServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AlterPhiServiceIndex = alterPhiServiceIndex
+	s.state.Chi.Assign = serviceId
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
-func (s *PosteriorStates) GetAlterPhiServiceIndex() types.U32 {
+func (s *PosteriorStates) GetAlterPhiServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AlterPhiServiceIndex
+	return s.state.Chi.Assign
 }
 
 // SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
-func (s *PosteriorStates) SetAlterIotaServiceIndex(alterIotaServiceIndex types.U32) {
+func (s *PosteriorStates) SetAlterIotaServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AlterIotaServiceIndex = alterIotaServiceIndex
+	s.state.Chi.Designate = serviceId
 }
 
 // GetAlterIotaServiceIndex returns the alterIotaServiceIndex value
-func (s *PosteriorStates) GetAlterIotaServiceIndex() types.U32 {
+func (s *PosteriorStates) GetAlterIotaServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AlterIotaServiceIndex
+	return s.state.Chi.Designate
 }
 
 // SetAutoAccumulateGasLimits sets the autoAccumulateGasLimits value
-func (s *PosteriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits map[types.U32]types.U64) {
+func (s *PosteriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits []types.AlwaysAccumulateMapItem) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AutoAccumulateGasLimits = autoAccumulateGasLimits
+	s.state.Chi.AlwaysAccum = autoAccumulateGasLimits
 }
 
 // GetAutoAccumulateGasLimits returns the autoAccumulateGasLimits value
-func (s *PosteriorStates) GetAutoAccumulateGasLimits() map[types.U32]types.U64 {
+func (s *PosteriorStates) GetAutoAccumulateGasLimits() []types.AlwaysAccumulateMapItem {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AutoAccumulateGasLimits
+	return s.state.Chi.AlwaysAccum
 }
 
 // SetPsi sets the psi value
@@ -432,14 +432,14 @@ func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
 }
 
 // SetTheta sets the theta value
-func (s *PosteriorStates) SetTheta(theta types.AccumulationQueue) {
+func (s *PosteriorStates) SetTheta(theta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Theta = theta
 }
 
 // GetTheta returns the theta value
-func (s *PosteriorStates) GetTheta() types.AccumulationQueue {
+func (s *PosteriorStates) GetTheta() types.ReadyQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Theta
