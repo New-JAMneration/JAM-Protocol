@@ -1,7 +1,6 @@
 package PolkaVM
 
 import (
-	"fmt"
 	"log"
 	"slices"
 
@@ -553,13 +552,13 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
 	}
-	fmt.Println("132131")
+
 	offset := 4
 	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
 	}
-	fmt.Println("rA : ", rA)
+
 	reg[rA] = memVal
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1222,10 +1221,8 @@ func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 		return exitReason, pc, gasDelta, reg, mem
 	}
 
-	val, err := SignExtend(4, uint64(uint32(reg[rB]+vX)))
-	if err != nil {
-		log.Println("instAddImm32 sign extension raise error:", err)
-	}
+	val, _ := SignExtend(4, uint64(uint32(reg[rB]+vX)))
+
 	reg[rA] = val
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1494,7 +1491,7 @@ func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 		return exitReason, pc, gasDelta, reg, mem
 	}
 
-	if reg[rB] == 0 {
+	if reg[rB] != 0 {
 		reg[rA] = vX
 	}
 
@@ -1581,7 +1578,7 @@ func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 		return exitReason, pc, gasDelta, reg, mem
 	}
 
-	reg[rA] = vX + ^uint64(0) + 1 - reg[rB]
+	reg[rA] = vX - reg[rB]
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
