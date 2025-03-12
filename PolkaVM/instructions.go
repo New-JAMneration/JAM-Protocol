@@ -1473,7 +1473,7 @@ func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	signedA := int64(reg[rA])
 	signedB := int64(reg[rB])
 
-	_, hi := bits.Mul64(uint64(abs(signedA)), uint64(abs(signedB)))
+	hi, _ := bits.Mul64(uint64(abs(signedA)), uint64(abs(signedB)))
 
 	if (signedA < 0) == (signedB < 0) {
 		reg[rD] = hi
@@ -1492,8 +1492,8 @@ func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, Gas(0), reg, mem
 	}
 	// mutation
-	_, high := bits.Mul64(reg[rA], reg[rB])
-	reg[rD] = high
+	hi, _ := bits.Mul64(reg[rA], reg[rB])
+	reg[rD] = hi
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -1508,7 +1508,7 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	// mutation
 	signedA := int64(rA)
 
-	_, hi := bits.Mul64(uint64(abs(signedA)), reg[rB])
+	hi, _ := bits.Mul64(uint64(abs(signedA)), reg[rB])
 
 	if signedA < 0 {
 		reg[rD] = uint64(-int64(hi))
