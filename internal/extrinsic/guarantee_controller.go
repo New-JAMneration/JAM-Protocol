@@ -125,7 +125,7 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 				return fmt.Errorf("invalid_gas")
 			}
 		}
-		if totalGas > types.U64(types.GasLimit) {
+		if totalGas > types.U64(types.MaxAccumulateGas) {
 			return fmt.Errorf("invalid_gas")
 		}
 	}

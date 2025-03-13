@@ -81,13 +81,14 @@ var (
 	AvailBitfieldBytes      = 1
 )
 
+var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+
 // permanent constants
-var (
+const (
 	AdditionalMinBalancePerItem  = 10  // B_I
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
-	JamCommonEra                 = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
@@ -101,11 +102,22 @@ var (
 	JamAudit                     = "jam_audit"
 )
 
-var (
-	MaximumWorkItems                 = 4 // I
-	MaximumDependencyItems           = 8 // J
-	WorkReportTimeout                = 5 // U
-	WorkReportOutputBlobsMaximumSize = 48 * 1024
-	GasLimit                         = 10000000
-	MaxLookupAge                     = 14400 // L
+const (
+	MaximumWorkItems                 = 16        // I (graypaper 0.6.3)
+	MaximumDependencyItems           = 8         // J
+	WorkReportTimeout                = 5         // U
+	WorkReportOutputBlobsMaximumSize = 48 * 1024 // W_R
+	MaxLookupAge                     = 14400     // L
+)
+
+// work package constants
+const (
+	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
+	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.3
+	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.3
+	MaxSegments        = 3072                             // W_M: import/export segment total limit (14.4). graypaper 0.6.3
+	ECPiecesPerSegment = 6                                // W_P: The number of erasure-coded pieces in a segment
+	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
+	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
+	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
 )
