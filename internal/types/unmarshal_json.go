@@ -1192,27 +1192,6 @@ func (a *AuthQueues) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ReadyRecord
-func (r *ReadyRecord) UnmarshalJSON(data []byte) error {
-	var temp struct {
-		Report       WorkReport
-		Dependencies []WorkPackageHash
-	}
-
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
-	}
-
-	r.Report = temp.Report
-
-	if len(temp.Dependencies) == 0 {
-		return nil
-	}
-	r.Dependencies = temp.Dependencies
-
-	return nil
-}
-
 // ReadyQueueItem
 func (r *ReadyQueueItem) UnmarshalJSON(data []byte) error {
 	var temp []ReadyRecord
