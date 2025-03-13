@@ -951,7 +951,7 @@ func (s *StateRoot) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type AccountInfoHistory map[DictionaryKey]TimeSlotSet
+type AccountInfoHistory map[LookupMetaMapkey]TimeSlotSet
 
 type AccountInfo struct {
 	Preimages PreimagesExtrinsic `json:"preimages"`
@@ -960,8 +960,8 @@ type AccountInfo struct {
 
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
-		Key   DictionaryKey `json:"key"`
-		Value TimeSlotSet   `json:"value"`
+		Key   LookupMetaMapkey `json:"key"`
+		Value TimeSlotSet      `json:"value"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -1325,9 +1325,9 @@ func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Accounts
-func (a *Accounts) UnmarshalJSON(data []byte) error {
-	var temp []Account
+// ServiceAccountState
+func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
+	var temp []AccountDTO
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
@@ -1336,16 +1336,57 @@ func (a *Accounts) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	*a = temp
+	// Init ServiceAccountState map
+	*a = make(ServiceAccountState)
+
+	// Assign the temp into the accounts map
+	for _, account := range temp {
+		var serviceAccount ServiceAccount
+
+		var serviceInfo ServiceInfo
+		serviceInfo.CodeHash = account.Data.Service.CodeHash
+		serviceInfo.Balance = account.Data.Service.Balance
+		serviceInfo.MinItemGas = account.Data.Service.MinItemGas
+		serviceInfo.MinMemoGas = account.Data.Service.MinMemoGas
+		serviceInfo.Bytes = account.Data.Service.Bytes
+		serviceInfo.Items = account.Data.Service.Items
+
+		serviceAccount.ServiceInfo = serviceInfo
+
+		if len(account.Data.Preimages) != 0 {
+			serviceAccount.PreimageLookup = make(PreimagesMapEntry)
+
+			for _, preimage := range account.Data.Preimages {
+				serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+			}
+		} else {
+			serviceAccount.PreimageLookup = nil
+		}
+
+		if len(account.Data.LookupMeta) != 0 {
+			serviceAccount.LookupDict = make(map[LookupMetaMapkey]TimeSlotSet)
+
+			for _, lookup := range account.Data.LookupMeta {
+				key := LookupMetaMapkey(lookup.Key)
+				serviceAccount.LookupDict[key] = lookup.Val
+			}
+		} else {
+			serviceAccount.LookupDict = nil
+		}
+
+		serviceAccount.StorageDict = account.Data.Storage
+
+		(*a)[account.Id] = serviceAccount
+	}
 
 	return nil
 }
 
 // Account
-func (a *Account) UnmarshalJSON(data []byte) error {
+func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Id   U32         `json:"id"`
-		Data AccountData `json:"data"`
+		Id   U32            `json:"id"`
+		Data AccountDataDTO `json:"data"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -1358,13 +1399,13 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// AccountData
-func (a *AccountData) UnmarshalJSON(data []byte) error {
+// AccountDataDTO
+func (a *AccountDataDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Service    ServiceInfo          `json:"service"`
-		Preimages  []PreimagesMapEntry  `json:"preimages"`
-		LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
-		Storage    Storage              `json:"storage"`
+		Service    ServiceInfo             `json:"service"`
+		Preimages  []PreimagesMapEntryDTO  `json:"preimages"`
+		LookupMeta []LookupMetaMapEntryDTO `json:"lookup_meta"`
+		Storage    Storage                 `json:"storage"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -1390,7 +1431,7 @@ func (a *AccountData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// type Storage map[OpaqueHash]ByteSequence
+// Storage
 func (s *Storage) UnmarshalJSON(data []byte) error {
 	var temp map[string]string
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -1419,8 +1460,8 @@ func (s *Storage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// LookupMetaMapEntry
-func (l *LookupMetaMapEntry) UnmarshalJSON(data []byte) error {
+// LookupMetaMapEntryDTO
+func (l *LookupMetaMapEntryDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Key LookupMetaMapkey `json:"key"`
 		Val []TimeSlot       `json:"value"`
@@ -1458,8 +1499,8 @@ func (l *LookupMetaMapkey) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// PreimagesMapEntry
-func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
+// PreimagesMapEntryDTO
+func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Hash OpaqueHash `json:"hash"`
 		Blob string     `json:"blob"`

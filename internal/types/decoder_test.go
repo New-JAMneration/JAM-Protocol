@@ -656,6 +656,12 @@ func ReadBinaryFile(filename string) ([]byte, error) {
 }
 
 func TestDecodeJamTestNetGenesisBlock(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  Genesis block only support tiny mode")
+	}
+
 	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 
 	// Read the binary file
@@ -686,9 +692,22 @@ func TestDecodeJamTestNetGenesisBlock(t *testing.T) {
 	} else {
 		log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
 	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
 }
 
 func TestDecodeJamTestNetBlock(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
+	}
+
 	dirNames := []string{
 		"assurances",
 		"fallback",
@@ -738,9 +757,22 @@ func TestDecodeJamTestNetBlock(t *testing.T) {
 			}
 		}
 	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
 }
 
 func TestDecodeJamTestNetState(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+	}
+
 	dirNames := []string{
 		"assurances",
 		"fallback",
@@ -790,9 +822,22 @@ func TestDecodeJamTestNetState(t *testing.T) {
 			}
 		}
 	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
 }
 
 func TestDecodeJamTestNetGenesisState(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  genesis state only support tiny mode")
+	}
+
 	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
 
 	// Read the binary file
@@ -822,5 +867,12 @@ func TestDecodeJamTestNetGenesisState(t *testing.T) {
 		t.Errorf("Error: %v", err)
 	} else {
 		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
 	}
 }
