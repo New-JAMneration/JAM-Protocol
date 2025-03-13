@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 )
 
 // U16
@@ -2070,17 +2072,34 @@ func (s *Storage) Encode(e *Encoder) error {
 		return err
 	}
 
-	for key, val := range *s {
+	// Before encoding, sort the map by key
+	keys := make([]OpaqueHash, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (OpaqueHash)
+	sort.Slice(keys, func(i, j int) bool {
+		// OpaqueHash is a byte array, so we need to compare byte by byte
+		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+	})
+
+	// Encode the dictionary
+	for _, key := range keys {
 		// Encode the length of the key
 		if err := e.EncodeLength(uint64(len(key))); err != nil {
 			return err
 		}
 
+		// OpaqueHash
 		if err := key.Encode(e); err != nil {
 			return err
 		}
 
-		if err := val.Encode(e); err != nil {
+		// ByteSequence
+		value := (*s)[key]
+
+		if err := value.Encode(e); err != nil {
 			return err
 		}
 	}
@@ -2105,112 +2124,154 @@ func (l *LookupMetaMapkey) Encode(e *Encoder) error {
 	return nil
 }
 
-// LookupMetaMapEntry
-func (l *LookupMetaMapEntry) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding LookupMetaMapEntry")
-
-	// Key
-	if err := l.Key.Encode(e); err != nil {
-		return err
-	}
-
-	// Val
-	if err := e.EncodeLength(uint64(len(l.Val))); err != nil {
-		return err
-	}
-
-	for _, timeSlot := range l.Val {
-		if err := timeSlot.Encode(e); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // PreimagesMapEntry
 func (p *PreimagesMapEntry) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding PreimagesMapEntry")
 
-	// Hash
-	if err := p.Hash.Encode(e); err != nil {
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*p))); err != nil {
 		return err
 	}
 
-	// Blob
-	if err := p.Blob.Encode(e); err != nil {
-		return err
+	// Before encoding, sort the map by key
+	keys := make([]OpaqueHash, 0, len(*p))
+	for k := range *p {
+		keys = append(keys, k)
 	}
 
-	return nil
-}
+	// Sort the keys (OpaqueHash)
+	sort.Slice(keys, func(i, j int) bool {
+		// OpaqueHash is a byte array, so we need to compare byte by byte
+		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+	})
 
-// AccountData
-func (a *AccountData) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccountData")
+	// Encode the dictionary
+	for _, key := range keys {
+		// OpaqueHash
+		if err := key.Encode(e); err != nil {
+			return err
+		}
 
-	// Service
-	if err := a.Service.Encode(e); err != nil {
-		return err
-	}
+		// ByteSequence
+		value := (*p)[key]
 
-	// Preimages
-	if err := e.EncodeLength(uint64(len(a.Preimages))); err != nil {
-		return err
-	}
-
-	for _, preimage := range a.Preimages {
-		if err := preimage.Encode(e); err != nil {
+		if err := value.Encode(e); err != nil {
 			return err
 		}
 	}
 
-	// LookupMeta
-	if err := e.EncodeLength(uint64(len(a.LookupMeta))); err != nil {
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapEntry")
+
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*l))); err != nil {
 		return err
 	}
 
-	for _, lookupMeta := range a.LookupMeta {
-		if err := lookupMeta.Encode(e); err != nil {
+	// Before encoding, sort the map by key
+	keys := make([]LookupMetaMapkey, 0, len(*l))
+	for k := range *l {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (DictionaryKey)
+	sort.Slice(keys, func(i, j int) bool {
+		iHash := keys[i].Hash
+		jHash := keys[j].Hash
+
+		iLength := keys[i].Length
+		jLength := keys[j].Length
+
+		// Compare keys with hash (first) and length (second)
+		if bytes.Equal(iHash[:], jHash[:]) {
+			return iLength < jLength
+		} else {
+			return bytes.Compare(iHash[:], jHash[:]) < 0
+		}
+	})
+
+	// Encode the dictionary
+	for _, key := range keys {
+		// LookupMetaMapkey
+		if err := key.Encode(e); err != nil {
 			return err
+		}
+
+		// TimeSlot
+		value := (*l)[key]
+
+		if err := e.EncodeLength(uint64(len(value))); err != nil {
+			return err
+		}
+
+		for _, timeSlot := range value {
+			if err := timeSlot.Encode(e); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Storage
-	if err := a.Storage.Encode(e); err != nil {
+	return nil
+}
+
+// ServiceAccount
+func (s *ServiceAccount) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceAccount")
+
+	if err := s.ServiceInfo.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.PreimageLookup.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.LookupDict.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.StorageDict.Encode(e); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Account
-func (a *Account) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding Account")
+// ServiceAccountState
+// We don't need to convert to DTO, we can encode directly
+func (s *ServiceAccountState) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceAccountState")
 
-	// Id
-	if err := a.Id.Encode(e); err != nil {
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
 		return err
 	}
 
-	// Data
-	if err := a.Data.Encode(e); err != nil {
-		return err
+	// Before encoding, sort the map by key
+	keys := make([]ServiceId, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
 	}
 
-	return nil
-}
+	// Sort the keys (ServiceId, U32)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
 
-// Accounts
-func (d *Accounts) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding Accounts")
+	for _, k := range keys {
+		// Encode the key (ServiceId)
+		if err := k.Encode(e); err != nil {
+			return err
+		}
 
-	if err := e.EncodeLength(uint64(len(*d))); err != nil {
-		return err
-	}
+		serviceAccount := (*s)[k]
 
-	for _, account := range *d {
-		if err := account.Encode(e); err != nil {
+		// Encode the value (ServiceAccount)
+		if err := serviceAccount.Encode(e); err != nil {
 			return err
 		}
 	}

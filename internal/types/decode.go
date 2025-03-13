@@ -2275,16 +2275,16 @@ func (g *Gamma) Decode(d *Decoder) error {
 }
 
 // LookupMetaMapkey
-func (l *LookupMetaMapkey) Decode(d *Decoder) error {
+func (d *LookupMetaMapkey) Decode(decoder *Decoder) error {
 	cLog(Cyan, "Decoding LookupMetaMapkey")
 
 	var err error
 
-	if err = l.Hash.Decode(d); err != nil {
+	if err = d.Hash.Decode(decoder); err != nil {
 		return err
 	}
 
-	if err = l.Length.Decode(d); err != nil {
+	if err = d.Length.Decode(decoder); err != nil {
 		return err
 	}
 
@@ -2295,12 +2295,7 @@ func (l *LookupMetaMapkey) Decode(d *Decoder) error {
 func (l *LookupMetaMapEntry) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding LookupMetaMapEntry")
 
-	var err error
-
-	if err = l.Key.Decode(d); err != nil {
-		return err
-	}
-
+	// Decode the size of the map
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
@@ -2310,15 +2305,33 @@ func (l *LookupMetaMapEntry) Decode(d *Decoder) error {
 		return nil
 	}
 
-	// make the slice with length
-	val := make([]TimeSlot, length)
+	// Init the map
+	*l = make(LookupMetaMapEntry, length)
 	for i := uint64(0); i < length; i++ {
-		if err = val[i].Decode(d); err != nil {
+		var key LookupMetaMapkey
+		if err = key.Decode(d); err != nil {
 			return err
 		}
-	}
 
-	l.Val = val
+		timeSlotSetSize, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+
+		if timeSlotSetSize == 0 {
+			(*l)[key] = nil
+		} else {
+			// make the slice with timeSlotSetSize
+			val := make([]TimeSlot, timeSlotSetSize)
+			for i := uint64(0); i < timeSlotSetSize; i++ {
+				if err = val[i].Decode(d); err != nil {
+					return err
+				}
+			}
+
+			(*l)[key] = val
+		}
+	}
 
 	return nil
 }
@@ -2327,22 +2340,7 @@ func (l *LookupMetaMapEntry) Decode(d *Decoder) error {
 func (p *PreimagesMapEntry) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding PreimagesMapEntry")
 
-	var err error
-
-	if err = p.Hash.Decode(d); err != nil {
-		return err
-	}
-
-	if err = p.Blob.Decode(d); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Storage) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding Storage")
-
+	// Decode the size of the map
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
@@ -2352,10 +2350,47 @@ func (s *Storage) Decode(d *Decoder) error {
 		return nil
 	}
 
-	// make the dictionary with length
-	storage := make(map[OpaqueHash]ByteSequence)
+	// Init the map
+	*p = make(PreimagesMapEntry, length)
+
+	for i := uint64(0); i < length; i++ {
+		var key OpaqueHash
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		var val ByteSequence
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+
+		(*p)[key] = val
+	}
+
+	return nil
+}
+
+// Storage
+func (s *Storage) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Storage")
+
+	// Decode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Init the map
+	*s = make(Storage, length)
 	for i := uint64(0); i < length; i++ {
 		// Decode the of the key
+		// INFO: we want to read the vectors from jamtestnet, so we follow the same
+		// pattern as in the jamtestnet. They put the length of the key before the
+		// key
 		length, err := d.DecodeLength()
 		if err != nil {
 			return err
@@ -2375,76 +2410,29 @@ func (s *Storage) Decode(d *Decoder) error {
 			return err
 		}
 
-		storage[key] = val
-	}
-
-	*s = storage
-
-	return nil
-}
-
-// AccountData
-func (a *AccountData) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding AccountData")
-
-	var err error
-
-	if err = a.Service.Decode(d); err != nil {
-		return err
-	}
-
-	preimagesLength, err := d.DecodeLength()
-	if err != nil {
-		return err
-	}
-
-	if preimagesLength != 0 {
-		// make the slice with length
-		preimages := make([]PreimagesMapEntry, preimagesLength)
-		for i := uint64(0); i < preimagesLength; i++ {
-			if err = preimages[i].Decode(d); err != nil {
-				return err
-			}
-		}
-
-		a.Preimages = preimages
-	}
-
-	lookupMetaLength, err := d.DecodeLength()
-	if err != nil {
-		return err
-	}
-
-	if lookupMetaLength != 0 {
-		// make the slice with length
-		lookupMeta := make([]LookupMetaMapEntry, lookupMetaLength)
-		for i := uint64(0); i < lookupMetaLength; i++ {
-			if err = lookupMeta[i].Decode(d); err != nil {
-				return err
-			}
-		}
-
-		a.LookupMeta = lookupMeta
-	}
-
-	if err = a.Storage.Decode(d); err != nil {
-		return err
+		(*s)[key] = val
 	}
 
 	return nil
 }
 
-// Account
-func (a *Account) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding Account")
+// ServiceAccount
+func (s *ServiceAccount) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceAccount")
 
-	var err error
-
-	if err = a.Id.Decode(d); err != nil {
+	if err := s.ServiceInfo.Decode(d); err != nil {
 		return err
 	}
 
-	if err = a.Data.Decode(d); err != nil {
+	if err := s.PreimageLookup.Decode(d); err != nil {
+		return err
+	}
+
+	if err := s.LookupDict.Decode(d); err != nil {
+		return err
+	}
+
+	if err := s.StorageDict.Decode(d); err != nil {
 		return err
 	}
 
@@ -2452,9 +2440,10 @@ func (a *Account) Decode(d *Decoder) error {
 }
 
 // Accounts (Delta)
-func (a *Accounts) Decode(d *Decoder) error {
+func (a *ServiceAccountState) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding Accounts")
 
+	// Encode the size of the map
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
@@ -2464,15 +2453,24 @@ func (a *Accounts) Decode(d *Decoder) error {
 		return nil
 	}
 
-	// make the slice with length
-	accounts := make([]Account, length)
+	// Init the map
+	*a = make(ServiceAccountState, length)
+
 	for i := uint64(0); i < length; i++ {
-		if err = accounts[i].Decode(d); err != nil {
+		// Decode key (ServiceId)
+		var key ServiceId
+		if err = key.Decode(d); err != nil {
 			return err
 		}
-	}
 
-	*a = accounts
+		// Decode value (ServiceAccount)
+		var value ServiceAccount
+		if err = value.Decode(d); err != nil {
+			return err
+		}
+
+		(*a)[key] = value
+	}
 
 	return nil
 }

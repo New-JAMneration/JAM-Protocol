@@ -19,7 +19,7 @@ type State struct {
 	Pi     Statistics              `json:"pi"`
 	Theta  ReadyQueue              `json:"theta"`
 	Xi     AccumulatedHistories    `json:"xi"`
-	Delta  Accounts                `json:"accounts"`
+	Delta  ServiceAccountState     `json:"accounts"`
 }
 
 // (6.3)
@@ -30,57 +30,50 @@ type Gamma struct {
 	GammaA TicketsAccumulator         `json:"gamma_a"`
 }
 
-// INFO: New Account Struct for jamtestnet
-
-// from davxy asn
-type PreimagesMapEntry struct {
+// We use this type to parse json file
+type PreimagesMapEntryDTO struct {
 	Hash OpaqueHash   `json:"hash"`
 	Blob ByteSequence `json:"blob"`
 }
 
-// from davxy asn
-type LookupMetaMapkey struct {
-	Hash   OpaqueHash `json:"hash"`
-	Length U32        `json:"length"`
-}
-
-// from davxy asn
-type LookupMetaMapEntry struct {
+// We use this type to parse json file
+type LookupMetaMapEntryDTO struct {
 	Key LookupMetaMapkey `json:"key"`
 	Val []TimeSlot       `json:"value"`
 }
 
-type Storage map[OpaqueHash]ByteSequence
-
-type AccountData struct {
-	Service    ServiceInfo          `json:"service"`
-	Preimages  []PreimagesMapEntry  `json:"preimages"`
-	LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
-	Storage    Storage              `json:"storage"`
+// We use this type to parse json file
+type AccountDataDTO struct {
+	Service    ServiceInfo             `json:"service"`
+	Preimages  []PreimagesMapEntryDTO  `json:"preimages"`
+	LookupMeta []LookupMetaMapEntryDTO `json:"lookup_meta"`
+	Storage    Storage                 `json:"storage"`
 }
 
-type Account struct {
-	Id   ServiceId   `json:"id"`
-	Data AccountData `json:"data"`
+// We use this type to parse json file
+type AccountDTO struct {
+	Id   ServiceId      `json:"id"`
+	Data AccountDataDTO `json:"data"`
 }
 
-type Accounts []Account
+type (
+	Storage            map[OpaqueHash]ByteSequence
+	PreimagesMapEntry  map[OpaqueHash]ByteSequence
+	LookupMetaMapEntry map[LookupMetaMapkey]TimeSlotSet
+)
 
 // (9.2) delta
 type ServiceAccountState map[ServiceId]ServiceAccount
 
 // (9.3)
 type ServiceAccount struct {
-	StorageDict    map[OpaqueHash]ByteSequence   // a_s
-	PreimageLookup map[OpaqueHash]ByteSequence   // a_p
-	LookupDict     map[DictionaryKey]TimeSlotSet // a_l
-	CodeHash       OpaqueHash                    // a_c
-	Balance        U64                           // a_b
-	MinItemGas     Gas                           // a_g
-	MinMemoGas     Gas                           // a_m
+	ServiceInfo    ServiceInfo
+	PreimageLookup PreimagesMapEntry  // a_p
+	LookupDict     LookupMetaMapEntry // a_l
+	StorageDict    Storage            // a_s
 }
 
-type DictionaryKey struct {
+type LookupMetaMapkey struct {
 	Hash   OpaqueHash
 	Length U32
 }
