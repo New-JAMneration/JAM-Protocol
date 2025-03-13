@@ -1942,17 +1942,38 @@ func (aq *AccumulatedQueue) Encode(e *Encoder) error {
 }
 
 // AlwaysAccumulateMapItem
-func (a *AlwaysAccumulateMapItem) Encode(e *Encoder) error {
+func (a *AlwaysAccumulateMap) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AlwaysAccumulateMapItem")
 
-	// ID
-	if err := a.ID.Encode(e); err != nil {
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
 		return err
 	}
 
-	// Gas
-	if err := a.Gas.Encode(e); err != nil {
-		return err
+	// Before encoding, sort the map by key
+	key := make([]ServiceId, 0, len(*a))
+	for k := range *a {
+		key = append(key, k)
+	}
+
+	// Sort the keys (ServiceId)
+	sort.Slice(key, func(i, j int) bool {
+		return key[i] < key[j]
+	})
+
+	// Iterate over the map and encode the key and value
+	for _, k := range key {
+		// ServiceId
+		if err := k.Encode(e); err != nil {
+			return err
+		}
+
+		value := (*a)[k]
+
+		// Gas
+		if err := value.Encode(e); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1977,15 +1998,9 @@ func (p *Privileges) Encode(e *Encoder) error {
 		return err
 	}
 
-	// AlwaysAccum
-	if err := e.EncodeLength(uint64(len(p.AlwaysAccum))); err != nil {
+	// AlwaysAccum (dictionary)
+	if err := p.AlwaysAccum.Encode(e); err != nil {
 		return err
-	}
-
-	for _, alwaysAccumulateMapItem := range p.AlwaysAccum {
-		if err := alwaysAccumulateMapItem.Encode(e); err != nil {
-			return err
-		}
 	}
 
 	return nil

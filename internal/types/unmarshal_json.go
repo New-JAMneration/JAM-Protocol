@@ -1520,3 +1520,29 @@ func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// Priviliges
+func (p *Privileges) UnmarshalJSON(data []byte) error {
+	type Alias Privileges
+	aux := &struct {
+		AlwaysAccum *json.RawMessage `json:"chi_g"`
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// if AlwaysAccum is nil or "null", set to empty map
+	if aux.AlwaysAccum == nil || string(*aux.AlwaysAccum) == "null" {
+		p.AlwaysAccum = make(AlwaysAccumulateMap)
+	} else {
+		if err := json.Unmarshal(*aux.AlwaysAccum, &p.AlwaysAccum); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

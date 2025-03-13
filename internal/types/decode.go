@@ -2193,17 +2193,32 @@ func (a *AccumulatedQueue) Decode(d *Decoder) error {
 }
 
 // AlwaysAccumulateMapItem
-func (a *AlwaysAccumulateMapItem) Decode(d *Decoder) error {
+func (a *AlwaysAccumulateMap) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding AlwaysAccumulateMapItem")
 
 	var err error
 
-	if err = a.ID.Decode(d); err != nil {
+	// Encode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
 		return err
 	}
 
-	if err = a.Gas.Decode(d); err != nil {
-		return err
+	// make the map with length
+	*a = make(AlwaysAccumulateMap, length)
+
+	for i := uint64(0); i < length; i++ {
+		var key ServiceId
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		var val Gas
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+
+		(*a)[key] = val
 	}
 
 	return nil
@@ -2227,24 +2242,9 @@ func (p *Privileges) Decode(d *Decoder) error {
 		return err
 	}
 
-	length, err := d.DecodeLength()
-	if err != nil {
+	if err = p.AlwaysAccum.Decode(d); err != nil {
 		return err
 	}
-
-	if length == 0 {
-		return nil
-	}
-
-	// make the slice with length
-	alwaysAccum := make([]AlwaysAccumulateMapItem, length)
-	for i := uint64(0); i < length; i++ {
-		if err = alwaysAccum[i].Decode(d); err != nil {
-			return err
-		}
-	}
-
-	p.AlwaysAccum = alwaysAccum
 
 	return nil
 }
