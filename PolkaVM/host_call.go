@@ -1,7 +1,11 @@
 package PolkaVM
 
 import (
+	"errors"
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // OperationType Enum
@@ -120,4 +124,138 @@ func Psi_H(
 		}
 	}
 	return
+}
+
+var general_functions = [5]Omega{
+	0: gas,
+	1: lookup,
+	// 2: read,
+	// 3: write,
+	// 4: info,
+}
+
+// Gas Function（ΩG）
+func gas(input OmegaInput) OmegaOutput {
+	newGas := input.Gas - 10
+	if newGas < 0 {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	register := input.Registers
+	register[7] = uint64(newGas)
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: register,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+func getServiceID(addition []any) (uint64, error) {
+	if len(addition) == 0 {
+		return 0, errors.New("serviceID not found in Addition")
+	}
+
+	serviceID, ok := addition[0].(uint64)
+	if !ok {
+		return 0, errors.New("serviceID is not of type uint64")
+	}
+
+	return serviceID, nil
+}
+
+// ΩL(ϱ, ω, μ, s, s, d)
+// d: ServiceAccountState map[ServiceId]ServiceAccount
+func lookup(input OmegaInput) (output OmegaOutput) {
+	serviceID, err := getServiceID(input.Addition)
+	if err != nil {
+		fmt.Println("Addition context error")
+		return output
+	}
+	newGas := input.Gas - 10
+	if newGas < 0 {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	delta := store.GetInstance().GetPriorStates().GetDelta()
+	serviceAccount := delta[types.ServiceId(serviceID)]
+	fmt.Print(serviceID)
+	fmt.Print(serviceAccount)
+	var a types.ServiceAccount
+	if input.Registers[6] == 0xfffffffffffffff || input.Registers[6] == serviceID {
+		a = serviceAccount
+	} else if value, exists := delta[types.ServiceId(input.Registers[6])]; exists {
+		a = value
+	} else {
+		new_registers := input.Registers
+		new_registers[6] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h, o := input.Registers[7], input.Registers[8]
+	readable := isReadable(h, 32, input.Memory)
+	if !readable {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	var concated_bytes []types.ByteSequence
+	for i := uint32(h); i < uint32(h)+32; i++ {
+		value, exists := a.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
+		if exists {
+			concated_bytes = append(concated_bytes, value[:])
+		}
+	}
+	if len(concated_bytes) == 0 {
+		new_registers := input.Registers
+		new_registers[6] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	f := min(input.Registers[9], uint64(len(concated_bytes)))
+	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
+
+	if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	} else {
+		new_registers := input.Registers
+		new_registers[6] = uint64(len(concated_bytes))
+		new_memory := input.Memory
+		for i := uint64(0); i < l; i++ {
+			new_memory.Pages[uint32(o+i)].Value = concated_bytes[f+i]
+		}
+	}
+	return output
 }
