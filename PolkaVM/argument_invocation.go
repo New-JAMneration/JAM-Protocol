@@ -21,7 +21,7 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(Psi_H(standardProgram.ProgramBlob.InstructionData, counter, gas, standardProgram.Registers, standardProgram.Memory, omega, addition, program))
+	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}, program))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
@@ -50,11 +50,22 @@ func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
 	}
 }
 
-func isReadable(a, b uint64, m Memory) bool {
-	startPage := a / ZP
-	endPage := (a + b) / ZP
+func isReadable(start, offset uint64, m Memory) bool {
+	startPage := start / ZP
+	endPage := (start + offset) / ZP
 	for i := startPage; i <= endPage; i++ {
 		if m.Pages[uint32(i)].Access == MemoryInaccessible {
+			return false
+		}
+	}
+	return true
+}
+
+func isWriteable(start, offset uint64, m Memory) bool {
+	startPage := start / ZP
+	endPage := (start + offset) / ZP
+	for i := startPage; i <= endPage; i++ {
+		if m.Pages[uint32(i)].Access != MemoryReadWrite {
 			return false
 		}
 	}
