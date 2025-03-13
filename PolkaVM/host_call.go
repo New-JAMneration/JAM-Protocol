@@ -6,6 +6,8 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // OperationType Enum
@@ -129,7 +131,7 @@ func Psi_H(
 var general_functions = [5]Omega{
 	0: gas,
 	1: lookup,
-	// 2: read,
+	2: read,
 	// 3: write,
 	// 4: info,
 }
@@ -171,7 +173,6 @@ func getServiceID(addition []any) (uint64, error) {
 }
 
 // ΩL(ϱ, ω, μ, s, s, d)
-// d: ServiceAccountState map[ServiceId]ServiceAccount
 func lookup(input OmegaInput) (output OmegaOutput) {
 	serviceID, err := getServiceID(input.Addition)
 	if err != nil {
@@ -190,8 +191,6 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 	delta := store.GetInstance().GetPriorStates().GetDelta()
 	serviceAccount := delta[types.ServiceId(serviceID)]
-	fmt.Print(serviceID)
-	fmt.Print(serviceAccount)
 	var a types.ServiceAccount
 	if input.Registers[6] == 0xfffffffffffffff || input.Registers[6] == serviceID {
 		a = serviceAccount
@@ -210,8 +209,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h, o := input.Registers[7], input.Registers[8]
-	readable := isReadable(h, 32, input.Memory)
-	if !readable {
+	if !isReadable(h, 32, input.Memory) {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
 			NewGas:       newGas,
@@ -256,6 +254,116 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		for i := uint64(0); i < l; i++ {
 			new_memory.Pages[uint32(o+i)].Value = concated_bytes[f+i]
 		}
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    new_memory,
+			Addition:     input.Addition,
+		}
 	}
-	return output
+}
+
+// ΩL(ϱ, ω, μ, s, s, d)
+/*
+ϱ: gas
+ω: registers
+μ:  memory
+s: ServiceAccount
+s(斜): ServiceId
+d: ServiceAccountState (map[ServiceId]ServiceAccount)
+*/
+func read(input OmegaInput) (output OmegaOutput) {
+	serviceID, err := getServiceID(input.Addition)
+	if err != nil {
+		fmt.Println("Addition context error")
+		return output
+	}
+	newGas := input.Gas - 10
+	if newGas < 0 {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	delta := store.GetInstance().GetPriorStates().GetDelta()
+	serviceAccount := delta[types.ServiceId(serviceID)]
+	var s_star uint64
+	var a types.ServiceAccount
+	if input.Registers[6] == 0xfffffffffffffff {
+		s_star = serviceID
+		a = serviceAccount
+	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
+		s_star = input.Registers[6]
+		a = value
+	} else {
+		new_registers := input.Registers
+		new_registers[6] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	ko, kz, o := input.Registers[7], input.Registers[8], input.Registers[9]
+	if !isReadable(ko, kz, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	var concated_bytes types.ByteSequence
+	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(s_star), 4)...)
+	for i := uint32(ko); i < uint32(ko+kz); i++ {
+		value, exists := a.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
+		if exists {
+			concated_bytes = append(concated_bytes, value...)
+		}
+	}
+	k := hash.Blake2bHash(concated_bytes)
+	value, exists := a.StorageDict[k]
+	f := min(input.Registers[9], uint64(len(concated_bytes)))
+	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
+	if !exists {
+		new_registers := input.Registers
+		new_registers[6] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	} else if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	} else {
+		new_registers := input.Registers
+		new_registers[6] = uint64(len(value))
+		new_memory := input.Memory
+		for i := uint64(0); i < l; i++ {
+			new_memory.Pages[uint32(o+i)].Value = value
+		}
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    new_memory,
+			Addition:     input.Addition,
+		}
+	}
 }
