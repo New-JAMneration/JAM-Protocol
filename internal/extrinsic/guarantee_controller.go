@@ -121,7 +121,7 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 		totalGas := types.U64(0)
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
-			if workResult.AccumulateGas < delta[workResult.ServiceId].MinItemGas {
+			if workResult.AccumulateGas < delta[workResult.ServiceId].ServiceInfo.MinItemGas {
 				return fmt.Errorf("invalid_gas")
 			}
 		}
@@ -217,7 +217,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 
 	for _, v := range theta {
 		for _, w := range v {
-			qMap[w.WorkReport.PackageSpec.Hash] = true
+			qMap[w.Report.PackageSpec.Hash] = true
 		}
 	}
 
@@ -307,7 +307,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 	delta := store.GetInstance().GetPosteriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
-			if w.CodeHash != delta[w.ServiceId].CodeHash {
+			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
 				return fmt.Errorf("invalid_work_result")
 			}
 		}
