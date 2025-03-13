@@ -876,3 +876,47 @@ func TestDecodeJamTestNetGenesisState(t *testing.T) {
 		types.SetFullMode()
 	}
 }
+
+func TestUnmarshalPrivileges(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData string
+		expected types.AlwaysAccumulateMap
+	}{
+		{
+			name:     "chi_g is null",
+			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": null}`,
+			expected: types.AlwaysAccumulateMap{},
+		},
+		{
+			name:     "chi_g is empty object",
+			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": {}}`,
+			expected: types.AlwaysAccumulateMap{},
+		},
+		{
+			name:     "chi_g has values",
+			jsonData: `{"chi_m": 1, "chi_a": 2, "chi_v": 3, "chi_g": {"4": 100, "5": 200}}`,
+			expected: types.AlwaysAccumulateMap{4: 100, 5: 200},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var privileges types.Privileges
+			err := json.Unmarshal([]byte(tt.jsonData), &privileges)
+			if err != nil {
+				t.Errorf("Unmarshal error: %v", err)
+			}
+
+			if len(privileges.AlwaysAccum) != len(tt.expected) {
+				t.Errorf("Unmarshal error: expected %d, got %d", len(tt.expected), len(privileges.AlwaysAccum))
+			}
+
+			for k, v := range tt.expected {
+				if privileges.AlwaysAccum[k] != v {
+					t.Errorf("Unmarshal error: expected %d, got %d", v, privileges.AlwaysAccum[k])
+				}
+			}
+		})
+	}
+}

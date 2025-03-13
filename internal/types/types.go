@@ -1147,16 +1147,13 @@ type (
 	AccumulatedQueue     []AccumulatedQueueItem // SEQUENCE (SIZE(epoch-length)) OF AccumulatedQueueItem
 )
 
-type AlwaysAccumulateMapItem struct {
-	ID  ServiceId `json:"id"`
-	Gas Gas       `json:"gas"`
-}
+type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
-	Bless       ServiceId
-	Assign      ServiceId
-	Designate   ServiceId
-	AlwaysAccum []AlwaysAccumulateMapItem
+	Bless       ServiceId           `json:"chi_m"` // Manager
+	Assign      ServiceId           `json:"chi_a"` // AlterPhi
+	Designate   ServiceId           `json:"chi_v"` // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash
