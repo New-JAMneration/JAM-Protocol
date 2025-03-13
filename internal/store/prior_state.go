@@ -132,14 +132,14 @@ func (s *PriorStates) GetGammaA() types.TicketsAccumulator {
 }
 
 // SetDelta sets the delta value
-func (s *PriorStates) SetDelta(delta types.Accounts) {
+func (s *PriorStates) SetDelta(delta types.ServiceAccountState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Delta = delta
 }
 
 // GetDelta returns the delta value
-func (s *PriorStates) GetDelta() types.Accounts {
+func (s *PriorStates) GetDelta() types.ServiceAccountState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Delta
@@ -300,14 +300,14 @@ func (s *PriorStates) GetAlterIotaServiceIndex() types.ServiceId {
 }
 
 // SetAutoAccumulateGasLimits sets the autoAccumulateGasLimits value
-func (s *PriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits []types.AlwaysAccumulateMapItem) {
+func (s *PriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits types.AlwaysAccumulateMap) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Chi.AlwaysAccum = autoAccumulateGasLimits
 }
 
 // GetAutoAccumulateGasLimits returns the autoAccumulateGasLimits value
-func (s *PriorStates) GetAutoAccumulateGasLimits() []types.AlwaysAccumulateMapItem {
+func (s *PriorStates) GetAutoAccumulateGasLimits() types.AlwaysAccumulateMap {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi.AlwaysAccum

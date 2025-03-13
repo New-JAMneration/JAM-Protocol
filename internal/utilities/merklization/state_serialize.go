@@ -164,14 +164,14 @@ func SerializeTau(tau types.TimeSlot) (output types.ByteSequence) {
 	return output
 }
 
-func SerializeChi(chi types.PrivilegedServices) (output types.ByteSequence) {
-	output = append(output, utilities.SerializeFixedLength(chi.ManagerServiceIndex, 4)...)
-	output = append(output, utilities.SerializeFixedLength(chi.AlterPhiServiceIndex, 4)...)
-	output = append(output, utilities.SerializeFixedLength(chi.AlterIotaServiceIndex, 4)...)
-	output = append(output, utilities.SerializeU64(types.U64(len(chi.AutoAccumulateGasLimits)))...)
-	for k, v := range chi.AutoAccumulateGasLimits {
+func SerializeChi(chi types.Privileges) (output types.ByteSequence) {
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Bless), 4)...)
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Assign), 4)...)
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Designate), 4)...)
+	output = append(output, utilities.SerializeU64(types.U64(len(chi.AlwaysAccum)))...)
+	for k, v := range chi.AlwaysAccum {
 		output = append(output, utilities.SerializeFixedLength(types.U32(k), 4)...)
-		output = append(output, utilities.SerializeFixedLength(v, 8)...)
+		output = append(output, utilities.SerializeFixedLength(types.U64(v), 8)...)
 	}
 	return output
 }
@@ -196,13 +196,13 @@ func SerializePi(pi types.Statistics) (output types.ByteSequence) {
 	return output
 }
 
-func SerializeTheta(theta types.AccumulationQueue) (output types.ByteSequence) {
+func SerializeTheta(theta types.ReadyQueue) (output types.ByteSequence) {
 	for _, unaccumulateWorkReports := range theta {
 		output = append(output, utilities.SerializeU64(types.U64(len(unaccumulateWorkReports)))...)
 		for _, v := range unaccumulateWorkReports {
-			output = append(output, utilities.WorkReportSerialization(v.WorkReport)...)
-			output = append(output, utilities.SerializeU64(types.U64(len(v.UnaccumulatedDeps)))...)
-			for _, dep := range v.UnaccumulatedDeps {
+			output = append(output, utilities.WorkReportSerialization(v.Report)...)
+			output = append(output, utilities.SerializeU64(types.U64(len(v.Dependencies)))...)
+			for _, dep := range v.Dependencies {
 				output = append(output, utilities.SerializeByteSequence(dep[:])...)
 			}
 		}
@@ -304,12 +304,12 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 		key := serviceWrapper.StateKeyConstruct()
 
 		// a_c
-		delta1Output := types.ByteSequence(v.CodeHash[:])
+		delta1Output := types.ByteSequence(v.ServiceInfo.CodeHash[:])
 
 		// a_b, a_g, a_m
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.Balance), 8)...)
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.MinItemGas), 8)...)
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.MinMemoGas), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.Balance), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.MinItemGas), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.MinMemoGas), 8)...)
 
 		// a_l (U64)
 		delta1Output = append(delta1Output, utilities.SerializeFixedLength(CalculateItemNumbers(v), 8)...)
