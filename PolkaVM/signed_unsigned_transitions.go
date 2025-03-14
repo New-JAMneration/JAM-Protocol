@@ -62,7 +62,7 @@ func UnsignedToBits(x uint64, n uint) ([]bool, error) {
 	bitSize := int(8 * n)
 
 	// input should be in the range of [0, 2^(8n)-1]
-	maxValue := uint64(1) << uint(bitSize)
+	maxValue := uint64(1)<<uint(bitSize) - 1
 	if x >= maxValue {
 		return nil, fmt.Errorf("UnsignedToBits: x >= 2^(8n)")
 	}
@@ -162,15 +162,18 @@ func SignExtend(n int, x uint64) (uint64, error) {
 	if n == 8 { // special case since (1<<64) is overflow
 		return x, nil
 	}
-	if x >= (1 << (8 * n)) {
-		return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
-	}
+	/*
+		if x >= (1 << (8 * n)) {
+			return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
+		}
+	*/
 	if n == 8 || n == 0 {
 		return x, nil
 	}
 	var mul, add uint64
 	add = x >> (8*n - 1)
 	mul = 0
+
 	for i := 8 * n; i < 64; i++ { // use for loop since (1<<64) is overflow
 		mul |= (1 << i)
 	}

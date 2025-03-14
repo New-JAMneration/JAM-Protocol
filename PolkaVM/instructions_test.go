@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -88,7 +87,6 @@ func GetTestJsonFiles(dir string) []string {
 	return jsonFiles
 }
 
-// TODO: MemoryChunks and PageMaps
 func TestInstruction(t *testing.T) {
 	dir := filepath.Join(PVM_TEST_VECTORS_DIR, "programs")
 	jsonFiles := GetTestJsonFiles(dir)
@@ -97,15 +95,11 @@ func TestInstruction(t *testing.T) {
 	}
 
 	for _, file := range jsonFiles {
-		/*
-			if file != "inst_store_imm_indirect_u64_with_offset_nok.json" {
+		/*	// test single instruction
+			if file != "riscv_rv64ui_jalr.json" {
 				continue
 			}
 		*/
-		if strings.Contains(file, "riscv") {
-			continue
-		}
-
 		t.Run(file, func(t *testing.T) {
 			filename := filepath.Join(dir, file)
 

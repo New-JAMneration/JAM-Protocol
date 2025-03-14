@@ -216,8 +216,8 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 	vX := uint32(memIndex)
 	pageNum := vX / ZP
 	pageIndex := memIndex % ZP
+
 	vY := utils.SerializeFixedLength(types.U64(Immediate), types.U64(offset))
-	// if mem.Pages[pageNum] != nil { // page allocated
 	if _, pageAllocated := mem.Pages[pageNum]; pageAllocated {
 		// try to allocate read-only memory --> page-fault
 		if mem.Pages[pageNum].Access != MemoryReadWrite {
