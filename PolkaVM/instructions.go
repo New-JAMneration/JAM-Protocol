@@ -837,8 +837,7 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	}
 	reg[rD] = sum
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 103
@@ -862,8 +861,7 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	}
 	reg[rD] = sum
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 104
@@ -881,15 +879,14 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 	}
 	var n uint64 = 0
 	for i := 0; i < 64; i++ {
-		n++
 		if bitslice[i] {
 			break
 		}
+		n++
 	}
 	reg[rD] = n
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 105
@@ -907,15 +904,14 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 	}
 	var n uint64 = 0
 	for i := 0; i < 32; i++ {
-		n++
 		if bitslice[i] {
 			break
 		}
+		n++
 	}
 	reg[rD] = n
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 106
@@ -933,15 +929,14 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 	}
 	var n uint64 = 0
 	for i := 63; i >= 0; i-- {
-		n++
 		if bitslice[i] {
 			break
 		}
+		n++
 	}
 	reg[rD] = n
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 107
@@ -959,15 +954,14 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 	}
 	var n uint64 = 0
 	for i := 31; i >= 0; i-- {
-		n++
 		if bitslice[i] {
 			break
 		}
+		n++
 	}
 	reg[rD] = n
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 108
@@ -979,18 +973,12 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	}
 	// mutation
 	regA := reg[rA]
-	signedInt, err := UnsignedToSigned((regA % (1 << 8)), 1)
-	if err != nil {
-		log.Println("instSignExtend8 UnsignedToSigned raise error:", err)
-	}
-	unsignedInt, err := SignedToUnsigned(signedInt, 8)
-	if err != nil {
-		log.Println("instSignExtend8 SignedToUnsigned raise error:", err)
-	}
+	signedInt := int8(regA)
+	unsignedInt := uint64(signedInt)
+
 	reg[rD] = unsignedInt
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 109
@@ -1002,18 +990,12 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	}
 	// mutation
 	regA := reg[rA]
-	signedInt, err := UnsignedToSigned((regA % (1 << 16)), 2)
-	if err != nil {
-		log.Println("instSignExtend16 UnsignedToSigned raise error:", err)
-	}
-	unsignedInt, err := SignedToUnsigned(signedInt, 8)
-	if err != nil {
-		log.Println("instSignExtend16 SignedToUnsigned raise error:", err)
-	}
+	signedInt := int16(regA)
+	unsignedInt := uint64(signedInt)
+
 	reg[rD] = unsignedInt
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 110
@@ -1027,8 +1009,7 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	regA := reg[rA]
 	reg[rD] = regA % (1 << 16)
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 111
@@ -1047,8 +1028,7 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	}
 	reg[rD] = reversedBytes
 
-	// TODO: Why panic?
-	return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
+	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 120
@@ -1074,7 +1054,7 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 2
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint16(reg[rA])))
 
 	return exitReason, pc, gasDelta, reg, mem
 }
@@ -1088,7 +1068,7 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 4
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint32(reg[rA])))
 
 	return exitReason, pc, gasDelta, reg, mem
 }
@@ -1102,7 +1082,7 @@ func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 8
-	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+	exitReason = storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(reg[rA]))
 
 	return exitReason, pc, gasDelta, reg, mem
 }
@@ -1657,7 +1637,8 @@ func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	}
 
 	// rotate right
-	reg[rA] = reg[rB] >> (vX & 31)
+	reg[rA] = bits.RotateLeft64(reg[rB], -int(vX&63))
+	// reg[rA] = (reg[rB] >> vX) | (reg[rB] << (64 - vX))
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -1671,7 +1652,9 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	}
 
 	// rotate right
-	reg[rA] = vX >> (reg[rB] & 31)
+	reg[rB] &= 63 // % 64
+	reg[rA] = bits.RotateLeft64(vX, -int(reg[rB]&63))
+	reg[rA] = (reg[vX] >> reg[rB]) | (vX << (64 - reg[rB]))
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -1685,7 +1668,8 @@ func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	}
 
 	// rotate right
-	imm := uint32(reg[rB]) >> (vX & 31)
+	imm := bits.RotateLeft32(uint32(reg[rB]), -int(vX&31))
+
 	val, err := SignExtend(4, uint64(imm))
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -1704,7 +1688,8 @@ func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	}
 
 	// rotate right
-	imm := uint32(vX) >> (reg[rB] & 31)
+	imm := bits.RotateLeft32(uint32(vX), -int(reg[rB]&31))
+
 	val, err := SignExtend(4, uint64(imm))
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -1754,7 +1739,6 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
 	}
-
 	// per https://github.com/koute/jamtestvectors/blob/master_pvm_initial/pvm/TESTCASES.md#inst_load_imm_and_jump_indirect_invalid_djump_to_zero_different_regs_without_offset_nok
 	// the register update should take place even if the jump panics
 	dest := uint32(reg[rB] + vY)
@@ -1780,7 +1764,6 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, Gas(0), reg, mem
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1795,7 +1778,6 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	bMod32 := uint32(reg[rB])
 	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1812,7 +1794,6 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, Gas(0), reg, mem
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1836,7 +1817,6 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		}
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1847,14 +1827,8 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	if err != nil {
 		return err, pc, Gas(0), reg, mem
 	}
-	a, err := UnsignedToSigned(uint64(uint32(reg[rA])), 4)
-	if err != nil {
-		return err, pc, Gas(0), reg, mem
-	}
-	b, err := UnsignedToSigned(uint64(uint32(reg[rB])), 4)
-	if err != nil {
-		return err, pc, Gas(0), reg, mem
-	}
+	a := int64(int32(reg[rA]))
+	b := int64(int32(reg[rB]))
 
 	if b == 0 {
 		reg[rD] = ^uint64(0) // 2^64 - 1
@@ -1864,7 +1838,6 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64(a / b)
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1887,7 +1860,6 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, Gas(0), reg, mem
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -1987,7 +1959,6 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] + (^reg[rB] + 1)
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2001,7 +1972,6 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] * reg[rB]
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2019,7 +1989,6 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = reg[rA] / reg[rB]
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2039,7 +2008,6 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64((int64(reg[rA]) / int64(reg[rB])))
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2057,7 +2025,6 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = reg[rA] % reg[rB]
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2075,7 +2042,6 @@ func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64(smod(int64(reg[rA]), int64(reg[rB])))
 	}
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2089,7 +2055,6 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = reg[rA] << (reg[rB] % 64)
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2103,7 +2068,6 @@ func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = reg[rA] >> (reg[rB] % 64)
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2117,7 +2081,6 @@ func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = uint64(int64(reg[rA]) >> (reg[rB] % 64))
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2131,7 +2094,6 @@ func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = reg[rA] & reg[rB]
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2145,7 +2107,6 @@ func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = reg[rA] ^ reg[rB]
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2159,7 +2120,6 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 	// mutation
 	reg[rD] = reg[rA] | reg[rB]
 
-	// TODO: Why panic?
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
@@ -2207,12 +2167,16 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, Gas(0), reg, mem
 	}
 	// mutation
-	signedA := int64(rA)
-
-	hi, _ := bits.Mul64(uint64(abs(signedA)), reg[rB])
+	signedA := int64(reg[rA])
+	hi, lo := bits.Mul64(uint64(abs(signedA)), reg[rB])
 
 	if signedA < 0 {
-		reg[rD] = uint64(-int64(hi))
+		hi = -hi
+		if lo != 0 { // 2's complement, borrow 1 from hi
+			hi--
+		}
+		reg[rD] = hi
+
 	} else {
 		reg[rD] = hi
 	}
@@ -2305,7 +2269,9 @@ func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
 	}
 	// mutation
-	reg[rD] = uint64(bits.RotateLeft32(uint32(reg[rA]), int(reg[rB]%32)))
+	rotated := uint64(bits.RotateLeft32(uint32(reg[rA]), int(reg[rB]%32)))
+	extend, _ := SignExtend(4, rotated)
+	reg[rD] = extend
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -2331,7 +2297,9 @@ func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
 	}
 	// mutation
-	reg[rD] = uint64(bits.RotateLeft32(uint32(reg[rA]), -int(reg[rB]%32)))
+	rotated := uint64(bits.RotateLeft32(uint32(reg[rA]), -int(reg[rB]%32)))
+	extend, _ := SignExtend(4, rotated)
+	reg[rD] = extend
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -2384,7 +2352,7 @@ func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	}
 
 	// mutation
-	reg[rD] = uint64(max(int64(rA), int64(rB)))
+	reg[rD] = uint64(max(int64(reg[rA]), int64(reg[rB])))
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
@@ -2416,7 +2384,7 @@ func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	}
 
 	// mutation
-	reg[rD] = uint64(min(int64(rA), int64(rB)))
+	reg[rD] = uint64(min(int64(reg[rA]), int64(reg[rB])))
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
