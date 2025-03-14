@@ -325,13 +325,12 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes types.ByteSequence
+	var concated_bytes []byte
 	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(s_star), 4)...)
-	for i := uint32(ko); i < uint32(ko+kz); i++ {
-		value, exists := a.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
-		if exists {
-			concated_bytes = append(concated_bytes, value...)
-		}
+	for address := uint32(ko); address < uint32(ko+kz); address++ {
+		page := address / ZP
+		index := address % ZP
+		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
 	k := hash.Blake2bHash(concated_bytes)
 	v, exists := a.StorageDict[k]
