@@ -253,10 +253,10 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		new_registers[7] = uint64(len(concated_bytes))
 		new_memory := input.Memory
 		for offset := uint32(0); offset < uint32(l); offset++ {
-			address1 := uint32(offset + uint32(o))
-			page1 := address1 / ZP
-			index1 := address1 % ZP
-			new_memory.Pages[page1].Value[index1] = v[uint32(f)+offset]
+			address := uint32(offset + uint32(o))
+			page := address / ZP
+			index := address % ZP
+			new_memory.Pages[page].Value[index] = v[uint32(f)+offset]
 		}
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
