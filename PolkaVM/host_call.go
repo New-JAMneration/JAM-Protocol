@@ -405,13 +405,12 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes types.ByteSequence
+	var concated_bytes []byte
 	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
-	for i := uint32(ko); i < uint32(ko+kz); i++ {
-		value, exists := serviceAccount.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
-		if exists {
-			concated_bytes = append(concated_bytes, value...)
-		}
+	for address := uint32(ko); address < uint32(ko+kz); address++ {
+		page := address / ZP
+		index := address % ZP
+		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
 	k := hash.Blake2bHash(concated_bytes)
 	var a types.ServiceAccount
@@ -419,12 +418,12 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		delete(a.StorageDict, k)
 	} else if isReadable(vo, vz, input.Memory) {
-		var concated_bytes types.ByteSequence
-		for i := uint32(ko); i < uint32(ko+kz); i++ {
-			value, exists := a.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
-			if exists {
-				concated_bytes = append(concated_bytes, value...)
-			}
+		var concated_bytes []byte
+		concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
+		for address := uint32(ko); address < uint32(ko+kz); address++ {
+			page := address / ZP
+			index := address % ZP
+			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 		}
 		a = serviceAccount
 		a.StorageDict[k] = concated_bytes
@@ -458,6 +457,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 	new_registers := input.Registers
 	new_registers[7] = l
+	// TODO update s to a
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
@@ -530,7 +530,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(derivatives.Minbalance)...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinItemGas))...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinMemoGas))...)
-	// l????
+	// TODO serialize a_l
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(derivatives.Items))...)
 	o := input.Registers[8]
 
