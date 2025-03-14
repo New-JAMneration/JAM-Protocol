@@ -305,7 +305,7 @@ func TestWrapOpaqueHashMap(t *testing.T) {
 	result := WrapOpaqueHashMap(input)
 
 	// Assertions
-	if bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
+	if !bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
 		t.Errorf("The wrapped map should match the expected output.")
 	}
 }

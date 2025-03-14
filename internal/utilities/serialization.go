@@ -33,6 +33,7 @@ type StringOctets string
 func (s StringOctets) Serialize() types.ByteSequence {
 	return types.ByteSequence(s)
 }
+
 func (s StringOctets) Less(other interface{}) bool {
 	if otherKey, ok := other.(StringOctets); ok {
 		return s < otherKey
@@ -200,6 +201,7 @@ func WrapU64(v types.U64) Serializable {
 func WrapByteSequence(v types.ByteSequence) Serializable {
 	return ByteSequenceWrapper{v}
 }
+
 func WrapByteArray32(v types.ByteArray32) Serializable {
 	return ByteArray32Wrapper{v}
 }
@@ -217,7 +219,7 @@ func (w OpaqueHashWrapper) Serialize() types.ByteSequence {
 func (w OpaqueHashWrapper) Less(other interface{}) bool {
 	if otherKey, ok := other.(OpaqueHashWrapper); ok {
 		// Compare the byte arrays lexicographically
-		return bytes.Compare(otherKey.Value[:], otherKey.Value[:]) < 0
+		return bytes.Compare(w.Value[:], otherKey.Value[:]) < 0
 	}
 	return false
 }
