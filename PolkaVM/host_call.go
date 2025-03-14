@@ -129,7 +129,7 @@ func Psi_H(
 	return
 }
 
-var general_functions = [5]Omega{
+var hostCallFunctions = [26]Omega{
 	0: gas,
 	1: lookup,
 	2: read,
@@ -193,13 +193,13 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	delta := store.GetInstance().GetPriorStates().GetDelta()
 	serviceAccount := delta[types.ServiceId(serviceID)]
 	var a types.ServiceAccount
-	if input.Registers[6] == 0xffffffffffffffff || input.Registers[6] == serviceID {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == serviceID {
 		a = serviceAccount
-	} else if value, exists := delta[types.ServiceId(input.Registers[6])]; exists {
+	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
 	} else {
 		new_registers := input.Registers
-		new_registers[6] = NONE
+		new_registers[7] = NONE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -209,7 +209,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h, o := input.Registers[7], input.Registers[8]
+	h, o := input.Registers[8], input.Registers[9]
 	if !isReadable(h, 32, input.Memory) {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -228,7 +228,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 	if len(concated_bytes) == 0 {
 		new_registers := input.Registers
-		new_registers[6] = NONE
+		new_registers[7] = NONE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -237,8 +237,8 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	f := min(input.Registers[9], uint64(len(concated_bytes)))
-	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
+	f := min(input.Registers[10], uint64(len(concated_bytes)))
+	l := min(input.Registers[11], uint64(len(concated_bytes))-f)
 
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -250,7 +250,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		}
 	} else {
 		new_registers := input.Registers
-		new_registers[6] = uint64(len(concated_bytes))
+		new_registers[7] = uint64(len(concated_bytes))
 		new_memory := input.Memory
 		for i := uint64(0); i < l; i++ {
 			new_memory.Pages[uint32(o+i)].Value = concated_bytes[f+i]
@@ -274,7 +274,7 @@ s: ServiceAccount
 s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
-func write(input OmegaInput) (output OmegaOutput) {
+func read(input OmegaInput) (output OmegaOutput) {
 	serviceID, err := getServiceID(input.Addition)
 	if err != nil {
 		fmt.Println("Addition context error")
@@ -295,15 +295,15 @@ func write(input OmegaInput) (output OmegaOutput) {
 	serviceAccount := delta[types.ServiceId(serviceID)]
 	var s_star uint64
 	var a types.ServiceAccount
-	if input.Registers[6] == 0xffffffffffffffff {
+	if input.Registers[7] == 0xffffffffffffffff {
 		s_star = serviceID
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
-		s_star = input.Registers[6]
+		s_star = input.Registers[7]
 		a = value
 	} else {
 		new_registers := input.Registers
-		new_registers[6] = NONE
+		new_registers[7] = NONE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -312,7 +312,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	ko, kz, o := input.Registers[7], input.Registers[8], input.Registers[9]
+	ko, kz, o := input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -336,7 +336,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
 	if !exists {
 		new_registers := input.Registers
-		new_registers[6] = NONE
+		new_registers[7] = NONE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -354,7 +354,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	} else {
 		new_registers := input.Registers
-		new_registers[6] = uint64(len(value))
+		new_registers[7] = uint64(len(value))
 		new_memory := input.Memory
 		for i := uint64(0); i < l; i++ {
 			new_memory.Pages[uint32(o+i)].Value = value
@@ -369,16 +369,8 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s)
-/*
-ϱ: gas
-ω: registers
-μ:  memory
-s: ServiceAccount
-s(斜): ServiceId
-d: ServiceAccountState (map[ServiceId]ServiceAccount)
-*/
-func read(input OmegaInput) (output OmegaOutput) {
+// ΩW (ϱ, ω, μ, s, s)
+func write(input OmegaInput) (output OmegaOutput) {
 	serviceID, err := getServiceID(input.Addition)
 	if err != nil {
 		fmt.Println("Addition context error")
