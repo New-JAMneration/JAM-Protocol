@@ -219,13 +219,13 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes []types.ByteSequence
-	for i := uint32(h); i < uint32(h)+32; i++ {
-		value, exists := a.PreimageLookup[types.OpaqueHash(input.Memory.Pages[i].Value)]
-		if exists {
-			concated_bytes = append(concated_bytes, value[:])
-		}
+	var concated_bytes []byte
+	for address := uint32(h); address < uint32(h)+32; address++ {
+		page := address / ZP
+		index := address % ZP
+		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
+	v := a.PreimageLookup[types.OpaqueHash(concated_bytes)]
 	if len(concated_bytes) == 0 {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -252,8 +252,11 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		new_registers := input.Registers
 		new_registers[7] = uint64(len(concated_bytes))
 		new_memory := input.Memory
-		for i := uint64(0); i < l; i++ {
-			new_memory.Pages[uint32(o+i)].Value = concated_bytes[f+i]
+		for offset := uint32(0); offset < uint32(l); offset++ {
+			address1 := uint32(offset + uint32(o))
+			page1 := address1 / ZP
+			index1 := address1 % ZP
+			new_memory.Pages[page1].Value[index1] = v[uint32(f)+offset]
 		}
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -331,7 +334,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	k := hash.Blake2bHash(concated_bytes)
-	value, exists := a.StorageDict[k]
+	v, exists := a.StorageDict[k]
 	f := min(input.Registers[9], uint64(len(concated_bytes)))
 	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
 	if !exists {
@@ -354,10 +357,13 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	} else {
 		new_registers := input.Registers
-		new_registers[7] = uint64(len(value))
+		new_registers[7] = uint64(len(v))
 		new_memory := input.Memory
-		for i := uint64(0); i < l; i++ {
-			new_memory.Pages[uint32(o+i)].Value = value
+		for i := uint32(0); i < uint32(l); i++ {
+			address := i + uint32(o)
+			page := address / ZP
+			index := address % ZP
+			new_memory.Pages[page].Value[index] = v[uint32(f)+i]
 		}
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
