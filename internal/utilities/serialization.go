@@ -80,6 +80,10 @@ type ByteArray32Wrapper struct {
 	Value types.ByteArray32
 }
 
+type TimeSlotSetWrapper struct {
+	Value types.TimeSlotSet
+}
+
 // SerializeFixedLength corresponds to E_l in the given specification (C.5).
 // It serializes a non-negative integer x into exactly l octets in little-endian order.
 // If l=0, returns an empty slice.
@@ -180,6 +184,19 @@ func (w ByteArray32Wrapper) Serialize() types.ByteSequence {
 	return types.ByteSequence(w.Value[:])
 }
 
+func (w TimeSlotSetWrapper) Serialize() types.ByteSequence {
+	bytes := []byte{}
+
+	// Encode the length of the set
+	length := len(w.Value)
+	bytes = append(bytes, SerializeU64(types.U64(length))...)
+
+	for _, elem := range w.Value {
+		bytes = append(bytes, SerializeFixedLength(types.U32(elem), 4)...)
+	}
+	return bytes
+}
+
 // helper functions that directly take the jam_types values
 // and return a Serializable wrapper. This makes usage easier.
 func WrapU8(v types.U8) Serializable {
@@ -228,6 +245,31 @@ func WrapOpaqueHash(v types.OpaqueHash) Serializable {
 	return OpaqueHashWrapper{Value: v}
 }
 
+type DictionaryKeyWrapper struct {
+	Value types.DictionaryKey
+}
+
+func (w DictionaryKeyWrapper) Serialize() types.ByteSequence {
+	hash := w.Value.Hash                              // OpagueHash
+	length := SerializeFixedLength(w.Value.Length, 4) // U32
+
+	return append(hash[:], length...)
+}
+
+func (w DictionaryKeyWrapper) Less(other interface{}) bool {
+	if otherKey, ok := other.(DictionaryKeyWrapper); ok {
+		if bytes.Equal(w.Value.Hash[:], otherKey.Value.Hash[:]) {
+			return w.Value.Length < otherKey.Value.Length
+		}
+		return bytes.Compare(w.Value.Hash[:], otherKey.Value.Hash[:]) < 0
+	}
+	return false
+}
+
+func WrapDictionaryKey(v types.DictionaryKey) Serializable {
+	return DictionaryKeyWrapper{Value: v}
+}
+
 // ---------------------------------------------
 // C.1.5 Bit Sequence Encoding
 // E(b∈B): pack bits into bytes (LSB-first). If variable length, prefix bit length.
@@ -274,6 +316,19 @@ func (b BitSequenceWrapper) Serialize() types.ByteSequence {
 // C.1.6. Dictionary Encoding.
 type MapWarpper struct {
 	Value map[Comparable]Serializable
+}
+
+// For serialize LookupDict
+func WrapDictionaryKeyMap(input map[types.DictionaryKey]types.TimeSlotSet) MapWarpper {
+	serializableMap := map[Comparable]Serializable{}
+
+	for key, value := range input {
+		newKey := DictionaryKeyWrapper{Value: key}
+		newValue := TimeSlotSetWrapper{Value: value}
+		serializableMap[newKey] = newValue
+	}
+
+	return MapWarpper{Value: serializableMap}
 }
 
 // For serialize preImageLookup
