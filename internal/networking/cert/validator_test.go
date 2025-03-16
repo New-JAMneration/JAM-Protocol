@@ -148,3 +148,27 @@ func TestValidateTlsPubKeyMatchesSAN(t *testing.T) {
 		return
 	}
 }
+
+func TestValidateTlsCertificate(t *testing.T) {
+	type PkSk struct {
+		sk ed25519.PrivateKey
+		pk ed25519.PublicKey
+	}
+
+	pksk := PkSk{
+		pk: strToHex("0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
+		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
+	}
+
+	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	if err != nil {
+		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		return
+	}
+
+	err = ValidateTlsCertificate(tlsCert)
+	if err != nil {
+		t.Errorf("ValidateTlsCertificate() error = %v", err)
+		return
+	}
+}

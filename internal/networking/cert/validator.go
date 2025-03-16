@@ -7,11 +7,15 @@ import (
 	"fmt"
 )
 
-func ValidateTlsSignatureAlgorithm(cert tls.Certificate) error {
+func ValidateTlsCertificateIsNotEmpty(cert tls.Certificate) error {
 	if len(cert.Certificate) == 0 {
-		return nil
+		return fmt.Errorf("the certificate is empty")
 	}
 
+	return nil
+}
+
+func ValidateTlsSignatureAlgorithm(cert tls.Certificate) error {
 	x509Cert := cert.Leaf
 
 	if x509Cert == nil {
@@ -30,6 +34,16 @@ func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	return nil
 }
 
+func ValidateTlsDNSNames(cert tls.Certificate) error {
+	x509Cert := cert.Leaf
+
+	if x509Cert == nil {
+		return fmt.Errorf("the x509 certificate is nil")
+	}
+
+	return ValidateX509DNSNames(*x509Cert)
+}
+
 // The SAN is exactly 53 characters, starting with "e" followed by a base32 encoded string (using the specified alphabet).
 func ValidateX509DNSNames(cert x509.Certificate) error {
 	dnsNames := cert.DNSNames
@@ -41,20 +55,6 @@ func ValidateX509DNSNames(cert x509.Certificate) error {
 	}
 
 	return nil
-}
-
-func ValidateTlsDNSNames(cert tls.Certificate) error {
-	if len(cert.Certificate) == 0 {
-		return nil
-	}
-
-	x509Cert := cert.Leaf
-
-	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
-	}
-
-	return ValidateX509DNSNames(*x509Cert)
 }
 
 // The certificate’s public key matches the information encoded in the SAN.
@@ -79,10 +79,6 @@ func ValidateX509PubKeyMatchesSAN(cert x509.Certificate) error {
 }
 
 func ValidateTlsPubKeyMatchesSAN(cert tls.Certificate) error {
-	if len(cert.Certificate) == 0 {
-		return nil
-	}
-
 	x509Cert := cert.Leaf
 
 	if x509Cert == nil {
@@ -90,4 +86,25 @@ func ValidateTlsPubKeyMatchesSAN(cert tls.Certificate) error {
 	}
 
 	return ValidateX509PubKeyMatchesSAN(*x509Cert)
+}
+
+// Validate the TLS certificate.
+func ValidateTlsCertificate(cert tls.Certificate) error {
+	if err := ValidateTlsCertificateIsNotEmpty(cert); err != nil {
+		return err
+	}
+
+	if err := ValidateTlsSignatureAlgorithm(cert); err != nil {
+		return err
+	}
+
+	if err := ValidateTlsDNSNames(cert); err != nil {
+		return err
+	}
+
+	if err := ValidateTlsPubKeyMatchesSAN(cert); err != nil {
+		return err
+	}
+
+	return nil
 }
