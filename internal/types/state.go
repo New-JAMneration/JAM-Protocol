@@ -5,40 +5,21 @@ import "fmt"
 // (4.4)
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
+	Varphi AuthQueues              `json:"varphi"`
 	Beta   BlocksHistory           `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
-	Delta  ServiceAccountState     `json:"delta"`
+	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`
 	Iota   ValidatorsData          `json:"iota"`
 	Kappa  ValidatorsData          `json:"kappa"`
 	Lambda ValidatorsData          `json:"lambda"`
 	Rho    AvailabilityAssignments `json:"rho"`
 	Tau    TimeSlot                `json:"tau"`
-	Varphi AuthQueues              `json:"varphi"`
-	Chi    PrivilegedServices      `json:"chi"`
-	Psi    DisputesRecords         `json:"psi"`
+	Chi    Privileges              `json:"chi"`
 	Pi     Statistics              `json:"pi"`
-	Theta  AccumulationQueue       `json:"theta"`
+	Theta  ReadyQueue              `json:"theta"`
 	Xi     AccumulatedHistories    `json:"xi"`
-}
-
-type StateTest struct {
-	Alpha AuthPools     `json:"alpha"`
-	Beta  BlocksHistory `json:"beta"`
-	Gamma Gamma         `json:"gamma"`
-	// Delta  ServiceAccountState     `json:"delta"`
-	Eta    EntropyBuffer           `json:"eta"`
-	Iota   ValidatorsData          `json:"iota"`
-	Kappa  ValidatorsData          `json:"kappa"`
-	Lambda ValidatorsData          `json:"lambda"`
-	Rho    AvailabilityAssignments `json:"rho"`
-	Tau    TimeSlot                `json:"tau"`
-	Varphi AuthQueues              `json:"varphi"`
-	Chi    PrivilegedServices      `json:"chi"`
-	Psi    DisputesRecords         `json:"psi"`
-	Pi     Statistics              `json:"pi"`
-	// Theta  UnaccumulateWorkReports `json:"theta"`
-	// Xi     AccumulatedHistories    `json:"xi"`
+	Delta  ServiceAccountState     `json:"accounts"`
 }
 
 // (6.3)
@@ -49,21 +30,50 @@ type Gamma struct {
 	GammaA TicketsAccumulator         `json:"gamma_a"`
 }
 
+// We use this type to parse json file
+type PreimagesMapEntryDTO struct {
+	Hash OpaqueHash   `json:"hash"`
+	Blob ByteSequence `json:"blob"`
+}
+
+// We use this type to parse json file
+type LookupMetaMapEntryDTO struct {
+	Key LookupMetaMapkey `json:"key"`
+	Val []TimeSlot       `json:"value"`
+}
+
+// We use this type to parse json file
+type AccountDataDTO struct {
+	Service    ServiceInfo             `json:"service"`
+	Preimages  []PreimagesMapEntryDTO  `json:"preimages"`
+	LookupMeta []LookupMetaMapEntryDTO `json:"lookup_meta"`
+	Storage    Storage                 `json:"storage"`
+}
+
+// We use this type to parse json file
+type AccountDTO struct {
+	Id   ServiceId      `json:"id"`
+	Data AccountDataDTO `json:"data"`
+}
+
+type (
+	Storage            map[OpaqueHash]ByteSequence
+	PreimagesMapEntry  map[OpaqueHash]ByteSequence
+	LookupMetaMapEntry map[LookupMetaMapkey]TimeSlotSet
+)
+
 // (9.2) delta
 type ServiceAccountState map[ServiceId]ServiceAccount
 
 // (9.3)
 type ServiceAccount struct {
-	StorageDict    map[OpaqueHash]ByteSequence   // a_s
-	PreimageLookup map[OpaqueHash]ByteSequence   // a_p
-	LookupDict     map[DictionaryKey]TimeSlotSet // a_l
-	CodeHash       OpaqueHash                    // a_c
-	Balance        U64                           // a_b
-	MinItemGas     Gas                           // a_g
-	MinMemoGas     Gas                           // a_m
+	ServiceInfo    ServiceInfo
+	PreimageLookup PreimagesMapEntry  // a_p
+	LookupDict     LookupMetaMapEntry // a_l
+	StorageDict    Storage            // a_s
 }
 
-type DictionaryKey struct {
+type LookupMetaMapkey struct {
 	Hash   OpaqueHash
 	Length U32
 }

@@ -56,7 +56,7 @@ func ValidatePreimageLookupDict(id types.ServiceId) error {
 
 // (h, |p|) ∈ K(a_l)
 func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash, preimage types.ByteSequence) bool {
-	key := types.DictionaryKey{
+	key := types.LookupMetaMapkey{
 		Hash:   codeHash,
 		Length: types.U32(len(preimage)),
 	}
@@ -73,7 +73,7 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 			∅      otherwise
 	*/
 	// h, |a_p[h]|
-	lookupkey := types.DictionaryKey{
+	lookupkey := types.LookupMetaMapkey{
 		Hash:   hash,
 		Length: types.U32(len(account.PreimageLookup[hash])),
 	}

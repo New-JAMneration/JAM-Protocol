@@ -244,73 +244,73 @@ func (s *PriorStates) GetVarphi() types.AuthQueues {
 }
 
 // SetChi sets the chi value
-func (s *PriorStates) SetChi(chi types.PrivilegedServices) {
+func (s *PriorStates) SetChi(chi types.Privileges) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Chi = chi
 }
 
 // GetChi returns the chi value
-func (s *PriorStates) GetChi() types.PrivilegedServices {
+func (s *PriorStates) GetChi() types.Privileges {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi
 }
 
 // SetManagerServiceIndex sets the managerServiceIndex value
-func (s *PriorStates) SetManagerServiceIndex(managerServiceIndex types.U32) {
+func (s *PriorStates) SetManagerServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.ManagerServiceIndex = managerServiceIndex
+	s.state.Chi.Bless = serviceId
 }
 
 // GetManagerServiceIndex returns the managerServiceIndex value
-func (s *PriorStates) GetManagerServiceIndex() types.U32 {
+func (s *PriorStates) GetManagerServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.ManagerServiceIndex
+	return s.state.Chi.Bless
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PriorStates) SetAlterPhiServiceIndex(alterPhiServiceIndex types.U32) {
+func (s *PriorStates) SetAlterPhiServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AlterPhiServiceIndex = alterPhiServiceIndex
+	s.state.Chi.Assign = serviceId
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
-func (s *PriorStates) GetAlterPhiServiceIndex() types.U32 {
+func (s *PriorStates) GetAlterPhiServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AlterPhiServiceIndex
+	return s.state.Chi.Assign
 }
 
 // SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
-func (s *PriorStates) SetAlterIotaServiceIndex(alterIotaServiceIndex types.U32) {
+func (s *PriorStates) SetAlterIotaServiceIndex(serviceId types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AlterIotaServiceIndex = alterIotaServiceIndex
+	s.state.Chi.Designate = serviceId
 }
 
 // GetAlterIotaServiceIndex returns the alterIotaServiceIndex value
-func (s *PriorStates) GetAlterIotaServiceIndex() types.U32 {
+func (s *PriorStates) GetAlterIotaServiceIndex() types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AlterIotaServiceIndex
+	return s.state.Chi.Designate
 }
 
 // SetAutoAccumulateGasLimits sets the autoAccumulateGasLimits value
-func (s *PriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits map[types.U32]types.U64) {
+func (s *PriorStates) SetAutoAccumulateGasLimits(autoAccumulateGasLimits types.AlwaysAccumulateMap) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.AutoAccumulateGasLimits = autoAccumulateGasLimits
+	s.state.Chi.AlwaysAccum = autoAccumulateGasLimits
 }
 
 // GetAutoAccumulateGasLimits returns the autoAccumulateGasLimits value
-func (s *PriorStates) GetAutoAccumulateGasLimits() map[types.U32]types.U64 {
+func (s *PriorStates) GetAutoAccumulateGasLimits() types.AlwaysAccumulateMap {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Chi.AutoAccumulateGasLimits
+	return s.state.Chi.AlwaysAccum
 }
 
 // SetPsi sets the psi value
@@ -433,14 +433,14 @@ func (s *PriorStates) GetPiLast() types.ActivityRecords {
 }
 
 // SetTheta sets the theta value
-func (s *PriorStates) SetTheta(theta types.AccumulationQueue) {
+func (s *PriorStates) SetTheta(theta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Theta = theta
 }
 
 // GetTheta returns the theta value
-func (s *PriorStates) GetTheta() types.AccumulationQueue {
+func (s *PriorStates) GetTheta() types.ReadyQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Theta
