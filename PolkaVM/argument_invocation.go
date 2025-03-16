@@ -21,7 +21,7 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(Psi_H(standardProgram.ProgramBlob.InstructionData, counter, gas, standardProgram.Registers, standardProgram.Memory, omega, addition, program))
+	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}, program))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
