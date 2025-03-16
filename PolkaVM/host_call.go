@@ -2,6 +2,8 @@ package PolkaVM
 
 import (
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // OperationType Enum
@@ -120,4 +122,100 @@ func Psi_H(
 		}
 	}
 	return
+}
+
+var hostCallFunctions = [26]Omega{
+	// 0: gas,
+	// 1: lookup,
+	// 2: read,
+	// 3: write,
+	// 4: info,
+	15: forget,
+	16: bless,
+}
+
+// 15: forget
+func forget(input OmegaInput) OmegaOutput {
+	newGas := input.Gas - 10
+	o, z := input.Registers[7], input.Registers[8]
+	var h types.ByteSequence
+	pageNumber := o / ZP
+	pageIndex := o % ZP
+
+	if !isReadable(o, 32, input.Memory) { // memory not readable, return panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h = make([]byte, 32)
+	if ZP-pageIndex < 32 { // cross page
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber)].Value[:32-(ZP-pageIndex)])
+	} else {
+		copy(h[:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
+	}
+
+	var a types.ServiceAccount
+	t := input.Addition[2]
+
+	// x_bold{s} = x_s = (x_u)_d[x_s] = serviceState_d[x_s]  B.7
+
+	/*
+		type ServiceAccount struct {
+			StorageDict    map[OpaqueHash]ByteSequence   // a_s
+			PreimageLookup map[OpaqueHash]ByteSequence   // a_p
+			LookupDict     map[DictionaryKey]TimeSlotSet // a_l
+			CodeHash       OpaqueHash                    // a_c
+			Balance        U64                           // a_b
+			MinItemGas     Gas                           // a_g
+			MinMemoGas     Gas                           // a_m
+		}
+	*/
+
+	return OmegaOutput{}
+}
+
+// 16: bless
+func bless(input OmegaInput) OmegaOutput {
+	newGas := input.Gas - 10
+	o := input.Registers[7]
+	var h types.ByteSequence
+	pageNumber := o / ZP
+	pageIndex := o % ZP
+	if !isReadable(o, 32, input.Memory) { // memory not readable
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers, // don't have to return if the value not changed ?
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h = make([]byte, 32)
+	if ZP-pageIndex < 32 { // cross page
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber)].Value[:32-(ZP-pageIndex)])
+	} else {
+		copy(h[:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
+	}
+
+	input.Registers[7] = OK
+	if resultContext, ok := input.Addition[0].(ResultContext); ok {
+		resultContext.additionBytes = h
+		input.Addition[0] = resultContext
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
 }
