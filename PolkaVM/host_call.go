@@ -334,8 +334,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 	k := hash.Blake2bHash(concated_bytes)
 	v, exists := a.StorageDict[k]
-	f := min(input.Registers[10], uint64(len(concated_bytes)))
-	l := min(input.Registers[11], uint64(len(concated_bytes))-f)
+	f := min(input.Registers[11], uint64(len(concated_bytes)))
+	l := min(input.Registers[12], uint64(len(concated_bytes))-f)
 	if !exists {
 		new_registers := input.Registers
 		new_registers[7] = NONE
