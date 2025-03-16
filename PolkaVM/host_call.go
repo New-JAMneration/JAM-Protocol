@@ -225,8 +225,8 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		index := address % ZP
 		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
-	v := a.PreimageLookup[types.OpaqueHash(concated_bytes)]
-	if len(concated_bytes) == 0 {
+	v, exist := a.PreimageLookup[types.OpaqueHash(concated_bytes)]
+	if !exist {
 		new_registers := input.Registers
 		new_registers[7] = NONE
 		return OmegaOutput{
@@ -334,8 +334,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 	k := hash.Blake2bHash(concated_bytes)
 	v, exists := a.StorageDict[k]
-	f := min(input.Registers[9], uint64(len(concated_bytes)))
-	l := min(input.Registers[10], uint64(len(concated_bytes))-f)
+	f := min(input.Registers[10], uint64(len(concated_bytes)))
+	l := min(input.Registers[11], uint64(len(concated_bytes))-f)
 	if !exists {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -420,7 +420,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	} else if isReadable(vo, vz, input.Memory) {
 		var concated_bytes []byte
 		concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
-		for address := uint32(ko); address < uint32(ko+kz); address++ {
+		for address := uint32(vo); address < uint32(vo+vz); address++ {
 			page := address / ZP
 			index := address % ZP
 			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
@@ -545,7 +545,10 @@ func info(input OmegaInput) (output OmegaOutput) {
 	} else {
 		new_memory := input.Memory
 		for i := 0; i < len(serialized_bytes); i++ {
-			new_memory.Pages[uint32(int(o)+i)].Value = []byte{serialized_bytes[i]}
+			address := uint32(int(o) + i)
+			page := address / ZP
+			index := address % ZP
+			new_memory.Pages[page].Value[index] = serialized_bytes[i]
 		}
 
 		new_registers := input.Registers
