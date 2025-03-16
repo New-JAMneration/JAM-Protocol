@@ -523,14 +523,16 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	derivatives := service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID))
-	// _c, _b, _t, _g, _m, _l, _i
+
 	var serialized_bytes types.ByteSequence
 	serialized_bytes = append(serialized_bytes, utilities.SerializeByteSequence(t.CodeHash[:])...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(t.Balance)...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(derivatives.Minbalance)...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinItemGas))...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinMemoGas))...)
-	// TODO serialize a_l
+	result := utilities.WrapDictionaryKeyMap(t.LookupDict)
+	encoded := result.Serialize()
+	serialized_bytes = append(serialized_bytes, encoded...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(derivatives.Items))...)
 	o := input.Registers[8]
 
