@@ -427,6 +427,8 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 		a = serviceAccount
 		a.StorageDict[k] = concated_bytes
+		delta[types.ServiceId(serviceID)] = a
+		store.GetInstance().GetPriorStates().SetDelta(delta)
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
