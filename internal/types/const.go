@@ -121,3 +121,9 @@ const (
 	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
 	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
 )
+
+// genesis file path
+const (
+	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+	GenesisStatePath = "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
+)
