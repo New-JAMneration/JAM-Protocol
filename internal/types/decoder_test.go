@@ -28,6 +28,7 @@ const (
 	JSON_EXTENTION       = ".json"
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
+	JAM_TEST_NET_DIR     = "../../pkg/test_data/jamtestnet/"
 )
 
 func TestMain(m *testing.M) {
@@ -634,5 +635,288 @@ func TestDecodeJamTestVectorsHistory(t *testing.T) {
 		types.SetTinyMode()
 	} else {
 		types.SetFullMode()
+	}
+}
+
+func ReadBinaryFile(filename string) ([]byte, error) {
+	// read binary file and return byte array
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Read the file content
+	byteValue, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return byteValue, nil
+}
+
+func TestDecodeJamTestNetGenesisBlock(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  Genesis block only support tiny mode")
+	}
+
+	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+
+	// Read the binary file
+	binData, err := ReadBinaryFile(filename)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Decode the binary data
+	decoder := types.NewDecoder()
+	block := &types.Block{}
+	err = decoder.Decode(binData, block)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Read the json file
+	jsonFilePath := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Compare the two structs
+	if !reflect.DeepEqual(block, jsonData) {
+		log.Printf("❌ [%s] %s", types.TEST_MODE, filename)
+		t.Errorf("Error: %v", err)
+	} else {
+		log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestDecodeJamTestNetBlock(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "blocks")
+
+		files, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := ReadBinaryFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			block := &types.Block{}
+			err = decoder.Decode(binData, block)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			filename := file[:len(file)-len(BIN_EXTENTION)]
+			jsonFileName := GetJsonFilename(filename)
+			jsonFilePath := filepath.Join(dir, jsonFileName)
+			jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(block, jsonData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestDecodeJamTestNetState(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
+
+		files, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := ReadBinaryFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			state := &types.State{}
+			err = decoder.Decode(binData, state)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			filename := file[:len(file)-len(BIN_EXTENTION)]
+			jsonFileName := GetJsonFilename(filename)
+			jsonFilePath := filepath.Join(dir, jsonFileName)
+			jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.State{}))
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(state, jsonData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestDecodeJamTestNetGenesisState(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  genesis state only support tiny mode")
+	}
+
+	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
+
+	// Read the binary file
+	binData, err := ReadBinaryFile(filename)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Decode the binary data
+	decoder := types.NewDecoder()
+	state := &types.State{}
+	err = decoder.Decode(binData, state)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Read the json file
+	jsonFilePath := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.State{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Compare the two structs
+	if !reflect.DeepEqual(state, jsonData) {
+		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis-tiny")
+		t.Errorf("Error: %v", err)
+	} else {
+		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestUnmarshalPrivileges(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData string
+		expected types.AlwaysAccumulateMap
+	}{
+		{
+			name:     "chi_g is null",
+			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": null}`,
+			expected: types.AlwaysAccumulateMap{},
+		},
+		{
+			name:     "chi_g is empty object",
+			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": {}}`,
+			expected: types.AlwaysAccumulateMap{},
+		},
+		{
+			name:     "chi_g has values",
+			jsonData: `{"chi_m": 1, "chi_a": 2, "chi_v": 3, "chi_g": {"4": 100, "5": 200}}`,
+			expected: types.AlwaysAccumulateMap{4: 100, 5: 200},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var privileges types.Privileges
+			err := json.Unmarshal([]byte(tt.jsonData), &privileges)
+			if err != nil {
+				t.Errorf("Unmarshal error: %v", err)
+			}
+
+			if len(privileges.AlwaysAccum) != len(tt.expected) {
+				t.Errorf("Unmarshal error: expected %d, got %d", len(tt.expected), len(privileges.AlwaysAccum))
+			}
+
+			for k, v := range tt.expected {
+				if privileges.AlwaysAccum[k] != v {
+					t.Errorf("Unmarshal error: expected %d, got %d", v, privileges.AlwaysAccum[k])
+				}
+			}
+		})
 	}
 }

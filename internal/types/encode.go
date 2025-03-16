@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 )
 
 // U16
@@ -1940,17 +1942,38 @@ func (aq *AccumulatedQueue) Encode(e *Encoder) error {
 }
 
 // AlwaysAccumulateMapItem
-func (a *AlwaysAccumulateMapItem) Encode(e *Encoder) error {
+func (a *AlwaysAccumulateMap) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AlwaysAccumulateMapItem")
 
-	// ID
-	if err := a.ID.Encode(e); err != nil {
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
 		return err
 	}
 
-	// Gas
-	if err := a.Gas.Encode(e); err != nil {
-		return err
+	// Before encoding, sort the map by key
+	key := make([]ServiceId, 0, len(*a))
+	for k := range *a {
+		key = append(key, k)
+	}
+
+	// Sort the keys (ServiceId)
+	sort.Slice(key, func(i, j int) bool {
+		return key[i] < key[j]
+	})
+
+	// Iterate over the map and encode the key and value
+	for _, k := range key {
+		// ServiceId
+		if err := k.Encode(e); err != nil {
+			return err
+		}
+
+		value := (*a)[k]
+
+		// Gas
+		if err := value.Encode(e); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1975,15 +1998,9 @@ func (p *Privileges) Encode(e *Encoder) error {
 		return err
 	}
 
-	// AlwaysAccum
-	if err := e.EncodeLength(uint64(len(p.AlwaysAccum))); err != nil {
+	// AlwaysAccum (dictionary)
+	if err := p.AlwaysAccum.Encode(e); err != nil {
 		return err
-	}
-
-	for _, alwaysAccumulateMapItem := range p.AlwaysAccum {
-		if err := alwaysAccumulateMapItem.Encode(e); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -1997,6 +2014,369 @@ func (a *AccumulateRoot) Encode(e *Encoder) error {
 	}
 
 	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %v", a[:]))
+
+	return nil
+}
+
+// Gamma
+func (g *Gamma) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Gamma")
+
+	// GammaK
+	if err := g.GammaK.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaZ
+	if err := g.GammaZ.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaS
+	if err := g.GammaS.Encode(e); err != nil {
+		return err
+	}
+
+	// GammaA
+	if err := g.GammaA.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedHistory
+func (ah *AccumulatedHistory) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedHistory")
+
+	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
+		return err
+	}
+
+	for _, workPackageHash := range *ah {
+		if err := workPackageHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulatedHistories
+func (ah *AccumulatedHistories) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
+
+	if len(*ah) != int(EpochLength) {
+		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
+	}
+
+	for _, accumulatedHistory := range *ah {
+		if err := accumulatedHistory.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Storage")
+
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	// Before encoding, sort the map by key
+	keys := make([]OpaqueHash, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (OpaqueHash)
+	sort.Slice(keys, func(i, j int) bool {
+		// OpaqueHash is a byte array, so we need to compare byte by byte
+		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+	})
+
+	// Encode the dictionary
+	for _, key := range keys {
+		// Encode the length of the key
+		if err := e.EncodeLength(uint64(len(key))); err != nil {
+			return err
+		}
+
+		// OpaqueHash
+		if err := key.Encode(e); err != nil {
+			return err
+		}
+
+		// ByteSequence
+		value := (*s)[key]
+
+		if err := value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapkey")
+
+	// Hash
+	if err := l.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// Length
+	if err := l.Length.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding PreimagesMapEntry")
+
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*p))); err != nil {
+		return err
+	}
+
+	// Before encoding, sort the map by key
+	keys := make([]OpaqueHash, 0, len(*p))
+	for k := range *p {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (OpaqueHash)
+	sort.Slice(keys, func(i, j int) bool {
+		// OpaqueHash is a byte array, so we need to compare byte by byte
+		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+	})
+
+	// Encode the dictionary
+	for _, key := range keys {
+		// OpaqueHash
+		if err := key.Encode(e); err != nil {
+			return err
+		}
+
+		// ByteSequence
+		value := (*p)[key]
+
+		if err := value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LookupMetaMapEntry")
+
+	// Dictionary size
+	if err := e.EncodeLength(uint64(len(*l))); err != nil {
+		return err
+	}
+
+	// Before encoding, sort the map by key
+	keys := make([]LookupMetaMapkey, 0, len(*l))
+	for k := range *l {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (DictionaryKey)
+	sort.Slice(keys, func(i, j int) bool {
+		iHash := keys[i].Hash
+		jHash := keys[j].Hash
+
+		iLength := keys[i].Length
+		jLength := keys[j].Length
+
+		// Compare keys with hash (first) and length (second)
+		if bytes.Equal(iHash[:], jHash[:]) {
+			return iLength < jLength
+		} else {
+			return bytes.Compare(iHash[:], jHash[:]) < 0
+		}
+	})
+
+	// Encode the dictionary
+	for _, key := range keys {
+		// LookupMetaMapkey
+		if err := key.Encode(e); err != nil {
+			return err
+		}
+
+		// TimeSlot
+		value := (*l)[key]
+
+		if err := e.EncodeLength(uint64(len(value))); err != nil {
+			return err
+		}
+
+		for _, timeSlot := range value {
+			if err := timeSlot.Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// ServiceAccount
+func (s *ServiceAccount) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceAccount")
+
+	if err := s.ServiceInfo.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.PreimageLookup.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.LookupDict.Encode(e); err != nil {
+		return err
+	}
+
+	if err := s.StorageDict.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ServiceAccountState
+// We don't need to convert to DTO, we can encode directly
+func (s *ServiceAccountState) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceAccountState")
+
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	// Before encoding, sort the map by key
+	keys := make([]ServiceId, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (ServiceId, U32)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	for _, k := range keys {
+		// Encode the key (ServiceId)
+		if err := k.Encode(e); err != nil {
+			return err
+		}
+
+		serviceAccount := (*s)[k]
+
+		// Encode the value (ServiceAccount)
+		if err := serviceAccount.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// State
+func (s *State) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding State")
+
+	// Alpha
+	if err := s.Alpha.Encode(e); err != nil {
+		return err
+	}
+
+	// Varphi
+	if err := s.Varphi.Encode(e); err != nil {
+		return err
+	}
+
+	// Beta
+	if err := s.Beta.Encode(e); err != nil {
+		return err
+	}
+
+	// Gamma
+	if err := s.Gamma.Encode(e); err != nil {
+		return err
+	}
+
+	// Psi
+	if err := s.Psi.Encode(e); err != nil {
+		return err
+	}
+
+	// Eta
+	if err := s.Eta.Encode(e); err != nil {
+		return err
+	}
+
+	// Iota
+	if err := s.Iota.Encode(e); err != nil {
+		return err
+	}
+
+	// Kappa
+	if err := s.Kappa.Encode(e); err != nil {
+		return err
+	}
+
+	// Lambda
+	if err := s.Lambda.Encode(e); err != nil {
+		return err
+	}
+
+	// Rho
+	if err := s.Rho.Encode(e); err != nil {
+		return err
+	}
+
+	// Tau
+	if err := s.Tau.Encode(e); err != nil {
+		return err
+	}
+
+	// Chi
+	if err := s.Chi.Encode(e); err != nil {
+		return err
+	}
+
+	// Pi
+	if err := s.Pi.Encode(e); err != nil {
+		return err
+	}
+
+	// Theta
+	if err := s.Theta.Encode(e); err != nil {
+		return err
+	}
+
+	// Xi
+	if err := s.Xi.Encode(e); err != nil {
+		return err
+	}
+
+	// Delta
+	if err := s.Delta.Encode(e); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -2193,17 +2193,32 @@ func (a *AccumulatedQueue) Decode(d *Decoder) error {
 }
 
 // AlwaysAccumulateMapItem
-func (a *AlwaysAccumulateMapItem) Decode(d *Decoder) error {
+func (a *AlwaysAccumulateMap) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding AlwaysAccumulateMapItem")
 
 	var err error
 
-	if err = a.ID.Decode(d); err != nil {
+	// Encode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
 		return err
 	}
 
-	if err = a.Gas.Decode(d); err != nil {
-		return err
+	// make the map with length
+	*a = make(AlwaysAccumulateMap, length)
+
+	for i := uint64(0); i < length; i++ {
+		var key ServiceId
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		var val Gas
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+
+		(*a)[key] = val
 	}
 
 	return nil
@@ -2227,6 +2242,243 @@ func (p *Privileges) Decode(d *Decoder) error {
 		return err
 	}
 
+	if err = p.AlwaysAccum.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Gamma
+func (g *Gamma) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Gamma")
+
+	var err error
+
+	if err = g.GammaK.Decode(d); err != nil {
+		return err
+	}
+
+	if err = g.GammaZ.Decode(d); err != nil {
+		return err
+	}
+
+	if err = g.GammaS.Decode(d); err != nil {
+		return err
+	}
+
+	if err = g.GammaA.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (d *LookupMetaMapkey) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding LookupMetaMapkey")
+
+	var err error
+
+	if err = d.Hash.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = d.Length.Decode(decoder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntry
+func (l *LookupMetaMapEntry) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding LookupMetaMapEntry")
+
+	// Decode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Init the map
+	*l = make(LookupMetaMapEntry, length)
+	for i := uint64(0); i < length; i++ {
+		var key LookupMetaMapkey
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		timeSlotSetSize, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+
+		if timeSlotSetSize == 0 {
+			(*l)[key] = nil
+		} else {
+			// make the slice with timeSlotSetSize
+			val := make([]TimeSlot, timeSlotSetSize)
+			for i := uint64(0); i < timeSlotSetSize; i++ {
+				if err = val[i].Decode(d); err != nil {
+					return err
+				}
+			}
+
+			(*l)[key] = val
+		}
+	}
+
+	return nil
+}
+
+// PreimagesMapEntry
+func (p *PreimagesMapEntry) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding PreimagesMapEntry")
+
+	// Decode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Init the map
+	*p = make(PreimagesMapEntry, length)
+
+	for i := uint64(0); i < length; i++ {
+		var key OpaqueHash
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		var val ByteSequence
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+
+		(*p)[key] = val
+	}
+
+	return nil
+}
+
+// Storage
+func (s *Storage) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Storage")
+
+	// Decode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Init the map
+	*s = make(Storage, length)
+	for i := uint64(0); i < length; i++ {
+		// Decode the of the key
+		// INFO: we want to read the vectors from jamtestnet, so we follow the same
+		// pattern as in the jamtestnet. They put the length of the key before the
+		// key
+		length, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+
+		if length == 0 {
+			return nil
+		}
+
+		var key OpaqueHash
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		var val ByteSequence
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+
+		(*s)[key] = val
+	}
+
+	return nil
+}
+
+// ServiceAccount
+func (s *ServiceAccount) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceAccount")
+
+	if err := s.ServiceInfo.Decode(d); err != nil {
+		return err
+	}
+
+	if err := s.PreimageLookup.Decode(d); err != nil {
+		return err
+	}
+
+	if err := s.LookupDict.Decode(d); err != nil {
+		return err
+	}
+
+	if err := s.StorageDict.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Accounts (Delta)
+func (a *ServiceAccountState) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Accounts")
+
+	// Encode the size of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Init the map
+	*a = make(ServiceAccountState, length)
+
+	for i := uint64(0); i < length; i++ {
+		// Decode key (ServiceId)
+		var key ServiceId
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		// Decode value (ServiceAccount)
+		var value ServiceAccount
+		if err = value.Decode(d); err != nil {
+			return err
+		}
+
+		(*a)[key] = value
+	}
+
+	return nil
+}
+
+// AccumulatedHistory
+func (a *AccumulatedHistory) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedHistory")
+
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
@@ -2237,14 +2489,104 @@ func (p *Privileges) Decode(d *Decoder) error {
 	}
 
 	// make the slice with length
-	alwaysAccum := make([]AlwaysAccumulateMapItem, length)
+	history := make([]WorkPackageHash, length)
 	for i := uint64(0); i < length; i++ {
-		if err = alwaysAccum[i].Decode(d); err != nil {
+		if err = history[i].Decode(d); err != nil {
 			return err
 		}
 	}
 
-	p.AlwaysAccum = alwaysAccum
+	*a = history
+
+	return nil
+}
+
+// AccumulatedHistories (Xi)
+func (a *AccumulatedHistories) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedHistories")
+
+	// make the slice with epoch length
+	histories := make([]AccumulatedHistory, EpochLength)
+	for i := 0; i < EpochLength; i++ {
+		if err := histories[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*a = histories
+
+	return nil
+}
+
+// State
+func (s *State) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding State")
+
+	var err error
+
+	if err = s.Alpha.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Varphi.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Beta.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Gamma.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Psi.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Eta.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Iota.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Kappa.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Lambda.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Rho.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Tau.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Chi.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Pi.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Theta.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Xi.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Delta.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }

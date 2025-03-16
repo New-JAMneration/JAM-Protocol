@@ -951,7 +951,7 @@ func (s *StateRoot) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type AccountInfoHistory map[DictionaryKey]TimeSlotSet
+type AccountInfoHistory map[LookupMetaMapkey]TimeSlotSet
 
 type AccountInfo struct {
 	Preimages PreimagesExtrinsic `json:"preimages"`
@@ -960,8 +960,8 @@ type AccountInfo struct {
 
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
-		Key   DictionaryKey `json:"key"`
-		Value TimeSlotSet   `json:"value"`
+		Key   LookupMetaMapkey `json:"key"`
+		Value TimeSlotSet      `json:"value"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -1268,6 +1268,260 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 	}
 
 	*b = temp
+
+	return nil
+}
+
+// AccumulatedHistory
+func (a *AccumulatedHistory) UnmarshalJSON(data []byte) error {
+	var temp []WorkPackageHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AccumulatedHistories
+func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
+	var temp []AccumulatedHistory
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// ServiceAccountState
+func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
+	var temp []AccountDTO
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	// Init ServiceAccountState map
+	*a = make(ServiceAccountState)
+
+	// Assign the temp into the accounts map
+	for _, account := range temp {
+		var serviceAccount ServiceAccount
+
+		var serviceInfo ServiceInfo
+		serviceInfo.CodeHash = account.Data.Service.CodeHash
+		serviceInfo.Balance = account.Data.Service.Balance
+		serviceInfo.MinItemGas = account.Data.Service.MinItemGas
+		serviceInfo.MinMemoGas = account.Data.Service.MinMemoGas
+		serviceInfo.Bytes = account.Data.Service.Bytes
+		serviceInfo.Items = account.Data.Service.Items
+
+		serviceAccount.ServiceInfo = serviceInfo
+
+		if len(account.Data.Preimages) != 0 {
+			serviceAccount.PreimageLookup = make(PreimagesMapEntry)
+
+			for _, preimage := range account.Data.Preimages {
+				serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+			}
+		} else {
+			serviceAccount.PreimageLookup = nil
+		}
+
+		if len(account.Data.LookupMeta) != 0 {
+			serviceAccount.LookupDict = make(map[LookupMetaMapkey]TimeSlotSet)
+
+			for _, lookup := range account.Data.LookupMeta {
+				key := LookupMetaMapkey(lookup.Key)
+				serviceAccount.LookupDict[key] = lookup.Val
+			}
+		} else {
+			serviceAccount.LookupDict = nil
+		}
+
+		serviceAccount.StorageDict = account.Data.Storage
+
+		(*a)[account.Id] = serviceAccount
+	}
+
+	return nil
+}
+
+// Account
+func (a *AccountDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Id   U32            `json:"id"`
+		Data AccountDataDTO `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Id = ServiceId(temp.Id)
+	a.Data = temp.Data
+
+	return nil
+}
+
+// AccountDataDTO
+func (a *AccountDataDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Service    ServiceInfo             `json:"service"`
+		Preimages  []PreimagesMapEntryDTO  `json:"preimages"`
+		LookupMeta []LookupMetaMapEntryDTO `json:"lookup_meta"`
+		Storage    Storage                 `json:"storage"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Service = temp.Service
+
+	if len(temp.Preimages) == 0 {
+		a.Preimages = nil
+	} else {
+		a.Preimages = temp.Preimages
+	}
+
+	if len(temp.LookupMeta) == 0 {
+		a.LookupMeta = nil
+	} else {
+		a.LookupMeta = temp.LookupMeta
+	}
+
+	a.Storage = temp.Storage
+
+	return nil
+}
+
+// Storage
+func (s *Storage) UnmarshalJSON(data []byte) error {
+	var temp map[string]string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*s = make(Storage)
+	for key, value := range temp {
+		keyBytes, err := hex.DecodeString(key[2:])
+		if err != nil {
+			return err
+		}
+
+		valueBytes, err := hex.DecodeString(value[2:])
+		if err != nil {
+			return err
+		}
+
+		(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntryDTO
+func (l *LookupMetaMapEntryDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Key LookupMetaMapkey `json:"key"`
+		Val []TimeSlot       `json:"value"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Key = temp.Key
+
+	if len(temp.Val) == 0 {
+		l.Val = nil
+	} else {
+		l.Val = temp.Val
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash   OpaqueHash `json:"hash"`
+		Length U32        `json:"length"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Hash = temp.Hash
+	l.Length = temp.Length
+
+	return nil
+}
+
+// PreimagesMapEntryDTO
+func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash OpaqueHash `json:"hash"`
+		Blob string     `json:"blob"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	p.Hash = temp.Hash
+
+	blobBytes, err := hex.DecodeString(temp.Blob[2:])
+	if err != nil {
+		return err
+	}
+	p.Blob = blobBytes
+
+	return nil
+}
+
+// Priviliges
+func (p *Privileges) UnmarshalJSON(data []byte) error {
+	type Alias Privileges
+	aux := &struct {
+		AlwaysAccum *json.RawMessage `json:"chi_g"`
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// if AlwaysAccum is nil or "null", set to empty map
+	if aux.AlwaysAccum == nil || string(*aux.AlwaysAccum) == "null" {
+		p.AlwaysAccum = make(AlwaysAccumulateMap)
+	} else {
+		if err := json.Unmarshal(*aux.AlwaysAccum, &p.AlwaysAccum); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
