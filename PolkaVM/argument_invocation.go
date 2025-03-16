@@ -7,7 +7,7 @@ func Psi_M(
 	gas Gas, // gas counter
 	argument Argument, // argument
 	omega Omega, // jump table
-	addition any, // host-call context
+	addition []any, // host-call context
 	program StandardProgram,
 ) (
 	psi_result Psi_M_ReturnType,
