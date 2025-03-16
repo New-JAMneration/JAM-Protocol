@@ -305,7 +305,41 @@ func TestWrapOpaqueHashMap(t *testing.T) {
 	result := WrapOpaqueHashMap(input)
 
 	// Assertions
-	if bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
+	if !bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
+		t.Errorf("The wrapped map should match the expected output.")
+	}
+}
+
+func TestWrapDictionaryKeyMap(t *testing.T) {
+	input := map[types.DictionaryKey]types.TimeSlotSet{
+		{
+			Hash:   types.OpaqueHash{5, 2, 1},
+			Length: 100,
+		}: {3, 4, 5},
+		{
+			Hash:   types.OpaqueHash{1, 2, 3},
+			Length: 4,
+		}: {1, 2, 3},
+		{
+			Hash:   types.OpaqueHash{2, 1, 0},
+			Length: 1000,
+		}: {2, 4, 5},
+	}
+
+	// Expected outputs
+	expectedSerializableMap := map[Comparable]Serializable{
+		DictionaryKeyWrapper{Value: types.DictionaryKey{Hash: types.OpaqueHash{1, 2, 3}, Length: 4}}:    TimeSlotSetWrapper{Value: types.TimeSlotSet{1, 2, 3}},
+		DictionaryKeyWrapper{Value: types.DictionaryKey{Hash: types.OpaqueHash{2, 1, 0}, Length: 1000}}: TimeSlotSetWrapper{Value: types.TimeSlotSet{2, 4, 5}},
+		DictionaryKeyWrapper{Value: types.DictionaryKey{Hash: types.OpaqueHash{5, 2, 1}, Length: 100}}:  TimeSlotSetWrapper{Value: types.TimeSlotSet{3, 4, 5}},
+	}
+
+	expectedOutput := MapWarpper{Value: expectedSerializableMap}
+
+	// Call the function
+	result := WrapDictionaryKeyMap(input)
+
+	// Assertions
+	if !bytes.Equal(expectedOutput.Serialize(), result.Serialize()) {
 		t.Errorf("The wrapped map should match the expected output.")
 	}
 }

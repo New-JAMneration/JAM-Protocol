@@ -162,11 +162,11 @@ func SignExtend(n int, x uint64) (uint64, error) {
 	if n == 8 { // special case since (1<<64) is overflow
 		return x, nil
 	}
-	/*
-		if x >= (1 << (8 * n)) {
-			return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
-		}
-	*/
+
+	if x >= (1 << (8 * n)) {
+		return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
+	}
+
 	if n == 8 || n == 0 {
 		return x, nil
 	}

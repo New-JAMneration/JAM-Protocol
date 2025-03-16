@@ -809,7 +809,7 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 	rA := getRegFloorIndex(instructionCode, pc)
 	minAddr := slices.Min(reg[:]) // x >= h (heap) defined in A.7 --> writable memory
 
-	if !isWritable(minAddr, reg[rA], mem) {
+	if !isWriteable(minAddr, reg[rA], mem) {
 		return PVMExitTuple(PAGE_FAULT, minAddr), pc, gasDelta, reg, mem
 	}
 
@@ -1654,7 +1654,6 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	// rotate right
 	reg[rB] &= 63 // % 64
 	reg[rA] = bits.RotateLeft64(vX, -int(reg[rB]&63))
-	reg[rA] = (reg[vX] >> reg[rB]) | (vX << (64 - reg[rB]))
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
