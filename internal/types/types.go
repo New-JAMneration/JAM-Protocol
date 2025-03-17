@@ -1166,7 +1166,7 @@ type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState
 	ValidatorKeys   ValidatorsData
 	Authorizers     AuthQueues
-	Privileges      PrivilegedServices
+	Privileges      Privileges
 }
 
 // (12.18)
