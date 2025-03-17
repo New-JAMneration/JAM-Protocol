@@ -246,7 +246,7 @@ func WrapOpaqueHash(v types.OpaqueHash) Serializable {
 }
 
 type DictionaryKeyWrapper struct {
-	Value types.DictionaryKey
+	Value types.LookupMetaMapkey
 }
 
 func (w DictionaryKeyWrapper) Serialize() types.ByteSequence {
@@ -266,7 +266,7 @@ func (w DictionaryKeyWrapper) Less(other interface{}) bool {
 	return false
 }
 
-func WrapDictionaryKey(v types.DictionaryKey) Serializable {
+func WrapDictionaryKey(v types.LookupMetaMapkey) Serializable {
 	return DictionaryKeyWrapper{Value: v}
 }
 
@@ -319,7 +319,7 @@ type MapWarpper struct {
 }
 
 // For serialize LookupDict
-func WrapDictionaryKeyMap(input map[types.DictionaryKey]types.TimeSlotSet) MapWarpper {
+func WrapDictionaryKeyMap(input map[types.LookupMetaMapkey]types.TimeSlotSet) MapWarpper {
 	serializableMap := map[Comparable]Serializable{}
 
 	for key, value := range input {
