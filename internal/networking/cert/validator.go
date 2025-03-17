@@ -7,24 +7,6 @@ import (
 	"fmt"
 )
 
-func ValidateTlsCertificateIsNotEmpty(cert tls.Certificate) error {
-	if len(cert.Certificate) == 0 {
-		return fmt.Errorf("the certificate is empty")
-	}
-
-	return nil
-}
-
-func ValidateTlsSignatureAlgorithm(cert tls.Certificate) error {
-	x509Cert := cert.Leaf
-
-	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
-	}
-
-	return ValidateX509SignatureAlgorithm(*x509Cert)
-}
-
 // The certificate uses Ed25519 as the signature algorithm.
 func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	if cert.SignatureAlgorithm != x509.PureEd25519 {
@@ -32,16 +14,6 @@ func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	}
 
 	return nil
-}
-
-func ValidateTlsDNSNames(cert tls.Certificate) error {
-	x509Cert := cert.Leaf
-
-	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
-	}
-
-	return ValidateX509DNSNames(*x509Cert)
 }
 
 // The SAN is exactly 53 characters, starting with "e" followed by a base32 encoded string (using the specified alphabet).
@@ -78,31 +50,35 @@ func ValidateX509PubKeyMatchesSAN(cert x509.Certificate) error {
 	return nil
 }
 
-func ValidateTlsPubKeyMatchesSAN(cert tls.Certificate) error {
-	x509Cert := cert.Leaf
+func ParseCertificateFromPem(pemCerts []byte) (*x509.Certificate, error) {
+	cert, err := x509.ParseCertificate(pemCerts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %v", err)
+	}
+
+	return cert, nil
+}
+
+// Validate the TLS certificate.
+func ValidateTlsCertificate(cert tls.Certificate) error {
+	x509Cert, err := ParseCertificateFromPem(cert.Certificate[0])
+	if err != nil {
+		return err
+	}
 
 	if x509Cert == nil {
 		return fmt.Errorf("the x509 certificate is nil")
 	}
 
-	return ValidateX509PubKeyMatchesSAN(*x509Cert)
-}
-
-// Validate the TLS certificate.
-func ValidateTlsCertificate(cert tls.Certificate) error {
-	if err := ValidateTlsCertificateIsNotEmpty(cert); err != nil {
+	if err := ValidateX509SignatureAlgorithm(*x509Cert); err != nil {
 		return err
 	}
 
-	if err := ValidateTlsSignatureAlgorithm(cert); err != nil {
+	if err := ValidateX509DNSNames(*x509Cert); err != nil {
 		return err
 	}
 
-	if err := ValidateTlsDNSNames(cert); err != nil {
-		return err
-	}
-
-	if err := ValidateTlsPubKeyMatchesSAN(cert); err != nil {
+	if err := ValidateX509PubKeyMatchesSAN(*x509Cert); err != nil {
 		return err
 	}
 
