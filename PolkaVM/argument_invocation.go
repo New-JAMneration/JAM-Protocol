@@ -7,7 +7,7 @@ func Psi_M(
 	gas Gas, // gas counter
 	argument Argument, // argument
 	omega Omega, // jump table
-	addition any, // host-call context
+	addition []any, // host-call context
 	program StandardProgram,
 ) (
 	psi_result Psi_M_ReturnType,
@@ -50,11 +50,22 @@ func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
 	}
 }
 
-func isReadable(a, b uint64, m Memory) bool {
-	startPage := a / ZP
-	endPage := (a + b) / ZP
+func isReadable(start, offset uint64, m Memory) bool {
+	startPage := start / ZP
+	endPage := (start + offset) / ZP
 	for i := startPage; i <= endPage; i++ {
 		if m.Pages[uint32(i)].Access == MemoryInaccessible {
+			return false
+		}
+	}
+	return true
+}
+
+func isWriteable(start, offset uint64, m Memory) bool {
+	startPage := start / ZP
+	endPage := (start + offset) / ZP
+	for i := startPage; i <= endPage; i++ {
+		if m.Pages[uint32(i)].Access != MemoryReadWrite {
 			return false
 		}
 	}
