@@ -332,7 +332,7 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 				mockCodeHash: preimage,
 			},
 			// (h, |p|) ∈ K(a_l)
-			LookupDict: map[types.DictionaryKey]types.TimeSlotSet{
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
 				{Hash: mockCodeHash, Length: types.U32(len(preimage))}: {},
 			},
 		}
@@ -372,7 +372,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
 				mockCodeHash: preimage,
 			},
-			LookupDict: map[types.DictionaryKey]types.TimeSlotSet{
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
 				{Hash: mockCodeHash, Length: types.U32(len(preimage))}: {mockTimestamp},
 			},
 		}
@@ -410,7 +410,7 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
 				mockCodeHash: preimage,
 			},
-			LookupDict: map[types.DictionaryKey]types.TimeSlotSet{
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
 				{Hash: mockCodeHash, Length: mockPreimageLen}: {mockTimestamp},
 			},
 		}
