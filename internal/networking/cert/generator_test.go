@@ -1,4 +1,4 @@
-package network
+package cert
 
 import (
 	"crypto/ed25519"
@@ -114,13 +114,13 @@ func TestGenerateSelfSignedCertificate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateSelfSignedCertificate(tt.args.sk, tt.args.pk)
+			got, err := GenSelfSignedCert(tt.args.sk, tt.args.pk)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateSelfSignedCertificate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenSelfSignedCert() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GenerateSelfSignedCertificate() = %v, want %v", got, tt.want)
+				t.Errorf("GenSelfSignedCert() = %v, want %v", got, tt.want)
 			}
 		})
 	}
