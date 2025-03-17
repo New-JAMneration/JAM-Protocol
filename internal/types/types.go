@@ -138,15 +138,14 @@ func (assignments AvailabilityAssignments) Validate() error {
 	return nil
 }
 
-// B.8. Refine Context
-
+// v0.6.3 (11.4) Refine Context $\mathbb{X}$
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor,omitempty"`
-	StateRoot        StateRoot    `json:"state_root,omitempty"`
-	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`
-	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"`
-	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`
+	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash
+	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root
+	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root
+	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash
+	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot
+	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {
@@ -162,11 +161,12 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 	return scale.Encode("refinecontext", r)
 }
 
-// 8.1. Authorizations
+// --- Chapter 8. Authorization ---
 
+// Used in v0.6.3 (14.2)
 type Authorizer struct {
-	CodeHash OpaqueHash   `json:"code_hash,omitempty"`
-	Params   ByteSequence `json:"params,omitempty"`
+	CodeHash OpaqueHash   `json:"code_hash,omitempty"` // authorization code hash
+	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob
 }
 
 type AuthorizerHash OpaqueHash
@@ -224,27 +224,28 @@ func (a AuthQueues) Validate() error {
 	return nil
 }
 
-// 14.3. (14.2) Work Package
+// --- v0.6.3 Chapter 14.3. Packages and Items ---
 
 type ImportSpec struct {
-	TreeRoot OpaqueHash `json:"tree_root,omitempty"`
-	Index    U16        `json:"index,omitempty"`
+	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
+	Index    U16        `json:"index,omitempty"`     // index of prior exported segments
 }
+
 type ExtrinsicSpec struct {
 	Hash OpaqueHash `json:"hash,omitempty"`
 	Len  U32        `json:"len,omitempty"`
 }
 
-// 14.3. (14.3) Work Item
+// v0.6.3 (14.3) Work Item $\mathbb{I}$
 type WorkItem struct {
-	Service            ServiceId       `json:"service,omitempty"`
-	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
-	Payload            ByteSequence    `json:"payload,omitempty"`
-	RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`
-	AccumulateGasLimit Gas             `json:"accumulate_gas_limit,omitempty"`
-	ImportSegments     []ImportSpec    `json:"import_segments,omitempty"`
-	Extrinsic          []ExtrinsicSpec `json:"extrinsic,omitempty"`
-	ExportCount        U16             `json:"export_count,omitempty"`
+	Service            ServiceId       `json:"service,omitempty"`              // service index $s$
+	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`            // code hash of the service $c$
+	Payload            ByteSequence    `json:"payload,omitempty"`              // payload blob $\mathbf{y}$
+	RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`     // refinement gas limit $g$
+	AccumulateGasLimit Gas             `json:"accumulate_gas_limit,omitempty"` // accumulatation gas limit $a$
+	ExportCount        U16             `json:"export_count,omitempty"`         // number of exported data segments $e$
+	ImportSegments     []ImportSpec    `json:"import_segments,omitempty"`      // sequence of imported data segments $\mathbf{i}$
+	Extrinsic          []ExtrinsicSpec `json:"extrinsic,omitempty"`            // sequence of blob hashes and lengths $\mathbf{x}$
 }
 
 func (w *WorkItem) ScaleDecode(data []byte) error {
@@ -260,9 +261,10 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workitem", w)
 }
 
+// v0.6.3 (14.2) Work Package
 type WorkPackage struct {
-	Authorization ByteSequence  `json:"authorization,omitempty"`
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"`
+	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token
+	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index
 	Authorizer    Authorizer    `json:"authorizer"`
 	Context       RefineContext `json:"context"`
 	Items         []WorkItem    `json:"items,omitempty"`
@@ -281,15 +283,67 @@ func (w *WorkPackage) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workpackage", w)
 }
 
-func (w WorkPackage) Validate() error {
-	if len(w.Items) < 1 || len(w.Items) > 4 {
-		return fmt.Errorf("WorkPackage Items must have between 1 and 4 items, but got %d", len(w.Items))
+func (wp *WorkPackage) Validate() error {
+	// v0.6.3 (14.2)
+	if len(wp.Items) < 1 || len(wp.Items) > MaximumWorkItems {
+		return fmt.Errorf("WorkPackage must have items between 1 and %d, but got %d", MaximumWorkItems, len(wp.Items))
 	}
+
+	totalSize := len(wp.Authorization) + len(wp.Authorizer.Params)
+	totalImportSegments := 0
+	totalExportSegments := 0
+	totalExtrinsics := 0
+
+	for _, item := range wp.Items {
+		totalSize += len(item.Payload)
+
+		totalImportSegments += len(item.ImportSegments)
+		totalSize += len(item.ImportSegments) * SegmentSize
+
+		for _, extrinsic := range item.Extrinsic {
+			totalSize += int(extrinsic.Len)
+		}
+
+		totalExportSegments += int(item.ExportCount)
+
+		totalExtrinsics += len(item.Extrinsic)
+	}
+
+	// total size check (14.5)
+	if totalSize > MaxTotalSize {
+		return fmt.Errorf("total size exceeds %d bytes", MaxTotalSize)
+	}
+
+	// import/export segment count check （14.4)
+	if totalImportSegments+totalExportSegments > MaxSegments {
+		return fmt.Errorf("total import and export segments exceed %d", MaxSegments)
+	}
+
+	// extrinsics count check (14.4)
+	if totalExtrinsics > MaxExtrinsics {
+		return fmt.Errorf("total extrinsics exceed %d", MaxExtrinsics)
+	}
+
+	// gas limit check (14.7)
+	var totalRefineGas, totalAccumulateGas Gas
+	for _, item := range wp.Items {
+		totalRefineGas += item.RefineGasLimit
+		totalAccumulateGas += item.AccumulateGasLimit
+	}
+
+	if totalRefineGas > MaxRefineGas {
+		return fmt.Errorf("refine gas limit exceeds %d", MaxRefineGas)
+	}
+	if totalAccumulateGas > MaxAccumulateGas {
+		return fmt.Errorf("accumulate gas limit exceeds %d", MaxAccumulateGas)
+	}
+
 	return nil
 }
 
-// 11.1.1. Work Report
+// --- v0.6.3 Chapter 11.1.4. Work Result ---
 
+// v0.6.3 (11.7) WorkExecResultType
 type WorkExecResultType string
 
 const (
@@ -315,7 +369,7 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 	}
 }
 
-// WorkResult ?
+// v0.6.3 (11.6) WorkResult
 type WorkResult struct {
 	ServiceId     ServiceId      `json:"service_id,omitempty"`
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
@@ -345,6 +399,9 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workresult", w)
 }
 
+// --- v0.6.3 Chapter 11.1.1. Work Report ---
+
+// v0.6.3 (11.5) Availability specifications $\mathbb{S}$
 type WorkPackageSpec struct {
 	Hash         WorkPackageHash `json:"hash,omitempty"`
 	Length       U32             `json:"length,omitempty"`
@@ -360,6 +417,7 @@ type SegmentRootLookupItem struct {
 
 type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
+// v0.6.3 (11.2) WorkReport
 type WorkReport struct {
 	PackageSpec       WorkPackageSpec   `json:"package_spec"`
 	Context           RefineContext     `json:"context"`
@@ -370,9 +428,9 @@ type WorkReport struct {
 	Results           []WorkResult      `json:"results,omitempty"`
 }
 
-func (w WorkReport) Validate() error {
-	if len(w.Results) < 1 || len(w.Results) > 4 {
-		return fmt.Errorf("WorkReport Results must have between 1 and 4 items, but got %d", len(w.Results))
+func (w *WorkReport) Validate() error {
+	if len(w.Results) < 1 || len(w.Results) > MaximumWorkItems {
+		return fmt.Errorf("WorkReport Results must have items between 1 and %d, but got %d", MaximumWorkItems, len(w.Results))
 	}
 	return nil
 }
@@ -1147,16 +1205,13 @@ type (
 	AccumulatedQueue     []AccumulatedQueueItem // SEQUENCE (SIZE(epoch-length)) OF AccumulatedQueueItem
 )
 
-type AlwaysAccumulateMapItem struct {
-	ID  ServiceId `json:"id"`
-	Gas Gas       `json:"gas"`
-}
+type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
-	Bless       ServiceId
-	Assign      ServiceId
-	Designate   ServiceId
-	AlwaysAccum []AlwaysAccumulateMapItem
+	Bless       ServiceId           `json:"chi_m"` // Manager
+	Assign      ServiceId           `json:"chi_a"` // AlterPhi
+	Designate   ServiceId           `json:"chi_v"` // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash

@@ -17,6 +17,7 @@ require (
 require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/stretchr/testify v1.5.1
 	github.com/test-go/testify v1.1.4
 )
 
@@ -26,7 +27,6 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.36.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
 	gopkg.in/yaml.v2 v2.3.0 // indirect

@@ -10,7 +10,7 @@ func SerializeAlpha(alpha types.AuthPools) (output types.ByteSequence) {
 	for _, authPool := range alpha {
 		output = append(output, utilities.SerializeU64(types.U64(len(authPool)))...)
 		for _, authorizerHash := range authPool {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(authorizerHash[:]))...)
+			output = append(output, utilities.SerializeByteSequence(authorizerHash[:])...)
 		}
 	}
 	return output
@@ -19,7 +19,7 @@ func SerializeAlpha(alpha types.AuthPools) (output types.ByteSequence) {
 func SerializeVarphi(varphi types.AuthQueues) (output types.ByteSequence) {
 	for _, v := range varphi {
 		for _, authQueue := range v {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(authQueue[:]))...)
+			output = append(output, utilities.SerializeByteSequence(authQueue[:])...)
 		}
 	}
 	return output
@@ -29,23 +29,20 @@ func SerializeBeta(beta types.BlocksHistory) (output types.ByteSequence) {
 	output = append(output, utilities.SerializeU64(types.U64(len(beta)))...)
 	for _, blockInfo := range beta {
 		// h
-		output = append(output, utilities.SerializeU64(types.U64(len(blockInfo.HeaderHash)))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(blockInfo.HeaderHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(blockInfo.HeaderHash[:])...)
 
 		// b
 		mmrResult := SerializeFromMmrPeaks(blockInfo.Mmr)
-		output = append(output, utilities.SerializeU64(types.U64(len(mmrResult)))...)
 		output = append(output, utilities.SerializeByteSequence(mmrResult)...)
 
 		// s
-		output = append(output, utilities.SerializeU64(types.U64(len(blockInfo.StateRoot)))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(blockInfo.StateRoot[:]))...)
+		output = append(output, utilities.SerializeByteSequence(blockInfo.StateRoot[:])...)
 
 		// p  (?) BlockInfo.Reported is different from GP, list or dict
 		output = append(output, utilities.SerializeU64(types.U64(len(blockInfo.Reported)))...)
 		for _, report := range blockInfo.Reported {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(report.Hash[:]))...)
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(report.ExportsRoot[:]))...)
+			output = append(output, utilities.SerializeByteSequence(report.Hash[:])...)
+			output = append(output, utilities.SerializeByteSequence(report.ExportsRoot[:])...)
 		}
 	}
 	return output
@@ -54,34 +51,33 @@ func SerializeBeta(beta types.BlocksHistory) (output types.ByteSequence) {
 func SerializeGamma(gamma types.Gamma) (output types.ByteSequence) {
 	// gamma_k
 	for _, v := range gamma.GammaK {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Ed25519[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Bls[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Metadata[:])...)
 	}
 
 	// gamma_z
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(gamma.GammaZ[:]))...)
-
+	output = append(output, utilities.SerializeByteSequence(gamma.GammaZ[:])...)
 	// gamma_s (6.5)
 	if gamma.GammaS.Tickets != nil {
-		output = append(output, utilities.SerializeU64(types.U64(0))...)
+		output = append(output, utilities.SerializeFixedLength(types.U64(0), 1)...)
 		for _, ticket := range gamma.GammaS.Tickets {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(ticket.Id[:]))...)
-			output = append(output, utilities.SerializeU64(types.U64(ticket.Attempt))...)
+			output = append(output, utilities.SerializeByteSequence(ticket.Id[:])...)
+			output = append(output, utilities.SerializeFixedLength(types.U64(ticket.Attempt), 1)...)
 		}
 	} else if gamma.GammaS.Keys != nil {
-		output = append(output, utilities.SerializeU64(types.U64(1))...)
+		output = append(output, utilities.SerializeFixedLength(types.U64(1), 1)...)
 		for _, key := range gamma.GammaS.Keys {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(key[:]))...)
+			output = append(output, utilities.SerializeByteSequence(key[:])...)
 		}
 	}
 
 	// gamma_a
 	output = append(output, utilities.SerializeU64(types.U64(len(gamma.GammaA)))...)
 	for _, ticket := range gamma.GammaA {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(ticket.Id[:]))...)
-		output = append(output, utilities.SerializeU64(types.U64(ticket.Attempt))...)
+		output = append(output, utilities.SerializeByteSequence(ticket.Id[:])...)
+		output = append(output, utilities.SerializeFixedLength(types.U64(ticket.Attempt), 1)...)
 	}
 	return output
 }
@@ -90,62 +86,62 @@ func SerializePsi(psi types.DisputesRecords) (output types.ByteSequence) {
 	// psi_g
 	output = append(output, utilities.SerializeU64(types.U64(len(psi.Good)))...)
 	for _, workReportHash := range psi.Good {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(workReportHash[:])...)
 	}
 
 	// psi_b
 	output = append(output, utilities.SerializeU64(types.U64(len(psi.Bad)))...)
 	for _, workReportHash := range psi.Bad {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(workReportHash[:])...)
 	}
 
 	// psi_w
 	output = append(output, utilities.SerializeU64(types.U64(len(psi.Wonky)))...)
 	for _, workReportHash := range psi.Wonky {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReportHash[:]))...)
+		output = append(output, utilities.SerializeByteSequence(workReportHash[:])...)
 	}
 
 	// psi_o
 	output = append(output, utilities.SerializeU64(types.U64(len(psi.Offenders)))...)
 	for _, ed25519public := range psi.Offenders {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(ed25519public[:]))...)
+		output = append(output, utilities.SerializeByteSequence(ed25519public[:])...)
 	}
 	return output
 }
 
 func SerializeEta(eta types.EntropyBuffer) (output types.ByteSequence) {
 	for _, entropy := range eta {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(entropy[:]))...)
+		output = append(output, utilities.SerializeByteSequence(entropy[:])...)
 	}
 	return output
 }
 
 func SerializeIota(iota types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range iota {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Ed25519[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Bls[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Metadata[:])...)
 	}
 	return output
 }
 
 func SerializeKappa(kappa types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range kappa {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Ed25519[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Bls[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Metadata[:])...)
 	}
 	return output
 }
 
 func SerializeLambda(lambda types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range lambda {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bandersnatch[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Ed25519[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Bls[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.Metadata[:]))...)
+		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Ed25519[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Bls[:])...)
+		output = append(output, utilities.SerializeByteSequence(v.Metadata[:])...)
 	}
 	return output
 }
@@ -153,11 +149,11 @@ func SerializeLambda(lambda types.ValidatorsData) (output types.ByteSequence) {
 func SerializeRho(rho types.AvailabilityAssignments) (output types.ByteSequence) {
 	for _, v := range rho {
 		if v != nil {
-			output = append(output, utilities.SerializeU64(types.U64(1))...)
-			output = append(output, SerializeWorkReport(v.Report)...)
+			output = append(output, utilities.SerializeFixedLength(types.U64(1), 1)...)
+			output = append(output, utilities.WorkReportSerialization(v.Report)...)
 			output = append(output, utilities.SerializeFixedLength(types.U32(v.Timeout), 4)...)
 		} else {
-			output = append(output, utilities.SerializeU64(types.U64(0))...)
+			output = append(output, utilities.SerializeFixedLength(types.U64(0), 1)...)
 		}
 	}
 	return output
@@ -168,54 +164,57 @@ func SerializeTau(tau types.TimeSlot) (output types.ByteSequence) {
 	return output
 }
 
-func SerializeChi(chi types.PrivilegedServices) (output types.ByteSequence) {
-	output = append(output, utilities.SerializeFixedLength(chi.ManagerServiceIndex, 4)...)
-	output = append(output, utilities.SerializeFixedLength(chi.AlterPhiServiceIndex, 4)...)
-	output = append(output, utilities.SerializeFixedLength(chi.AlterIotaServiceIndex, 4)...)
-
-	for k, v := range chi.AutoAccumulateGasLimits {
-		output = append(output, utilities.SerializeU64(types.U64(k))...)
-		output = append(output, utilities.SerializeU64(v)...)
+func SerializeChi(chi types.Privileges) (output types.ByteSequence) {
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Bless), 4)...)
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Assign), 4)...)
+	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Designate), 4)...)
+	output = append(output, utilities.SerializeU64(types.U64(len(chi.AlwaysAccum)))...)
+	for k, v := range chi.AlwaysAccum {
+		output = append(output, utilities.SerializeFixedLength(types.U32(k), 4)...)
+		output = append(output, utilities.SerializeFixedLength(types.U64(v), 8)...)
 	}
 	return output
 }
 
 func SerializePi(pi types.Statistics) (output types.ByteSequence) {
 	for _, activityRecord := range pi.Current {
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Blocks, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Tickets, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImages, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Guarantees, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Assurances, 4)...)
 	}
 	for _, activityRecord := range pi.Last {
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Blocks, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Tickets, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImages, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Guarantees, 4))...)
-		output = append(output, utilities.SerializeByteSequence(utilities.SerializeFixedLength(activityRecord.Assurances, 4))...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Blocks, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Tickets, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImages, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImagesSize, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Guarantees, 4)...)
+		output = append(output, utilities.SerializeFixedLength(activityRecord.Assurances, 4)...)
 	}
 	return output
 }
 
-func SerializeTheta(theta types.UnaccumulateWorkReports) (output types.ByteSequence) {
-	output = utilities.SerializeU64(types.U64(len(theta)))
-	for _, v := range theta {
-		output = append(output, SerializeWorkReport(v.WorkReport)...)
-		for _, dep := range v.UnaccumulatedDeps {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(dep[:]))...)
+func SerializeTheta(theta types.ReadyQueue) (output types.ByteSequence) {
+	for _, unaccumulateWorkReports := range theta {
+		output = append(output, utilities.SerializeU64(types.U64(len(unaccumulateWorkReports)))...)
+		for _, v := range unaccumulateWorkReports {
+			output = append(output, utilities.WorkReportSerialization(v.Report)...)
+			output = append(output, utilities.SerializeU64(types.U64(len(v.Dependencies)))...)
+			for _, dep := range v.Dependencies {
+				output = append(output, utilities.SerializeByteSequence(dep[:])...)
+			}
 		}
 	}
 	return output
 }
 
 func SerializeXi(xi types.AccumulatedHistories) (output types.ByteSequence) {
-	output = utilities.SerializeU64(types.U64(len(xi)))
 	for _, v := range xi {
+		output = append(output, utilities.SerializeU64(types.U64(len(v)))...)
 		for _, history := range v {
-			output = append(output, utilities.SerializeByteSequence(types.ByteSequence(history[:]))...)
+			output = append(output, utilities.SerializeByteSequence(history[:])...)
 		}
 	}
 	return output
@@ -305,12 +304,12 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 		key := serviceWrapper.StateKeyConstruct()
 
 		// a_c
-		delta1Output := types.ByteSequence(v.CodeHash[:])
+		delta1Output := types.ByteSequence(v.ServiceInfo.CodeHash[:])
 
 		// a_b, a_g, a_m
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.Balance), 8)...)
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.MinItemGas), 8)...)
-		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.MinMemoGas), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.Balance), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.MinItemGas), 8)...)
+		delta1Output = append(delta1Output, utilities.SerializeFixedLength(types.U64(v.ServiceInfo.MinMemoGas), 8)...)
 
 		// a_l (U64)
 		delta1Output = append(delta1Output, utilities.SerializeFixedLength(CalculateItemNumbers(v), 8)...)
@@ -361,61 +360,15 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 }
 
 func SerializeFromMmrPeaks(m types.Mmr) (output types.ByteSequence) {
-	serialItems := []utilities.Serializable{}
+	output = append(output, utilities.SerializeU64(types.U64(len(m.Peaks)))...)
 	for _, peak := range m.Peaks {
-		// empty
 		if peak == nil || len(*peak) == 0 {
-			serialItems = append(serialItems, utilities.U64Wrapper{})
+			output = append(output, utilities.SerializeU64(types.U64(0))...)
 		} else {
-			serialItems = append(serialItems, utilities.SerializableSequence{utilities.U64Wrapper{Value: 1}, utilities.ByteArray32Wrapper{Value: types.ByteArray32(*peak)}})
+			output = append(output, utilities.SerializeU64(types.U64(1))...)
+			output = append(output, utilities.SerializeByteSequence(peak[:])...)
 		}
 	}
-	disc := utilities.Discriminator{
-		Value: serialItems,
-	}
-	disc.Serialize()
-	return output
-}
-
-func SerializeWorkReport(workReport types.WorkReport) (output types.ByteSequence) {
-	// packagespec
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.PackageSpec.Hash[:]))...)
-	output = append(output, utilities.SerializeU64(types.U64(workReport.PackageSpec.Length))...)
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.PackageSpec.ErasureRoot[:]))...)
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.PackageSpec.ExportsRoot[:]))...)
-	output = append(output, utilities.SerializeU64(types.U64(workReport.PackageSpec.ExportsCount))...)
-
-	// refine context
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.Context.Anchor[:]))...)
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.Context.StateRoot[:]))...)
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.Context.BeefyRoot[:]))...)
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.Context.LookupAnchor[:]))...)
-	output = append(output, utilities.SerializeU64(types.U64(workReport.Context.LookupAnchorSlot))...)
-	for _, v := range workReport.Context.Prerequisites {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v[:]))...)
-	}
-
-	// core index
-	output = append(output, utilities.SerializeU64(types.U64(workReport.CoreIndex))...)
-
-	// authorization hash
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.AuthorizerHash[:]))...)
-
-	// authoutput
-	output = append(output, utilities.SerializeByteSequence(types.ByteSequence(workReport.AuthOutput[:]))...)
-
-	// segment root lookup
-	for _, v := range workReport.SegmentRootLookup {
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.WorkPackageHash[:]))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.SegmentTreeRoot[:]))...)
-	}
-
-	// results
-	for _, v := range workReport.Results {
-		output = append(output, utilities.SerializeU64(types.U64(v.ServiceId))...)
-		output = append(output, utilities.SerializeByteSequence(types.ByteSequence(v.CodeHash[:]))...)
-	}
-
 	return output
 }
 
