@@ -1,4 +1,4 @@
-package network
+package cert
 
 import (
 	"crypto/ed25519"
@@ -20,9 +20,9 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// GenerateEd25519Key generates a new Ed25519 key pair from 32byte seed
+// Ed25519KeyGen generates a new Ed25519 key pair from 32byte seed
 // Notice ed25519.PrivateKey is key pair of (sk, pk)
-func GenerateEd25519Key(seed []byte) (ed25519.PrivateKey, ed25519.PublicKey, error) {
+func Ed25519KeyGen(seed []byte) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	if len(seed) != ed25519.SeedSize {
 		return nil, nil, errors.New("seed must be 32 bytes long")
 	}
@@ -41,8 +41,8 @@ func EncodeBase32(data []byte) string {
 	return strings.ToLower(encoder.EncodeToString(data))
 }
 
-// GenerateSelfSignedCertificate generates a self-signed X.509 certificate using Ed25519
-func GenerateSelfSignedCertificate(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certificate, error) {
+// SelfSignedCertGen generates a self-signed X.509 certificate using Ed25519
+func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certificate, error) {
 	// Create a unique serial number for the certificate
 	// Use 128-bit random number
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
@@ -105,12 +105,18 @@ func GenerateSelfSignedCertificate(sk ed25519.PrivateKey, pk ed25519.PublicKey) 
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("failed to create X509 key pair: %v", err)
 	}
+
+	// validate TLS cert before generation
+	err = ValidateTlsCertificate(tlsCert)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
 	return tlsCert, nil
 }
 
-// GenerateALPN generates an ALPN string based on a genesis header and builder flag
+// ALPNGen generates an ALPN string based on a genesis header and builder flag
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
-func GenerateALPN(cert tls.Certificate, isBuilder bool) (*tls.Config, error) {
+func ALPNGen(isBuilder bool) ([]string, error) {
 	genesisBlock, err := store.GetGenesisBlockFromBin()
 	if err != nil {
 		return nil, err
@@ -123,10 +129,50 @@ func GenerateALPN(cert tls.Certificate, isBuilder bool) (*tls.Config, error) {
 	if isBuilder {
 		nextProtos = []string{builderALPN, baseALPN}
 	}
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		NextProtos:   nextProtos,
+	// tlsConfig := &tls.Config{
+	// 	Certificates: []tls.Certificate{cert},
+	// 	NextProtos:   nextProtos,
+	// }
+
+	return nextProtos, nil
+}
+
+// NewTLSConfig creates a new TLS configuration with a self-signed certificate.
+// isBuilder make sure have a slot reserved for work package builder
+func NewTLSConfig(seed []byte, isServer bool, isBuilder bool) (*tls.Config, error) {
+	// default ALPN
+	alpn, err := ALPNGen(false)
+	if err != nil {
+		return nil, err
 	}
 
-	return tlsConfig, nil
+	if isServer {
+		sk, pk, err := Ed25519KeyGen(seed)
+		if err != nil {
+			return nil, err
+		}
+		cert, err := SelfSignedCertGen(sk, pk)
+		if err != nil {
+			return nil, err
+		}
+		alpn, err := ALPNGen(isBuilder)
+		if err != nil {
+			return nil, err
+		}
+		return &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.VerifyClientCertIfGiven,
+
+			// Only TLS1.3 allowed
+			MinVersion: tls.VersionTLS13,
+			MaxVersion: tls.VersionTLS13,
+			// explicitly set curve to ED25519 since we're not relying on default curve selection
+			CurvePreferences: []tls.CurveID{tls.CurveID(tls.Ed25519)},
+			NextProtos:       alpn,
+		}, nil
+	}
+	return &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         alpn,
+	}, nil
 }

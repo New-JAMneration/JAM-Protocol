@@ -1,15 +1,16 @@
-package network
+package cert
 
 import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 )
 
 func ValidateTlsCertificateIsNotEmpty(cert tls.Certificate) error {
 	if len(cert.Certificate) == 0 {
-		return fmt.Errorf("the certificate is empty")
+		return errors.New("the certificate is empty")
 	}
 
 	return nil
@@ -19,7 +20,7 @@ func ValidateTlsSignatureAlgorithm(cert tls.Certificate) error {
 	x509Cert := cert.Leaf
 
 	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
+		return errors.New("the x509 certificate is nil")
 	}
 
 	return ValidateX509SignatureAlgorithm(*x509Cert)
@@ -28,7 +29,7 @@ func ValidateTlsSignatureAlgorithm(cert tls.Certificate) error {
 // The certificate uses Ed25519 as the signature algorithm.
 func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	if cert.SignatureAlgorithm != x509.PureEd25519 {
-		return fmt.Errorf("the signature algorithm is not Ed25519")
+		return errors.New("the signature algorithm is not Ed25519")
 	}
 
 	return nil
@@ -38,7 +39,7 @@ func ValidateTlsDNSNames(cert tls.Certificate) error {
 	x509Cert := cert.Leaf
 
 	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
+		return errors.New("the x509 certificate is nil")
 	}
 
 	return ValidateX509DNSNames(*x509Cert)

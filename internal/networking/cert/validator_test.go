@@ -1,4 +1,4 @@
-package network
+package cert
 
 import (
 	"crypto/ed25519"
@@ -16,9 +16,9 @@ func TestValidateTlsSignatureAlgorithm(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -40,9 +40,9 @@ func TestValidateX509SignatureAlgorithm(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -64,9 +64,9 @@ func TestValidateTlsDNSNames(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -88,9 +88,9 @@ func TestValidateX509DNSNames(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -112,9 +112,9 @@ func TestValidateX509PubKeyMatchesSAN(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -136,9 +136,9 @@ func TestValidateTlsPubKeyMatchesSAN(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
@@ -160,9 +160,9 @@ func TestValidateTlsCertificate(t *testing.T) {
 		sk: strToHex("0x00000000000000000000000000000000000000000000000000000000000000003b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29"),
 	}
 
-	tlsCert, err := GenerateSelfSignedCertificate(pksk.sk, pksk.pk)
+	tlsCert, err := GenSelfSignedCert(pksk.sk, pksk.pk)
 	if err != nil {
-		t.Errorf("GenerateSelfSignedCertificate() error = %v", err)
+		t.Errorf("GenSelfSignedCert() error = %v", err)
 		return
 	}
 
