@@ -129,6 +129,11 @@ func Psi_H(
 	return
 }
 
+type resultContextWrapper struct {
+	x ResultContext
+	y ResultContext
+}
+
 var hostCallFunctions = [26]Omega{
 	0:  gas,
 	1:  lookup,
@@ -565,6 +570,37 @@ func info(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
+	}
+}
+
+// forget = 15
+func forget(input OmegaInput) (output OmegaOutput) {
+	newGas := input.Gas - 10
+
+	o, z := input.Registers[7], input.Registers[8]
+	var h types.ByteSequence
+
+	if !isReadable(o, 32, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// (x,y)
+	if resultContext, isResultContext := input.Addition[0].(*resultContextWrapper); isResultContext {
+		// x_bold{s} = (x_u)_d[x_s] exists
+		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
+			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+			if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists {
+				if timeslot, isTimeslot := input.Addition[1].(*types.TimeSlot); isTimeslot {
+				}
+			}
+		}
+		// resultContext.PartialState.ServiceAccounts.LookupDict
 	}
 }
 
