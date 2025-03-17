@@ -445,7 +445,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	if a.Balance < service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
+	if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
 		new_registers := input.Registers
 		new_registers[7] = FULL
 		return OmegaOutput{
@@ -533,11 +533,11 @@ func info(input OmegaInput) (output OmegaOutput) {
 	derivatives := service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID))
 
 	var serialized_bytes types.ByteSequence
-	serialized_bytes = append(serialized_bytes, utilities.SerializeByteSequence(t.CodeHash[:])...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(t.Balance)...)
+	serialized_bytes = append(serialized_bytes, utilities.SerializeByteSequence(t.ServiceInfo.CodeHash[:])...)
+	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(t.ServiceInfo.Balance)...)
 	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(derivatives.Minbalance)...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinItemGas))...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.MinMemoGas))...)
+	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinItemGas))...)
+	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinMemoGas))...)
 	result := utilities.WrapDictionaryKeyMap(t.LookupDict)
 	encoded := result.Serialize()
 	serialized_bytes = append(serialized_bytes, encoded...)
