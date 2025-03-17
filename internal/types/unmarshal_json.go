@@ -331,6 +331,7 @@ func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 }
 
 func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
+	// jam-test-vectors
 	var temp struct {
 		WorkPackageHash string `json:"work_package_hash,omitempty"`
 		SegmentTreeRoot string `json:"segment_tree_root,omitempty"`
@@ -338,6 +339,22 @@ func (s *SegmentRootLookupItem) UnmarshalJSON(data []byte) error {
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
+	}
+
+	// To read file from different test data source (davxy/jam-test-vectors, jam-duna/jamtestnet)
+	if temp.WorkPackageHash == "" && temp.SegmentTreeRoot == "" {
+		// jamtestnet
+		var temp2 struct {
+			WorkPackageHash string `json:"hash,omitempty"`
+			SegmentTreeRoot string `json:"exports_root,omitempty"`
+		}
+
+		if err := json.Unmarshal(data, &temp2); err != nil {
+			return err
+		}
+
+		temp.WorkPackageHash = temp2.WorkPackageHash
+		temp.SegmentTreeRoot = temp2.SegmentTreeRoot
 	}
 
 	workPackageHashBytes, err := hex.DecodeString(temp.WorkPackageHash[2:])
@@ -384,7 +401,13 @@ func (w *WorkReport) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	w.AuthOutput = ByteSequence(authOutputBytes)
+
+	// if authOutputBytes is empty, set to nil
+	if len(authOutputBytes) == 0 {
+		w.AuthOutput = nil
+	} else {
+		w.AuthOutput = ByteSequence(authOutputBytes)
+	}
 
 	w.SegmentRootLookup = temp.SegmentRootLookup
 	w.Results = temp.Results
@@ -468,7 +491,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.StateRoot = StateRoot(stateRootBytes)
 
-	b.Reported = temp.Reported
+	if len(temp.Reported) == 0 {
+		b.Reported = nil
+	} else {
+		b.Reported = temp.Reported
+	}
 
 	return nil
 }
@@ -515,22 +542,20 @@ func (t *TicketBody) UnmarshalJSON(data []byte) error {
 
 func (t *TicketsOrKeys) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Tickets []TicketBody `json:"tickets,omitempty"`
-		Keys    []string     `json:"keys,omitempty"`
+		Tickets []TicketBody         `json:"tickets,omitempty"`
+		Keys    []BandersnatchPublic `json:"keys,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	t.Tickets = temp.Tickets
+	if len(temp.Tickets) > 0 {
+		t.Tickets = temp.Tickets
+	}
 
-	for _, key := range temp.Keys {
-		keyBytes, err := hex.DecodeString(key[2:])
-		if err != nil {
-			return err
-		}
-		t.Keys = append(t.Keys, BandersnatchPublic(keyBytes))
+	if len(temp.Keys) > 0 {
+		t.Keys = temp.Keys
 	}
 
 	return nil
@@ -883,7 +908,12 @@ func (w *WorkExecResult) UnmarshalJSON(data []byte) error {
 				return fmt.Errorf("failed to decode hex for key %s: %w", key, err)
 			}
 
-			(*w)[resultType] = decoded
+			// if decoded is empty, set to nil
+			if len(decoded) == 0 {
+				(*w)[resultType] = nil
+			} else {
+				(*w)[resultType] = decoded
+			}
 		}
 
 		if value == "" {
@@ -921,7 +951,7 @@ func (s *StateRoot) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type AccountInfoHistory map[DictionaryKey]TimeSlotSet
+type AccountInfoHistory map[LookupMetaMapkey]TimeSlotSet
 
 type AccountInfo struct {
 	Preimages PreimagesExtrinsic `json:"preimages"`
@@ -930,8 +960,8 @@ type AccountInfo struct {
 
 func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	var raw []struct {
-		Key   DictionaryKey `json:"key"`
-		Value TimeSlotSet   `json:"value"`
+		Key   LookupMetaMapkey `json:"key"`
+		Value TimeSlotSet      `json:"value"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -953,5 +983,545 @@ func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	copy(a[:], decoded)
+	return nil
+}
+
+// SegmentRootLookup
+func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
+	var temp []SegmentRootLookupItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*s = temp
+	return nil
+}
+
+// OffendersMark
+func (o *OffendersMark) UnmarshalJSON(data []byte) error {
+	var temp []string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	for _, offender := range temp {
+		offenderBytes, err := hex.DecodeString(offender[2:])
+		if err != nil {
+			return err
+		}
+		*o = append(*o, Ed25519Public(offenderBytes))
+	}
+
+	return nil
+}
+
+// DisputesExtrinsic
+func (d *DisputesExtrinsic) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Verdicts []Verdict `json:"verdicts,omitempty"`
+		Culprits []Culprit `json:"culprits,omitempty"`
+		Faults   []Fault   `json:"faults,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Verdicts) == 0 {
+		d.Verdicts = nil
+	} else {
+		d.Verdicts = temp.Verdicts
+	}
+
+	if len(temp.Culprits) == 0 {
+		d.Culprits = nil
+	} else {
+		d.Culprits = temp.Culprits
+	}
+
+	if len(temp.Faults) == 0 {
+		d.Faults = nil
+	} else {
+		d.Faults = temp.Faults
+	}
+
+	return nil
+}
+
+// Extrinsic
+func (e *Extrinsic) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Tickets    TicketsExtrinsic    `json:"tickets,omitempty"`
+		Preimages  PreimagesExtrinsic  `json:"preimages"`
+		Guarantees GuaranteesExtrinsic `json:"guarantees"`
+		Assurances AssurancesExtrinsic `json:"assurances,omitempty"`
+		Disputes   DisputesExtrinsic   `json:"disputes"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Tickets) == 0 {
+		e.Tickets = nil
+	} else {
+		e.Tickets = temp.Tickets
+	}
+
+	if len(temp.Preimages) == 0 {
+		e.Preimages = nil
+	} else {
+		e.Preimages = temp.Preimages
+	}
+
+	if len(temp.Guarantees) == 0 {
+		e.Guarantees = nil
+	} else {
+		e.Guarantees = temp.Guarantees
+	}
+
+	if len(temp.Assurances) == 0 {
+		e.Assurances = nil
+	} else {
+		e.Assurances = temp.Assurances
+	}
+
+	e.Disputes = temp.Disputes
+
+	return nil
+}
+
+// TicketsAccumulator
+func (t *TicketsAccumulator) UnmarshalJSON(data []byte) error {
+	var temp []TicketBody
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*t = temp
+	return nil
+}
+
+// AuthPool
+func (a *AuthPool) UnmarshalJSON(data []byte) error {
+	var temp []AuthorizerHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AuthPools
+func (a *AuthPools) UnmarshalJSON(data []byte) error {
+	var temp []AuthPool
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+	return nil
+}
+
+// AvailabilityAssignment
+func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Report  WorkReport `json:"report"`
+		Timeout TimeSlot   `json:"timeout,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Report = temp.Report
+	a.Timeout = temp.Timeout
+
+	return nil
+}
+
+// AvailabilityAssignments
+func (a *AvailabilityAssignments) UnmarshalJSON(data []byte) error {
+	var temp []*AvailabilityAssignment
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	for i := range temp {
+		item := AvailabilityAssignmentsItem(temp[i])
+		*a = append(*a, item)
+	}
+
+	return nil
+}
+
+// AuthQueues
+func (a *AuthQueues) UnmarshalJSON(data []byte) error {
+	var temp []AuthQueue
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+	return nil
+}
+
+// ReadyQueueItem
+func (r *ReadyQueueItem) UnmarshalJSON(data []byte) error {
+	var temp []ReadyRecord
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*r = temp
+
+	return nil
+}
+
+// ReadyQueue
+func (r *ReadyQueue) UnmarshalJSON(data []byte) error {
+	var temp []ReadyQueueItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*r = temp
+
+	return nil
+}
+
+// AccumulatedQueueItem
+func (a *AccumulatedQueueItem) UnmarshalJSON(data []byte) error {
+	var temp []WorkPackageHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AccumulatedQueue
+func (a *AccumulatedQueue) UnmarshalJSON(data []byte) error {
+	var temp []AccumulatedQueueItem
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// BlocksHistory
+func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
+	var temp []BlockInfo
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*b = temp
+
+	return nil
+}
+
+// AccumulatedHistory
+func (a *AccumulatedHistory) UnmarshalJSON(data []byte) error {
+	var temp []WorkPackageHash
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// AccumulatedHistories
+func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
+	var temp []AccumulatedHistory
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*a = temp
+
+	return nil
+}
+
+// ServiceAccountState
+func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
+	var temp []AccountDTO
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	// Init ServiceAccountState map
+	*a = make(ServiceAccountState)
+
+	// Assign the temp into the accounts map
+	for _, account := range temp {
+		var serviceAccount ServiceAccount
+
+		var serviceInfo ServiceInfo
+		serviceInfo.CodeHash = account.Data.Service.CodeHash
+		serviceInfo.Balance = account.Data.Service.Balance
+		serviceInfo.MinItemGas = account.Data.Service.MinItemGas
+		serviceInfo.MinMemoGas = account.Data.Service.MinMemoGas
+		serviceInfo.Bytes = account.Data.Service.Bytes
+		serviceInfo.Items = account.Data.Service.Items
+
+		serviceAccount.ServiceInfo = serviceInfo
+
+		if len(account.Data.Preimages) != 0 {
+			serviceAccount.PreimageLookup = make(PreimagesMapEntry)
+
+			for _, preimage := range account.Data.Preimages {
+				serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+			}
+		} else {
+			serviceAccount.PreimageLookup = nil
+		}
+
+		if len(account.Data.LookupMeta) != 0 {
+			serviceAccount.LookupDict = make(map[LookupMetaMapkey]TimeSlotSet)
+
+			for _, lookup := range account.Data.LookupMeta {
+				key := LookupMetaMapkey(lookup.Key)
+				serviceAccount.LookupDict[key] = lookup.Val
+			}
+		} else {
+			serviceAccount.LookupDict = nil
+		}
+
+		serviceAccount.StorageDict = account.Data.Storage
+
+		(*a)[account.Id] = serviceAccount
+	}
+
+	return nil
+}
+
+// Account
+func (a *AccountDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Id   U32            `json:"id"`
+		Data AccountDataDTO `json:"data"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Id = ServiceId(temp.Id)
+	a.Data = temp.Data
+
+	return nil
+}
+
+// AccountDataDTO
+func (a *AccountDataDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Service    ServiceInfo             `json:"service"`
+		Preimages  []PreimagesMapEntryDTO  `json:"preimages"`
+		LookupMeta []LookupMetaMapEntryDTO `json:"lookup_meta"`
+		Storage    Storage                 `json:"storage"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	a.Service = temp.Service
+
+	if len(temp.Preimages) == 0 {
+		a.Preimages = nil
+	} else {
+		a.Preimages = temp.Preimages
+	}
+
+	if len(temp.LookupMeta) == 0 {
+		a.LookupMeta = nil
+	} else {
+		a.LookupMeta = temp.LookupMeta
+	}
+
+	a.Storage = temp.Storage
+
+	return nil
+}
+
+// Storage
+func (s *Storage) UnmarshalJSON(data []byte) error {
+	var temp map[string]string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		return nil
+	}
+
+	*s = make(Storage)
+	for key, value := range temp {
+		keyBytes, err := hex.DecodeString(key[2:])
+		if err != nil {
+			return err
+		}
+
+		valueBytes, err := hex.DecodeString(value[2:])
+		if err != nil {
+			return err
+		}
+
+		(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+	}
+
+	return nil
+}
+
+// LookupMetaMapEntryDTO
+func (l *LookupMetaMapEntryDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Key LookupMetaMapkey `json:"key"`
+		Val []TimeSlot       `json:"value"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Key = temp.Key
+
+	if len(temp.Val) == 0 {
+		l.Val = nil
+	} else {
+		l.Val = temp.Val
+	}
+
+	return nil
+}
+
+// LookupMetaMapkey
+func (l *LookupMetaMapkey) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash   OpaqueHash `json:"hash"`
+		Length U32        `json:"length"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	l.Hash = temp.Hash
+	l.Length = temp.Length
+
+	return nil
+}
+
+// PreimagesMapEntryDTO
+func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Hash OpaqueHash `json:"hash"`
+		Blob string     `json:"blob"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	p.Hash = temp.Hash
+
+	blobBytes, err := hex.DecodeString(temp.Blob[2:])
+	if err != nil {
+		return err
+	}
+	p.Blob = blobBytes
+
+	return nil
+}
+
+// Priviliges
+func (p *Privileges) UnmarshalJSON(data []byte) error {
+	type Alias Privileges
+	aux := &struct {
+		AlwaysAccum *json.RawMessage `json:"chi_g"`
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// if AlwaysAccum is nil or "null", set to empty map
+	if aux.AlwaysAccum == nil || string(*aux.AlwaysAccum) == "null" {
+		p.AlwaysAccum = make(AlwaysAccumulateMap)
+	} else {
+		if err := json.Unmarshal(*aux.AlwaysAccum, &p.AlwaysAccum); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

@@ -13,5 +13,10 @@
     "auth_queue_size": 80,
     "validators_super_majority": 5,
     "avail_bitfield_bytes": 1
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": "password"
   }
 }
