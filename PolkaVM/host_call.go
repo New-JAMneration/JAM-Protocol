@@ -598,12 +598,16 @@ func yield(input OmegaInput) (output OmegaOutput) {
 
 	input.Registers[7] = OK
 
-	// if input.Addition.()
+	// if addition[0] is resultContext type
+	if resultContext, ok := input.Addition[0].(*ResultContext); ok {
+		copy(resultContext.Exception[:], h)
+	}
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
+		Addition:     input.Addition,
 	}
 }
