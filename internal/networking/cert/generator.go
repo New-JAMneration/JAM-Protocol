@@ -137,9 +137,9 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 	return nextProtos, nil
 }
 
-// NewTLSConfig creates a new TLS configuration with a self-signed certificate.
+// TLSConfigGen creates a new TLS configuration with a self-signed certificate.
 // isBuilder make sure have a slot reserved for work package builder
-func NewTLSConfig(seed []byte, isServer bool, isBuilder bool) (*tls.Config, error) {
+func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, error) {
 	// default ALPN
 	alpn, err := ALPNGen(false)
 	if err != nil {

@@ -58,7 +58,7 @@ func TestGenerateEd25519PrivateKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPriv, gotPub, err := GenerateEd25519Key(tt.seed)
+			gotPriv, gotPub, err := Ed25519KeyGen(tt.seed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateEd25519Key() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -114,40 +114,13 @@ func TestGenerateSelfSignedCertificate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenSelfSignedCert(tt.args.sk, tt.args.pk)
+			got, err := SelfSignedCertGen(tt.args.sk, tt.args.pk)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GenSelfSignedCert() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SelfSignedCertGen() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GenSelfSignedCert() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGenerateALPN(t *testing.T) {
-	type args struct {
-		cert      tls.Certificate
-		isBuilder bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *tls.Config
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateALPN(tt.args.cert, tt.args.isBuilder)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateALPN() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GenerateALPN() = %v, want %v", got, tt.want)
+				t.Errorf("SelfSignedCertGen() = %v, want %v", got, tt.want)
 			}
 		})
 	}

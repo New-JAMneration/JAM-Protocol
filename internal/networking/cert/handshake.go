@@ -35,7 +35,7 @@ func DefaultTLSHandshakeConfig(privateKey ed25519.PrivateKey, publicKey ed25519.
 // It integrates certificate generation, parsing, and validation
 func TLSHandshake(config TLSHandshakeConfig) (interface{}, error) {
 	// Step 1: Generate self-signed certificate
-	certificate, err := GenSelfSignedCert(config.PrivateKey, config.PublicKey)
+	certificate, err := SelfSignedCertGen(config.PrivateKey, config.PublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate certificate: %v", err)
 	}
