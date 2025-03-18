@@ -2,86 +2,144 @@ package PolkaVM
 
 import (
 	"errors"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"fmt"
 )
+
+type JumpTable struct {
+	Data   []byte // j
+	Length uint32 // z
+	Size   uint32 // |j|
+}
+
+// 0x01 bit stores whether an index is the start of a instruction
+// 0x02 bit stores whether an index is the start of a basic block
+type Bitmask []byte
+
+func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, error) {
+	instSize := len(instruction)
+	bitmaskSize := instSize / 8
+	if instSize%8 > 0 {
+		bitmaskSize++
+	}
+
+	if len(bitmaskData) != int(bitmaskSize) {
+		return nil, fmt.Errorf("bitmask has incorrect size")
+	}
+
+	bitmask := make(Bitmask, instSize)
+	prev := 0
+	for i := range instSize {
+		if bitmaskData[i/8]&(1<<(i%8)) > 0 {
+			bitmask[i] = 0x01
+
+			if i == 0 || isBasicBlockTerminationInstruction(instruction[prev]) {
+				bitmask[i] |= 0x02
+			}
+
+			prev = i
+		}
+	}
+
+	return bitmask, nil
+}
+
+// returns false if the address is invalid
+// this is technically the wrong, but it makes life simple.
+func (bitmask Bitmask) IsStartOfInstruction(addr int) bool {
+	if addr < 0 || addr >= len(bitmask) {
+		return false
+	}
+
+	return bitmask[addr] > 0
+}
+
+// checks both start of a basic block + start of an instruction
+// returns false if the address is invalid
+func (bitmask Bitmask) IsStartOfBasicBlock(addr ProgramCounter) bool {
+	if addr >= ProgramCounter(len(bitmask)) {
+		return false
+	}
+
+	return bitmask[addr] == 0x03
+}
+
+func isBasicBlockTerminationInstruction(opcode byte) bool {
+	switch opcode {
+	case 0, 1, 40, 50, 180:
+		return true
+	}
+
+	if (opcode >= 80 && opcode <= 90) || (opcode >= 170 && opcode <= 175) {
+		return true
+	}
+
+	return false
+}
 
 // type BasicBlock [][]byte // each sequence is a instruction
 type ProgramBlob struct {
-	InstructionData []byte   // c , includes opcodes & instruction variables
-	Bitmasks        []byte   // k
-	JumpTables      []uint64 // j
-	JumpTableLength uint64
-	// JumpTableSize   uint64
-	// InstructionSize uint64
+	InstructionData []byte    // c , includes opcodes & instruction variables
+	Bitmasks        Bitmask   // k
+	JumpTable       JumpTable // j, z, |j|
 }
 
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
-func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason ExitReasonTypes) {
+func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 	// E_(|j|) : size of jumpTable
-	// will rewrite after the refactor of Deserialization is complete
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
 		return
 	}
+
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
 		return
 	}
 	// E_(|c|) : size of instructions
-	// will rewrite after the refactor of Deserialization is complete
-	var instSize types.U64
-	for i := 0; i < 8; i++ {
-		instSize, err = utilities.DeserializeU64(data[:i])
-		if err == nil {
-			data = data[i:]
-			break
-		}
+	instSize, data, err := ReadUintVariable(data)
+	if err != nil {
+		return
 	}
+
+	if jumpTableLength*jumpTableSize >= 1<<32 {
+		panic("the jump table's size is supposed to be at most 32 bits")
+	}
+
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
-	jumpTables := make([]uint64, jumpTableSize)
-	for i := 0; i < int(jumpTableSize); i++ {
-		tmp, _ := utilities.DeserializeFixedLength(data[i*2:i*2+2], types.U64(jumpTableLength))
-		jumpTables[i] = uint64(tmp)
+	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
+	if err != nil {
+		return
 	}
 
-	// data = data[:jumpTableLength*jumpTableSize]
-	// bitmasks
 	instructions := data[:instSize]
-	bitmaskRaw := data[instSize:]
-
-	// A.2 if bitmasks cannot fit instructions, return panic
-	bitmaskSize := instSize / 8
-	if instSize%8 > 0 {
-		bitmaskSize++
-	}
-	if len(bitmaskRaw) != int(bitmaskSize) {
-		return ProgramBlob{}, PANIC
-	}
-
-	bitmask := make([]byte, instSize)
-	for i := range instSize {
-		bitmask[i] = bitmaskRaw[i/8] & (1 << (i % 8))
+	bitmaskData := data[instSize:]
+	bitmask, err := MakeBitMasks(instructions, bitmaskData)
+	if err != nil {
+		// A.2 if bitmasks cannot fit instructions, return panic
+		return ProgramBlob{}, PVMExitTuple(PANIC, nil)
 	}
 
 	return ProgramBlob{
-		JumpTables:      jumpTables,   // j
+		JumpTable: JumpTable{
+			Data:   jumpTableData,           // j
+			Length: uint32(jumpTableLength), // z
+			Size:   uint32(jumpTableSize),   // |j|
+		},
 		Bitmasks:        bitmask,      // k
 		InstructionData: instructions, // c
-	}, CONTINUE
+	}, PVMExitTuple(CONTINUE, nil)
 }
 
 // skip computes the distance to the next opcode  A.3
-func skip(i int, bitmask []byte) uint32 {
+func skip(i int, bitmask Bitmask) uint32 {
 	j := 1
-	for ; j < len(bitmask); j++ {
-		if bitmask[j+i] == byte(1) {
+	for ; i+j < len(bitmask); j++ {
+		if bitmask.IsStartOfInstruction(j + i) {
 			break
 		}
 	}
-	return uint32(min(24, j))
+	return uint32(min(24, j-1))
 }
 
 func inBasicBlock(data []byte, bitmask []byte, n int) bool {
@@ -93,7 +151,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 		return false
 	}
 
-	if _, exists := Zeta[opcode(data[n])]; !exists {
+	if _, exists := zeta[opcode(data[n])]; !exists {
 		return false
 	}
 
@@ -118,7 +176,7 @@ func ReadUintVariable(data []byte) (uint64, []byte, error) {
 		return 0, data, err
 	}
 
-	return valueFromFirstByte<<(8*bytesToRead) | valueFromRemainingBytes, data[bytesToRead:], nil
+	return valueFromFirstByte<<(8*bytesToRead) | valueFromRemainingBytes, data, nil
 }
 
 // return (mask, bytes to read)
