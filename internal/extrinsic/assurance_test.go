@@ -2,7 +2,6 @@ package extrinsic
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -70,9 +69,9 @@ func TestAssurances(t *testing.T) {
 	jsonFiles := GetTestJsonFiles(dir)
 
 	for _, file := range jsonFiles {
-		fmt.Println("file : ", file)
+
 		fileName := dir + file
-		fmt.Println("fileName : ", fileName)
+
 		assurancesTestCase, err := LoadAssuranceTestCase(fileName)
 		if err != nil {
 			t.Errorf("Error loading assurance test case: %v", err)
@@ -86,14 +85,13 @@ func TestAssurances(t *testing.T) {
 
 		// Get assurances
 		assurances := s.GetIntermediateStates().GetRhoDoubleDagger()
-		fmt.Println("------------------------")
-		fmt.Println("RhoDoubleDagger : ", assurances)
+
 		// Expected assurances
 		expectedAssurances := assurancesTestCase.PostState
-		fmt.Println("expectedAssurances : ", expectedAssurances)
+
 		// Compare statistics struct
 		if !reflect.DeepEqual(assurances, expectedAssurances) {
-			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedAssurances, assurances)
+			t.Errorf("Test case %v failed", file)
 		}
 	}
 }
