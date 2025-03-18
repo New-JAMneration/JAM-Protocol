@@ -1,10 +1,14 @@
 package PolkaVM
 
-import "fmt"
+import (
+	"fmt"
+)
 
-type StandardCodeFormat []byte // p
-type Argument []byte           // a
-type Instructions []byte       // c
+type (
+	StandardCodeFormat []byte // p
+	Argument           []byte // a
+	Instructions       []byte // c
+)
 
 func P(x int) uint32 {
 	return ZP * ((uint32(x) + ZP - 1) / ZP)
@@ -15,7 +19,6 @@ func Z(x int) uint32 {
 }
 
 func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Registers, Memory, error) {
-
 	c, o, w, z, s, err := DecodeSerializedValues(p)
 	if err != nil {
 		return nil, Registers{}, Memory{}, err
@@ -157,12 +160,35 @@ func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
 	}
 
 	var result uint64
-	for i := 0; i < numBytes; i++ {
+	for i := range numBytes {
 		// little-endian
 		result |= uint64(data[i]) << (8 * i)
 	}
 
 	return result, data[numBytes:], nil
+}
+
+func ReadUintSignExtended(data []byte, numBytes int) (uint64, []byte, error) {
+	value, data, err := ReadUintFixed(data, numBytes)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	value, err = SignExtend(numBytes, value)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return value, data, nil
+}
+
+func ReadIntFixed(data []byte, numBytes int) (int64, []byte, error) {
+	value, data, err := ReadUintSignExtended(data, numBytes)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return int64(value), data, nil
 }
 
 func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
@@ -173,9 +199,24 @@ func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	return data[:numBytes], data[numBytes:], nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+type StandardProgram struct {
+	Memory      Memory
+	Registers   Registers
+	ProgramBlob ProgramBlob
+	ExitReason  error
+}
+
+func StandardProgramInit(p StandardCodeFormat, a Argument) StandardProgram {
+	programCode, registers, memory, err := SingleInitializer(p, []byte{})
+	if err != nil {
+		return StandardProgram{ExitReason: PVMExitTuple(PANIC, nil)}
 	}
-	return b
+	programBlob, exitReason := DeBlobProgramCode(programCode)
+	standardProgram := StandardProgram{
+		Memory:      memory,
+		Registers:   registers,
+		ProgramBlob: programBlob,
+		ExitReason:  exitReason,
+	}
+	return standardProgram
 }
