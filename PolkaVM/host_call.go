@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/service"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -140,6 +141,8 @@ var hostCallFunctions = [26]Omega{
 	2:  read,
 	3:  write,
 	4:  info,
+	14: solicit,
+	15: forget,
 	16: yield,
 }
 
@@ -573,12 +576,11 @@ func info(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// forget = 15
-func forget(input OmegaInput) (output OmegaOutput) {
+// query = 13
+func query(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - 10
 
 	o, z := input.Registers[7], input.Registers[8]
-	var h types.ByteSequence
 
 	if !isReadable(o, 32, input.Memory) { // not readable, return
 		return OmegaOutput{
@@ -590,17 +592,193 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	h := types.ByteSequence(make([]byte, 32))
+	pageNumber := o / ZP
+	pageIndex := o % ZP
+
+	if ZP-pageIndex < 32 { // cross page
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
+	} else {
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
+	}
+
 	// (x,y)
-	if resultContext, isResultContext := input.Addition[0].(*resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] exists
-		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
+	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
+		// x_bold{s} = (x_u)_d[x_s] check service exists
+		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
 			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-			if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists {
-				if timeslot, isTimeslot := input.Addition[1].(*types.TimeSlot); isTimeslot {
+			lookupData, lookupDataExists := a.LookupDict[lookupKey]
+			if lookupDataExists {
+				// TODO
+			} else {
+				// a = panic
+				input.Registers[7] = NONE
+				input.Registers[8] = 0
+
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(PANIC, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
 				}
 			}
 		}
-		// resultContext.PartialState.ServiceAccounts.LookupDict
+	}
+
+	return OmegaOutput{}
+}
+
+// solicit = 14
+func solicit(input OmegaInput) (output OmegaOutput) {
+	newGas := input.Gas - 10
+
+	o, z := input.Registers[7], input.Registers[8]
+
+	if !isReadable(o, 32, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := types.ByteSequence(make([]byte, 32))
+	pageNumber := o / ZP
+	pageIndex := o % ZP
+
+	if ZP-pageIndex < 32 { // cross page
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
+	} else {
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
+	}
+
+	// (x,y)
+	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
+		// x_bold{s} = (x_u)_d[x_s] check service exists
+		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
+			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+			lookupData, lookupDataExists := a.LookupDict[lookupKey]
+			// a_l[(h,z)] = [] => no changes, do not need to implement
+			if lookupDataExists && len(lookupData) == 2 {
+				// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
+				if timeslot, isTimeslot := input.Addition[1].(types.TimeSlot); isTimeslot {
+					lookupData = append(lookupData, timeslot)
+					resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId].LookupDict[lookupKey] = lookupData
+
+				}
+			} else {
+				// a = panic
+				input.Registers[7] = HUH
+
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(resultContext.x.ServiceId).Minbalance {
+				input.Registers[7] = FULL
+			} else {
+				input.Registers[7] = OK
+				input.Addition[0] = resultContext
+			}
+		}
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// forget = 15
+func forget(input OmegaInput) (output OmegaOutput) {
+	newGas := input.Gas - 10
+
+	o, z := input.Registers[7], input.Registers[8]
+
+	if !isReadable(o, 32, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := types.ByteSequence(make([]byte, 32))
+	pageNumber := o / ZP
+	pageIndex := o % ZP
+
+	if ZP-pageIndex < 32 { // cross page
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
+	} else {
+		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
+	}
+
+	// (x,y)
+	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
+		// x_bold{s} = (x_u)_d[x_s] check service exists
+		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
+			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+			lookupData, lookupDataExists := a.LookupDict[lookupKey]
+			if timeslot, isTimeslot := input.Addition[1].(types.TimeSlot); isTimeslot {
+				// y < t - D
+				timeslotCondition := lookupData[1] < timeslot-types.TimeSlot(UnreferencedPreimageTimeslots)
+				lookupDataLength := len(lookupData)
+
+				if (lookupDataExists && timeslotCondition && lookupDataLength == 2) || !lookupDataExists {
+					// delete (h,z) from a_l
+					expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+					delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
+					// delete (h) from a_p
+					delete(a.PreimageLookup, types.OpaqueHash(h))
+				} else if lookupDataExists && lookupDataLength == 1 {
+					// a_l[h,z] = [x,t]
+					lookupData = append(lookupData, timeslot)
+					a.LookupDict[lookupKey] = lookupData
+				} else if lookupDataExists && timeslotCondition && lookupDataLength == 3 {
+					// a_l[h,z] = [w,t]
+					lookupData[0] = lookupData[2]
+					lookupData[1] = timeslot
+					lookupData = lookupData[:2]
+					a.LookupDict[lookupKey] = lookupData
+				} else { // otherwise, panic
+					input.Registers[7] = HUH
+					return OmegaOutput{
+						ExitReason:   PVMExitTuple(PANIC, nil),
+						NewGas:       newGas,
+						NewRegisters: input.Registers,
+						NewMemory:    input.Memory,
+						Addition:     input.Addition,
+					}
+				}
+				// x_s^' = a
+				resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = a
+				input.Addition[0] = resultContext
+			}
+		}
+
+		input.Registers[7] = OK
+	}
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
 	}
 }
 
@@ -609,7 +787,6 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - 10
 
 	o := input.Registers[7]
-	var h types.ByteSequence
 
 	if !isReadable(o, 32, input.Memory) {
 		return OmegaOutput{
@@ -621,7 +798,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h = make([]byte, 32)
+	h := types.ByteSequence(make([]byte, 32))
 	pageNumber := o / ZP
 	pageIndex := o % ZP
 
