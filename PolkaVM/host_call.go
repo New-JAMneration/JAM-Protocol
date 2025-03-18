@@ -602,15 +602,16 @@ func query(input OmegaInput) (output OmegaOutput) {
 	} else {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+32])
 	}
-
+	var a types.TimeSlotSet
 	// (x,y)
 	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
 		// x_bold{s} = (x_u)_d[x_s] check service exists
-		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
+		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
 			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-			lookupData, lookupDataExists := a.LookupDict[lookupKey]
+			lookupData, lookupDataExists := account.LookupDict[lookupKey]
 			if lookupDataExists {
-				// TODO
+				// a = lookupData[h,z]
+				a = lookupData
 			} else {
 				// a = panic
 				input.Registers[7] = NONE
