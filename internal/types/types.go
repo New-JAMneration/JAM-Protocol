@@ -1235,7 +1235,7 @@ type Operand struct {
 }
 
 // (12.15) U
-type ServiceGasArray []struct {
+type ServiceGasUsed []struct {
 	Service ServiceId
 	Gas     Gas
 }
