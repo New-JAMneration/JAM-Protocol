@@ -1235,7 +1235,9 @@ type Operand struct {
 }
 
 // (12.15) U
-type ServiceGasUsed []struct {
+type ServiceGasUsedList []ServiceGasUsed
+
+type ServiceGasUsed struct {
 	Service ServiceId
 	Gas     Gas
 }
