@@ -1233,3 +1233,11 @@ type Operand struct {
 	PayloadHash    OpaqueHash
 	Result         WorkExecResult
 }
+
+// (12.15) U
+type ServiceGasUsedList []ServiceGasUsed
+
+type ServiceGasUsed struct {
+	ServiceId ServiceId
+	Gas       Gas
+}
