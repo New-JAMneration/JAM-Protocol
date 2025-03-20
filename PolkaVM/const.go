@@ -7,8 +7,3 @@ const (
 	ZP = 1 << 12 // the PVM memory page size.
 	ZZ = 1 << 16 // standard PVM program initialization zone size
 )
-
-// I.4.4 Constants
-var (
-	UnreferencedPreimageTimeslots = 28800 // D
-)
