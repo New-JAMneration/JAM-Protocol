@@ -79,18 +79,18 @@ type Psi_H_ReturnType struct {
 
 // (A.31) Ψ_H
 func Psi_H(
+	program StandardProgram,
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
 	omega Omega, // jump table
 	addition []any, // host-call context
-	program StandardProgram,
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, gas, reg, ram)
-	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -116,7 +116,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
+			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
