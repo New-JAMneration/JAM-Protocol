@@ -60,15 +60,10 @@ func ParseCertificateFromPem(pemCerts []byte) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// Validate the TLS certificate.
-func ValidateTlsCertificate(cert tls.Certificate) error {
-	x509Cert, err := ParseCertificateFromPem(cert.Certificate[0])
-	if err != nil {
-		return err
-	}
-
+// Validate the X509 certificate.
+func ValidateX509Certificate(x509Cert *x509.Certificate) error {
 	if x509Cert == nil {
-		return fmt.Errorf("the x509 certificate is nil")
+		return errors.New("the x509 certificate is nil")
 	}
 
 	if err := ValidateX509SignatureAlgorithm(*x509Cert); err != nil {
@@ -80,6 +75,20 @@ func ValidateTlsCertificate(cert tls.Certificate) error {
 	}
 
 	if err := ValidateX509PubKeyMatchesSAN(*x509Cert); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Validate the TLS certificate.
+func ValidateTlsCertificate(cert tls.Certificate) error {
+	x509Cert, err := ParseCertificateFromPem(cert.Certificate[0])
+	if err != nil {
+		return err
+	}
+
+	if err := ValidateX509Certificate(x509Cert); err != nil {
 		return err
 	}
 
