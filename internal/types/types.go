@@ -1239,5 +1239,5 @@ type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
 	ServiceId ServiceId
-	Gas     Gas
+	Gas       Gas
 }
