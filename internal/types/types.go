@@ -1238,6 +1238,6 @@ type Operand struct {
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
-	Service ServiceId
+	ServiceId ServiceId
 	Gas     Gas
 }
