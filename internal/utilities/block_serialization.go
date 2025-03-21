@@ -247,7 +247,7 @@ func WorkPackageSpecSerialization(work_package_spec types.WorkPackageSpec) (outp
 
 func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence) {
 	/*
-		(C.23) E(x ∈ L) ≡ E4(xs) ⌢ E(xc, xl) ⌢ E8(xg) ⌢ E(O(xo))
+		(C.23) E(x ∈ L) ≡ E(E4(xs)) ⌢ E(xc, xy) ⌢ E(E8(xg)) ⌢ E(O(xo)) ⌢ E(xu, xi, xx, xz, xe)
 
 		ServiceId     ServiceId      `json:"service_id,omitempty"`
 		CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
@@ -260,6 +260,11 @@ func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence
 	output = append(output, SerializeOpaqueHash(result.PayloadHash)...)
 	output = append(output, SerializeFixedLength(types.U64(result.AccumulateGas), 8)...)
 	output = append(output, SerializeWorkExecResult(result.Result)...)
+	output = append(output, SerializeFixedLength(types.U64(result.GasUsed), 8)...)
+	output = append(output, SerializeFixedLength(types.U32(result.Imports), 2)...)
+	output = append(output, SerializeFixedLength(types.U32(result.ExtrinsicCount), 2)...)
+	output = append(output, SerializeFixedLength(result.ExtrinsicSize, 4)...)
+	output = append(output, SerializeFixedLength(types.U32(result.Export), 2)...)
 	return output
 }
 
