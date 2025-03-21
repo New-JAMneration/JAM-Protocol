@@ -51,25 +51,19 @@ func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
 }
 
 func isReadable(start, offset uint64, m Memory) bool {
-	startPage := start / ZP
-	endPage := (start + offset) / ZP
-	for i := startPage; i <= endPage; i++ {
-		if m.Pages[uint32(i)].Access == MemoryInaccessible {
-			return false
-		}
-	}
-	return true
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset) / ZP)
+
+	return !(m.GetPageAccess(startPage) == MemoryInaccessible ||
+		m.GetPageAccess(endPage) == MemoryInaccessible)
 }
 
 func isWriteable(start, offset uint64, m Memory) bool {
-	startPage := start / ZP
-	endPage := (start + offset) / ZP
-	for i := startPage; i <= endPage; i++ {
-		if m.Pages[uint32(i)].Access != MemoryReadWrite {
-			return false
-		}
-	}
-	return true
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset) / ZP)
+
+	return m.GetPageAccess(startPage) == MemoryReadWrite &&
+		m.GetPageAccess(endPage) == MemoryReadWrite
 }
 
 type Psi_M_ReturnType struct {
