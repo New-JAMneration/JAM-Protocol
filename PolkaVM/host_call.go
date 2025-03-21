@@ -1,11 +1,9 @@
 package PolkaVM
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -160,26 +158,29 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-func getServiceID(addition []any) (uint64, error) {
-	if len(addition) == 0 {
-		return 0, errors.New("serviceID not found in Addition")
-	}
-
-	serviceID, ok := addition[0].(uint64)
-	if !ok {
-		return 0, errors.New("serviceID is not of type uint64")
-	}
-
-	return serviceID, nil
-}
-
 // ΩL(ϱ, ω, μ, s, s, d)
 func lookup(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
+	err := fmt.Errorf("lookup function invoked with incorrect additional arguments")
+
+	if len(input.Addition) != 3 {
+		panic(err)
 	}
+
+	serviceAccount, ok := input.Addition[0].(types.ServiceAccount)
+	if !ok {
+		panic(err)
+	}
+
+	serviceID, ok := input.Addition[1].(uint64)
+	if !ok {
+		panic(err)
+	}
+
+	delta, ok := input.Addition[2].(types.ServiceAccountState)
+	if !ok {
+		panic(err)
+	}
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -190,8 +191,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
+
 	var a types.ServiceAccount
 	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == serviceID {
 		a = serviceAccount
@@ -278,11 +278,27 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
+	err := fmt.Errorf("read function invoked with incorrect additional arguments")
+
+	if len(input.Addition) != 3 {
+		panic(err)
 	}
+
+	serviceAccount, ok := input.Addition[0].(types.ServiceAccount)
+	if !ok {
+		panic(err)
+	}
+
+	serviceID, ok := input.Addition[1].(uint64)
+	if !ok {
+		panic(err)
+	}
+
+	delta, ok := input.Addition[2].(types.ServiceAccountState)
+	if !ok {
+		panic(err)
+	}
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -294,8 +310,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 	var s_star uint64
 	var a types.ServiceAccount
 	if input.Registers[7] == 0xffffffffffffffff {
@@ -376,11 +390,22 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 // ΩW (ϱ, ω, μ, s, s)
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
+	err := fmt.Errorf("write function invoked with incorrect additional arguments")
+
+	if len(input.Addition) != 2 {
+		panic(err)
 	}
+
+	serviceAccount, ok := input.Addition[0].(types.ServiceAccount)
+	if !ok {
+		panic(err)
+	}
+
+	serviceID, ok := input.Addition[1].(uint64)
+	if !ok {
+		panic(err)
+	}
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -391,9 +416,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 
 	ko, kz, vo, vz := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
@@ -427,8 +449,10 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 		a = serviceAccount
 		a.StorageDict[k] = concated_bytes
-		delta[types.ServiceId(serviceID)] = a
-		store.GetInstance().GetPriorStates().SetDelta(delta)
+
+		// TODO: resolve what to do here
+		// delta[types.ServiceId(serviceID)] = a
+		// store.GetInstance().GetPriorStates().SetDelta(delta)
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -469,21 +493,31 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s)
+// ΩR(ϱ, ω, μ, s, d)
 /*
 ϱ: gas
 ω: registers
 μ:  memory
-s: ServiceAccount
 s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
+	err := fmt.Errorf("info function invoked with incorrect additional arguments")
+
+	if len(input.Addition) != 2 {
+		panic(err)
 	}
+
+	serviceID, ok := input.Addition[0].(uint64)
+	if !ok {
+		panic(err)
+	}
+
+	delta, ok := input.Addition[1].(types.ServiceAccountState)
+	if !ok {
+		panic(err)
+	}
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -494,8 +528,6 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
 	var t types.ServiceAccount
 	var empty bool
