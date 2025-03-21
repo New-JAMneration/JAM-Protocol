@@ -6,7 +6,7 @@ func Psi_M(
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	argument Argument, // argument
-	omega Omega, // jump table
+	omegas Omegas, // jump table
 	addition []any, // host-call context
 	program StandardProgram,
 ) (
@@ -21,7 +21,7 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}, program))
+	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, []any{addition}, program))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,

@@ -33,15 +33,16 @@ const (
 	ForgetOp                                // forget = 15
 	YieldOp                                 // yield = 16
 	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18
-	ExportOp                                // export = 19
-	MachineOp                               // machine = 20
-	PeekOp                                  // peek = 21
-	PokeOp                                  // poke = 22
-	ZeroOp                                  // zero = 23
-	VoidOp                                  // void = 24
-	InvokeOp                                // invoke = 25
-	ExpungeOp                               // expunge = 26
+	FetchOp                                 // fetch = 18;
+
+	ExportOp  // export = 19
+	MachineOp // machine = 20
+	PeekOp    // peek = 21
+	PokeOp    // poke = 22
+	ZeroOp    // zero = 23
+	VoidOp    // void = 24
+	InvokeOp  // invoke = 25
+	ExpungeOp // expunge = 26
 )
 
 type HistoryState struct {
@@ -66,7 +67,10 @@ type OmegaOutput struct {
 }
 
 // Ω⟨X⟩
-type Omega func(OmegaInput) OmegaOutput
+type (
+	Omega  func(OmegaInput) OmegaOutput
+	Omegas map[OperationType]Omega
+)
 
 type Psi_H_ReturnType struct {
 	ExitReason error     // exit reason
@@ -83,7 +87,7 @@ func Psi_H(
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
-	omega Omega, // jump table
+	omegas Omegas, // jump table
 	addition []any, // host-call context
 	program StandardProgram,
 ) (
@@ -106,6 +110,11 @@ func Psi_H(
 		input.Registers = reg_prime
 		input.Memory = ram
 		input.Addition = addition
+
+		omega := omegas[input.Operation]
+		if omega == nil {
+			omega = omegas[27]
+		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
@@ -116,7 +125,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
+			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition, program)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
@@ -129,7 +138,7 @@ func Psi_H(
 	return
 }
 
-var hostCallFunctions = [26]Omega{
+var hostCallFunctions = [27]Omega{
 	0: gas,
 	1: lookup,
 	2: read,
@@ -564,5 +573,16 @@ func info(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
+	}
+}
+
+func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+	input.Registers[7] = WHAT
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas - 10,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
 	}
 }
