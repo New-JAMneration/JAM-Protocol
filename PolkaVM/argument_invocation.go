@@ -7,7 +7,7 @@ func Psi_M(
 	gas Gas, // gas counter
 	argument Argument, // argument
 	omegas Omegas, // jump table
-	addition any, // host-call context
+	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
@@ -30,7 +30,7 @@ func Psi_M(
 }
 
 // (A.41) R
-func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
+func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
 	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
 	case OUT_OF_GAS:
 		return Psi_H_Return.Gas, OUT_OF_GAS, Psi_H_Return.Addition
@@ -69,5 +69,5 @@ func isWriteable(start, offset uint64, m Memory) bool {
 type Psi_M_ReturnType struct {
 	Gas           Gas
 	ReasonOrBytes any
-	Addition      any
+	Addition      HostCallArgs
 }
