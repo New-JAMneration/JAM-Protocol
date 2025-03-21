@@ -16,6 +16,8 @@ type OnTransferInput struct {
 // Psi_T
 func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	emptyArray := types.OpaqueHash{}
+	result := Psi_M_ReturnType{}
+	account := types.ServiceAccount{}
 
 	if account, accountExists := input.ServiceAccounts[input.ServiceID]; accountExists {
 		if account.ServiceInfo.CodeHash == emptyArray || len(input.DeferredTransfers) == 0 {
@@ -27,10 +29,10 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		gasLimits := types.Gas(0)
 		balances := types.U64(0)
 		serialized := []byte{}
+		F := Omegas{}
 
 		s := input.ServiceAccounts[input.ServiceID]
 		s.ServiceInfo.Balance += balances
-		F := hostCallFunctions
 
 		// timeslot(t) bytes
 		timeslotSer, err := encoder.Encode(input.Timeslot)
@@ -44,6 +46,10 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 
 		// serviceID(s) bytes
 		serviceIDSer, err := encoder.Encode(input.ServiceID)
+		if err != nil {
+			log.Println("OnTransferInvoke encode ServiceID error")
+		}
+
 		serialized = append(timeslotSer, serviceIDSer...)
 		serialized = append(serialized, deferredTransferSer...)
 
@@ -52,13 +58,21 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 			balances += deferredTransfer.Balance
 		}
 
-		// !warning: should input service count blob, not codehash, how to get code blob ?
-		result := Psi_M(account.ServiceInfo.CodeHash[:], 10, Gas(gasLimits), serialized, F, nil, s)
-
-		// Psi_M
+		// omegas
+		F[LookupOp] = hostCallFunctions[0]
+		F[ReadOp] = hostCallFunctions[ReadOp]
+		F[WriteOp] = hostCallFunctions[WriteOp]
+		F[GasOp] = hostCallFunctions[GasOp]
+		F[InfoOp] = hostCallFunctions[InfoOp]
+		F[26] = onTransferHostCallException
+		// Psi_M the last arugment : standardProgram type will be removed
+		result := Psi_M(account.ServiceInfo.CodeHash[:], 10, Gas(gasLimits), serialized, F, nil, StandardProgram{})
+		if serviceAccount, isServiceAccount := result.Addition.(types.ServiceAccount); isServiceAccount {
+			account = serviceAccount
+		}
 	} else {
 		log.Println("OnTransferInvoke account not exists")
 	}
 
-	return types.ServiceAccount{}, 0
+	return account, types.Gas(result.Gas)
 }
