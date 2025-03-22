@@ -426,7 +426,7 @@ type SegmentRootLookupItem struct {
 
 type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
-// v0.6.3 (11.2) WorkReport $\mathbb{W}$
+// v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
 	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
 	Context           RefineContext     `json:"context"`                       // x
