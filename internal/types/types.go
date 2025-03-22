@@ -369,18 +369,22 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 	}
 }
 
-// v0.6.3 (11.6) WorkResult $\mathbb{L}$
+type RefineLoad struct {
+	GasUsed        Gas `json:"gas_used,omitempty"`        // u
+	Imports        U16 `json:"imports,omitempty"`         // i
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
+	Exports        U16 `json:"exports,omitempty"`         // e
+}
+
+// v0.6.4 (11.6) WorkResult $\mathbb{L}$
 type WorkResult struct {
-	ServiceId      ServiceId      `json:"service_id,omitempty"`      // s
-	CodeHash       OpaqueHash     `json:"code_hash,omitempty"`       // c
-	PayloadHash    OpaqueHash     `json:"payload_hash,omitempty"`    // y
-	AccumulateGas  Gas            `json:"accumulate_gas,omitempty"`  // g
-	Result         WorkExecResult `json:"result,omitempty"`          // $\mathbf{d}$
-	GasUsed        Gas            `json:"gas_used,omitempty"`        // u
-	Imports        U16            `json:"imports,omitempty"`         // i
-	ExtrinsicCount U16            `json:"extrinsic_count,omitempty"` // x
-	ExtrinsicSize  U32            `json:"extrinsic_size,omitempty"`  // z
-	Export         U16            `json:"export,omitempty"`          // e
+	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
+	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
+	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`   // y
+	AccumulateGas Gas            `json:"accumulate_gas,omitempty"` // g
+	Result        WorkExecResult `json:"result,omitempty"`         // $\mathbf{d}$
+	RefineLoad    RefineLoad     `json:"refine_load,omitempty"`    // ASN.1 specific field
 }
 
 func (w *WorkResult) Validate() error {
