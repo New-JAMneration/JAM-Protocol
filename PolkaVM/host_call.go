@@ -149,7 +149,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
