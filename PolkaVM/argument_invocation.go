@@ -8,7 +8,6 @@ func Psi_M(
 	argument Argument, // argument
 	omega Omega, // jump table
 	addition []any, // host-call context
-	program StandardProgram,
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
@@ -21,7 +20,8 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}, program))
+	// can be simplified during the refactor phase
+	g, v, a := R(Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
