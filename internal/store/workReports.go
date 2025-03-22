@@ -35,22 +35,22 @@ func (a *AccumulatedWorkReports) SetAccumulatedWorkReports(w []types.WorkReport)
 // W^Q (queued execution)
 type QueuedWorkReports struct {
 	mu          sync.RWMutex
-	workReports []types.WorkReport
+	workReports types.ReadyQueueItem
 }
 
 func NewQueuedWorkReports() *QueuedWorkReports {
 	return &QueuedWorkReports{
-		workReports: []types.WorkReport{},
+		workReports: types.ReadyQueueItem{},
 	}
 }
 
-func (q *QueuedWorkReports) GetQueuedWorkReports() []types.WorkReport {
+func (q *QueuedWorkReports) GetQueuedWorkReports() types.ReadyQueueItem {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	return q.workReports
 }
 
-func (q *QueuedWorkReports) SetQueuedWorkReports(w []types.WorkReport) {
+func (q *QueuedWorkReports) SetQueuedWorkReports(w types.ReadyQueueItem) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.workReports = w
