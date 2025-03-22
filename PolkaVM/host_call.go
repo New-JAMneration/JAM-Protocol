@@ -66,7 +66,37 @@ type OmegaOutput struct {
 }
 
 // Ω⟨X⟩
-type Omega func(OmegaInput) OmegaOutput
+type (
+	Omega  func(OmegaInput) OmegaOutput
+	Omegas map[OperationType]Omega
+)
+
+type GeneralArgs struct {
+	types.ServiceAccount
+	types.ServiceId
+	types.ServiceAccountState
+}
+
+type AccumulateArgs struct {
+	resultContextX ResultContext
+	resultContextY ResultContext
+}
+
+type RefineArgs struct {
+	// TODO
+}
+
+type AccumulateHostCallArgs struct {
+	GeneralArgs
+	AccumulateArgs
+	// AccumulateHostCallArgs.ServiceID  (embedding)
+	// AccumulateHostCallArgs.resultContextX
+}
+
+type RefineHostCallArgs struct {
+	GeneralArgs
+	RefineArgs
+}
 
 type Psi_H_ReturnType struct {
 	ExitReason error     // exit reason
@@ -84,7 +114,7 @@ func Psi_H(
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
-	omega Omega, // jump table
+	omegas Omegas, // jump table
 	addition []any, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
@@ -106,6 +136,10 @@ func Psi_H(
 		input.Registers = reg_prime
 		input.Memory = ram
 		input.Addition = addition
+		omega := omegas[input.Operation]
+		if omega == nil {
+			omega = omegas[27]
+		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
@@ -116,7 +150,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition)
+			Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
@@ -129,7 +163,7 @@ func Psi_H(
 	return
 }
 
-var hostCallFunctions = [26]Omega{
+var hostCallFunctions = [27]Omega{
 	0: gas,
 	1: lookup,
 	2: read,
