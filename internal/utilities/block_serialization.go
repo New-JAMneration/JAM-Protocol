@@ -260,11 +260,6 @@ func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence
 	output = append(output, SerializeOpaqueHash(result.PayloadHash)...)
 	output = append(output, SerializeFixedLength(types.U64(result.AccumulateGas), 8)...)
 	output = append(output, SerializeWorkExecResult(result.Result)...)
-	output = append(output, SerializeFixedLength(types.U64(result.GasUsed), 8)...)
-	output = append(output, SerializeFixedLength(types.U32(result.Imports), 2)...)
-	output = append(output, SerializeFixedLength(types.U32(result.ExtrinsicCount), 2)...)
-	output = append(output, SerializeFixedLength(result.ExtrinsicSize, 4)...)
-	output = append(output, SerializeFixedLength(types.U32(result.Export), 2)...)
 	return output
 }
 
