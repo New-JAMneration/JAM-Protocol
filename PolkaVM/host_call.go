@@ -1,7 +1,6 @@
 package PolkaVM
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -55,14 +54,14 @@ type OmegaInput struct {
 	Gas       Gas           // gas counter
 	Registers Registers     // PVM registers
 	Memory    Memory        // memory
-	Addition  []any         // Extra parameter for each host-call function
+	Addition  any           // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
 	ExitReason   error     // Exit reason
 	NewGas       Gas       // New Gas
 	NewRegisters Registers // New Register
 	NewMemory    Memory    // New Memory
-	Addition     []any     // addition host-call context
+	Addition     any       // addition host-call context
 }
 
 // Ω⟨X⟩
@@ -104,7 +103,7 @@ type Psi_H_ReturnType struct {
 	Gas        Gas       // gas remain
 	Reg        Registers // new registers
 	Ram        Memory    // new memory
-	Addition   []any     // addition host-call context
+	Addition   any       // addition host-call context
 }
 
 // (A.31) Ψ_H
@@ -115,7 +114,7 @@ func Psi_H(
 	reg Registers, // registers
 	ram Memory, // memory
 	omegas Omegas, // jump table
-	addition []any, // host-call context
+	addition any, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
@@ -194,17 +193,18 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-func getServiceID(addition []any) (uint64, error) {
-	if len(addition) == 0 {
-		return 0, errors.New("serviceID not found in Addition")
-	}
+func getServiceID(addition any) (uint64, error) {
+	/*
+		if len(addition) == 0 {
+			return 0, errors.New("serviceID not found in Addition")
+		}
 
-	serviceID, ok := addition[0].(uint64)
-	if !ok {
-		return 0, errors.New("serviceID is not of type uint64")
-	}
-
-	return serviceID, nil
+		serviceID, ok := addition[0].(uint64)
+		if !ok {
+			return 0, errors.New("serviceID is not of type uint64")
+		}
+	*/
+	return 0, nil
 }
 
 // ΩL(ϱ, ω, μ, s, s, d)

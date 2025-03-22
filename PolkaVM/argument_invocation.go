@@ -21,7 +21,7 @@ func Psi_M(
 	}
 
 	// can be simplified during the refactor phase
-	g, v, a := R(Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, []any{addition}))
+	g, v, a := R(Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, addition))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
