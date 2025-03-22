@@ -89,3 +89,20 @@ func TestDecodeU64(t *testing.T) {
 		t.Errorf("Decoded U64 does not match expected")
 	}
 }
+
+func TestDecodeServiceId(t *testing.T) {
+	data := []byte{100, 0, 0, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+
+	decoder := NewDecoder()
+	serviceId := ServiceId(0)
+	err := decoder.Decode(data, &serviceId)
+	if err != nil {
+		t.Errorf("Error decoding ServiceId: %v", err)
+	}
+
+	expected := ServiceId(100)
+
+	if serviceId != expected {
+		t.Errorf("Decoded ServiceId does not match expected")
+	}
+}
