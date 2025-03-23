@@ -2,6 +2,7 @@ package accumulation
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -96,34 +97,25 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 
 // (12.26)
 // R: Selection function
+// ordered primarily according to the source service index and secondarily their order within t.
 func selectionFunction(transfers types.DeferredTransfers, destinationServiceId types.ServiceId) types.DeferredTransfers {
-	// ordered primarily according to the source service index and secondarily their order within t.
-	store := store.GetInstance()
-	delta := store.GetIntermediateStates().GetDeltaDagger()
-
-	// Get all the services from delta keys
-	services := []types.ServiceId{}
-	for serviceId := range delta {
-		services = append(services, serviceId)
-	}
-
-	output := []types.DeferredTransfer{}
-
-	for _, service := range services {
-		for _, transfer := range transfers {
-			condition_1 := transfer.SenderID == service
-			condition_2 := transfer.ReceiverID == destinationServiceId
-
-			if condition_1 && condition_2 {
-				output = append(output, transfer)
-			}
+	// Filter the destination service id
+	outputTransfers := []types.DeferredTransfer{}
+	for _, transfer := range transfers {
+		if transfer.ReceiverID == destinationServiceId {
+			outputTransfers = append(outputTransfers, transfer)
 		}
 	}
 
-	return output
+	// https://pkg.go.dev/sort#SliceStable
+	sort.SliceStable(outputTransfers, func(i, j int) bool {
+		return outputTransfers[i].SenderID < outputTransfers[j].SenderID
+	})
+
+	return outputTransfers
 }
 
-// (12.27) (12.28)
+// (12.27) (12.28) (12.29) (12.30)
 // delta double dagger: Second intermediate state
 // On-Transfer service-account invocation function as ΨT
 // INFO: t from the outer accumulation function
@@ -153,7 +145,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		// Calculate transfers statistics (X)
 		selectionFunctionOutput := selectionFunction(t, serviceId)
 
-		// (12.30) Calculate the deferred transfers statistics
+		// (12.29) (12.30) Calculate the deferred transfers statistics
 		if len(selectionFunctionOutput) != 0 {
 			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
 				NumDeferredTransfers: types.U64(len(selectionFunctionOutput)),
@@ -304,7 +296,7 @@ func DeferredTransfers() {
 	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList)
 	store.GetAccumulationStatistics().SetAccumulationStatistics(accumulationStatistics)
 
-	// (12.27) (12.28)
+	// (12.27) (12.28) (12.29) (12.30)
 	updateDeltaDoubleDagger(store, output.DeferredTransfers)
 
 	// (12.31) (12.32)
