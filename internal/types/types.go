@@ -523,9 +523,9 @@ type CoreActivityRecord struct {
 	Popularity     U16 `json:"popularity,omitempty"`
 }
 
-type CoresStatisitics []CoreActivityRecord
+type CoresStatistics []CoreActivityRecord
 
-func (c CoresStatisitics) Validate() error {
+func (c CoresStatistics) Validate() error {
 	if len(c) != CoresCount {
 		return fmt.Errorf("CoresStatisitics must have %d core activity record", CoresCount)
 	}
@@ -552,10 +552,10 @@ type ServicesStatistics map[ServiceId]ServiceActivityRecord
 
 // v0.6.4 (13.1)
 type Statistics struct {
-	ValsCurrent ActivityRecords     `json:"vals-current,omitempty"`
-	ValsLast    ActivityRecords     `json:"vals-last,omitempty"`
-	Cores       CoresStatisitics    `json:"cores,omitempty"`
-	Services    ServicesStatistics  `json:"services,omitempty"`
+	ValsCurrent ActivityRecords    `json:"vals-current,omitempty"`
+	ValsLast    ActivityRecords    `json:"vals-last,omitempty"`
+	Cores       CoresStatistics    `json:"cores,omitempty"`
+	Services    ServicesStatistics `json:"services,omitempty"`
 }
 
 // Tickets   (6.5)   or  6.7.  ?
