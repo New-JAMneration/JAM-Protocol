@@ -173,26 +173,26 @@ func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
 // }
 
 // AccumulatedWorkReports
-func (s *Store) GetAccumulatedWorkReports() []types.WorkReport {
-	return s.accumulatedWorkReports.GetAccumulatedWorkReports()
+func (s *Store) GetAccumulatedWorkReportsPointer() *AccumulatedWorkReports {
+	return s.accumulatedWorkReports
 }
 
 // QueuedWorkReports
-func (s *Store) GetQueuedWorkReports() types.ReadyQueueItem {
-	return s.queuedWorkReports.GetQueuedWorkReports()
+func (s *Store) GetQueuedWorkReportsPointer() *QueuedWorkReports {
+	return s.queuedWorkReports
 }
 
 // AccumulatableWorkReports
-func (s *Store) GetAccumulatableWorkReports() []types.WorkReport {
-	return s.accumulatableWorkReports.GetAccumulatableWorkReports()
+func (s *Store) GetAccumulatableWorkReportsPointer() *AccumulatableWorkReports {
+	return s.accumulatableWorkReports
 }
 
 // AccumulationStatistics
-func (s *Store) GetAccumulationStatistics() *AccumulationStatistics {
+func (s *Store) GetAccumulationStatisticsPointer() *AccumulationStatistics {
 	return s.accumulationStatistics
 }
 
 // DeferredTransfersStatistics
-func (s *Store) GetDeferredTransfersStatistics() *DeferredTransfersStatistics {
+func (s *Store) GetDeferredTransfersStatisticsPointer() *DeferredTransfersStatistics {
 	return s.deferredTransfersStatistics
 }

@@ -53,7 +53,7 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 func getWorkResultByService(s types.ServiceId) []types.WorkResult {
 	// Get W^*
 	store := store.GetInstance()
-	accumulatableWorkReports := store.GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
 	output := []types.WorkResult{}
 
@@ -158,14 +158,14 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 
 	// Save the deferred transfers statistics
-	store.GetDeferredTransfersStatistics().SetDeferredTransfersStatistics(deferredTransfersStatisics)
+	store.GetDeferredTransfersStatisticsPointer().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
 // (12.31) (12.32)
 // Update the AccumulatedQueue(AccumulatedHistories)
 func updateXi(store *store.Store) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
 	priorXi := store.GetPriorStates().GetXi()
 	posteriorXi := store.GetPosteriorStates().GetXi()
@@ -200,7 +200,7 @@ func updateTheta(store *store.Store) {
 	tauOffset := tauPrime - tau
 
 	// Get queued work reports
-	queueWorkReports := store.GetQueuedWorkReports()
+	queueWorkReports := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
 
 	// Get prior theta and posterior theta (ReadyQueue)
 	priorTheta := store.GetPriorStates().GetTheta()
@@ -238,7 +238,7 @@ func updateTheta(store *store.Store) {
 // (12.20) (12.21)
 func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, error) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
 	// (12.13) PartialStateSet
 	priorState := store.GetPriorStates()
@@ -294,7 +294,7 @@ func DeferredTransfers() {
 
 	// (12.23) (12.24) (12.25)
 	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList)
-	store.GetAccumulationStatistics().SetAccumulationStatistics(accumulationStatistics)
+	store.GetAccumulationStatisticsPointer().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
 	updateDeltaDoubleDagger(store, output.DeferredTransfers)
