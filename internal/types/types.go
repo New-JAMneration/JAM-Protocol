@@ -813,10 +813,15 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 
 // Header
 // (6.27)
+type EpochMarkValidatorKeys struct {
+	bandersnatch BandersnatchPublic
+	ed25519      Ed25519Public
+}
+
 type EpochMark struct {
-	Entropy        Entropy              `json:"entropy,omitempty"`
-	TicketsEntropy Entropy              `json:"tickets_entropy,omitempty"`
-	Validators     []BandersnatchPublic `json:"validators,omitempty"`
+	Entropy        Entropy                  `json:"entropy,omitempty"`
+	TicketsEntropy Entropy                  `json:"tickets_entropy,omitempty"`
+	Validators     []EpochMarkValidatorKeys `json:"validators,omitempty"`
 }
 
 func (e EpochMark) Validate() error {
