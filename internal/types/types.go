@@ -511,10 +511,51 @@ func (a ActivityRecords) Validate() error {
 	return nil
 }
 
-// (13.2) ??
+// v0.6.4 (13.6)
+type CoreActivityRecord struct {
+	GasUsed        U64 `json:"gas_used,omitempty"`
+	Imports        U16 `json:"imports,omitempty"`
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
+	Exports        U16 `json:"exports,omitempty"`
+	BundleSize     U32 `json:"bundle_size,omitempty"`
+	DALoad         U32 `json:"da_load,omitempty"`
+	Populartity    U16 `json:"popularity,omitempty"`
+}
+
+type CoreStatisitics []CoreActivityRecord
+
+func (c CoreStatisitics) Validate() error {
+	if len(c) != CoresCount {
+		return fmt.Errorf("CoreStatisitics must have %d core activity record", CoresCount)
+	}
+	return nil
+}
+
+// v0.6.4 (13.7)
+type ServiceActivityRecord struct {
+	ProvidedCount      U16 `json:"provided_count,omitempty"`
+	ProvidedSize       U32 `json:"provided_size,omitempty"`
+	RefinementCount    U32 `json:"refinement_count,omitempty"`
+	RefinementGasUsed  U64 `json:"refinement_gas_used,omitempty"`
+	Imports            U32 `json:"imports,omitempty"`
+	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
+	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
+	Exports            U32 `json:"exports,omitempty"`
+	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
+	AccumulateGasUsed  U64 `json:"accumulate_gas_used,omitempty"`
+	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
+	OnTransfersGasUsed U64 `json:"on_transfers_gas_used,omitempty"`
+}
+
+type ServicesStatistics map[ServiceId]ServiceActivityRecord
+
+// v0.6.4 (13.1)
 type Statistics struct {
-	Current ActivityRecords `json:"current,omitempty"`
-	Last    ActivityRecords `json:"last,omitempty"`
+	ValsCurrent ActivityRecords    `json:"vals-current,omitempty"`
+	ValsLast    ActivityRecords    `json:"vals-last,omitempty"`
+	Cores       CoreStatisitics    `json:"cores,omitempty"`
+	Services    ServicesStatistics `json:"services,omitempty"`
 }
 
 // Tickets   (6.5)   or  6.7.  ?
