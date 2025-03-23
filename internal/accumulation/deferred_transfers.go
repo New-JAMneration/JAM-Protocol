@@ -8,9 +8,10 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func sumPrivilegesGas(privileges types.Privileges) types.Gas {
+// (12.20)
+func sumPrivilegesGas(alwaysAccumulateMap types.AlwaysAccumulateMap) types.Gas {
 	sum := types.Gas(0)
-	for _, value := range privileges.AlwaysAccum {
+	for _, value := range alwaysAccumulateMap {
 		sum += value
 	}
 
@@ -18,27 +19,22 @@ func sumPrivilegesGas(privileges types.Privileges) types.Gas {
 }
 
 // Calculate max gas used v0.6.4 (12.20)
-func calculateMaxGasUsed() types.Gas {
+func calculateMaxGasUsed(alwaysAccumulateMap types.AlwaysAccumulateMap) types.Gas {
 	GT := types.Gas(types.TotalGas)
 	GA := types.Gas(types.MaxAccumulateGas)
 	C := types.Gas(types.CoresCount)
 
-	store := store.GetInstance()
-	priorPrivileges := store.GetPriorStates().GetChi()
-
-	sum := sumPrivilegesGas(priorPrivileges)
+	sum := sumPrivilegesGas(alwaysAccumulateMap)
 
 	return max(GT, GA*C+sum)
 }
 
-func updatePartialStateSet(o types.PartialStateSet) {
+func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialStateSet) {
 	// (12.22)
 	postChi := o.Privileges
 	deltaDagger := o.ServiceAccounts
 	postIota := o.ValidatorKeys
 	postVarphi := o.Authorizers
-
-	store := store.GetInstance()
 
 	// Update the posterior state
 	store.GetPosteriorStates().SetChi(postChi)
@@ -76,7 +72,7 @@ func getWorkResultByService(s types.ServiceId) []types.WorkResult {
 // u from outer accuulation function
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
 // We save the accumulation statistics in the store
-func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList) {
+func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList) types.AccumulationStatistics {
 	// Sum of gas used of the service
 	// service id map to sum of gas used
 	sumOfGasUsedMap := map[types.ServiceId]types.Gas{}
@@ -95,19 +91,13 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 		}
 	}
 
-	store := store.GetInstance()
-	store.GetAccumulationStatistics().SetAccumulationStatistics(accumulationStatistics)
+	return accumulationStatistics
 }
 
 // (12.26)
 // R: Selection function
-func SelectionFunction(transfers types.DeferredTransfers, destinationServiceId types.ServiceId) types.DeferredTransfers {
+func selectionFunction(transfers types.DeferredTransfers, destinationServiceId types.ServiceId) types.DeferredTransfers {
 	// ordered primarily according to the source service index and secondarily their order within t.
-	// FIXME: When should we order the delta map with key?
-
-	// FIXME: Where can I get all the services? delta keys?
-	// intermediate delta?
-
 	store := store.GetInstance()
 	delta := store.GetIntermediateStates().GetDeltaDagger()
 
@@ -137,15 +127,13 @@ func SelectionFunction(transfers types.DeferredTransfers, destinationServiceId t
 // delta double dagger: Second intermediate state
 // On-Transfer service-account invocation function as ΨT
 // INFO: t from the outer accumulation function
-func updateDeltaDoubleDagger(t types.DeferredTransfers) {
+func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 	// Get delta dagger
-	store := store.GetInstance()
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
 
 	// Call OnTransferInvoke
-
-	tempDeltaDagger := types.ServiceAccountState{}
+	deltaDoubleDagger := types.ServiceAccountState{}
 	deferredTransfersStatisics := types.DeferredTransfersStatistics{}
 
 	for serviceId := range deltaDagger {
@@ -153,18 +141,19 @@ func updateDeltaDoubleDagger(t types.DeferredTransfers) {
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
-			DeferredTransfers: SelectionFunction(t, serviceId),
+			DeferredTransfers: selectionFunction(t, serviceId),
 		}
 
 		// (12.27) x
 		serviceAccount, gas := PolkaVM.OnTransferInvoke(onTransferInput)
 
 		// (12.28)
-		tempDeltaDagger[serviceId] = serviceAccount
+		deltaDoubleDagger[serviceId] = serviceAccount
 
 		// Calculate transfers statistics (X)
-		selectionFunctionOutput := SelectionFunction(t, serviceId)
+		selectionFunctionOutput := selectionFunction(t, serviceId)
 
+		// (12.30) Calculate the deferred transfers statistics
 		if len(selectionFunctionOutput) != 0 {
 			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
 				NumDeferredTransfers: types.U64(len(selectionFunctionOutput)),
@@ -174,70 +163,22 @@ func updateDeltaDoubleDagger(t types.DeferredTransfers) {
 	}
 
 	// Update delta double dagger
-	store.GetIntermediateStates().SetDeltaDoubleDagger(tempDeltaDagger)
+	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 
 	// Save the deferred transfers statistics
 	store.GetDeferredTransfersStatistics().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
-func DeferredTransfers() {
-	// (12.20)
-	// Get g (max gas used)
-	g := calculateMaxGasUsed()
-
-	// (12.21)
-	// Execute outer accumulation
-	store := store.GetInstance()
-
+// (12.31) (12.32)
+// Update the AccumulatedQueue(AccumulatedHistories)
+func updateXi(store *store.Store) {
 	// Get W^* (accumulatable work-reports in this block)
 	accumulatableWorkReports := store.GetAccumulatableWorkReports()
 
-	// (12.13) PartialStateSet
-	priorState := store.GetPriorStates()
-	chi := priorState.GetChi()
-	delta := priorState.GetDelta()
-	iota := priorState.GetIota()
-	varphi := priorState.GetVarphi()
-
-	partialStateSet := types.PartialStateSet{
-		ServiceAccounts: delta,
-		ValidatorKeys:   iota,
-		Authorizers:     varphi,
-		Privileges:      chi,
-	}
-
-	// \chi_g
-	chi_g := chi.AlwaysAccum
-
-	// (12.21)
-	// n, o, t, C, u
-	outerAccumulationInput := OuterAccumulationInput{
-		GasLimit:                     g,
-		WorkReports:                  accumulatableWorkReports,
-		InitPartialStateSet:          partialStateSet,
-		ServicesWithFreeAccumulation: chi_g,
-	}
-	output, err := OuterAccumulation(outerAccumulationInput)
-	if err != nil {
-		fmt.Errorf("OuterAccumulation failed: %v", err)
-	}
-
-	// (12.22)
-	// Update the partial state set
-	updatePartialStateSet(output.PartialStateSet)
-
-	// (12.23) (12.24) (12.25)
-	calculateAccumulationStatistics(output.ServiceGasUsedList)
-
-	// (12.27) (12.28)
-	updateDeltaDoubleDagger(output.DeferredTransfers)
-
-	// (12.31)
-	// Update the AccumulatedQueue(AccumulatedHistories)
 	priorXi := store.GetPriorStates().GetXi()
 	posteriorXi := store.GetPosteriorStates().GetXi()
 
-	// Update the last element
+	// (12.31) Update the last element
 	posteriorXi[types.EpochLength-1] = MappingFunction(accumulatableWorkReports)
 
 	// (12.32)
@@ -248,10 +189,11 @@ func DeferredTransfers() {
 
 	// Update posteriorXi to store
 	store.GetPosteriorStates().SetXi(posteriorXi)
+}
 
-	// (12.33)
-	// Update ReadyQueue(Theta)
-
+// (12.33)
+// Update ReadyQueue(Theta)
+func updateTheta(store *store.Store) {
 	// (12.10) let m = H_t mode E
 	headerSlot := store.GetIntermediateHeaderPointer().GetSlot()
 	m := int(headerSlot) % types.EpochLength
@@ -271,6 +213,9 @@ func DeferredTransfers() {
 	// Get prior theta and posterior theta (ReadyQueue)
 	priorTheta := store.GetPriorStates().GetTheta()
 	posteriorTheta := store.GetPosteriorStates().GetTheta()
+
+	// Get posterior xi
+	posteriorXi := store.GetPosteriorStates().GetXi()
 
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
@@ -296,4 +241,77 @@ func DeferredTransfers() {
 
 	// Update posterior theta
 	store.GetPosteriorStates().SetTheta(posteriorTheta)
+}
+
+// (12.20) (12.21)
+func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, error) {
+	// Get W^* (accumulatable work-reports in this block)
+	accumulatableWorkReports := store.GetAccumulatableWorkReports()
+
+	// (12.13) PartialStateSet
+	priorState := store.GetPriorStates()
+	chi := priorState.GetChi()
+	delta := priorState.GetDelta()
+	iota := priorState.GetIota()
+	varphi := priorState.GetVarphi()
+
+	partialStateSet := types.PartialStateSet{
+		ServiceAccounts: delta,
+		ValidatorKeys:   iota,
+		Authorizers:     varphi,
+		Privileges:      chi,
+	}
+
+	// \chi_g
+	chi_g := chi.AlwaysAccum
+
+	// (12.20)
+	// Get g (max gas used)
+	g := calculateMaxGasUsed(chi_g)
+
+	// (12.21)
+	// Execute outer accumulation
+	outerAccumulationInput := OuterAccumulationInput{
+		GasLimit:                     g,
+		WorkReports:                  accumulatableWorkReports,
+		InitPartialStateSet:          partialStateSet,
+		ServicesWithFreeAccumulation: chi_g,
+	}
+	output, err := OuterAccumulation(outerAccumulationInput)
+	if err != nil {
+		return OuterAccumulationOutput{}, err
+	}
+
+	// (12.22)
+	// Update the partial state set to posterior state
+	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
+
+	return output, nil
+}
+
+// (v0.6.4) 12.3 Deferred Transfers And State Integration.
+func DeferredTransfers() {
+	// Get parameters from the store
+	store := store.GetInstance()
+
+	// (12.20) (12.21) (12.22)
+	output, err := executeOuterAccumulation(store)
+	if err != nil {
+		fmt.Errorf("OuterAccumulation failed: %v", err)
+	}
+
+	// (12.23) (12.24) (12.25)
+	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList)
+	store.GetAccumulationStatistics().SetAccumulationStatistics(accumulationStatistics)
+
+	// (12.27) (12.28)
+	updateDeltaDoubleDagger(store, output.DeferredTransfers)
+
+	// (12.31) (12.32)
+	// Update the AccumulatedQueue(AccumulatedHistories)
+	updateXi(store)
+
+	// (12.33)
+	// Update ReadyQueue(Theta)
+	updateTheta(store)
 }
