@@ -370,7 +370,7 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 }
 
 type RefineLoad struct {
-	GasUsed        Gas `json:"gas_used,omitempty"`        // u
+	GasUsed        U64 `json:"gas_used,omitempty"`        // u
 	Imports        U16 `json:"imports,omitempty"`         // i
 	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
 	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
@@ -435,7 +435,7 @@ type WorkReport struct {
 	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
 	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
 	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
-	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
+	AuthGasUsed       U64               `json:"auth_gas_used,omitempty"`       // g
 }
 
 func (w *WorkReport) Validate() error {
@@ -520,14 +520,14 @@ type CoreActivityRecord struct {
 	Exports        U16 `json:"exports,omitempty"`
 	BundleSize     U32 `json:"bundle_size,omitempty"`
 	DALoad         U32 `json:"da_load,omitempty"`
-	Populartity    U16 `json:"popularity,omitempty"`
+	Popularity     U16 `json:"popularity,omitempty"`
 }
 
-type CoreStatisitics []CoreActivityRecord
+type CoresStatisitics []CoreActivityRecord
 
-func (c CoreStatisitics) Validate() error {
+func (c CoresStatisitics) Validate() error {
 	if len(c) != CoresCount {
-		return fmt.Errorf("CoreStatisitics must have %d core activity record", CoresCount)
+		return fmt.Errorf("CoresStatisitics must have %d core activity record", CoresCount)
 	}
 	return nil
 }
@@ -552,10 +552,10 @@ type ServicesStatistics map[ServiceId]ServiceActivityRecord
 
 // v0.6.4 (13.1)
 type Statistics struct {
-	ValsCurrent ActivityRecords    `json:"vals-current,omitempty"`
-	ValsLast    ActivityRecords    `json:"vals-last,omitempty"`
-	Cores       CoreStatisitics    `json:"cores,omitempty"`
-	Services    ServicesStatistics `json:"services,omitempty"`
+	ValsCurrent ActivityRecords     `json:"vals-current,omitempty"`
+	ValsLast    ActivityRecords     `json:"vals-last,omitempty"`
+	Cores       CoresStatisitics    `json:"cores,omitempty"`
+	Services    ServicesStatistics  `json:"services,omitempty"`
 }
 
 // Tickets   (6.5)   or  6.7.  ?
@@ -855,8 +855,8 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 // Header
 // (6.27)
 type EpochMarkValidatorKeys struct {
-	bandersnatch BandersnatchPublic
-	ed25519      Ed25519Public
+	Bandersnatch BandersnatchPublic
+	Ed25519      Ed25519Public
 }
 
 type EpochMark struct {
