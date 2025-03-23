@@ -2064,8 +2064,6 @@ func (a *AccumulateRoot) Decode(d *Decoder) error {
 
 	*a = val
 	return nil
-
-	return nil
 }
 
 // ReadyRecord

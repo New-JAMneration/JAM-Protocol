@@ -80,11 +80,14 @@ type GeneralArgs struct {
 type AccumulateArgs struct {
 	ResultContextX ResultContext
 	ResultContextY ResultContext
-	types.TimeSlot
+	Timeslot       types.TimeSlot
 }
 
 type RefineArgs struct {
-	// TODO
+	RefineMap          any
+	ImportSegment      any
+	ExportSegment      any
+	ExportSegmentIndex any
 }
 
 type HostCallArgs struct {
@@ -177,6 +180,7 @@ var hostCallFunctions = [27]Omega{
 	15: forget,
 	16: yield,
 }
+var HostCallFunctions = hostCallFunctions
 
 // Gas Function（ΩG）
 func gas(input OmegaInput) OmegaOutput {
@@ -1186,7 +1190,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	timeslot := input.Addition.TimeSlot
+	timeslot := input.Addition.Timeslot
 	lookupDataLength := len(lookupData)
 
 	if lookupDataLength == 2 {
@@ -1348,7 +1352,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	timeslot := input.Addition.TimeSlot
+	timeslot := input.Addition.Timeslot
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
@@ -1429,7 +1433,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	timeslot := input.Addition.TimeSlot
+	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
