@@ -369,13 +369,22 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 	}
 }
 
-// v0.6.3 (11.6) WorkResult
+type RefineLoad struct {
+	GasUsed        Gas `json:"gas_used,omitempty"`        // u
+	Imports        U16 `json:"imports,omitempty"`         // i
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
+	Exports        U16 `json:"exports,omitempty"`         // e
+}
+
+// v0.6.4 (11.6) WorkResult $\mathbb{L}$
 type WorkResult struct {
-	ServiceId     ServiceId      `json:"service_id,omitempty"`
-	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
-	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
-	AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
-	Result        WorkExecResult `json:"result,omitempty"`
+	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
+	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
+	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`   // y
+	AccumulateGas Gas            `json:"accumulate_gas,omitempty"` // g
+	Result        WorkExecResult `json:"result,omitempty"`         // $\mathbf{d}$
+	RefineLoad    RefineLoad     `json:"refine_load,omitempty"`    // ASN.1 specific field
 }
 
 func (w *WorkResult) Validate() error {
@@ -417,15 +426,16 @@ type SegmentRootLookupItem struct {
 
 type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
-// v0.6.3 (11.2) WorkReport
+// v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`
-	Context           RefineContext     `json:"context"`
-	CoreIndex         CoreIndex         `json:"core_index,omitempty"`
-	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"`
-	Results           []WorkResult      `json:"results,omitempty"`
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
+	Context           RefineContext     `json:"context"`                       // x
+	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
+	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
+	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
+	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
 }
 
 func (w *WorkReport) Validate() error {
