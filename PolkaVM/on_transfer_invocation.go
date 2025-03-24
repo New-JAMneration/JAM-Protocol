@@ -28,7 +28,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		// Psi_M arguments
 		gasLimits := types.Gas(0)
 		balances := types.U64(0)
-		serialized := []byte{}
+
 		F := Omegas{}
 
 		s := input.ServiceAccounts[input.ServiceID]
@@ -37,19 +37,20 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		// timeslot(t) bytes
 		timeslotSer, err := encoder.Encode(input.Timeslot)
 		if err != nil {
-			log.Println("OnTransferInvoke encode TimeSlot error")
+			log.Fatalf("OnTransferInvoke encode TimeSlot error")
 		}
 		deferredTransferSer, err := encoder.Encode(input.DeferredTransfers)
 		if err != nil {
-			log.Println("OnTransferInvoke encode DeferredTransfer error")
+			log.Fatalf("OnTransferInvoke encode DeferredTransfer error")
 		}
 
 		// serviceID(s) bytes
 		serviceIDSer, err := encoder.Encode(input.ServiceID)
 		if err != nil {
-			log.Println("OnTransferInvoke encode ServiceID error")
+			log.Fatalf("OnTransferInvoke encode ServiceID error")
 		}
 
+		var serialized []byte
 		serialized = append(timeslotSer, serviceIDSer...)
 		serialized = append(serialized, deferredTransferSer...)
 
@@ -65,13 +66,20 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		F[GasOp] = hostCallFunctions[GasOp]
 		F[InfoOp] = hostCallFunctions[InfoOp]
 		F[26] = onTransferHostCallException
-		// Psi_M the last arugment : standardProgram type will be removed
-		result := Psi_M(account.ServiceInfo.CodeHash[:], 10, Gas(gasLimits), serialized, F, nil, StandardProgram{})
-		if serviceAccount, isServiceAccount := result.Addition.(types.ServiceAccount); isServiceAccount {
-			account = serviceAccount
+		// addition, on-transfer only uses GeneralArgs
+		addition := HostCallArgs{
+			GeneralArgs: GeneralArgs{
+				ServiceAccount:      input.ServiceAccounts[input.ServiceID],
+				ServiceId:           input.ServiceID,
+				ServiceAccountState: input.ServiceAccounts,
+			},
 		}
+
+		result := Psi_M(account.ServiceInfo.CodeHash[:], 10, Gas(gasLimits), serialized, F, addition)
+		account = result.Addition.ServiceAccount
+
 	} else {
-		log.Println("OnTransferInvoke account not exists")
+		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
 	}
 
 	return account, types.Gas(result.Gas)
