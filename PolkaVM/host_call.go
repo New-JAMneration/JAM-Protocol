@@ -2,12 +2,9 @@ package PolkaVM
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"log"
 
 	service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -58,42 +55,67 @@ type OmegaInput struct {
 	Gas       Gas           // gas counter
 	Registers Registers     // PVM registers
 	Memory    Memory        // memory
-	Addition  []any         // Extra parameter for each host-call function
+	Addition  HostCallArgs  // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason   error     // Exit reason
-	NewGas       Gas       // New Gas
-	NewRegisters Registers // New Register
-	NewMemory    Memory    // New Memory
-	Addition     []any     // addition host-call context
+	ExitReason   error        // Exit reason
+	NewGas       Gas          // New Gas
+	NewRegisters Registers    // New Register
+	NewMemory    Memory       // New Memory
+	Addition     HostCallArgs // addition host-call context
 }
 
 // Ω⟨X⟩
-type Omega func(OmegaInput) OmegaOutput
+type (
+	Omega  func(OmegaInput) OmegaOutput
+	Omegas map[OperationType]Omega
+)
 
-type Psi_H_ReturnType struct {
-	ExitReason error     // exit reason
-	Counter    uint32    // new instruction counter
-	Gas        Gas       // gas remain
-	Reg        Registers // new registers
-	Ram        Memory    // new memory
-	Addition   []any     // addition host-call context
+type GeneralArgs struct {
+	ServiceAccount      types.ServiceAccount
+	ServiceId           types.ServiceId
+	ServiceAccountState types.ServiceAccountState
 }
 
-// (A.31) Ψ_H
+type AccumulateArgs struct {
+	ResultContextX ResultContext
+	ResultContextY ResultContext
+	types.TimeSlot
+}
+
+type RefineArgs struct {
+	// TODO
+}
+
+type HostCallArgs struct {
+	GeneralArgs
+	AccumulateArgs
+	RefineArgs
+}
+
+type Psi_H_ReturnType struct {
+	ExitReason error        // exit reason
+	Counter    uint32       // new instruction counter
+	Gas        Gas          // gas remain
+	Reg        Registers    // new registers
+	Ram        Memory       // new memory
+	Addition   HostCallArgs // addition host-call context
+}
+
+// (A.34) Ψ_H
 func Psi_H(
+	program StandardProgram,
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
-	omega Omega, // jump table
-	addition []any, // host-call context
-	program StandardProgram,
+	omegas Omegas, // jump table
+	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, gas, reg, ram)
-	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -109,6 +131,10 @@ func Psi_H(
 		input.Registers = reg_prime
 		input.Memory = ram
 		input.Addition = addition
+		omega := omegas[input.Operation]
+		if omega == nil {
+			omega = omegas[27]
+		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
@@ -119,7 +145,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
+			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
@@ -132,22 +158,17 @@ func Psi_H(
 	return
 }
 
-type resultContextWrapper struct {
-	x ResultContext
-	y ResultContext
-}
-
-var hostCallFunctions = [26]Omega{
-	0: gas,
-	1: lookup,
-	2: read,
-	3: write,
-	4: info,
-	// 5:  bless,
-	// 6:  assign,
-	// 7:  designate,
-	// 8:  checkpoint,
-	// 9:  new,
+var hostCallFunctions = [27]Omega{
+	0:  gas,
+	1:  lookup,
+	2:  read,
+	3:  write,
+	4:  info,
+	5:  bless,
+	6:  assign,
+	7:  designate,
+	8:  checkpoint,
+	9:  new,
 	10: upgrade,
 	11: transfer,
 	12: eject,
@@ -180,26 +201,12 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-func getServiceID(addition []any) (uint64, error) {
-	if len(addition) == 0 {
-		return 0, errors.New("serviceID not found in Addition")
-	}
-
-	serviceID, ok := addition[0].(uint64)
-	if !ok {
-		return 0, errors.New("serviceID is not of type uint64")
-	}
-
-	return serviceID, nil
-}
-
 // ΩL(ϱ, ω, μ, s, s, d)
 func lookup(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -210,10 +217,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
+
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == serviceID {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -298,11 +304,10 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -314,12 +319,10 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 	var s_star uint64
 	var a types.ServiceAccount
 	if input.Registers[7] == 0xffffffffffffffff {
-		s_star = serviceID
+		s_star = uint64(serviceID)
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
 		s_star = input.Registers[7]
@@ -396,11 +399,9 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 // ΩW (ϱ, ω, μ, s, s)
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -411,9 +412,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 
 	ko, kz, vo, vz := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
@@ -447,8 +445,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 		a = serviceAccount
 		a.StorageDict[k] = concated_bytes
-		delta[types.ServiceId(serviceID)] = a
-		store.GetInstance().GetPriorStates().SetDelta(delta)
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -489,7 +485,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s)
+// ΩR(ϱ, ω, μ, s, d)
 /*
 ϱ: gas
 ω: registers
@@ -499,11 +495,9 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -514,8 +508,6 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
 	var t types.ServiceAccount
 	var empty bool
@@ -633,24 +625,19 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := types.AlwaysAccumulateMap{}
-	decoder := types.Decoder{}
+	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, alwaysAccum)
 	if err != nil {
-		log.Println("host-call function \"bless\" decode alwaysAccum error : ", err)
+		log.Fatalf("host-call function \"bless\" decode alwaysAccum error : %v", err)
 	}
 
 	input.Registers[7] = OK
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		resultContext.x.PartialState.Privileges = types.Privileges{
-			Bless:       types.ServiceId(m),
-			Assign:      types.ServiceId(a),
-			Designate:   types.ServiceId(v),
-			AlwaysAccum: alwaysAccum,
-		}
-		input.Addition[0] = resultContext
-	} else {
-		log.Println("host-call function \"bless\" type assert resultContextWrapper error : input error")
+
+	input.Addition.ResultContextX.PartialState.Privileges = types.Privileges{
+		Bless:       types.ServiceId(m),
+		Assign:      types.ServiceId(a),
+		Designate:   types.ServiceId(v),
+		AlwaysAccum: alwaysAccum,
 	}
 
 	return OmegaOutput{
@@ -704,19 +691,13 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 	// decode rawData
 	authQueue := types.AuthQueue{}
-	decoder := types.Decoder{}
+	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, authQueue)
 	if err != nil {
-		log.Println("host-call function \"assign\" decode error : ", err)
-	}
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		resultContext.x.PartialState.Authorizers[input.Registers[7]] = authQueue
-		input.Addition[0] = resultContext
-	} else {
-		log.Println("host-call function \"assign\" type assert resultContextWrapper error : input error")
+		log.Fatalf("host-call function \"assign\" decode error : %v", err)
 	}
 
+	input.Addition.ResultContextX.PartialState.Authorizers[input.Registers[7]] = authQueue
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -759,19 +740,13 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 
 	validatorsData := types.ValidatorsData{}
-	decoder := types.Decoder{}
+	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, validatorsData)
 	if err != nil {
-		log.Println("host-call function \"designate\" decode validatorsData error : ", err)
-	}
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		resultContext.x.PartialState.ValidatorKeys = validatorsData
-		input.Addition[0] = resultContext
-	} else {
-		log.Println("host-call function \"designate\" type assert resultContextWrapper error : input error")
+		log.Fatalf("host-call function \"designate\" decode validatorsData error : %v", err)
 	}
 
+	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -786,13 +761,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 // checkpoint = 8
 func checkpoint(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - 10 - Gas(input.Registers[9])
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		resultContext.y = resultContext.x
-	} else {
-		log.Println("host-call function \"checkpoint\" type assert resultContextWrapper error : input error")
-	}
-
+	input.Addition.ResultContextY = input.Addition.ResultContextX
 	input.Registers[7] = uint64(newGas)
 
 	return OmegaOutput{
@@ -832,69 +801,67 @@ func new(input OmegaInput) (output OmegaOutput) {
 		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_s service-account
-		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
-			// s_b < (x_s)_t   	, bold{s} = account
-			if account.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(resultContext.x.ServiceId).Minbalance {
-				input.Registers[7] = CASH
-
-				return OmegaOutput{
-					ExitReason:   PVMExitTuple(CONTINUE, nil),
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-
-			cDecoded, err := utils.DeserializeFixedLength(c, types.U32(4))
-			if err != nil {
-				log.Println("host-call function \"new\" deserialized raise error :", err)
-			}
-
-			at := service.CalcThresholdBalance(cDecoded, types.U64(l))
-			// s_b = (x_s)_b - at
-			account.ServiceInfo.Balance -= at
-			// new an account
-			serviceinfo := types.ServiceInfo{
-				CodeHash:   types.OpaqueHash(c), // c
-				Balance:    at,                  // b
-				MinItemGas: types.Gas(g),        // g
-				MinMemoGas: types.Gas(m),        // m
-			}
-			lookupKey := types.LookupMetaMapkey{
-				Hash:   types.OpaqueHash(c),
-				Length: types.U32(l),
-			}
-			lookupMetaMapEntry := types.LookupMetaMapEntry{
-				lookupKey: types.TimeSlotSet{},
-			}
-
-			a := types.ServiceAccount{
-				ServiceInfo:    serviceinfo,
-				PreimageLookup: types.PreimagesMapEntry{}, // p
-				LookupDict:     lookupMetaMapEntry,        // l
-				StorageDict:    types.Storage{},           // s
-			}
-			// reg[7] = x_i
-			input.Registers[7] = uint64(resultContext.x.ServiceId)
-			// x_i = check(i)
-			i := (1 << 8) + (resultContext.x.ServiceId-(1<<8)+42)%(1<<32-1<<9)
-			resultContext.x.ImportServiceId = check(i, resultContext.x.PartialState.ServiceAccounts)
-			// x_i -> a
-			resultContext.x.PartialState.ServiceAccounts[resultContext.x.ImportServiceId] = a
-			// x_s -> s
-			resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = account
-
-			input.Addition[0] = resultContext
-		} else {
-			log.Println("host-call function \"new\" account not exists error")
-		}
-	} else {
-		log.Println("host-call function \"new\" type assert resultContextWrapper error : input error")
+	serviceID := input.Addition.ResultContextX.ServiceId
+	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !sExists {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
+
+	if s.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+		input.Registers[7] = CASH
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	var cDecoded types.U32
+	decoder := types.NewDecoder()
+	err := decoder.Decode(c, cDecoded)
+	if err != nil {
+		log.Fatalf("host-call function \"new\" decode error %v: ", err)
+	}
+
+	at := service.CalcThresholdBalance(cDecoded, types.U64(l))
+	// s_b = (x_s)_b - at
+	s.ServiceInfo.Balance -= at
+	// new an account
+	serviceinfo := types.ServiceInfo{
+		CodeHash:   types.OpaqueHash(c), // c
+		Balance:    at,                  // b
+		MinItemGas: types.Gas(g),        // g
+		MinMemoGas: types.Gas(m),        // m
+	}
+	lookupKey := types.LookupMetaMapkey{
+		Hash:   types.OpaqueHash(c),
+		Length: types.U32(l),
+	}
+	lookupMetaMapEntry := types.LookupMetaMapEntry{
+		lookupKey: types.TimeSlotSet{},
+	}
+
+	a := types.ServiceAccount{
+		ServiceInfo:    serviceinfo,
+		PreimageLookup: types.PreimagesMapEntry{}, // p
+		LookupDict:     lookupMetaMapEntry,        // l
+		StorageDict:    types.Storage{},           // s
+	}
+
+	serviceID = input.Addition.ResultContextX.ServiceId
+	// reg[7] = x_i
+	input.Registers[7] = uint64(input.Addition.ResultContextX.ServiceId)
+	// x_i = check(i)
+	i := (1 << 8) + (serviceID-(1<<8)+42)%(1<<32-1<<9)
+	input.Addition.ResultContextX.ImportServiceId = check(i, input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	// x_i -> a
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[input.Addition.ResultContextX.ServiceId] = a
+	// x_s -> s
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -934,20 +901,17 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Registers[7] = OK
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] check service exists
-		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
-			account.ServiceInfo.CodeHash = types.OpaqueHash(c)
-			account.ServiceInfo.MinItemGas = types.Gas(g)
-			account.ServiceInfo.MinMemoGas = types.Gas(m)
-			resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = account
-			input.Addition[0] = resultContext
-		} else {
-			log.Println("host-call function \"upgrade\" account not exists error")
-		}
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	// x_bold{s} = (x_u)_d[x_s]
+	if serviceAccount, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		serviceAccount.ServiceInfo.CodeHash = types.OpaqueHash(c)
+		serviceAccount.ServiceInfo.MinItemGas = types.Gas(g)
+		serviceAccount.ServiceInfo.MinMemoGas = types.Gas(m)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = serviceAccount
 	} else {
-		log.Println("host-call function \"upgrade\" type assert resultContextWrapper error : input error")
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -987,21 +951,33 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		dataLength += rawLength
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		if accountD, accountDExists := resultContext.x.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountDExists {
-			// not exist
-			input.Registers[7] = WHO
+	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
+		// not exist
+		input.Registers[7] = WHO
 
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
-		} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
-			input.Registers[7] = LOW
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
+		input.Registers[7] = LOW
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	serviceID := input.Addition.ResultContextX.ServiceId
+	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
+		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
+		if b < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+			input.Registers[7] = CASH
 
 			return OmegaOutput{
 				ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -1012,38 +988,20 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 
-		if accountS, accountSExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountSExists {
-			b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-
-			if b < service.GetSerivecAccountDerivatives(resultContext.x.ServiceId).Minbalance {
-				input.Registers[7] = CASH
-
-				return OmegaOutput{
-					ExitReason:   PVMExitTuple(CONTINUE, nil),
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-
-			t := types.DeferredTransfer{
-				SenderID:   resultContext.x.ServiceId,
-				ReceiverID: types.ServiceId(d),
-				Balance:    types.U64(a),
-				Memo:       [128]byte(rawData),
-				GasLimit:   types.Gas(l),
-			}
-
-			accountS.ServiceInfo.Balance = b
-			resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = accountS
-			resultContext.x.DeferredTransfers = append(resultContext.x.DeferredTransfers, t)
-			input.Addition[0] = resultContext
-		} else {
-			log.Println("host-call function \"transfer\" accountS not exists")
+		t := types.DeferredTransfer{
+			SenderID:   serviceID,
+			ReceiverID: types.ServiceId(d),
+			Balance:    types.U64(a),
+			Memo:       [128]byte(rawData),
+			GasLimit:   types.Gas(l),
 		}
+
+		accountS.ServiceInfo.Balance = b
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
+		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
 	} else {
-		log.Println("host-call function \"transfer\" type assert resultContextWrapper error : input error")
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	input.Registers[7] = OK
@@ -1085,83 +1043,78 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] check service exists
-		accountD, accountExists := resultContext.x.PartialState.ServiceAccounts[types.ServiceId(d)]
-		if !(types.ServiceId(d) != resultContext.x.ServiceId && accountExists) {
-			// bold{d} = panic => CONTINUE, WHO
-			input.Registers[7] = WHO
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
+	serviceID := input.Addition.ResultContextX.ServiceId
+
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]
+	if !(types.ServiceId(d) != serviceID && accountExists) {
+		// bold{d} = panic => CONTINUE, WHO
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
+	}
 
-		// else : d = account
-		seviceIDSerialized := utils.SerializeFixedLength(types.U32(resultContext.x.ServiceId), types.U32(32))
-		// not sure need to add d_b first or not
-		if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], seviceIDSerialized) {
-			// d_c not equal E_32(x_s)
-			input.Registers[7] = WHO
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
+	// else : d = account
+	seviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
+	// not sure need to add d_b first or not
+	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], seviceIDSerialized) {
+		// d_c not equal E_32(x_s)
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
+	}
 
-		l := max(81, accountD.ServiceInfo.Bytes) - 81 // a_o
+	l := max(81, accountD.ServiceInfo.Bytes) - 81 // a_o
 
-		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(l)} // x_bold{s}_l
-		lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
+	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(l)} // x_bold{s}_l
+	lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
 
-		if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
-			input.Registers[7] = HUH
+	if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
+		input.Registers[7] = HUH
 
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
-		// type assert
-		if timeslot, isTimeslot := input.Addition[1].(types.TimeSlot); isTimeslot {
-			// y < t - D
-			lookupDataLength := len(lookupData)
+	}
 
-			if lookupDataLength == 2 {
-				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-					accountS := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]
-					accountS.ServiceInfo.Balance += accountD.ServiceInfo.Bytes // s'_b
-					resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = accountS
+	timeslot := input.Addition.TimeSlot
+	lookupDataLength := len(lookupData)
 
-					delete(resultContext.x.PartialState.ServiceAccounts, types.ServiceId(d))
+	if lookupDataLength == 2 {
+		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 
-					input.Addition[0] = resultContext
-					input.Registers[7] = OK
+				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Bytes // s'_b
+				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
 
-					return OmegaOutput{
-						ExitReason:   PVMExitTuple(CONTINUE, nil),
-						NewGas:       newGas,
-						NewRegisters: input.Registers,
-						NewMemory:    input.Memory,
-						Addition:     input.Addition,
-					}
+				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
+				input.Registers[7] = OK
+
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
 				}
+			} else {
+				// according GP, no need to check the service exists => it should in ServiceAccountState
+				log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 			}
-		} else {
-			log.Println("host-call function \"ejct\" type assert timeslot error : input error")
 		}
-	} else {
-		log.Println("host-call function \"eject\" type assert resultContextWrapper error : input error")
 	}
 
 	input.Registers[7] = HUH
@@ -1203,45 +1156,42 @@ func query(input OmegaInput) (output OmegaOutput) {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] check service exists
-		if account, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
-			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-			lookupData, lookupDataExists := account.LookupDict[lookupKey]
-			if lookupDataExists {
-				// a = lookupData[h,z]
-				switch len(lookupData) {
-				case 0:
-					input.Registers[7], input.Registers[8] = 0, 0
-				case 1:
-					input.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
-					input.Registers[8] = 0
-				case 2:
-					input.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
-					input.Registers[8] = uint64(lookupData[1])
-				case 3:
-					input.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
-					input.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
-				}
-			} else {
-				// a = panic
-				input.Registers[7] = NONE
-				input.Registers[8] = 0
-
-				return OmegaOutput{
-					ExitReason:   PVMExitTuple(CONTINUE, nil),
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-		} else {
-			log.Println("host-call function \"query\" type account not exists")
+	serviceID := input.Addition.ResultContextX.ServiceId
+	// x_bold{s} = (x_u)_d[x_s]
+	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !accountExists {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+	lookupData, lookupDataExists := account.LookupDict[lookupKey]
+	if lookupDataExists {
+		// a = lookupData[h,z]
+		switch len(lookupData) {
+		case 0:
+			input.Registers[7], input.Registers[8] = 0, 0
+		case 1:
+			input.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = 0
+		case 2:
+			input.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = uint64(lookupData[1])
+		case 3:
+			input.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
 		}
 	} else {
-		log.Println("host-call function \"query\" type assert resultContextWrapper error : input error")
+		// a = panic
+		input.Registers[7] = NONE
+		input.Registers[8] = 0
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
 	}
 
 	return OmegaOutput{
@@ -1281,45 +1231,36 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] check service exists
-		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
-			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-			lookupData, lookupDataExists := a.LookupDict[lookupKey]
-			// a_l[(h,z)] = [] => no changes, do not need to implement
-			if lookupDataExists && len(lookupData) == 2 {
-				// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
-				if timeslot, isTimeslot := input.Addition[1].(types.TimeSlot); isTimeslot {
-					lookupData = append(lookupData, timeslot)
-					resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId].LookupDict[lookupKey] = lookupData
-
-				}
-			} else {
-				// a = panic
-				input.Registers[7] = HUH
-
-				return OmegaOutput{
-					ExitReason:   PVMExitTuple(CONTINUE, nil),
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-			// a_b < a_t
-			if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(resultContext.x.ServiceId).Minbalance {
-				input.Registers[7] = FULL
-			}
-
-			// else
-			input.Registers[7] = OK
-			input.Addition[0] = resultContext
+	serviceID := input.Addition.ResultContextX.ServiceId
+	timeslot := input.Addition.TimeSlot
+	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		lookupData, lookupDataExists := a.LookupDict[lookupKey]
+		// a_l[(h,z)] = [] => no changes, do not need to implement
+		if lookupDataExists && len(lookupData) == 2 {
+			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
+			lookupData = append(lookupData, timeslot)
+			a.LookupDict[lookupKey] = lookupData
 		} else {
-			log.Println("host-call function \"solicit\" account(a) not exists")
+			// a = panic
+			input.Registers[7] = HUH
+
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
 		}
-	} else {
-		log.Println("host-call function \"solicit\" type assert resultContextWrapper error : input error")
+		// a_b < a_t
+		if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+			input.Registers[7] = FULL
+		}
+
+		// else
+		input.Registers[7] = OK
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 	}
 
 	return OmegaOutput{
@@ -1359,52 +1300,35 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
 
-	// type assert
-	if resultContext, isResultContext := input.Addition[0].(resultContextWrapper); isResultContext {
-		// x_bold{s} = (x_u)_d[x_s] check service exists
-		if a, accountExists := resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId]; accountExists {
-			lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-			if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
-				// type assert
-				if timeslot, isTimeslot := input.Addition[1].(types.TimeSlot); isTimeslot {
-					// y < t - D
-					lookupDataLength := len(lookupData)
+	serviceID := input.Addition.ResultContextX.ServiceId
+	timeslot := input.Addition.TimeSlot
+	// x_bold{s} = (x_u)_d[x_s] check service exists
+	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
+			lookupDataLength := len(lookupData)
 
-					if lookupDataLength == 0 || lookupDataLength == 2 {
-						if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-							// delete (h,z) from a_l
-							expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
-							delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
-							// delete (h) from a_p
-							delete(a.PreimageLookup, types.OpaqueHash(h))
-						}
-					} else if lookupDataExists && lookupDataLength == 1 {
-						// a_l[h,z] = [x,t]
-						lookupData = append(lookupData, timeslot)
-						a.LookupDict[lookupKey] = lookupData
-					} else if lookupDataExists && lookupDataLength == 3 {
-						if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-							// a_l[h,z] = [w,t]
-							lookupData[0] = lookupData[2]
-							lookupData[1] = timeslot
-							lookupData = lookupData[:2]
-							a.LookupDict[lookupKey] = lookupData
-						}
-					} else { // otherwise, panic
-						input.Registers[7] = HUH
-						return OmegaOutput{
-							ExitReason:   PVMExitTuple(PANIC, nil),
-							NewGas:       newGas,
-							NewRegisters: input.Registers,
-							NewMemory:    input.Memory,
-							Addition:     input.Addition,
-						}
-					}
-					// x_s^' = a
-					resultContext.x.PartialState.ServiceAccounts[resultContext.x.ServiceId] = a
-					input.Addition[0] = resultContext
+			if lookupDataLength == 0 || lookupDataLength == 2 {
+				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+					// delete (h,z) from a_l
+					expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+					delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
+					// delete (h) from a_p
+					delete(a.PreimageLookup, types.OpaqueHash(h))
 				}
-			} else {
+			} else if lookupDataExists && lookupDataLength == 1 {
+				// a_l[h,z] = [x,t]
+				lookupData = append(lookupData, timeslot)
+				a.LookupDict[lookupKey] = lookupData
+			} else if lookupDataExists && lookupDataLength == 3 {
+				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+					// a_l[h,z] = [w,t]
+					lookupData[0] = lookupData[2]
+					lookupData[1] = timeslot
+					lookupData = lookupData[:2]
+					a.LookupDict[lookupKey] = lookupData
+				}
+			} else { // otherwise, panic
 				input.Registers[7] = HUH
 				return OmegaOutput{
 					ExitReason:   PVMExitTuple(PANIC, nil),
@@ -1414,11 +1338,18 @@ func forget(input OmegaInput) (output OmegaOutput) {
 					Addition:     input.Addition,
 				}
 			}
-		} else {
-			log.Println("host-call function \"forget\" account(a) not exists")
+			// x_s^' = a
+			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		}
 	} else {
-		log.Println("host-call function \"forget\" type assert resultContextWrapper error : input error")
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
 	}
 
 	input.Registers[7] = OK
@@ -1462,12 +1393,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 
 	input.Registers[7] = OK
 
-	// if addition[0] is resultContext type
-	if resultContext, ok := input.Addition[0].(*ResultContext); ok {
-		copy(resultContext.Exception[:], h)
-	} else {
-		log.Println("host-call function \"yield\" type assert resultContextWrapper error : input error")
-	}
+	copy(input.Addition.ResultContextX.Exception[:], h)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
