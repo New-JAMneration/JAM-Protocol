@@ -34,14 +34,13 @@ func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
 func UpdateQueuedWorkReports(reports []types.WorkReport) {
-	var reports_with_dependency []types.WorkReport
+	var reports_with_dependency types.ReadyQueueItem
 	for _, report := range reports {
 		if len(report.Context.Prerequisites) != 0 || len(report.SegmentRootLookup) != 0 {
-			reports_with_dependency = append(reports_with_dependency, report)
+			reports_with_dependency = append(reports_with_dependency, GetDependencyFromWorkReport(report))
 		}
 	}
-	store.GetInstance().GetAccumulatedWorkReports().SetAccumulatedWorkReports(reports_with_dependency)
-	// TODO state
+	store.GetInstance().GetQueuedWorkReports().SetQueuedWorkReports(reports_with_dependency)
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
