@@ -9,7 +9,6 @@ import (
 
 // (B.8) Ψ_A
 func Psi_A(
-	code StandardCodeFormat,
 	partialState types.PartialStateSet,
 	time types.TimeSlot,
 	serviceId types.ServiceId,
