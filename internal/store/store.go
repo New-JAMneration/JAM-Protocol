@@ -25,7 +25,10 @@ type Store struct {
 	ancestorHeaders            *AncestorHeaders
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
-	beefyCommitmentOutput      *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
+	beefyCommitmentOutput      *BeefyCommitmentOutputs   // This is tmp used waiting for more def in GP
+	accumulatedWorkReports     *AccumulatedWorkReports   // W^! (accumulated immediately)
+	queuedWorkReports          *QueuedWorkReports        // W^Q (queued execution)
+	accumulatableWorkReports   *AccumulatableWorkReports // W^* (accumulatable work-reports in this block)
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -42,6 +45,9 @@ func GetInstance() *Store {
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
+			accumulatedWorkReports:     NewAccumulatedWorkReports(),
+			queuedWorkReports:          NewQueuedWorkReports(),
+			accumulatableWorkReports:   NewAccumulatableWorkReports(),
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -148,6 +154,21 @@ func (s *Store) GetBeefyCommitmentOutput() types.BeefyCommitmentOutput {
 // Set
 func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
 	return s.beefyCommitmentOutput
+}
+
+// AccumulatedWorkReports
+func (s *Store) GetAccumulatedWorkReports() *AccumulatedWorkReports {
+	return s.accumulatedWorkReports
+}
+
+// QueuedWorkReports
+func (s *Store) GetQueuedWorkReports() *QueuedWorkReports {
+	return s.queuedWorkReports
+}
+
+// AccumulatableWorkReports
+func (s *Store) GetAccumulatableWorkReports() *AccumulatableWorkReports {
+	return s.accumulatableWorkReports
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)
