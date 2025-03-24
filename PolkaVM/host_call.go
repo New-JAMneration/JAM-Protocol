@@ -1,11 +1,7 @@
 package PolkaVM
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -56,14 +52,14 @@ type OmegaInput struct {
 	Gas       Gas           // gas counter
 	Registers Registers     // PVM registers
 	Memory    Memory        // memory
-	Addition  []any         // Extra parameter for each host-call function
+	Addition  HostCallArgs  // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason   error     // Exit reason
-	NewGas       Gas       // New Gas
-	NewRegisters Registers // New Register
-	NewMemory    Memory    // New Memory
-	Addition     []any     // addition host-call context
+	ExitReason   error        // Exit reason
+	NewGas       Gas          // New Gas
+	NewRegisters Registers    // New Register
+	NewMemory    Memory       // New Memory
+	Addition     HostCallArgs // addition host-call context
 }
 
 // Ω⟨X⟩
@@ -72,29 +68,50 @@ type (
 	Omegas map[OperationType]Omega
 )
 
-type Psi_H_ReturnType struct {
-	ExitReason error     // exit reason
-	Counter    uint32    // new instruction counter
-	Gas        Gas       // gas remain
-	Reg        Registers // new registers
-	Ram        Memory    // new memory
-	Addition   []any     // addition host-call context
+type GeneralArgs struct {
+	ServiceAccount      types.ServiceAccount
+	ServiceId           types.ServiceId
+	ServiceAccountState types.ServiceAccountState
 }
 
-// (A.31) Ψ_H
+type AccumulateArgs struct {
+	ResultContextX ResultContext
+	ResultContextY ResultContext
+}
+
+type RefineArgs struct {
+	// TODO
+}
+
+type HostCallArgs struct {
+	GeneralArgs
+	AccumulateArgs
+	RefineArgs
+}
+
+type Psi_H_ReturnType struct {
+	ExitReason error        // exit reason
+	Counter    uint32       // new instruction counter
+	Gas        Gas          // gas remain
+	Reg        Registers    // new registers
+	Ram        Memory       // new memory
+	Addition   HostCallArgs // addition host-call context
+}
+
+// (A.34) Ψ_H
 func Psi_H(
+	program StandardProgram,
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
 	omegas Omegas, // jump table
-	addition []any, // host-call context
-	program StandardProgram,
+	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, gas, reg, ram)
-	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -110,7 +127,6 @@ func Psi_H(
 		input.Registers = reg_prime
 		input.Memory = ram
 		input.Addition = addition
-
 		omega := omegas[input.Operation]
 		if omega == nil {
 			omega = omegas[27]
@@ -125,7 +141,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition, program)
+			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
@@ -169,26 +185,12 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-func getServiceID(addition []any) (uint64, error) {
-	if len(addition) == 0 {
-		return 0, errors.New("serviceID not found in Addition")
-	}
-
-	serviceID, ok := addition[0].(uint64)
-	if !ok {
-		return 0, errors.New("serviceID is not of type uint64")
-	}
-
-	return serviceID, nil
-}
-
 // ΩL(ϱ, ω, μ, s, s, d)
 func lookup(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -199,10 +201,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
+
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == serviceID {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -287,11 +288,10 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -303,12 +303,10 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 	var s_star uint64
 	var a types.ServiceAccount
 	if input.Registers[7] == 0xffffffffffffffff {
-		s_star = serviceID
+		s_star = uint64(serviceID)
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
 		s_star = input.Registers[7]
@@ -385,11 +383,9 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 // ΩW (ϱ, ω, μ, s, s)
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -400,9 +396,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 
 	ko, kz, vo, vz := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
@@ -436,8 +429,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 		a = serviceAccount
 		a.StorageDict[k] = concated_bytes
-		delta[types.ServiceId(serviceID)] = a
-		store.GetInstance().GetPriorStates().SetDelta(delta)
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -478,7 +469,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s)
+// ΩR(ϱ, ω, μ, s, d)
 /*
 ϱ: gas
 ω: registers
@@ -488,11 +479,9 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -503,8 +492,6 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
 	var t types.ServiceAccount
 	var empty bool
