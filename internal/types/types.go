@@ -669,7 +669,7 @@ func (p *Preimage) Validate() error {
 	return nil
 }
 
-// (12.28) (12.29)
+// v0.6.4 (12.34) (12.35)
 type PreimagesExtrinsic []Preimage
 
 func (p *PreimagesExtrinsic) Validate() error {
