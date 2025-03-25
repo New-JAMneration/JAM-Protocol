@@ -289,7 +289,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			service_set[reuslt.ServiceId] = true
 		}
 	}
-	for serivce_id, _ := range input.AlwaysAccumulateMap {
+	for serivce_id := range input.AlwaysAccumulateMap {
 		service_set[serivce_id] = true
 	}
 	current_partial_state := input.PartialStateSet
