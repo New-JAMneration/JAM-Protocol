@@ -1241,3 +1241,13 @@ type ServiceGasUsed struct {
 	ServiceId ServiceId
 	Gas       Gas
 }
+
+// FIXME: Naming issue
+type ServiceHash struct {
+	ServiceId ServiceId
+	Hash      OpaqueHash // AccumulationOutput
+}
+
+// (12.15) B
+// FIXME: Naming issue
+type ServiceHashSet map[ServiceHash]struct{}
