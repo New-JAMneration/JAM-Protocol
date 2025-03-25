@@ -132,9 +132,7 @@ func UpdateAccumulatableWorkReports() {
 	candidate_queue = append(candidate_queue, WQ)
 	var candidate_reports types.ReadyQueueItem
 	for _, queue := range candidate_queue {
-		for _, item := range queue {
-			candidate_reports = append(candidate_reports, item)
-		}
+		candidate_reports = append(candidate_reports, queue...)
 	}
 	accumulated_hashes := ExtractWorkReportHashes(store.GetInstance().GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports())
 	q := QueueEditingFunction(candidate_reports, accumulated_hashes)
