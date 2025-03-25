@@ -41,7 +41,7 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 			reports_with_dependency = append(reports_with_dependency, GetDependencyFromWorkReport(report))
 		}
 	}
-	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(reports_with_dependency)
+	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes()))
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
