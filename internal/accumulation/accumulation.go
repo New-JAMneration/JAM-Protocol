@@ -293,7 +293,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		service_set[serivce_id] = true
 	}
 	current_partial_state := input.PartialStateSet
-	for service_id, _ := range service_set {
+	for service_id := range service_set {
 		var single_input SingleServiceAccumulationInput
 		single_input.ServiceId = service_id
 		single_input.PartialStateSet = current_partial_state
