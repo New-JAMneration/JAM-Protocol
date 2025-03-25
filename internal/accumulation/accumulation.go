@@ -48,15 +48,11 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 
 func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRecord) {
 	output.Report = report
-	if len(report.Context.Prerequisites) > 0 {
-		for _, hash := range report.Context.Prerequisites {
-			output.Dependencies = append(output.Dependencies, types.WorkPackageHash(hash))
-		}
+	for _, hash := range report.Context.Prerequisites {
+		output.Dependencies = append(output.Dependencies, types.WorkPackageHash(hash))
 	}
-	if len(report.SegmentRootLookup) > 0 {
-		for _, segment := range report.SegmentRootLookup {
-			output.Dependencies = append(output.Dependencies, types.WorkPackageHash(segment.WorkPackageHash))
-		}
+	for _, segment := range report.SegmentRootLookup {
+		output.Dependencies = append(output.Dependencies, types.WorkPackageHash(segment.WorkPackageHash))
 	}
 	return output
 }
