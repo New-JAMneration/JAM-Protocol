@@ -9,11 +9,11 @@ import (
 // (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
 
 // (12.2) ©ξ ≡ ⋃x∈ξ
-// extracted all accumulated hashes
+// This function extracts all known (past) accumulated WorkPackageHashes.
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
-	xi := store.GetInstance().GetPriorStates().GetXi()
+	xi := store.GetInstance().GetPriorStates().GetXi() // Retrieve ξ
 	for _, history := range xi {
-		output = append(output, history...)
+		output = append(output, history...) // Form ©ξ ≡ union over ξ
 	}
 	return output
 }
@@ -21,14 +21,21 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 // (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: store.theta
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
-// Get all workreport without any dependency, and store in accumulatedWorkReport
+// This function identifies and stores work reports that are immediately
+// eligible for accumulation, i.e.:
+//   - (wx)p == 0: the report has no unresolved prerequisites
+//   - wl == {}  : there is no segment root lookup required
+//
+// These work reports are independent and can be accumulated without waiting.
 func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
 	var accumulatable_reports []types.WorkReport
 	for _, report := range reports {
+		// Check for no prerequisites and no segment root lookup dependencies
 		if len(report.Context.Prerequisites) == 0 && len(report.SegmentRootLookup) == 0 {
 			accumulatable_reports = append(accumulatable_reports, report)
 		}
 	}
+	// Store W! — immediately accumulatable work reports
 	store.GetInstance().GetAccumulatedWorkReportsPointer().SetAccumulatedWorkReports(accumulatable_reports)
 }
 
@@ -38,10 +45,13 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 	var reports_with_dependency types.ReadyQueueItem
 	for _, report := range reports {
 		if len(report.Context.Prerequisites) != 0 || len(report.SegmentRootLookup) != 0 {
+			// D(w): extract the dependency structure from report
 			reports_with_dependency = append(reports_with_dependency, GetDependencyFromWorkReport(report))
 		}
 	}
+	// E(..., ©ξ): perform dependency resolution and ordering
 	work_reports_queue := QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes())
+	// Store WQ — queued reports awaiting prerequisite satisfaction
 	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(work_reports_queue)
 }
 
@@ -49,9 +59,12 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 // Extract all dependencies from single work report
 func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRecord) {
 	output.Report = report
+	// Add all explicit prerequisites (wx)p to the dependency list
 	for _, hash := range report.Context.Prerequisites {
 		output.Dependencies = append(output.Dependencies, types.WorkPackageHash(hash))
 	}
+
+	// Add all work package hashes found in the segment root lookup (i.e., K(wl))
 	for _, segment := range report.SegmentRootLookup {
 		output.Dependencies = append(output.Dependencies, types.WorkPackageHash(segment.WorkPackageHash))
 	}
@@ -65,21 +78,29 @@ func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRec
 // E∶   (r, x) ↦ (w, d ∖ x) W     (w, d) <− r,
 //
 //	(ws)h ~∈ x
+//	  - For each work report (w) with dependency set (d)
+//	  - If w’s own hash (ws)h is *not* in x (i.e. not yet accumulated),
+//	  - Remove from d any dependencies already present in x (i.e., prune known satisfied deps)
+//	  - Return the pruned ReadyQueueItem (w, d \ x)
 func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (newQueue types.ReadyQueueItem) {
 	finished_report_hashes := make(map[types.WorkPackageHash]bool)
 	for _, h := range x {
 		finished_report_hashes[h] = true
 	}
 	for _, item := range r {
-		if exist, _ := finished_report_hashes[item.Report.PackageSpec.Hash]; exist { // accumulated, remove from queue
+		// If the report itself is already accumulated, skip it, remove from queue
+		if exist, _ := finished_report_hashes[item.Report.PackageSpec.Hash]; exist {
 			continue
 		}
+		// Otherwise, filter its dependencies: keep only those NOT in the finished set
 		var remainingDeps []types.WorkPackageHash
-		for _, dep := range item.Dependencies { // remove the finished report hashes from dependencies
+		for _, dep := range item.Dependencies {
 			if exist, _ := finished_report_hashes[dep]; !exist {
 				remainingDeps = append(remainingDeps, dep)
 			}
 		}
+
+		// Update the item with pruned dependencies and keep it in the new queue
 		item.Dependencies = remainingDeps
 		newQueue = append(newQueue, item)
 	}
@@ -89,15 +110,21 @@ func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (ne
 // (12.8) Q get accumulatable work reports
 
 func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkReport) {
-	var g []types.WorkReport // items_without dependency
+	var g []types.WorkReport // g := items with no remaining dependencies
+
+	// Collect all reports that are ready for accumulation (i.e., dependencies resolved)
 	for _, item := range r {
 		if len(item.Dependencies) == 0 {
 			g = append(g, item.Report)
 		}
 	}
+
+	// If no items are currently eligible, return empty result
 	if len(g) == 0 {
 		return output
 	}
+
+	// Recursively prune the queue and resolve additional eligible reports
 	hashes := ExtractWorkReportHashes(g)
 	extra_avaliable_reports := AccumulationPriorityQueue(QueueEditingFunction(r, hashes))
 	output = append(output, extra_avaliable_reports...)
@@ -116,26 +143,41 @@ func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHa
 
 // (12.10) let m = Ht mod E(12.10)
 // (12.11) W∗ ≡ W! ⌢ Q(q)
-// (12.12) q = E(Ïϑm... ⌢ Ïϑ...m ⌢ WQ, P (W!))
+// (12.12) q = E(ϑm... ⌢ ϑ...m ⌢ WQ, P (W!))
 
 func UpdateAccumulatableWorkReports() {
 	store := store.GetInstance()
+
+	// (12.10) Get current slot index 'm'
 	m := store.GetIntermediateHeader().Slot
+
+	// Get θ: the available work reports (ϑ) indexed by slot
 	theta := store.GetPriorStates().GetTheta()
 
+	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
 	var candidate_queue types.ReadyQueue
 	candidate_queue = append(candidate_queue, theta[m:]...)
 	candidate_queue = append(candidate_queue, theta[:m]...)
 	WQ := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
 	candidate_queue = append(candidate_queue, WQ)
+
+	// Flatten nested ReadyQueue (ReadyQueue is a list of ReadyQueueItems)
 	var candidate_reports types.ReadyQueueItem
 	for _, queue := range candidate_queue {
 		candidate_reports = append(candidate_reports, queue...)
 	}
+
+	// (12.12) Compute q = E(..., P(W!))
+	// Use accumulated hashes from W! to prune dependencies
 	accumulated_hashes := ExtractWorkReportHashes(store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports())
 	q := QueueEditingFunction(candidate_reports, accumulated_hashes)
+
+	// (12.11) W* ≡ W! ⌢ Q(q)
+	// Reconstruct W* by appending newly-resolved reports to previously accumulated W!
 	new_accumulatable := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
 	new_accumulatable = append(new_accumulatable, AccumulationPriorityQueue(q)...)
+
+	// Update W*
 	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(new_accumulatable)
 }
 
@@ -211,6 +253,8 @@ type Operand struct {
 func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput) {
 	gas_sum := 0
 	i := 0
+
+	// Determine the maximal prefix of reports that fits within the gas limit
 	for idx, report := range input.WorkReports {
 		for _, result := range report.Results {
 			gas_sum += int(result.AccumulateGas)
@@ -226,12 +270,16 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		output.PartialStateSet = input.InitPartialStateSet
 		return output
 	}
+
+	// Accumulate the first i reports in parallel across services (∆)
 	var parallel_input ParallelizedAccumulationInput
 	parallel_input.WorkReports = input.WorkReports[:i]
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
 
 	parallel_result := ParallelizedAccumulation(parallel_input)
+
+	// Recurse on the remaining reports with the remaining gas
 	remain_gas := input.GasLimit
 	for _, gas_use := range parallel_result.ServiceGasUsedList {
 		remain_gas -= gas_use.Gas
@@ -242,6 +290,8 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
 
 	recursive_outer_output := OuterAccumulation(recursive_outer_input)
+
+	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
 	output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
@@ -341,7 +391,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 //
 //	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput) {
-	var operands []types.Operand
+	var operands []types.Operand // all operand inputs for Ψₐ
 	g := max(input.AlwaysAccumulateMap[input.ServiceId], 0)
 	for _, report := range input.WorkReports {
 		for _, item := range report.Results {
@@ -359,6 +409,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			}
 		}
 	}
+
+	// τ′: Posterior validator state used by Ψₐ
 	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
 	pvm_result := PolkaVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands)
 	output.AccumulationOutput = pvm_result.Result
