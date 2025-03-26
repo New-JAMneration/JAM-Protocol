@@ -259,6 +259,29 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// RefineLoad
+func (r *RefineLoad) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		GasUsed        U64 `json:"gas_used,omitempty"`
+		Imports        U16 `json:"imports,omitempty"`
+		ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
+		ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
+		Exports        U16 `json:"exports,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	r.GasUsed = temp.GasUsed
+	r.Imports = temp.Imports
+	r.ExtrinsicCount = temp.ExtrinsicCount
+	r.ExtrinsicSize = temp.ExtrinsicSize
+	r.Exports = temp.Exports
+
+	return nil
+}
+
 func (w *WorkResult) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		ServiceId     U32            `json:"service_id,omitempty"`
@@ -266,6 +289,7 @@ func (w *WorkResult) UnmarshalJSON(data []byte) error {
 		PayloadHash   string         `json:"payload_hash,omitempty"`
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
 		Result        WorkExecResult `json:"result,omitempty"`
+		RefineLoad    RefineLoad     `json:"refine_load,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -288,6 +312,7 @@ func (w *WorkResult) UnmarshalJSON(data []byte) error {
 
 	w.AccumulateGas = temp.AccumulateGas
 	w.Result = temp.Result
+	w.RefineLoad = temp.RefineLoad
 
 	return nil
 }
@@ -799,11 +824,43 @@ func (v *ValidatorSignature) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+//	type EpochMarkValidatorKeys struct {
+//		Bandersnatch BandersnatchPublic
+//		Ed25519      Ed25519Public
+//	}
+
+// EpochMarkValidatorKeys
+func (e *EpochMarkValidatorKeys) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Bandersnatch string `json:"bandersnatch,omitempty"`
+		Ed25519      string `json:"ed25519,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	bandersnatchBytes, err := hex.DecodeString(temp.Bandersnatch[2:])
+	if err != nil {
+		return err
+	}
+
+	ed25519Bytes, err := hex.DecodeString(temp.Ed25519[2:])
+	if err != nil {
+		return err
+	}
+
+	e.Bandersnatch = BandersnatchPublic(bandersnatchBytes)
+	e.Ed25519 = Ed25519Public(ed25519Bytes)
+
+	return nil
+}
+
 func (e *EpochMark) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Entropy        string   `json:"entropy,omitempty"`
-		TicketsEntropy string   `json:"tickets_entropy,omitempty"`
-		Validators     []string `json:"validators,omitempty"`
+		Entropy        string                   `json:"entropy,omitempty"`
+		TicketsEntropy string                   `json:"tickets_entropy,omitempty"`
+		Validators     []EpochMarkValidatorKeys `json:"validators,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -822,13 +879,7 @@ func (e *EpochMark) UnmarshalJSON(data []byte) error {
 	}
 	e.TicketsEntropy = Entropy(ticketsEntropyBytes)
 
-	for _, validator := range temp.Validators {
-		validatorBytes, err := hex.DecodeString(validator[2:])
-		if err != nil {
-			return err
-		}
-		e.Validators = append(e.Validators, BandersnatchPublic(validatorBytes))
-	}
+	e.Validators = temp.Validators
 
 	return nil
 }
@@ -1189,6 +1240,28 @@ func (a *AuthQueues) UnmarshalJSON(data []byte) error {
 	}
 
 	*a = temp
+	return nil
+}
+
+// ReadyRecord
+func (r *ReadyRecord) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Report       WorkReport
+		Dependencies []WorkPackageHash
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Dependencies) == 0 {
+		r.Dependencies = nil
+	} else {
+		r.Dependencies = temp.Dependencies
+	}
+
+	r.Report = temp.Report
+
 	return nil
 }
 

@@ -134,6 +134,23 @@ func (bp *BandersnatchPublic) Encode(e *Encoder) error {
 	return nil
 }
 
+// EpochMarkValidatorKeys
+func (emvk *EpochMarkValidatorKeys) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding EpochMarkValidatorKeys")
+
+	// Bandersnatch
+	if err := emvk.Bandersnatch.Encode(e); err != nil {
+		return err
+	}
+
+	// Ed25519
+	if err := emvk.Ed25519.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // EpochMark
 func (em *EpochMark) Encode(e *Encoder) error {
 	// Entropy
@@ -731,6 +748,38 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 	}
 }
 
+// RefineLoad
+func (r *RefineLoad) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding RefineLoad")
+
+	// GasUsed
+	if err := r.GasUsed.Encode(e); err != nil {
+		return err
+	}
+
+	// Imports
+	if err := r.Imports.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicCount
+	if err := r.ExtrinsicCount.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicSize
+	if err := r.ExtrinsicSize.Encode(e); err != nil {
+		return err
+	}
+
+	// Exports
+	if err := r.Exports.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // WorkResult
 func (w *WorkResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkResult")
@@ -757,6 +806,11 @@ func (w *WorkResult) Encode(e *Encoder) error {
 
 	// Result
 	if err := w.Result.Encode(e); err != nil {
+		return err
+	}
+
+	// RefineLoad
+	if err := w.RefineLoad.Encode(e); err != nil {
 		return err
 	}
 
@@ -806,6 +860,11 @@ func (w *WorkReport) Encode(e *Encoder) error {
 		if err := result.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	// AuthGasUsed
+	if err := w.AuthGasUsed.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
@@ -1343,17 +1402,193 @@ func (a *ActivityRecords) Encode(e *Encoder) error {
 	return nil
 }
 
+func (c *CoreActivityRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding CoreActivityRecord")
+
+	// GasUsed
+	if err := c.GasUsed.Encode(e); err != nil {
+		return err
+	}
+
+	// Imports
+	if err := c.Imports.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicCount
+	if err := c.ExtrinsicCount.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicSize
+	if err := c.ExtrinsicSize.Encode(e); err != nil {
+		return err
+	}
+
+	// Exports
+	if err := c.Exports.Encode(e); err != nil {
+		return err
+	}
+
+	// BundleSize
+	if err := c.BundleSize.Encode(e); err != nil {
+		return err
+	}
+
+	// DALoad
+	if err := c.DALoad.Encode(e); err != nil {
+		return err
+	}
+
+	// Popularity
+	if err := c.Popularity.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *ServiceActivityRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceActivityRecord")
+
+	// ProvidedCount
+	if err := s.ProvidedCount.Encode(e); err != nil {
+		return err
+	}
+
+	// ProvidedSize
+	if err := s.ProvidedSize.Encode(e); err != nil {
+		return err
+	}
+
+	// RefinementCount
+	if err := s.RefinementCount.Encode(e); err != nil {
+		return err
+	}
+
+	// RefinementGasUsed
+	if err := s.RefinementGasUsed.Encode(e); err != nil {
+		return err
+	}
+
+	// Imports
+	if err := s.Imports.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicCount
+	if err := s.ExtrinsicCount.Encode(e); err != nil {
+		return err
+	}
+
+	// ExtrinsicSize
+	if err := s.ExtrinsicSize.Encode(e); err != nil {
+		return err
+	}
+
+	// Exports
+	if err := s.Exports.Encode(e); err != nil {
+		return err
+	}
+
+	// AccumulateCount
+	if err := s.AccumulateCount.Encode(e); err != nil {
+		return err
+	}
+
+	// AccumulateGasUsed
+	if err := s.AccumulateGasUsed.Encode(e); err != nil {
+		return err
+	}
+
+	// OnTransfersCount
+	if err := s.OnTransfersCount.Encode(e); err != nil {
+		return err
+	}
+
+	// OnTransfersGasUsed
+	if err := s.OnTransfersGasUsed.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// type ServicesStatistics map[ServiceId]ServiceActivityRecord
+func (s *ServicesStatistics) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServicesStatistics")
+
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	// Before encoding the map, sort the keys
+	keys := make([]ServiceId, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (ServiceId)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	// Iterate over the map and encode the key and value
+	for _, key := range keys {
+		// Key (ServiceId)
+		if err := key.Encode(e); err != nil {
+			return err
+		}
+
+		// value (ServiceActivityRecord)
+		value := (*s)[key]
+		if err := value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CoresStatistics
+func (c *CoresStatistics) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding CoresStatistics")
+
+	if len(*c) != CoresCount {
+		return fmt.Errorf("CoresStatistics length is not equal to CoresCount")
+	}
+
+	for _, record := range *c {
+		if err := record.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Statistics
 func (s *Statistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Statistics")
 
-	// Current
-	if err := s.Current.Encode(e); err != nil {
+	// ValsCurrent
+	if err := s.ValsCurrent.Encode(e); err != nil {
 		return err
 	}
 
-	// Last
-	if err := s.Last.Encode(e); err != nil {
+	// ValsLast
+	if err := s.ValsLast.Encode(e); err != nil {
+		return err
+	}
+
+	// Cores
+	if err := s.Cores.Encode(e); err != nil {
+		return err
+	}
+
+	// Services
+	if err := s.Services.Encode(e); err != nil {
 		return err
 	}
 
