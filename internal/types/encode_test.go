@@ -105,3 +105,60 @@ func TestEncodeHash(t *testing.T) {
 		t.Errorf("Encoded Hash does not match expected")
 	}
 }
+
+func TestEncodeCustomContent(t *testing.T) {
+	// graypaper (B.10) $\mathcal{E}(s, \eta^{'}_{0}, \mathbf{H_t})$
+	// s: service index
+	// η': entropy
+	// H_t: time slot index
+
+	serviceId := ServiceId(1)
+	entropy := Entropy{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	timeSlot := TimeSlot(100)
+
+	output := []byte{}
+	encoder := NewEncoder()
+
+	// Encode serviceId
+	encoded, err := encoder.Encode(&serviceId)
+	if err != nil {
+		t.Errorf("Error encoding ServiceId: %v", err)
+	}
+	output = append(output, encoded...)
+
+	// Encode entropy
+	encoded, err = encoder.Encode(&entropy)
+	if err != nil {
+		t.Errorf("Error encoding Entropy: %v", err)
+	}
+	output = append(output, encoded...)
+
+	// Encode timeSlot
+	encoded, err = encoder.Encode(&timeSlot)
+	if err != nil {
+		t.Errorf("Error encoding TimeSlot: %v", err)
+	}
+	output = append(output, encoded...)
+
+	expected := []byte{
+		1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 100, 0, 0, 0,
+	}
+
+	if !reflect.DeepEqual(output, expected) {
+		t.Errorf("Encoded CustomContent does not match expected")
+	}
+}
+
+func TestEncodeUintWithLength(t *testing.T) {
+	encoder := NewEncoder()
+	encoded, err := encoder.EncodeUintWithLength(100, 3)
+	if err != nil {
+		t.Errorf("Error encoding UintWithLength: %v", err)
+	}
+
+	expected := []byte{100, 0, 0}
+
+	if !reflect.DeepEqual(encoded, expected) {
+		t.Errorf("Encoded UintWithLength does not match expected")
+	}
+}
