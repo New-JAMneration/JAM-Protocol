@@ -1,6 +1,8 @@
 package PolkaVM
 
 import (
+	"log"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -79,7 +81,11 @@ type AccumulateArgs struct {
 }
 
 type RefineArgs struct {
-	// TODO
+	RefineInput         // i, p(package), o, bold{i}, zeta
+	IntegratedPVMType   // p(program_code), u, i
+	types.ExportSegment // e
+	ServiceID           types.ServiceId
+	types.TimeSlot      // t
 }
 
 type HostCallArgs struct {
@@ -560,4 +566,178 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+}
+
+// accumulate hostCallFunctions
+
+// historical_lookup = 17
+func historicalLookup(input OmegaInput) (output OmegaOutput) {
+	newGas := input.Gas - 10
+	// first check v panic
+	h, o := input.Registers[8], input.Registers[9]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	var codeHash types.OpaqueHash
+	pageNumber := h / ZP
+	pageIndex := h % ZP
+
+	if ZP-pageIndex < offset { // cross one page
+		copy(codeHash[:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
+		copy(codeHash[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
+	} else {
+		copy(codeHash[:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
+	}
+
+	// check a
+	var v types.ByteSequence
+	var a types.ServiceAccount
+	a, accountExists := input.Addition.ServiceAccountState[input.Addition.ServiceID]
+	if accountExists && input.Registers[7] == 0xffffffffffffffff {
+		v = service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+	} else if a, accountExists := input.Addition.ServiceAccountState[types.ServiceId(input.Registers[7])]; accountExists {
+		v = service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+	} else {
+		// a = nil
+		input.Registers[7] = NONE
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	f := min(input.Registers[10], uint64(len(v)))
+	l := min(input.Registers[11], uint64(len(v))-f)
+
+	if !isWriteable(o, l, input.Memory) { // not writeable, return panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	input.Registers[7] = uint64(len(v))
+	offset = l
+	pageNumber = o / ZP
+	pageIndex = o % ZP
+
+	// write in memory
+	if ZP-pageIndex < offset { // cross one page
+		copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:], v[f:f+ZP-pageIndex])
+		copy(input.Memory.Pages[uint32(pageNumber+1)].Value[:], v[f+ZP-pageIndex:f+l])
+	} else {
+		copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset], v[f:f+l])
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// fetch = 18
+func fetch(input OmegaInput) (output OmegaOutput) {
+	var v any
+	switch input.Registers[10] {
+	case 0:
+		encoder := types.NewEncoder()
+		wp, err := encoder.Encode(input.Addition.WorkPackage)
+		if err != nil {
+			log.Fatalf("host-call function \"fetch\" enocde error %v: ", err)
+		}
+		v = wp
+	case 1:
+		v = input.Addition.AuthOutput
+	case 2:
+		if input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items)) {
+			v = input.Addition.WorkPackage.Items[input.Registers[11]].Payload
+		}
+	case 3:
+		condition1 := input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items))
+		condition2 := input.Registers[12] < uint64(len(input.Addition.WorkPackage.Items[input.Registers[11]].Extrinsic))
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+	}
+
+	if v == nil {
+		input.Registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	return OmegaOutput{}
+}
+
+// export = 19
+func export(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// machine = 20
+func machine(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// peek = 21
+func peek(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// poke = 22
+func poke(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// zero = 23
+func zero(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// void = 24
+func void(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// invoke = 25
+func invoke(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
+}
+
+// expunge = 26
+func expunge(input OmegaInput) (output OmegaOutput) {
+	// TODO
+	return OmegaOutput{}
 }
