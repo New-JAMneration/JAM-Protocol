@@ -9,6 +9,7 @@ import (
 // (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
 
 // (12.2) ©ξ ≡ ⋃x∈ξ
+// extracted all accumulated hashes
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	xi := store.GetInstance().GetPriorStates().GetXi()
 	for _, history := range xi {
@@ -20,6 +21,7 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 // (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: store.theta
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
+// Get all workreport without any dependency, and store in accumulatedWorkReport
 func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
 	var accumulatable_reports []types.WorkReport
 	for _, report := range reports {
@@ -31,6 +33,7 @@ func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
 }
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
+// Get all workreport with dependency, and store in QueuedWorkReports
 func UpdateQueuedWorkReports(reports []types.WorkReport) {
 	var reports_with_dependency types.ReadyQueueItem
 	for _, report := range reports {
@@ -43,6 +46,7 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
+// Extract all dependencies from single work report
 func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRecord) {
 	output.Report = report
 	for _, hash := range report.Context.Prerequisites {
@@ -67,12 +71,12 @@ func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (ne
 		finished_report_hashes[h] = true
 	}
 	for _, item := range r {
-		if finished_report_hashes[item.Report.PackageSpec.Hash] {
+		if exist, _ := finished_report_hashes[item.Report.PackageSpec.Hash]; exist { // accumulated, remove from queue
 			continue
 		}
 		var remainingDeps []types.WorkPackageHash
-		for _, dep := range item.Dependencies {
-			if finished_report_hashes[dep] == true {
+		for _, dep := range item.Dependencies { // remove the finished report hashes from dependencies
+			if exist, _ := finished_report_hashes[dep]; !exist {
 				remainingDeps = append(remainingDeps, dep)
 			}
 		}
