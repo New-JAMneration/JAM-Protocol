@@ -12,9 +12,7 @@ import (
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	xi := store.GetInstance().GetPriorStates().GetXi()
 	for _, history := range xi {
-		for _, hash := range history {
-			output = append(output, hash)
-		}
+		output = append(output, history...)
 	}
 	return output
 }
@@ -22,15 +20,14 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 // (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: store.theta
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
-
 func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
-	var accumulatable []types.WorkReport
+	var accumulatable_reports []types.WorkReport
 	for _, report := range reports {
 		if len(report.Context.Prerequisites) == 0 && len(report.SegmentRootLookup) == 0 {
-			accumulatable = append(accumulatable, report)
+			accumulatable_reports = append(accumulatable_reports, report)
 		}
 	}
-	store.GetInstance().GetAccumulatedWorkReportsPointer().SetAccumulatedWorkReports(accumulatable)
+	store.GetInstance().GetAccumulatedWorkReportsPointer().SetAccumulatedWorkReports(accumulatable_reports)
 }
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
@@ -41,11 +38,11 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 			reports_with_dependency = append(reports_with_dependency, GetDependencyFromWorkReport(report))
 		}
 	}
-	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes()))
+	work_reports_queue := QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes())
+	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(work_reports_queue)
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
-
 func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRecord) {
 	output.Report = report
 	for _, hash := range report.Context.Prerequisites {
@@ -58,24 +55,24 @@ func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRec
 }
 
 // (12.7)
-// the queue-editing function E,
-// which is essentially a mutator function for items such as those of ϑ,
-// parameterized by sets of now-accumulated work-package hashes (those in ξ)
-// It is used to update queues  of work-reports when some of them are accumulated.
-// Functionally, it removes all entries whose work-report's hash is in the set provided as a parameter,
-// and removes any dependencies which apper in said set.
-func QueueEditingFunction(queue types.ReadyQueueItem, workPackageHashes []types.WorkPackageHash) (newQueue types.ReadyQueueItem) {
-	doneSet := make(map[types.WorkPackageHash]bool)
-	for _, h := range workPackageHashes {
-		doneSet[h] = true
+//
+//	(⟦(W, {H})⟧, {H}) → ⟦(W, {H})⟧
+//
+// E∶   (r, x) ↦ (w, d ∖ x) W     (w, d) <− r,
+//
+//	(ws)h ~∈ x
+func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (newQueue types.ReadyQueueItem) {
+	finished_report_hashes := make(map[types.WorkPackageHash]bool)
+	for _, h := range x {
+		finished_report_hashes[h] = true
 	}
-	for _, item := range queue {
-		if doneSet[item.Report.PackageSpec.Hash] {
+	for _, item := range r {
+		if finished_report_hashes[item.Report.PackageSpec.Hash] {
 			continue
 		}
 		var remainingDeps []types.WorkPackageHash
 		for _, dep := range item.Dependencies {
-			if !doneSet[dep] {
+			if finished_report_hashes[dep] == true {
 				remainingDeps = append(remainingDeps, dep)
 			}
 		}
@@ -87,9 +84,9 @@ func QueueEditingFunction(queue types.ReadyQueueItem, workPackageHashes []types.
 
 // (12.8) Q get accumulatable work reports
 
-func AccumulationPriorityQueue(queue types.ReadyQueueItem) (output []types.WorkReport) {
+func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkReport) {
 	var g []types.WorkReport // items_without dependency
-	for _, item := range queue {
+	for _, item := range r {
 		if len(item.Dependencies) == 0 {
 			g = append(g, item.Report)
 		}
@@ -98,7 +95,7 @@ func AccumulationPriorityQueue(queue types.ReadyQueueItem) (output []types.WorkR
 		return output
 	}
 	hashes := ExtractWorkReportHashes(g)
-	extra_avaliable_reports := AccumulationPriorityQueue(QueueEditingFunction(queue, hashes))
+	extra_avaliable_reports := AccumulationPriorityQueue(QueueEditingFunction(r, hashes))
 	output = append(output, extra_avaliable_reports...)
 	return output
 }
@@ -106,14 +103,14 @@ func AccumulationPriorityQueue(queue types.ReadyQueueItem) (output []types.WorkR
 // (12.9) P
 // the mapping function P which extracts the corresponding work-package hashes from a set of work-reports
 
-func ExtractWorkReportHashes(workReports []types.WorkReport) (output []types.WorkPackageHash) {
-	for _, workReport := range workReports {
+func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHash) {
+	for _, workReport := range w {
 		output = append(output, workReport.PackageSpec.Hash)
 	}
 	return output
 }
 
-// (12.10)
+// (12.10) let m = Ht mod E(12.10)
 // (12.11) W∗ ≡ W! ⌢ Q(q)
 // (12.12) q = E(Ïϑm... ⌢ Ïϑ...m ⌢ WQ, P (W!))
 
@@ -276,7 +273,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 //
 //	s∈s
 //
-// This formula still have some parts needs conclusion
+// Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput) {
 	var service_set map[types.ServiceId]bool
 	for _, report := range input.WorkReports {
@@ -358,7 +355,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			}
 		}
 	}
-	pvm_result := PolkaVM.Psi_A(input.PartialStateSet, store.GetInstance().GetPriorStates().GetTau()%types.TimeSlot(types.EpochLength), input.ServiceId, g, operands)
+	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
+	pvm_result := PolkaVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands)
 	output.AccumulationOutput = pvm_result.Result
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
