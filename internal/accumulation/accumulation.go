@@ -144,41 +144,45 @@ func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHa
 // (12.10) let m = Ht mod E(12.10)
 // (12.11) W∗ ≡ W! ⌢ Q(q)
 // (12.12) q = E(ϑm... ⌢ ϑ...m ⌢ WQ, P (W!))
-
 func UpdateAccumulatableWorkReports() {
 	store := store.GetInstance()
 
 	// (12.10) Get current slot index 'm'
-	m := store.GetIntermediateHeader().Slot
+	slot := store.GetIntermediateHeader().Slot
+	E := types.EpochLength
+	m := int(slot) % E
 
-	// Get θ: the available work reports (ϑ) indexed by slot
+	// Get θ: the available work reports (ϑ)
 	theta := store.GetPriorStates().GetTheta()
+	WQ := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
+	accumulatedWorkReports := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
-	var candidate_queue types.ReadyQueue
-	candidate_queue = append(candidate_queue, theta[m:]...)
-	candidate_queue = append(candidate_queue, theta[:m]...)
-	WQ := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
-	candidate_queue = append(candidate_queue, WQ)
-
-	// Flatten nested ReadyQueue (ReadyQueue is a list of ReadyQueueItems)
-	var candidate_reports types.ReadyQueueItem
-	for _, queue := range candidate_queue {
-		candidate_reports = append(candidate_reports, queue...)
+	var readyQueueItem types.ReadyQueueItem
+	for _, record := range theta[m:] {
+		readyQueueItem = append(readyQueueItem, record...)
 	}
+
+	for _, record := range theta[:m] {
+		readyQueueItem = append(readyQueueItem, record...)
+	}
+
+	readyQueueItem = append(readyQueueItem, WQ...)
+
+	accumulatedHashes := ExtractWorkReportHashes(accumulatedWorkReports)
 
 	// (12.12) Compute q = E(..., P(W!))
 	// Use accumulated hashes from W! to prune dependencies
-	accumulated_hashes := ExtractWorkReportHashes(store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports())
-	q := QueueEditingFunction(candidate_reports, accumulated_hashes)
+	q := QueueEditingFunction(readyQueueItem, accumulatedHashes)
 
 	// (12.11) W* ≡ W! ⌢ Q(q)
 	// Reconstruct W* by appending newly-resolved reports to previously accumulated W!
-	new_accumulatable := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
-	new_accumulatable = append(new_accumulatable, AccumulationPriorityQueue(q)...)
+	accumulatableWorkReports := []types.WorkReport{}
+	accumulatableWorkReports = append(accumulatableWorkReports, accumulatedWorkReports...)
+	accumulatableWorkReports = append(accumulatableWorkReports, AccumulationPriorityQueue(q)...)
 
 	// Update W*
-	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(new_accumulatable)
+	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(accumulatableWorkReports)
 }
 
 //(12.13) U ≡ (d ∈ D⟨NS → A⟩ , i ∈ ⟦K⟧V , q ∈ C⟦H⟧QHC ,
