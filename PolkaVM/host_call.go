@@ -581,7 +581,17 @@ func info(input OmegaInput) (output OmegaOutput) {
 
 // bless = 5
 func bless(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
@@ -651,7 +661,17 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 // assign = 6
 func assign(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o := input.Registers[8]
 
@@ -711,7 +731,17 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 // designate = 7
 func designate(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o := input.Registers[7]
 
@@ -760,7 +790,18 @@ func designate(input OmegaInput) (output OmegaOutput) {
 
 // checkpoint = 8
 func checkpoint(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10 - Gas(input.Registers[9])
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
 	input.Addition.ResultContextY = input.Addition.ResultContextX
 	input.Registers[7] = uint64(newGas)
 
@@ -775,7 +816,17 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 
 // new = 9
 func new(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o, l, g, m := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 
@@ -827,7 +878,8 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" decode error %v: ", err)
 	}
 
-	at := service.CalcThresholdBalance(cDecoded, types.U64(l))
+	accountDer := service.GetSerivecAccountDerivatives(types.ServiceId(cDecoded))
+	at := accountDer.Minbalance
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
 	// new an account
@@ -852,14 +904,14 @@ func new(input OmegaInput) (output OmegaOutput) {
 		StorageDict:    types.Storage{},           // s
 	}
 
-	serviceID = input.Addition.ResultContextX.ServiceId
+	importServiceID := input.Addition.ResultContextX.ImportServiceId
 	// reg[7] = x_i
-	input.Registers[7] = uint64(input.Addition.ResultContextX.ServiceId)
+	input.Registers[7] = uint64(importServiceID)
 	// x_i = check(i)
-	i := (1 << 8) + (serviceID-(1<<8)+42)%(1<<32-1<<9)
+	i := (1 << 8) + (importServiceID-(1<<8)+42)%(1<<32-1<<9)
 	input.Addition.ResultContextX.ImportServiceId = check(i, input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	// x_i -> a
-	input.Addition.ResultContextX.PartialState.ServiceAccounts[input.Addition.ResultContextX.ServiceId] = a
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
 	// x_s -> s
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 
@@ -874,7 +926,17 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 // upgrade = 10
 func upgrade(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o, g, m := input.Registers[7], input.Registers[8], input.Registers[9]
 
@@ -925,7 +987,17 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 
 // transfer = 11
 func transfer(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10 - Gas(input.Registers[9])
+	gasFee := Gas(10) + Gas(input.Registers[9])
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 
@@ -1017,7 +1089,17 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 
 // eject = 12
 func eject(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	d, o := input.Registers[7], input.Registers[8]
 
@@ -1097,7 +1179,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
 			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 
-				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Bytes // s'_b
+				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
 
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
@@ -1130,7 +1212,17 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 // query = 13
 func query(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -1205,7 +1297,17 @@ func query(input OmegaInput) (output OmegaOutput) {
 
 // solicit = 14
 func solicit(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -1261,6 +1363,8 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		// else
 		input.Registers[7] = OK
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+	} else {
+		log.Fatalf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -1274,7 +1378,17 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 // forget = 15
 func forget(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -1331,28 +1445,23 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			} else { // otherwise, panic
 				input.Registers[7] = HUH
 				return OmegaOutput{
-					ExitReason:   PVMExitTuple(PANIC, nil),
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
 					NewGas:       newGas,
 					NewRegisters: input.Registers,
 					NewMemory:    input.Memory,
 					Addition:     input.Addition,
 				}
 			}
-			// x_s^' = a
+			// x'_s = a
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
+			input.Registers[7] = OK
+		} else { // otherwise : lookupData (x_s)_l[h,z] not exist
+			input.Registers[7] = HUH
 		}
 	} else {
-		input.Registers[7] = HUH
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+		log.Fatalf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-
-	input.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -1365,7 +1474,17 @@ func forget(input OmegaInput) (output OmegaOutput) {
 
 // yield = 16
 func yield(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 
 	o := input.Registers[7]
 
