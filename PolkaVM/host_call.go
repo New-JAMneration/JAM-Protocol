@@ -154,7 +154,7 @@ func Psi_H(
 	return
 }
 
-var hostCallFunctions = [27]Omega{
+var hostCallFunctions = [28]Omega{
 	0: gas,
 	1: lookup,
 	2: read,
