@@ -1250,4 +1250,4 @@ type ServiceHash struct {
 
 // (12.15) B
 // FIXME: Naming issue
-type ServiceHashSet map[ServiceHash]struct{}
+type ServiceHashSet map[ServiceHash]bool

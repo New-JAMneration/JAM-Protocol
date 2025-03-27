@@ -313,16 +313,16 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 // (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
 // (o, w, f ) ↦ (((d ∪ n) ∖ m, i′, q′, x′),Ìt, b, u)
 // where:
-// s = {rs S w ∈ w, r ∈ wr} ∪ K(f )
+// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 // u = [(s, ∆1(o, w, f , s)u) S s <− s]
 // b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
 // t = [∆1(o, w, f , s)t S s <− s]
 //
 //	(d, i, q, (m, a, v, z)) = o
 //
-// x′ = (∆1(o, w, f , m)o)x
-// i′ = (∆1(o, w, f , v)o)i
-// q′ = (∆1(o, w, f , a)o)q
+// x′ = (∆1(o, w, f, m)o)x
+// i′ = (∆1(o, w, f, v)o)i
+// q′ = (∆1(o, w, f, a)o)q
 // n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
 //
 //	s∈s
@@ -333,37 +333,46 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 //
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput) {
-	var service_set map[types.ServiceId]bool
-	for _, report := range input.WorkReports {
-		for _, reuslt := range report.Results {
-			service_set[reuslt.ServiceId] = true
+
+	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
+	s := make(map[types.ServiceId]bool)
+	// {rs S w ∈ w, r ∈ wr}
+	for _, w := range input.WorkReports {
+		for _, r := range w.Results {
+			s[r.ServiceId] = true
 		}
 	}
+	// K(f)
 	for serivce_id := range input.AlwaysAccumulateMap {
-		service_set[serivce_id] = true
+		s[serivce_id] = true
 	}
 	current_partial_state := input.PartialStateSet
-	for service_id := range service_set {
+	var t []types.DeferredTransfer
+	for service_id := range s {
 		var single_input SingleServiceAccumulationInput
 		single_input.ServiceId = service_id
 		single_input.PartialStateSet = current_partial_state
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 		single_output := SingleServiceAccumulation(single_input)
-		var gas_used types.ServiceGasUsed
-		gas_used.ServiceId = service_id
-		gas_used.Gas = single_output.GasUsed
-		output.ServiceGasUsedList = append(output.ServiceGasUsedList, gas_used)
-		if single_output.AccumulationOutput != nil {
-			var service_hash types.ServiceHash
-			service_hash.ServiceId = service_id
-			service_hash.Hash = *single_output.AccumulationOutput
-			output.ServiceHashSet[service_hash] = struct{}{}
-		}
-		for _, defer_transfer := range single_output.DeferredTransfers {
-			output.DeferredTransfers = append(output.DeferredTransfers, defer_transfer)
-		}
 		new_partial_state := single_output.PartialStateSet
+		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
+		var u types.ServiceGasUsed
+		u.ServiceId = service_id
+		u.Gas = single_output.GasUsed
+		output.ServiceGasUsedList = append(output.ServiceGasUsedList, u)
+		// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
+		if single_output.AccumulationOutput != nil {
+			var b types.ServiceHash
+			b.ServiceId = service_id
+			b.Hash = *single_output.AccumulationOutput
+			output.ServiceHashSet[b] = true
+		}
+		// t = [∆1(o, w, f, s)t S s <− s]
+		for _, deferred_transfer := range single_output.DeferredTransfers {
+			t = append(t, deferred_transfer)
+		}
+
 		new_partial_state.ServiceAccounts = current_partial_state.ServiceAccounts
 		for key, value := range single_output.PartialStateSet.ServiceAccounts {
 			if _, ok := new_partial_state.ServiceAccounts[key]; ok {
@@ -374,6 +383,24 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		current_partial_state = new_partial_state
 	}
+
+	var single_input SingleServiceAccumulationInput
+	single_input.PartialStateSet = current_partial_state
+	single_input.WorkReports = input.WorkReports
+	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
+	// x′ = (∆1(o, w, f, m)o)x
+	single_input.ServiceId = current_partial_state.Privileges.Bless
+	x_prime := SingleServiceAccumulation(single_input).PartialStateSet.Privileges
+	// i′ = (∆1(o, w, f, v)o)i
+	single_input.ServiceId = current_partial_state.Privileges.Designate
+	i_prime := SingleServiceAccumulation(single_input).PartialStateSet.ValidatorKeys
+	// q′ = (∆1(o, w, f, a)o)q
+	single_input.ServiceId = current_partial_state.Privileges.Assign
+	q_prime := SingleServiceAccumulation(single_input).PartialStateSet.Authorizers
+	current_partial_state.Privileges = x_prime
+	current_partial_state.ValidatorKeys = i_prime
+	current_partial_state.Authorizers = q_prime
+	output.DeferredTransfers = t
 	output.PartialStateSet = current_partial_state
 	return output
 }
@@ -396,18 +423,28 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 //	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput) {
 	var operands []types.Operand // all operand inputs for Ψₐ
-	g := max(input.AlwaysAccumulateMap[input.ServiceId], 0)
+	// U(fs, 0)
+	g := types.Gas(0)
+	for key, _ := range input.AlwaysAccumulateMap {
+		g = types.Gas(key)
+		break
+	}
 	for _, report := range input.WorkReports {
 		for _, item := range report.Results {
 			if item.ServiceId == input.ServiceId {
+				//    ∑(rg )
+				// w∈w,r∈wr,rs=s
 				g += item.AccumulateGas
+
+				// p d: rd, e: (ws)e, o:wo
+				//	y: ry ,h: (ws)h, a:wa
 				operand := types.Operand{
-					Hash:           report.PackageSpec.Hash,
-					ExportsRoot:    report.PackageSpec.ExportsRoot,
-					AuthorizerHash: report.AuthorizerHash,
-					PayloadHash:    item.PayloadHash,
-					AuthOutput:     report.AuthOutput,
-					Result:         item.Result,
+					Hash:           report.PackageSpec.Hash,        // h: (ws)h — work package hash，
+					ExportsRoot:    report.PackageSpec.ExportsRoot, // e: (ws)e — exports root
+					AuthorizerHash: report.AuthorizerHash,          // a: wa — authorizer hash
+					PayloadHash:    item.PayloadHash,               // y: ry — result payload hash
+					AuthOutput:     report.AuthOutput,              // o: wo
+					Result:         item.Result,                    // d: rd
 				}
 				operands = append(operands, operand)
 			}
