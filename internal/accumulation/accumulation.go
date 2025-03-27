@@ -425,9 +425,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	var operands []types.Operand // all operand inputs for Ψₐ
 	// U(fs, 0)
 	g := types.Gas(0)
-	for key, _ := range input.AlwaysAccumulateMap {
-		g = types.Gas(key)
-		break
+	if preset, ok := input.AlwaysAccumulateMap[input.ServiceId]; ok {
+		g = preset
 	}
 	for _, report := range input.WorkReports {
 		for _, item := range report.Results {
