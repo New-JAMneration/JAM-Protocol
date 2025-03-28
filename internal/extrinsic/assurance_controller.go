@@ -108,7 +108,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 
 // ValidateSignature validates the signature of the AvailAssurance | Eq. 11.13, 11.14
 func (a *AvailAssuranceController) ValidateSignature() error {
-	kappaPrime := store.GetInstance().GetPosteriorStates().GetKappa()
+	kappa := store.GetInstance().GetPriorStates().GetKappa()
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
@@ -117,7 +117,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 		message := []byte(jam_types.JamAvailable)
 		message = append(message, hased[:]...)
 
-		publicKey := kappaPrime[availAssurance.ValidatorIndex].Ed25519
+		publicKey := kappa[availAssurance.ValidatorIndex].Ed25519
 		if !ed25519.Verify(publicKey[:], message, availAssurance.Signature[:]) {
 			return errors.New("invalid_signature")
 		}
