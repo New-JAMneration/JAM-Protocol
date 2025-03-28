@@ -12,7 +12,7 @@ func Psi_A(
 	serviceId types.ServiceId,
 	gas types.Gas,
 	operand []types.Operand,
-	eta types.EntropyBuffer,
+	eta types.Entropy,
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
@@ -120,17 +120,17 @@ func wrapWithG(original Omega) Omega {
 func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas) {
 	switch reasonOrBytes.(type) {
 	case error:
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas
+		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, &resultContext.ResultContextY.Exception, gas
 	case types.ByteSequence:
 		opaqueHash := reasonOrBytes.(*types.OpaqueHash)
 		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas
 	default:
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, &resultContext.ResultContextX.Exception, gas
 	}
 }
 
 // (B.10)
-func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.TimeSlot, eta types.EntropyBuffer) ResultContext {
+func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.TimeSlot, eta types.Entropy) ResultContext {
 	serialized := []byte{}
 	encoder := types.NewEncoder()
 
@@ -168,21 +168,8 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		PartialState:      partialState,
 		ImportServiceId:   check(serviceId, partialState.ServiceAccounts),
 		DeferredTransfers: []types.DeferredTransfer{},
-		Exception:         nil,
+		Exception:         types.OpaqueHash{},
 	}
-}
-
-// (B.14)
-func check(i types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
-	for k, _ := range serviceAccountState {
-		if k == i {
-			var modValue uint32 = (1 << 32) - (1 << 9) // 2^32 - 2^9
-			var subValue uint32 = 1 << 8               // 2^8
-			result := (uint32(i)-subValue+1)%modValue + subValue
-			return check(types.ServiceId(result), serviceAccountState)
-		}
-	}
-	return i
 }
 
 type Psi_A_ReturnType struct {
