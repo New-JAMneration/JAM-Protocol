@@ -544,22 +544,22 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_b
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.Balance))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.Balance))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_t
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Minbalance))
+	encoded, _ = encoder.Encode(uint64(derivatives.Minbalance))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_g
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.MinItemGas))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinItemGas))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_m
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.MinMemoGas))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinMemoGas))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_o
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Bytes))
+	encoded, _ = encoder.Encode(uint64(derivatives.Bytes))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_i
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Items))
+	encoded, _ = encoder.Encode(uint64(derivatives.Items))
 	serialized_bytes = append(serialized_bytes, encoded...)
 
 	o := input.Registers[8]
