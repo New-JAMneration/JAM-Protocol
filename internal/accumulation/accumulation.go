@@ -372,14 +372,30 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		for _, deferred_transfer := range single_output.DeferredTransfers {
 			t = append(t, deferred_transfer)
 		}
-
-		new_partial_state.ServiceAccounts = current_partial_state.ServiceAccounts
-		for key, value := range single_output.PartialStateSet.ServiceAccounts {
-			if _, ok := new_partial_state.ServiceAccounts[key]; ok {
-				delete(new_partial_state.ServiceAccounts, key)
-			} else {
-				new_partial_state.ServiceAccounts[key] = value
+		// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
+		n := new_partial_state.ServiceAccounts
+		for key := range n {
+			if key != service_id {
+				if _, exists := current_partial_state.ServiceAccounts[key]; exists {
+					delete(n, key)
+				}
 			}
+		}
+		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
+		m := current_partial_state.ServiceAccounts
+		for key := range new_partial_state.ServiceAccounts {
+			if _, exists := m[key]; exists {
+				delete(m, key)
+			}
+		}
+
+		// (d ∪ n) ∖ m
+		new_partial_state.ServiceAccounts = current_partial_state.ServiceAccounts
+		for key, value := range n {
+			new_partial_state.ServiceAccounts[key] = value
+		}
+		for key, _ := range m {
+			delete(m, key)
 		}
 		current_partial_state = new_partial_state
 	}
