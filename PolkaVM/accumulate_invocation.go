@@ -194,9 +194,9 @@ type Psi_A_ReturnType struct {
 
 // (B.7)
 type ResultContext struct {
-	ServiceId         types.ServiceId
-	PartialState      types.PartialStateSet
-	ImportServiceId   types.ServiceId
-	DeferredTransfers []types.DeferredTransfer
-	Exception         *types.OpaqueHash
+	ServiceId         types.ServiceId          // s
+	PartialState      types.PartialStateSet    // u
+	ImportServiceId   types.ServiceId          // i
+	DeferredTransfers []types.DeferredTransfer // t
+	Exception         types.OpaqueHash         // y
 }
