@@ -3,7 +3,6 @@ package PolkaVM
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -26,17 +25,25 @@ func Psi_A(
 			Gas:               0,
 		}
 	} else {
-		serialized := utilities.SerializeFixedLength(types.U32(time), 4)
-		serialized = append(serialized, utilities.SerializeFixedLength(types.U32(serviceId), 4)...)
-		serialized = append(serialized, utilities.SerializeU64(types.U64(len(operand)))...)
-		for _, op := range operand {
-			serialized = append(serialized, utilities.SerializeByteSequence(op.Hash[:])...)
-			serialized = append(serialized, utilities.SerializeByteSequence(op.ExportsRoot[:])...)
-			serialized = append(serialized, utilities.SerializeByteSequence(op.AuthorizerHash[:])...)
-			serialized = append(serialized, utilities.SerializeByteSequence(op.AuthOutput)...)
-			serialized = append(serialized, utilities.SerializeByteSequence(op.PayloadHash[:])...)
-			serialized = append(serialized, utilities.SerializeWorkExecResult(op.Result)...)
+
+		serialized := []byte{}
+		encoder := types.NewEncoder()
+
+		encoded, err := encoder.Encode(&time)
+		if err != nil {
+			panic(err)
 		}
+		serialized = append(serialized, encoded...)
+		encoded, err = encoder.Encode(&serviceId)
+		if err != nil {
+			panic(err)
+		}
+		serialized = append(serialized, encoded...)
+		encoded, err = encoder.Encode(&operand)
+		if err != nil {
+			panic(err)
+		}
+		serialized = append(serialized, encoded...)
 
 		F := Omegas{}
 		F[ReadOp] = wrapWithG(hostCallFunctions[ReadOp])
@@ -127,16 +134,34 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId) ResultCont
 	eta := store.GetInstance().GetPosteriorStates().GetEta()
 	ht := store.GetInstance().GetIntermediateHeader().Slot
 
-	serialized := utilities.SerializeFixedLength(types.U32(serviceId), 4)
-	for _, eta := range eta {
-		serialized = append(serialized, utilities.SerializeByteSequence(eta[:])...)
-	}
-	serialized = append(serialized, utilities.SerializeFixedLength(types.U64(ht), 8)...)
-	hash := hash.Blake2bHash(serialized)
-	result, err := utilities.DeserializeFixedLength(hash[:], types.U32(4))
+	serialized := []byte{}
+	encoder := types.NewEncoder()
+
+	encoded, err := encoder.Encode(&serviceId)
 	if err != nil {
 		panic(err)
 	}
+	serialized = append(serialized, encoded...)
+	encoded, err = encoder.Encode(&eta)
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+	encoded, err = encoder.Encode(&ht)
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+
+	hash := hash.Blake2bHash(serialized)
+
+	var result types.U32
+	decoder := types.NewDecoder()
+	err = decoder.Decode(hash[:], result)
+	if err != nil {
+		panic(err)
+	}
+
 	var modValue types.U32 = (1 << 32) - (1 << 9) // 2^32 - 2^9
 	var addValue types.U32 = 1 << 8               // 2^8
 	result = (result % modValue) + addValue
