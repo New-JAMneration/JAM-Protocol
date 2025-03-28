@@ -56,7 +56,7 @@ func Psi_A(
 		F[SolicitOp] = hostCallFunctions[SolicitOp]
 		F[ForgetOp] = hostCallFunctions[ForgetOp]
 		F[YieldOp] = hostCallFunctions[YieldOp]
-		F[26] = accumulateInvocationHostCallException
+		F[27] = accumulateInvocationHostCallException
 
 		addition := HostCallArgs{
 			AccumulateArgs: AccumulateArgs{
