@@ -19,7 +19,7 @@ func Psi_A(
 	c := partialState.ServiceAccounts[serviceId].ServiceInfo.CodeHash
 	if storedCode, ok := partialState.ServiceAccounts[serviceId].PreimageLookup[c]; !ok {
 		return Psi_A_ReturnType{
-			PartialStateSet:   I(partialState, serviceId).PartialState,
+			PartialStateSet:   I(partialState, serviceId, time).PartialState,
 			DeferredTransfers: []types.DeferredTransfer{},
 			Result:            nil,
 			Gas:               0,
@@ -72,8 +72,8 @@ func Psi_A(
 				ServiceAccountState: partialState.ServiceAccounts,
 			},
 			AccumulateArgs: AccumulateArgs{
-				ResultContextX: I(partialState, serviceId),
-				ResultContextY: I(partialState, serviceId),
+				ResultContextX: I(partialState, serviceId, time),
+				ResultContextY: I(partialState, serviceId, time),
 			},
 		}
 
@@ -130,9 +130,9 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 }
 
 // (B.10)
-func I(partialState types.PartialStateSet, serviceId types.ServiceId) ResultContext {
+func I(partialState types.PartialStateSet, serviceId types.ServiceId, time types.TimeSlot) ResultContext {
 	eta := store.GetInstance().GetPosteriorStates().GetEta()
-	ht := store.GetInstance().GetIntermediateHeader().Slot
+	ht := time
 
 	serialized := []byte{}
 	encoder := types.NewEncoder()
