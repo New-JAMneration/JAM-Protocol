@@ -1,7 +1,6 @@
 package PolkaVM
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -13,13 +12,14 @@ func Psi_A(
 	serviceId types.ServiceId,
 	gas types.Gas,
 	operand []types.Operand,
+	eta types.EntropyBuffer,
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
 	c := partialState.ServiceAccounts[serviceId].ServiceInfo.CodeHash
 	if storedCode, ok := partialState.ServiceAccounts[serviceId].PreimageLookup[c]; !ok {
 		return Psi_A_ReturnType{
-			PartialStateSet:   I(partialState, serviceId, time).PartialState,
+			PartialStateSet:   I(partialState, serviceId, time, eta).PartialState,
 			DeferredTransfers: []types.DeferredTransfer{},
 			Result:            nil,
 			Gas:               0,
@@ -72,8 +72,8 @@ func Psi_A(
 				ServiceAccountState: partialState.ServiceAccounts,
 			},
 			AccumulateArgs: AccumulateArgs{
-				ResultContextX: I(partialState, serviceId, time),
-				ResultContextY: I(partialState, serviceId, time),
+				ResultContextX: I(partialState, serviceId, time, eta),
+				ResultContextY: I(partialState, serviceId, time, eta),
 			},
 		}
 
@@ -130,10 +130,7 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 }
 
 // (B.10)
-func I(partialState types.PartialStateSet, serviceId types.ServiceId, time types.TimeSlot) ResultContext {
-	eta := store.GetInstance().GetPosteriorStates().GetEta()
-	ht := time
-
+func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.TimeSlot, eta types.EntropyBuffer) ResultContext {
 	serialized := []byte{}
 	encoder := types.NewEncoder()
 
