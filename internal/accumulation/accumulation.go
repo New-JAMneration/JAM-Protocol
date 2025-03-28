@@ -394,7 +394,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		for key, value := range n {
 			new_partial_state.ServiceAccounts[key] = value
 		}
-		for key, _ := range m {
+		for key := range m {
 			delete(m, key)
 		}
 		current_partial_state = new_partial_state
