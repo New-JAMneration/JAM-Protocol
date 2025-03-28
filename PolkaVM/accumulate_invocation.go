@@ -59,6 +59,11 @@ func Psi_A(
 		F[27] = accumulateInvocationHostCallException
 
 		addition := HostCallArgs{
+			GeneralArgs: GeneralArgs{
+				ServiceAccount:      partialState.ServiceAccounts[serviceId],
+				ServiceId:           serviceId,
+				ServiceAccountState: partialState.ServiceAccounts,
+			},
 			AccumulateArgs: AccumulateArgs{
 				ResultContextX: I(partialState, serviceId),
 				ResultContextY: I(partialState, serviceId),
