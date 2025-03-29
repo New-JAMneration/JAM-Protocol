@@ -12,17 +12,21 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
-	BetaDagger      types.BlocksHistory
-	RhoDagger       types.AvailabilityAssignments
-	RhoDoubleDagger types.AvailabilityAssignments
+	BetaDagger        types.BlocksHistory
+	RhoDagger         types.AvailabilityAssignments
+	RhoDoubleDagger   types.AvailabilityAssignments
+	DeltaDagger       types.ServiceAccountState
+	DeltaDoubleDagger types.ServiceAccountState
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaDagger:      types.BlocksHistory{},
-			RhoDagger:       types.AvailabilityAssignments{},
-			RhoDoubleDagger: types.AvailabilityAssignments{},
+			BetaDagger:        types.BlocksHistory{},
+			RhoDagger:         types.AvailabilityAssignments{},
+			RhoDoubleDagger:   types.AvailabilityAssignments{},
+			DeltaDagger:       types.ServiceAccountState{},
+			DeltaDoubleDagger: types.ServiceAccountState{},
 		},
 	}
 }
@@ -63,4 +67,28 @@ func (s *IntermediateStates) GetRhoDoubleDagger() types.AvailabilityAssignments 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.RhoDoubleDagger
+}
+
+func (s *IntermediateStates) SetDeltaDagger(deltaDagger types.ServiceAccountState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.DeltaDagger = deltaDagger
+}
+
+func (s *IntermediateStates) GetDeltaDagger() types.ServiceAccountState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.DeltaDagger
+}
+
+func (s *IntermediateStates) SetDeltaDoubleDagger(deltaDoubleDagger types.ServiceAccountState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.DeltaDoubleDagger = deltaDoubleDagger
+}
+
+func (s *IntermediateStates) GetDeltaDoubleDagger() types.ServiceAccountState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.DeltaDoubleDagger
 }

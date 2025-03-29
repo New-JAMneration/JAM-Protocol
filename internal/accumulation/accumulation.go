@@ -254,7 +254,7 @@ type Operand struct {
 // and (j, o′, t, b, u) = ∆+(g − ∑u, wi..., o∗, {})
 //
 //	(s,u)∈u∗
-func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput) {
+func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput, err error) {
 	gas_sum := 0
 	i := 0
 
@@ -272,7 +272,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	if i == 0 {
 		output.NumberOfWorkResultsAccumulated = 0
 		output.PartialStateSet = input.InitPartialStateSet
-		return output
+		return output, nil
 	}
 
 	// Accumulate the first i reports in parallel across services (∆)
@@ -281,7 +281,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
 
-	parallel_result := ParallelizedAccumulation(parallel_input)
+	parallel_result, _ := ParallelizedAccumulation(parallel_input)
 
 	// Recurse on the remaining reports with the remaining gas
 	remain_gas := input.GasLimit
@@ -293,7 +293,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	recursive_outer_input.WorkReports = input.WorkReports[i:]
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
 
-	recursive_outer_output := OuterAccumulation(recursive_outer_input)
+	recursive_outer_output, _ := OuterAccumulation(recursive_outer_input)
 
 	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
@@ -306,7 +306,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		output.ServiceHashSet[key] = value
 	}
 
-	return output
+	return output, nil
 }
 
 // (12.17) ∆∗ parallelized accumulation function
@@ -332,7 +332,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 //	s∈s
 //
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
-func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput) {
+func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
 
 	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 	s := make(map[types.ServiceId]bool)
@@ -356,7 +356,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_input.PartialStateSet = input.PartialStateSet
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-		single_output := SingleServiceAccumulation(single_input)
+		single_output, _ := SingleServiceAccumulation(single_input)
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
@@ -395,26 +395,28 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	single_input.PartialStateSet = input.PartialStateSet
 	single_input.WorkReports = input.WorkReports
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-
+	var new_partial_state types.PartialStateSet
 	// x′ = (∆1(o, w, f, m)o)x
-	single_input.ServiceId = input.PartialStateSet.Privileges.Bless
-	x_prime := SingleServiceAccumulation(single_input).PartialStateSet.Privileges
-	store.GetInstance().GetPosteriorStates().SetChi(x_prime)
-
+	{
+		single_input.ServiceId = input.PartialStateSet.Privileges.Bless
+		single_output, _ := SingleServiceAccumulation(single_input)
+		x_prime := single_output.PartialStateSet.Privileges
+		new_partial_state.Privileges = x_prime
+	}
 	// i′ = (∆1(o, w, f, v)o)i
-	single_input.ServiceId = input.PartialStateSet.Privileges.Designate
-	i_prime := SingleServiceAccumulation(single_input).PartialStateSet.ValidatorKeys
-	store.GetInstance().GetPosteriorStates().SetIota(i_prime)
-
+	{
+		single_input.ServiceId = input.PartialStateSet.Privileges.Designate
+		single_output, _ := SingleServiceAccumulation(single_input)
+		i_prime := single_output.PartialStateSet.ValidatorKeys
+		new_partial_state.ValidatorKeys = i_prime
+	}
 	// q′ = (∆1(o, w, f, a)o)q
-	single_input.ServiceId = input.PartialStateSet.Privileges.Assign
-	q_prime := SingleServiceAccumulation(single_input).PartialStateSet.Authorizers
-	store.GetInstance().GetPosteriorStates().SetVarphi(q_prime)
-
-	output.PartialStateSet.Privileges = x_prime
-	output.PartialStateSet.ValidatorKeys = i_prime
-	output.PartialStateSet.Authorizers = q_prime
-	output.DeferredTransfers = t
+	{
+		single_input.ServiceId = input.PartialStateSet.Privileges.Assign
+		single_output, _ := SingleServiceAccumulation(single_input)
+		q_prime := single_output.PartialStateSet.Authorizers
+		new_partial_state.Authorizers = q_prime
+	}
 	// (d ∪ n) ∖ m
 	for key, value := range n {
 		d[key] = value
@@ -422,8 +424,12 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for key := range m {
 		delete(d, key)
 	}
-	output.PartialStateSet.ServiceAccounts = d
-	return output
+	new_partial_state.ServiceAccounts = d
+	updatePartialStateSetToPosteriorState(store.GetInstance(), new_partial_state)
+
+	output.PartialStateSet = new_partial_state
+	output.DeferredTransfers = t
+	return output, nil
 }
 
 // (12.19) ∆1 single-service accumulation function
@@ -442,7 +448,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 // p d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
 //
 //	y: ry ,h: (ws)h, a:wa
-func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput) {
+func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
 	var operands []types.Operand // all operand inputs for Ψₐ
 	// U(fs, 0)
 	g := types.Gas(0)
@@ -478,5 +484,5 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
-	return output
+	return output, nil
 }
