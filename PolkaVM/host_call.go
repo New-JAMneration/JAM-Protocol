@@ -80,7 +80,7 @@ type GeneralArgs struct {
 type AccumulateArgs struct {
 	ResultContextX ResultContext
 	ResultContextY ResultContext
-	types.TimeSlot
+	Timeslot       types.TimeSlot
 }
 
 type RefineArgs struct {
@@ -88,7 +88,7 @@ type RefineArgs struct {
 	IntegratedPVMType   // p(program_code), u, i
 	types.ExportSegment // e
 	ServiceID           types.ServiceId
-	types.TimeSlot      // t
+	TimeSlot            types.TimeSlot // t
 }
 
 type HostCallArgs struct {
@@ -1352,7 +1352,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	timeslot := input.Addition.TimeSlot
+	timeslot := input.Addition.AccumulateArgs.Timeslot
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
@@ -1374,7 +1374,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		// a_b < a_t
-		if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(serviceID).Minbalance {
 			input.Registers[7] = FULL
 		}
 
@@ -1433,7 +1433,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	timeslot := input.Addition.TimeSlot
+	timeslot := input.Addition.AccumulateArgs.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
