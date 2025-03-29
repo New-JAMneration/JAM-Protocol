@@ -346,16 +346,17 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for serivce_id := range input.AlwaysAccumulateMap {
 		s[serivce_id] = true
 	}
-	current_partial_state := input.PartialStateSet
+	d := input.PartialStateSet.ServiceAccounts
 	var t []types.DeferredTransfer
+	var n types.ServiceAccountState
+	m := d
 	for service_id := range s {
 		var single_input SingleServiceAccumulationInput
 		single_input.ServiceId = service_id
-		single_input.PartialStateSet = current_partial_state
+		single_input.PartialStateSet = input.PartialStateSet
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 		single_output := SingleServiceAccumulation(single_input)
-		new_partial_state := single_output.PartialStateSet
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
@@ -372,60 +373,56 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		for _, deferred_transfer := range single_output.DeferredTransfers {
 			t = append(t, deferred_transfer)
 		}
+
+		output_d := single_output.PartialStateSet.ServiceAccounts
 		// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
-		n := new_partial_state.ServiceAccounts
-		for key := range n {
-			if key != service_id {
-				if _, exists := current_partial_state.ServiceAccounts[key]; exists {
-					delete(n, key)
-				}
+		for key, value := range output_d {
+			if key == service_id {
+				n[key] = value
+			} else if _, exists := d[key]; !exists {
+				n[key] = value
 			}
 		}
 		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-		m := current_partial_state.ServiceAccounts
-		for key := range new_partial_state.ServiceAccounts {
+		for key := range output_d {
 			if _, exists := m[key]; exists {
 				delete(m, key)
 			}
 		}
-
-		// (d ∪ n) ∖ m
-		d := current_partial_state.ServiceAccounts
-		for key, value := range n {
-			d[key] = value
-		}
-		for key := range m {
-			delete(d, key)
-		}
-		new_partial_state.ServiceAccounts = d
-		current_partial_state = new_partial_state
 	}
 
 	var single_input SingleServiceAccumulationInput
-	single_input.PartialStateSet = current_partial_state
+	single_input.PartialStateSet = input.PartialStateSet
 	single_input.WorkReports = input.WorkReports
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 
 	// x′ = (∆1(o, w, f, m)o)x
-	single_input.ServiceId = current_partial_state.Privileges.Bless
+	single_input.ServiceId = input.PartialStateSet.Privileges.Bless
 	x_prime := SingleServiceAccumulation(single_input).PartialStateSet.Privileges
 	store.GetInstance().GetPosteriorStates().SetChi(x_prime)
 
 	// i′ = (∆1(o, w, f, v)o)i
-	single_input.ServiceId = current_partial_state.Privileges.Designate
+	single_input.ServiceId = input.PartialStateSet.Privileges.Designate
 	i_prime := SingleServiceAccumulation(single_input).PartialStateSet.ValidatorKeys
 	store.GetInstance().GetPosteriorStates().SetIota(i_prime)
 
 	// q′ = (∆1(o, w, f, a)o)q
-	single_input.ServiceId = current_partial_state.Privileges.Assign
+	single_input.ServiceId = input.PartialStateSet.Privileges.Assign
 	q_prime := SingleServiceAccumulation(single_input).PartialStateSet.Authorizers
 	store.GetInstance().GetPosteriorStates().SetVarphi(q_prime)
 
-	current_partial_state.Privileges = x_prime
-	current_partial_state.ValidatorKeys = i_prime
-	current_partial_state.Authorizers = q_prime
+	output.PartialStateSet.Privileges = x_prime
+	output.PartialStateSet.ValidatorKeys = i_prime
+	output.PartialStateSet.Authorizers = q_prime
 	output.DeferredTransfers = t
-	output.PartialStateSet = current_partial_state
+	// (d ∪ n) ∖ m
+	for key, value := range n {
+		d[key] = value
+	}
+	for key := range m {
+		delete(d, key)
+	}
+	output.PartialStateSet.ServiceAccounts = d
 	return output
 }
 
