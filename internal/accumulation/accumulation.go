@@ -388,7 +388,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			} else if _, exists := d[key]; !exists {
 				n[key] = value
 			} else {
-				// exclude all key in d but not s
+				// exclude all key in d but not s(service_id)
 			}
 		}
 		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
