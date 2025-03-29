@@ -187,61 +187,6 @@ func UpdateAccumulatableWorkReports() {
 	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(Wstar)
 }
 
-//(12.13) U ≡ (d ∈ D⟨NS → A⟩ , i ∈ ⟦K⟧V , q ∈ C⟦H⟧QHC ,
-//				x ∈ (NS , NS , NS , D⟨NS → NG⟩)) type.types.PartialStateSet
-/*
-type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState
-	ValidatorKeys   ValidatorsData
-	Authorizers     AuthQueues
-	Privileges      Privileges
-}
-*/
-
-// (12.14) T ≡ (s ∈ NS , d ∈ NS , a ∈ NB , m ∈ YWT , g ∈ NG) types.DeferredTransfer
-/*
-type DeferredTransfer struct {
-	SenderID   ServiceId `json:"senderid"`
-	ReceiverID ServiceId `json:"receiverid"`
-	Balance    U64       `json:"balance"`
-	Memo       [128]byte `json:"memo"`
-	GasLimit   Gas       `json:"gas"`
-}
-*/
-
-// (12.15) U types.ServiceGasUsedList
-// 		   B types.ServiceHashSet
-/*
-// (12.15) U
-type ServiceGasUsedList []ServiceGasUsed
-
-type ServiceGasUsed struct {
-	ServiceId ServiceId
-	Gas       Gas
-}
-
-type ServiceHash struct {
-	ServiceId ServiceId
-	Hash      OpaqueHash // AccumulationOutput
-}
-
-// (12.15) B
-// FIXME: Naming issue
-type ServiceHashSet map[ServiceHash]struct{}
-*/
-
-// (12.18)
-/* types.Operand
-type Operand struct {
-	Hash           WorkPackageHash
-	ExportsRoot    ExportsRoot
-	AuthorizerHash OpaqueHash
-	AuthOutput     ByteSequence
-	PayloadHash    OpaqueHash
-	Result         WorkExecResult
-}
-*/
-
 // (12.16) ∆+ outer accumulation function
 // (NG, ⟦W⟧, U, D⟨NS → NG⟩) → (N, U, ⟦T⟧, B, U )
 // (g, w, o, f )↦ (0, o, [], {}) if i = 0
@@ -405,11 +350,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 	var new_partial_state types.PartialStateSet
 	// x′ = (∆1(o, w, f, m)o)x
+	store := store.GetInstance()
 	{
 		single_input.ServiceId = input.PartialStateSet.Privileges.Bless
 		single_output, _ := SingleServiceAccumulation(single_input)
 		x_prime := single_output.PartialStateSet.Privileges
 		new_partial_state.Privileges = x_prime
+		store.GetPosteriorStates().SetChi(x_prime)
 	}
 	// i′ = (∆1(o, w, f, v)o)i
 	{
@@ -417,6 +364,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_output, _ := SingleServiceAccumulation(single_input)
 		i_prime := single_output.PartialStateSet.ValidatorKeys
 		new_partial_state.ValidatorKeys = i_prime
+		store.GetPosteriorStates().SetIota(i_prime)
 	}
 	// q′ = (∆1(o, w, f, a)o)q
 	{
@@ -424,6 +372,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_output, _ := SingleServiceAccumulation(single_input)
 		q_prime := single_output.PartialStateSet.Authorizers
 		new_partial_state.Authorizers = q_prime
+		store.GetPosteriorStates().SetVarphi(q_prime)
 	}
 	// (d ∪ n) ∖ m
 	for key, value := range n {
@@ -433,7 +382,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		delete(d, key)
 	}
 	new_partial_state.ServiceAccounts = d
-	updatePartialStateSetToPosteriorState(store.GetInstance(), new_partial_state)
 
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
