@@ -1,6 +1,9 @@
 package accumulation
 
 import (
+	"bytes"
+	"sort"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -62,8 +65,19 @@ func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState
 // v0.6.4 (12.38) P = {(s, p) | (s, p)∈ EP , R(δ‡, s, H(p), |p|)}
 // FilterPreimageExtrinsics filtered extrinsics that should be integrated
 func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState) types.PreimagesExtrinsic {
+	sort.Sort(&eps)
+	// Then, remove the duplicates
+	j := 0
+	for i := 1; i < len(eps); i++ {
+		if eps[i].Requester != eps[j].Requester || !bytes.Equal(eps[i].Blob, eps[j].Blob) {
+			j++
+			eps[j] = eps[i]
+		}
+	}
+	// Remove the duplicates
+	eps = eps[:j+1]
+
 	filteredEps := IntegratePreimage(eps, deltaDoubleDagger)
-	// TODO: add filter (sorted and then remove duplicated)
 	return filteredEps
 }
 
