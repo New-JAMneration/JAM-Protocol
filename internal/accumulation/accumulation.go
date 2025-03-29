@@ -340,7 +340,6 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 //
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
-
 	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 	s := make(map[types.ServiceId]bool)
 	// {rs S w ∈ w, r ∈ wr}
@@ -388,6 +387,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 				n[key] = value
 			} else if _, exists := d[key]; !exists {
 				n[key] = value
+			} else {
+				// exclude all key in d but not s
 			}
 		}
 		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
