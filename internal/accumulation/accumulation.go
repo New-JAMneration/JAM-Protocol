@@ -1,6 +1,8 @@
 package accumulation
 
 import (
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -126,8 +128,8 @@ func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkRepor
 
 	// Recursively prune the queue and resolve additional eligible reports
 	hashes := ExtractWorkReportHashes(g)
-	extra_avaliable_reports := AccumulationPriorityQueue(QueueEditingFunction(r, hashes))
-	output = append(output, extra_avaliable_reports...)
+	recursivelyReadyReports := AccumulationPriorityQueue(QueueEditingFunction(r, hashes))
+	output = append(output, recursivelyReadyReports...)
 	return output
 }
 
@@ -155,34 +157,34 @@ func UpdateAccumulatableWorkReports() {
 	// Get θ: the available work reports (ϑ)
 	theta := store.GetPriorStates().GetTheta()
 	WQ := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
-	accumulatedWorkReports := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
+	Wbang := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
-	var readyQueueItem types.ReadyQueueItem
+	var composedQueue types.ReadyQueueItem
 	for _, record := range theta[m:] {
-		readyQueueItem = append(readyQueueItem, record...)
+		composedQueue = append(composedQueue, record...)
 	}
 
 	for _, record := range theta[:m] {
-		readyQueueItem = append(readyQueueItem, record...)
+		composedQueue = append(composedQueue, record...)
 	}
 
-	readyQueueItem = append(readyQueueItem, WQ...)
+	composedQueue = append(composedQueue, WQ...)
 
-	accumulatedHashes := ExtractWorkReportHashes(accumulatedWorkReports)
+	accumulatedHashes := ExtractWorkReportHashes(Wbang)
 
 	// (12.12) Compute q = E(..., P(W!))
 	// Use accumulated hashes from W! to prune dependencies
-	q := QueueEditingFunction(readyQueueItem, accumulatedHashes)
+	q := QueueEditingFunction(composedQueue, accumulatedHashes)
 
 	// (12.11) W* ≡ W! ⌢ Q(q)
 	// Reconstruct W* by appending newly-resolved reports to previously accumulated W!
-	accumulatableWorkReports := []types.WorkReport{}
-	accumulatableWorkReports = append(accumulatableWorkReports, accumulatedWorkReports...)
-	accumulatableWorkReports = append(accumulatableWorkReports, AccumulationPriorityQueue(q)...)
+	Wstar := []types.WorkReport{}
+	Wstar = append(Wstar, Wbang...)
+	Wstar = append(Wstar, AccumulationPriorityQueue(q)...)
 
 	// Update W*
-	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(accumulatableWorkReports)
+	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(Wstar)
 }
 
 //(12.13) U ≡ (d ∈ D⟨NS → A⟩ , i ∈ ⟦K⟧V , q ∈ C⟦H⟧QHC ,
@@ -281,7 +283,10 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
 
-	parallel_result, _ := ParallelizedAccumulation(parallel_input)
+	parallel_result, err := ParallelizedAccumulation(parallel_input)
+	if err != nil {
+		return output, fmt.Errorf("parallel accumulation failed: %w", err)
+	}
 
 	// Recurse on the remaining reports with the remaining gas
 	remain_gas := input.GasLimit
@@ -293,8 +298,10 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	recursive_outer_input.WorkReports = input.WorkReports[i:]
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
 
-	recursive_outer_output, _ := OuterAccumulation(recursive_outer_input)
-
+	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
+	if err != nil {
+		return output, fmt.Errorf("recursive accumulation failed: %w", err)
+	}
 	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
@@ -348,7 +355,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 	d := input.PartialStateSet.ServiceAccounts
 	var t []types.DeferredTransfer
-	var n types.ServiceAccountState
+	n := make(types.ServiceAccountState)
 	m := d
 	for service_id := range s {
 		var single_input SingleServiceAccumulationInput
