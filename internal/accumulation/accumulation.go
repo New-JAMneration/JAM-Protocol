@@ -384,9 +384,9 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 		}
 		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-		for key := range output_d {
-			if _, exists := m[key]; exists {
-				delete(m, key)
+		for key, value := range d {
+			if _, exists := output_d[key]; !exists {
+				m[key] = value
 			}
 		}
 	}
