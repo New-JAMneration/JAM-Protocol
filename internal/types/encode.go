@@ -749,31 +749,32 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 }
 
 // RefineLoad
+// INFO: This struct use C.6 integer encoding
 func (r *RefineLoad) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding RefineLoad")
 
 	// GasUsed
-	if err := r.GasUsed.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(r.GasUsed)); err != nil {
 		return err
 	}
 
 	// Imports
-	if err := r.Imports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(r.Imports)); err != nil {
 		return err
 	}
 
 	// ExtrinsicCount
-	if err := r.ExtrinsicCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(r.ExtrinsicCount)); err != nil {
 		return err
 	}
 
 	// ExtrinsicSize
-	if err := r.ExtrinsicSize.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(r.ExtrinsicSize)); err != nil {
 		return err
 	}
 
 	// Exports
-	if err := r.Exports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(r.Exports)); err != nil {
 		return err
 	}
 
@@ -863,7 +864,8 @@ func (w *WorkReport) Encode(e *Encoder) error {
 	}
 
 	// AuthGasUsed
-	if err := w.AuthGasUsed.Encode(e); err != nil {
+	// INFO: This field is encoded as C.6 integer
+	if err := e.EncodeInteger(uint64(w.AuthGasUsed)); err != nil {
 		return err
 	}
 
@@ -1230,7 +1232,7 @@ func (i *ImportSpec) Encode(e *Encoder) error {
 
 	// Index
 	if err := i.Index.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -1402,112 +1404,114 @@ func (a *ActivityRecords) Encode(e *Encoder) error {
 	return nil
 }
 
+// INFO: πC , πS 是使用 C.6 進行序列化
 func (c *CoreActivityRecord) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding CoreActivityRecord")
 
-	// GasUsed
-	if err := c.GasUsed.Encode(e); err != nil {
+	// GasUSed
+	if err := e.EncodeInteger(uint64(c.GasUsed)); err != nil {
 		return err
 	}
 
 	// Imports
-	if err := c.Imports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.Imports)); err != nil {
 		return err
 	}
 
 	// ExtrinsicCount
-	if err := c.ExtrinsicCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
 		return err
 	}
 
 	// ExtrinsicSize
-	if err := c.ExtrinsicSize.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
 		return err
 	}
 
 	// Exports
-	if err := c.Exports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
 		return err
 	}
 
 	// BundleSize
-	if err := c.BundleSize.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.BundleSize)); err != nil {
 		return err
 	}
 
 	// DALoad
-	if err := c.DALoad.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.DALoad)); err != nil {
 		return err
 	}
 
 	// Popularity
-	if err := c.Popularity.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(c.Popularity)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// INFO: πC , πS 是使用 C.6 進行序列化
 func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceActivityRecord")
 
 	// ProvidedCount
-	if err := s.ProvidedCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.ProvidedCount)); err != nil {
 		return err
 	}
 
 	// ProvidedSize
-	if err := s.ProvidedSize.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.ProvidedSize)); err != nil {
 		return err
 	}
 
 	// RefinementCount
-	if err := s.RefinementCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.RefinementCount)); err != nil {
 		return err
 	}
 
 	// RefinementGasUsed
-	if err := s.RefinementGasUsed.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.RefinementGasUsed)); err != nil {
 		return err
 	}
 
 	// Imports
-	if err := s.Imports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.Imports)); err != nil {
 		return err
 	}
 
 	// ExtrinsicCount
-	if err := s.ExtrinsicCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
 		return err
 	}
 
 	// ExtrinsicSize
-	if err := s.ExtrinsicSize.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.ExtrinsicSize)); err != nil {
 		return err
 	}
 
 	// Exports
-	if err := s.Exports.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
 		return err
 	}
 
 	// AccumulateCount
-	if err := s.AccumulateCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.AccumulateCount)); err != nil {
 		return err
 	}
 
 	// AccumulateGasUsed
-	if err := s.AccumulateGasUsed.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.AccumulateGasUsed)); err != nil {
 		return err
 	}
 
 	// OnTransfersCount
-	if err := s.OnTransfersCount.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.OnTransfersCount)); err != nil {
 		return err
 	}
 
 	// OnTransfersGasUsed
-	if err := s.OnTransfersGasUsed.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(s.OnTransfersGasUsed)); err != nil {
 		return err
 	}
 
@@ -1552,6 +1556,7 @@ func (s *ServicesStatistics) Encode(e *Encoder) error {
 }
 
 // CoresStatistics
+// TODO: πC , πS 是使用 C.6 進行序列化
 func (c *CoresStatistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding CoresStatistics")
 

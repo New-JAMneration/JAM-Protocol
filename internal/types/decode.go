@@ -777,41 +777,37 @@ func (g *Gas) Decode(d *Decoder) error {
 func (r *RefineLoad) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding RefineLoad")
 
-	// FIXME: 這邊需要使用 C.6
-	// 修改名稱, 實作 C.6, 不要直接使用 DecodeLength (或是直接改名?)
-
 	var err error
 
-	// decode length
-	gasUsed, err := d.DecodeLength()
+	gasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	r.GasUsed = U64(gasUsed)
 
-	imports, err := d.DecodeLength()
+	imports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	r.Imports = U16(imports)
 
-	extrinsicCount, err := d.DecodeLength()
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	r.ExtrinsicCount = U16(extrinsicCount)
 
-	extrinsicSize, err := d.DecodeLength()
+	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	r.ExtrinsicSize = U32(extrinsicSize)
 
-	exports, err := d.DecodeLength()
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
@@ -902,7 +898,7 @@ func (w *WorkReport) Decode(d *Decoder) error {
 
 	w.Results = results
 
-	authGasUsed, err := d.DecodeLength()
+	authGasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
@@ -1536,21 +1532,21 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 
 	var err error
 
-	gasUsed, err := d.DecodeLength()
+	gasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.GasUsed = U64(gasUsed)
 
-	imports, err := d.DecodeLength()
+	imports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.Imports = U16(imports)
 
-	extrinsicCount, err := d.DecodeLength()
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
@@ -1560,35 +1556,35 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 
-	extrinsicSize, err := d.DecodeLength()
+	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.ExtrinsicSize = U32(extrinsicSize)
 
-	exports, err := d.DecodeLength()
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.Exports = U16(exports)
 
-	bundleSize, err := d.DecodeLength()
+	bundleSize, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.BundleSize = U32(bundleSize)
 
-	daLoad, err := d.DecodeLength()
+	daLoad, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	c.DALoad = U32(daLoad)
 
-	popularity, err := d.DecodeLength()
+	popularity, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
@@ -1623,84 +1619,84 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 
 	var err error
 
-	providedCount, err := d.DecodeLength()
+	providedCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.ProvidedCount = U16(providedCount)
 
-	providedSize, err := d.DecodeLength()
+	providedSize, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.ProvidedSize = U32(providedSize)
 
-	refinementCount, err := d.DecodeLength()
+	refinementCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.RefinementCount = U32(refinementCount)
 
-	refinementGasUsed, err := d.DecodeLength()
+	refinementGasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.RefinementGasUsed = U64(refinementGasUsed)
 
-	imports, err := d.DecodeLength()
+	imports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.Imports = U32(imports)
 
-	extrinsicCount, err := d.DecodeLength()
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.ExtrinsicCount = U32(extrinsicCount)
 
-	extrinsicSize, err := d.DecodeLength()
+	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.ExtrinsicSize = U32(extrinsicSize)
 
-	exports, err := d.DecodeLength()
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.Exports = U32(exports)
 
-	accumulateCount, err := d.DecodeLength()
+	accumulateCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.AccumulateCount = U32(accumulateCount)
 
-	accumulateGasUsed, err := d.DecodeLength()
+	accumulateGasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.AccumulateGasUsed = U64(accumulateGasUsed)
 
-	onTransfersCount, err := d.DecodeLength()
+	onTransfersCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
 
 	s.OnTransfersCount = U32(onTransfersCount)
 
-	onTransfersGasUsed, err := d.DecodeLength()
+	onTransfersGasUsed, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
@@ -2015,7 +2011,7 @@ func (m *Mmr) Decode(d *Decoder) error {
 
 	length, err := d.DecodeLength()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if length == 0 {
