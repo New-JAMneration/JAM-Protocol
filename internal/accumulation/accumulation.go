@@ -390,13 +390,14 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 
 		// (d ∪ n) ∖ m
-		new_partial_state.ServiceAccounts = current_partial_state.ServiceAccounts
+		d := current_partial_state.ServiceAccounts
 		for key, value := range n {
-			new_partial_state.ServiceAccounts[key] = value
+			d[key] = value
 		}
 		for key := range m {
-			delete(m, key)
+			delete(d, key)
 		}
+		new_partial_state.ServiceAccounts = d
 		current_partial_state = new_partial_state
 	}
 
@@ -404,15 +405,22 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	single_input.PartialStateSet = current_partial_state
 	single_input.WorkReports = input.WorkReports
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
+
 	// x′ = (∆1(o, w, f, m)o)x
 	single_input.ServiceId = current_partial_state.Privileges.Bless
 	x_prime := SingleServiceAccumulation(single_input).PartialStateSet.Privileges
+	store.GetInstance().GetPosteriorStates().SetChi(x_prime)
+
 	// i′ = (∆1(o, w, f, v)o)i
 	single_input.ServiceId = current_partial_state.Privileges.Designate
 	i_prime := SingleServiceAccumulation(single_input).PartialStateSet.ValidatorKeys
+	store.GetInstance().GetPosteriorStates().SetIota(i_prime)
+
 	// q′ = (∆1(o, w, f, a)o)q
 	single_input.ServiceId = current_partial_state.Privileges.Assign
 	q_prime := SingleServiceAccumulation(single_input).PartialStateSet.Authorizers
+	store.GetInstance().GetPosteriorStates().SetVarphi(q_prime)
+
 	current_partial_state.Privileges = x_prime
 	current_partial_state.ValidatorKeys = i_prime
 	current_partial_state.Authorizers = q_prime
