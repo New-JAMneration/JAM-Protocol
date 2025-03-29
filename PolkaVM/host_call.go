@@ -543,15 +543,29 @@ func info(input OmegaInput) (output OmegaOutput) {
 	derivatives := service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID))
 
 	var serialized_bytes types.ByteSequence
-	serialized_bytes = append(serialized_bytes, utilities.SerializeByteSequence(t.ServiceInfo.CodeHash[:])...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(t.ServiceInfo.Balance)...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(derivatives.Minbalance)...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinItemGas))...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinMemoGas))...)
-	result := utilities.WrapDictionaryKeyMap(t.LookupDict)
-	encoded := result.Serialize()
+	encoder := types.NewEncoder()
+	// t_c
+	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
 	serialized_bytes = append(serialized_bytes, encoded...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(derivatives.Items))...)
+	// t_b
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.Balance))
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_t
+	encoded, _ = encoder.Encode(uint64(derivatives.Minbalance))
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_g
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinItemGas))
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_m
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinMemoGas))
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_o
+	encoded, _ = encoder.Encode(uint64(derivatives.Bytes))
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_i
+	encoded, _ = encoder.Encode(uint64(derivatives.Items))
+	serialized_bytes = append(serialized_bytes, encoded...)
+
 	o := input.Registers[8]
 
 	if !isWriteable(o, uint64(len(serialized_bytes)), input.Memory) {
