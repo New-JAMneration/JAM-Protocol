@@ -1598,3 +1598,51 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// ServicesStatistics
+func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
+	var temp []struct {
+		Id     U32                   `json:"id"`
+		Record ServiceActivityRecord `json:"record"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp) == 0 {
+		*s = nil
+	}
+
+	*s = make(ServicesStatistics)
+	for _, item := range temp {
+		(*s)[ServiceId(item.Id)] = item.Record
+	}
+
+	return nil
+}
+
+func (s *Statistics) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		ValsCurrent ActivityRecords    `json:"vals_current,omitempty"`
+		ValsLast    ActivityRecords    `json:"vals_last,omitempty"`
+		Cores       CoresStatistics    `json:"cores,omitempty"`
+		Services    ServicesStatistics `json:"services,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	s.ValsCurrent = temp.ValsCurrent
+	s.ValsLast = temp.ValsLast
+	s.Cores = temp.Cores
+
+	if len(temp.Services) == 0 {
+		s.Services = nil
+	} else {
+		s.Services = ServicesStatistics{}
+	}
+
+	return nil
+}
