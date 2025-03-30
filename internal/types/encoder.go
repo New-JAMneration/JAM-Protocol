@@ -93,6 +93,23 @@ func (e *Encoder) EncodeUint(value uint64) ([]byte, error) {
 	return append([]byte{0xFF}, remainderBytes...), nil
 }
 
+func (e *Encoder) EncodeInteger(value uint64) error {
+	cLog(Cyan, "Encoding Integer")
+	encoded, err := e.EncodeUint(value)
+	if err != nil {
+		return err
+	}
+
+	_, err = e.buf.Write(encoded)
+	if err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("Encoded Integer: %v", encoded))
+
+	return nil
+}
+
 func (e *Encoder) EncodeLength(length uint64) error {
 	cLog(Cyan, "Encoding Length")
 	encodedLength, err := e.EncodeUint(length)
