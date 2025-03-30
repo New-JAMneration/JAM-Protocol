@@ -6,7 +6,6 @@ import (
 
 	service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -266,8 +265,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	f := min(input.Registers[10], uint64(len(concated_bytes)))
-	l := min(input.Registers[11], uint64(len(concated_bytes))-f)
+
+	f := min(input.Registers[10], uint64(len(v)))
+	l := min(input.Registers[11], uint64(len(v))-f)
 
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -279,8 +279,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		}
 	} else {
 		new_registers := input.Registers
-		new_registers[7] = uint64(len(concated_bytes))
+		new_registers[7] = uint64(len(v))
 		new_memory := input.Memory
+
 		for offset := uint32(0); offset < uint32(l); offset++ {
 			address := uint32(offset + uint32(o))
 			page := address / ZP
@@ -322,25 +323,16 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var s_star uint64
+	var sStar uint64
 	var a types.ServiceAccount
+	// s* = ?
 	if input.Registers[7] == 0xffffffffffffffff {
-		s_star = uint64(serviceID)
-		a = serviceAccount
-	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
-		s_star = input.Registers[7]
-		a = value
+		sStar = uint64(serviceID)
 	} else {
-		new_registers := input.Registers
-		new_registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+		sStar = input.Registers[7]
 	}
+	// assign ko, kz, o first and check v = panic ?
+	// since v = panic is the first condition to check
 	ko, kz, o := input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
 		return OmegaOutput{
@@ -351,17 +343,52 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes []byte
-	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(s_star), 4)...)
+	// a = ?
+	if sStar == uint64(serviceID) {
+		a = serviceAccount
+	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
+		a = value
+	} else {
+		// a = nil , v not panic, => v = nil
+		new_registers := input.Registers
+		new_registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
+	// first compute k
+	encoder := types.NewEncoder()
+	serviceStar := types.ServiceId(sStar)
+	concated_bytes, _ := encoder.Encode(&serviceStar)
+	// mu_ko...+kz
 	for address := uint32(ko); address < uint32(ko+kz); address++ {
 		page := address / ZP
 		index := address % ZP
 		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
+
 	k := hash.Blake2bHash(concated_bytes)
 	v, exists := a.StorageDict[k]
 	f := min(input.Registers[11], uint64(len(concated_bytes)))
 	l := min(input.Registers[12], uint64(len(concated_bytes))-f)
+	// first check not writable, then check v = nil (not exists)
+	if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// v = nil
 	if !exists {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -372,31 +399,24 @@ func read(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
-	} else if !isWriteable(o, l, input.Memory) {
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	} else {
-		new_registers := input.Registers
-		new_registers[7] = uint64(len(v))
-		new_memory := input.Memory
-		for i := uint32(0); i < uint32(l); i++ {
-			address := i + uint32(o)
-			page := address / ZP
-			index := address % ZP
-			new_memory.Pages[page].Value[index] = v[uint32(f)+i]
-		}
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    new_memory,
-			Addition:     input.Addition,
-		}
+	}
+
+	new_registers := input.Registers
+	new_registers[7] = uint64(len(v))
+	new_memory := input.Memory
+	for i := uint32(0); i < uint32(l); i++ {
+		address := i + uint32(o)
+		page := address / ZP
+		index := address % ZP
+		new_memory.Pages[page].Value[index] = v[uint32(f)+i]
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: new_registers,
+		NewMemory:    new_memory,
+		Addition:     input.Addition,
 	}
 }
 
@@ -426,8 +446,9 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes []byte
-	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
+
+	encoder := types.NewEncoder()
+	concated_bytes, _ := encoder.Encode(&serviceID)
 	for address := uint32(ko); address < uint32(ko+kz); address++ {
 		page := address / ZP
 		index := address % ZP
@@ -439,14 +460,26 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		delete(a.StorageDict, k)
 	} else if isReadable(vo, vz, input.Memory) {
-		var concated_bytes []byte
-		concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
+		concated_bytes = []byte{}
 		for address := uint32(vo); address < uint32(vo+vz); address++ {
 			page := address / ZP
 			index := address % ZP
 			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 		}
 		a = serviceAccount
+		// need extra storage space :
+		// check a_t > a_b : storage need gas, balance is not enough for storage
+		if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
+			new_registers := input.Registers
+			new_registers[7] = FULL
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: new_registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
 		a.StorageDict[k] = concated_bytes
 	} else {
 		return OmegaOutput{
@@ -458,17 +491,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
-		new_registers := input.Registers
-		new_registers[7] = FULL
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
 	value, exists := serviceAccount.StorageDict[k]
 	var l uint64
 	if exists {
@@ -478,7 +500,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 	new_registers := input.Registers
 	new_registers[7] = l
-	// TODO update s to a
+
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
@@ -500,7 +522,6 @@ d: ServiceAccountState (map[ServiceId]ServiceAccount)
 func info(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ServiceId
 	delta := input.Addition.ServiceAccountState
-
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
