@@ -252,10 +252,10 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
 	output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
 	output.ServiceGasUsedList = append(parallel_result.ServiceGasUsedList, recursive_outer_output.ServiceGasUsedList...)
-	output.ServiceHashSet = parallel_result.ServiceHashSet
+	output.AccumulatedServiceOutput = parallel_result.AccumulatedServiceOutput
 
-	for key, value := range recursive_outer_output.ServiceHashSet {
-		output.ServiceHashSet[key] = value
+	for key, value := range recursive_outer_output.AccumulatedServiceOutput {
+		output.AccumulatedServiceOutput[key] = value
 	}
 
 	return output, nil
@@ -315,10 +315,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		output.ServiceGasUsedList = append(output.ServiceGasUsedList, u)
 		// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
 		if single_output.AccumulationOutput != nil {
-			var b types.ServiceHash
+			var b types.AccumulatedServiceHash
 			b.ServiceId = service_id
 			b.Hash = *single_output.AccumulationOutput
-			output.ServiceHashSet[b] = true
+			output.AccumulatedServiceOutput[b] = true
 		}
 		// t = [∆1(o, w, f, s)t S s <− s]
 		for _, deferred_transfer := range single_output.DeferredTransfers {

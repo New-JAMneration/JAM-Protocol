@@ -11,10 +11,10 @@ type OuterAccumulationInput struct {
 
 type OuterAccumulationOutput struct {
 	NumberOfWorkResultsAccumulated types.U64
-	PartialStateSet                types.PartialStateSet    // a posterior state-context
-	DeferredTransfers              []types.DeferredTransfer // resultant deferred transfers
-	ServiceHashSet                 types.ServiceHashSet     // service/hash pairs
-	ServiceGasUsedList             types.ServiceGasUsedList // service/gas pairs
+	PartialStateSet                types.PartialStateSet          // a posterior state-context
+	DeferredTransfers              []types.DeferredTransfer       // resultant deferred transfers
+	AccumulatedServiceOutput       types.AccumulatedServiceOutput // service/hash pairs
+	ServiceGasUsedList             types.ServiceGasUsedList       // service/gas pairs
 }
 
 type ParallelizedAccumulationInput struct {
@@ -24,10 +24,10 @@ type ParallelizedAccumulationInput struct {
 }
 
 type ParallelizedAccumulationOutput struct {
-	PartialStateSet    types.PartialStateSet    // a posterior state-context
-	DeferredTransfers  []types.DeferredTransfer // resultant deferred transfers
-	ServiceHashSet     types.ServiceHashSet     // service/hash pairs
-	ServiceGasUsedList types.ServiceGasUsedList // service/gas pairs
+	PartialStateSet          types.PartialStateSet          // a posterior state-context
+	DeferredTransfers        []types.DeferredTransfer       // resultant deferred transfers
+	AccumulatedServiceOutput types.AccumulatedServiceOutput // service/hash pairs
+	ServiceGasUsedList       types.ServiceGasUsedList       // service/gas pairs
 }
 
 type SingleServiceAccumulationInput struct {
