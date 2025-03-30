@@ -33,15 +33,16 @@ const (
 	ForgetOp                                // forget = 15
 	YieldOp                                 // yield = 16
 	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18
-	ExportOp                                // export = 19
-	MachineOp                               // machine = 20
-	PeekOp                                  // peek = 21
-	PokeOp                                  // poke = 22
-	ZeroOp                                  // zero = 23
-	VoidOp                                  // void = 24
-	InvokeOp                                // invoke = 25
-	ExpungeOp                               // expunge = 26
+	FetchOp                                 // fetch = 18;
+
+	ExportOp  // export = 19
+	MachineOp // machine = 20
+	PeekOp    // peek = 21
+	PokeOp    // poke = 22
+	ZeroOp    // zero = 23
+	VoidOp    // void = 24
+	InvokeOp  // invoke = 25
+	ExpungeOp // expunge = 26
 )
 
 type HistoryState struct {
@@ -158,7 +159,7 @@ func Psi_H(
 	return
 }
 
-var hostCallFunctions = [27]Omega{
+var hostCallFunctions = [28]Omega{
 	0:  gas,
 	1:  lookup,
 	2:  read,
@@ -176,6 +177,17 @@ var hostCallFunctions = [27]Omega{
 	14: solicit,
 	15: forget,
 	16: yield,
+}
+
+func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+	input.Registers[7] = WHAT
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas - 10,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
 }
 
 // Gas Function（ΩG）
@@ -1206,10 +1218,9 @@ func eject(input OmegaInput) (output OmegaOutput) {
 					NewMemory:    input.Memory,
 					Addition:     input.Addition,
 				}
-			} else {
-				// according GP, no need to check the service exists => it should in ServiceAccountState
-				log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 			}
+			// according GP, no need to check the service exists => it should in ServiceAccountState
+			log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 		}
 	}
 
