@@ -32,15 +32,16 @@ const (
 	ForgetOp                                // forget = 15
 	YieldOp                                 // yield = 16
 	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18
-	ExportOp                                // export = 19
-	MachineOp                               // machine = 20
-	PeekOp                                  // peek = 21
-	PokeOp                                  // poke = 22
-	ZeroOp                                  // zero = 23
-	VoidOp                                  // void = 24
-	InvokeOp                                // invoke = 25
-	ExpungeOp                               // expunge = 26
+	FetchOp                                 // fetch = 18;
+
+	ExportOp  // export = 19
+	MachineOp // machine = 20
+	PeekOp    // peek = 21
+	PokeOp    // poke = 22
+	ZeroOp    // zero = 23
+	VoidOp    // void = 24
+	InvokeOp  // invoke = 25
+	ExpungeOp // expunge = 26
 )
 
 type HistoryState struct {
@@ -160,7 +161,7 @@ func Psi_H(
 	return
 }
 
-var HostCallFunctions = [27]Omega{
+var HostCallFunctions = [28]Omega{
 	0:  gas,
 	1:  lookup,
 	2:  read,
@@ -178,6 +179,17 @@ var HostCallFunctions = [27]Omega{
 	14: solicit,
 	15: forget,
 	16: yield,
+}
+
+func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+	input.Registers[7] = WHAT
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas - 10,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
 }
 
 // Gas Function（ΩG）
@@ -568,22 +580,22 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_b
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.Balance))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.Balance))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_t
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Minbalance))
+	encoded, _ = encoder.Encode(uint64(derivatives.Minbalance))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_g
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.MinItemGas))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinItemGas))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_m
-	encoded, _ = encoder.EncodeUint(uint64(t.ServiceInfo.MinMemoGas))
+	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinMemoGas))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_o
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Bytes))
+	encoded, _ = encoder.Encode(uint64(derivatives.Bytes))
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_i
-	encoded, _ = encoder.EncodeUint(uint64(derivatives.Items))
+	encoded, _ = encoder.Encode(uint64(derivatives.Items))
 	serialized_bytes = append(serialized_bytes, encoded...)
 
 	o := input.Registers[8]
@@ -1230,10 +1242,9 @@ func eject(input OmegaInput) (output OmegaOutput) {
 					NewMemory:    input.Memory,
 					Addition:     input.Addition,
 				}
-			} else {
-				// according GP, no need to check the service exists => it should in ServiceAccountState
-				log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 			}
+			// according GP, no need to check the service exists => it should in ServiceAccountState
+			log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 		}
 	}
 
