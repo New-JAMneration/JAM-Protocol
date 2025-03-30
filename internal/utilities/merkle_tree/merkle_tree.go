@@ -119,6 +119,7 @@ func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.Byt
 	for _, hash := range C_res {
 		seq = append(seq, types.ByteSequence(hash[:]))
 	}
+	// ... max(0,⌈log2(max(1,|v|))−x⌉)
 	num := max(1, len(v)) - int(x)
 	log := 0
 	for (1 << log) < num {
