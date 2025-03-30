@@ -171,7 +171,7 @@ func updateXi(store *store.Store) {
 	posteriorXi := store.GetPosteriorStates().GetXi()
 
 	// (12.31) Update the last element
-	posteriorXi[types.EpochLength-1] = MappingFunction(accumulatableWorkReports)
+	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports)
 
 	// (12.32)
 	// Update the rest of the elements

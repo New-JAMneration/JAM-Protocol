@@ -22,9 +22,11 @@ type IntermediateState struct {
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaDagger:      types.BlocksHistory{},
-			RhoDagger:       types.AvailabilityAssignments{},
-			RhoDoubleDagger: types.AvailabilityAssignments{},
+			BetaDagger:        types.BlocksHistory{},
+			RhoDagger:         types.AvailabilityAssignments{},
+			RhoDoubleDagger:   types.AvailabilityAssignments{},
+			DeltaDagger:       types.ServiceAccountState{},
+			DeltaDoubleDagger: types.ServiceAccountState{},
 		},
 	}
 }

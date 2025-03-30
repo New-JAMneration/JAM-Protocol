@@ -3,10 +3,10 @@ package accumulation
 import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 type OuterAccumulationInput struct {
-	GasLimit                     types.Gas                 // gas-limit
-	WorkReports                  []types.WorkReport        // a sequence of work-reports
-	InitPartialStateSet          types.PartialStateSet     // an initial partial-state
-	ServicesWithFreeAccumulation types.AlwaysAccumulateMap // a dictionary of services enjoying free accumulation
+	GasLimit                     types.Gas                 // g    gas-limit
+	WorkReports                  []types.WorkReport        // w    a sequence of work-reports
+	InitPartialStateSet          types.PartialStateSet     // o    an initial partial-state
+	ServicesWithFreeAccumulation types.AlwaysAccumulateMap // f    a dictionary of services enjoying free accumulation
 }
 
 type OuterAccumulationOutput struct {
@@ -18,9 +18,9 @@ type OuterAccumulationOutput struct {
 }
 
 type ParallelizedAccumulationInput struct {
-	PartialStateSet     types.PartialStateSet     // initial state-context
-	WorkReports         []types.WorkReport        // a sequence of work-reports
-	AlwaysAccumulateMap types.AlwaysAccumulateMap // a dictionary of privileged always-accumulate services
+	PartialStateSet     types.PartialStateSet     // o   initial state-context
+	WorkReports         []types.WorkReport        // w   a sequence of work-reports
+	AlwaysAccumulateMap types.AlwaysAccumulateMap // f   a dictionary of privileged always-accumulate services
 }
 
 type ParallelizedAccumulationOutput struct {
@@ -31,10 +31,10 @@ type ParallelizedAccumulationOutput struct {
 }
 
 type SingleServiceAccumulationInput struct {
-	PartialStateSet     types.PartialStateSet     // initial state-context
-	WorkReports         []types.WorkReport        // a sequence of work-reports
-	AlwaysAccumulateMap types.AlwaysAccumulateMap // a dictionary of privileged always-accumulate services
-	ServiceId           types.ServiceId           // a service index
+	PartialStateSet     types.PartialStateSet     // o   initial state-context
+	WorkReports         []types.WorkReport        // w   a sequence of work-reports
+	AlwaysAccumulateMap types.AlwaysAccumulateMap // f   a dictionary of privileged always-accumulate services
+	ServiceId           types.ServiceId           // s   a service index
 }
 
 type SingleServiceAccumulationOutput struct {
