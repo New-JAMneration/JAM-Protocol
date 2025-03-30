@@ -171,7 +171,8 @@ func HeaderUSerialization(header types.Header) (output types.ByteSequence) {
 			output = append(output, SerializeByteSequence(header.EpochMark.Entropy[:])...)
 			output = append(output, SerializeByteSequence(header.EpochMark.TicketsEntropy[:])...)
 			for _, validator := range header.EpochMark.Validators {
-				output = append(output, SerializeByteSequence(validator[:])...)
+				output = append(output, SerializeByteSequence(validator.Bandersnatch[:])...)
+				output = append(output, SerializeByteSequence(validator.Ed25519[:])...)
 			}
 		}
 	}
