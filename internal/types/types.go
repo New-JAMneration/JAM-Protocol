@@ -5,12 +5,14 @@ package types
 // If the desired Validate function is not found, please implement one yourself. :)
 // version = 0.5.3
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -680,6 +682,30 @@ func (p *PreimagesExtrinsic) Validate() error {
 	}
 
 	return nil
+}
+
+// Len returns the length of the Preimages slice.
+func (p *PreimagesExtrinsic) Len() int {
+	return len(*p)
+}
+
+// Less returns true if the Preimage at index i is less than the Preimage at
+// index j.
+func (p *PreimagesExtrinsic) Less(i, j int) bool {
+	if (*p)[i].Requester == (*p)[j].Requester {
+		return bytes.Compare((*p)[i].Blob, (*p)[j].Blob) < 0
+	}
+	return (*p)[i].Requester < (*p)[j].Requester
+}
+
+// Swap swaps the Preimages at index i and j.
+func (p *PreimagesExtrinsic) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+}
+
+// Sort sorts the Preimages slice.
+func (p *PreimagesExtrinsic) Sort() {
+	sort.Sort(p)
 }
 
 func (p *PreimagesExtrinsic) ScaleDecode(data []byte) error {
