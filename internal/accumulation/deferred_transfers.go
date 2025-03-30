@@ -1,7 +1,6 @@
 package accumulation
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
@@ -50,6 +49,8 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 // w_r: work result
 // r_s: the index of the service whose state is to be altered and thus whose refine code was already executed
 // s: serviceId
+// NOTE: While it is possible to refactor the function to use a map where the key is the service ID and the value is the number of work results,
+// this approach would differ from the graypaper and is not being implemented at this time.
 func getWorkResultByService(s types.ServiceId) []types.WorkResult {
 	// Get W^*
 	store := store.GetInstance()
@@ -129,11 +130,12 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 	deferredTransfersStatisics := types.DeferredTransfersStatistics{}
 
 	for serviceId := range deltaDagger {
+		selectionFunctionOutput := selectionFunction(t, serviceId)
 		onTransferInput := PolkaVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
-			DeferredTransfers: selectionFunction(t, serviceId),
+			DeferredTransfers: selectionFunctionOutput,
 		}
 
 		// (12.27) x
@@ -143,8 +145,6 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		deltaDoubleDagger[serviceId] = serviceAccount
 
 		// Calculate transfers statistics (X)
-		selectionFunctionOutput := selectionFunction(t, serviceId)
-
 		// (12.29) (12.30) Calculate the deferred transfers statistics
 		if len(selectionFunctionOutput) != 0 {
 			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
@@ -211,7 +211,7 @@ func updateTheta(store *store.Store) {
 
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
-		index := m - i
+		index := (m - i + types.EpochLength) % types.EpochLength
 		index = index % len(posteriorTheta)
 
 		firstCondition := i == 0
@@ -220,13 +220,9 @@ func updateTheta(store *store.Store) {
 
 		if firstCondition {
 			posteriorTheta[index] = QueueEditingFunction(queueWorkReports, posteriorXi[types.EpochLength-1])
-		}
-
-		if secondCondition {
+		} else if secondCondition {
 			posteriorTheta[index] = types.ReadyQueueItem{}
-		}
-
-		if thirdCondition {
+		} else if thirdCondition {
 			posteriorTheta[index] = QueueEditingFunction(priorTheta[index], posteriorXi[types.EpochLength-1])
 		}
 	}
@@ -282,14 +278,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 }
 
 // (v0.6.4) 12.3 Deferred Transfers And State Integration.
-func DeferredTransfers() {
+func DeferredTransfers() error {
 	// Get parameters from the store
 	store := store.GetInstance()
 
 	// (12.20) (12.21) (12.22)
 	output, err := executeOuterAccumulation(store)
 	if err != nil {
-		fmt.Errorf("OuterAccumulation failed: %v", err)
+		return err
 	}
 
 	// (12.23) (12.24) (12.25)
@@ -306,4 +302,6 @@ func DeferredTransfers() {
 	// (12.33)
 	// Update ReadyQueue(Theta)
 	updateTheta(store)
+
+	return nil
 }
