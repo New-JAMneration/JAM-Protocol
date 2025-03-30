@@ -192,6 +192,11 @@ func (d *Decoder) IdentifyLength(byteValue byte) (uint8, error) {
 	return 0, fmt.Errorf("Failed to identify length: %v", byteValue)
 }
 
+func (d *Decoder) DecodeInteger() (uint64, error) {
+	return d.DecodeLength()
+}
+
+// C.6 Deserialization
 func (d *Decoder) DecodeLength() (uint64, error) {
 	// Read the first byte to know the lengthFlag of the slice
 	lengthFlag, err := d.ReadLegnthFlag()
