@@ -419,14 +419,13 @@ type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
 // v0.6.3 (11.2) WorkReport
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`
-	Context           RefineContext     `json:"context"`
-	CoreIndex         CoreIndex         `json:"core_index,omitempty"`
-	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"`
-	Results           []WorkResult      `json:"results,omitempty"`
-	Gas               Gas               `json:"gas,omitempty"`
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
+	Context           RefineContext     `json:"context"`                       // x
+	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
+	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // o
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // l
+	Results           []WorkResult      `json:"results,omitempty"`             // r
 }
 
 func (w *WorkReport) Validate() error {
@@ -1222,20 +1221,20 @@ type AccumulateRoot OpaqueHash
 
 // (12.13)
 type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState
-	ValidatorKeys   ValidatorsData
-	Authorizers     AuthQueues
-	Privileges      Privileges
+	ServiceAccounts ServiceAccountState // d
+	ValidatorKeys   ValidatorsData      // i
+	Authorizers     AuthQueues          // q
+	Privileges      Privileges          // x
 }
 
 // (12.18)
 type Operand struct {
-	Hash           WorkPackageHash
-	ExportsRoot    ExportsRoot
-	AuthorizerHash OpaqueHash
-	AuthOutput     ByteSequence
-	PayloadHash    OpaqueHash
-	Result         WorkExecResult
+	Hash           WorkPackageHash // h
+	ExportsRoot    ExportsRoot     // e
+	AuthorizerHash OpaqueHash      // a
+	AuthOutput     ByteSequence    // o
+	PayloadHash    OpaqueHash      // y
+	Result         WorkExecResult  // d
 }
 
 // (12.15) U
@@ -1254,7 +1253,7 @@ type ServiceHash struct {
 
 // (12.15) B
 // FIXME: Naming issue
-type ServiceHashSet map[ServiceHash]struct{}
+type ServiceHashSet map[ServiceHash]bool
 
 // FIXME: Naming issue
 // (12.23)
