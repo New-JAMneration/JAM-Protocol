@@ -120,12 +120,12 @@ func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.Byt
 		seq = append(seq, types.ByteSequence(hash[:]))
 	}
 	// ... max(0,⌈log2(max(1,|v|))−x⌉)
-	num := max(1, len(v)) - int(x)
+	num := max(1, len(v))
 	log := 0
 	for (1 << log) < num {
 		log++
 	}
-	sz := max(0, log)
+	sz := max(0, log-int(x))
 	return T(seq, i*(1<<x), hashFunc)[:sz]
 }
 
