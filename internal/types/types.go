@@ -1245,17 +1245,14 @@ type ServiceGasUsed struct {
 	Gas       Gas
 }
 
-// FIXME: Naming issue
-type ServiceHash struct {
+type AccumulatedServiceHash struct {
 	ServiceId ServiceId
 	Hash      OpaqueHash // AccumulationOutput
 }
 
 // (12.15) B
-// FIXME: Naming issue
-type ServiceHashSet map[ServiceHash]bool
+type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
-// FIXME: Naming issue
 // (12.23)
 type GasAndNumAccumulatedReports struct {
 	Gas                   Gas
@@ -1267,7 +1264,6 @@ type GasAndNumAccumulatedReports struct {
 // dictionary<serviceId, (gas used, the number of work-reports accumulated)>
 type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
 
-// FIXME: Naming issue
 // (12.29)
 type NumDeferredTransfersAndTotalGasUsed struct {
 	NumDeferredTransfers U64
