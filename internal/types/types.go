@@ -1181,6 +1181,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// (12.14) deferred transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1188,6 +1189,8 @@ type DeferredTransfer struct {
 	Memo       [128]byte `json:"memo"`
 	GasLimit   Gas       `json:"gas"`
 }
+
+type DeferredTransfers []DeferredTransfer
 
 // --------------------------------------------
 // -- Accumulation
@@ -1242,12 +1245,32 @@ type ServiceGasUsed struct {
 	Gas       Gas
 }
 
-// FIXME: Naming issue
-type ServiceHash struct {
+type AccumulatedServiceHash struct {
 	ServiceId ServiceId
 	Hash      OpaqueHash // AccumulationOutput
 }
 
 // (12.15) B
-// FIXME: Naming issue
-type ServiceHashSet map[ServiceHash]bool
+type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
+
+// (12.23)
+type GasAndNumAccumulatedReports struct {
+	Gas                   Gas
+	NumAccumulatedReports U64
+}
+
+// (12.23)
+// I: accumulation statistics
+// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
+type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+
+// (12.29)
+type NumDeferredTransfersAndTotalGasUsed struct {
+	NumDeferredTransfers U64
+	TotalGasUsed         Gas
+}
+
+// (12.29)
+// X: deferred-transfers statistics
+// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
+type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
