@@ -82,15 +82,9 @@ func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) ty
 }
 
 // Lx: Function provides a single page of hashed leaves
-func Lx(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
-	pow2 := types.U32(1)
-	for i*pow2*2 < types.U32(len(v)) {
-		pow2 *= 2
-	}
-	i *= types.U32(pow2)
-
+func Lx(x uint8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
 	ret := make([]types.OpaqueHash, 0)
-	for idx := i; idx < min(i+pow2, types.U32(len(v))); idx++ {
+	for idx := i * (1 << x); idx < min(i*(1<<x)+(1<<x), types.U32(len(v))); idx++ {
 		merge := types.ByteSequence("leaf")
 		merge = append(merge, v[idx][:]...)
 		ret = append(ret, hashFunc(merge))
@@ -119,16 +113,13 @@ func C(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 
 // Jx: Function provides the Merkle path to a single page
 
-func Jx(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
-	for i*2 < types.U32(len(v)) {
-		i *= 2
-	}
+func Jx(x uint8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
 	C_res := C(v, hashFunc)
 	var seq []types.ByteSequence
 	for _, hash := range C_res {
 		seq = append(seq, types.ByteSequence(hash[:]))
 	}
-	return T(seq, i, hashFunc)
+	return T(seq, i*(1<<x), hashFunc)
 }
 
 // M: Constant-depth binary Merkle function
