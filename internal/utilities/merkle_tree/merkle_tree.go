@@ -82,7 +82,7 @@ func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) ty
 }
 
 // Lx: Function provides a single page of hashed leaves
-func Lx(x uint8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
+func Lx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
 	ret := make([]types.OpaqueHash, 0)
 	for idx := i * (1 << x); idx < min(i*(1<<x)+(1<<x), types.U32(len(v))); idx++ {
 		merge := types.ByteSequence("leaf")
@@ -113,7 +113,7 @@ func C(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 
 // Jx: Function provides the Merkle path to a single page
 
-func Jx(x uint8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
+func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
 	C_res := C(v, hashFunc)
 	var seq []types.ByteSequence
 	for _, hash := range C_res {
