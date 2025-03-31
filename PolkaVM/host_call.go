@@ -2,7 +2,6 @@ package PolkaVM
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 
 	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -618,7 +617,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 		index := address % ZP
 		new_memory.Pages[page].Value[index] = serialized_bytes[i]
 	}
-	fmt.Println("new memory : ", new_memory.Pages[32].Value[:90])
+
 	new_registers := input.Registers
 	new_registers[7] = OK
 	return OmegaOutput{
