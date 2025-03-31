@@ -1241,3 +1241,11 @@ type ServiceGasUsed struct {
 	ServiceId ServiceId
 	Gas       Gas
 }
+
+type ReportsForCore []WorkReport         // 一個 core 對應的報告
+type ReportsForAllCores []ReportsForCore // 所有 cores 的報告集合
+
+type CoreWorkReport struct {
+	Core    CoreIndex
+	Reports ReportsForCore
+}
