@@ -2,9 +2,10 @@ package PolkaVM
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 
-	service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
+	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -481,7 +482,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
-		if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
+		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
 			return OmegaOutput{
@@ -572,7 +573,8 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	derivatives := service.GetSerivecAccountDerivatives(types.ServiceId(serviceID))
+
+	derivatives := GetSerivecAccountDerivatives(t)
 
 	var serialized_bytes types.ByteSequence
 	encoder := types.NewEncoder()
@@ -580,22 +582,22 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_b
-	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.Balance))
+	encoded, _ = encoder.Encode(&t.ServiceInfo.Balance)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_t
-	encoded, _ = encoder.Encode(uint64(derivatives.Minbalance))
+	encoded, _ = encoder.Encode(&derivatives.Minbalance)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_g
-	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinItemGas))
+	encoded, _ = encoder.Encode(&t.ServiceInfo.MinItemGas)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_m
-	encoded, _ = encoder.Encode(uint64(t.ServiceInfo.MinMemoGas))
+	encoded, _ = encoder.Encode(&t.ServiceInfo.MinMemoGas)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_o
-	encoded, _ = encoder.Encode(uint64(derivatives.Bytes))
+	encoded, _ = encoder.Encode(&derivatives.Bytes)
 	serialized_bytes = append(serialized_bytes, encoded...)
 	// t_i
-	encoded, _ = encoder.Encode(uint64(derivatives.Items))
+	encoded, _ = encoder.Encode(&derivatives.Items)
 	serialized_bytes = append(serialized_bytes, encoded...)
 
 	o := input.Registers[8]
@@ -608,24 +610,23 @@ func info(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
-	} else {
-		new_memory := input.Memory
-		for i := 0; i < len(serialized_bytes); i++ {
-			address := uint32(int(o) + i)
-			page := address / ZP
-			index := address % ZP
-			new_memory.Pages[page].Value[index] = serialized_bytes[i]
-		}
-
-		new_registers := input.Registers
-		new_registers[7] = OK
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	}
+	new_memory := input.Memory
+	for i := 0; i < len(serialized_bytes); i++ {
+		address := uint32(int(o) + i)
+		page := address / ZP
+		index := address % ZP
+		new_memory.Pages[page].Value[index] = serialized_bytes[i]
+	}
+	fmt.Println("new memory : ", new_memory.Pages[32].Value[:90])
+	new_registers := input.Registers
+	new_registers[7] = OK
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: new_registers,
+		NewMemory:    new_memory,
+		Addition:     input.Addition,
 	}
 }
 
@@ -894,7 +895,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	c := types.ByteSequence(make([]byte, offset))
 	pageNumber := o / ZP
 	pageIndex := o % ZP
-	// reda data from memory, might only cross one page
+	// read data from memory, might only cross one page
 	if ZP-pageIndex < uint64(offset) {
 		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
 		copy(c[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
@@ -908,8 +909,8 @@ func new(input OmegaInput) (output OmegaOutput) {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
 		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-
-	if s.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+	// s_b < (x_s)_t
+	if s.ServiceInfo.Balance < GetSerivecAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
 		return OmegaOutput{
@@ -928,7 +929,9 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" decode error %v: ", err)
 	}
 
-	accountDer := service.GetSerivecAccountDerivatives(types.ServiceId(cDecoded))
+	var a types.ServiceAccount
+
+	accountDer := GetSerivecAccountDerivatives(a)
 	at := accountDer.Minbalance
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
@@ -947,7 +950,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		lookupKey: types.TimeSlotSet{},
 	}
 
-	a := types.ServiceAccount{
+	a = types.ServiceAccount{
 		ServiceInfo:    serviceinfo,
 		PreimageLookup: types.PreimagesMapEntry{}, // p
 		LookupDict:     lookupMetaMapEntry,        // l
@@ -1098,7 +1101,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		if b < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+		if b < GetSerivecAccountDerivatives(accountS).Minbalance {
 			input.Registers[7] = CASH
 
 			return OmegaOutput{
@@ -1405,7 +1408,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		// a_b < a_t
-		if a.ServiceInfo.Balance < service.GetSerivecAccountDerivatives(serviceID).Minbalance {
+		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
 			input.Registers[7] = FULL
 		}
 
