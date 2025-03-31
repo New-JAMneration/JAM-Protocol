@@ -177,7 +177,7 @@ func SerializeChi(chi types.Privileges) (output types.ByteSequence) {
 }
 
 func SerializePi(pi types.Statistics) (output types.ByteSequence) {
-	for _, activityRecord := range pi.Current {
+	for _, activityRecord := range pi.ValsCurrent {
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Blocks, 4)...)
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Tickets, 4)...)
 		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImages, 4)...)
@@ -185,7 +185,7 @@ func SerializePi(pi types.Statistics) (output types.ByteSequence) {
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Guarantees, 4)...)
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Assurances, 4)...)
 	}
-	for _, activityRecord := range pi.Last {
+	for _, activityRecord := range pi.ValsLast {
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Blocks, 4)...)
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Tickets, 4)...)
 		output = append(output, utilities.SerializeFixedLength(activityRecord.PreImages, 4)...)
