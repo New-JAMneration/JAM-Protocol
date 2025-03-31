@@ -39,6 +39,7 @@ var hostCallMap = map[string]PolkaVM.OperationType{
 	"Write":             PolkaVM.WriteOp,
 	"Yield":             PolkaVM.YieldOp,
 	"Zero":              PolkaVM.ZeroOp,
+	"Read":              PolkaVM.ReadOp,
 }
 
 func TestHostCall(t *testing.T) {
