@@ -1,6 +1,7 @@
 package PolkaVM_test
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -351,8 +352,13 @@ func (h CodeHash) ToOpaqueHash() types.OpaqueHash {
 		panic(fmt.Errorf("invalid code hash: %v", h))
 	}
 
+	decoded, err := hex.DecodeString(hash)
+	if err != nil {
+		panic(fmt.Errorf("failed to decode code hash: %v", err))
+	}
+
 	var result types.OpaqueHash
-	copy(result[:], []byte(hash))
+	copy(result[:], decoded)
 	return result
 }
 
@@ -440,8 +446,7 @@ func (x XContent) ToResultContext() PolkaVM.ResultContext {
 }
 
 // this should be like DeferredTransfer
-type T struct {
-}
+type T struct{}
 
 func (t T) ToDeferredTransfer() types.DeferredTransfer {
 	return types.DeferredTransfer{
