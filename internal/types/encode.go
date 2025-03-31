@@ -2380,3 +2380,51 @@ func (s *State) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// deferredTransfer
+func (d *DeferredTransfer) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfer")
+
+	// SenderID
+	if err := d.SenderID.Encode(e); err != nil {
+		return err
+	}
+
+	// ReceiverID
+	if err := d.ReceiverID.Encode(e); err != nil {
+		return err
+	}
+
+	// Balance
+	if err := d.Balance.Encode(e); err != nil {
+		return err
+	}
+
+	// Memo
+	if _, err := e.buf.Write(d.Memo[:]); err != nil {
+		return err
+	}
+
+	// GasLimit
+	if err := d.GasLimit.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DeferredTransfers) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfers")
+
+	if err := e.EncodeLength(uint64(len(*d))); err != nil {
+		return err
+	}
+
+	for _, deferredTransfer := range *d {
+		if err := deferredTransfer.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
