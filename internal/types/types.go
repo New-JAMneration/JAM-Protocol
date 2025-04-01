@@ -830,16 +830,16 @@ type OffendersMark []Ed25519Public
 
 // (5.1)
 type Header struct {
-	Parent          HeaderHash               `json:"parent,omitempty"`
-	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"`
-	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`
-	Slot            TimeSlot                 `json:"slot,omitempty"`
-	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`
-	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`
-	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`
-	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`
-	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`
-	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`
+	Parent          HeaderHash               `json:"parent,omitempty"`            // H_p
+	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"` // H_r
+	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`    // H_x
+	Slot            TimeSlot                 `json:"slot,omitempty"`              // H_t
+	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`        // H_e
+	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`      // H_w
+	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`    // H_o
+	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`      // H_i
+	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`    // H_v
+	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`              // H_s
 }
 
 func (h *Header) Validate() error {
@@ -1242,10 +1242,7 @@ type ServiceGasUsed struct {
 	Gas       Gas
 }
 
-type ReportsForCore []WorkReport         // 一個 core 對應的報告
-type ReportsForAllCores []ReportsForCore // 所有 cores 的報告集合
-
-type CoreWorkReport struct {
-	Core    CoreIndex
-	Reports ReportsForCore
+type CoreIndexReport struct {
+	CoreID CoreIndex
+	Report WorkReport
 }

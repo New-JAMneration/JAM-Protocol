@@ -12,11 +12,19 @@ import (
 //
 //	∅ otherwise 		c <− NC
 
-func GetQ() (Q types.ReportsForAllCores) { // TODO, store where?
-	var W []types.WorkReport // expected to get W* from store
-	Q = make([]types.ReportsForCore, types.CoresCount)
-	for _, report := range W {
-		Q[report.CoreIndex] = append(Q[report.CoreIndex], report)
+func getQ() (Q []*types.WorkReport) { // TODO, store where?
+	rho := store.GetInstance().GetPosteriorStates().GetState().Rho
+
+	// 建立固定長度 slice，預設每個元素是 nil（代表 ∅）
+	Q = make([]*types.WorkReport, len(rho))
+
+	for index, assignment := range rho {
+		if assignment != nil {
+			Q[index] = &assignment.Report
+			// 否則保持 nil，表示 ∅
+		} else {
+			Q[index] = nil
+		}
 	}
 	return Q
 }
@@ -26,7 +34,7 @@ func GetQ() (Q types.ReportsForAllCores) { // TODO, store where?
 //	κ[v]b
 //
 // (17.4) U = $jam_audit
-func GetS0(validator_index int) types.BandersnatchVrfSignature { // TODO: get local validator index
+func getS0(validator_index int) types.BandersnatchVrfSignature { // TODO: get local validator index
 	// Follow formula 6.22's implementation to get Y(H_v)
 	s := store.GetInstance()
 
@@ -38,7 +46,7 @@ func GetS0(validator_index int) types.BandersnatchVrfSignature { // TODO: get lo
 	handler, _ := safrole.CreateVRFHandler(public_key)
 	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
 	context := append(types.ByteSequence(types.JamAudit[:]), vrfOutput...)
-	v := 0 // how to get validator index??
+	v := validator_index // how to get validator index??
 	local_key := posterior_state.GetKappa()[v].Bandersnatch
 
 	handler2, _ := safrole.CreateVRFHandler(local_key)
@@ -51,7 +59,7 @@ func GetS0(validator_index int) types.BandersnatchVrfSignature { // TODO: get lo
 // (17.6) where p = F([(c, Qc) | c c <− NC], r)
 // (17.7) and r = Y(s0)
 
-func Geta0(s0 types.BandersnatchVrfSignature, Q types.ReportsForAllCores) (output []types.CoreWorkReport) { // TODO: get s0 from local data?
+func getA0(s0 types.BandersnatchVrfSignature, Q []*types.WorkReport) (output []types.CoreIndexReport) { // TODO: get s0 from local data?
 	s := store.GetInstance()
 
 	posterior_state := s.GetPosteriorStates()
@@ -66,12 +74,33 @@ func Geta0(s0 types.BandersnatchVrfSignature, Q types.ReportsForAllCores) (outpu
 	}
 	p := shuffle.Shuffle(shuffle_array, types.OpaqueHash(r))
 	for _, idx := range p {
-		if len(Q[idx]) > 0 {
-			output = append(output, types.CoreWorkReport{
-				Core:    types.CoreIndex(idx),
-				Reports: Q[idx],
+		if Q[idx] != nil {
+			output = append(output, types.CoreIndexReport{
+				CoreID: types.CoreIndex(idx),
+				Report: *Q[idx],
 			})
 		}
 	}
 	return output
 }
+
+// (17.8) let n = (T − P ⋅ Ht) / A
+// - T  = current wall-clock time (seconds)
+// - P  = SlotPeriod (e.g. 6s, constant)
+// - Ht = slot number from block header
+// - A  = TranchePeriod (e.g. 8s, constant)
+func getTranchIndex(T types.U32) types.U32 { // TODO: how to get T, type?
+	H_t := store.GetInstance().GetIntermediateHeader().Slot
+	n := (T - types.U32(types.SlotPeriod)*types.U32(H_t)) / types.TranchePeriod
+	return n
+}
+
+// (17.9) S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
+// (17.10) where xn = E([E2(c) ⌢ H(w) S(c, w) ∈ an])
+// (17.11) XI = $jam_announce
+/*
+func BuildAnnouncement(tranche types.U32, xn []byte, reports []types.CoreWorkReport) []byte {
+	XI := types.JamAnnounce                   // Xₜ = $jam_announce
+	return signature
+}
+*/
