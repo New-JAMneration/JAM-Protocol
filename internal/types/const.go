@@ -90,6 +90,7 @@ const (
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
+	TranchePeriod                = 8                   // A
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
@@ -98,8 +99,8 @@ const (
 	JamAvailable                 = "jam_available"
 	JamBeefy                     = "jam_beefy"
 	JamGuarantee                 = "jam_guarantee"
-	JamAnnounce                  = "jam_announce"
-	JamAudit                     = "jam_audit"
+	JamAnnounce                  = "jam_announce" // XI
+	JamAudit                     = "jam_audit"    // XU
 )
 
 const (
