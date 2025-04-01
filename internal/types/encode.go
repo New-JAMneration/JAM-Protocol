@@ -1763,6 +1763,27 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 	return nil
 }
 
+// MetaCode
+func (m *MetaCode) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding MetaCode")
+
+	// Metadata (dynamic length)
+	if err := e.EncodeLength(uint64(len(m.Metadata))); err != nil {
+		return err
+	}
+
+	if _, err := e.buf.Write(m.Metadata); err != nil {
+		return err
+	}
+
+	// Code
+	if _, err := e.buf.Write(m.Code); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // DisputesRecords
 func (d *DisputesRecords) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding DisputesRecords")

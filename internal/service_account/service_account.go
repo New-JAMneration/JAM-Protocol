@@ -2,6 +2,7 @@ package service_account
 
 import (
 	"fmt"
+	"log"
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -17,29 +18,32 @@ type ServiceAccountDerivatives struct {
 	Minbalance types.U64 // a_t
 }
 
-// (9.4) Not sure how to design input for this function
-func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.ByteSequence) {
+// (9.4) This function was integrated into HistoricalLookupFunction
+func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence) {
 	/*
-		∀a ∈ A ∶ a_code ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
-		                  ⎨ ∅               otherwise
+		∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
+		                             ⎨ ∅               otherwise
 	*/
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	account := delta[id]
 
 	// check if CodeHash exists in PreimageLookup
-	if code, exists := account.PreimageLookup[codeHash]; exists {
-		return code
+	if bytes, exists := account.PreimageLookup[codeHash]; exists {
+		metaCode := types.MetaCode{}
+		decoder := types.NewDecoder()
+		err := decoder.Decode(bytes, &metaCode)
+		if err != nil {
+			log.Fatalf("Failed to deserialize code and metadata: %v", err)
+			return nil, nil
+		}
+		return metaCode.Metadata, metaCode.Code
 	}
 	// default is empty
-	return nil
+	return nil, nil
 }
 
-// (9.6) Invariant <- TODO: check if PVM calls this function
-
+// (9.6) Invariant: This is definition, not real used formula
+// but I implement this for debugging/validation
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
-func ValidatePreimageLookupDict(id types.ServiceId) error {
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	account := delta[id]
+func ValidatePreimageLookupDict(account types.ServiceAccount) error {
 
 	for codeHash, preimage := range account.PreimageLookup {
 		// // h = H(p)
@@ -65,8 +69,7 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 }
 
 // (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
-
-func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) types.ByteSequence {
+func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence) {
 	/*
 		Λ(a, t, h) ≡
 			a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
@@ -82,18 +85,23 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 	l := account.LookupDict[lookupkey]
 
 	// a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
-	if ifHashInKey(account, hash) && isValidTime(l, timestamp) {
-		return account.PreimageLookup[hash]
+	if bytes, exists := account.PreimageLookup[hash]; exists && isValidTime(l, timestamp) {
+		/*
+			∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
+			                             ⎨ ∅               otherwise
+		*/
+		metaCode := types.MetaCode{}
+		decoder := types.NewDecoder()
+		err := decoder.Decode(bytes, &metaCode)
+		if err != nil {
+			log.Fatalf("Failed to deserialize code and metadata: %v", err)
+			return nil, nil
+		}
+		return metaCode.Metadata, metaCode.Code
 	}
 
 	// ∅      otherwise
-	return types.ByteSequence{}
-}
-
-// h ∈ Key(a_p)
-func ifHashInKey(account types.ServiceAccount, hash types.OpaqueHash) bool {
-	_, exists := account.PreimageLookup[hash]
-	return exists
+	return nil, nil
 }
 
 // I
