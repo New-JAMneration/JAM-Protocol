@@ -100,6 +100,12 @@ type ReportsState struct {
 
 	// [δ] Relevant services account data. Refer to T(σ) in GP Appendix D.
 	Accounts []AccountsMapEntry `json:"accounts"`
+
+	// Cores statistics.
+	CoresStatistics types.CoresStatistics `json:"cores_statistics"`
+
+	// Services statistics.
+	ServicesStatistics types.ServicesStatistics `json:"services_statistics"`
 }
 
 type ReportsErrorCode types.ErrorCode
@@ -173,14 +179,16 @@ func (e *ReportsState) UnmarshalJSON(data []byte) error {
 	var err error
 
 	var state struct {
-		AvailAssignments types.AvailabilityAssignments `json:"avail_assignments"`
-		CurrValidators   types.ValidatorsData          `json:"curr_validators"`
-		PrevValidators   types.ValidatorsData          `json:"prev_validators"`
-		Entropy          types.EntropyBuffer           `json:"entropy"`
-		Offenders        []types.Ed25519Public         `json:"offenders,omitempty"`
-		RecentBlocks     types.BlocksHistory           `json:"recent_blocks"`
-		AuthPools        types.AuthPools               `json:"auth_pools"`
-		Accounts         []AccountsMapEntry            `json:"accounts"`
+		AvailAssignments   types.AvailabilityAssignments `json:"avail_assignments"`
+		CurrValidators     types.ValidatorsData          `json:"curr_validators"`
+		PrevValidators     types.ValidatorsData          `json:"prev_validators"`
+		Entropy            types.EntropyBuffer           `json:"entropy"`
+		Offenders          []types.Ed25519Public         `json:"offenders,omitempty"`
+		RecentBlocks       types.BlocksHistory           `json:"recent_blocks"`
+		AuthPools          types.AuthPools               `json:"auth_pools"`
+		Accounts           []AccountsMapEntry            `json:"accounts"`
+		CoresStatistics    types.CoresStatistics         `json:"cores_statistics"`
+		ServicesStatistics types.ServicesStatistics      `json:"services_statistics"`
 	}
 
 	if err = json.Unmarshal(data, &state); err != nil {
@@ -206,6 +214,12 @@ func (e *ReportsState) UnmarshalJSON(data []byte) error {
 		e.Accounts = state.Accounts
 	}
 
+	e.CoresStatistics = state.CoresStatistics
+
+	if len(state.ServicesStatistics) != 0 {
+		e.ServicesStatistics = state.ServicesStatistics
+	}
+
 	return nil
 }
 
@@ -215,11 +229,11 @@ func (r *ReportsInput) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = r.Guarantees.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.Slot.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -326,7 +340,7 @@ func (a *Account) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = a.Service.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -338,11 +352,11 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = a.Id.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = a.Info.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -354,19 +368,19 @@ func (r *ReportsState) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = r.AvailAssignments.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.CurrValidators.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.PrevValidators.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.Entropy.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	offendersLength, err := d.DecodeLength()
@@ -384,11 +398,11 @@ func (r *ReportsState) Decode(d *types.Decoder) error {
 	}
 
 	if err = r.RecentBlocks.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.AuthPools.Decode(d); err != nil {
-		return nil
+		return err
 	}
 
 	accountLength, err := d.DecodeLength()
@@ -403,6 +417,14 @@ func (r *ReportsState) Decode(d *types.Decoder) error {
 				return err
 			}
 		}
+	}
+
+	if err = r.CoresStatistics.Decode(d); err != nil {
+		return err
+	}
+
+	if err = r.ServicesStatistics.Decode(d); err != nil {
+		return err
 	}
 
 	return nil
@@ -443,11 +465,11 @@ func (r *ReportsInput) Encode(e *types.Encoder) error {
 	var err error
 
 	if err = r.Guarantees.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.Slot.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -565,19 +587,19 @@ func (r *ReportsState) Encode(e *types.Encoder) error {
 	var err error
 
 	if err = r.AvailAssignments.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.CurrValidators.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.PrevValidators.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.Entropy.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = e.EncodeLength(uint64(len(r.Offenders))); err != nil {
@@ -591,11 +613,11 @@ func (r *ReportsState) Encode(e *types.Encoder) error {
 	}
 
 	if err = r.RecentBlocks.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = r.AuthPools.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	if err = e.EncodeLength(uint64(len(r.Accounts))); err != nil {
@@ -606,6 +628,16 @@ func (r *ReportsState) Encode(e *types.Encoder) error {
 		if err = r.Accounts[i].Encode(e); err != nil {
 			return err
 		}
+	}
+
+	// CoresStatistics
+	if err = r.CoresStatistics.Encode(e); err != nil {
+		return err
+	}
+
+	// ServicesStatistics
+	if err = r.ServicesStatistics.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
