@@ -128,3 +128,35 @@ func TestDecodeJamTestVectorsAccumulateFile(t *testing.T) {
 	// You can access the fields of the AccumulateTestCase struct
 	// e.g. accumulateTestCase.Input.Slot
 }
+
+func TestDecodeMetaCode(t *testing.T) {
+	testCases := []struct {
+		testMetaCodeEncoded []byte
+		expectedMetaCode    types.MetaCode
+	}{
+		{
+			testMetaCodeEncoded: []byte{3, 1, 2, 3, 4, 5, 6},
+			expectedMetaCode: types.MetaCode{
+				Metadata: types.ByteSequence{0x01, 0x02, 0x03},
+				Code:     types.ByteSequence{0x04, 0x05, 0x06},
+			},
+		},
+		{
+			testMetaCodeEncoded: []byte{},
+			expectedMetaCode:    types.MetaCode{},
+		},
+	}
+
+	for _, tc := range testCases {
+		metaCode := types.MetaCode{}
+		decoder := types.NewDecoder()
+		err := decoder.Decode(tc.testMetaCodeEncoded, &metaCode)
+		if err != nil {
+			t.Errorf("Error decoding MetaCode: %v", err)
+		}
+
+		if !reflect.DeepEqual(metaCode, tc.expectedMetaCode) {
+			t.Errorf("Decoded MetaCode does not match expected")
+		}
+	}
+}
