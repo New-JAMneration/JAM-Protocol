@@ -193,7 +193,41 @@ func (d *Decoder) IdentifyLength(byteValue byte) (uint8, error) {
 }
 
 func (d *Decoder) DecodeInteger() (uint64, error) {
-	return d.DecodeLength()
+	// Read the first byte to know the lengthFlag of the slice
+	lengthFlag, err := d.ReadLegnthFlag()
+	if err != nil {
+		return 0, err
+	}
+
+	// IdentifyLength will return how many bytes you have to read after the
+	// lengthFlag
+	remaningByteSize, err := d.IdentifyLength(lengthFlag)
+	if err != nil {
+		return 0, err
+	}
+
+	// Read lengthBytes bytes to know the length of the slice
+	// first byte + remaining bytes
+	remainingLengthBytes := make([]byte, remaningByteSize)
+
+	// Avoid getting an error if the cursor is at the end of the buffer
+	if remaningByteSize != 0 {
+		_, err = d.buf.Read(remainingLengthBytes)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	// Concatenate the lengthFlag and the remaining bytes
+	bytesValue := append([]byte{lengthFlag}, remainingLengthBytes...)
+
+	// Decode value
+	value, err := d.DecodeUint(bytesValue)
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
 }
 
 // C.6 Deserialization
