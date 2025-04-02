@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -443,7 +442,6 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 		mockTimestamp = types.TimeSlot(42)
 
 		// create mock id and ServiceAccount
-		mockId      = types.ServiceId(3)
 		mockAccount = types.ServiceAccount{
 			StorageDict: map[types.OpaqueHash]types.ByteSequence{
 				mockCodeHash: preimage,
@@ -456,14 +454,9 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 			},
 		}
 	)
-	// set to prior states
-	store.NewPriorStates()
-	store.GetInstance().GetPriorStates().SetDelta(map[types.ServiceId]types.ServiceAccount{
-		mockId: mockAccount,
-	})
 
 	// test GetSerivecAccountDerivatives
-	accountDer := GetSerivecAccountDerivatives(mockId)
+	accountDer := GetSerivecAccountDerivatives(mockAccount)
 	t.Log("accountDer:", accountDer)
 	t.Logf("a_i=2*|a_l|+|a_s|\n LHS: %v, RHS: %v", accountDer.Items, 2*len(mockAccount.LookupDict)+len(mockAccount.StorageDict))
 	var totalZ types.U32
