@@ -9,14 +9,6 @@ import (
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// TODO: check if PVM uses this type
-// type ServiceAccountStateDerivatives map[types.ServiceId]ServiceAccountDerivatives
-type ServiceAccountDerivatives struct {
-	Items      types.U32 `json:"items,omitempty"` // a_i
-	Bytes      types.U64 `json:"bytes,omitempty"` // a_o
-	Minbalance types.U64 // a_t
-}
-
 // (9.4) This function was integrated into HistoricalLookupFunction
 func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence) {
 	/*
@@ -132,7 +124,7 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 }
 
 // (9.8) You can use this function to get account derivatives
-func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer ServiceAccountDerivatives) {
+func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -147,7 +139,7 @@ func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer Serv
 		Bytes      = calcUsedOctets(account)
 		Minbalance = calcThresholdBalance(Items, Bytes)
 	)
-	accountDer = ServiceAccountDerivatives{
+	accountDer = types.ServiceAccountDerivatives{
 		Items:      Items,
 		Bytes:      Bytes,
 		Minbalance: Minbalance,

@@ -109,6 +109,12 @@ type ServiceInfo struct {
 	Items      U32        `json:"items,omitempty"`        // a_i
 }
 
+type ServiceAccountDerivatives struct {
+	Items      U32 `json:"items,omitempty"` // a_i
+	Bytes      U64 `json:"bytes,omitempty"` // a_o
+	Minbalance U64 // a_t
+}
+
 type MetaCode struct {
 	Metadata ByteSequence
 	Code     ByteSequence
