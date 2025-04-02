@@ -116,7 +116,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// test HistoricalLookupFunction
-		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -133,7 +136,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			LookupDict:     map[types.LookupMetaMapkey]types.TimeSlotSet{},
 		}
 
-		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil for non-existent hash, got metadata=%v, code=%v", metadata, code)
 		}
@@ -168,7 +174,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil for invalid timestamp (empty set), got metadata=%v, code=%v", metadata, code)
 		}
@@ -205,7 +214,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		metadata, code := HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp < only time in set, got metadata=%v, code=%v", metadata, code)
 		}
@@ -220,7 +232,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		metadata, code = HistoricalLookupFunction(mockAccount2, lowerTime, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount2, lowerTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -260,13 +275,19 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		metadata, code := HistoricalLookupFunction(mockAccount1, lowerTime-1, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount1, lowerTime-1, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp < lower bound, got metadata=%v, code=%v", metadata, code)
 		}
 
 		// case: timestamp equals lower bound (should succeed)
-		metadata, code = HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -275,7 +296,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp within range (should succeed)
-		metadata, code = HistoricalLookupFunction(mockAccount1, lowerTime+1, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount1, lowerTime+1, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -284,13 +308,19 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp equals upper bound (should return nil, because upper bound is open interval)
-		metadata, code = HistoricalLookupFunction(mockAccount1, upperTime, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount1, upperTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp = upper bound, got metadata=%v, code=%v", metadata, code)
 		}
 
 		// case: timestamp greater than upper bound (should return nil)
-		metadata, code = HistoricalLookupFunction(mockAccount1, upperTime+1, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount1, upperTime+1, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp > upper bound, got metadata=%v, code=%v", metadata, code)
 		}
@@ -332,13 +362,19 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 1: timestamp less than lower bound (should return nil)
-		metadata, code := HistoricalLookupFunction(mockAccount, lowerTime-1, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, lowerTime-1, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp < lower bound, got metadata=%v, code=%v", metadata, code)
 		}
 
 		// case 2: timestamp within first range (should succeed)
-		metadata, code = HistoricalLookupFunction(mockAccount, middleTime1, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount, middleTime1, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -347,13 +383,19 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 3: timestamp between ranges (should return nil)
-		metadata, code = HistoricalLookupFunction(mockAccount, middleTime2, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount, middleTime2, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when timestamp between ranges, got metadata=%v, code=%v", metadata, code)
 		}
 
 		// case 4: timestamp equals third time slot (should succeed)
-		metadata, code = HistoricalLookupFunction(mockAccount, thirdTime, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount, thirdTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -362,7 +404,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 5: timestamp greater than third time slot (should succeed)
-		metadata, code = HistoricalLookupFunction(mockAccount, highTime, mockCodeHash)
+		metadata, code, err = HistoricalLookupFunction(mockAccount, highTime, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if !reflect.DeepEqual(code, mockCode) {
 			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
 		}
@@ -401,7 +446,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if err != nil {
+			t.Fatalf("HistoricalLookupFunction failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil for time sets with length > 3, got metadata=%v, code=%v", metadata, code)
 		}
@@ -423,7 +471,10 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// when decode fails, function should return nil
-		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		metadata, code, err := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if err == nil {
+			t.Fatalf("HistoricalLookupFunction should failed: %v", err)
+		}
 		if metadata != nil || code != nil {
 			t.Errorf("HistoricalLookupFunction should return nil when decoding fails, got metadata=%v, code=%v", metadata, code)
 		}
