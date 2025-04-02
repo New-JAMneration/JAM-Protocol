@@ -60,7 +60,7 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 }
 
 // (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
-func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence) {
+func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence, err error) {
 	/*
 		Λ(a, t, h) ≡
 			a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
@@ -86,17 +86,17 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 		err := decoder.Decode(bytes, &metaCode)
 		if err != nil {
 			log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
-			return nil, nil
+			return nil, nil, err
 		}
 		if metaCode.Metadata != nil {
 			// print metadata
 			log.Printf("Metadata is %v\n", metaCode.Metadata)
 		}
-		return metaCode.Metadata, metaCode.Code
+		return metaCode.Metadata, metaCode.Code, nil
 	}
 
 	// ∅      otherwise
-	return nil, nil
+	return nil, nil, nil
 }
 
 // I
