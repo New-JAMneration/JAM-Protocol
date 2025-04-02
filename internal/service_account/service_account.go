@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -94,12 +93,12 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 		decoder := types.NewDecoder()
 		err := decoder.Decode(bytes, &metaCode)
 		if err != nil {
-			fmt.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
+			log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
 			return nil, nil
 		}
 		if metaCode.Metadata != nil {
 			// print metadata
-			fmt.Printf("Metadata is %v\n", metaCode.Metadata)
+			log.Printf("Metadata is %v\n", metaCode.Metadata)
 		}
 		return metaCode.Metadata, metaCode.Code
 	}
@@ -133,7 +132,7 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 }
 
 // (9.8) You can use this function to get account derivatives
-func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccountDerivatives) {
+func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -141,9 +140,7 @@ func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccount
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
-	account := delta[id]
 	// calculate derivative invariants
 	var (
 		Items      = calcKeys(account)
