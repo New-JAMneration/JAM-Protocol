@@ -1506,7 +1506,11 @@ func (s *Storage) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+		if len(valueBytes) == 0 {
+			(*s)[OpaqueHash(keyBytes)] = nil
+		} else {
+			(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+		}
 	}
 
 	return nil
@@ -1614,7 +1618,7 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 		*s = nil
 	}
 
-	*s = make(ServicesStatistics)
+	*s = make(ServicesStatistics, len(temp))
 	for _, item := range temp {
 		(*s)[ServiceId(item.Id)] = item.Record
 	}
@@ -1641,7 +1645,7 @@ func (s *Statistics) UnmarshalJSON(data []byte) error {
 	if len(temp.Services) == 0 {
 		s.Services = nil
 	} else {
-		s.Services = ServicesStatistics{}
+		s.Services = temp.Services
 	}
 
 	return nil
