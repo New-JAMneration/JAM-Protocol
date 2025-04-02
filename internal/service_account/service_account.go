@@ -94,8 +94,12 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 		decoder := types.NewDecoder()
 		err := decoder.Decode(bytes, &metaCode)
 		if err != nil {
-			log.Fatalf("Failed to deserialize code and metadata: %v", err)
+			fmt.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
 			return nil, nil
+		}
+		if metaCode.Metadata != nil {
+			// print metadata
+			fmt.Printf("Metadata is %v\n", metaCode.Metadata)
 		}
 		return metaCode.Metadata, metaCode.Code
 	}

@@ -1,15 +1,8 @@
 package service_account
 
 import (
-	"encoding/json"
-	"io"
-	"log"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
-
-	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -25,12 +18,11 @@ func TestFetchCodeByHash(t *testing.T) {
 	)
 
 	// encode metaCode
-	testMetaCode := types.MetaCode{
+	encoder := types.NewEncoder()
+	encodedMetaCode, err := encoder.Encode(&types.MetaCode{
 		Metadata: mockMetadata,
 		Code:     mockCode,
-	}
-	encoder := types.NewEncoder()
-	encodedMetaCode, err := encoder.Encode(&testMetaCode)
+	})
 	if err != nil {
 		t.Errorf("Error encoding MetaCode: %v", err)
 	}
@@ -95,37 +87,348 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 }
 
 func TestHistoricalLookupFunction(t *testing.T) {
-	// set up test data
-	var (
-		// mockCodeHash = hash(mockCode) -> preimage of mockCodeHash = mockCode
-		mockCode     = types.ByteSequence("0x123456789")
-		mockCodeHash = hash.Blake2bHash(utils.ByteSequenceWrapper{Value: mockCode}.Serialize())
-		preimage     = mockCode
+	t.Run("basic success case", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata  = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode      = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			mockTimestamp = types.TimeSlot(42)
+		)
 
-		mockTimestamp = types.TimeSlot(42)
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
-		// create mock id and ServiceAccount
-		mockId      = types.ServiceId(3)
-		mockAccount = types.ServiceAccount{
+		mockAccount := types.ServiceAccount{
 			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: preimage,
+				mockCodeHash: encodedMetaCode,
 			},
 			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(preimage))}: {mockTimestamp},
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {mockTimestamp},
 			},
 		}
-	)
-	// set to prior states
-	store.NewPriorStates()
-	store.GetInstance().GetPriorStates().SetDelta(map[types.ServiceId]types.ServiceAccount{
-		mockId: mockAccount,
+
+		// test HistoricalLookupFunction
+		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
 	})
 
-	// test HistoricalLookupFunction
-	result, _ := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
-	if !reflect.DeepEqual(result, preimage) {
-		t.Errorf("HistoricalLookupFunction failed: expected %v, got %v", preimage, result)
-	}
+	t.Run("code hash not exist case", func(t *testing.T) {
+		mockCodeHash := types.OpaqueHash{}
+		mockTimestamp := types.TimeSlot(42)
+		mockAccount := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{},
+			LookupDict:     map[types.LookupMetaMapkey]types.TimeSlotSet{},
+		}
+
+		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil for non-existent hash, got metadata=%v, code=%v", metadata, code)
+		}
+	})
+
+	t.Run("timestamp invalid case - empty timeslot set", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata  = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode      = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			mockTimestamp = types.TimeSlot(42)
+		)
+
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
+
+		mockAccount := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {}, // empty timeslot set
+			},
+		}
+
+		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil for invalid timestamp (empty set), got metadata=%v, code=%v", metadata, code)
+		}
+	})
+
+	t.Run("timestamp invalid case - length 1 timeslot set", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode     = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			lowerTime    = types.TimeSlot(40)
+			upperTime    = types.TimeSlot(60)
+		)
+
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
+
+		// case: timestamp less than set element (should return nil)
+		mockAccount1 := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {upperTime}, // timestamp is higher than requested
+			},
+		}
+
+		metadata, code := HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp < only time in set, got metadata=%v, code=%v", metadata, code)
+		}
+
+		// case: timestamp greater than or equal to set element (should succeed)
+		mockAccount2 := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime}, // 時間與請求相同
+			},
+		}
+
+		metadata, code = HistoricalLookupFunction(mockAccount2, lowerTime, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+	})
+
+	t.Run("timestamp invalid case - length 2 timeslot set", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode     = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			lowerTime    = types.TimeSlot(40)
+			upperTime    = types.TimeSlot(60)
+		)
+
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
+
+		// case: timestamp less than set element (should return nil)
+		mockAccount1 := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime, upperTime},
+			},
+		}
+
+		metadata, code := HistoricalLookupFunction(mockAccount1, lowerTime-1, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp < lower bound, got metadata=%v, code=%v", metadata, code)
+		}
+
+		// case: timestamp equals lower bound (should succeed)
+		metadata, code = HistoricalLookupFunction(mockAccount1, lowerTime, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+
+		// case: timestamp within range (should succeed)
+		metadata, code = HistoricalLookupFunction(mockAccount1, lowerTime+1, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+
+		// case: timestamp equals upper bound (should return nil, because upper bound is open interval)
+		metadata, code = HistoricalLookupFunction(mockAccount1, upperTime, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp = upper bound, got metadata=%v, code=%v", metadata, code)
+		}
+
+		// case: timestamp greater than upper bound (should return nil)
+		metadata, code = HistoricalLookupFunction(mockAccount1, upperTime+1, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp > upper bound, got metadata=%v, code=%v", metadata, code)
+		}
+	})
+
+	t.Run("timestamp invalid case - length 3 timeslot set", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode     = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			lowerTime    = types.TimeSlot(40)
+			upperTime    = types.TimeSlot(60)
+			thirdTime    = types.TimeSlot(80)
+			middleTime1  = types.TimeSlot(50)
+			middleTime2  = types.TimeSlot(70)
+			highTime     = types.TimeSlot(90)
+		)
+
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
+
+		// create ServiceAccount, time set is [lowerTime, upperTime, thirdTime]
+		mockAccount := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime, upperTime, thirdTime},
+			},
+		}
+
+		// case 1: timestamp less than lower bound (should return nil)
+		metadata, code := HistoricalLookupFunction(mockAccount, lowerTime-1, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp < lower bound, got metadata=%v, code=%v", metadata, code)
+		}
+
+		// case 2: timestamp within first range (should succeed)
+		metadata, code = HistoricalLookupFunction(mockAccount, middleTime1, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+
+		// case 3: timestamp between ranges (should return nil)
+		metadata, code = HistoricalLookupFunction(mockAccount, middleTime2, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when timestamp between ranges, got metadata=%v, code=%v", metadata, code)
+		}
+
+		// case 4: timestamp equals third time slot (should succeed)
+		metadata, code = HistoricalLookupFunction(mockAccount, thirdTime, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+
+		// case 5: timestamp greater than third time slot (should succeed)
+		metadata, code = HistoricalLookupFunction(mockAccount, highTime, mockCodeHash)
+		if !reflect.DeepEqual(code, mockCode) {
+			t.Errorf("HistoricalLookupFunction failed: expected code %v, got %v", mockCode, code)
+		}
+		if !reflect.DeepEqual(metadata, mockMetadata) {
+			t.Errorf("HistoricalLookupFunction failed: expected metadata %v, got %v", mockMetadata, metadata)
+		}
+	})
+
+	t.Run("timestamp invalid case - length greater than 3 timeslot set", func(t *testing.T) {
+		// set up test data
+		var (
+			mockMetadata  = types.ByteSequence([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
+			mockCode      = types.ByteSequence([]byte{0x06, 0x07, 0x08, 0x09, 0x0A})
+			mockTimestamp = types.TimeSlot(42)
+		)
+
+		// encode metaCode
+		testMetaCode := types.MetaCode{
+			Metadata: mockMetadata,
+			Code:     mockCode,
+		}
+		encoder := types.NewEncoder()
+		encodedMetaCode, err := encoder.Encode(&testMetaCode)
+		if err != nil {
+			t.Fatalf("Error encoding MetaCode: %v", err)
+		}
+		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
+
+		// create ServiceAccount, time slot set length is 4
+		mockAccount := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: encodedMetaCode,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {10, 20, 30, 40},
+			},
+		}
+
+		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil for time sets with length > 3, got metadata=%v, code=%v", metadata, code)
+		}
+	})
+
+	t.Run("decode failure case", func(t *testing.T) {
+		// set up invalid encoded data
+		mockCodeHash := types.OpaqueHash{}
+		mockTimestamp := types.TimeSlot(42)
+		invalidEncodedData := types.ByteSequence([]byte{0x01}) // invalid encoded data
+
+		mockAccount := types.ServiceAccount{
+			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
+				mockCodeHash: invalidEncodedData,
+			},
+			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
+				{Hash: mockCodeHash, Length: types.U32(len(invalidEncodedData))}: {mockTimestamp},
+			},
+		}
+
+		// when decode fails, function should return nil
+		metadata, code := HistoricalLookupFunction(mockAccount, mockTimestamp, mockCodeHash)
+		if metadata != nil || code != nil {
+			t.Errorf("HistoricalLookupFunction should return nil when decoding fails, got metadata=%v, code=%v", metadata, code)
+		}
+	})
 }
 
 func TestGetSerivecAccountDerivatives(t *testing.T) {
@@ -173,128 +476,4 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 	}
 	t.Logf("a_o=[ ∑_{(h,z)∈Key(a_l)}  81 + z ] + [ ∑_{x∈Value(a_s)} 32 + |x| ]\n LHS: %v, RHS: %v + %v", accountDer.Bytes, 81+totalZ, 32+totalX)
 	t.Logf("a_t = B_S + B_I*a_i + B_L*a_o\n LHS: %v, RHS: %v+%v+%v", accountDer.Minbalance, types.BasicMinBalance, types.U32(types.AdditionalMinBalancePerItem)*accountDer.Items, types.U64(types.AdditionalMinBalancePerOctet)*accountDer.Bytes)
-}
-
-// Constants
-const (
-	MODE                 = "full" // tiny or full
-	JSON_EXTENTION       = ".json"
-	BIN_EXTENTION        = ".bin"
-	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
-	JAM_TEST_NET_DIR     = "../../pkg/test_data/jamtestnet/"
-)
-
-func TestMain(m *testing.M) {
-	// Set the test mode
-	types.SetTestMode()
-
-	// Run the tests
-	os.Exit(m.Run())
-}
-
-func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
-	// Create a new instance of the struct
-	structValue := reflect.New(structType).Elem()
-
-	// Open the file
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Read the file content
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unmarshal the JSON data
-	err = json.Unmarshal(byteValue, structValue.Addr().Interface())
-	if err != nil {
-		return nil, err
-	}
-
-	// Return the struct
-	return structValue.Interface(), nil
-}
-
-func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
-	// read binary file and return byte array
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Read the file content
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return byteValue, nil
-}
-
-func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
-	// Get all files in the directory
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all files with the target extension
-	var targetFiles []string
-	for _, file := range files {
-		fileName := file.Name()
-		if fileName[len(fileName)-len(extension):] == extension {
-			targetFiles = append(targetFiles, fileName)
-		}
-	}
-
-	return targetFiles, nil
-}
-
-func GetJsonFilename(filename string) string {
-	return filename + JSON_EXTENTION
-}
-
-func GetBinFilename(filename string) string {
-	return filename + BIN_EXTENTION
-}
-
-// preimages
-func TestDecodeJamTestVectorsPreimages(t *testing.T) {
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  Preimages test cases only support tiny mode")
-	}
-
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "preimages", "data")
-
-	// Read binary files
-	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-
-	for _, binFile := range binFiles {
-		// Read the binary file
-		binPath := filepath.Join(dir, binFile)
-		binData, err := LoadJAMTestBinaryCase(binPath)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
-
-		// Decode the binary data
-		decoder := types.NewDecoder()
-		preimages := &jamtests_preimages.PreimageTestCase{}
-		err = decoder.Decode(binData, preimages)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
-
-		// ---
-		// TODO: implement comparison
-	}
 }
