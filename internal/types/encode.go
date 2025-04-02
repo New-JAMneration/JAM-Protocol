@@ -1408,45 +1408,61 @@ func (a *ActivityRecords) Encode(e *Encoder) error {
 func (c *CoreActivityRecord) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding CoreActivityRecord")
 
-	// GasUSed
-	if err := e.EncodeInteger(uint64(c.GasUsed)); err != nil {
-		return err
-	}
-
-	// Imports
-	if err := e.EncodeInteger(uint64(c.Imports)); err != nil {
-		return err
-	}
-
-	// ExtrinsicCount
-	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
-		return err
-	}
-
-	// ExtrinsicSize
-	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
-		return err
-	}
-
-	// Exports
-	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
-		return err
-	}
-
-	// BundleSize
-	if err := e.EncodeInteger(uint64(c.BundleSize)); err != nil {
-		return err
-	}
-
 	// DALoad
+	cLog(Cyan, "Encoding DALoad")
 	if err := e.EncodeInteger(uint64(c.DALoad)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("DALoad: %v", c.DALoad))
 
 	// Popularity
+	cLog(Cyan, "Encoding Popularity")
 	if err := e.EncodeInteger(uint64(c.Popularity)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("Popularity: %v", c.Popularity))
+
+	// Imports
+	cLog(Cyan, "Encoding Imports")
+	if err := e.EncodeInteger(uint64(c.Imports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
+
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+
+	// ExtrinsicSize
+	cLog(Cyan, "Encoding ExtrinsicSize")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
+
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+
+	// BundleSize
+	cLog(Cyan, "Encoding BundleSize")
+	if err := e.EncodeInteger(uint64(c.BundleSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BundleSize: %v", c.BundleSize))
+
+	// GasUSed
+	cLog(Cyan, "Encoding GasUSed")
+	if err := e.EncodeInteger(uint64(c.GasUsed)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("GasUSed: %v", c.GasUsed))
 
 	return nil
 }
@@ -1456,64 +1472,88 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceActivityRecord")
 
 	// ProvidedCount
+	cLog(Cyan, "Encoding ProvidedCount")
 	if err := e.EncodeInteger(uint64(s.ProvidedCount)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("ProvidedCount: %v", s.ProvidedCount))
 
 	// ProvidedSize
+	cLog(Cyan, "Encoding ProvidedSize")
 	if err := e.EncodeInteger(uint64(s.ProvidedSize)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("ProvidedSize: %v", s.ProvidedSize))
 
 	// RefinementCount
+	cLog(Cyan, "Encoding RefinementCount")
 	if err := e.EncodeInteger(uint64(s.RefinementCount)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("RefinementCount: %v", s.RefinementCount))
 
 	// RefinementGasUsed
+	cLog(Cyan, "Encoding RefinementGasUsed")
 	if err := e.EncodeInteger(uint64(s.RefinementGasUsed)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", s.RefinementGasUsed))
 
 	// Imports
+	cLog(Cyan, "Encoding Imports")
 	if err := e.EncodeInteger(uint64(s.Imports)); err != nil {
 		return err
 	}
-
-	// ExtrinsicCount
-	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
-		return err
-	}
-
-	// ExtrinsicSize
-	if err := e.EncodeInteger(uint64(s.ExtrinsicSize)); err != nil {
-		return err
-	}
+	cLog(Yellow, fmt.Sprintf("Imports: %v", s.Imports))
 
 	// Exports
+	cLog(Cyan, "Encoding Exports")
 	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
+
+	// ExtrinsicSize
+	cLog(Cyan, "Encoding ExtrinsicSize")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", s.ExtrinsicSize))
+
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
 
 	// AccumulateCount
+	cLog(Cyan, "Encoding AccumulateCount")
 	if err := e.EncodeInteger(uint64(s.AccumulateCount)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("AccumulateCount: %v", s.AccumulateCount))
 
 	// AccumulateGasUsed
+	cLog(Cyan, "Encoding AccumulateGasUsed")
 	if err := e.EncodeInteger(uint64(s.AccumulateGasUsed)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", s.AccumulateGasUsed))
 
 	// OnTransfersCount
+	cLog(Cyan, "Encoding OnTransfersCount")
 	if err := e.EncodeInteger(uint64(s.OnTransfersCount)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", s.OnTransfersCount))
 
 	// OnTransfersGasUsed
+	cLog(Cyan, "Encoding OnTransfersGasUsed")
 	if err := e.EncodeInteger(uint64(s.OnTransfersGasUsed)); err != nil {
 		return err
 	}
+	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", s.OnTransfersGasUsed))
 
 	return nil
 }
@@ -1540,8 +1580,8 @@ func (s *ServicesStatistics) Encode(e *Encoder) error {
 
 	// Iterate over the map and encode the key and value
 	for _, key := range keys {
-		// Key (ServiceId)
-		if err := key.Encode(e); err != nil {
+		// Key (ServiceId) (C.6)
+		if err := e.EncodeInteger(uint64(key)); err != nil {
 			return err
 		}
 

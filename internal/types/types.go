@@ -513,14 +513,14 @@ func (a ActivityRecords) Validate() error {
 
 // v0.6.4 (13.6)
 type CoreActivityRecord struct {
-	GasUsed        U64 `json:"gas_used,omitempty"`
-	Imports        U16 `json:"imports,omitempty"`
-	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
-	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
-	Exports        U16 `json:"exports,omitempty"`
-	BundleSize     U32 `json:"bundle_size,omitempty"`
 	DALoad         U32 `json:"da_load,omitempty"`
 	Popularity     U16 `json:"popularity,omitempty"`
+	Imports        U16 `json:"imports,omitempty"`
+	Exports        U16 `json:"exports,omitempty"`
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
+	BundleSize     U32 `json:"bundle_size,omitempty"`
+	GasUsed        U64 `json:"gas_used,omitempty"`
 }
 
 type CoresStatistics []CoreActivityRecord
@@ -539,9 +539,9 @@ type ServiceActivityRecord struct {
 	RefinementCount    U32 `json:"refinement_count,omitempty"`
 	RefinementGasUsed  U64 `json:"refinement_gas_used,omitempty"`
 	Imports            U32 `json:"imports,omitempty"`
-	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
-	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
 	Exports            U32 `json:"exports,omitempty"`
+	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
 	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
 	AccumulateGasUsed  U64 `json:"accumulate_gas_used,omitempty"`
 	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
