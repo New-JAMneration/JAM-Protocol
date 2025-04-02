@@ -61,6 +61,22 @@ func (t *TimeSlot) Decode(d *Decoder) error {
 	return nil
 }
 
+func (e *EpochMarkValidatorKeys) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding EpochMarkValidatorKeys")
+
+	var err error
+
+	if err = e.Bandersnatch.Decode(d); err != nil {
+		return err
+	}
+
+	if err = e.Ed25519.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // EpochMark
 func (e *EpochMark) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding EpochMark")
@@ -79,7 +95,7 @@ func (e *EpochMark) Decode(d *Decoder) error {
 	cLog(Yellow, fmt.Sprintf("TicketsEntropy: %x", e.TicketsEntropy))
 
 	// make the slice with validators count
-	e.Validators = make([]BandersnatchPublic, ValidatorsCount)
+	e.Validators = make([]EpochMarkValidatorKeys, ValidatorsCount)
 	for i := 0; i < ValidatorsCount; i++ {
 		if err = e.Validators[i].Decode(d); err != nil {
 			return err
@@ -711,8 +727,6 @@ func (w *WorkExecResult) Decode(d *Decoder) error {
 	// make the map
 	*w = WorkExecResult{}
 
-	cLog(Yellow, "WorkExecResult is error")
-
 	switch firstByte {
 	case 0:
 		cLog(Yellow, "WorkExecResultOk")
@@ -759,6 +773,50 @@ func (g *Gas) Decode(d *Decoder) error {
 	return nil
 }
 
+// RefineLoad
+func (r *RefineLoad) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding RefineLoad")
+
+	var err error
+
+	gasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	r.GasUsed = U64(gasUsed)
+
+	imports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	r.Imports = U16(imports)
+
+	extrinsicCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	r.ExtrinsicCount = U16(extrinsicCount)
+
+	extrinsicSize, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	r.ExtrinsicSize = U32(extrinsicSize)
+
+	exports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	r.Exports = U16(exports)
+
+	return nil
+}
+
 func (w *WorkResult) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding WorkResult")
 
@@ -781,6 +839,10 @@ func (w *WorkResult) Decode(d *Decoder) error {
 	}
 
 	if err = w.Result.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.RefineLoad.Decode(d); err != nil {
 		return err
 	}
 
@@ -835,6 +897,13 @@ func (w *WorkReport) Decode(d *Decoder) error {
 	}
 
 	w.Results = results
+
+	authGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	w.AuthGasUsed = U64(authGasUsed)
 
 	return nil
 }
@@ -1457,17 +1526,259 @@ func (a *ActivityRecords) Decode(d *Decoder) error {
 	return nil
 }
 
+// CoreActivityRecord
+func (c *CoreActivityRecord) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding CoreActivityRecord")
+
+	var err error
+
+	cLog(Cyan, "Decoding DALoad")
+	daLoad, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.DALoad = U32(daLoad)
+	cLog(Yellow, fmt.Sprintf("DALoad: %v", c.DALoad))
+
+	cLog(Cyan, "Decoding Popularity")
+	popularity, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.Popularity = U16(popularity)
+	cLog(Yellow, fmt.Sprintf("Popularity: %v", c.Popularity))
+
+	cLog(Cyan, "Decoding Imports")
+	imports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.Imports = U16(imports)
+	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
+
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.Exports = U16(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+
+	cLog(Cyan, "Decoding ExtrinsicSize")
+	extrinsicSize, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.ExtrinsicSize = U32(extrinsicSize)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
+
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.ExtrinsicCount = U16(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+
+	cLog(Cyan, "Decoding AccumulateCount")
+	bundleSize, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.BundleSize = U32(bundleSize)
+	cLog(Yellow, fmt.Sprintf("BundleSize: %v", c.BundleSize))
+
+	cLog(Cyan, "Decoding AccumulateCount")
+	gasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	c.GasUsed = U64(gasUsed)
+	cLog(Yellow, fmt.Sprintf("GasUsed: %v", c.GasUsed))
+
+	return nil
+}
+
+// type CoresStatistics []CoreActivityRecord
+func (c *CoresStatistics) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding CoresStatistics")
+
+	var err error
+
+	// make the slice with length
+	cores := make([]CoreActivityRecord, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		if err = cores[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*c = cores
+
+	return nil
+}
+
+// ServiceActivityRecord
+func (s *ServiceActivityRecord) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceActivityRecord")
+
+	var err error
+
+	cLog(Cyan, "Decoding ProvidedCount")
+	providedCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.ProvidedCount = U16(providedCount)
+	cLog(Yellow, fmt.Sprintf("ProvidedCount: %v", s.ProvidedCount))
+
+	cLog(Cyan, "Decoding ProvidedSize")
+	providedSize, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.ProvidedSize = U32(providedSize)
+	cLog(Yellow, fmt.Sprintf("ProvidedSize: %v", s.ProvidedSize))
+
+	cLog(Cyan, "Decoding RefinementCount")
+	refinementCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.RefinementCount = U32(refinementCount)
+	cLog(Yellow, fmt.Sprintf("RefinementCount: %v", refinementCount))
+
+	cLog(Cyan, "Decoding RefinementGasUsed")
+	refinementGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.RefinementGasUsed = U64(refinementGasUsed)
+	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", refinementGasUsed))
+
+	cLog(Cyan, "Decoding Imports")
+	imports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.Imports = U32(imports)
+	cLog(Yellow, fmt.Sprintf("Imports: %v", imports))
+
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.Exports = U32(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
+
+	cLog(Cyan, "Decoding ExtrinsicSize")
+	extrinsicSize, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.ExtrinsicSize = U32(extrinsicSize)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", extrinsicSize))
+
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.ExtrinsicCount = U32(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
+
+	cLog(Cyan, "Decoding AccumulateCount")
+	accumulateCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.AccumulateCount = U32(accumulateCount)
+	cLog(Yellow, fmt.Sprintf("AccumulateCount: %v", accumulateCount))
+
+	cLog(Cyan, "Decoding AccumulateGasUsed")
+	accumulateGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.AccumulateGasUsed = U64(accumulateGasUsed)
+	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", accumulateGasUsed))
+
+	cLog(Cyan, "Decoding OnTransfersCount")
+	onTransfersCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.OnTransfersCount = U32(onTransfersCount)
+	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", onTransfersCount))
+
+	cLog(Cyan, "Decoding OnTransfersGasUsed")
+	onTransfersGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.OnTransfersGasUsed = U64(onTransfersGasUsed)
+	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", onTransfersGasUsed))
+
+	return nil
+}
+
+// ServicesStatistics
+func (s *ServicesStatistics) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServicesStatistics")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the map
+	services := make(ServicesStatistics)
+
+	for i := uint64(0); i < length; i++ {
+		serviceId, err := d.DecodeInteger()
+		if err != nil {
+			return err
+		}
+
+		var serviceActivityRecord ServiceActivityRecord
+		if err = serviceActivityRecord.Decode(d); err != nil {
+			return err
+		}
+
+		services[ServiceId(serviceId)] = serviceActivityRecord
+	}
+
+	*s = services
+
+	return nil
+}
+
 // Statistics
 func (s *Statistics) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding Statistics")
 
 	var err error
 
-	if err = s.Current.Decode(d); err != nil {
+	if err = s.ValsCurrent.Decode(d); err != nil {
 		return err
 	}
 
-	if err = s.Last.Decode(d); err != nil {
+	if err = s.ValsLast.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Cores.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Services.Decode(d); err != nil {
 		return err
 	}
 
@@ -1717,7 +2028,7 @@ func (m *Mmr) Decode(d *Decoder) error {
 
 	length, err := d.DecodeLength()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if length == 0 {
