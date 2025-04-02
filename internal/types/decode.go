@@ -1932,6 +1932,45 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	return nil
 }
 
+// Decode MetaCode
+func (m *MetaCode) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding MetaCode")
+
+	var err error
+
+	if d.buf.Len() == 0 {
+		return nil
+	}
+
+	// Decode Length
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Decode the Metadata
+	metadata := make([]byte, length)
+	if _, err = d.buf.Read(metadata); err != nil {
+		return err
+	}
+
+	m.Metadata = ByteSequence(metadata)
+
+	// Decode the Code (remaining bytes)
+	code := make([]byte, d.buf.Len())
+	if _, err = d.buf.Read(code); err != nil {
+		return err
+	}
+
+	m.Code = ByteSequence(code)
+
+	return nil
+}
+
 // DisputesRecords
 func (d *DisputesRecords) Decode(decoder *Decoder) error {
 	cLog(Cyan, "Decoding DisputesRecords")
