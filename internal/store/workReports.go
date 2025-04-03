@@ -30,3 +30,28 @@ func (a *AvailableWorkReports) SetAvailableWorkReports(w []types.WorkReport) {
 	defer a.mu.Unlock()
 	a.workReports = w
 }
+
+// PresentWorkReports
+// w (the set of work-reports in the present extrinsic) (11.28)
+type PresentWorkReports struct {
+	mu          sync.RWMutex
+	workReports []types.WorkReport
+}
+
+func NewPresentWorkReports() *PresentWorkReports {
+	return &PresentWorkReports{
+		workReports: []types.WorkReport{},
+	}
+}
+
+func (p *PresentWorkReports) GetPresentWorkReports() []types.WorkReport {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.workReports
+}
+
+func (p *PresentWorkReports) SetPresentWorkReports(w []types.WorkReport) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.workReports = w
+}

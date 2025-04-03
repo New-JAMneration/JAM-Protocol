@@ -101,6 +101,11 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 	for _, guarantee := range g.Guarantees {
 		workReports = append(workReports, guarantee.Report)
 	}
+
+	// Save the work reports to the store
+	store := store.GetInstance()
+	store.GetPresentWorkReportsPointer().SetPresentWorkReports(workReports)
+
 	return workReports
 }
 
