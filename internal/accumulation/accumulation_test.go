@@ -13,6 +13,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 )
 
 func TestDecodeJamTestVectorsAccumulateFile(t *testing.T) {
@@ -130,6 +131,101 @@ func GetBinFilename(filename string) string {
 	return filename + BIN_EXTENTION
 }
 
+func TestDecodeJamTestVectorsPreimages(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  Preimages test cases only support tiny mode")
+	}
+
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "preimages", "data")
+
+	// Read binary files
+	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		binData, err := LoadJAMTestBinaryCase(binPath)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Decode the binary data
+		decoder := types.NewDecoder()
+		preimages := &jamtests_preimages.PreimageTestCase{}
+		err = decoder.Decode(binData, preimages)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Set up test input state
+		inputDelta := make(types.ServiceAccountState)
+		for _, delta := range preimages.PreState.Accounts {
+			// 先創建或獲取 ServiceAccount，確保其內部 maps 已初始化
+			serviceAccount := types.ServiceAccount{
+				ServiceInfo:    types.ServiceInfo{},
+				PreimageLookup: make(types.PreimagesMapEntry),
+				LookupDict:     make(types.LookupMetaMapEntry),
+				StorageDict:    make(types.Storage),
+			}
+
+			// 填充 PreimageLookup
+			for _, preimage := range delta.Data.Preimages {
+				serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+			}
+
+			// 填充 LookupDict
+			for _, lookup := range delta.Data.LookupMeta {
+				serviceAccount.LookupDict[types.LookupMetaMapkey{
+					Hash:   lookup.Key.Hash,
+					Length: lookup.Key.Length,
+				}] = lookup.Val
+			}
+
+			// 將 ServiceAccount 存入 inputDelta
+			inputDelta[delta.Id] = serviceAccount
+		}
+		inputEp := preimages.Input.Preimages
+		inputSlot := preimages.Input.Slot
+		// Get store instance and required states
+		s := store.GetInstance()
+		s.GetProcessingBlockPointer().SetPreimagesExtrinsic(inputEp)
+		s.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
+		s.GetPosteriorStates().SetTau(inputSlot)
+		accumulateErr := ProcessPreimageExtrinsics()
+		// Get output state
+		outputDelta := s.GetPosteriorStates().GetDelta()
+		// Validate output state
+		if preimages.Output.Err != nil {
+			if accumulateErr == nil {
+				t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("Should raise Error %v but got %v", preimages.Output.Err, accumulateErr)
+			} else {
+				t.Logf("Error: %v", accumulateErr)
+				t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
+			}
+		} else {
+			if !reflect.DeepEqual(outputDelta, inputDelta) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("Error: %v", accumulateErr)
+			} else {
+				t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
+			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
 func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", MODE)
 
@@ -166,10 +262,10 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 
 		// Compare the two structs
 		if !reflect.DeepEqual(accumulate, jsonData) {
-			log.Printf("❌ [%s] %s", MODE, filename)
+			t.Logf("❌ [%s] %s", MODE, filename)
 			t.Errorf("Error: %v", err)
 		} else {
-			log.Printf("✅ [%s] %s", MODE, filename)
+			t.Logf("✅ [%s] %s", MODE, filename)
 		}
 
 		// Test accumulate
