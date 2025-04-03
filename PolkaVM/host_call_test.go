@@ -115,17 +115,35 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 		Addition:  setup.GetHostCallArgs(),
 	}
 
-	output := omega(input)
-
 	t.Logf("test setup: %v", setup)
 	t.Logf("input: %v", input)
+
+	output := omega(input)
+
 	t.Logf("output: %v", output)
 
 	checkValue(t, "registers", setup.ExpectedRegisters.ToRegisters(), output.NewRegisters)
 	checkMemory(t, setup.ExpectedMemory.ToMemory(), output.NewMemory)
 	checkValue(t, "gas", PolkaVM.Gas(setup.ExpectedGas), output.NewGas)
-	checkValue(t, "delta", setup.ExpectedDelta.ToServiceAccountState(), output.Addition.ServiceAccountState)
-	checkValue(t, "service account", setup.ExpectedServiceAccount.ToServiceAccount(), output.Addition.ServiceAccount)
+
+	if len(setup.ExpectedDelta) > 0 {
+		checkValue(t, "delta", setup.ExpectedDelta.ToServiceAccountState(), output.Addition.ServiceAccountState)
+	}
+
+	if setup.ExpectedServiceAccount != nil {
+		recomputeServiceAccountDerivatives(&output.Addition.ServiceAccount)
+		checkValue(t, "service account", setup.ExpectedServiceAccount.ToServiceAccount(), output.Addition.ServiceAccount)
+	}
+
+	if setup.ExpectedXContentX != nil {
+		recomputeResultContextDerivatives(&output.Addition.ResultContextX)
+		checkValue(t, "XContent-X", setup.ExpectedXContentX.ToResultContext(), output.Addition.ResultContextX)
+	}
+
+	if setup.ExpectedXContentY != nil {
+		recomputeResultContextDerivatives(&output.Addition.ResultContextY)
+		checkValue(t, "XContent-Y", setup.ExpectedXContentY.ToResultContext(), output.Addition.ResultContextY)
+	}
 }
 
 func checkValue(t *testing.T, name string, expected any, actual any) {
@@ -330,15 +348,29 @@ type D struct {
 func (d D) ToServiceAccount() types.ServiceAccount {
 	var result types.ServiceAccount
 
+	result.StorageDict = d.SMap.ToStorageDict()
+	result.PreimageLookup = d.PMap.ToPreimagesLookup()
+	result.LookupDict = d.LMap.ToLookupDict()
 	result.ServiceInfo.CodeHash = d.CodeHash.ToOpaqueHash()
 	result.ServiceInfo.Balance = d.Balance
 	result.ServiceInfo.MinItemGas = d.G
 	result.ServiceInfo.MinMemoGas = d.M
-	result.StorageDict = d.SMap.ToStorageDict()
-	result.PreimageLookup = d.PMap.ToPreimagesLookup()
-	result.LookupDict = d.LMap.ToLookupDict()
 
+	recomputeServiceAccountDerivatives(&result)
 	return result
+}
+
+func recomputeServiceAccountDerivatives(serviceAccount *types.ServiceAccount) {
+	derivatives := PolkaVM.GetSerivecAccountDerivatives(*serviceAccount)
+	serviceAccount.ServiceInfo.Items = derivatives.Items
+	serviceAccount.ServiceInfo.Bytes = derivatives.Bytes
+}
+
+func recomputeResultContextDerivatives(resultContext *PolkaVM.ResultContext) {
+	for serviceID, serviceAccount := range resultContext.PartialState.ServiceAccounts {
+		recomputeServiceAccountDerivatives(&serviceAccount)
+		resultContext.PartialState.ServiceAccounts[serviceID] = serviceAccount
+	}
 }
 
 type CodeHash string
@@ -386,7 +418,7 @@ func (l LMap) ToLookupDict() types.LookupMetaMapEntry {
 
 		key := types.LookupMetaMapkey{
 			Hash:   hash,
-			Length: 32,
+			Length: types.U32(v.L),
 		}
 
 		t := make(types.TimeSlotSet, len(v.T))
