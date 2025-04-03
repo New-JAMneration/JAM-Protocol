@@ -209,30 +209,12 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports() {
 	store.GetAvailableWorkReportsPointer().SetAvailableWorkReports(availableWorkReports)
 }
 
-// Get work report hash
-func (a *AvailAssuranceController) GetWorkReportHash(workReport types.WorkReport) (types.OpaqueHash, error) {
-	encoder := types.NewEncoder()
-	encodedReport, err := encoder.Encode(workReport)
-	if err != nil {
-		return types.OpaqueHash{}, err
-	}
-
-	reportHash := hash.Blake2bHash(encodedReport)
-
-	return reportHash, nil
-}
-
 // Create a work report map for checking a work report existence
-func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkReport) (map[types.OpaqueHash]bool, error) {
-	workReportMap := make(map[types.OpaqueHash]bool)
+func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkReport) (map[types.CoreIndex]bool, error) {
+	workReportMap := make(map[types.CoreIndex]bool)
 
 	for _, workReport := range workReports {
-		reportHash, err := a.GetWorkReportHash(workReport)
-		if err != nil {
-			return nil, err
-		}
-
-		workReportMap[reportHash] = true
+		workReportMap[workReport.CoreIndex] = true
 	}
 
 	return workReportMap, nil
@@ -268,13 +250,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() error {
 			continue
 		}
 
-		// Get the hash of the work report
-		reportHash, err := a.GetWorkReportHash(rho[coreIndex].Report)
-		if err != nil {
-			return err
-		}
-
-		reportIsAvailable := availableWorkReportsMap[reportHash]
+		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Report.CoreIndex]
 		reportIsTimeout := rhoDagger[coreIndex].Timeout >= headerTimeSlot+types.TimeSlot(types.WorkReportTimeout)
 
 		if reportIsAvailable || reportIsTimeout {
