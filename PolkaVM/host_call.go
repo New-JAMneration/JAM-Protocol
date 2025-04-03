@@ -923,7 +923,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	var cDecoded types.U32
 	decoder := types.NewDecoder()
-	err := decoder.Decode(c, cDecoded)
+	err := decoder.Decode(c, &cDecoded)
 	if err != nil {
 		log.Fatalf("host-call function \"new\" decode error %v: ", err)
 	}
@@ -1172,7 +1172,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 	if ZP-pageIndex < offset { // cross one page
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
+		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:offset-(ZP-pageIndex)])
 	} else {
 		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
 	}
@@ -1193,9 +1193,9 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// else : d = account
-	seviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
+	serviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
 	// not sure need to add d_b first or not
-	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], seviceIDSerialized) {
+	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], serviceIDSerialized) {
 		// d_c not equal E_32(x_s)
 		input.Registers[7] = WHO
 		return OmegaOutput{
@@ -1473,26 +1473,22 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
 
-			if lookupDataLength == 0 || lookupDataLength == 2 {
-				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-					// delete (h,z) from a_l
-					expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
-					delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
-					// delete (h) from a_p
-					delete(a.PreimageLookup, types.OpaqueHash(h))
-				}
-			} else if lookupDataExists && lookupDataLength == 1 {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+				// delete (h,z) from a_l
+				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
+				// delete (h) from a_p
+				delete(a.PreimageLookup, types.OpaqueHash(h))
+			} else if lookupDataLength == 1 {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
-			} else if lookupDataExists && lookupDataLength == 3 {
-				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-					// a_l[h,z] = [w,t]
-					lookupData[0] = lookupData[2]
-					lookupData[1] = timeslot
-					lookupData = lookupData[:2]
-					a.LookupDict[lookupKey] = lookupData
-				}
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+				// a_l[h,z] = [w,t]
+				lookupData[0] = lookupData[2]
+				lookupData[1] = timeslot
+				lookupData = lookupData[:2]
+				a.LookupDict[lookupKey] = lookupData
 			} else { // otherwise, panic
 				input.Registers[7] = HUH
 				return OmegaOutput{
@@ -1576,9 +1572,11 @@ func yield(input OmegaInput) (output OmegaOutput) {
 
 // B.14
 func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
-	if _, accountExists := serviceAccountState[serviceID]; !accountExists {
-		return check((serviceID-(1<<8)+1)%(1<<32-1<<9)+(1<<8), serviceAccountState)
-	}
+	for {
+		if _, accountExists := serviceAccountState[serviceID]; !accountExists {
+			return serviceID
+		}
 
-	return serviceID
+		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+	}
 }
