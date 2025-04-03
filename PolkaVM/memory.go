@@ -1,5 +1,7 @@
 package PolkaVM
 
+import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+
 type MemoryAccess int
 
 type Page struct {
@@ -24,4 +26,20 @@ func (m *Memory) GetPageAccess(index uint32) MemoryAccess {
 	}
 
 	return page.Access
+}
+
+// Read reads data from memory, might cross many pages
+func (m *Memory) Read(start uint64, offset uint64) types.ByteSequence {
+	buffer := make([]byte, offset)
+
+	pageNumber := uint32(start / ZP)
+	pageIndex := start % ZP
+
+	for copied := uint64(0); copied < offset; {
+		copied += uint64(copy(buffer[copied:], m.Pages[pageNumber].Value[pageIndex:]))
+		pageNumber++
+		pageIndex = 0
+	}
+
+	return buffer
 }
