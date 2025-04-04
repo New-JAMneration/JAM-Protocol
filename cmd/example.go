@@ -15,6 +15,5 @@ func init() {
 		},
 	}
 
-
 	cli.AddCommand(exampleCmd)
 }
