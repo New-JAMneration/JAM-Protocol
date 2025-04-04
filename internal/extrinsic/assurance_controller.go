@@ -174,11 +174,8 @@ func (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
 }
 
 // Filter newly available work reports | Eq. 11.16
-func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports() {
+func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger types.AvailabilityAssignments) []types.WorkReport {
 	// Filter newly available work reports from rhoDagger
-	store := store.GetInstance()
-	rhoDagger := store.GetIntermediateStates().GetRhoDagger()
-
 	availableNumber := types.ValidatorsCount * 2 / 3
 	totalAvailable := make([]int, types.CoresCount)
 
@@ -206,7 +203,10 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports() {
 	}
 
 	// Set the available work reports to the available work reports
+	store := store.GetInstance()
 	store.GetAvailableWorkReportsPointer().SetAvailableWorkReports(availableWorkReports)
+
+	return availableWorkReports
 }
 
 // Create a work report map for checking a work report existence
@@ -236,8 +236,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() error {
 	headerTimeSlot := store.GetBlock().Header.Slot
 
 	// (11.16) Filter newly available work reports
-	a.UpdateNewlyAvailableWorkReports()
-	availableWorkReports := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
+	availableWorkReports := a.UpdateNewlyAvailableWorkReports(rhoDagger)
 
 	// Create a map of available work reports for faster lookup
 	availableWorkReportsMap, err := a.CreateWorkReportMap(availableWorkReports)
