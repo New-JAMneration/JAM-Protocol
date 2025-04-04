@@ -1309,3 +1309,25 @@ type ServiceGasUsed struct {
 	ServiceId ServiceId
 	Gas       Gas
 }
+
+// (12.23)
+type GasAndNumAccumulatedReports struct {
+	Gas                   Gas
+	NumAccumulatedReports U64
+}
+
+// (12.23)
+// I: accumulation statistics
+// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
+type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+
+// (12.29)
+type NumDeferredTransfersAndTotalGasUsed struct {
+	NumDeferredTransfers U64
+	TotalGasUsed         Gas
+}
+
+// (12.29)
+// X: deferred-transfers statistics
+// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
+type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed

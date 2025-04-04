@@ -407,28 +407,56 @@ func (s *PosteriorStates) GetPi() types.Statistics {
 func (s *PosteriorStates) SetPiCurrent(current types.ActivityRecords) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Pi.Current = current
+	s.state.Pi.ValsCurrent = current
 }
 
 // GetPiCurrent returns the pi.Current value
 func (s *PosteriorStates) GetPiCurrent() types.ActivityRecords {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Pi.Current
+	return s.state.Pi.ValsCurrent
 }
 
 // SetPiLast sets the pi Last.value
 func (s *PosteriorStates) SetPiLast(last types.ActivityRecords) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Pi.Last = last
+	s.state.Pi.ValsLast = last
 }
 
 // GetPiLast returns the pi.Last value
 func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Pi.Last
+	return s.state.Pi.ValsLast
+}
+
+// Set cores statistics
+func (s *PosteriorStates) SetCoresStatistics(coresStatistics types.CoresStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Cores = coresStatistics
+}
+
+// Get cores statistics
+func (s *PosteriorStates) GetCoresStatistics() types.CoresStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Cores
+}
+
+// Set services statistics
+func (s *PosteriorStates) SetServicesStatistics(servicesStatistics types.ServicesStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Services = servicesStatistics
+}
+
+// Get services statistics
+func (s *PosteriorStates) GetServicesStatistics() types.ServicesStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Services
 }
 
 // SetTheta sets the theta value
