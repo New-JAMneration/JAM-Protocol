@@ -61,13 +61,13 @@ func runSafroleTests() error {
 			return fmt.Errorf("failed to open test vector file: %v", err)
 		}
 		defer file.Close()
-		
+
 		// TODO: Implement binary file parsing logic here
 		// This would depend on the specific binary format
-		
+
 		// 避免 err 變數未使用的警告
 		_ = file
-		
+
 		return fmt.Errorf("binary format parsing not yet implemented")
 	} else if testVectorFormat == "json" {
 		// Read JSON file
@@ -75,13 +75,13 @@ func runSafroleTests() error {
 		if err != nil {
 			return fmt.Errorf("failed to read test vector file: %v", err)
 		}
-		
+
 		// Parse JSON data into testCases
 		err = json.Unmarshal(data, &testCases)
 		if err != nil {
 			return fmt.Errorf("failed to parse test vector file: %v", err)
 		}
-		
+
 		fmt.Printf("Successfully parsed JSON data from %s\n", testVectorPath)
 	} else {
 		return fmt.Errorf("unsupported format: %s (supported formats: json, bin)", testVectorFormat)
