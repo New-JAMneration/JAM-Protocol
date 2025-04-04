@@ -210,14 +210,14 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 }
 
 // Create a work report map for checking a work report existence
-func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkReport) (map[types.CoreIndex]bool, error) {
+func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkReport) map[types.CoreIndex]bool {
 	workReportMap := make(map[types.CoreIndex]bool)
 
 	for _, workReport := range workReports {
 		workReportMap[workReport.CoreIndex] = true
 	}
 
-	return workReportMap, nil
+	return workReportMap
 }
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
@@ -239,10 +239,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() error {
 	availableWorkReports := a.UpdateNewlyAvailableWorkReports(rhoDagger)
 
 	// Create a map of available work reports for faster lookup
-	availableWorkReportsMap, err := a.CreateWorkReportMap(availableWorkReports)
-	if err != nil {
-		return err
-	}
+	availableWorkReportsMap := a.CreateWorkReportMap(availableWorkReports)
 
 	for coreIndex := 0; coreIndex < types.CoresCount; coreIndex++ {
 		if rho[coreIndex] == nil {
