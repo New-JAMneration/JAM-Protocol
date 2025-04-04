@@ -35,7 +35,7 @@ func init() {
 
 var testVectorPath string
 
-func RunSafroleTests() { //encapsulates runSafroleTests for troubleshooting 
+func RunSafroleTests() { //encapsulates runSafroleTests for troubleshooting
 	err := runSafroleTests()
 	if err != nil {
 		fmt.Printf("Test execution failed: %v\n", err)
