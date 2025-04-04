@@ -15,8 +15,8 @@ import (
 func init() {
 	safroleCmd := &cli.Command{
 		Use:   "safrole",
-		Short: "Test safrole state transitions",
-		Long:  "Test safrole state transitions with test vectors",
+		Short: "Test safrole stf",
+		Long:  "Test safrole state transition functions with test vectors",
 		Run: func(args []string) {
 			RunSafroleTests()
 		},
@@ -35,7 +35,7 @@ func init() {
 
 var testVectorPath string
 
-func RunSafroleTests() {
+func RunSafroleTests() { //encapsulates runSafroleTests for troubleshooting 
 	err := runSafroleTests()
 	if err != nil {
 		fmt.Printf("Test execution failed: %v\n", err)
