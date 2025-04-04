@@ -247,7 +247,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() error {
 		}
 
 		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Report.CoreIndex]
-		reportIsTimeout := rhoDagger[coreIndex].Timeout >= headerTimeSlot+types.TimeSlot(types.WorkReportTimeout)
+		reportIsTimeout := headerTimeSlot >= rhoDagger[coreIndex].Timeout+types.TimeSlot(types.WorkReportTimeout)
 
 		if reportIsAvailable || reportIsTimeout {
 			rhoDoubleDagger[coreIndex] = nil
