@@ -65,7 +65,7 @@ func runSafroleTests() error {
 		// TODO: Implement binary file parsing logic here
 		// This would depend on the specific binary format
 
-		// 避免 err 變數未使用的警告
+		// avoid unused variable warning
 		_ = file
 
 		return fmt.Errorf("binary format parsing not yet implemented")
