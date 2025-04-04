@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -27,6 +28,12 @@ func init() {
 				DefaultValue: "testvectors/safrole.json",
 				Destination:  &testVectorPath,
 			},
+			&cli.StringFlag{
+				Name:         "format",
+				Usage:        "Format of the test vector file (json or bin)",
+				DefaultValue: "json",
+				Destination:  &testVectorFormat,
+			},
 		},
 	}
 
@@ -34,6 +41,7 @@ func init() {
 }
 
 var testVectorPath string
+var testVectorFormat string
 
 func RunSafroleTests() { //encapsulates runSafroleTests for troubleshooting
 	err := runSafroleTests()
@@ -43,18 +51,51 @@ func RunSafroleTests() { //encapsulates runSafroleTests for troubleshooting
 }
 
 func runSafroleTests() error {
-	// Read test vector file
-	testCases, err := os.ReadFile("xxxx")
-	if err != nil {
-		return fmt.Errorf("failed to read test vector file: %v", err)
+	// Read test vector file based on format
+	var testCases []SafroleState
+
+	if testVectorFormat == "bin" {
+		// Read binary file
+		file, err := os.Open(testVectorPath)
+		if err != nil {
+			return fmt.Errorf("failed to open test vector file: %v", err)
+		}
+		defer file.Close()
+		
+		// TODO: Implement binary file parsing logic here
+		// This would depend on the specific binary format
+		
+		// 避免 err 變數未使用的警告
+		_ = file
+		
+		return fmt.Errorf("binary format parsing not yet implemented")
+	} else if testVectorFormat == "json" {
+		// Read JSON file
+		data, err := os.ReadFile(testVectorPath)
+		if err != nil {
+			return fmt.Errorf("failed to read test vector file: %v", err)
+		}
+		
+		// Parse JSON data into testCases
+		err = json.Unmarshal(data, &testCases)
+		if err != nil {
+			return fmt.Errorf("failed to parse test vector file: %v", err)
+		}
+		
+		fmt.Printf("Successfully parsed JSON data from %s\n", testVectorPath)
+	} else {
+		return fmt.Errorf("unsupported format: %s (supported formats: json, bin)", testVectorFormat)
 	}
 
-	// var testCases
-	//for i, tc := range testCases {
-	// Execute state transitions
-	// executeStateTransitions()
+	fmt.Printf("Processing %d test cases...\n", len(testCases))
 
-	// verifyFinalState(tc.PostState)
+	// var testCases
+	// for i, tc := range testCases {
+	// 	fmt.Printf("Running test case %d...\n", i+1)
+	// 	// Execute state transitions
+	// 	executeStateTransitions()
+
+	// 	// verifyFinalState(tc.PostState)
 	// }
 
 	fmt.Printf("All %d test cases passed\n", len(testCases))
