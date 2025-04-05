@@ -101,6 +101,7 @@ func (v ValidatorsData) Validate() error {
 
 type ServiceId U32
 
+// ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 type ServiceInfo struct {
 	CodeHash   OpaqueHash `json:"code_hash,omitempty"`    // a_c
 	Balance    U64        `json:"balance,omitempty"`      // a_b
@@ -108,6 +109,17 @@ type ServiceInfo struct {
 	MinMemoGas Gas        `json:"min_memo_gas,omitempty"` // a_m
 	Bytes      U64        `json:"bytes,omitempty"`        // a_o
 	Items      U32        `json:"items,omitempty"`        // a_i
+}
+
+type ServiceAccountDerivatives struct {
+	Items      U32 `json:"items,omitempty"` // a_i
+	Bytes      U64 `json:"bytes,omitempty"` // a_o
+	Minbalance U64 // a_t
+}
+
+type MetaCode struct {
+	Metadata ByteSequence
+	Code     ByteSequence
 }
 
 // Availability Assignments
@@ -515,14 +527,14 @@ func (a ActivityRecords) Validate() error {
 
 // v0.6.4 (13.6)
 type CoreActivityRecord struct {
-	GasUsed        U64 `json:"gas_used,omitempty"`
-	Imports        U16 `json:"imports,omitempty"`
-	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
-	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
-	Exports        U16 `json:"exports,omitempty"`
-	BundleSize     U32 `json:"bundle_size,omitempty"`
 	DALoad         U32 `json:"da_load,omitempty"`
 	Popularity     U16 `json:"popularity,omitempty"`
+	Imports        U16 `json:"imports,omitempty"`
+	Exports        U16 `json:"exports,omitempty"`
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
+	BundleSize     U32 `json:"bundle_size,omitempty"`
+	GasUsed        U64 `json:"gas_used,omitempty"`
 }
 
 type CoresStatistics []CoreActivityRecord
@@ -541,9 +553,9 @@ type ServiceActivityRecord struct {
 	RefinementCount    U32 `json:"refinement_count,omitempty"`
 	RefinementGasUsed  U64 `json:"refinement_gas_used,omitempty"`
 	Imports            U32 `json:"imports,omitempty"`
-	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
-	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
 	Exports            U32 `json:"exports,omitempty"`
+	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
 	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
 	AccumulateGasUsed  U64 `json:"accumulate_gas_used,omitempty"`
 	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
