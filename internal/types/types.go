@@ -99,6 +99,7 @@ func (v ValidatorsData) Validate() error {
 
 type ServiceId U32
 
+// ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 type ServiceInfo struct {
 	CodeHash   OpaqueHash `json:"code_hash,omitempty"`    // a_c
 	Balance    U64        `json:"balance,omitempty"`      // a_b
@@ -106,6 +107,17 @@ type ServiceInfo struct {
 	MinMemoGas Gas        `json:"min_memo_gas,omitempty"` // a_m
 	Bytes      U64        `json:"bytes,omitempty"`        // a_o
 	Items      U32        `json:"items,omitempty"`        // a_i
+}
+
+type ServiceAccountDerivatives struct {
+	Items      U32 `json:"items,omitempty"` // a_i
+	Bytes      U64 `json:"bytes,omitempty"` // a_o
+	Minbalance U64 // a_t
+}
+
+type MetaCode struct {
+	Metadata ByteSequence
+	Code     ByteSequence
 }
 
 // Availability Assignments
@@ -371,13 +383,22 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 	}
 }
 
-// v0.6.3 (11.6) WorkResult
+type RefineLoad struct {
+	GasUsed        U64 `json:"gas_used,omitempty"`        // u
+	Imports        U16 `json:"imports,omitempty"`         // i
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
+	Exports        U16 `json:"exports,omitempty"`         // e
+}
+
+// v0.6.4 (11.6) WorkResult $\mathbb{L}$
 type WorkResult struct {
-	ServiceId     ServiceId      `json:"service_id,omitempty"`
-	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
-	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
-	AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
-	Result        WorkExecResult `json:"result,omitempty"`
+	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
+	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
+	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`   // y
+	AccumulateGas Gas            `json:"accumulate_gas,omitempty"` // g
+	Result        WorkExecResult `json:"result,omitempty"`         // $\mathbf{d}$
+	RefineLoad    RefineLoad     `json:"refine_load,omitempty"`    // ASN.1 specific field
 }
 
 func (w *WorkResult) Validate() error {
@@ -419,15 +440,16 @@ type SegmentRootLookupItem struct {
 
 type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
-// v0.6.3 (11.2) WorkReport
+// v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`
-	Context           RefineContext     `json:"context"`
-	CoreIndex         CoreIndex         `json:"core_index,omitempty"`
-	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"`
-	Results           []WorkResult      `json:"results,omitempty"`
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
+	Context           RefineContext     `json:"context"`                       // x
+	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
+	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
+	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
+	AuthGasUsed       U64               `json:"auth_gas_used,omitempty"`       // g
 }
 
 func (w *WorkReport) Validate() error {
@@ -503,10 +525,51 @@ func (a ActivityRecords) Validate() error {
 	return nil
 }
 
-// (13.2) ??
+// v0.6.4 (13.6)
+type CoreActivityRecord struct {
+	DALoad         U32 `json:"da_load,omitempty"`
+	Popularity     U16 `json:"popularity,omitempty"`
+	Imports        U16 `json:"imports,omitempty"`
+	Exports        U16 `json:"exports,omitempty"`
+	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
+	BundleSize     U32 `json:"bundle_size,omitempty"`
+	GasUsed        U64 `json:"gas_used,omitempty"`
+}
+
+type CoresStatistics []CoreActivityRecord
+
+func (c CoresStatistics) Validate() error {
+	if len(c) != CoresCount {
+		return fmt.Errorf("CoresStatisitics must have %d core activity record", CoresCount)
+	}
+	return nil
+}
+
+// v0.6.4 (13.7)
+type ServiceActivityRecord struct {
+	ProvidedCount      U16 `json:"provided_count,omitempty"`
+	ProvidedSize       U32 `json:"provided_size,omitempty"`
+	RefinementCount    U32 `json:"refinement_count,omitempty"`
+	RefinementGasUsed  U64 `json:"refinement_gas_used,omitempty"`
+	Imports            U32 `json:"imports,omitempty"`
+	Exports            U32 `json:"exports,omitempty"`
+	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
+	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
+	AccumulateGasUsed  U64 `json:"accumulate_gas_used,omitempty"`
+	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
+	OnTransfersGasUsed U64 `json:"on_transfers_gas_used,omitempty"`
+}
+
+type ServicesStatistics map[ServiceId]ServiceActivityRecord
+
+// v0.6.4 (13.1)
 type Statistics struct {
-	Current ActivityRecords `json:"current,omitempty"`
-	Last    ActivityRecords `json:"last,omitempty"`
+	ValsCurrent ActivityRecords    `json:"vals-current,omitempty"`
+	ValsLast    ActivityRecords    `json:"vals-last,omitempty"`
+	Cores       CoresStatistics    `json:"cores,omitempty"`
+	Services    ServicesStatistics `json:"services,omitempty"`
 }
 
 // Tickets   (6.5)   or  6.7.  ?
@@ -805,10 +868,15 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 
 // Header
 // (6.27)
+type EpochMarkValidatorKeys struct {
+	Bandersnatch BandersnatchPublic
+	Ed25519      Ed25519Public
+}
+
 type EpochMark struct {
-	Entropy        Entropy              `json:"entropy,omitempty"`
-	TicketsEntropy Entropy              `json:"tickets_entropy,omitempty"`
-	Validators     []BandersnatchPublic `json:"validators,omitempty"`
+	Entropy        Entropy                  `json:"entropy,omitempty"`
+	TicketsEntropy Entropy                  `json:"tickets_entropy,omitempty"`
+	Validators     []EpochMarkValidatorKeys `json:"validators,omitempty"`
 }
 
 func (e EpochMark) Validate() error {
@@ -1236,4 +1304,12 @@ type Operand struct {
 	AuthOutput     ByteSequence
 	PayloadHash    OpaqueHash
 	Result         WorkExecResult
+}
+
+// (12.15) U
+type ServiceGasUsedList []ServiceGasUsed
+
+type ServiceGasUsed struct {
+	ServiceId ServiceId
+	Gas       Gas
 }
