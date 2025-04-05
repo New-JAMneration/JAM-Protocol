@@ -11,7 +11,7 @@ func Psi_A(
 	time types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
-	operand []types.Operand,
+	operands []types.Operand,
 	eta types.Entropy,
 ) (
 	psi_result Psi_A_ReturnType,
@@ -29,21 +29,35 @@ func Psi_A(
 		serialized := []byte{}
 		encoder := types.NewEncoder()
 
+		// Encode the t
 		encoded, err := encoder.Encode(&time)
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
+
+		// Encode the s
 		encoded, err = encoder.Encode(&serviceId)
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
-		encoded, err = encoder.Encode(&operand)
+
+		// Encode the o
+		// Encode the length of the operands
+		encoded, err = encoder.EncodeUint(uint64(len(operands)))
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
+
+		for _, operand := range operands {
+			encoded, err = encoder.Encode(&operand)
+			if err != nil {
+				panic(err)
+			}
+			serialized = append(serialized, encoded...)
+		}
 
 		F := Omegas{}
 		F[ReadOp] = wrapWithG(HostCallFunctions[ReadOp])
