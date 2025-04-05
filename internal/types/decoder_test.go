@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
@@ -919,4 +921,192 @@ func TestUnmarshalPrivileges(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHeaderSerialization(t *testing.T) {
+	file := "../../pkg/test_data/jamtestnet/data/orderedaccumulation/blocks/2_005.json"
+
+	// Read the json file
+	jsonFilePath := filepath.Join(file)
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Convert the jsonData to a Block
+	block, ok := jsonData.(*types.Block)
+	if !ok {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Encode the header to binary
+	header := block.Header
+	encoder := types.NewEncoder()
+	binData, err := encoder.Encode(&header)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Hash the result
+	output := hash.Blake2bHash(types.ByteSequence(binData))
+	fmt.Printf("Hash: %x\n", output)
+}
+
+func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
+	output := []byte{}
+
+	// Encode the length of the guarantees
+	guaranteesLength := uint64(len(guaranteesExtrinsic))
+	encoder := types.NewEncoder()
+
+	encoded, err := encoder.EncodeUint(guaranteesLength)
+	if err != nil {
+		return nil, err
+	}
+
+	output = append(output, encoded...)
+
+	for _, guarantee := range guaranteesExtrinsic {
+		// encode the w
+		encoded, err := encoder.Encode(&guarantee.Report)
+		if err != nil {
+			return nil, err
+		}
+
+		// hash the encoded data
+		hash := hash.Blake2bHash(types.ByteSequence(encoded))
+
+		// encode the hash
+		encoded, err = encoder.Encode(&hash)
+		if err != nil {
+			return nil, err
+		}
+
+		// append the encoded data to the output
+		output = append(output, encoded...)
+
+		// encode the t
+		encoded, err = encoder.Encode(&(guarantee.Slot))
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, encoded...)
+
+		// encode the length of the guarantee.a
+		guaranteeLength := uint64(len(guarantee.Signatures))
+		encoded, err = encoder.EncodeUint(guaranteeLength)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, encoded...)
+
+		// encode the guarantee.a
+		for _, signature := range guarantee.Signatures {
+			encoded, err = encoder.Encode(&signature)
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, encoded...)
+		}
+	}
+
+	return output, nil
+}
+
+func TestExtrinsicSerialization(t *testing.T) {
+	file := "../../pkg/test_data/jamtestnet/data/orderedaccumulation/blocks/2_005.json"
+
+	// Read the json file
+	jsonFilePath := filepath.Join(file)
+	jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&types.Block{}))
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Convert the jsonData to a Block
+	block, ok := jsonData.(*types.Block)
+	if !ok {
+		t.Errorf("Error: %v", err)
+	}
+
+	encoder := types.NewEncoder()
+
+	// Encode tickets_extrinsic
+	ticketsExtrinsic := block.Extrinsic.Tickets
+	ticketsBinData, err := encoder.Encode(&ticketsExtrinsic)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Encode preimages_extrinsic
+	preimagesExtrinsic := block.Extrinsic.Preimages
+	preimagesBinData, err := encoder.Encode(&preimagesExtrinsic)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Encode guarantees_extrinsic
+	guaranteesExtrinsic := block.Extrinsic.Guarantees
+	guaranteesBinData, err := g(guaranteesExtrinsic)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Encode assurances_extrinsic
+	assurancesExtrinsic := block.Extrinsic.Assurances
+	assuranceBinData, err := encoder.Encode(&assurancesExtrinsic)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Encode disputes_extrinsic
+	disputesExtrinsic := block.Extrinsic.Disputes
+	disputesBinData, err := encoder.Encode(&disputesExtrinsic)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// hash bin data
+	ticketsHash := hash.Blake2bHash(types.ByteSequence(ticketsBinData))
+	preimagesHash := hash.Blake2bHash(types.ByteSequence(preimagesBinData))
+	guaranteesHash := hash.Blake2bHash(types.ByteSequence(guaranteesBinData))
+	assurancesHash := hash.Blake2bHash(types.ByteSequence(assuranceBinData))
+	disputesHash := hash.Blake2bHash(types.ByteSequence(disputesBinData))
+
+	// encode 5 hashes
+	output := []byte{}
+	encoded, err := encoder.Encode(&ticketsHash)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	output = append(output, encoded...)
+
+	encoded, err = encoder.Encode(&preimagesHash)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	output = append(output, encoded...)
+
+	encoded, err = encoder.Encode(&guaranteesHash)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	output = append(output, encoded...)
+
+	encoded, err = encoder.Encode(&assurancesHash)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	output = append(output, encoded...)
+
+	encoded, err = encoder.Encode(&disputesHash)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	output = append(output, encoded...)
+
+	// Hash the output
+	hash := hash.Blake2bHash(types.ByteSequence(output))
+	fmt.Printf("Hash: %x\n", hash)
 }
