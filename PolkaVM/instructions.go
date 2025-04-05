@@ -1877,9 +1877,6 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = 0
 	} else {
 		reg[rD] = uint64((smod(a, b)))
-		if err != nil {
-			return err, pc, Gas(0), reg, mem
-		}
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem

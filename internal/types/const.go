@@ -129,3 +129,10 @@ const (
 	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 	GenesisStatePath = "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
 )
+
+// PVM constants
+const (
+	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
+	TransferMemoSize              = 128                       // W_T
+	LookupAnchorMaxAge            = 14400                     // L
+)
