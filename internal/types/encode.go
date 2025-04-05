@@ -2428,3 +2428,39 @@ func (d *DeferredTransfers) Encode(e *Encoder) error {
 
 	return nil
 }
+
+func (o *Operand) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Operand")
+
+	// Hash
+	if err := o.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// ExportsRoot
+	if err := o.ExportsRoot.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthorizerHash
+	if err := o.AuthorizerHash.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthOutput
+	if err := o.AuthOutput.Encode(e); err != nil {
+		return err
+	}
+
+	// PayloadHash
+	if err := o.PayloadHash.Encode(e); err != nil {
+		return err
+	}
+
+	// Result
+	if err := o.Result.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -2643,3 +2643,35 @@ func (d *DeferredTransfers) Decode(decoder *Decoder) error {
 
 	return nil
 }
+
+func (o *Operand) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding Operand")
+
+	var err error
+
+	if err = o.Hash.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.ExportsRoot.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.AuthorizerHash.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.AuthOutput.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.PayloadHash.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.Result.Decode(decoder); err != nil {
+		return err
+	}
+
+	return nil
+}
