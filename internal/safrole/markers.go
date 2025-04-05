@@ -35,16 +35,19 @@ func CreateEpochMarker() *types.ErrorCode {
 		// Get gamma_k from posterior state
 		gammaK := s.GetPosteriorStates().GetGammaK()
 
-		// Get bandersnatch key from gamma_k
-		bandersnatchKeys := []types.BandersnatchPublic{}
+		// Get ed25519/bandersnatch keys from gamma_k
+		var epochMarkValidatorKeys []types.EpochMarkValidatorKeys
 		for _, validator := range gammaK {
-			bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
+			epochMarkValidatorKeys = append(epochMarkValidatorKeys, types.EpochMarkValidatorKeys{
+				Bandersnatch: validator.Bandersnatch,
+				Ed25519:      validator.Ed25519,
+			})
 		}
 
 		epochMarker := &types.EpochMark{
 			Entropy:        eta[0],
 			TicketsEntropy: eta[1],
-			Validators:     bandersnatchKeys,
+			Validators:     epochMarkValidatorKeys,
 		}
 
 		s.GetIntermediateHeaderPointer().SetEpochMark(epochMarker)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 
-	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
 	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
@@ -497,7 +497,7 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 
 		// Decode the binary data
 		decoder := types.NewDecoder()
-		accumulate := &jamtests_accmuluate.AccumulateTestCase{}
+		accumulate := &jamtests_accumulate.AccumulateTestCase{}
 		err = decoder.Decode(binData, accumulate)
 		if err != nil {
 			t.Errorf("Error: %v", err)
@@ -507,7 +507,7 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 		filename := binFile[:len(binFile)-len(BIN_EXTENTION)]
 		jsonFileName := GetJsonFilename(filename)
 		jsonFilePath := filepath.Join(dir, jsonFileName)
-		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_accmuluate.AccumulateTestCase{}))
+		jsonData, err := LoadJAMTestJsonCase(jsonFilePath, reflect.TypeOf(&jamtests_accumulate.AccumulateTestCase{}))
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
