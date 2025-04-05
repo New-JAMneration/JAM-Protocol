@@ -16,3 +16,12 @@ const (
 	MemoryReadOnly                         // R Read only
 	MemoryReadWrite                        // W Read + Write
 )
+
+func (m *Memory) GetPageAccess(index uint32) MemoryAccess {
+	page, found := m.Pages[index]
+	if !found {
+		return MemoryInaccessible
+	}
+
+	return page.Access
+}
