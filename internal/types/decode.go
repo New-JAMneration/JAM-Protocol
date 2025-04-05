@@ -2414,8 +2414,6 @@ func (a *AccumulateRoot) Decode(d *Decoder) error {
 
 	*a = val
 	return nil
-
-	return nil
 }
 
 // ReadyRecord
@@ -2937,6 +2935,61 @@ func (s *State) Decode(d *Decoder) error {
 	if err = s.Delta.Decode(d); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// deferredTransfer
+func (d *DeferredTransfer) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding DeferredTransfer")
+
+	var err error
+
+	if err = d.SenderID.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = d.ReceiverID.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = d.Balance.Decode(decoder); err != nil {
+		return err
+	}
+
+	// Read 128 bytes
+	if err = binary.Read(decoder.buf, binary.LittleEndian, &d.Memo); err != nil {
+		return err
+	}
+
+	if err = d.GasLimit.Decode(decoder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DeferredTransfers) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding DeferredTransfers")
+
+	length, err := decoder.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	transfers := make([]DeferredTransfer, length)
+	for i := uint64(0); i < length; i++ {
+		if err = transfers[i].Decode(decoder); err != nil {
+			return err
+		}
+	}
+
+	*d = transfers
 
 	return nil
 }

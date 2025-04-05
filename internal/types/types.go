@@ -1257,6 +1257,8 @@ type DeferredTransfer struct {
 	GasLimit   Gas       `json:"gas"`
 }
 
+type DeferredTransfers []DeferredTransfer
+
 // --------------------------------------------
 // -- Accumulation
 // --------------------------------------------
