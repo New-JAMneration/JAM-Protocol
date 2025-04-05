@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
 	jamtests_disputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
@@ -433,7 +433,7 @@ func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
 	for _, jsonFile := range jsonFiles {
 		// read json file
 		jsonFilePath := filepath.Join(dir, jsonFile)
-		structType := reflect.TypeOf(jamtests_accmuluate.AccumulateTestCase{})
+		structType := reflect.TypeOf(jamtests_accumulate.AccumulateTestCase{})
 		data, err := LoadJAMTestJsonCase(jsonFilePath, structType)
 		if err != nil {
 			t.Fatalf("Failed to read JSON file: %v", err)

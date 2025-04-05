@@ -670,18 +670,8 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// otherwise
-	rawData := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
 	// read data from memory, might cross many pages
-	for dataLength := uint64(0); dataLength < offset; {
-		rawLength := ZP - pageIndex // data length read from current page
-		copy(rawData[dataLength:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		pageNumber++
-		pageIndex = 0
-		dataLength += rawLength
-	}
+	rawData := input.Memory.Read(o, offset)
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := types.AlwaysAccumulateMap{}
@@ -747,18 +737,8 @@ func assign(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	rawData := types.ByteSequence(make([]byte, offset)) // bold{c}
-	pageNumber := o / ZP
-	pageIndex := o % ZP
+	rawData := input.Memory.Read(o, offset)
 
-	// read data from memory, might cross many pages
-	for dataLength := uint64(0); dataLength < offset; {
-		rawLength := ZP - pageIndex // data length read from current page
-		copy(rawData[dataLength:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		pageNumber++
-		pageIndex = 0
-		dataLength += rawLength
-	}
 	// decode rawData
 	authQueue := types.AuthQueue{}
 	decoder := types.NewDecoder()
@@ -806,18 +786,8 @@ func designate(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	rawData := types.ByteSequence(make([]byte, offset)) // bold{v}
 	// 336 * types.ValidatorsCount might cross many pages
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	for dataLength := uint64(0); dataLength < offset; {
-		rawLength := ZP - pageIndex // data length read from current page
-		copy(rawData[dataLength:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		pageNumber++
-		pageIndex = 0
-		dataLength += rawLength
-	}
+	rawData := input.Memory.Read(o, offset) // bold{v}
 
 	validatorsData := types.ValidatorsData{}
 	decoder := types.NewDecoder()
@@ -891,16 +861,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	c := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-	// read data from memory, might only cross one page
-	if ZP-pageIndex < uint64(offset) {
-		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(c[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	c := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
@@ -923,7 +884,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	var cDecoded types.U32
 	decoder := types.NewDecoder()
-	err := decoder.Decode(c, cDecoded)
+	err := decoder.Decode(c, &cDecoded)
 	if err != nil {
 		log.Fatalf("host-call function \"new\" decode error %v: ", err)
 	}
@@ -1003,16 +964,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	c := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < uint64(offset) { // cross page
-		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(c[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(c, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	c := input.Memory.Read(o, offset)
 
 	input.Registers[7] = OK
 
@@ -1063,17 +1015,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// m
-	rawData := types.ByteSequence(make([]byte, types.TransferMemoSize))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	for dataLength := uint64(0); dataLength < types.TransferMemoSize; {
-		rawLength := ZP - pageIndex // data length read from current page
-		copy(rawData[dataLength:], input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		pageNumber++
-		pageIndex = 0
-		dataLength += rawLength
-	}
+	rawData := input.Memory.Read(o, types.TransferMemoSize)
 
 	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
 		// not exist
@@ -1166,16 +1108,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < offset { // cross one page
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	h := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 
@@ -1193,9 +1126,9 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// else : d = account
-	seviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
+	serviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
 	// not sure need to add d_b first or not
-	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], seviceIDSerialized) {
+	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], serviceIDSerialized) {
 		// d_c not equal E_32(x_s)
 		input.Registers[7] = WHO
 		return OmegaOutput{
@@ -1288,16 +1221,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h := types.ByteSequence(make([]byte, 32))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < offset { // cross one page
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	h := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	// x_bold{s} = (x_u)_d[x_s]
@@ -1373,16 +1297,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < offset { // cross one page
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	h := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
@@ -1454,16 +1369,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < offset { // cross one page
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	h := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
@@ -1473,26 +1379,22 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
 
-			if lookupDataLength == 0 || lookupDataLength == 2 {
-				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-					// delete (h,z) from a_l
-					expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
-					delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
-					// delete (h) from a_p
-					delete(a.PreimageLookup, types.OpaqueHash(h))
-				}
-			} else if lookupDataExists && lookupDataLength == 1 {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+				// delete (h,z) from a_l
+				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
+				// delete (h) from a_p
+				delete(a.PreimageLookup, types.OpaqueHash(h))
+			} else if lookupDataLength == 1 {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
-			} else if lookupDataExists && lookupDataLength == 3 {
-				if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
-					// a_l[h,z] = [w,t]
-					lookupData[0] = lookupData[2]
-					lookupData[1] = timeslot
-					lookupData = lookupData[:2]
-					a.LookupDict[lookupKey] = lookupData
-				}
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+				// a_l[h,z] = [w,t]
+				lookupData[0] = lookupData[2]
+				lookupData[1] = timeslot
+				lookupData = lookupData[:2]
+				a.LookupDict[lookupKey] = lookupData
 			} else { // otherwise, panic
 				input.Registers[7] = HUH
 				return OmegaOutput{
@@ -1550,16 +1452,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	h := types.ByteSequence(make([]byte, offset))
-	pageNumber := o / ZP
-	pageIndex := o % ZP
-
-	if ZP-pageIndex < offset { // cross one page
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:])
-		copy(h[ZP-pageIndex:], input.Memory.Pages[uint32(pageNumber+1)].Value[:ZP-pageIndex])
-	} else {
-		copy(h, input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset])
-	}
+	h := input.Memory.Read(o, offset)
 
 	input.Registers[7] = OK
 
@@ -1576,9 +1469,11 @@ func yield(input OmegaInput) (output OmegaOutput) {
 
 // B.14
 func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
-	if _, accountExists := serviceAccountState[serviceID]; !accountExists {
-		return check((serviceID-(1<<8)+1)%(1<<32-1<<9)+(1<<8), serviceAccountState)
-	}
+	for {
+		if _, accountExists := serviceAccountState[serviceID]; !accountExists {
+			return serviceID
+		}
 
-	return serviceID
+		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+	}
 }

@@ -25,7 +25,9 @@ type Store struct {
 	ancestorHeaders             *AncestorHeaders
 	intermediateHeader          *IntermediateHeader
 	posteriorCurrentValidators  *PosteriorCurrentValidators
-	beefyCommitmentOutput       *BeefyCommitmentOutputs   // This is tmp used waiting for more def in GP
+	beefyCommitmentOutput       *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
+	availableWorkReports        *AvailableWorkReports
+	presentWorkReports          *PresentWorkReports
 	accumulatedWorkReports      *AccumulatedWorkReports   // W^! (accumulated immediately)
 	queuedWorkReports           *QueuedWorkReports        // W^Q (queued execution)
 	accumulatableWorkReports    *AccumulatableWorkReports // W^* (accumulatable work-reports in this block)
@@ -38,20 +40,17 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			unfinalizedBlocks:           NewUnfinalizedBlocks(),
-			processingBlock:             NewProcessingBlock(),
-			priorStates:                 NewPriorStates(),
-			intermediateStates:          NewIntermediateStates(),
-			posteriorStates:             NewPosteriorStates(),
-			ancestorHeaders:             NewAncestorHeaders(),
-			intermediateHeader:          NewIntermediateHeader(),
-			posteriorCurrentValidators:  NewPosteriorValidators(),
-			beefyCommitmentOutput:       NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
-			accumulatedWorkReports:      NewAccumulatedWorkReports(),
-			queuedWorkReports:           NewQueuedWorkReports(),
-			accumulatableWorkReports:    NewAccumulatableWorkReports(),
-			accumulationStatistics:      NewAccumulationStatistics(),
-			deferredTransfersStatistics: NewDeferredTransfersStatistics(),
+			unfinalizedBlocks:          NewUnfinalizedBlocks(),
+			processingBlock:            NewProcessingBlock(),
+			priorStates:                NewPriorStates(),
+			intermediateStates:         NewIntermediateStates(),
+			posteriorStates:            NewPosteriorStates(),
+			ancestorHeaders:            NewAncestorHeaders(),
+			intermediateHeader:         NewIntermediateHeader(),
+			posteriorCurrentValidators: NewPosteriorValidators(),
+			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
+			availableWorkReports:       NewAvailableWorkReports(),
+			presentWorkReports:         NewPresentWorkReports(),
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -195,4 +194,14 @@ func (s *Store) GetAccumulationStatisticsPointer() *AccumulationStatistics {
 // DeferredTransfersStatistics
 func (s *Store) GetDeferredTransfersStatisticsPointer() *DeferredTransfersStatistics {
 	return s.deferredTransfersStatistics
+}
+
+// AvailableWorkReports
+func (s *Store) GetAvailableWorkReportsPointer() *AvailableWorkReports {
+	return s.availableWorkReports
+}
+
+// PresentWorkReports
+func (s *Store) GetPresentWorkReportsPointer() *PresentWorkReports {
+	return s.presentWorkReports
 }

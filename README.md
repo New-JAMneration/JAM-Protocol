@@ -40,6 +40,10 @@ go build -o ./build/JAM-Protocol
 
 For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/rust-vrf-compile-guide.md).
 
+## Encoder/Decoder
+
+For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/encoder-decoder.md).
+
 ## Coding Style
 
 Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
