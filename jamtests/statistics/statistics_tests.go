@@ -1,6 +1,8 @@
 package jamtests
 
 import (
+	"encoding/json"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -21,9 +23,52 @@ type StatisticsOutput struct { // null
 }
 
 type StatisticsState struct {
-	Pi    types.Statistics     `json:"pi"`
-	Tau   types.TimeSlot       `json:"tau"`
-	Kappa types.ValidatorsData `json:"kappa_prime"`
+	Statistics     types.Statistics     `json:"statistics"`
+	Slot           types.TimeSlot       `json:"slot"`
+	CurrValidators types.ValidatorsData `json:"curr_validators"`
+}
+
+// StatisticsState UnmarshalJSON
+func (s *StatisticsState) UnmarshalJSON(data []byte) error {
+	var err error
+
+	var state struct {
+		Statistics     types.Statistics     `json:"statistics"`
+		Slot           types.TimeSlot       `json:"slot"`
+		CurrValidators types.ValidatorsData `json:"curr_validators"`
+	}
+
+	if err = json.Unmarshal(data, &state); err != nil {
+		return err
+	}
+
+	s.Statistics = state.Statistics
+	s.Slot = state.Slot
+	s.CurrValidators = state.CurrValidators
+
+	return nil
+}
+
+func (s *StatisticsTestCase) UnmarshalJSON(data []byte) error {
+	var err error
+
+	var testCase struct {
+		Input     StatisticsInput  `json:"input"`
+		PreState  StatisticsState  `json:"pre_state"`
+		Output    StatisticsOutput `json:"output"`
+		PostState StatisticsState  `json:"post_state"`
+	}
+
+	if err = json.Unmarshal(data, &testCase); err != nil {
+		return err
+	}
+
+	s.Input = testCase.Input
+	s.PreState = testCase.PreState
+	s.Output = testCase.Output
+	s.PostState = testCase.PostState
+
+	return nil
 }
 
 // StatisticsTestCase
@@ -77,15 +122,15 @@ func (o *StatisticsOutput) Decode(d *types.Decoder) error {
 func (s *StatisticsState) Decode(d *types.Decoder) error {
 	var err error
 
-	if err = s.Pi.Decode(d); err != nil {
+	if err = s.Statistics.Decode(d); err != nil {
 		return err
 	}
 
-	if err = s.Tau.Decode(d); err != nil {
+	if err = s.Slot.Decode(d); err != nil {
 		return err
 	}
 
-	if err = s.Kappa.Decode(d); err != nil {
+	if err = s.CurrValidators.Decode(d); err != nil {
 		return err
 	}
 
@@ -129,15 +174,15 @@ func (o *StatisticsOutput) Encode(e *types.Encoder) error {
 func (s *StatisticsState) Encode(e *types.Encoder) error {
 	var err error
 
-	if err = s.Pi.Encode(e); err != nil {
+	if err = s.Statistics.Encode(e); err != nil {
 		return err
 	}
 
-	if err = s.Tau.Encode(e); err != nil {
+	if err = s.Slot.Encode(e); err != nil {
 		return err
 	}
 
-	if err = s.Kappa.Encode(e); err != nil {
+	if err = s.CurrValidators.Encode(e); err != nil {
 		return err
 	}
 

@@ -171,7 +171,8 @@ func HeaderUSerialization(header types.Header) (output types.ByteSequence) {
 			output = append(output, SerializeByteSequence(header.EpochMark.Entropy[:])...)
 			output = append(output, SerializeByteSequence(header.EpochMark.TicketsEntropy[:])...)
 			for _, validator := range header.EpochMark.Validators {
-				output = append(output, SerializeByteSequence(validator[:])...)
+				output = append(output, SerializeByteSequence(validator.Bandersnatch[:])...)
+				output = append(output, SerializeByteSequence(validator.Ed25519[:])...)
 			}
 		}
 	}
@@ -247,7 +248,7 @@ func WorkPackageSpecSerialization(work_package_spec types.WorkPackageSpec) (outp
 
 func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence) {
 	/*
-		(C.23) E(x ∈ L) ≡ E4(xs) ⌢ E(xc, xl) ⌢ E8(xg) ⌢ E(O(xo))
+		(C.23) E(x ∈ L) ≡ E(E4(xs)) ⌢ E(xc, xy) ⌢ E(E8(xg)) ⌢ E(O(xo)) ⌢ E(xu, xi, xx, xz, xe)
 
 		ServiceId     ServiceId      `json:"service_id,omitempty"`
 		CodeHash      OpaqueHash     `json:"code_hash,omitempty"`

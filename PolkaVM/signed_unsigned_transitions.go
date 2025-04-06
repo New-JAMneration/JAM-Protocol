@@ -63,7 +63,7 @@ func UnsignedToBits(x uint64, n uint) ([]bool, error) {
 
 	// input should be in the range of [0, 2^(8n)-1]
 	maxValue := uint64(1)<<uint(bitSize) - 1
-	if x >= maxValue {
+	if x > maxValue {
 		return nil, fmt.Errorf("UnsignedToBits: x >= 2^(8n)")
 	}
 

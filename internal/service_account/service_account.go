@@ -2,44 +2,53 @@ package service_account
 
 import (
 	"fmt"
+	"log"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// TODO: check if PVM uses this type
-// type ServiceAccountStateDerivatives map[types.ServiceId]ServiceAccountDerivatives
-type ServiceAccountDerivatives struct {
-	Items      types.U32 `json:"items,omitempty"` // a_i
-	Bytes      types.U64 `json:"bytes,omitempty"` // a_o
-	Minbalance types.U64 // a_t
-}
-
-// (9.4) Not sure how to design input for this function
-func FetchCodeByHash(id types.ServiceId, codeHash types.OpaqueHash) (code types.ByteSequence) {
+// (9.4) This function was integrated into HistoricalLookup function
+func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence, err error) {
 	/*
-		∀a ∈ A ∶ a_code ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
-		                  ⎨ ∅               otherwise
+		∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
+		                             ⎨ ∅               otherwise
 	*/
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	account := delta[id]
 
 	// check if CodeHash exists in PreimageLookup
-	if code, exists := account.PreimageLookup[codeHash]; exists {
-		return code
+	if bytes, exists := account.PreimageLookup[codeHash]; exists {
+		return DecodeMetaCode(bytes)
+	}
+	// if we can't fetch metadata and code, then validate function should return error
+	err = ValidatePreimageLookupDict(account)
+	if err != nil {
+		log.Printf("ValidatePreimageLookupDict failed and you'll get nil return")
+		return nil, nil, err
 	}
 	// default is empty
-	return nil
+	return nil, nil, nil
 }
 
-// (9.6) Invariant <- TODO: check if PVM calls this function
+func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code types.ByteSequence, err error) {
+	metaCode := types.MetaCode{}
+	decoder := types.NewDecoder()
+	err = decoder.Decode(bytes, &metaCode)
+	if err != nil {
+		log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
+		return nil, nil, err
+	}
+	if metaCode.Metadata != nil {
+		// print metadata
+		log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
+	}
+	return metaCode.Metadata, metaCode.Code, nil
+}
 
+// (9.6) Invariant: This is definition, not real used formula
+// but I implement this for debugging/validation
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
-func ValidatePreimageLookupDict(id types.ServiceId) error {
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	account := delta[id]
+func ValidatePreimageLookupDict(account types.ServiceAccount) error {
 
 	for codeHash, preimage := range account.PreimageLookup {
 		// // h = H(p)
@@ -64,9 +73,8 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 	return exists
 }
 
-// (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
-
-func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) types.ByteSequence {
+// (9.7) historicalLookup Lambda Λ, which is the exact definition of (9.5)
+func HistoricalLookup(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (bytes types.ByteSequence) {
 	/*
 		Λ(a, t, h) ≡
 			a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
@@ -82,18 +90,16 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 	l := account.LookupDict[lookupkey]
 
 	// a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
-	if ifHashInKey(account, hash) && isValidTime(l, timestamp) {
-		return account.PreimageLookup[hash]
+	if bytes, exists := account.PreimageLookup[hash]; exists && isValidTime(l, timestamp) {
+		/*
+			∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
+			                             ⎨ ∅               otherwise
+		*/
+		return bytes
 	}
 
 	// ∅      otherwise
-	return types.ByteSequence{}
-}
-
-// h ∈ Key(a_p)
-func ifHashInKey(account types.ServiceAccount, hash types.OpaqueHash) bool {
-	_, exists := account.PreimageLookup[hash]
-	return exists
+	return nil
 }
 
 // I
@@ -121,7 +127,7 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 }
 
 // (9.8) You can use this function to get account derivatives
-func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccountDerivatives) {
+func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -129,16 +135,14 @@ func GetSerivecAccountDerivatives(id types.ServiceId) (accountDer ServiceAccount
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
-	account := delta[id]
 	// calculate derivative invariants
 	var (
 		Items      = calcKeys(account)
 		Bytes      = calcUsedOctets(account)
-		Minbalance = calcThresholdBalance(Items, Bytes)
+		Minbalance = CalcThresholdBalance(Items, Bytes)
 	)
-	accountDer = ServiceAccountDerivatives{
+	accountDer = types.ServiceAccountDerivatives{
 		Items:      Items,
 		Bytes:      Bytes,
 		Minbalance: Minbalance,
@@ -177,7 +181,7 @@ func calcUsedOctets(account types.ServiceAccount) types.U64 {
 }
 
 // calculate threshold(minimum) balance needed for any account in terms of storage footprint
-func calcThresholdBalance(aI types.U32, aO types.U64) types.U64 {
+func CalcThresholdBalance(aI types.U32, aO types.U64) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
