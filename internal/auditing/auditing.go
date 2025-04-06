@@ -156,39 +156,6 @@ func GetAssignedValidators(w types.WorkReport, assignmentMap types.AssignmentMap
 	return []types.ValidatorIndex{}
 }
 
-// (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
-func BuildJudgements(
-	tranche types.U32,
-	reports []types.AuditReport, // (c, w) ∈ aₙ
-	hashFunc func(types.ByteSequence) types.OpaqueHash,
-	validator_index int,
-) []types.Ed25519Signature {
-	var judgments []types.Ed25519Signature
-
-	for _, item := range reports {
-		report := item.Report
-
-		// Determine context string
-		var context types.ByteSequence
-		if item.AuditResult {
-			context = []byte("$jam_valid")
-		} else {
-			context = []byte("$jam_invalid")
-		}
-
-		// Hash the report content
-		hashW := hashFunc(utilities.WorkReportSerialization(report)) // 𝓗(w)
-		context = append(context, hashW[:]...)                       // X_e(w) ⌢ 𝓗(w)
-
-		// Sign the message
-		ed25519_public := store.GetInstance().GetPosteriorStates().GetKappa()[validator_index].Ed25519
-		signature := ed25519.Sign(ed25519_public[:], context)
-		judgments = append(judgments, types.Ed25519Signature(signature))
-	}
-
-	return judgments
-}
-
 // ClassifyJudgments categorizes the validators who gave positive (J⊤) or negative (J⊥) judgments for a given work report.
 // It uses the work report's hash to determine matching judgments.
 func ClassifyJudgments(
@@ -306,6 +273,59 @@ func ComputeAnForValidator(
 	return result
 }
 
+/*
+// e_n(w): 對應於公式 17.17 的實作
+func EvaluateReport(
+	report types.WorkReport,
+	coreID types.CoreIndex,
+	proposals []types.WorkPackageProposal, // proposal from peers
+	decodeFunc func(types.WorkPackageProposal, types.CoreIndex) (types.WorkReport, bool),
+	encodeFunc func(types.WorkReport) types.WorkPackageEncoding,
+) *types.WorkReport {
+	targetEncoding := encodeFunc(report)
+
+	for _, p := range proposals {
+		// check if the decoded report matches the given one
+		if decoded, ok := decodeFunc(p, coreID); ok {
+			if encodeFunc(decoded) == targetEncoding {
+				return &decoded // match found: return the decoded report
+			}
+		}
+	}
+	return nil // ⊥ — evaluation failed
+}*/
+
+// (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
+func BuildJudgements(
+	tranche types.U32,
+	reports []types.AuditReport, // (c, w) ∈ aₙ
+	hashFunc func(types.ByteSequence) types.OpaqueHash,
+	validator_index int,
+) []types.AuditReport {
+	for index, item := range reports {
+		report := item.Report
+
+		// Determine context string
+		var context types.ByteSequence
+		if item.AuditResult {
+			context = []byte("$jam_valid")
+		} else {
+			context = []byte("$jam_invalid")
+		}
+
+		// Hash the report content
+		hashW := hashFunc(utilities.WorkReportSerialization(report)) // 𝓗(w)
+		context = append(context, hashW[:]...)                       // X_e(w) ⌢ 𝓗(w)
+
+		// Sign the message
+		ed25519_public := store.GetInstance().GetPosteriorStates().GetKappa()[validator_index].Ed25519
+		signature := ed25519.Sign(ed25519_public[:], context)
+		reports[index].Signature = types.Ed25519Signature(signature)
+	}
+
+	return reports
+}
+
 // (17.19) U(w)⇔∨J⊥(w)=∅∧∃n:An​(w)⊆J⊤(w)∣J⊤(w)∣>(2/3)V
 
 func IsWorkReportAudited(
@@ -366,3 +386,13 @@ func IsBlockAudited(
 	}
 	return true
 }
+
+/*
+I think all formula are included, but might need more integration(from other chapters?)
+
+![image](https://github.com/user-attachments/assets/571cfe22-e0e2-4802-abfb-035f9c774994)
+![image](https://github.com/user-attachments/assets/572fcf0b-9b3d-4718-9996-7fed609fa8d4)
+![image](https://github.com/user-attachments/assets/2f15e2ce-60dc-4ed2-92ba-6c1bd3ed2c88)
+![image](https://github.com/user-attachments/assets/b14b2619-8767-4241-8de7-c9d1cc377665)
+![image](https://github.com/user-attachments/assets/5a47b014-cade-455f-8794-183c98e6ba3c)
+*/
