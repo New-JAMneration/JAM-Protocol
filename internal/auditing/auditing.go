@@ -133,9 +133,9 @@ func BuildAnnouncement(
 	// (17.11) XI = $jam_announce
 	// Context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
 	H := store.GetInstance().GetIntermediateHeader()
-	context := types.ByteSequence(types.JamAnnounce[:]) // XI
-	context = append(context, byte(n))                  // n
-	context = append(context, xn...)                    // xn
+	context := types.ByteSequence(types.JamAnnounce[:])                // XI
+	context = append(context, utilities.SerializeFixedLength(n, 4)...) // n
+	context = append(context, xn...)                                   // xn
 	headerBytes := utilities.HeaderSerialization(H)
 	headerHash := hashFunc(headerBytes)
 	context = append(context, headerHash[:]...) // H(H)
@@ -238,7 +238,7 @@ End (aₙ ready)
 */
 
 func ComputeAnForValidator(
-	n uint32, /*tranche*/
+	n types.U32, /*tranche*/
 	Q []*types.WorkReport, // Q
 	priorAssignment map[types.WorkPackageHash][]types.ValidatorIndex, // A_n-1
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, // J⊤
@@ -285,7 +285,7 @@ func ComputeAnForValidator(
 		H_w := hashFunc(utilities.WorkReportSerialization(report))
 		context = append(context, H_w[:]...)
 		// n
-		context = append(context, types.ByteSequence([]byte{uint8(n)})...)
+		context = append(context, utilities.SerializeFixedLength(n, 4)...)
 
 		validator_public_key := posterior_state.GetKappa()[validator_index].Bandersnatch
 		handler2, _ := safrole.CreateVRFHandler(validator_public_key)
