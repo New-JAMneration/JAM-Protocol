@@ -11,7 +11,7 @@ func Psi_A(
 	time types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
-	operand []types.Operand,
+	operands []types.Operand,
 	eta types.Entropy,
 ) (
 	psi_result Psi_A_ReturnType,
@@ -29,40 +29,54 @@ func Psi_A(
 		serialized := []byte{}
 		encoder := types.NewEncoder()
 
+		// Encode the t
 		encoded, err := encoder.Encode(&time)
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
+
+		// Encode the s
 		encoded, err = encoder.Encode(&serviceId)
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
-		encoded, err = encoder.Encode(&operand)
+
+		// Encode the o
+		// Encode the length of the operands
+		encoded, err = encoder.EncodeUint(uint64(len(operands)))
 		if err != nil {
 			panic(err)
 		}
 		serialized = append(serialized, encoded...)
 
+		for _, operand := range operands {
+			encoded, err = encoder.Encode(&operand)
+			if err != nil {
+				panic(err)
+			}
+			serialized = append(serialized, encoded...)
+		}
+
 		F := Omegas{}
-		F[ReadOp] = wrapWithG(hostCallFunctions[ReadOp])
-		F[WriteOp] = wrapWithG(hostCallFunctions[WriteOp])
-		F[LookupOp] = wrapWithG(hostCallFunctions[LookupOp])
-		F[GasOp] = hostCallFunctions[GasOp]
-		F[InfoOp] = wrapWithG(hostCallFunctions[InfoOp])
-		F[BlessOp] = hostCallFunctions[BlessOp]
-		F[AssignOp] = hostCallFunctions[AssignOp]
-		F[DesignateOp] = hostCallFunctions[DesignateOp]
-		F[CheckpointOp] = hostCallFunctions[CheckpointOp]
-		F[NewOp] = hostCallFunctions[NewOp]
-		F[UpgradeOp] = hostCallFunctions[UpgradeOp]
-		F[TransferOp] = hostCallFunctions[TransferOp]
-		F[EjectOp] = hostCallFunctions[EjectOp]
-		F[QueryOp] = hostCallFunctions[QueryOp]
-		F[SolicitOp] = hostCallFunctions[SolicitOp]
-		F[ForgetOp] = hostCallFunctions[ForgetOp]
-		F[YieldOp] = hostCallFunctions[YieldOp]
+		F[ReadOp] = wrapWithG(HostCallFunctions[ReadOp])
+		F[WriteOp] = wrapWithG(HostCallFunctions[WriteOp])
+		F[LookupOp] = wrapWithG(HostCallFunctions[LookupOp])
+		F[GasOp] = HostCallFunctions[GasOp]
+		F[InfoOp] = wrapWithG(HostCallFunctions[InfoOp])
+		F[BlessOp] = HostCallFunctions[BlessOp]
+		F[AssignOp] = HostCallFunctions[AssignOp]
+		F[DesignateOp] = HostCallFunctions[DesignateOp]
+		F[CheckpointOp] = HostCallFunctions[CheckpointOp]
+		F[NewOp] = HostCallFunctions[NewOp]
+		F[UpgradeOp] = HostCallFunctions[UpgradeOp]
+		F[TransferOp] = HostCallFunctions[TransferOp]
+		F[EjectOp] = HostCallFunctions[EjectOp]
+		F[QueryOp] = HostCallFunctions[QueryOp]
+		F[SolicitOp] = HostCallFunctions[SolicitOp]
+		F[ForgetOp] = HostCallFunctions[ForgetOp]
+		F[YieldOp] = HostCallFunctions[YieldOp]
 		F[27] = accumulateInvocationHostCallException
 
 		addition := HostCallArgs{

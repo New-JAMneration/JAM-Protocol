@@ -26,6 +26,8 @@ type Store struct {
 	intermediateHeader         *IntermediateHeader
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	beefyCommitmentOutput      *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
+	availableWorkReports       *AvailableWorkReports
+	presentWorkReports         *PresentWorkReports
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -42,6 +44,8 @@ func GetInstance() *Store {
 			intermediateHeader:         NewIntermediateHeader(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
+			availableWorkReports:       NewAvailableWorkReports(),
+			presentWorkReports:         NewPresentWorkReports(),
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -161,3 +165,13 @@ func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
 // func (s *Store) GetServiceAccountDerivatives() *ServiceAccountDerivatives {
 // 	return s.serviceAccountDerivatives
 // }
+
+// AvailableWorkReports
+func (s *Store) GetAvailableWorkReportsPointer() *AvailableWorkReports {
+	return s.availableWorkReports
+}
+
+// PresentWorkReports
+func (s *Store) GetPresentWorkReportsPointer() *PresentWorkReports {
+	return s.presentWorkReports
+}

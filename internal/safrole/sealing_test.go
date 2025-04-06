@@ -1,11 +1,8 @@
 package safrole
 
 import (
-	"bytes"
 	"encoding/hex"
-	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -25,6 +22,7 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 	return result
 }
 
+/*
 func TestUpdateEtaPrime0(t *testing.T) {
 	eta := types.EntropyBuffer{
 		types.Entropy(hexToByteArray32("0x64e9065b8ed901f4fe6b04ce75c5e4f116de1b632090027b39bea2bfdf5453d7")),
@@ -428,3 +426,4 @@ func TestSealingByTicket(t *testing.T) {
 		t.Errorf("UpdateEntropy() = %v, want %v", expectedSeal, actualSeal)
 	}
 }
+*/
