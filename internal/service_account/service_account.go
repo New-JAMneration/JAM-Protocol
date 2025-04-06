@@ -9,8 +9,8 @@ import (
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// (9.4) This function was integrated into HistoricalLookupFunction
-func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence) {
+// (9.4) This function was integrated into HistoricalLookup function
+func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence, err error) {
 	/*
 		∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
 		                             ⎨ ∅               otherwise
@@ -18,17 +18,31 @@ func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (m
 
 	// check if CodeHash exists in PreimageLookup
 	if bytes, exists := account.PreimageLookup[codeHash]; exists {
-		metaCode := types.MetaCode{}
-		decoder := types.NewDecoder()
-		err := decoder.Decode(bytes, &metaCode)
-		if err != nil {
-			log.Fatalf("Failed to deserialize code and metadata: %v", err)
-			return nil, nil
-		}
-		return metaCode.Metadata, metaCode.Code
+		return DecodeMetaCode(bytes)
+	}
+	// if we can't fetch metadata and code, then validate function should return error
+	err = ValidatePreimageLookupDict(account)
+	if err != nil {
+		log.Printf("ValidatePreimageLookupDict failed and you'll get nil return")
+		return nil, nil, err
 	}
 	// default is empty
-	return nil, nil
+	return nil, nil, nil
+}
+
+func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code types.ByteSequence, err error) {
+	metaCode := types.MetaCode{}
+	decoder := types.NewDecoder()
+	err = decoder.Decode(bytes, &metaCode)
+	if err != nil {
+		log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
+		return nil, nil, err
+	}
+	if metaCode.Metadata != nil {
+		// print metadata
+		log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
+	}
+	return metaCode.Metadata, metaCode.Code, nil
 }
 
 // (9.6) Invariant: This is definition, not real used formula
@@ -59,8 +73,8 @@ func existsInLookupDict(account types.ServiceAccount, codeHash types.OpaqueHash,
 	return exists
 }
 
-// (9.7) historicalLookupFunction Lambda Λ, which is the exact definition of (9.5)
-func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (metadata types.ByteSequence, code types.ByteSequence, err error) {
+// (9.7) historicalLookup Lambda Λ, which is the exact definition of (9.5)
+func HistoricalLookup(account types.ServiceAccount, timestamp types.TimeSlot, hash types.OpaqueHash) (bytes types.ByteSequence) {
 	/*
 		Λ(a, t, h) ≡
 			a_p[h] if h ∈ Key(a_p) ∧ I( a_l[ h, |a_p[h]| ], t )
@@ -81,22 +95,11 @@ func HistoricalLookupFunction(account types.ServiceAccount, timestamp types.Time
 			∀a ∈ A ∶  E(↕a_meta,a_code) ≡⎧ a_p[a_codeHash] if a_codeHash ∈ a_p
 			                             ⎨ ∅               otherwise
 		*/
-		metaCode := types.MetaCode{}
-		decoder := types.NewDecoder()
-		err := decoder.Decode(bytes, &metaCode)
-		if err != nil {
-			log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
-			return nil, nil, err
-		}
-		if metaCode.Metadata != nil {
-			// print metadata
-			log.Printf("Metadata is %v\n", metaCode.Metadata)
-		}
-		return metaCode.Metadata, metaCode.Code, nil
+		return bytes
 	}
 
 	// ∅      otherwise
-	return nil, nil, nil
+	return nil
 }
 
 // I
