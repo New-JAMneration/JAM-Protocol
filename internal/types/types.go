@@ -1312,7 +1312,12 @@ type ServiceGasUsed struct {
 	Gas       Gas
 }
 
-type CoreIndexReport struct {
-	CoreID CoreIndex
-	Report WorkReport
+type AuditReport struct {
+	CoreID      CoreIndex
+	Report      WorkReport
+	ValidatorID ValidatorIndex
+	AuditResult bool
 }
+
+// (17.12)
+type AssignmentMap map[WorkPackageHash][]ValidatorIndex
