@@ -40,17 +40,22 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			unfinalizedBlocks:          NewUnfinalizedBlocks(),
-			processingBlock:            NewProcessingBlock(),
-			priorStates:                NewPriorStates(),
-			intermediateStates:         NewIntermediateStates(),
-			posteriorStates:            NewPosteriorStates(),
-			ancestorHeaders:            NewAncestorHeaders(),
-			intermediateHeader:         NewIntermediateHeader(),
-			posteriorCurrentValidators: NewPosteriorValidators(),
-			beefyCommitmentOutput:      NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
-			availableWorkReports:       NewAvailableWorkReports(),
-			presentWorkReports:         NewPresentWorkReports(),
+			unfinalizedBlocks:           NewUnfinalizedBlocks(),
+			processingBlock:             NewProcessingBlock(),
+			priorStates:                 NewPriorStates(),
+			intermediateStates:          NewIntermediateStates(),
+			posteriorStates:             NewPosteriorStates(),
+			ancestorHeaders:             NewAncestorHeaders(),
+			intermediateHeader:          NewIntermediateHeader(),
+			posteriorCurrentValidators:  NewPosteriorValidators(),
+			beefyCommitmentOutput:       NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
+			availableWorkReports:        NewAvailableWorkReports(),
+			presentWorkReports:          NewPresentWorkReports(),
+			accumulatedWorkReports:      NewAccumulatedWorkReports(),
+			queuedWorkReports:           NewQueuedWorkReports(),
+			accumulatableWorkReports:    NewAccumulatableWorkReports(),
+			accumulationStatistics:      NewAccumulationStatistics(),
+			deferredTransfersStatistics: NewDeferredTransfersStatistics(),
 		}
 		log.Println("🚀 Store initialized")
 	})

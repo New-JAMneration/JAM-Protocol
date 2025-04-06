@@ -1345,37 +1345,37 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// AccumulatedHistory
-func (a *AccumulatedHistory) UnmarshalJSON(data []byte) error {
-	var temp []WorkPackageHash
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
-	}
+// // AccumulatedHistory
+// func (a *AccumulatedHistory) UnmarshalJSON(data []byte) error {
+// 	var temp []WorkPackageHash
+// 	if err := json.Unmarshal(data, &temp); err != nil {
+// 		return err
+// 	}
 
-	if len(temp) == 0 {
-		return nil
-	}
+// 	if len(temp) == 0 {
+// 		return nil
+// 	}
 
-	*a = temp
+// 	*a = temp
 
-	return nil
-}
+// 	return nil
+// }
 
-// AccumulatedHistories
-func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
-	var temp []AccumulatedHistory
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return err
-	}
+// // AccumulatedHistories
+// func (a *AccumulatedHistories) UnmarshalJSON(data []byte) error {
+// 	var temp []AccumulatedHistory
+// 	if err := json.Unmarshal(data, &temp); err != nil {
+// 		return err
+// 	}
 
-	if len(temp) == 0 {
-		return nil
-	}
+// 	if len(temp) == 0 {
+// 		return nil
+// 	}
 
-	*a = temp
+// 	*a = temp
 
-	return nil
-}
+// 	return nil
+// }
 
 // ServiceAccountState
 func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {

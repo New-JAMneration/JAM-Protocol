@@ -447,14 +447,14 @@ func (s *PriorStates) GetTheta() types.ReadyQueue {
 }
 
 // SetXi sets the xi value
-func (s *PriorStates) SetXi(xi types.AccumulatedHistories) {
+func (s *PriorStates) SetXi(xi types.AccumulatedQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Xi = xi
 }
 
 // GetXi returns the xi value
-func (s *PriorStates) GetXi() types.AccumulatedHistories {
+func (s *PriorStates) GetXi() types.AccumulatedQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Xi

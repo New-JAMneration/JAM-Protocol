@@ -1,6 +1,7 @@
 package accumulation
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
@@ -162,13 +163,23 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 }
 
 // (12.31) (12.32)
-// Update the AccumulatedQueue(AccumulatedHistories)
+// Update the AccumulatedQueue(AccumulatedQueue)
 func updateXi(store *store.Store) {
 	// Get W^* (accumulatable work-reports in this block)
 	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
 	priorXi := store.GetPriorStates().GetXi()
 	posteriorXi := store.GetPosteriorStates().GetXi()
+
+	// 確保 posteriorXi 切片已初始化且有足夠長度
+	if len(posteriorXi) != types.EpochLength {
+		posteriorXi = make([]types.AccumulatedQueueItem, types.EpochLength)
+	}
+
+	// 確保 priorXi 切片已初始化且有足夠長度
+	if len(priorXi) != types.EpochLength {
+		priorXi = make([]types.AccumulatedQueueItem, types.EpochLength)
+	}
 
 	// (12.31) Update the last element
 	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports)
@@ -196,6 +207,7 @@ func updateTheta(store *store.Store) {
 
 	// Get current time slot index
 	tauPrime := store.GetPosteriorStates().GetTau()
+	fmt.Println("τ", tau, "τ'", tauPrime)
 
 	tauOffset := tauPrime - tau
 
@@ -206,8 +218,29 @@ func updateTheta(store *store.Store) {
 	priorTheta := store.GetPriorStates().GetTheta()
 	posteriorTheta := store.GetPosteriorStates().GetTheta()
 
+	// Initialize posteriorTheta, ensure it has enough capacity
+	if len(posteriorTheta) < types.EpochLength {
+		newPosteriorTheta := make([]types.ReadyQueueItem, types.EpochLength)
+		copy(newPosteriorTheta, posteriorTheta)
+		posteriorTheta = newPosteriorTheta
+	}
+
+	// Initialize priorTheta, ensure it has enough capacity
+	if len(priorTheta) < types.EpochLength {
+		newPriorTheta := make([]types.ReadyQueueItem, types.EpochLength)
+		copy(newPriorTheta, priorTheta)
+		priorTheta = newPriorTheta
+	}
+
 	// Get posterior xi
 	posteriorXi := store.GetPosteriorStates().GetXi()
+
+	// Initialize posteriorXi, ensure it has enough capacity
+	if len(posteriorXi) < types.EpochLength {
+		newPosteriorXi := make([]types.AccumulatedQueueItem, types.EpochLength)
+		copy(newPosteriorXi, posteriorXi)
+		posteriorXi = newPosteriorXi
+	}
 
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
@@ -296,7 +329,7 @@ func DeferredTransfers() error {
 	updateDeltaDoubleDagger(store, output.DeferredTransfers)
 
 	// (12.31) (12.32)
-	// Update the AccumulatedQueue(AccumulatedHistories)
+	// Update the AccumulatedQueue(AccumulatedQueue)
 	updateXi(store)
 
 	// (12.33)
