@@ -1317,6 +1317,7 @@ type AuditReport struct {
 	Report      WorkReport
 	ValidatorID ValidatorIndex
 	AuditResult bool
+	Signature   Ed25519Signature
 }
 
 // (17.12)
