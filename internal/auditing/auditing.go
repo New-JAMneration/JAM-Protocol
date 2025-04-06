@@ -4,6 +4,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
 
@@ -98,9 +99,21 @@ func getTranchIndex(T types.U32) types.U32 { // TODO: how to get T, type?
 // (17.9) S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
 // (17.10) where xn = E([E2(c) ⌢ H(w) S(c, w) ∈ an])
 // (17.11) XI = $jam_announce
-/*
-func BuildAnnouncement(tranche types.U32, xn []byte, reports []types.CoreWorkReport) []byte {
-	XI := types.JamAnnounce                   // Xₜ = $jam_announce
+
+func BuildAnnouncement(tranche types.U32, reports []types.CoreIndexReport, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.BandersnatchVrfSignature {
+	var output types.ByteSequence
+
+	for _, value := range reports {
+		output = append(output, utilities.SerializeFixedLength(types.U64(value.CoreID), 2)...)
+		H_w := hashFunc(utilities.WorkReportSerialization(value.Report))
+		output = append(output, H_w[:]...)
+	}
+	xn := utilities.SerializeByteSequence(output)
+	H := store.GetInstance().GetIntermediateHeader()
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(types.JamAnnounce[:])...)   // XI
+	context = append(context, types.ByteSequence([]byte{uint8(tranche)})...) // n
+	context = append(context, xn...)                                         // xn
+	context = append(context, utilities.HeaderSerialization(H)...)           // H(H)
 	return signature
 }
-*/
