@@ -210,7 +210,7 @@ func SerializeTheta(theta types.ReadyQueue) (output types.ByteSequence) {
 	return output
 }
 
-func SerializeXi(xi types.AccumulatedHistories) (output types.ByteSequence) {
+func SerializeXi(xi types.AccumulatedQueue) (output types.ByteSequence) {
 	for _, v := range xi {
 		output = append(output, utilities.SerializeU64(types.U64(len(v)))...)
 		for _, history := range v {

@@ -88,7 +88,7 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 	sort.Sort(&eps)
 
 	if !reflect.DeepEqual(eps, originEps) {
-		return nil, errors.New("Eps is not sorted")
+		return nil, errors.New("eps is not sorted")
 	}
 	// // Then, remove the duplicates
 	// j := 0
@@ -102,7 +102,7 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 	// If eps have duplicates, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {
-			return nil, errors.New("Eps have duplicates")
+			return nil, errors.New("eps have duplicates")
 		}
 	}
 
@@ -128,14 +128,14 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 		// Check if ServiceId exists in deltaDoubleDagger
 		serviceAccount, exists := deltaDoubleDagger[ep.Requester]
 		if !exists {
-			return nil, errors.New("Service account not found")
+			return nil, errors.New("service account not found")
 		} else {
 			// Ensure map fields are initialized
 			if serviceAccount.LookupDict == nil {
-				return nil, errors.New("LookupDict not initialized")
+				return nil, errors.New("lookupDict not initialized")
 			}
 			if serviceAccount.PreimageLookup == nil {
-				return nil, errors.New("PreimageLookup not initialized")
+				return nil, errors.New("preimageLookup not initialized")
 			}
 		}
 
