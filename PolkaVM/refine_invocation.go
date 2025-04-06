@@ -88,53 +88,56 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// lookupData := service_account.HistoricalLookupFunction(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
 
 	F := Omegas{}
-	F[HistoricalLookupOp] = hostCallFunctions[HistoricalLookupOp]
-	F[FetchOp] = hostCallFunctions[FetchOp]
-	F[ExportOp] = hostCallFunctions[ExportOp]
-	F[GasOp] = hostCallFunctions[GasOp]
-	F[MachineOp] = hostCallFunctions[MachineOp]
-	F[PeekOp] = hostCallFunctions[PeekOp]
-	F[ZeroOp] = hostCallFunctions[ZeroOp]
-	F[PokeOp] = hostCallFunctions[PokeOp]
-	F[VoidOp] = hostCallFunctions[VoidOp]
-	F[InvokeOp] = hostCallFunctions[InvokeOp]
-	F[ExpungeOp] = hostCallFunctions[ExpungeOp]
+	F[HistoricalLookupOp] = HostCallFunctions[HistoricalLookupOp]
+	F[FetchOp] = HostCallFunctions[FetchOp]
+	F[ExportOp] = HostCallFunctions[ExportOp]
+	F[GasOp] = HostCallFunctions[GasOp]
+	F[MachineOp] = HostCallFunctions[MachineOp]
+	F[PeekOp] = HostCallFunctions[PeekOp]
+	F[ZeroOp] = HostCallFunctions[ZeroOp]
+	F[PokeOp] = HostCallFunctions[PokeOp]
+	F[VoidOp] = HostCallFunctions[VoidOp]
+	F[InvokeOp] = HostCallFunctions[InvokeOp]
+	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
 	F[27] = RefineHostCallException
-	/*
-		// addition
-		addition := HostCallArgs{
-			// GeneralArgs is only for historical_lookup op
-			GeneralArgs: GeneralArgs{
-				ServiceId:           workItem.Service,
-				ServiceAccountState: input.ServiceAccounts,
-			},
-			RefineArgs: RefineArgs{
-				RefineInput:      input,
-				IntegratedPVMMap: IntegratedPVMMap{},
-				ExportSegment:    types.ExportSegment{},
-				TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
-			},
+
+	// addition
+	// Though Psi_M addition input is nil, still need the RefineInput for historical_lookup op (only for historical_lookup)
+	addition := HostCallArgs{
+		// GeneralArgs is only for historical_lookup op
+		GeneralArgs: GeneralArgs{
+			ServiceId:           workItem.Service,
+			ServiceAccountState: input.ServiceAccounts,
+		},
+		RefineArgs: RefineArgs{
+			RefineInput:      input,
+			IntegratedPVMMap: IntegratedPVMMap{},
+			ExportSegment:    types.ExportSegment{},
+			TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
+		},
+	}
+
+	// result = u, r, (m,e)
+	// TODO : get code from historical_lookup
+	// TODO : r type : ExecResult or bytes or report (?)
+	result := Psi_M(code, 0, Gas(workItem.RefineGasLimit), a, F, addition)
+	exitReason := result.ReasonOrBytes.(*PVMExitReason).Reason
+	if exitReason == PANIC || exitReason == OUT_OF_GAS {
+		return RefineOutput{
+			WorkResult:    types.WorkExecResultOk,
+			WorkReport:    result.ReasonOrBytes,
+			ExportSegment: []ExportSegment{},
+			Gas:           types.Gas(result.Gas),
 		}
+	}
 
-				// result = u, r, (m,e)
-				result := Psi_M(code, 0, Gas(workItem.RefineGasLimit), a, F, addition)
-				exitReason := result.ReasonOrBytes.(*PVMExitReason).Reason
-				if exitReason == PANIC || exitReason == OUT_OF_GAS {
-					return RefineOutput{
-						WorkResult:    types.WorkExecResultOk,
-						WorkReport:    result.ReasonOrBytes,
-						ExportSegment: []ExportSegment{},
-						Gas:           types.Gas(result.Gas),
-					}
-				}
+	return RefineOutput{
+		WorkResult:    types.WorkExecResultOk,
+		WorkReport:    result.ReasonOrBytes,
+		ExportSegment: result.Addition.ExportSegment,
+		Gas:           types.Gas(result.Gas),
+	}
 
-			return RefineOutput{
-				WorkResult:    types.WorkExecResultOk,
-				WorkReport:    result.ReasonOrBytes,
-				ExportSegment: result.Addition.ExportSegment,
-				Gas:           types.Gas(result.Gas),
-			}
-	*/
 	return RefineOutput{}
 }
 

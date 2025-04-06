@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -270,13 +271,13 @@ func (h HostCallArgs) GetHostCallArgs() PolkaVM.HostCallArgs {
 	}
 
 	result.ServiceAccountState = h.InitialDelta.ToServiceAccountState()
-
-	// Refine args
-	result.RefineMap = h.InitialRefineMap
-	result.ImportSegment = h.InitialImportSegment
-	result.ExportSegment = h.InitialExportSegment
-	result.ExportSegmentIndex = h.InitialExportSegmentIndex
-
+	/*
+		// Refine args
+		result.RefineMap = h.InitialRefineMap
+		result.ImportSegment = h.InitialImportSegment
+		result.ExportSegment = h.InitialExportSegment
+		result.ExportSegmentIndex = h.InitialExportSegmentIndex
+	*/
 	// Accumulate args
 	if h.InitialTimeslot != nil {
 		result.Timeslot = types.TimeSlot(*h.InitialTimeslot)
@@ -361,7 +362,7 @@ func (d D) ToServiceAccount() types.ServiceAccount {
 }
 
 func recomputeServiceAccountDerivatives(serviceAccount *types.ServiceAccount) {
-	derivatives := PolkaVM.GetSerivecAccountDerivatives(*serviceAccount)
+	derivatives := service_account.GetSerivecAccountDerivatives(*serviceAccount)
 	serviceAccount.ServiceInfo.Items = derivatives.Items
 	serviceAccount.ServiceInfo.Bytes = derivatives.Bytes
 }

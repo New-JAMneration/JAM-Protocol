@@ -493,7 +493,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
-		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
 			return OmegaOutput{
@@ -585,7 +585,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	derivatives := GetSerivecAccountDerivatives(t)
+	derivatives := service_account.GetSerivecAccountDerivatives(t)
 
 	var serialized_bytes types.ByteSequence
 	encoder := types.NewEncoder()
@@ -882,7 +882,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	// s_b < (x_s)_t
-	if s.ServiceInfo.Balance < GetSerivecAccountDerivatives(s).Minbalance {
+	if s.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
 		return OmegaOutput{
@@ -903,7 +903,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	var a types.ServiceAccount
 
-	accountDer := GetSerivecAccountDerivatives(a)
+	accountDer := service_account.GetSerivecAccountDerivatives(a)
 	at := accountDer.Minbalance
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
@@ -1054,7 +1054,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		if b < GetSerivecAccountDerivatives(accountS).Minbalance {
+		if b < service_account.GetSerivecAccountDerivatives(accountS).Minbalance {
 			input.Registers[7] = CASH
 
 			return OmegaOutput{
@@ -1334,7 +1334,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		// a_b < a_t
-		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
 			input.Registers[7] = FULL
 		}
 
@@ -1520,14 +1520,23 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 
 	// assign a
 	var a types.ServiceAccount
-	var v types.ByteSequence
+	var v types.MetaCode
 
 	a, accountExists := input.Addition.ServiceAccountState[input.Addition.ServiceID]
 	if accountExists && input.Registers[7] == 0xffffffffffffffff {
-		// TODO :need to upate main historical lookup function
-		v = service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+		m, c, err := service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+		if err != nil {
+			// TODO error handling
+		}
+		v.Metadata = m
+		v.Code = c
 	} else if a, accountExists := input.Addition.ServiceAccountState[types.ServiceId(input.Registers[7])]; accountExists {
-		v = service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+		m, c, err := service_account.HistoricalLookupFunction(a, input.Addition.TimeSlot, codeHash)
+		if err != nil {
+			// TODO error handling
+		}
+		v.Metadata = m
+		v.Code = c
 	} else {
 		// otherwise if a = nil => v = nil, here will not check writeable first, since no need to write in memory
 		input.Registers[7] = NONE
@@ -1541,8 +1550,8 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	f := min(input.Registers[10], uint64(len(v)))
-	l := min(input.Registers[11], uint64(len(v))-f)
+	f := min(input.Registers[10], uint64(len(v.Metadata)+len(v.Code)))
+	l := min(input.Registers[11], uint64(len(v.Metadata)+len(v.Code))-f)
 
 	if !isWriteable(o, l, input.Memory) { // not writeable, return panic
 		return OmegaOutput{
@@ -1553,20 +1562,21 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+	// TODO : wait for historicalLookup func
+	/*
+		input.Registers[7] = uint64(len(v))
+		offset = l
+		pageNumber = o / ZP
+		pageIndex = o % ZP
 
-	input.Registers[7] = uint64(len(v))
-	offset = l
-	pageNumber = o / ZP
-	pageIndex = o % ZP
-
-	// write in memory
-	if ZP-pageIndex < offset { // cross one page
-		copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:], v[f:f+ZP-pageIndex])
-		copy(input.Memory.Pages[uint32(pageNumber+1)].Value[:], v[f+ZP-pageIndex:f+l])
-	} else {
-		copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset], v[f:f+l])
-	}
-
+		// write in memory
+		if ZP-pageIndex < offset { // cross one page
+			copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:], v[f:f+ZP-pageIndex])
+			copy(input.Memory.Pages[uint32(pageNumber+1)].Value[:], v[f+ZP-pageIndex:f+l])
+		} else {
+			copy(input.Memory.Pages[uint32(pageNumber)].Value[pageIndex:pageIndex+offset], v[f:f+l])
+		}
+	*/
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
