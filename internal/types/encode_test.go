@@ -162,3 +162,22 @@ func TestEncodeUintWithLength(t *testing.T) {
 		t.Errorf("Encoded UintWithLength does not match expected")
 	}
 }
+
+func TestEncodeMetaCode(t *testing.T) {
+	testMetaCode := MetaCode{
+		Metadata: ByteSequence{0x01, 0x02, 0x03},
+		Code:     ByteSequence{0x04, 0x05, 0x06},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&testMetaCode)
+	if err != nil {
+		t.Errorf("Error encoding MetaCode: %v", err)
+	}
+
+	expected := []byte{3, 1, 2, 3, 4, 5, 6}
+
+	if !reflect.DeepEqual(encoded, expected) {
+		t.Errorf("Encoded MetaCode does not match expected")
+	}
+}

@@ -134,6 +134,23 @@ func (bp *BandersnatchPublic) Encode(e *Encoder) error {
 	return nil
 }
 
+// EpochMarkValidatorKeys
+func (emvk *EpochMarkValidatorKeys) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding EpochMarkValidatorKeys")
+
+	// Bandersnatch
+	if err := emvk.Bandersnatch.Encode(e); err != nil {
+		return err
+	}
+
+	// Ed25519
+	if err := emvk.Ed25519.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // EpochMark
 func (em *EpochMark) Encode(e *Encoder) error {
 	// Entropy
@@ -731,6 +748,39 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 	}
 }
 
+// RefineLoad
+// INFO: This struct use C.6 integer encoding
+func (r *RefineLoad) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding RefineLoad")
+
+	// GasUsed
+	if err := e.EncodeInteger(uint64(r.GasUsed)); err != nil {
+		return err
+	}
+
+	// Imports
+	if err := e.EncodeInteger(uint64(r.Imports)); err != nil {
+		return err
+	}
+
+	// ExtrinsicCount
+	if err := e.EncodeInteger(uint64(r.ExtrinsicCount)); err != nil {
+		return err
+	}
+
+	// ExtrinsicSize
+	if err := e.EncodeInteger(uint64(r.ExtrinsicSize)); err != nil {
+		return err
+	}
+
+	// Exports
+	if err := e.EncodeInteger(uint64(r.Exports)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // WorkResult
 func (w *WorkResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkResult")
@@ -757,6 +807,11 @@ func (w *WorkResult) Encode(e *Encoder) error {
 
 	// Result
 	if err := w.Result.Encode(e); err != nil {
+		return err
+	}
+
+	// RefineLoad
+	if err := w.RefineLoad.Encode(e); err != nil {
 		return err
 	}
 
@@ -806,6 +861,12 @@ func (w *WorkReport) Encode(e *Encoder) error {
 		if err := result.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	// AuthGasUsed
+	// INFO: This field is encoded as C.6 integer
+	if err := e.EncodeInteger(uint64(w.AuthGasUsed)); err != nil {
+		return err
 	}
 
 	return nil
@@ -1171,7 +1232,7 @@ func (i *ImportSpec) Encode(e *Encoder) error {
 
 	// Index
 	if err := i.Index.Encode(e); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
@@ -1343,17 +1404,236 @@ func (a *ActivityRecords) Encode(e *Encoder) error {
 	return nil
 }
 
+// INFO: πC , πS 是使用 C.6 進行序列化
+func (c *CoreActivityRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding CoreActivityRecord")
+
+	// DALoad
+	cLog(Cyan, "Encoding DALoad")
+	if err := e.EncodeInteger(uint64(c.DALoad)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("DALoad: %v", c.DALoad))
+
+	// Popularity
+	cLog(Cyan, "Encoding Popularity")
+	if err := e.EncodeInteger(uint64(c.Popularity)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Popularity: %v", c.Popularity))
+
+	// Imports
+	cLog(Cyan, "Encoding Imports")
+	if err := e.EncodeInteger(uint64(c.Imports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
+
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+
+	// ExtrinsicSize
+	cLog(Cyan, "Encoding ExtrinsicSize")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
+
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+
+	// BundleSize
+	cLog(Cyan, "Encoding BundleSize")
+	if err := e.EncodeInteger(uint64(c.BundleSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BundleSize: %v", c.BundleSize))
+
+	// GasUSed
+	cLog(Cyan, "Encoding GasUSed")
+	if err := e.EncodeInteger(uint64(c.GasUsed)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("GasUSed: %v", c.GasUsed))
+
+	return nil
+}
+
+// INFO: πC , πS 是使用 C.6 進行序列化
+func (s *ServiceActivityRecord) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceActivityRecord")
+
+	// ProvidedCount
+	cLog(Cyan, "Encoding ProvidedCount")
+	if err := e.EncodeInteger(uint64(s.ProvidedCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ProvidedCount: %v", s.ProvidedCount))
+
+	// ProvidedSize
+	cLog(Cyan, "Encoding ProvidedSize")
+	if err := e.EncodeInteger(uint64(s.ProvidedSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ProvidedSize: %v", s.ProvidedSize))
+
+	// RefinementCount
+	cLog(Cyan, "Encoding RefinementCount")
+	if err := e.EncodeInteger(uint64(s.RefinementCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("RefinementCount: %v", s.RefinementCount))
+
+	// RefinementGasUsed
+	cLog(Cyan, "Encoding RefinementGasUsed")
+	if err := e.EncodeInteger(uint64(s.RefinementGasUsed)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", s.RefinementGasUsed))
+
+	// Imports
+	cLog(Cyan, "Encoding Imports")
+	if err := e.EncodeInteger(uint64(s.Imports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Imports: %v", s.Imports))
+
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
+
+	// ExtrinsicSize
+	cLog(Cyan, "Encoding ExtrinsicSize")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicSize)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", s.ExtrinsicSize))
+
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
+
+	// AccumulateCount
+	cLog(Cyan, "Encoding AccumulateCount")
+	if err := e.EncodeInteger(uint64(s.AccumulateCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("AccumulateCount: %v", s.AccumulateCount))
+
+	// AccumulateGasUsed
+	cLog(Cyan, "Encoding AccumulateGasUsed")
+	if err := e.EncodeInteger(uint64(s.AccumulateGasUsed)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", s.AccumulateGasUsed))
+
+	// OnTransfersCount
+	cLog(Cyan, "Encoding OnTransfersCount")
+	if err := e.EncodeInteger(uint64(s.OnTransfersCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", s.OnTransfersCount))
+
+	// OnTransfersGasUsed
+	cLog(Cyan, "Encoding OnTransfersGasUsed")
+	if err := e.EncodeInteger(uint64(s.OnTransfersGasUsed)); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", s.OnTransfersGasUsed))
+
+	return nil
+}
+
+// type ServicesStatistics map[ServiceId]ServiceActivityRecord
+func (s *ServicesStatistics) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServicesStatistics")
+
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	// Before encoding the map, sort the keys
+	keys := make([]ServiceId, 0, len(*s))
+	for k := range *s {
+		keys = append(keys, k)
+	}
+
+	// Sort the keys (ServiceId)
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	// Iterate over the map and encode the key and value
+	for _, key := range keys {
+		// Key (ServiceId) (C.6)
+		if err := e.EncodeInteger(uint64(key)); err != nil {
+			return err
+		}
+
+		// value (ServiceActivityRecord)
+		value := (*s)[key]
+		if err := value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CoresStatistics
+// TODO: πC , πS 是使用 C.6 進行序列化
+func (c *CoresStatistics) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding CoresStatistics")
+
+	if len(*c) != CoresCount {
+		return fmt.Errorf("CoresStatistics length is not equal to CoresCount")
+	}
+
+	for _, record := range *c {
+		if err := record.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Statistics
 func (s *Statistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Statistics")
 
-	// Current
-	if err := s.Current.Encode(e); err != nil {
+	// ValsCurrent
+	if err := s.ValsCurrent.Encode(e); err != nil {
 		return err
 	}
 
-	// Last
-	if err := s.Last.Encode(e); err != nil {
+	// ValsLast
+	if err := s.ValsLast.Encode(e); err != nil {
+		return err
+	}
+
+	// Cores
+	if err := s.Cores.Encode(e); err != nil {
+		return err
+	}
+
+	// Services
+	if err := s.Services.Encode(e); err != nil {
 		return err
 	}
 
@@ -1757,6 +2037,27 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	// Items
 	if err := s.Items.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MetaCode
+func (m *MetaCode) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding MetaCode")
+
+	// Metadata (dynamic length)
+	if err := e.EncodeLength(uint64(len(m.Metadata))); err != nil {
+		return err
+	}
+
+	if _, err := e.buf.Write(m.Metadata); err != nil {
+		return err
+	}
+
+	// Code
+	if _, err := e.buf.Write(m.Code); err != nil {
 		return err
 	}
 
@@ -2375,6 +2676,90 @@ func (s *State) Encode(e *Encoder) error {
 
 	// Delta
 	if err := s.Delta.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// deferredTransfer
+func (d *DeferredTransfer) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfer")
+
+	// SenderID
+	if err := d.SenderID.Encode(e); err != nil {
+		return err
+	}
+
+	// ReceiverID
+	if err := d.ReceiverID.Encode(e); err != nil {
+		return err
+	}
+
+	// Balance
+	if err := d.Balance.Encode(e); err != nil {
+		return err
+	}
+
+	// Memo
+	if _, err := e.buf.Write(d.Memo[:]); err != nil {
+		return err
+	}
+
+	// GasLimit
+	if err := d.GasLimit.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DeferredTransfers) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfers")
+
+	if err := e.EncodeLength(uint64(len(*d))); err != nil {
+		return err
+	}
+
+	for _, deferredTransfer := range *d {
+		if err := deferredTransfer.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *Operand) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Operand")
+
+	// Hash
+	if err := o.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// ExportsRoot
+	if err := o.ExportsRoot.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthorizerHash
+	if err := o.AuthorizerHash.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthOutput
+	if err := o.AuthOutput.Encode(e); err != nil {
+		return err
+	}
+
+	// PayloadHash
+	if err := o.PayloadHash.Encode(e); err != nil {
+		return err
+	}
+
+	// Result
+	if err := o.Result.Encode(e); err != nil {
 		return err
 	}
 
