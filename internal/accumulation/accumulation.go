@@ -126,6 +126,7 @@ func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkRepor
 		return output
 	}
 
+	output = g
 	// Recursively prune the queue and resolve additional eligible reports
 	hashes := ExtractWorkReportHashes(g)
 	recursivelyReadyReports := AccumulationPriorityQueue(QueueEditingFunction(r, hashes))
