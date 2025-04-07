@@ -6,21 +6,19 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-type ExportSegment [types.SegmentSize]byte
-
 type RefineInput struct {
-	WorkItemIndex       uint               // i
-	WorkPackage         types.WorkPackage  // p
-	AuthOutput          types.ByteSequence // o
-	ImportSegments      [][]ExportSegment  // bold{i}
-	ExportSegmentOffset uint               // zeta
+	WorkItemIndex       uint                    // i
+	WorkPackage         types.WorkPackage       // p
+	AuthOutput          types.ByteSequence      // o
+	ImportSegments      [][]types.ExportSegment // bold{i}
+	ExportSegmentOffset uint                    // zeta
 	ServiceAccounts     types.ServiceAccountState
 }
 
 type RefineOutput struct {
 	WorkResult    types.WorkExecResultType
-	WorkReport    types.WorkReport
-	ExportSegment []ExportSegment
+	RefineOutput  []byte
+	ExportSegment []types.ExportSegment
 	Gas           types.Gas
 }
 
@@ -47,20 +45,23 @@ func RefineInvoke(input RefineInput) RefineOutput {
 
 	// check BAD
 	account, accountExists := input.ServiceAccounts[workItem.Service]
-	if accountExists || (accountExists && len(service_account.HistoricalLookupFunction(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)) == 0) {
+	// lookupData = Λ(δ[w_s], (p_x)_t, w_c)
+	lookupData := service_account.HistoricalLookup(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
+
+	if accountExists || (accountExists && len(lookupData) == 0) {
 		return RefineOutput{
-			WorkResult: types.WorkExecResultBadCode,
-			// ImportSegment: types.ImportSpec{},
-			Gas: 0,
+			WorkResult:    types.WorkExecResultBadCode,
+			ExportSegment: []types.ExportSegment{},
+			Gas:           0,
 		}
 	}
 
 	// check BIG
-	if len(service_account.HistoricalLookupFunction(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)) > types.MaxServiceCodeSize {
+	if len(lookupData) > types.MaxServiceCodeSize {
 		return RefineOutput{
-			WorkResult: types.WorkExecResultCodeOversize,
-			// ExportSegment: types.ImportSpec{},
-			Gas: 0,
+			WorkResult:    types.WorkExecResultCodeOversize,
+			ExportSegment: []types.ExportSegment{},
+			Gas:           0,
 		}
 	}
 
@@ -85,7 +86,10 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	a = append(a, encoded...)
 
 	// E(m, c)
-	// lookupData := service_account.HistoricalLookupFunction(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
+	_, code, err := service_account.DecodeMetaCode(lookupData)
+	if err != nil {
+		// TODO : error handling
+	}
 
 	F := Omegas{}
 	F[HistoricalLookupOp] = HostCallFunctions[HistoricalLookupOp]
@@ -112,33 +116,43 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		RefineArgs: RefineArgs{
 			RefineInput:      input,
 			IntegratedPVMMap: IntegratedPVMMap{},
-			ExportSegment:    types.ExportSegment{},
+			ExportSegment:    []types.ExportSegment{},
 			TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
 		},
 	}
-
+	//	WorkExecResultOutOfGas                        = "out-of-gas"
+	// WorkExecResultPanic
 	// result = u, r, (m,e)
-	// TODO : get code from historical_lookup
-	// TODO : r type : ExecResult or bytes or report (?)
-	result := Psi_M(code, 0, Gas(workItem.RefineGasLimit), a, F, addition)
-	exitReason := result.ReasonOrBytes.(*PVMExitReason).Reason
-	if exitReason == PANIC || exitReason == OUT_OF_GAS {
+	result := Psi_M(StandardCodeFormat(code), 0, Gas(workItem.RefineGasLimit), a, F, addition)
+
+	if result.ReasonOrBytes == PANIC {
 		return RefineOutput{
-			WorkResult:    types.WorkExecResultOk,
-			WorkReport:    result.ReasonOrBytes,
-			ExportSegment: []ExportSegment{},
+			WorkResult:    types.WorkExecResultPanic,
+			RefineOutput:  []byte{},
+			ExportSegment: []types.ExportSegment{},
 			Gas:           types.Gas(result.Gas),
 		}
+	}
+	if result.ReasonOrBytes == OUT_OF_GAS {
+		return RefineOutput{
+			WorkResult:    types.WorkExecResultOutOfGas,
+			RefineOutput:  []byte{},
+			ExportSegment: []types.ExportSegment{},
+			Gas:           types.Gas(result.Gas),
+		}
+	}
+	// otherwise
+	var refineOutput []byte
+	if output, isByteSlice := result.ReasonOrBytes.([]byte); isByteSlice {
+		refineOutput = output
 	}
 
 	return RefineOutput{
 		WorkResult:    types.WorkExecResultOk,
-		WorkReport:    result.ReasonOrBytes,
+		RefineOutput:  refineOutput,
 		ExportSegment: result.Addition.ExportSegment,
 		Gas:           types.Gas(result.Gas),
 	}
-
-	return RefineOutput{}
 }
 
 func RefineHostCallException(input OmegaInput) (output OmegaOutput) {
