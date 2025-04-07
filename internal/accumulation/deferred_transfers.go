@@ -52,14 +52,14 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 // s: serviceId
 // NOTE: While it is possible to refactor the function to use a map where the key is the service ID and the value is the number of work results,
 // this approach would differ from the graypaper and is not being implemented at this time.
-func getWorkResultByService(s types.ServiceId) []types.WorkResult {
+func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	// Get W^*
 	store := store.GetInstance()
 	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
 	output := []types.WorkResult{}
 
-	for _, workReport := range accumulatableWorkReports {
+	for _, workReport := range accumulatableWorkReports[:n] {
 		workResult := workReport.Results
 		for _, result := range workResult {
 			if result.ServiceId == s {
@@ -75,7 +75,7 @@ func getWorkResultByService(s types.ServiceId) []types.WorkResult {
 // u from outer accuulation function
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
 // We save the accumulation statistics in the store
-func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList) types.AccumulationStatistics {
+func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) types.AccumulationStatistics {
 	// Sum of gas used of the service
 	// service id map to sum of gas used
 	sumOfGasUsedMap := map[types.ServiceId]types.Gas{}
@@ -86,7 +86,7 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	// calcualte the number of work reports accumulated
 	accumulationStatistics := types.AccumulationStatistics{}
 	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
-		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId)))
+		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
 
 		accumulationStatistics[serviceId] = types.GasAndNumAccumulatedReports{
 			Gas:                   sumOfGasUsed,
@@ -164,7 +164,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 
 // (12.31) (12.32)
 // Update the AccumulatedQueue(AccumulatedQueue)
-func updateXi(store *store.Store) {
+func updateXi(store *store.Store, n types.U64) {
 	// Get W^* (accumulatable work-reports in this block)
 	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
@@ -182,7 +182,7 @@ func updateXi(store *store.Store) {
 	}
 
 	// (12.31) Update the last element
-	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports)
+	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports[:n])
 
 	// (12.32)
 	// Update the rest of the elements
@@ -322,7 +322,7 @@ func DeferredTransfers() error {
 	}
 
 	// (12.23) (12.24) (12.25)
-	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList)
+	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
 	store.GetAccumulationStatisticsPointer().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
@@ -330,7 +330,7 @@ func DeferredTransfers() error {
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
-	updateXi(store)
+	updateXi(store, output.NumberOfWorkResultsAccumulated)
 
 	// (12.33)
 	// Update ReadyQueue(Theta)
