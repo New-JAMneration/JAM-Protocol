@@ -1,7 +1,9 @@
 package accumulation
 
 import (
+	"bytes"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
@@ -188,6 +190,21 @@ func updateXi(store *store.Store, n types.U64) {
 	// Update the rest of the elements
 	for i := 0; i < types.EpochLength-1; i++ {
 		posteriorXi[i] = priorXi[i+1]
+	}
+	for _, x := range posteriorXi {
+		slices.SortStableFunc(x, func(a, b types.WorkPackageHash) int {
+			// Put empty slices at the end
+			if len(a) == 0 && len(b) == 0 {
+				return 0
+			}
+			if len(a) == 0 {
+				return 1
+			}
+			if len(b) == 0 {
+				return -1
+			}
+			return bytes.Compare(a[:], b[:])
+		})
 	}
 
 	// Update posteriorXi to store
