@@ -386,13 +386,3 @@ func IsBlockAudited(
 	}
 	return true
 }
-
-/*
-I think all formula are included, but might need more integration(from other chapters?)
-
-![image](https://github.com/user-attachments/assets/571cfe22-e0e2-4802-abfb-035f9c774994)
-![image](https://github.com/user-attachments/assets/572fcf0b-9b3d-4718-9996-7fed609fa8d4)
-![image](https://github.com/user-attachments/assets/2f15e2ce-60dc-4ed2-92ba-6c1bd3ed2c88)
-![image](https://github.com/user-attachments/assets/b14b2619-8767-4241-8de7-c9d1cc377665)
-![image](https://github.com/user-attachments/assets/5a47b014-cade-455f-8794-183c98e6ba3c)
-*/
