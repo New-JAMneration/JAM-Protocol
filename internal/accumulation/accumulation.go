@@ -151,7 +151,7 @@ func UpdateAccumulatableWorkReports() {
 	store := store.GetInstance()
 
 	// (12.10) Get current slot index 'm'
-	slot := store.GetIntermediateHeader().Slot
+	slot := store.GetIntermediateHeaderPointer().GetSlot()
 	E := types.EpochLength
 	m := int(slot) % E
 

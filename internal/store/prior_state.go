@@ -15,7 +15,10 @@ type PriorStates struct {
 // NewPriorStates creates a new instance of PriorStates
 func NewPriorStates() *PriorStates {
 	return &PriorStates{
-		state: &types.State{},
+		state: &types.State{
+			Theta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:    make(types.AccumulatedQueue, types.EpochLength),
+		},
 	}
 }
 
