@@ -191,6 +191,7 @@ func updateXi(store *store.Store, n types.U64) {
 	for i := 0; i < types.EpochLength-1; i++ {
 		posteriorXi[i] = priorXi[i+1]
 	}
+	// WONDER: this sort is not mentioned in the graypaper
 	for _, x := range posteriorXi {
 		slices.SortStableFunc(x, func(a, b types.WorkPackageHash) int {
 			// Put empty slices at the end

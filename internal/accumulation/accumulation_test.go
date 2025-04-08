@@ -279,8 +279,13 @@ func testAccumulateFile(t *testing.T, binPath string) {
 	if err != nil {
 		t.Errorf("DeferredTransfers raised error: %v", err)
 	}
+
 	// Validate final state
 	validateFinalState(t, testCase.PostState)
+	// The account does not change in testvector
+	if !reflect.DeepEqual(testCase.PreState.Accounts, testCase.PostState.Accounts) {
+		t.Errorf("Accounts do not match expected:\n%v,\nbut got \n%v", testCase.PreState.Accounts, testCase.PostState.Accounts)
+	}
 }
 
 // Setup test state
@@ -306,20 +311,25 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 	s.GetPriorStates().SetChi(preState.Privileges)
 
 	// Set accounts
-	delta := types.ServiceAccountState{}
-	for serviceID, account := range preState.Accounts {
-		preimagesMap := types.PreimagesMapEntry{}
-		for _, preimage := range account.Data.Preimages {
-			preimagesMap[preimage.Hash] = types.ByteSequence(preimage.Blob)
+	inputDelta := make(types.ServiceAccountState)
+	for serviceId, delta := range preState.Accounts {
+		// Create or get ServiceAccount, ensure its internal maps are initialized
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo:    delta.Data.Service,
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
 		}
-		delta[types.ServiceId(serviceID)] = types.ServiceAccount{
-			ServiceInfo:    account.Data.Service,
-			PreimageLookup: preimagesMap,
-			LookupDict:     types.LookupMetaMapEntry{},
-			StorageDict:    types.Storage{},
+
+		// Fill PreimageLookup
+		for _, preimage := range delta.Data.Preimages {
+			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
+
+		// Store ServiceAccount into inputDelta
+		inputDelta[types.ServiceId(serviceId)] = serviceAccount
 	}
-	s.GetPriorStates().SetDelta(delta)
+	s.GetPriorStates().SetDelta(inputDelta)
 
 	sort.Slice(input.Reports, func(i, j int) bool {
 		return input.Reports[i].CoreIndex < input.Reports[j].CoreIndex
@@ -342,11 +352,11 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	// if !reflect.DeepEqual(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue) {
-	// 	log.Printf("len of expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
-	// 	diff := cmp.Diff(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue)
-	// 	t.Errorf("Ready queue does not match expected:\n%v,\nbut got \n%v\nDiff:\n%v", expectedState.ReadyQueue, s.GetPosteriorStates().GetTheta(), diff)
-	// }
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue) {
+		log.Printf("len of expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
+		diff := cmp.Diff(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue)
+		t.Errorf("Ready queue does not match expected:\n%v,\nbut got \n%v\nDiff:\n%v", expectedState.ReadyQueue, s.GetPosteriorStates().GetTheta(), diff)
+	}
 
 	// Validate accumulated reports (passed by implementing sort)
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetXi(), expectedState.Accumulated) {
@@ -355,12 +365,8 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	// Validate privileges (passed)
-	if !reflect.DeepEqual(s.GetPriorStates().GetChi(), expectedState.Privileges) {
-		t.Errorf("Privileges do not match expected:\n%v,\nbut got %v", expectedState.Privileges, s.GetPriorStates().GetChi())
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), expectedState.Privileges) {
+		t.Errorf("Privileges do not match expected:\n%v,\nbut got %v", expectedState.Privileges, s.GetPosteriorStates().GetChi())
 	}
 
-	// // Validate accounts
-	if !reflect.DeepEqual(s.GetPriorStates().GetDelta(), expectedState.Accounts) {
-		t.Errorf("Accounts do not match expected: %v, but got %v", expectedState.Accounts, s.GetPriorStates().GetDelta())
-	}
 }
