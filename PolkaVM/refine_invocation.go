@@ -1,6 +1,8 @@
 package PolkaVM
 
 import (
+	"log"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -42,7 +44,6 @@ func zeroPadding(seq types.ByteSequence, n int) types.ByteSequence {
 func RefineInvoke(input RefineInput) RefineOutput {
 	// p_w[i]
 	workItem := input.WorkPackage.Items[input.WorkItemIndex]
-
 	// check BAD
 	account, accountExists := input.ServiceAccounts[workItem.Service]
 	// lookupData = Λ(δ[w_s], (p_x)_t, w_c)
@@ -88,7 +89,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// E(m, c)
 	_, code, err := service_account.DecodeMetaCode(lookupData)
 	if err != nil {
-		// TODO : error handling
+		log.Fatalf("refine invoke (Psi_R) decode metaCode error : %v", err)
 	}
 
 	F := Omegas{}
