@@ -5,7 +5,6 @@ import (
 )
 
 func Psi_I(p types.WorkPackage, c types.CoreIndex, code types.OpaqueHash) Psi_I_ReturnType {
-
 	serialized := []byte{}
 	encoder := types.NewEncoder()
 
@@ -27,7 +26,7 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, code types.OpaqueHash) Psi_I_
 
 	addition := HostCallArgs{}
 
-	resultM := Psi_M(code[:], 0, Gas(types.IsAuthorizedGas), Argument(serialized), F, addition)
+	resultM := Psi_M(code[:], 0, types.IsAuthorizedGas, Argument(serialized), F, addition)
 	if resultM.ReasonOrBytes == PANIC {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultPanic,
