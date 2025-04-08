@@ -87,18 +87,11 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 	copy(originEps, eps)
 	sort.Sort(&eps)
 
+	// If eps is not sorted, return error
 	if !reflect.DeepEqual(eps, originEps) {
 		return nil, errors.New("eps is not sorted")
 	}
-	// // Then, remove the duplicates
-	// j := 0
-	// for i := 1; i < len(eps); i++ {
-	// 	if eps[i].Requester != eps[j].Requester || !bytes.Equal(eps[i].Blob, eps[j].Blob) {
-	// 		j++
-	// 		eps[j] = eps[i]
-	// 	}
-	// }
-	// eps = eps[:j+1]
+
 	// If eps have duplicates, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {

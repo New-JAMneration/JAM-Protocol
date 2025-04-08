@@ -269,7 +269,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 // s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 // u = [(s, ∆1(o, w, f , s)u) S s <− s]
 // b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
-// t = [∆1(o, w, f , s)t S s <− s]
+// t = [∆1(o, w, f, s)t S s <− s]
 //
 //	(d, i, q, (m, a, v, z)) = o
 //
@@ -286,6 +286,9 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 //
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
+	// Initialize output maps
+	output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
+
 	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 	s := make(map[types.ServiceId]bool)
 	// {rs S w ∈ w, r ∈ wr}
