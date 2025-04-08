@@ -15,7 +15,10 @@ type PosteriorStates struct {
 // NewPosteriorStates returns a new instance of PosteriorStates
 func NewPosteriorStates() *PosteriorStates {
 	return &PosteriorStates{
-		state: &types.State{},
+		state: &types.State{
+			Theta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:    make(types.AccumulatedQueue, types.EpochLength),
+		},
 	}
 }
 

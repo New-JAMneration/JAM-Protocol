@@ -17,36 +17,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestDecodeJamTestVectorsAccumulateFile(t *testing.T) {
-	file := "../../pkg/test_data/jam-test-vectors/accumulate/tiny/accumulate_ready_queued_reports-1.bin"
-
-	data, err := store.GetBytesFromFile(file)
-	if err != nil {
-		t.Errorf("Error getting bytes from file: %v", err)
-	}
-
-	decoder := types.NewDecoder()
-	accumulateTestCase := &jamtests_accumulate.AccumulateTestCase{}
-	err = decoder.Decode(data, accumulateTestCase)
-	if err != nil {
-		t.Errorf("Error decoding AccumulateTestCase: %v", err)
-	}
-
-	// You can access the fields of the AccumulateTestCase struct
-	// e.g. accumulateTestCase.Input.Slot
-
-	// // Chapter 12.3
-	// err = DeferredTransfers()
-	// if err != nil {
-	// 	t.Errorf("Error in DeferredTransfers: %v", err)
-	// }
-}
-
-// ---
-
 // Constants
 const (
-	MODE                 = "tiny" // tiny or full
+	MODE                 = "full" // tiny or full
 	JSON_EXTENTION       = ".json"
 	BIN_EXTENTION        = ".bin"
 	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
@@ -228,7 +201,7 @@ func TestDecodeJamTestVectorsPreimages(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
@@ -246,7 +219,6 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 
 		// Test accumulate
 		testAccumulateFile(t, binPath)
-
 	}
 }
 
@@ -270,11 +242,15 @@ func testAccumulateFile(t *testing.T, binPath string) {
 	setupTestState(testCase.PreState, testCase.Input)
 
 	// Execute accumulation
+
+	// 12.1~2
 	GetAccumulatedHashes()
 	// Those two functions should be modified to get W from store
 	UpdateImmediatelyAccumulateWorkReports(testCase.Input.Reports)
 	UpdateQueuedWorkReports(testCase.Input.Reports)
 	UpdateAccumulatableWorkReports()
+
+	// 12.3
 	err = DeferredTransfers()
 	if err != nil {
 		t.Errorf("DeferredTransfers raised error: %v", err)
@@ -368,5 +344,4 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), expectedState.Privileges) {
 		t.Errorf("Privileges do not match expected:\n%v,\nbut got %v", expectedState.Privileges, s.GetPosteriorStates().GetChi())
 	}
-
 }

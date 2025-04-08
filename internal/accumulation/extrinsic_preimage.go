@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"log"
-	"reflect"
-	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -83,13 +81,16 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 		log.Printf("Nothing is provided in Eps")
 		return eps, nil
 	}
-	originEps := make(types.PreimagesExtrinsic, len(eps))
-	copy(originEps, eps)
-	sort.Sort(&eps)
 
 	// If eps is not sorted, return error
-	if !reflect.DeepEqual(eps, originEps) {
-		return nil, errors.New("eps is not sorted")
+	for i := 1; i < len(eps); i++ {
+		if eps[i-1].Requester > eps[i].Requester {
+			return nil, errors.New("eps is not sorted by Requester")
+		}
+
+		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) > 0 {
+			return nil, errors.New("eps.Requester is not sorted by Blob")
+		}
 	}
 
 	// If eps have duplicates, return error

@@ -2,7 +2,6 @@ package accumulation
 
 import (
 	"bytes"
-	"fmt"
 	"slices"
 	"sort"
 
@@ -173,16 +172,6 @@ func updateXi(store *store.Store, n types.U64) {
 	priorXi := store.GetPriorStates().GetXi()
 	posteriorXi := store.GetPosteriorStates().GetXi()
 
-	// 確保 posteriorXi 切片已初始化且有足夠長度
-	if len(posteriorXi) != types.EpochLength {
-		posteriorXi = make([]types.AccumulatedQueueItem, types.EpochLength)
-	}
-
-	// 確保 priorXi 切片已初始化且有足夠長度
-	if len(priorXi) != types.EpochLength {
-		priorXi = make([]types.AccumulatedQueueItem, types.EpochLength)
-	}
-
 	// (12.31) Update the last element
 	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports[:n])
 
@@ -225,7 +214,6 @@ func updateTheta(store *store.Store) {
 
 	// Get current time slot index
 	tauPrime := store.GetPosteriorStates().GetTau()
-	fmt.Println("τ", tau, "τ'", tauPrime)
 
 	tauOffset := tauPrime - tau
 
@@ -236,29 +224,8 @@ func updateTheta(store *store.Store) {
 	priorTheta := store.GetPriorStates().GetTheta()
 	posteriorTheta := store.GetPosteriorStates().GetTheta()
 
-	// Initialize posteriorTheta, ensure it has enough capacity
-	if len(posteriorTheta) < types.EpochLength {
-		newPosteriorTheta := make([]types.ReadyQueueItem, types.EpochLength)
-		copy(newPosteriorTheta, posteriorTheta)
-		posteriorTheta = newPosteriorTheta
-	}
-
-	// Initialize priorTheta, ensure it has enough capacity
-	if len(priorTheta) < types.EpochLength {
-		newPriorTheta := make([]types.ReadyQueueItem, types.EpochLength)
-		copy(newPriorTheta, priorTheta)
-		priorTheta = newPriorTheta
-	}
-
 	// Get posterior xi
 	posteriorXi := store.GetPosteriorStates().GetXi()
-
-	// Initialize posteriorXi, ensure it has enough capacity
-	if len(posteriorXi) < types.EpochLength {
-		newPosteriorXi := make([]types.AccumulatedQueueItem, types.EpochLength)
-		copy(newPosteriorXi, posteriorXi)
-		posteriorXi = newPosteriorXi
-	}
 
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
