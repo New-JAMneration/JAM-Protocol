@@ -5,6 +5,7 @@ import (
 	"log"
 
 	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -481,7 +482,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
-		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
 			return OmegaOutput{
@@ -573,7 +574,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	derivatives := GetSerivecAccountDerivatives(t)
+	derivatives := service_account.GetSerivecAccountDerivatives(t)
 
 	var serialized_bytes types.ByteSequence
 	encoder := types.NewEncoder()
@@ -870,7 +871,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	// s_b < (x_s)_t
-	if s.ServiceInfo.Balance < GetSerivecAccountDerivatives(s).Minbalance {
+	if s.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
 		return OmegaOutput{
@@ -891,7 +892,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	var a types.ServiceAccount
 
-	accountDer := GetSerivecAccountDerivatives(a)
+	accountDer := service_account.GetSerivecAccountDerivatives(a)
 	at := accountDer.Minbalance
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
@@ -1042,7 +1043,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		if b < GetSerivecAccountDerivatives(accountS).Minbalance {
+		if b < service_account.GetSerivecAccountDerivatives(accountS).Minbalance {
 			input.Registers[7] = CASH
 
 			return OmegaOutput{
@@ -1322,7 +1323,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		// a_b < a_t
-		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
 			input.Registers[7] = FULL
 		}
 
