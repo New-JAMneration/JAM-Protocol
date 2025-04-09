@@ -1,102 +1,102 @@
 package statistics
 
-// import (
-// 	"encoding/json"
-// 	"io"
-// 	"os"
-// 	"path/filepath"
-// 	"reflect"
-// 	"testing"
+import (
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
 
-// 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-// 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-// 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
-// )
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
+)
 
-// var JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
+var JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
 
-// func TestMain(m *testing.M) {
-// 	types.SetTestMode()
-// 	m.Run()
-// }
+func TestMain(m *testing.M) {
+	types.SetTestMode()
+	m.Run()
+}
 
-// func LoadStatisticsTestCase(filename string) (jamtests.StatisticsTestCase, error) {
-// 	file, err := os.Open(filename)
-// 	if err != nil {
-// 		return jamtests.StatisticsTestCase{}, err
-// 	}
-// 	defer file.Close()
+func LoadStatisticsTestCase(filename string) (jamtests.StatisticsTestCase, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return jamtests.StatisticsTestCase{}, err
+	}
+	defer file.Close()
 
-// 	// Read the file content
-// 	byteValue, err := io.ReadAll(file)
-// 	if err != nil {
-// 		return jamtests.StatisticsTestCase{}, err
-// 	}
+	// Read the file content
+	byteValue, err := io.ReadAll(file)
+	if err != nil {
+		return jamtests.StatisticsTestCase{}, err
+	}
 
-// 	// Unmarshal the JSON data
-// 	var testCases jamtests.StatisticsTestCase
-// 	err = json.Unmarshal(byteValue, &testCases)
-// 	if err != nil {
-// 		return jamtests.StatisticsTestCase{}, err
-// 	}
+	// Unmarshal the JSON data
+	var testCases jamtests.StatisticsTestCase
+	err = json.Unmarshal(byteValue, &testCases)
+	if err != nil {
+		return jamtests.StatisticsTestCase{}, err
+	}
 
-// 	return testCases, nil
-// }
+	return testCases, nil
+}
 
-// func GetTestJsonFiles(dir string) []string {
-// 	jsonFiles := []string{}
+func GetTestJsonFiles(dir string) []string {
+	jsonFiles := []string{}
 
-// 	f, err := os.Open(dir)
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	defer f.Close()
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
 
-// 	files, err := f.Readdir(-1)
-// 	if err != nil {
-// 		return nil
-// 	}
+	files, err := f.Readdir(-1)
+	if err != nil {
+		return nil
+	}
 
-// 	extension := ".json"
-// 	for _, file := range files {
-// 		if filepath.Ext(file.Name()) == extension {
-// 			jsonFiles = append(jsonFiles, file.Name())
-// 		}
-// 	}
+	extension := ".json"
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == extension {
+			jsonFiles = append(jsonFiles, file.Name())
+		}
+	}
 
-// 	return jsonFiles
-// }
+	return jsonFiles
+}
 
-// func TestStatistics(t *testing.T) {
-// 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
-// 	jsonFiles := GetTestJsonFiles(dir)
-// 	for _, file := range jsonFiles {
-// 		filename := filepath.Join(dir, file)
-// 		statisticsTestCase, err := LoadStatisticsTestCase(filename)
-// 		if err != nil {
-// 			t.Errorf("Error loading statistics test case: %v", err)
-// 			return
-// 		}
+func TestStatistics(t *testing.T) {
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
+	jsonFiles := GetTestJsonFiles(dir)
+	for _, file := range jsonFiles {
+		filename := filepath.Join(dir, file)
+		statisticsTestCase, err := LoadStatisticsTestCase(filename)
+		if err != nil {
+			t.Errorf("Error loading statistics test case: %v", err)
+			return
+		}
 
-// 		// Set input to store
-// 		s := store.GetInstance()
-// 		s.GetProcessingBlockPointer().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
-// 		s.GetPriorStates().SetTau(types.TimeSlot(statisticsTestCase.PreState.Tau))
-// 		s.GetPosteriorStates().SetTau(types.TimeSlot(statisticsTestCase.Input.Slot))
-// 		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Pi)
-// 		s.GetPosteriorStates().SetKappa(statisticsTestCase.PreState.Kappa)
+		// Set input to store
+		s := store.GetInstance()
+		s.GetProcessingBlockPointer().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
+		s.GetPriorStates().SetTau(types.TimeSlot(statisticsTestCase.PreState.Slot))
+		s.GetPosteriorStates().SetTau(types.TimeSlot(statisticsTestCase.Input.Slot))
+		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Statistics)
+		s.GetPosteriorStates().SetKappa(statisticsTestCase.PreState.CurrValidators)
 
-// 		UpdateValidatorActivityStatistics(statisticsTestCase.Input.Extrinsic)
+		UpdateValidatorActivityStatistics(statisticsTestCase.Input.Extrinsic)
 
-// 		// Get statistics
-// 		statistics := s.GetPosteriorStates().GetPi()
+		// Get statistics
+		statistics := s.GetPosteriorStates().GetPi()
 
-// 		// Expected statistics
-// 		expectedStatistics := statisticsTestCase.PostState
+		// Expected statistics
+		expectedStatistics := statisticsTestCase.PostState
 
-// 		// Compare statistics struct
-// 		if !reflect.DeepEqual(statistics, expectedStatistics.Pi) {
-// 			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Pi, statistics)
-// 		}
-// 	}
-// }
+		// Compare statistics struct
+		if !reflect.DeepEqual(statistics, expectedStatistics.Statistics) {
+			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics, statistics)
+		}
+	}
+}
