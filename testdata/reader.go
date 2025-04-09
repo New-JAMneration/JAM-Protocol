@@ -185,3 +185,10 @@ func (r *TestDataReader) ParseTestData(data []byte) (result interface{}, err err
 
 	return &result, nil
 }
+
+// TODO: Implement the test data reader for jamtestnet
+// Currently we only read the data from file, but next step we should implement the
+// logic to parse the data into our data store
+func SetTestDataToDataStore(testData interface{}) {
+	// TODO: Implement the logic to set test data to data store
+}

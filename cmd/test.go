@@ -68,6 +68,7 @@ For example:
 
 			// Create test data reader based on type
 			var reader *testdata.TestDataReader
+			var runner testdata.TestRunner
 			if testType == "jam-test-vectors" {
 				// Validate test size for jam-test-vectors
 				size := testdata.TestSize(testSize)
@@ -80,8 +81,10 @@ For example:
 					os.Exit(1)
 				}
 				reader = testdata.NewTestDataReader(mode, size, testdata.JSONFormat)
+				runner = testdata.NewJamTestVectorsRunner(mode)
 			} else {
 				reader = testdata.NewJamTestNetReader(mode, testdata.JSONFormat)
+				runner = testdata.NewJamTestNetRunner(mode)
 			}
 
 			// Read test data
@@ -107,7 +110,7 @@ For example:
 				}
 
 				// Run the est
-				testdata.RunTests(mode, data)
+				runner.Run(data)
 			}
 			fmt.Println("----------------------------------------")
 			fmt.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
