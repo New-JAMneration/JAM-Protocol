@@ -127,7 +127,7 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 }
 
 // (9.8) You can use this function to get account derivatives
-func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
+func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
