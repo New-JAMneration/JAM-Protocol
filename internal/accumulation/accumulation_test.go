@@ -1,8 +1,6 @@
 package accumulation
 
 import (
-	"encoding/json"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,18 +10,10 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	"github.com/google/go-cmp/cmp"
-)
-
-// Constants
-const (
-	MODE                 = "full" // tiny or full
-	JSON_EXTENTION       = ".json"
-	BIN_EXTENTION        = ".bin"
-	JAM_TEST_VECTORS_DIR = "../../pkg/test_data/jam-test-vectors/"
-	JAM_TEST_NET_DIR     = "../../pkg/test_data/jamtestnet/"
 )
 
 func TestMain(m *testing.M) {
@@ -34,88 +24,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func LoadJAMTestJsonCase(filename string, structType reflect.Type) (interface{}, error) {
-	// Create a new instance of the struct
-	structValue := reflect.New(structType).Elem()
+func TestPreimageTestVectors(t *testing.T) {
 
-	// Open the file
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Read the file content
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unmarshal the JSON data
-	err = json.Unmarshal(byteValue, structValue.Addr().Interface())
-	if err != nil {
-		return nil, err
-	}
-
-	// Return the struct
-	return structValue.Interface(), nil
-}
-
-func LoadJAMTestBinaryCase(filename string) ([]byte, error) {
-	// read binary file and return byte array
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Read the file content
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return byteValue, nil
-}
-
-func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
-	// Get all files in the directory
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all files with the target extension
-	var targetFiles []string
-	for _, file := range files {
-		fileName := file.Name()
-		if fileName[len(fileName)-len(extension):] == extension {
-			targetFiles = append(targetFiles, fileName)
-		}
-	}
-
-	return targetFiles, nil
-}
-
-func GetJsonFilename(filename string) string {
-	return filename + JSON_EXTENTION
-}
-
-func GetBinFilename(filename string) string {
-	return filename + BIN_EXTENTION
-}
-
-func TestDecodeJamTestVectorsPreimages(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  Preimages test cases only support tiny mode")
-	}
-
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "preimages", "data")
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "preimages", "data")
 
 	// Read binary files
-	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -123,15 +37,11 @@ func TestDecodeJamTestVectorsPreimages(t *testing.T) {
 	for _, binFile := range binFiles {
 		// Read the binary file
 		binPath := filepath.Join(dir, binFile)
-		binData, err := LoadJAMTestBinaryCase(binPath)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
 
-		// Decode the binary data
-		decoder := types.NewDecoder()
+		// Load preimages test case
 		preimages := &jamtests_preimages.PreimageTestCase{}
-		err = decoder.Decode(binData, preimages)
+
+		err := utils.GetTestFromBin(binPath, preimages)
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
@@ -191,20 +101,13 @@ func TestDecodeJamTestVectorsPreimages(t *testing.T) {
 			}
 		}
 	}
-
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
 }
 
-func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
+func TestAccumulateTestVectors(t *testing.T) {
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
 
 	// Read binary files
-	binFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
@@ -223,19 +126,11 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 }
 
 func testAccumulateFile(t *testing.T, binPath string) {
-	// Read the binary file
-	binData, err := LoadJAMTestBinaryCase(binPath)
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
-
-	// Decode the binary data
-	decoder := types.NewDecoder()
+	// Load accumulate test case
 	testCase := &jamtests_accumulate.AccumulateTestCase{}
-	err = decoder.Decode(binData, testCase)
+	err := utils.GetTestFromBin(binPath, testCase)
 	if err != nil {
 		t.Errorf("Error: %v", err)
-		return
 	}
 
 	// Setup test state
@@ -328,10 +223,15 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue) {
-		log.Printf("len of expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
-		diff := cmp.Diff(s.GetPosteriorStates().GetTheta(), expectedState.ReadyQueue)
-		t.Errorf("Ready queue does not match expected:\n%v,\nbut got \n%v\nDiff:\n%v", expectedState.ReadyQueue, s.GetPosteriorStates().GetTheta(), diff)
+	ourTheta := s.GetPosteriorStates().GetTheta()
+	if !reflect.DeepEqual(ourTheta, expectedState.ReadyQueue) {
+		log.Printf("len of queue reports expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
+		for i := range ourTheta {
+			diff := cmp.Diff(ourTheta[i], expectedState.ReadyQueue[i])
+			t.Errorf("Theta[%d] Diff:\n%v", i, diff)
+		}
+
+		// t.Errorf("Ready queue does not match expected:\n%v,\nbut got \n%v\nDiff:\n%v", expectedState.ReadyQueue, ourTheta, diff)
 	}
 
 	// Validate accumulated reports (passed by implementing sort)
