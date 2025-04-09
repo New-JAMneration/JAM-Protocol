@@ -15,7 +15,10 @@ type PosteriorStates struct {
 // NewPosteriorStates returns a new instance of PosteriorStates
 func NewPosteriorStates() *PosteriorStates {
 	return &PosteriorStates{
-		state: &types.State{},
+		state: &types.State{
+			Theta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:    make(types.AccumulatedQueue, types.EpochLength),
+		},
 	}
 }
 
@@ -446,14 +449,14 @@ func (s *PosteriorStates) GetTheta() types.ReadyQueue {
 }
 
 // SetXi sets the xi value
-func (s *PosteriorStates) SetXi(xi types.AccumulatedHistories) {
+func (s *PosteriorStates) SetXi(xi types.AccumulatedQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Xi = xi
 }
 
 // GetXi returns the xi value
-func (s *PosteriorStates) GetXi() types.AccumulatedHistories {
+func (s *PosteriorStates) GetXi() types.AccumulatedQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Xi

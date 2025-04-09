@@ -168,7 +168,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 
 	var result types.U32
 	decoder := types.NewDecoder()
-	err = decoder.Decode(hash[:], result)
+	err = decoder.Decode(hash[:], &result)
 	if err != nil {
 		panic(err)
 	}

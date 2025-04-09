@@ -98,6 +98,12 @@ func (i *IntermediateHeader) SetSlot(timeslot types.TimeSlot) {
 	i.Header.Slot = timeslot
 }
 
+func (i *IntermediateHeader) GetSlot() types.TimeSlot {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.Header.Slot
+}
+
 func (i *IntermediateHeader) GetEpochMark() *types.EpochMark {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
