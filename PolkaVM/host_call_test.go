@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -361,7 +362,7 @@ func (d D) ToServiceAccount() types.ServiceAccount {
 }
 
 func recomputeServiceAccountDerivatives(serviceAccount *types.ServiceAccount) {
-	derivatives := PolkaVM.GetSerivecAccountDerivatives(*serviceAccount)
+	derivatives := service_account.GetSerivecAccountDerivatives(*serviceAccount)
 	serviceAccount.ServiceInfo.Items = derivatives.Items
 	serviceAccount.ServiceInfo.Bytes = derivatives.Bytes
 }
