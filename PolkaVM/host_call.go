@@ -482,7 +482,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
-		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
+		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
 			return OmegaOutput{
@@ -574,7 +574,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	derivatives := service_account.GetSerivecAccountDerivatives(t)
+	derivatives := service_account.GetServiceAccountDerivatives(t)
 
 	var serialized_bytes types.ByteSequence
 	encoder := types.NewEncoder()
@@ -871,7 +871,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	// s_b < (x_s)_t
-	if s.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(s).Minbalance {
+	if s.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
 		return OmegaOutput{
@@ -890,33 +890,28 @@ func new(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"new\" decode error %v: ", err)
 	}
 
-	var a types.ServiceAccount
+	// new an account
+	a := types.ServiceAccount{
+		ServiceInfo: types.ServiceInfo{
+			CodeHash:   types.OpaqueHash(c), // c
+			Balance:    0,                   // b, will be updated later
+			MinItemGas: types.Gas(g),        // g
+			MinMemoGas: types.Gas(m),        // m
+		},
+		PreimageLookup: types.PreimagesMapEntry{}, // p
+		LookupDict: types.LookupMetaMapEntry{ // l
+			types.LookupMetaMapkey{
+				Hash:   types.OpaqueHash(c),
+				Length: types.U32(l),
+			}: types.TimeSlotSet{},
+		},
+		StorageDict: types.Storage{}, // s
+	}
+	at := service_account.GetServiceAccountDerivatives(a).Minbalance
+	a.ServiceInfo.Balance = at
 
-	accountDer := service_account.GetSerivecAccountDerivatives(a)
-	at := accountDer.Minbalance
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
-	// new an account
-	serviceinfo := types.ServiceInfo{
-		CodeHash:   types.OpaqueHash(c), // c
-		Balance:    at,                  // b
-		MinItemGas: types.Gas(g),        // g
-		MinMemoGas: types.Gas(m),        // m
-	}
-	lookupKey := types.LookupMetaMapkey{
-		Hash:   types.OpaqueHash(c),
-		Length: types.U32(l),
-	}
-	lookupMetaMapEntry := types.LookupMetaMapEntry{
-		lookupKey: types.TimeSlotSet{},
-	}
-
-	a = types.ServiceAccount{
-		ServiceInfo:    serviceinfo,
-		PreimageLookup: types.PreimagesMapEntry{}, // p
-		LookupDict:     lookupMetaMapEntry,        // l
-		StorageDict:    types.Storage{},           // s
-	}
 
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 	// reg[7] = x_i
@@ -1043,7 +1038,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		if b < service_account.GetSerivecAccountDerivatives(accountS).Minbalance {
+		if b < service_account.GetServiceAccountDerivatives(accountS).Minbalance {
 			input.Registers[7] = CASH
 
 			return OmegaOutput{
@@ -1305,8 +1300,11 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
-		// a_l[(h,z)] = [] => no changes, do not need to implement
-		if lookupDataExists && len(lookupData) == 2 {
+
+		if !lookupDataExists {
+			// a_l[(h,z)] = []
+			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
+		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			lookupData = append(lookupData, timeslot)
 			a.LookupDict[lookupKey] = lookupData
@@ -1323,13 +1321,19 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		// a_b < a_t
-		if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(a).Minbalance {
-			input.Registers[7] = FULL
-		}
+		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
+			// rollback the changes made to the lookup dict
+			if lookupDataExists {
+				a.LookupDict[lookupKey] = lookupData[:2]
+			} else {
+				delete(a.LookupDict, lookupKey)
+			}
 
-		// else
-		input.Registers[7] = OK
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+			input.Registers[7] = FULL
+		} else {
+			input.Registers[7] = OK
+			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+		}
 	} else {
 		log.Fatalf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}

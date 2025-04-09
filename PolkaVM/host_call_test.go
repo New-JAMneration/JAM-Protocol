@@ -112,7 +112,7 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 		Operation: operation,
 		Gas:       setup.InitialGas,
 		Registers: setup.InitialRegisters.ToRegisters(),
-		Memory:    setup.InitialMemory.ToMemory(),
+		Memory:    setup.InitialMemory.ToMemory(true),
 		Addition:  setup.GetHostCallArgs(),
 	}
 
@@ -124,7 +124,7 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 	t.Logf("output: %v", output)
 
 	checkValue(t, "registers", setup.ExpectedRegisters.ToRegisters(), output.NewRegisters)
-	checkMemory(t, setup.ExpectedMemory.ToMemory(), output.NewMemory)
+	checkMemory(t, setup.ExpectedMemory.ToMemory(false), output.NewMemory)
 	checkValue(t, "gas", PolkaVM.Gas(setup.ExpectedGas), output.NewGas)
 
 	if len(setup.ExpectedDelta) > 0 {
@@ -147,19 +147,33 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 	}
 }
 
-func checkValue(t *testing.T, name string, expected any, actual any) {
+func checkValue(t *testing.T, label string, expected any, actual any) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("%s mismatch found:\nexpected %v\n     got %v",
-			name, expected, actual)
+			label, expected, actual)
+	}
+}
+
+func checkValue2(t *testing.T, label string, sublabel string, expected any, actual any) {
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s mismatch found on %s:\nexpected %v\n     got %v",
+			label, sublabel, expected, actual)
 	}
 }
 
 func checkMemory(t *testing.T, expected PolkaVM.Memory, actual PolkaVM.Memory) {
-	for pageNumber, page := range expected.Pages {
-		if !reflect.DeepEqual(page, actual.Pages[pageNumber]) {
-			t.Errorf("memory mismatch found on page %v\nexpected %v,\n     got %v",
-				pageNumber, page, actual.Pages[pageNumber])
+	for pageNumber, expectedPage := range expected.Pages {
+		actualPage, found := actual.Pages[pageNumber]
+
+		if !found {
+			t.Errorf("memory page mismatch. expected page %v not found", pageNumber)
+			continue
 		}
+
+		sublabel := fmt.Sprintf("page %d", pageNumber)
+
+		checkValue2(t, "memory access", sublabel, expectedPage.Access, actualPage.Access)
+		checkValue2(t, "memory value", sublabel, expectedPage.Value, actualPage.Value[:len(expectedPage.Value)])
 	}
 }
 
@@ -200,7 +214,7 @@ type Memory struct {
 	Pages map[string]Page `json:"pages"`
 }
 
-func (m *Memory) ToMemory() PolkaVM.Memory {
+func (m *Memory) ToMemory(fullPage bool) PolkaVM.Memory {
 	pages := make(map[uint32]*PolkaVM.Page)
 
 	for pageNumberStr, pageSetup := range m.Pages {
@@ -209,7 +223,7 @@ func (m *Memory) ToMemory() PolkaVM.Memory {
 			panic(err)
 		}
 
-		page := pageSetup.ToPage()
+		page := pageSetup.ToPage(fullPage)
 		pages[uint32(pageNumber)] = &page
 	}
 
@@ -223,9 +237,12 @@ type Page struct {
 	Access MemoryAccess `json:"access"`
 }
 
-func (p *Page) ToPage() PolkaVM.Page {
-	value := make([]byte, PolkaVM.ZP)
-	copy(value, p.Value)
+func (p *Page) ToPage(fullPage bool) PolkaVM.Page {
+	value := p.Value
+	if fullPage {
+		value = make([]byte, PolkaVM.ZP)
+		copy(value, p.Value)
+	}
 
 	return PolkaVM.Page{
 		Value:  value,
@@ -362,7 +379,7 @@ func (d D) ToServiceAccount() types.ServiceAccount {
 }
 
 func recomputeServiceAccountDerivatives(serviceAccount *types.ServiceAccount) {
-	derivatives := service_account.GetSerivecAccountDerivatives(*serviceAccount)
+	derivatives := service_account.GetServiceAccountDerivatives(*serviceAccount)
 	serviceAccount.ServiceInfo.Items = derivatives.Items
 	serviceAccount.ServiceInfo.Bytes = derivatives.Bytes
 }
