@@ -58,7 +58,7 @@ func (p *PreimageController) Add(newPreimage types.Preimage) {
 // RemoveDuplicates removes the duplicates from the Preimages slice.
 // It uses the Sort function to sort the slice first.
 // And uses double pointers to remove the duplicates.
-// See equation (12.29)
+// See v0.6.4 (12.35)
 func (p *PreimageController) RemoveDuplicates() {
 	if len(p.Preimages) == 0 {
 		return

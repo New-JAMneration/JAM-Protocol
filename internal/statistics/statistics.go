@@ -29,19 +29,19 @@ func GetEpochIndex(t types.TimeSlot) types.TimeSlot {
 
 // b: The number of blocks produced by the validator.
 func UpdateBlockStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex) {
-	statistics.Current[authorIndex].Blocks++
+	statistics.ValsCurrent[authorIndex].Blocks++
 }
 
 // t: The number of tickets introduced by the validator.
 func UpdateTicketStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, tickets types.TicketsExtrinsic) {
 	// Only update the number of tickets for the author of the block.
-	statistics.Current[authorIndex].Tickets += types.U32(len(tickets))
+	statistics.ValsCurrent[authorIndex].Tickets += types.U32(len(tickets))
 }
 
 // p: The number of preimages introduced by the validator.
 func UpdatePreimageStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, preimages types.PreimagesExtrinsic) {
 	// Only update the number of preimages for the author of the block.
-	statistics.Current[authorIndex].PreImages += types.U32(len(preimages))
+	statistics.ValsCurrent[authorIndex].PreImages += types.U32(len(preimages))
 }
 
 // d: The total number of octets across all preimages introduced by the
@@ -49,7 +49,7 @@ func UpdatePreimageStatistics(statistics *types.Statistics, authorIndex types.Va
 func UpdatePreimageOctetStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, preimages types.PreimagesExtrinsic) {
 	// Only update the number of preimage size for the author of the block.
 	for _, preimage := range preimages {
-		statistics.Current[authorIndex].PreImagesSize += types.U32(len(preimage.Blob))
+		statistics.ValsCurrent[authorIndex].PreImagesSize += types.U32(len(preimage.Blob))
 	}
 }
 
@@ -61,7 +61,7 @@ func UpdateReportStatistics(statistics *types.Statistics, authorIndex types.Vali
 	// If the author is in the reporters set R, then update the statistics.
 	for _, report := range reports {
 		for _, signature := range report.Signatures {
-			statistics.Current[signature.ValidatorIndex].Guarantees++
+			statistics.ValsCurrent[signature.ValidatorIndex].Guarantees++
 		}
 	}
 }
@@ -69,7 +69,7 @@ func UpdateReportStatistics(statistics *types.Statistics, authorIndex types.Vali
 // a: The number of availability assurances made by the validator.
 func UpdateAvailabilityStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, assurances types.AssurancesExtrinsic) {
 	for _, assurance := range assurances {
-		statistics.Current[assurance.ValidatorIndex].Assurances++
+		statistics.ValsCurrent[assurance.ValidatorIndex].Assurances++
 	}
 }
 
@@ -114,10 +114,10 @@ func UpdateValidatorActivityStatistics(extrinsic types.Extrinsic) {
 	} else {
 		// If the epoch index is different, we will reset the statistics.
 		pi_0 := make(types.ActivityRecords, types.ValidatorsCount)
-		pi_1 := preStatistics.Current
+		pi_1 := preStatistics.ValsCurrent
 		s.GetPosteriorStates().SetPi(types.Statistics{
-			Current: pi_0,
-			Last:    pi_1,
+			ValsCurrent: pi_0,
+			ValsLast:    pi_1,
 		})
 	}
 
