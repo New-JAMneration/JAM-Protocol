@@ -154,7 +154,7 @@ func checkValue(t *testing.T, label string, expected any, actual any) {
 	}
 }
 
-func checkValue2(t *testing.T, label string, sublabel string, expected any, actual any) {
+func checkValueExt(t *testing.T, label string, sublabel string, expected any, actual any) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("%s mismatch found on %s:\nexpected %v\n     got %v",
 			label, sublabel, expected, actual)
@@ -172,8 +172,8 @@ func checkMemory(t *testing.T, expected PolkaVM.Memory, actual PolkaVM.Memory) {
 
 		sublabel := fmt.Sprintf("page %d", pageNumber)
 
-		checkValue2(t, "memory access", sublabel, expectedPage.Access, actualPage.Access)
-		checkValue2(t, "memory value", sublabel, expectedPage.Value, actualPage.Value[:len(expectedPage.Value)])
+		checkValueExt(t, "memory access", sublabel, expectedPage.Access, actualPage.Access)
+		checkValueExt(t, "memory value", sublabel, expectedPage.Value, actualPage.Value[:len(expectedPage.Value)])
 	}
 }
 
