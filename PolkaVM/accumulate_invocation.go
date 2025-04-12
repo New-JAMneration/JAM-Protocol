@@ -91,7 +91,7 @@ func Psi_A(
 			},
 		}
 
-		resultM := Psi_M(StandardCodeFormat(storedCode), 5, Gas(gas), Argument(serialized), F, addition)
+		resultM := Psi_M(StandardCodeFormat(storedCode), 5, gas, Argument(serialized), F, addition)
 		partialState, deferredTransfer, result, gas := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 			ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 			ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
