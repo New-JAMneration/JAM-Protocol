@@ -447,3 +447,39 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.PartialStateSet = pvm_result.PartialStateSet
 	return output, nil
 }
+
+func ProcessAccumulation() error {
+	s := store.GetInstance()
+
+	// get w_star W*
+	Wstar := s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
+
+	// PartialStateSet from posterior state
+	prior := s.GetPriorStates()
+
+	initPartialStateSet := types.PartialStateSet{
+		Privileges:      prior.GetChi(),    // Chi
+		ServiceAccounts: prior.GetDelta(),  // Delta
+		ValidatorKeys:   prior.GetIota(),   // Iota
+		Authorizers:     prior.GetVarphi(), // Varphi
+	}
+
+	// Gas
+	gasLimit := calculateMaxGasUsed(prior.GetChi().AlwaysAccum)
+
+	// OuterAccumulation
+	input := OuterAccumulationInput{
+		GasLimit:                     gasLimit,
+		WorkReports:                  Wstar,
+		InitPartialStateSet:          initPartialStateSet,
+		ServicesWithFreeAccumulation: s.GetPriorStates().GetChi().AlwaysAccum,
+	}
+	_, err := OuterAccumulation(input)
+	if err != nil {
+		return fmt.Errorf("accumulation failed: %w", err)
+	}
+
+	// TODO Store data ??
+
+	return nil
+}
