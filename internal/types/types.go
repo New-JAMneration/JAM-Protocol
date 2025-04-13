@@ -1379,33 +1379,3 @@ type AuditReport struct {
 
 // (17.12)
 type AssignmentMap map[WorkPackageHash][]ValidatorIndex
-
-type AccumulatedServiceHash struct {
-	ServiceId ServiceId
-	Hash      OpaqueHash // AccumulationOutput
-}
-
-// (12.15) B
-type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
-
-// (12.23)
-type GasAndNumAccumulatedReports struct {
-	Gas                   Gas
-	NumAccumulatedReports U64
-}
-
-// (12.23)
-// I: accumulation statistics
-// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
-type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
-
-// (12.29)
-type NumDeferredTransfersAndTotalGasUsed struct {
-	NumDeferredTransfers U64
-	TotalGasUsed         Gas
-}
-
-// (12.29)
-// X: deferred-transfers statistics
-// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
-type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
