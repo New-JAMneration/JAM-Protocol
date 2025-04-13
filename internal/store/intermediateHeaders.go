@@ -117,9 +117,3 @@ func (i *IntermediateHeader) SetHeader(header types.Header) {
 	// Assign the entire EpochMark struct to the pointer
 	i.Header = header
 }
-
-func (i *IntermediateHeader) GetEntropySource() types.BandersnatchVrfSignature {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	return i.Header.EntropySource
-}

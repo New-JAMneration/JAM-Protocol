@@ -3,6 +3,7 @@ package auditing
 import (
 	"crypto/ed25519"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -17,10 +18,10 @@ import (
 //
 // Construct Q: A list of length NC, one report per core if assigned
 func GetQ() []*types.WorkReport {
-	rho := store.GetInstance().GetPosteriorStates().GetState().Rho
+	rho := store.GetInstance().GetPriorStates().GetState().Rho
 
 	// Initialize Q with length = NC, default nil (∅)
-	Q := make([]*types.WorkReport, len(rho))
+	Q := make([]*types.WorkReport, types.CoresCount)
 
 	for index, assignment := range rho {
 		// If availability assignment exists for this core, set Q[c] = ρ[c]ʷ
@@ -40,7 +41,7 @@ func GetQ() []*types.WorkReport {
 // Generate s₀ from jam_audit and block author entropy using this validator's key
 func GetS0(validatorIndex int) types.BandersnatchVrfSignature {
 	s := store.GetInstance()
-	posteriorState := s.GetPosteriorStates()
+	posteriorState := s.GetPriorStates()
 	header := s.GetIntermediateHeader()
 
 	// Get block author's entropy hash Y(Hᵥ)
@@ -101,9 +102,10 @@ func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) (output []
 // - Ht = slot number from block header
 // - A  = TranchePeriod (e.g. 8s, constant)
 // GetTranchIndex computes tranche index from wall-clock time and block slot
-func GetTranchIndex(T types.U32) types.U32 { // TODO, how to get T
+func GetTranchIndex() types.U64 {
+	T := header.GetCurrentTimeInSecond()
 	H_t := store.GetInstance().GetIntermediateHeader().Slot
-	n := (T - types.U32(types.SlotPeriod)*types.U32(H_t)) / types.TranchePeriod
+	n := (types.U64(T) - types.U64(types.SlotPeriod)*types.U64(H_t)) / types.TranchePeriod
 	return n
 }
 
@@ -141,7 +143,7 @@ func BuildAnnouncement(
 	context = append(context, headerHash[:]...) // H(H)
 
 	// (17.9) S = Sign⟨context⟩ using Ed25519
-	ed25519Pub := store.GetInstance().GetPosteriorStates().GetKappa()[validatorIndex].Ed25519
+	ed25519Pub := store.GetInstance().GetPriorStates().GetKappa()[validatorIndex].Ed25519
 	signature := ed25519.Sign(ed25519Pub[:], context)
 	return types.Ed25519Signature(signature)
 }
@@ -351,7 +353,7 @@ func IsWorkReportAudited(
 	}
 
 	// Rule 2: |J⊤(w)| > 2/3 V
-	if len(positives) > (2*types.ValidatorsCount)/3 {
+	if len(positives) >= types.ValidatorsSuperMajority {
 		return true
 	}
 
