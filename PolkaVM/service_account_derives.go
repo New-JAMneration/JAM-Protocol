@@ -1,12 +1,11 @@
 package PolkaVM
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // (9.8) You can use this function to get account derivatives
-func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer service_account.ServiceAccountDerivatives) {
+func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -22,7 +21,7 @@ func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer serv
 		Bytes      = calcUsedOctets(account)
 		Minbalance = CalcThresholdBalance(Items, Bytes)
 	)
-	accountDer = service_account.ServiceAccountDerivatives{
+	accountDer = types.ServiceAccountDerivatives{
 		Items:      Items,
 		Bytes:      Bytes,
 		Minbalance: Minbalance,
