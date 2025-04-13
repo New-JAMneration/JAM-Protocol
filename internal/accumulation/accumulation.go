@@ -451,18 +451,16 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 func ProcessAccumulation(W []types.WorkReport) error {
 	s := store.GetInstance()
 
-	// Step 2: Compute W! (immediately accumulatable)
+	// Compute W!
 	UpdateImmediatelyAccumulateWorkReports(W)
-	// Step 3: Compute WQ (queued reports with dependencies)
+	// Compute WQ
 	UpdateQueuedWorkReports(W)
 
-	// Step 4: Combine W! and WQ to generate W*
+	// Compute W*
 	UpdateAccumulatableWorkReports()
-
-	// Step 5: Retrieve W*
 	Wstar := s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
-	// Step 6: Prepare initial PartialStateSet from PriorStates
+	// Partial state set
 	prior := s.GetPriorStates()
 	initPartialStateSet := types.PartialStateSet{
 		Privileges:      prior.GetChi(),
@@ -471,10 +469,10 @@ func ProcessAccumulation(W []types.WorkReport) error {
 		Authorizers:     prior.GetVarphi(),
 	}
 
-	// Step 7: Calculate gas limit
+	// Compute gas limit
 	gasLimit := calculateMaxGasUsed(prior.GetChi().AlwaysAccum)
 
-	// Step 8: Run accumulation
+	// Accumulation
 	input := OuterAccumulationInput{
 		GasLimit:                     gasLimit,
 		WorkReports:                  Wstar,
