@@ -5,12 +5,14 @@ package types
 // If the desired Validate function is not found, please implement one yourself. :)
 // version = 0.5.3
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -745,6 +747,30 @@ func (p *PreimagesExtrinsic) Validate() error {
 	return nil
 }
 
+// Len returns the length of the Preimages slice.
+func (p *PreimagesExtrinsic) Len() int {
+	return len(*p)
+}
+
+// Less returns true if the Preimage at index i is less than the Preimage at
+// index j.
+func (p *PreimagesExtrinsic) Less(i, j int) bool {
+	if (*p)[i].Requester == (*p)[j].Requester {
+		return bytes.Compare((*p)[i].Blob, (*p)[j].Blob) < 0
+	}
+	return (*p)[i].Requester < (*p)[j].Requester
+}
+
+// Swap swaps the Preimages at index i and j.
+func (p *PreimagesExtrinsic) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+}
+
+// Sort sorts the Preimages slice.
+func (p *PreimagesExtrinsic) Sort() {
+	sort.Sort(p)
+}
+
 func (p *PreimagesExtrinsic) ScaleDecode(data []byte) error {
 	_, err := scale.Decode("preimagesextrinsic", data, p)
 	if err != nil {
@@ -1249,6 +1275,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// (12.14) deferred transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1288,20 +1315,20 @@ type AccumulateRoot OpaqueHash
 
 // (12.13)
 type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState
-	ValidatorKeys   ValidatorsData
-	Authorizers     AuthQueues
-	Privileges      Privileges
+	ServiceAccounts ServiceAccountState // d
+	ValidatorKeys   ValidatorsData      // i
+	Authorizers     AuthQueues          // q
+	Privileges      Privileges          // x
 }
 
 // (12.18)
 type Operand struct {
-	Hash           WorkPackageHash
-	ExportsRoot    ExportsRoot
-	AuthorizerHash OpaqueHash
-	AuthOutput     ByteSequence
-	PayloadHash    OpaqueHash
-	Result         WorkExecResult
+	Hash           WorkPackageHash // h
+	ExportsRoot    ExportsRoot     // e
+	AuthorizerHash OpaqueHash      // a
+	AuthOutput     ByteSequence    // o
+	PayloadHash    OpaqueHash      // y
+	Result         WorkExecResult  // d
 }
 
 // (12.15) U
@@ -1311,6 +1338,36 @@ type ServiceGasUsed struct {
 	ServiceId ServiceId
 	Gas       Gas
 }
+
+type AccumulatedServiceHash struct {
+	ServiceId ServiceId
+	Hash      OpaqueHash // AccumulationOutput
+}
+
+// (12.15) B
+type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
+
+// (12.23)
+type GasAndNumAccumulatedReports struct {
+	Gas                   Gas
+	NumAccumulatedReports U64
+}
+
+// (12.23)
+// I: accumulation statistics
+// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
+type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+
+// (12.29)
+type NumDeferredTransfersAndTotalGasUsed struct {
+	NumDeferredTransfers U64
+	TotalGasUsed         Gas
+}
+
+// (12.29)
+// X: deferred-transfers statistics
+// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
+type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
 
 type AuditReport struct {
 	CoreID      CoreIndex
