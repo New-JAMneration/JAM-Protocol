@@ -448,38 +448,43 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	return output, nil
 }
 
-func ProcessAccumulation() error {
+func ProcessAccumulation(W []types.WorkReport) error {
 	s := store.GetInstance()
 
-	// get w_star W*
+	// Step 2: Compute W! (immediately accumulatable)
+	UpdateImmediatelyAccumulateWorkReports(W)
+	// Step 3: Compute WQ (queued reports with dependencies)
+	UpdateQueuedWorkReports(W)
+
+	// Step 4: Combine W! and WQ to generate W*
+	UpdateAccumulatableWorkReports()
+
+	// Step 5: Retrieve W*
 	Wstar := s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
-	// PartialStateSet from posterior state
+	// Step 6: Prepare initial PartialStateSet from PriorStates
 	prior := s.GetPriorStates()
-
 	initPartialStateSet := types.PartialStateSet{
-		Privileges:      prior.GetChi(),    // Chi
-		ServiceAccounts: prior.GetDelta(),  // Delta
-		ValidatorKeys:   prior.GetIota(),   // Iota
-		Authorizers:     prior.GetVarphi(), // Varphi
+		Privileges:      prior.GetChi(),
+		ServiceAccounts: prior.GetDelta(),
+		ValidatorKeys:   prior.GetIota(),
+		Authorizers:     prior.GetVarphi(),
 	}
 
-	// Gas
+	// Step 7: Calculate gas limit
 	gasLimit := calculateMaxGasUsed(prior.GetChi().AlwaysAccum)
 
-	// OuterAccumulation
+	// Step 8: Run accumulation
 	input := OuterAccumulationInput{
 		GasLimit:                     gasLimit,
 		WorkReports:                  Wstar,
 		InitPartialStateSet:          initPartialStateSet,
-		ServicesWithFreeAccumulation: s.GetPriorStates().GetChi().AlwaysAccum,
+		ServicesWithFreeAccumulation: prior.GetChi().AlwaysAccum,
 	}
 	_, err := OuterAccumulation(input)
 	if err != nil {
 		return fmt.Errorf("accumulation failed: %w", err)
 	}
-
-	// TODO Store data ??
 
 	return nil
 }

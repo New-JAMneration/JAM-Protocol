@@ -138,12 +138,7 @@ func testAccumulateFile(t *testing.T, binPath string) {
 
 	// Execute accumulation
 
-	// 12.1~2
-	GetAccumulatedHashes()
-	// Those two functions should be modified to get W from store
-	UpdateImmediatelyAccumulateWorkReports(testCase.Input.Reports)
-	UpdateQueuedWorkReports(testCase.Input.Reports)
-	UpdateAccumulatableWorkReports()
+	ProcessAccumulation(testCase.Input.Reports)
 
 	// 12.3
 	err = DeferredTransfers()
@@ -227,8 +222,16 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	if !reflect.DeepEqual(ourTheta, expectedState.ReadyQueue) {
 		log.Printf("len of queue reports expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
 		for i := range ourTheta {
+			if expectedState.ReadyQueue[i] == nil {
+				expectedState.ReadyQueue[i] = []types.ReadyRecord{}
+			}
+			if ourTheta[i] == nil {
+				ourTheta[i] = []types.ReadyRecord{}
+			}
 			diff := cmp.Diff(ourTheta[i], expectedState.ReadyQueue[i])
-			t.Errorf("Theta[%d] Diff:\n%v", i, diff)
+			if len(diff) != 0 {
+				t.Errorf("Theta[%d] Diff:\n%v", i, diff)
+			}
 		}
 
 		// t.Errorf("Ready queue does not match expected:\n%v,\nbut got \n%v\nDiff:\n%v", expectedState.ReadyQueue, ourTheta, diff)
