@@ -18,17 +18,24 @@ import (
 //
 // Construct Q: A list of length NC, one report per core if assigned
 func GetQ() []*types.WorkReport {
-	rho := store.GetInstance().GetPriorStates().GetState().Rho
+	store := store.GetInstance()
+	rho := store.GetPriorStates().GetState().Rho
+	availableReports := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
 
-	// Initialize Q with length = NC, default nil (∅)
+	// Create a lookup table of hashes for fast check
+	available := make(map[types.WorkPackageHash]bool)
+	for _, report := range availableReports {
+		available[report.PackageSpec.Hash] = true
+	}
+
 	Q := make([]*types.WorkReport, types.CoresCount)
-
 	for index, assignment := range rho {
-		// If availability assignment exists for this core, set Q[c] = ρ[c]ʷ
 		if assignment != nil {
-			Q[index] = &assignment.Report
+			report := assignment.Report
+			if available[report.PackageSpec.Hash] {
+				Q[index] = &report
+			}
 		}
-		// else: leave as nil (∅)
 	}
 	return Q
 }
