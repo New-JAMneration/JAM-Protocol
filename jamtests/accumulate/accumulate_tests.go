@@ -548,3 +548,8 @@ func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// TODO: Implement Dump method
+func (a *AccumulateTestCase) Dump() error {
+	return nil
+}

@@ -20,8 +20,6 @@ func NewJamTestVectorsRunner(mode TestMode) *JamTestVectorsRunner {
 }
 
 func (r *JamTestVectorsRunner) Run(data interface{}) error {
-	result := &TestResult{}
-
 	// Set data into Store
 	SetTestDataToDataStore(data)
 
