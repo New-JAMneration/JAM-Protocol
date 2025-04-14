@@ -7,7 +7,13 @@ import (
 	"path/filepath"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtestsaccumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtestsassurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	jamtestsauth "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
+	jamtestsdisputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	jamtestshistory "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
+	jamtestspreimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	jamtestssafrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 )
 
 // TestMode represents the type of test to run
@@ -126,51 +132,57 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 }
 
 // ParseTestData parses the test data into the specified type based on the test type
-func (r *TestDataReader) ParseTestData(data []byte) (result interface{}, err error) {
+func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error) {
 	fmt.Printf("Data type: %T\n", data)
-	// Handle different test types
+
+	decoder := types.NewDecoder()
+
 	switch r.dataType {
 	case "jam-test-vectors":
 		// For jam-test-vectors, we need to handle different test modes
 		switch r.mode {
 		case SafroleMode:
-			var safroleState jamtests.SafroleTestCase
-			decoder := types.NewDecoder()
-			if err := decoder.Decode(data, &safroleState); err != nil {
+			var safroleTestCase jamtestssafrole.SafroleTestCase
+			if err := decoder.Decode(data, &safroleTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
-			result = safroleState
-
+			result = safroleTestCase
 		case AssurancesMode:
-			// Use the assurances test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal assurances test data: %v", err)
+			var assuranceTestCase jamtestsassurances.AssuranceTestCase
+			if err := decoder.Decode(data, &assuranceTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
+			result = assuranceTestCase
 		case PreimagesMode:
-			// Use the preimages test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal preimages test data: %v", err)
+			var preimageTestCase jamtestspreimages.PreimageTestCase
+			if err := decoder.Decode(data, &preimageTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode preimages test data: %v", err)
 			}
+			result = preimageTestCase
 		case DisputesMode:
-			// Use the disputes test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal disputes test data: %v", err)
+			var disputeTestCase jamtestsdisputes.DisputeTestCase
+			if err := decoder.Decode(data, &disputeTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode disputes test data: %v", err)
 			}
+			result = disputeTestCase
 		case HistoryMode:
-			// Use the history test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal history test data: %v", err)
+			var historyTestCase jamtestshistory.HistoryTestCase
+			if err := decoder.Decode(data, &historyTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode history test data: %v", err)
 			}
+			result = historyTestCase
 		case AccumulateMode:
-			// Use the accumulate test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal accumulate test data: %v", err)
+			var accumlateTestCase jamtestsaccumulate.AccumulateTestCase
+			if err := decoder.Decode(data, &accumlateTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode accumulate test data: %v", err)
 			}
+			result = accumlateTestCase
 		case AuthorizationsMode:
-			// Use the authorizations test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal authorizations test data: %v", err)
+			var authorizationsTestCase jamtestsauth.AuthorizationTestCase
+			if err := decoder.Decode(data, &authorizationsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode authorization test data: %v", err)
 			}
+			result = authorizationsTestCase
 		default:
 			return nil, fmt.Errorf("unsupported test mode: %s", r.mode)
 		}
@@ -183,7 +195,7 @@ func (r *TestDataReader) ParseTestData(data []byte) (result interface{}, err err
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 // TODO: Implement the test data reader for jamtestnet
