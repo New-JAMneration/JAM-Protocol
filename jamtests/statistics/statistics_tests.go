@@ -211,3 +211,8 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// TODO: Implement Dump method
+func (s *StatisticsTestCase) Dump() error {
+	return nil
+}

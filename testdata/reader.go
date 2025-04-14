@@ -146,43 +146,43 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 			if err := decoder.Decode(data, &safroleTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
-			result = safroleTestCase
+			result = &safroleTestCase
 		case AssurancesMode:
 			var assuranceTestCase jamtestsassurances.AssuranceTestCase
 			if err := decoder.Decode(data, &assuranceTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
-			result = assuranceTestCase
+			result = &assuranceTestCase
 		case PreimagesMode:
 			var preimageTestCase jamtestspreimages.PreimageTestCase
 			if err := decoder.Decode(data, &preimageTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode preimages test data: %v", err)
 			}
-			result = preimageTestCase
+			result = &preimageTestCase
 		case DisputesMode:
 			var disputeTestCase jamtestsdisputes.DisputeTestCase
 			if err := decoder.Decode(data, &disputeTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode disputes test data: %v", err)
 			}
-			result = disputeTestCase
+			result = &disputeTestCase
 		case HistoryMode:
 			var historyTestCase jamtestshistory.HistoryTestCase
 			if err := decoder.Decode(data, &historyTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode history test data: %v", err)
 			}
-			result = historyTestCase
+			result = &historyTestCase
 		case AccumulateMode:
 			var accumlateTestCase jamtestsaccumulate.AccumulateTestCase
 			if err := decoder.Decode(data, &accumlateTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode accumulate test data: %v", err)
 			}
-			result = accumlateTestCase
+			result = &accumlateTestCase
 		case AuthorizationsMode:
 			var authorizationsTestCase jamtestsauth.AuthorizationTestCase
 			if err := decoder.Decode(data, &authorizationsTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode authorization test data: %v", err)
 			}
-			result = authorizationsTestCase
+			result = &authorizationsTestCase
 		default:
 			return nil, fmt.Errorf("unsupported test mode: %s", r.mode)
 		}

@@ -692,3 +692,8 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// TODO: Implement Dump method
+func (r *ReportsTestCase) Dump() error {
+	return nil
+}
