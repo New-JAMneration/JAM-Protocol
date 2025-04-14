@@ -786,11 +786,11 @@ func (a *AvailAssurance) UnmarshalJSON(data []byte) error {
 	}
 	a.Anchor = OpaqueHash(anchorBytes)
 
-	bitfieldBytes, err := hex.DecodeString(temp.Bitfield[2:])
+	bitfield, err := MakeBitfieldFromHexString(temp.Bitfield)
 	if err != nil {
 		return err
 	}
-	a.Bitfield = bitfieldBytes
+	a.Bitfield = bitfield
 
 	a.ValidatorIndex = ValidatorIndex(temp.ValidatorIndex)
 
@@ -799,6 +799,22 @@ func (a *AvailAssurance) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	a.Signature = Ed25519Signature(signatureBytes)
+
+	return nil
+}
+
+func (bf *Bitfield) UnmarshalJSON(data []byte) error {
+	var hexStr string
+	if err := json.Unmarshal(data, &hexStr); err != nil {
+		return err
+	}
+
+	bitfield, err := MakeBitfieldFromHexString(hexStr)
+	if err != nil {
+		return err
+	}
+
+	*bf = bitfield
 
 	return nil
 }
