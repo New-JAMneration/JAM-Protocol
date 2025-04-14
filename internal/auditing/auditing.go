@@ -270,7 +270,12 @@ func ComputeAnForValidator(
 
 		vrfOutput3, _ := handler.VRFIetfOutput(sn_w[:])
 		// threshold: 𝒴(sₙ(w))₀ < mₙ
-		if int(vrfOutput3[0]) < m_n {
+
+		// take the first byte as V/256F
+		validatorGuess := int(vrfOutput3[0]) * types.ValidatorsCount / (256 * types.BiasFactor)
+
+		// random number in 0..mₙ-1, needs audit
+		if validatorGuess < m_n {
 			result = append(result, types.AuditReport{
 				CoreID:      report.CoreIndex,
 				Report:      report,

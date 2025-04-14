@@ -137,3 +137,6 @@ const (
 	TransferMemoSize              = 128                       // W_T
 	LookupAnchorMaxAge            = 14400                     // L
 )
+
+// Auditing (17.16)
+const BiasFactor = 2
