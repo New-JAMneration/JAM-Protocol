@@ -984,14 +984,9 @@ func (a *AvailAssurance) Decode(d *Decoder) error {
 		return err
 	}
 
-	bitfield := make([]byte, AvailBitfieldBytes)
-	_, err = d.buf.Read(bitfield)
-	if err != nil {
+	if err = a.Bitfield.Decode(d); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BitField: %x", bitfield))
-
-	a.Bitfield = bitfield
 
 	if err = a.ValidatorIndex.Decode(d); err != nil {
 		return err
@@ -1001,6 +996,25 @@ func (a *AvailAssurance) Decode(d *Decoder) error {
 		return err
 	}
 
+	return nil
+}
+
+func (bf *Bitfield) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Bitfield")
+
+	bytes := make([]byte, AvailBitfieldBytes)
+	_, err := d.buf.Read(bytes)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BitField: %x", bytes))
+
+	bitfield, err := MakeBitfieldFromByteSlice(bytes)
+	if err != nil {
+		return err
+	}
+
+	*bf = bitfield
 	return nil
 }
 
