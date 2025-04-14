@@ -370,3 +370,8 @@ func (dtc *DisputeTestCase) Encode(e *types.Encoder) error {
 func (d *DisputeOutput) IsError() bool {
 	return d.Err != nil
 }
+
+// TODO: Implement the Dump method
+func (d *DisputeTestCase) Dump() error {
+	return nil
+}

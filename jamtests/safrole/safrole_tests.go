@@ -532,3 +532,8 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// TODO: Implement Dump method
+func (s *SafroleTestCase) Dump() error {
+	return nil
+}
