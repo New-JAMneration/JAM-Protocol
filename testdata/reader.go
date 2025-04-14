@@ -3,11 +3,20 @@ package testdata
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtestsaccumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
+	jamtestsassurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	jamtestsauth "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
+	jamtestsdisputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
+	jamtestshistory "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
+	jamtestspreimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	jamtestsreports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
+	jamtestssafrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtestsstatistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
 
 // TestMode represents the type of test to run
@@ -21,6 +30,8 @@ const (
 	HistoryMode        TestMode = "history"
 	AccumulateMode     TestMode = "accumulate"
 	AuthorizationsMode TestMode = "authorizations"
+	StatisticsMode     TestMode = "statistics"
+	ReportsMode        TestMode = "reports"
 )
 
 // TestSize represents the size of the test data
@@ -126,51 +137,66 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 }
 
 // ParseTestData parses the test data into the specified type based on the test type
-func (r *TestDataReader) ParseTestData(data []byte) (result interface{}, err error) {
-	fmt.Printf("Data type: %T\n", data)
-	// Handle different test types
+func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error) {
+	decoder := types.NewDecoder()
 	switch r.dataType {
 	case "jam-test-vectors":
 		// For jam-test-vectors, we need to handle different test modes
 		switch r.mode {
 		case SafroleMode:
-			var safroleState jamtests.SafroleTestCase
-			decoder := types.NewDecoder()
-			if err := decoder.Decode(data, &safroleState); err != nil {
+			var safroleTestCase jamtestssafrole.SafroleTestCase
+			if err := decoder.Decode(data, &safroleTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
-			result = safroleState
-
+			result = &safroleTestCase
 		case AssurancesMode:
-			// Use the assurances test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal assurances test data: %v", err)
+			var assuranceTestCase jamtestsassurances.AssuranceTestCase
+			if err := decoder.Decode(data, &assuranceTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode safrole test data: %v", err)
 			}
+			result = &assuranceTestCase
 		case PreimagesMode:
-			// Use the preimages test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal preimages test data: %v", err)
+			var preimageTestCase jamtestspreimages.PreimageTestCase
+			if err := decoder.Decode(data, &preimageTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode preimages test data: %v", err)
 			}
+			result = &preimageTestCase
 		case DisputesMode:
-			// Use the disputes test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal disputes test data: %v", err)
+			var disputeTestCase jamtestsdisputes.DisputeTestCase
+			if err := decoder.Decode(data, &disputeTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode disputes test data: %v", err)
 			}
+			result = &disputeTestCase
 		case HistoryMode:
-			// Use the history test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal history test data: %v", err)
+			var historyTestCase jamtestshistory.HistoryTestCase
+			if err := decoder.Decode(data, &historyTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode history test data: %v", err)
 			}
+			result = &historyTestCase
 		case AccumulateMode:
-			// Use the accumulate test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal accumulate test data: %v", err)
+			var accumlateTestCase jamtestsaccumulate.AccumulateTestCase
+			if err := decoder.Decode(data, &accumlateTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode accumulate test data: %v", err)
 			}
+			result = &accumlateTestCase
 		case AuthorizationsMode:
-			// Use the authorizations test case parser
-			if err := json.Unmarshal(data, &result); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal authorizations test data: %v", err)
+			var authorizationsTestCase jamtestsauth.AuthorizationTestCase
+			if err := decoder.Decode(data, &authorizationsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode authorization test data: %v", err)
 			}
+			result = &authorizationsTestCase
+		case StatisticsMode:
+			var statisticsTestCase jamtestsstatistics.StatisticsTestCase
+			if err := decoder.Decode(data, &statisticsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode statistics test data: %v", err)
+			}
+			result = &statisticsTestCase
+		case ReportsMode:
+			var reportsTestCase jamtestsreports.ReportsTestCase
+			if err := decoder.Decode(data, &reportsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode reports test data: %v", err)
+			}
+			result = &reportsTestCase
 		default:
 			return nil, fmt.Errorf("unsupported test mode: %s", r.mode)
 		}
@@ -183,12 +209,12 @@ func (r *TestDataReader) ParseTestData(data []byte) (result interface{}, err err
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}
 
-	return &result, nil
-}
+	err = result.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump test data: %v", err)
+	}
 
-// TODO: Implement the test data reader for jamtestnet
-// Currently we only read the data from file, but next step we should implement the
-// logic to parse the data into our data store
-func SetTestDataToDataStore(testData interface{}) {
-	// TODO: Implement the logic to set test data to data store
+	log.Print("Test data parsed successfully")
+
+	return result, nil
 }

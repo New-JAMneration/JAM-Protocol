@@ -196,3 +196,15 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// TODO: Implement Dump method
+func (h *HistoryTestCase) Dump() error {
+	return nil
+}
+
+func (h *HistoryTestCase) GetPostState() interface{} {
+	return h.PostState
+}
+func (h *HistoryTestCase) Validate() error {
+	return nil
+}
