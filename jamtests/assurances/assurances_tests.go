@@ -394,3 +394,11 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 func (a *AssuranceTestCase) Dump() error {
 	return nil
 }
+
+func (a *AssuranceTestCase) GetPostState() interface{} {
+	return a.PostState
+}
+
+func (a *AssuranceTestCase) Validate() error {
+	return nil
+}

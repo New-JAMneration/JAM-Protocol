@@ -4,8 +4,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
+	"reflect"
+	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/google/go-cmp/cmp"
 )
 
 // ANSI color codes
@@ -551,5 +556,89 @@ func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
+	s := store.GetInstance()
+
+	// Set time slot
+	s.GetPriorStates().SetTau(a.PreState.Slot)
+	s.GetIntermediateHeaderPointer().SetSlot(a.Input.Slot)
+	s.GetPosteriorStates().SetTau(a.Input.Slot)
+
+	// Set entropy
+	s.GetPriorStates().SetEta(types.EntropyBuffer{a.PreState.Entropy})
+	s.GetPosteriorStates().SetEta0(a.PreState.Entropy)
+
+	// Set ready queue
+	s.GetPriorStates().SetTheta(a.PreState.ReadyQueue)
+
+	// Set accumulated reports
+	s.GetPriorStates().SetXi(a.PreState.Accumulated)
+
+	// Set privileges
+	s.GetPriorStates().SetChi(a.PreState.Privileges)
+
+	// Set accounts
+	inputDelta := make(types.ServiceAccountState)
+	for serviceId, delta := range a.PreState.Accounts {
+		// Create or get ServiceAccount, ensure its internal maps are initialized
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo:    delta.Data.Service,
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+
+		// Fill PreimageLookup
+		for _, preimage := range delta.Data.Preimages {
+			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+		}
+
+		// Store ServiceAccount into inputDelta
+		inputDelta[types.ServiceId(serviceId)] = serviceAccount
+	}
+	s.GetPriorStates().SetDelta(inputDelta)
+
+	sort.Slice(a.Input.Reports, func(i, j int) bool {
+		return a.Input.Reports[i].CoreIndex < a.Input.Reports[j].CoreIndex
+	})
+	s.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(a.Input.Reports)
+	return nil
+}
+
+func (a *AccumulateTestCase) GetPostState() interface{} {
+	return a.PostState
+}
+
+func (a *AccumulateTestCase) Validate() error {
+	s := store.GetInstance()
+
+	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
+		fmt.Errorf("Time slot does not match expected: %v, but got %v", a.PostState.Slot, s.GetPosteriorStates().GetTau())
+	}
+
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetEta(), types.EntropyBuffer{a.PostState.Entropy}) {
+		fmt.Errorf("Entropy does not match expected: %v, but got %v", a.PostState.Entropy, s.GetPosteriorStates().GetEta())
+	}
+
+	// Validate ready queue reports (passed expect nil and [])
+	ourTheta := s.GetPosteriorStates().GetTheta()
+	if !reflect.DeepEqual(ourTheta, a.PostState.ReadyQueue) {
+		log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
+		for i := range ourTheta {
+			diff := cmp.Diff(ourTheta[i], a.PostState.ReadyQueue[i])
+			fmt.Errorf("Theta[%d] Diff:\n%v", i, diff)
+		}
+
+	}
+
+	// Validate accumulated reports (passed by implementing sort)
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated)
+		fmt.Errorf("Accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
+	}
+
+	// Validate privileges (passed)
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), a.PostState.Privileges) {
+		fmt.Errorf("Privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
+	}
 	return nil
 }

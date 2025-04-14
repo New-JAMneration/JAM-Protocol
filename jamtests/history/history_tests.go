@@ -201,3 +201,10 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 func (h *HistoryTestCase) Dump() error {
 	return nil
 }
+
+func (h *HistoryTestCase) GetPostState() interface{} {
+	return h.PostState
+}
+func (h *HistoryTestCase) Validate() error {
+	return nil
+}
