@@ -12,6 +12,7 @@ func RunSTF() error {
 	// Update Reports
 
 	// Update Accumlate
+	UpdateAccumlate()
 
 	// Update Authorization
 

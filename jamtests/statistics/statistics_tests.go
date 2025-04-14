@@ -216,3 +216,11 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 func (s *StatisticsTestCase) Dump() error {
 	return nil
 }
+
+func (s *StatisticsTestCase) GetPostState() interface{} {
+	return s.PostState
+}
+
+func (s *StatisticsTestCase) Validate() error {
+	return nil
+}
