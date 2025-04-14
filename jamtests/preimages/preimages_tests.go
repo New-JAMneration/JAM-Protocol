@@ -634,3 +634,11 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 func (p *PreimageTestCase) Dump() error {
 	return nil
 }
+
+func (p *PreimageTestCase) GetPostState() interface{} {
+	return p.PostState
+}
+
+func (p *PreimageTestCase) Validate() error {
+	return nil
+}

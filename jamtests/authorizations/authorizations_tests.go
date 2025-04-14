@@ -308,3 +308,11 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 func (a *AuthorizationTestCase) Dump() error {
 	return nil
 }
+
+func (a *AuthorizationTestCase) GetPostState() interface{} {
+	return a.PostState
+}
+
+func (a *AuthorizationTestCase) Validate() error {
+	return nil
+}

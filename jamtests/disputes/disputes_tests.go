@@ -375,3 +375,11 @@ func (d *DisputeOutput) IsError() bool {
 func (d *DisputeTestCase) Dump() error {
 	return nil
 }
+
+func (d *DisputeTestCase) GetPostState() interface{} {
+	return d.PostState
+}
+
+func (d *DisputeTestCase) Validate() error {
+	return nil
+}

@@ -3,6 +3,7 @@ package testdata
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -13,7 +14,9 @@ import (
 	jamtestsdisputes "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 	jamtestshistory "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 	jamtestspreimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
+	jamtestsreports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtestssafrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtestsstatistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
 )
 
 // TestMode represents the type of test to run
@@ -27,6 +30,8 @@ const (
 	HistoryMode        TestMode = "history"
 	AccumulateMode     TestMode = "accumulate"
 	AuthorizationsMode TestMode = "authorizations"
+	StatisticsMode     TestMode = "statistics"
+	ReportsMode        TestMode = "reports"
 )
 
 // TestSize represents the size of the test data
@@ -133,10 +138,7 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 
 // ParseTestData parses the test data into the specified type based on the test type
 func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error) {
-	fmt.Printf("Data type: %T\n", data)
-
 	decoder := types.NewDecoder()
-
 	switch r.dataType {
 	case "jam-test-vectors":
 		// For jam-test-vectors, we need to handle different test modes
@@ -183,6 +185,18 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 				return nil, fmt.Errorf("failed to decode authorization test data: %v", err)
 			}
 			result = &authorizationsTestCase
+		case StatisticsMode:
+			var statisticsTestCase jamtestsstatistics.StatisticsTestCase
+			if err := decoder.Decode(data, &statisticsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode statistics test data: %v", err)
+			}
+			result = &statisticsTestCase
+		case ReportsMode:
+			var reportsTestCase jamtestsreports.ReportsTestCase
+			if err := decoder.Decode(data, &reportsTestCase); err != nil {
+				return nil, fmt.Errorf("failed to decode reports test data: %v", err)
+			}
+			result = &reportsTestCase
 		default:
 			return nil, fmt.Errorf("unsupported test mode: %s", r.mode)
 		}
@@ -195,12 +209,12 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}
 
-	return result, nil
-}
+	err = result.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("failed to dump test data: %v", err)
+	}
 
-// TODO: Implement the test data reader for jamtestnet
-// Currently we only read the data from file, but next step we should implement the
-// logic to parse the data into our data store
-func SetTestDataToDataStore(testData interface{}) {
-	// TODO: Implement the logic to set test data to data store
+	log.Print("Test data parsed successfully")
+
+	return result, nil
 }

@@ -697,3 +697,10 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 func (r *ReportsTestCase) Dump() error {
 	return nil
 }
+
+func (r *ReportsTestCase) GetPostState() interface{} {
+	return r.PostState
+}
+func (r *ReportsTestCase) Validate() error {
+	return nil
+}

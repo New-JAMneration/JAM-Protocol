@@ -7,12 +7,15 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
+	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
+	jamtestnet "github.com/New-JAMneration/JAM-Protocol/testdata/jam_testnet"
 )
 
 var (
-	testMode string
-	testSize string
-	testType string
+	testMode       string
+	testSize       string
+	testType       string
+	testFileFormat string
 )
 
 // TestCommand returns the test command
@@ -44,6 +47,12 @@ For example:
 				DefaultValue: "tiny",
 				Destination:  &testSize,
 			},
+			&cli.StringFlag{
+				Name:         "format",
+				Usage:        "Test data format (json, binary) - only for jam-test-vectors",
+				DefaultValue: "binary",
+				Destination:  &testFileFormat,
+			},
 		},
 		Run: func(args []string) {
 			// Validate test type
@@ -66,6 +75,19 @@ For example:
 				os.Exit(1)
 			}
 
+			// Validate format
+			var dataFormat testdata.DataFormat
+			switch testFileFormat {
+			case "binary":
+				dataFormat = testdata.BinaryFormat
+			case "json":
+				dataFormat = testdata.JSONFormat
+			default:
+				fmt.Printf("Error: Invalid format '%s'\n", testFileFormat)
+				fmt.Println("Valid formats are: binary, json")
+				os.Exit(1)
+			}
+
 			// Create test data reader based on type
 			var reader *testdata.TestDataReader
 			var runner testdata.TestRunner
@@ -80,11 +102,11 @@ For example:
 					fmt.Println("Valid sizes are: tiny, full")
 					os.Exit(1)
 				}
-				reader = testdata.NewTestDataReader(mode, size, testdata.JSONFormat)
-				runner = testdata.NewJamTestVectorsRunner(mode)
+				reader = testdata.NewTestDataReader(mode, size, dataFormat)
+				runner = jamtestvector.NewJamTestVectorsRunner(mode)
 			} else {
-				reader = testdata.NewJamTestNetReader(mode, testdata.JSONFormat)
-				runner = testdata.NewJamTestNetRunner(mode)
+				reader = testdata.NewJamTestNetReader(mode, dataFormat)
+				runner = jamtestnet.NewJamTestNetRunner(mode)
 			}
 
 			// Read test data
@@ -111,6 +133,15 @@ For example:
 
 				// Run the est
 				runner.Run(data)
+				err = runner.Verify(data)
+				if err != nil {
+					fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
+					failed++
+				} else {
+					fmt.Printf("Test %s passed\n", testFile.Name)
+					passed++
+				}
+
 			}
 			fmt.Println("----------------------------------------")
 			fmt.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)

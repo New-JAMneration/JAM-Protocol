@@ -537,3 +537,11 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 func (s *SafroleTestCase) Dump() error {
 	return nil
 }
+
+func (s *SafroleTestCase) GetPostState() interface{} {
+	return s.PostState
+}
+
+func (s *SafroleTestCase) Validate() error {
+	return nil
+}
