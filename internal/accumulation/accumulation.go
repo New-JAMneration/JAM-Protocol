@@ -458,31 +458,8 @@ func ProcessAccumulation(W []types.WorkReport) error {
 
 	// Compute W*
 	UpdateAccumulatableWorkReports()
-	Wstar := s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
 
-	// Partial state set
-	prior := s.GetPriorStates()
-	initPartialStateSet := types.PartialStateSet{
-		Privileges:      prior.GetChi(),
-		ServiceAccounts: prior.GetDelta(),
-		ValidatorKeys:   prior.GetIota(),
-		Authorizers:     prior.GetVarphi(),
-	}
-
-	// Compute gas limit
-	gasLimit := calculateMaxGasUsed(prior.GetChi().AlwaysAccum)
-
-	// Accumulation
-	input := OuterAccumulationInput{
-		GasLimit:                     gasLimit,
-		WorkReports:                  Wstar,
-		InitPartialStateSet:          initPartialStateSet,
-		ServicesWithFreeAccumulation: prior.GetChi().AlwaysAccum,
-	}
-	_, err := OuterAccumulation(input)
-	if err != nil {
-		return fmt.Errorf("accumulation failed: %w", err)
-	}
+	executeOuterAccumulation(s)
 
 	return nil
 }
