@@ -113,6 +113,7 @@ const (
 // work package constants
 const (
 	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
+	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.3
 	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.3
 	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.3
 	MaxSegments        = 3072                             // W_M: import/export segment total limit (14.4). graypaper 0.6.3
