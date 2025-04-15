@@ -2,12 +2,14 @@ package auditing
 
 import (
 	"crypto/ed25519"
+	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
 
@@ -214,7 +216,7 @@ End (aₙ ready)
 */
 
 func ComputeAnForValidator(
-	n types.U32, /*tranche*/
+	n types.U64, /*tranche*/
 	Q []*types.WorkReport, // Q
 	priorAssignment map[types.WorkPackageHash][]types.ValidatorIndex, // A_n-1
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, // J⊤
@@ -311,7 +313,7 @@ func EvaluateReport(
 
 // (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
 func BuildJudgements(
-	tranche types.U32,
+	tranche types.U64,
 	reports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
 	validator_index int,
@@ -399,4 +401,76 @@ func IsBlockAudited(
 		}
 	}
 	return true
+}
+
+func ProcessAuditing(validatorIndex int) error {
+	// (17.1)~(17.2): Get Q = one WorkReport per core (if exists in W)
+	Q := GetQ()
+
+	// Collect assignment map A_n-1(w)
+	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
+	judgementPool := []types.AuditReport{}
+
+	// 建構 J⊤(w): positiveJudgers
+	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
+
+	// Loop all validators
+	// (17.3)~(17.4): Get s₀
+	s0 := GetS0(validatorIndex)
+
+	fmt.Printf("s0: %x\n", s0)
+
+	// (17.5)~(17.7): Compute initial assignment a₀
+	a0 := ComputeA0ForValidator(Q, validatorIndex)
+
+	// Store a₀ assignment for J⊤ use
+	for _, item := range a0 {
+		hash := item.Report.PackageSpec.Hash
+		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
+	}
+
+	// (17.8): Compute tranche index n
+	n := GetTranchIndex()
+
+	// (17.15)~(17.16): Compute aₙ
+	aN := ComputeAnForValidator(
+		n,
+		Q,
+		assignmentMap,
+		positiveJudgers,
+		hash.Blake2bHash, // or your hash func
+		validatorIndex,
+	)
+
+	// Merge aₙ into J⊤ tracking map (if result is positive, will be signed next)
+	for _, a := range aN {
+		if a.AuditResult {
+			hash := a.Report.PackageSpec.Hash
+			if _, ok := positiveJudgers[hash]; !ok {
+				positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
+			}
+			positiveJudgers[hash][a.ValidatorID] = true
+		}
+	}
+
+	// (17.18): Sign judgement and attach signature
+	signed := BuildJudgements(n, aN, hash.Blake2bHash, validatorIndex)
+
+	// Collect signed audit reports
+	judgementPool = append(judgementPool, signed...)
+
+	// Optional: validate per report (17.19) and per block (17.20)
+	for _, report := range Q {
+		if report != nil {
+			hash := report.PackageSpec.Hash
+			assignments := assignmentMap[hash]
+			judgements := FilterJudgements(judgementPool, hash)
+
+			if !IsWorkReportAudited(*report, judgements, assignments) {
+				fmt.Printf("Report not audited: Core %d, Hash %x\n", report.CoreIndex, hash)
+			}
+		}
+	}
+
+	return nil
 }
