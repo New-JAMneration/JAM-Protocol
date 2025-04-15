@@ -1616,41 +1616,59 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		wp, _ := encoder.Encode(input.Addition.WorkPackage)
 		// v = |E(p)
 		v = wp
-		dataLength = uint64(len(wp))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 1:
 		// v = o
 		v = input.Addition.AuthOutput
-		dataLength = uint64(len(input.Addition.AuthOutput))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 2 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items)):
 		// v = p_w[w_11]y
 		v = input.Addition.WorkPackage.Items[input.Registers[11]].Payload
-		dataLength = uint64(len(input.Addition.WorkPackage.Items[input.Registers[11]].Payload))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 3 && condition31 && condition32 && condition33:
 		// v = x = p_w[w_11]_x
 		v = encoded3
-		dataLength = uint64(len(workItem3.Extrinsic))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 4 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex].Extrinsic)) && condition4:
 		// v = x = p_w[i]x
 		v = encoded4
-		dataLength = uint64(len(workItem4.Extrinsic))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 5 && input.Registers[11] < uint64(len(input.Addition.ImportSegments)) && input.Registers[12] < uint64(len(input.Addition.ImportSegments[input.Registers[11]])):
 		v = input.Addition.ImportSegments[input.Registers[11]][input.Registers[12]][:]
-		dataLength = uint64(len(input.Addition.ImportSegments[input.Registers[11]][input.Registers[12]]))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 6 && input.Registers[11] < uint64(len(input.Addition.ImportSegments[input.Addition.WorkItemIndex])):
 		v = input.Addition.ImportSegments[input.Addition.WorkItemIndex][input.Registers[11]][:]
-		dataLength = uint64(len(input.Addition.ImportSegments[input.Addition.WorkItemIndex][input.Registers[11]]))
+		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 7:
 		v = input.Addition.WorkPackage.Authorizer.Params
 		dataLength = uint64(len(input.Addition.WorkPackage.Authorizer.Params))
+	default: // default = nil
+		dataLength = 0
 	}
-	// default = nil
+
+	o := input.Registers[7]
+	f := min(input.Registers[8], dataLength)
+	l := min(input.Registers[9], dataLength-f)
+
+	// need to first check writable
+	if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if v = nil
 	if v == nil {
 		input.Registers[7] = NONE
 
@@ -1663,11 +1681,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	o := input.Registers[7]
-	f := min(input.Registers[8], dataLength)
-	l := min(input.Registers[9])
-
-	input.Memory.Write(o, l, v[f:])
+	input.Memory.Write(f, l, v[f:])
 	input.Registers[7] = dataLength
 
 	return OmegaOutput{
@@ -1767,7 +1781,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 
 	// find first i not in K(m)
 	n := uint64(0)
-	for ; ; n++ {
+	for ; n <= ^uint64(0); n++ {
 		if _, pvmTypeExists := input.Addition.IntegratedPVMMap[n]; !pvmTypeExists {
 			break
 		}
