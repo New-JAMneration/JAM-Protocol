@@ -137,8 +137,10 @@ func testAccumulateFile(t *testing.T, binPath string) {
 	setupTestState(testCase.PreState, testCase.Input)
 
 	// Execute accumulation
-
-	ProcessAccumulation(testCase.Input.Reports)
+	err = ProcessAccumulation(testCase.Input.Reports)
+	if err != nil {
+		t.Errorf("ProcessAccumulation raised error: %v", err)
+	}
 
 	// 12.3
 	err = DeferredTransfers()
