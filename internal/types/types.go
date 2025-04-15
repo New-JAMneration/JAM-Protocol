@@ -1088,16 +1088,6 @@ type TestCase struct {
 	PostState State  `json:"post_state"`
 }
 
-// Recent History
-// \mathbf{C} in GP from type B (12.15)
-type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
-
-// Instant-used struct
-type AccumulationOutput struct {
-	Serviceid  ServiceId
-	Commitment OpaqueHash
-}
-
 type InputWrapper[T any] struct {
 	Input T
 }
