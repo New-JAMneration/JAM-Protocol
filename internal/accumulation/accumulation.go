@@ -453,6 +453,7 @@ func ProcessAccumulation(W []types.WorkReport) error {
 
 	// Compute W!
 	UpdateImmediatelyAccumulateWorkReports(W)
+
 	// Compute WQ
 	UpdateQueuedWorkReports(W)
 

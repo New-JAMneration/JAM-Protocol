@@ -138,6 +138,7 @@ func testAccumulateFile(t *testing.T, binPath string) {
 
 	// Execute accumulation
 	err = ProcessAccumulation(testCase.Input.Reports)
+
 	if err != nil {
 		t.Errorf("ProcessAccumulation raised error: %v", err)
 	}
