@@ -124,7 +124,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	//	WorkExecResultOutOfGas                        = "out-of-gas"
 	// WorkExecResultPanic
 	// result = u, r, (m,e)
-	result := Psi_M(StandardCodeFormat(code), 0, Gas(workItem.RefineGasLimit), a, F, addition)
+	result := Psi_M(StandardCodeFormat(code), 0, workItem.RefineGasLimit, a, F, addition)
 
 	if result.ReasonOrBytes == PANIC {
 		return RefineOutput{

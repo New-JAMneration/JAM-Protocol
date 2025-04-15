@@ -1,39 +1,51 @@
 package PolkaVM
 
+import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+
 // (A.40) Ψ_M
 func Psi_M(
 	code StandardCodeFormat,
 	counter ProgramCounter, // program counter
-	gas Gas, // gas counter
+	gas types.Gas, // gas counter
 	argument Argument, // argument
 	omegas Omegas, // jump table
 	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
-	standardProgram := StandardProgramInit(code, argument)
-	if standardProgram.ExitReason != nil {
+	programCode, registers, memory, err := SingleInitializer(code, argument)
+	// Y(p) = nil
+	if err != nil {
 		return Psi_M_ReturnType{
-			Gas:           gas,
-			ReasonOrBytes: standardProgram.ExitReason,
+			Gas:           0,
+			ReasonOrBytes: PVMExitTuple(PANIC, nil),
 			Addition:      addition,
 		}
 	}
 
-	// can be simplified during the refactor phase
-	g, v, a := R(Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, addition))
+	// addition
+	programBlob, exitReason := DeBlobProgramCode(programCode)
+	standardProgram := StandardProgram{
+		Memory:      memory,
+		Registers:   registers,
+		ProgramBlob: programBlob,
+		ExitReason:  exitReason,
+	}
+
+	g, v, a := R(gas, Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, addition))
 	return Psi_M_ReturnType{
-		Gas:           g,
+		Gas:           types.Gas(g),
 		ReasonOrBytes: v,
 		Addition:      a,
 	}
 }
 
 // (A.41) R
-func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
+func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
+	u := priorGas - types.Gas(max(Psi_H_Return.Gas, 0))
 	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
 	case OUT_OF_GAS:
-		return Psi_H_Return.Gas, OUT_OF_GAS, Psi_H_Return.Addition
+		return Gas(u), OUT_OF_GAS, Psi_H_Return.Addition
 	case HALT:
 		if isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
 			startPage := Psi_H_Return.Reg[7] / ZP
@@ -42,11 +54,11 @@ func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
 			for i := startPage; i <= endPage; i++ {
 				value = append(value, Psi_H_Return.Ram.Pages[uint32(i)].Value...)
 			}
-			return Psi_H_Return.Gas, value, Psi_H_Return.Addition
+			return Gas(u), value, Psi_H_Return.Addition
 		}
-		return Psi_H_Return.Gas, []byte{}, Psi_H_Return.Addition
+		return Gas(u), []byte{}, Psi_H_Return.Addition
 	default:
-		return Psi_H_Return.Gas, PANIC, Psi_H_Return.Addition
+		return Gas(u), PANIC, Psi_H_Return.Addition
 	}
 }
 
@@ -67,7 +79,7 @@ func isWriteable(start, offset uint64, m Memory) bool {
 }
 
 type Psi_M_ReturnType struct {
-	Gas           Gas
+	Gas           types.Gas
 	ReasonOrBytes any
 	Addition      HostCallArgs
 }
