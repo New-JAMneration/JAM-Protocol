@@ -459,7 +459,10 @@ func ProcessAccumulation(W []types.WorkReport) error {
 	// Compute W*
 	UpdateAccumulatableWorkReports()
 
-	executeOuterAccumulation(s)
-
+	_, err := executeOuterAccumulation(s)
+	if err != nil {
+		return fmt.Errorf("outer accumulation failed: %w", err)
+	}
+	// TODO process output?
 	return nil
 }
