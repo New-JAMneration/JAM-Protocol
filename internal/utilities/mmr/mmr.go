@@ -78,19 +78,19 @@ func (m *MMR) Replace(sequence []types.MmrPeak, index int, value types.MmrPeak) 
 // P
 func (m *MMR) P(peaks []types.MmrPeak, l types.MmrPeak, n int) []types.MmrPeak {
 	// if n >= l
-	if n >= len(m.Peaks) {
-		return append(m.Peaks, l)
+	if n >= len(peaks) {
+		return append(peaks, l)
 	}
 
 	// 2. if peaks[n] is empty
-	if m.Peaks[n] == nil {
-		return m.Replace(m.Peaks, n, l)
+	if peaks[n] == nil {
+		return m.Replace(peaks, n, l)
 	}
 
 	// 3.
-	current := m.Peaks[n]
+	current := peaks[n]
 	// 3.1 clean the position n
-	peaks = m.Replace(m.Peaks, n, nil)
+	peaks = m.Replace(peaks, n, nil)
 	// 3.2 new hash
 	newHash := m.concatenateAndHash(current, l)
 	// 3.3 next n+1
