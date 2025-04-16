@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
+	"github.com/google/go-cmp/cmp"
 )
 
 // Custom input struct for json^^
@@ -288,23 +292,18 @@ func TestAddToBetaDagger(t *testing.T) {
 	}
 
 	// Store initialization
-	store.NewPriorStates()
-	store.NewIntermediateStates()
-	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates()
+	s := store.GetInstance()
+	s.GetPriorStates().SetBeta(my.PreState.Beta)
+	priorState := s.GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
 	rhc.Betas = priorState.GetBeta()
 
 	// Start test AddToBetaDagger
-	var mockHeader = types.Header{
-		ParentStateRoot: my.Input.ParentStateRoot,
-	}
-
-	rhc.AddToBetaDagger(mockHeader)
+	rhc.AddToBetaDagger(my.Input.ParentStateRoot)
 
 	// Get result of BetaDagger from store
-	betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
+	betadagger := s.GetIntermediateStates().GetBetaDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if len(betadagger) > types.MaxBlocksHistory {
@@ -328,28 +327,20 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	// Store initialization
-	store.NewPriorStates()
-	store.NewIntermediateStates()
-	store.NewPosteriorStates()
-	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates()
+	s := store.GetInstance()
+	s.GetPriorStates().SetBeta(my.PreState.Beta)
+	priorState := s.GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
 	rhc.Betas = priorState.GetBeta()
 
 	// Start test AddToBetaPrime
 
-	var mockHeader = types.Header{
-		Parent:          my.Input.HeaderHash,
-		ParentStateRoot: my.Input.ParentStateRoot,
-	}
-
 	// r function
-	// handmade BeefyCommitmentOutput
-	mockC := types.BeefyCommitmentOutput{
-		{Commitment: my.Input.AccumulateRoot},
-	}
-	store.GetInstance().GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+	// handmade AccumulatedServiceOutput
+	mockC := make(types.AccumulatedServiceOutput)
+	mockC[types.AccumulatedServiceHash{ServiceId: 1, Hash: my.Input.AccumulateRoot}] = true
+	s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
 
 	accumulationResultTreeRoot := r(mockC)
 
@@ -392,7 +383,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	// n function
-	items := rhc.n(mockHeader, mockEg, mockC)
+	items := rhc.n(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
 
 	if items.HeaderHash != my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash {
 		t.Errorf("items.HeaderHash %x is not equal to BetaPrime's %x", items.HeaderHash, my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash)
@@ -402,7 +393,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	rhc.AddToBetaPrime(items)
 
 	// Get result of (7.4), beta^prime, from store
-	betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
+	betaPrime := s.GetPosteriorStates().GetBeta()
 
 	if len(betaPrime) < 1 {
 		t.Errorf("Expected BetaPrime length to be 1, got %d", len(betaPrime))
@@ -428,11 +419,9 @@ func TestSTFBeta2BetaDagger(t *testing.T) {
 	}
 
 	// Store initialization
-	store.NewPriorStates()
-	store.NewIntermediateStates()
-	store.NewPosteriorStates()
-	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates().GetState()
+	s := store.GetInstance()
+	s.GetPriorStates().SetBeta(my.PreState.Beta)
+	priorState := s.GetPriorStates().GetState()
 
 	// Put input beta to rhc.Betas as priorState.Beta
 	rhc.Betas = priorState.Beta
@@ -443,14 +432,14 @@ func TestSTFBeta2BetaDagger(t *testing.T) {
 			ParentStateRoot: my.Input.ParentStateRoot,
 		},
 	}
-	store.GetInstance().AddBlock(mockBlock)
+	s.AddBlock(mockBlock)
 
 	// Start test STFBetaDagger2BetaPrime
 
 	STFBetaDagger2BetaPrime()
 
 	// Get result of BetaDagger from store
-	betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
+	betadagger := s.GetIntermediateStates().GetBetaDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if len(betadagger) > types.MaxBlocksHistory {
@@ -474,11 +463,9 @@ func TestSTFBetaDagger2BetaPrime(t *testing.T) {
 	}
 
 	// Store initialization
-	store.NewPriorStates()
-	store.NewIntermediateStates()
-	store.NewPosteriorStates()
-	store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-	priorState := store.GetInstance().GetPriorStates()
+	s := store.GetInstance()
+	s.GetPriorStates().SetBeta(my.PreState.Beta)
+	priorState := s.GetPriorStates()
 
 	// Put input beta to rhc.Betas as priorState.Beta
 	rhc.Betas = priorState.GetBeta()
@@ -489,14 +476,14 @@ func TestSTFBetaDagger2BetaPrime(t *testing.T) {
 			ParentStateRoot: my.Input.ParentStateRoot,
 		},
 	}
-	store.GetInstance().AddBlock(mockBlock)
+	s.AddBlock(mockBlock)
 
 	// Start test STFBetaDagger2BetaPrime
 
 	STFBetaDagger2BetaPrime()
 
 	// Get result of (7.4), beta^prime, from store
-	betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
+	betaPrime := s.GetPosteriorStates().GetBeta()
 
 	if len(betaPrime) < 1 {
 		t.Errorf("Expected BetaPrime length to be 1, got %d", len(betaPrime))
@@ -529,11 +516,9 @@ func TestRecentHistory(t *testing.T) {
 		}
 
 		// Store initialization
-		store.NewPriorStates()
-		store.NewIntermediateStates()
-		store.NewPosteriorStates()
-		store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-		priorState := store.GetInstance().GetPriorStates().GetState()
+		s := store.GetInstance()
+		s.GetPriorStates().SetBeta(my.PreState.Beta)
+		priorState := s.GetPriorStates().GetState()
 
 		// Put preState beta to rhc.Betas as priorState.Beta
 		rhc.Betas = priorState.Beta
@@ -543,19 +528,21 @@ func TestRecentHistory(t *testing.T) {
 		// β′ ≺ (H, EG, β†, C) (4.7)
 		var (
 			// Header from vector_json
-			mockHeader = types.Header{
-				Parent:          my.Input.HeaderHash,
-				ParentStateRoot: my.Input.ParentStateRoot,
-			}
+			// mockHeader = types.Header{
+			// 	Parent:          my.Input.HeaderHash,
+			// 	ParentStateRoot: my.Input.ParentStateRoot,
+			// }
 
-			// Handmade BeefyCommitmentOutput from vector_json
-			mockC = types.BeefyCommitmentOutput{
-				{Commitment: my.Input.AccumulateRoot},
-			}
+			// Handmade AccumulatedServiceOutput from vector_json
+			mockC = make(types.AccumulatedServiceOutput)
 
 			// GuaranteesExtrinsic from vector_json
 			mockEg = types.GuaranteesExtrinsic{}
 		)
+		mockC[types.AccumulatedServiceHash{
+			ServiceId: 1,
+			Hash:      my.Input.AccumulateRoot,
+		}] = true
 		for _, workPackage := range my.Input.WorkPackages {
 			mockEg = append(mockEg, types.ReportGuarantee{
 				Report: types.WorkReport{
@@ -566,7 +553,7 @@ func TestRecentHistory(t *testing.T) {
 				},
 			})
 		}
-		store.GetInstance().GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+		s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
 
 		// Test CheckDuplicate
 		// Start test CheckDuplicate
@@ -587,10 +574,10 @@ func TestRecentHistory(t *testing.T) {
 
 		// Test AddToBetaDagger
 		// Start test AddToBetaDagger
-		rhc.AddToBetaDagger(mockHeader)
+		rhc.AddToBetaDagger(my.Input.ParentStateRoot)
 
 		// Get result of BetaDagger from store
-		betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
+		betadagger := s.GetIntermediateStates().GetBetaDagger()
 
 		// length of BetaDagger should not exceed maxBlocksHistory
 		if len(betadagger) > types.MaxBlocksHistory {
@@ -629,7 +616,7 @@ func TestRecentHistory(t *testing.T) {
 		}
 
 		// n function
-		items := rhc.n(mockHeader, mockEg, mockC)
+		items := rhc.n(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
 
 		if items.HeaderHash != my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash {
 			t.Errorf("[%d]items.HeaderHash %x is not equal to BetaPrime's %x", i, items.HeaderHash, my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash)
@@ -639,7 +626,7 @@ func TestRecentHistory(t *testing.T) {
 		rhc.AddToBetaPrime(items)
 
 		// Get result of (7.4), beta^prime, from store
-		betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
+		betaPrime := s.GetPosteriorStates().GetBeta()
 
 		if len(betaPrime) < 1 {
 			t.Errorf("[%d]Expected BetaPrime length to be 1, got %d", i, len(betaPrime))
@@ -676,11 +663,9 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		}
 
 		// Store initialization
-		store.NewPriorStates()
-		store.NewIntermediateStates()
-		store.NewPosteriorStates()
-		store.GetInstance().GetPriorStates().SetBeta(my.PreState.Beta)
-		priorState := store.GetInstance().GetPriorStates()
+		s := store.GetInstance()
+		s.GetPriorStates().SetBeta(my.PreState.Beta)
+		priorState := s.GetPriorStates()
 
 		// Put preState beta to rhc.Betas as priorState.Beta
 		rhc.Betas = priorState.GetBeta()
@@ -689,13 +674,17 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		// β† ≺ (H, β) (4.6)
 		// β′ ≺ (H, EG, β†, C) (4.7)
 		var (
-			// Handmade BeefyCommitmentOutput from vector_json
-			mockC = types.BeefyCommitmentOutput{
-				{Commitment: my.Input.AccumulateRoot},
-			}
+			// Handmade AccumulatedServiceOutput from vector_json
+			mockC types.AccumulatedServiceOutput
+
 			// GuaranteesExtrinsic from vector_json
 			mockEg = types.GuaranteesExtrinsic{}
 		)
+		mockC = make(types.AccumulatedServiceOutput)
+		mockC[types.AccumulatedServiceHash{
+			ServiceId: 1,
+			Hash:      my.Input.AccumulateRoot,
+		}] = true
 		for _, workPackage := range my.Input.WorkPackages {
 			mockEg = append(mockEg, types.ReportGuarantee{
 				Report: types.WorkReport{
@@ -717,15 +706,15 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 				Guarantees: mockEg,
 			},
 		}
-		store.GetInstance().AddBlock(mockBlock)
-		store.GetInstance().GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+		s.AddBlock(mockBlock)
+		s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
 
 		// Test AddToBetaDagger
 		// Start test STFBeta2BetaDagger (4.6)
 		STFBeta2BetaDagger()
 
 		// Get result of BetaDagger from store
-		betadagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
+		betadagger := s.GetIntermediateStates().GetBetaDagger()
 
 		// length of BetaDagger should not exceed maxBlocksHistory
 		if len(betadagger) > types.MaxBlocksHistory {
@@ -736,7 +725,7 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		STFBetaDagger2BetaPrime()
 
 		// Get result of (7.4), beta^prime, from store
-		betaPrime := store.GetInstance().GetPosteriorStates().GetBeta()
+		betaPrime := s.GetPosteriorStates().GetBeta()
 
 		if len(betaPrime) < 1 {
 			t.Errorf("[%d]Expected BetaPrime length to be 1, got %d", i, len(betaPrime))
@@ -746,4 +735,135 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 		}
 
 	}
+}
+
+// ===== NEW TEST FOR TESTVECTOR =====
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
+
+func TestRecentHistoryTestVectors(t *testing.T) {
+
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "history", "data")
+
+	// Read binary files
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// if binFile != "progress_blocks_history-4.bin" {
+		// 	continue
+		// }
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+
+		// Load recent history test case
+		history := &jamtests_history.HistoryTestCase{}
+
+		err := utils.GetTestFromBin(binPath, history)
+		if err != nil {
+			t.Errorf("Can't decode from bin: %v", err)
+		}
+
+		// Set up test variables
+		var (
+			prestateBeta         = history.PreState.Beta
+			inputHeaderHash      = history.Input.HeaderHash
+			inputParentStateRoot = history.Input.ParentStateRoot
+			inputAccumulateRoot  = history.Input.AccumulateRoot
+			inputWorkPackages    = history.Input.WorkPackages
+			poststateBeta        = history.PostState.Beta
+		)
+		// Create a new RecentHistoryController
+		rhc := NewRecentHistoryController()
+		if rhc == nil {
+			t.Fatal("Controller should be initialized successfully")
+		}
+		if len(rhc.Betas) != 0 {
+			t.Fatalf("Expected controller to have no states initially, got %d", len(rhc.Betas))
+		}
+
+		// Store initialization
+		store.ResetInstance()
+		s := store.GetInstance()
+		s.GetPriorStates().SetBeta(prestateBeta)
+		rhc.Betas = s.GetPriorStates().GetBeta()
+
+		// Test STF functions
+		// β† ≺ (H, β) (4.6)
+		// β′ ≺ (H, EG, β†, C) (4.7)
+		var mockEg types.GuaranteesExtrinsic
+		for _, workPackage := range inputWorkPackages {
+			mockEg = append(mockEg, types.ReportGuarantee{
+				Report: types.WorkReport{
+					PackageSpec: types.WorkPackageSpec{
+						Hash:        types.WorkPackageHash(workPackage.Hash),
+						ExportsRoot: workPackage.ExportsRoot,
+					},
+				},
+			})
+		}
+		var mockBlock = types.Block{
+			Header: types.Header{
+				Parent:          inputHeaderHash,
+				ParentStateRoot: inputParentStateRoot,
+			},
+			Extrinsic: types.Extrinsic{
+				Guarantees: mockEg,
+			},
+		}
+		s.AddBlock(mockBlock)
+
+		// Test AddToBetaDagger
+		// Start test STFBeta2BetaDagger (4.6)
+		STFBeta2BetaDagger()
+
+		// Get result of BetaDagger from store
+		betaDagger := s.GetIntermediateStates().GetBetaDagger()
+
+		// length of BetaDagger should not exceed maxBlocksHistory
+		if len(betaDagger) > types.MaxBlocksHistory {
+			t.Logf("❌ [data] %s", binFile)
+			t.Errorf("Expected BetaDagger length not to greater than %d, got %d", types.MaxBlocksHistory, len(betaDagger))
+		}
+
+		// Start test STFBetaDagger2BetaPrime (4.7)
+		// STFBetaDagger2BetaPrime()
+		var (
+			betas      = s.GetIntermediateStates().GetBetaDagger()
+			block      = s.GetBlock()
+			headerHash = block.Header.Parent
+			eg         = block.Extrinsic.Guarantees
+		)
+		rhc.Betas = betas
+		items := rhc.n(headerHash, eg, inputAccumulateRoot)
+		rhc.AddToBetaPrime(items)
+
+		// Get result of (7.4), beta^prime, from store
+		betaPrime := s.GetPosteriorStates().GetBeta()
+
+		// Validate output state
+		t.Logf("length of betaPrime: %d", len(betaPrime))
+		t.Logf("length of poststateBeta: %d", len(poststateBeta))
+
+		if len(betaPrime) < 1 {
+			t.Logf("❌ [data] %s", binFile)
+			t.Errorf("BetaPrime should not be nil, got %d", len(betaPrime))
+		} else if !reflect.DeepEqual(betaPrime, poststateBeta) {
+			t.Logf("❌ [data] %s", binFile)
+			diff := cmp.Diff(poststateBeta, betaPrime)
+			t.Logf("BetaPrime: %+#v", betaPrime[len(betaPrime)-1].Mmr)
+			t.Logf("PostState.Beta: %+#v", poststateBeta[len(poststateBeta)-1].Mmr)
+			t.Errorf("BetaPrime should equal to PostState.Beta\n%s", diff)
+		} else {
+			t.Logf("🟢 [data] %s", binFile)
+		}
+	}
+
 }

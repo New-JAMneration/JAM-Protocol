@@ -25,7 +25,7 @@ type Store struct {
 	ancestorHeaders             *AncestorHeaders
 	intermediateHeader          *IntermediateHeader
 	posteriorCurrentValidators  *PosteriorCurrentValidators
-	beefyCommitmentOutput       *BeefyCommitmentOutputs // This is tmp used waiting for more def in GP
+	beefyCommitmentOutput       *BeefyCommitmentOutputs // B in (12.15)
 	availableWorkReports        *AvailableWorkReports
 	presentWorkReports          *PresentWorkReports
 	accumulatedWorkReports      *AccumulatedWorkReports   // W^! (accumulated immediately)
@@ -49,7 +49,7 @@ func GetInstance() *Store {
 			ancestorHeaders:             NewAncestorHeaders(),
 			intermediateHeader:          NewIntermediateHeader(),
 			posteriorCurrentValidators:  NewPosteriorValidators(),
-			beefyCommitmentOutput:       NewBeefyCommitmentOutput(), // This is tmp used waiting for more def in GP
+			beefyCommitmentOutput:       NewBeefyCommitmentOutputs(),
 			availableWorkReports:        NewAvailableWorkReports(),
 			presentWorkReports:          NewPresentWorkReports(),
 			accumulatedWorkReports:      NewAccumulatedWorkReports(),
@@ -61,6 +61,29 @@ func GetInstance() *Store {
 		log.Println("🚀 Store initialized")
 	})
 	return globalStore
+}
+
+func ResetInstance() {
+	// reset globalStore
+	globalStore = &Store{
+		unfinalizedBlocks:           NewUnfinalizedBlocks(),
+		processingBlock:             NewProcessingBlock(),
+		priorStates:                 NewPriorStates(),
+		intermediateStates:          NewIntermediateStates(),
+		posteriorStates:             NewPosteriorStates(),
+		ancestorHeaders:             NewAncestorHeaders(),
+		intermediateHeader:          NewIntermediateHeader(),
+		posteriorCurrentValidators:  NewPosteriorValidators(),
+		beefyCommitmentOutput:       NewBeefyCommitmentOutputs(),
+		availableWorkReports:        NewAvailableWorkReports(),
+		presentWorkReports:          NewPresentWorkReports(),
+		accumulatedWorkReports:      NewAccumulatedWorkReports(),
+		queuedWorkReports:           NewQueuedWorkReports(),
+		accumulatableWorkReports:    NewAccumulatableWorkReports(),
+		accumulationStatistics:      NewAccumulationStatistics(),
+		deferredTransfersStatistics: NewDeferredTransfersStatistics(),
+	}
+	log.Println("🚀 Store reset")
 }
 
 func (s *Store) AddBlock(block types.Block) {
@@ -153,14 +176,7 @@ func (s *Store) ResetIntermediateHeader() {
 	s.intermediateHeader.ResetHeader()
 }
 
-// BeefyCommitmentOutput (This is tmp used waiting for more def in GP)
-
-// Get
-func (s *Store) GetBeefyCommitmentOutput() types.BeefyCommitmentOutput {
-	return s.beefyCommitmentOutput.GetBeefyCommitmentOutput()
-}
-
-// Set
+// BeefyCommitmentOutput (12.15 B)
 func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
 	return s.beefyCommitmentOutput
 }
