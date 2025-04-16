@@ -33,7 +33,6 @@ type Store struct {
 	accumulatableWorkReports    *AccumulatableWorkReports // W^* (accumulatable work-reports in this block)
 	accumulationStatistics      *AccumulationStatistics
 	deferredTransfersStatistics *DeferredTransfersStatistics
-	// TODO BeefyCommitmentOutput
 }
 
 // GetInstance returns the singleton instance of Store.
