@@ -6,6 +6,30 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// AccumulatedServiceOutput (12.15) B used in Chapter 7 (7.3)
+type BeefyCommitmentOutputs struct {
+	mu                    sync.RWMutex
+	serviceCommitmentPair types.AccumulatedServiceOutput
+}
+
+func NewBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
+	return &BeefyCommitmentOutputs{
+		serviceCommitmentPair: make(types.AccumulatedServiceOutput),
+	}
+}
+
+func (b *BeefyCommitmentOutputs) GetBeefyCommitmentOutput() types.AccumulatedServiceOutput {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.serviceCommitmentPair
+}
+
+func (b *BeefyCommitmentOutputs) SetBeefyCommitmentOutput(c types.AccumulatedServiceOutput) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.serviceCommitmentPair = c
+}
+
 // accumulatedWorkReports
 // W^! (accumulated immediately)
 type AccumulatedWorkReports struct {
