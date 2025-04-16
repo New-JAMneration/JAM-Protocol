@@ -14,8 +14,6 @@ var (
 
 // Store represents a thread-safe global state container
 type Store struct {
-	mu sync.RWMutex
-
 	// INFO: Add more fields here
 	unfinalizedBlocks           *UnfinalizedBlocks
 	processingBlock             *ProcessingBlock
