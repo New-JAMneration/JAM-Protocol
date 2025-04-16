@@ -981,7 +981,7 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 func (bf *Bitfield) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Bitfield")
 
-	_, err := e.buf.Write(bf.ToByteSlice())
+	_, err := e.buf.Write(bf.ToOctetSlice())
 	return err
 }
 

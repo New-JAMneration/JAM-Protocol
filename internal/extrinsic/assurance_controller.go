@@ -111,7 +111,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
-		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield.ToByteSlice())}.Serialize()
+		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield.ToOctetSlice())}.Serialize()
 		hased := hash.Blake2bHash(append(anchor, bitfield...))
 		message := []byte(types.JamAvailable)
 		message = append(message, hased[:]...)
