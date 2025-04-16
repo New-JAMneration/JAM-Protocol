@@ -449,8 +449,6 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 }
 
 func ProcessAccumulation(W []types.WorkReport) error {
-	s := store.GetInstance()
-
 	// Compute W!
 	UpdateImmediatelyAccumulateWorkReports(W)
 
@@ -459,11 +457,5 @@ func ProcessAccumulation(W []types.WorkReport) error {
 
 	// Compute W*
 	UpdateAccumulatableWorkReports()
-
-	_, err := executeOuterAccumulation(s)
-	if err != nil {
-		return fmt.Errorf("outer accumulation failed: %w", err)
-	}
-	// TODO process output?
 	return nil
 }
