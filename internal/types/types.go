@@ -839,7 +839,7 @@ func MustMakeBitfieldFromHexString(hexStr string) Bitfield {
 	return bitfield
 }
 
-func (bf Bitfield) ToByteSlice() []byte {
+func (bf Bitfield) ToOctetSlice() []byte {
 	bytes := make([]byte, AvailBitfieldBytes)
 
 	for i, b := range bf {
