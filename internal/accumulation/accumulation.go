@@ -447,3 +447,15 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.PartialStateSet = pvm_result.PartialStateSet
 	return output, nil
 }
+
+func ProcessAccumulation(W []types.WorkReport) error {
+	// Compute W!
+	UpdateImmediatelyAccumulateWorkReports(W)
+
+	// Compute WQ
+	UpdateQueuedWorkReports(W)
+
+	// Compute W*
+	UpdateAccumulatableWorkReports()
+	return nil
+}
