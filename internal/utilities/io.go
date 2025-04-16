@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -69,4 +70,21 @@ func GetTestFromBin[T any](filename string, jamtests_case *T) error {
 
 	// Return the decoded data
 	return nil
+}
+
+func GetTestFromJson[T any](filename string) (T, error) {
+	var jamtests_case T
+	data, err := GetBytesFromFile(filename)
+	if err != nil {
+		return jamtests_case, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	// Decode the json data
+	err = json.Unmarshal(data, &jamtests_case)
+	if err != nil {
+		return jamtests_case, fmt.Errorf("failed to decode json data: %v", err)
+	}
+
+	// Return the decoded data
+	return jamtests_case, nil
 }
