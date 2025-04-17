@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -791,15 +792,73 @@ func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
 // 11.2.1 Assurances
 type AvailAssurance struct {
 	Anchor         OpaqueHash       `json:"anchor,omitempty"`
-	Bitfield       []byte           `json:"bitfield,omitempty"`
+	Bitfield       Bitfield         `json:"bitfield,omitempty"`
 	ValidatorIndex ValidatorIndex   `json:"validator_index,omitempty"`
 	Signature      Ed25519Signature `json:"signature,omitempty"`
 }
 
 func (a AvailAssurance) Validate() error {
-	if len(a.Bitfield) != AvailBitfieldBytes {
-		return fmt.Errorf("AvailAssurance Bitfield must have size %d", AvailBitfieldBytes)
+	return a.Bitfield.Validate()
+}
+
+type Bitfield []byte
+
+func MakeBitfieldFromHexString(hexStr string) (Bitfield, error) {
+	if !strings.HasPrefix(hexStr, "0x") {
+		return Bitfield{}, errors.New("hex string for bitfield must have the 0x prefix")
 	}
+
+	bytes, err := hex.DecodeString(hexStr[2:])
+	if err != nil {
+		return Bitfield{}, err
+	}
+
+	return MakeBitfieldFromByteSlice(bytes)
+}
+
+func MakeBitfieldFromByteSlice(bytes []byte) (Bitfield, error) {
+	if len(bytes) != AvailBitfieldBytes {
+		return Bitfield{}, fmt.Errorf("Bitfield must have size %d bytes", AvailBitfieldBytes)
+	}
+
+	bitfield := make(Bitfield, CoresCount)
+	for i := range bitfield {
+		bitfield[i] = (bytes[i/8] >> (i % 8)) & 0x01
+	}
+
+	return bitfield, nil
+}
+
+// panics on error
+// this method should only be used by test code
+func MustMakeBitfieldFromHexString(hexStr string) Bitfield {
+	bitfield, err := MakeBitfieldFromHexString(hexStr)
+	if err != nil {
+		panic(err)
+	}
+	return bitfield
+}
+
+func (bf Bitfield) ToOctetSlice() []byte {
+	bytes := make([]byte, AvailBitfieldBytes)
+
+	for i, b := range bf {
+		bytes[i/8] |= b << (i % 8)
+	}
+
+	return bytes
+}
+
+// returns either 1 or 0
+func (bf Bitfield) GetBit(index int) byte {
+	return bf[index]
+}
+
+func (bf Bitfield) Validate() error {
+	if len(bf) != CoresCount {
+		return fmt.Errorf("Bitfield must have size %d", CoresCount)
+	}
+
 	return nil
 }
 
