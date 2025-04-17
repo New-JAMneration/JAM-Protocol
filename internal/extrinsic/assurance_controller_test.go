@@ -141,37 +141,37 @@ func TestAssuranceSortUnique(t *testing.T) {
 		types.AvailAssurance{
 			ValidatorIndex: 0,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0xeab18c2630b3debf04f7141686097131e4983a818e4d8c281c269132e4fc15c0d7bbe963adc39ce2251bf9080c06f731c9e16eda9eff0dd6919a8e12f5cd9b00")),
 		},
 		types.AvailAssurance{
 			ValidatorIndex: 1,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0x4a8fa6859dab41d76fa801ad076e2eda3f1e06a26e13df362b5da57f53c5ae4eef6454eb2d9327c4e94b3827f03ad3e8f796007571ddff898f394cac75bbdb0d")),
 		},
 		types.AvailAssurance{
 			ValidatorIndex: 2,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0xdbd50734b049bcc9e25f5c4d2d2b635e22ec1d4eefcc324863de9e1673bacb4b7ac4424a946abae83755908a3f77470776c160e7d5b42991c1b8914bfc16b700")),
 		},
 		types.AvailAssurance{
 			ValidatorIndex: 3,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0x2e1c0fe5ada7046355c7a8b23320dea86edf0df6410d13126f738755dec8f45652fd8c7ac2c84e682d745d2273977d03916865236fa93c9484bc41ed4318d30a")),
 		},
 		types.AvailAssurance{
 			ValidatorIndex: 4,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0xa3afee85825aefb49cfe10000b72d22321f6d562f89f57f56da813f62761130774e2540b2c0ce33da3c28fcbffe52ea0d1eccfbd859be46835128c4cc87fb50c")),
 		},
 		types.AvailAssurance{
 			ValidatorIndex: 5,
 			Anchor:         types.OpaqueHash(hexToBytes("0xd61a38a0f73beda90e8c1dfba731f65003742539f4260694f44e22cabef24a8e")),
-			Bitfield:       hexToBytes("0x03"),
+			Bitfield:       types.MustMakeBitfieldFromHexString("0x03"),
 			Signature:      types.Ed25519Signature(hexToBytes("0xed0d7e4258c6feeecac6ef70db5c866b7fd21af3e409315c79a83a040c50f5f4404b2ab59a1752101ce1af03b2ebd41bfdb1595a2df83f88d937a974b81f2709")),
 		},
 	)
