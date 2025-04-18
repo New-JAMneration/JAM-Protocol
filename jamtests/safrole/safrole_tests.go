@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -535,6 +536,27 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (s *SafroleTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
+	storeInstance.GetIntermediateHeaderPointer().SetSlot(s.Input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
+
+	storeInstance.GetPriorStates().SetEta(s.PreState.Eta)
+	// Set Eta0?
+
+	storeInstance.GetPriorStates().SetLambda(s.PreState.Lambda)
+	storeInstance.GetPriorStates().SetKappa(s.PreState.Kappa)
+	storeInstance.GetPriorStates().SetGammaK(s.PreState.GammaK)
+	storeInstance.GetPriorStates().SetIota(s.PreState.Iota)
+	storeInstance.GetPriorStates().SetGammaA(s.PreState.GammaA)
+	storeInstance.GetPriorStates().SetGammaS(s.PreState.GammaS)
+	storeInstance.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
+
+	// Miss PostOffenders?
+
+	// How to set the Extrinsic?
+
 	return nil
 }
 
@@ -543,5 +565,13 @@ func (s *SafroleTestCase) GetPostState() interface{} {
 }
 
 func (s *SafroleTestCase) Validate() error {
+	storeInstance := store.GetInstance()
+
+	if storeInstance.GetPosteriorStates().GetTau() != s.PostState.Tau {
+		return fmt.Errorf("tau mismatch: expected %v, got %v", s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau())
+	}
+
+	// rest of the validation logic
+
 	return nil
 }
