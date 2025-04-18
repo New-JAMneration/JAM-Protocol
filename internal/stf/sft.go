@@ -6,6 +6,7 @@ package stf
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
 	// Update Safrole
+	UpdateSafrole()
 
 	// Update Disputes
 
