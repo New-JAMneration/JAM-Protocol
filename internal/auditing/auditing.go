@@ -381,129 +381,107 @@ func BuildJudgements(
 	return reports
 }
 
-// (17.19) U(w)⇔∨J⊥(w)=∅∧∃n:An​(w)⊆J⊤(w)∣J⊤(w)∣>(2/3)V
-
+// (17.19) Determines if a single work report is considered audited.
 func IsWorkReportAudited(
 	report types.WorkReport,
 	judgments []types.AuditReport,
-	assignments []types.ValidatorIndex, // An(w)
+	assignedValidators []types.ValidatorIndex, // Aₙ(w)
 ) bool {
-	// collect judgement for this report
-	positives, negatives := ClassifyJudgments(report, judgments)
+	positiveJudges, negativeJudges := ClassifyJudgments(report, judgments)
 
-	// Rule 1: J⊥(w) == ∅ ∧ ∃n : Aₙ(w) ⊆ J⊤(w)
-	if len(negatives) == 0 {
-		allConfirmed := true
-		for _, v := range assignments {
-			if !positives[v] {
-				allConfirmed = false
+	// Rule 1: No negatives AND all assigned validators gave a positive judgment
+	if len(negativeJudges) == 0 {
+		allAssignedConfirmed := true
+		for _, validator := range assignedValidators {
+			if !positiveJudges[validator] {
+				allAssignedConfirmed = false
 				break
 			}
 		}
-		if allConfirmed {
+		if allAssignedConfirmed {
 			return true
 		}
 	}
 
-	// Rule 2: |J⊤(w)| > 2/3 V
-	if len(positives) >= types.ValidatorsSuperMajority {
+	// Rule 2: Supermajority of positive judgments
+	if len(positiveJudges) >= types.ValidatorsSuperMajority {
 		return true
 	}
 
-	// Otherwise: Not audited
 	return false
 }
 
-func FilterJudgements(judgements []types.AuditReport, targetHash types.WorkPackageHash) []types.AuditReport {
-	var out []types.AuditReport
-	for _, j := range judgements {
+// Filters audit judgments that match the target report hash.
+func FilterJudgments(judgments []types.AuditReport, targetHash types.WorkPackageHash) []types.AuditReport {
+	var filtered []types.AuditReport
+	for _, j := range judgments {
 		if j.Report.PackageSpec.Hash == targetHash {
-			out = append(out, j)
+			filtered = append(filtered, j)
 		}
 	}
-	return out
+	return filtered
 }
 
-// (17.20) U ⇔ ∀w ∈ W ∶ U (w)
+// (17.20) Checks if ALL work reports are fully audited.
 func IsBlockAudited(
-	reports []types.WorkReport,
-	allJudgements []types.AuditReport,
+	workReports []types.WorkReport,
+	allJudgments []types.AuditReport,
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
 ) bool {
-	for _, report := range reports {
+	for _, report := range workReports {
 		hash := report.PackageSpec.Hash
-		assignments := GetAssignedValidators(report, assignmentMap)
-		judgements := FilterJudgements(allJudgements, hash)
+		assignedValidators := GetAssignedValidators(report, assignmentMap)
+		filteredJudgments := FilterJudgments(allJudgments, hash)
 
-		if !IsWorkReportAudited(report, judgements, assignments) {
-			return false // All report should be audited
+		if !IsWorkReportAudited(report, filteredJudgments, assignedValidators) {
+			return false // One report not audited: block incomplete
 		}
 	}
 	return true
 }
 
 func ProcessAuditing(validatorIndex int) ([]types.WorkReport, error) {
-	// (17.1)~(17.2): Get Q = one WorkReport per core (if exists in W)
-	Q := GetQ()
+	// Get Q (17.1~2)
+	reportPerCore := GetQ()
 
-	// Collect assignment map A_n-1(w)
-	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	judgementPool := []types.AuditReport{}
+	// Compute a₀ for this validator (17.3~7)
+	initialAssignment := ComputeA0ForValidator(reportPerCore, validatorIndex)
 
-	// J⊤(w): positiveJudgers
-	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-
-	// (17.3)~(17.7): Compute initial assignment a₀
-	a0 := ComputeA0ForValidator(Q, validatorIndex)
-
-	// Store a₀ assignment for J⊤ use
-	for _, item := range a0 {
+	// Build assignment map Aₙ₋₁(w) from a₀ (this validator's perspective only)
+	priorAssignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
+	for _, item := range initialAssignment {
 		hash := item.Report.PackageSpec.Hash
-		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
+		priorAssignmentMap[hash] = append(priorAssignmentMap[hash], types.ValidatorIndex(validatorIndex))
 	}
 
-	// (17.8): Compute tranche index n
-	n := GetTranchIndex()
+	// Compute tranche index (17.8)
+	trancheIndex := GetTranchIndex()
 
-	// (17.15)~(17.16): Compute aₙ
-	aN := ComputeAnForValidator(
-		n,
-		Q,
-		assignmentMap,
-		positiveJudgers,
+	// Compute aₙ (17.15~16)
+	trancheAssignment := ComputeAnForValidator(
+		trancheIndex,
+		reportPerCore,
+		priorAssignmentMap,
+		map[types.WorkPackageHash]map[types.ValidatorIndex]bool{}, // No other positiveJudgers known locally
 		hash.Blake2bHash,
 		validatorIndex,
 	)
 
-	// Merge aₙ into J⊤ tracking map (if result is positive, will be signed next)
-	for _, a := range aN {
-		if a.AuditResult {
-			hash := a.Report.PackageSpec.Hash
-			if _, ok := positiveJudgers[hash]; !ok {
-				positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
-			}
-			positiveJudgers[hash][a.ValidatorID] = true
-		}
-	}
+	// Sign audited judgment (17.18)
+	signedJudgments := BuildJudgements(trancheIndex, trancheAssignment, hash.Blake2bHash, validatorIndex)
 
-	// (17.18): Sign judgement and attach signature
-	signed := BuildJudgements(n, aN, hash.Blake2bHash, validatorIndex)
-
-	// Collect signed audit reports
-	judgementPool = append(judgementPool, signed...)
-
-	// (17.19): Check if work report is audited
-	// Check if each report in Q is audited
+	// Filter judged reports that now satisfy audit condition (17.19~20)
 	var auditedReports []types.WorkReport
-	for _, report := range Q {
-		if report != nil {
-			hash := report.PackageSpec.Hash
-			assignments := assignmentMap[hash]
-			judgements := FilterJudgements(judgementPool, hash)
+	for _, report := range reportPerCore {
+		if report == nil {
+			continue
+		}
+		hash := report.PackageSpec.Hash
+		assigned := priorAssignmentMap[hash]
+		filtered := FilterJudgments(signedJudgments, hash)
 
-			if IsWorkReportAudited(*report, judgements, assignments) {
-				auditedReports = append(auditedReports, *report)
-			}
+		if IsWorkReportAudited(*report, filtered, assigned) {
+			auditedReports = append(auditedReports, *report)
 		}
 	}
 
