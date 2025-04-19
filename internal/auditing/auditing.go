@@ -442,7 +442,7 @@ func IsBlockAudited(
 	return true
 }
 
-func ProcessAuditing(validatorIndex int) error {
+func ProcessAuditing(validatorIndex int) ([]types.WorkReport, error) {
 	// (17.1)~(17.2): Get Q = one WorkReport per core (if exists in W)
 	Q := GetQ()
 
@@ -492,18 +492,20 @@ func ProcessAuditing(validatorIndex int) error {
 	// Collect signed audit reports
 	judgementPool = append(judgementPool, signed...)
 
-	// Optional: validate per report (17.19) and per block (17.20)
+	// (17.19): Check if work report is audited
+	// Check if each report in Q is audited
+	var auditedReports []types.WorkReport
 	for _, report := range Q {
 		if report != nil {
 			hash := report.PackageSpec.Hash
 			assignments := assignmentMap[hash]
 			judgements := FilterJudgements(judgementPool, hash)
 
-			if !IsWorkReportAudited(*report, judgements, assignments) {
-				fmt.Printf("Report not audited: Core %d, Hash %x\n", report.CoreIndex, hash)
+			if IsWorkReportAudited(*report, judgements, assignments) {
+				auditedReports = append(auditedReports, *report)
 			}
 		}
 	}
 
-	return nil
+	return auditedReports, nil
 }
