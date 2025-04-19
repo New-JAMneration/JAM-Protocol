@@ -169,17 +169,17 @@ func BuildAnnouncement(
 
 	// (17.11) XI = $jam_announce
 	// Context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
-	H := store.GetInstance().GetIntermediateHeader()
+	header := store.GetInstance().GetIntermediateHeader()              // H
 	context := types.ByteSequence(types.JamAnnounce[:])                // XI
 	context = append(context, utilities.SerializeFixedLength(n, 4)...) // n
 	context = append(context, xn...)                                   // xn
-	headerBytes := utilities.HeaderSerialization(H)
-	headerHash := hashFunc(headerBytes)
-	context = append(context, headerHash[:]...) // H(H)
+	headerBytes := utilities.HeaderSerialization(header)
+	headerHash := hashFunc(headerBytes) // H(H)
+	context = append(context, headerHash[:]...)
 
 	// (17.9) S = Sign⟨context⟩ using Ed25519
-	ed25519Pub := store.GetInstance().GetPriorStates().GetKappa()[validatorIndex].Ed25519
-	signature := ed25519.Sign(ed25519Pub[:], context)
+	validator_key := store.GetInstance().GetPriorStates().GetKappa()[validatorIndex].Ed25519
+	signature := ed25519.Sign(validator_key[:], context)
 	return types.Ed25519Signature(signature)
 }
 
@@ -215,31 +215,9 @@ func ClassifyJudgments(
 	return
 }
 
-// ∀n > 0 ∶
 // (17.15) sn(w) ∈ F[] κ[v]b ⟨XU ⌢ Y(Hv ) ⌢ H(w) n⟩
 // (17.16) an ≡ { V/256F Y(sn(w))0 < mn | w ∈ Q, w ≠ ∅}
 // where mn = SAn−1(w) ∖ J⊺(w)S
-/*
-Start
-  │
-  │
-  ├──► [Loop each WorkReport `w` in Q]
-  │       │
-  │       ├──► Is w == ∅ ? ──► Yes → Skip
-  │       │                        ↓
-  │       └──► Compute mₙ = |Aₙ₋₁(w) ∖ J⊤(w)|
-  │               │
-  │               ├──► Build VRF seed: <Xᵁ, 𝒴(Hᵥ), ℋ(w), n>
-  │               ├──► sₙ(w) ← VRF(seed)
-  │               ├──► y ← 𝒴(sₙ(w))₀
-  │               │
-  │               └──► If y < mₙ ? ──► Yes → Add (c, w) to aₙ
-  │                                        ↓
-  │                                     No → skip
-  │
-  ▼
-End (aₙ ready)
-*/
 
 func ComputeAnForValidator(
 	trancheIndex types.U64,
@@ -329,7 +307,7 @@ func ComputeAnForValidator(
 }
 
 /*
-// e_n(w): 對應於公式 17.17 的實作
+// e_n(w): 17.17 產生 audit 結果
 func EvaluateReport(
 	report types.WorkReport,
 	coreID types.CoreIndex,
@@ -353,32 +331,31 @@ func EvaluateReport(
 // (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
 func BuildJudgements(
 	tranche types.U64,
-	reports []types.AuditReport, // (c, w) ∈ aₙ
+	auditReports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
 	validator_index int,
 ) []types.AuditReport {
-	for index, item := range reports {
-		report := item.Report
-
-		// Determine context string
+	for index, audit := range auditReports {
+		report := audit.Report
+		// Xe
 		var context types.ByteSequence
-		if item.AuditResult {
+		if audit.AuditResult {
 			context = []byte("$jam_valid")
 		} else {
 			context = []byte("$jam_invalid")
 		}
 
 		// Hash the report content
-		hashW := hashFunc(utilities.WorkReportSerialization(report)) // 𝓗(w)
-		context = append(context, hashW[:]...)                       // X_e(w) ⌢ 𝓗(w)
+		hashW := hashFunc(utilities.WorkReportSerialization(report)) // H(w)
+		context = append(context, hashW[:]...)                       // Xe(w) ⌢ H(w)
 
 		// Sign the message
-		ed25519_public := store.GetInstance().GetPosteriorStates().GetKappa()[validator_index].Ed25519
-		signature := ed25519.Sign(ed25519_public[:], context)
-		reports[index].Signature = types.Ed25519Signature(signature)
+		validator_key := store.GetInstance().GetPosteriorStates().GetKappa()[validator_index].Ed25519
+		signature := ed25519.Sign(validator_key[:], context)
+		auditReports[index].Signature = types.Ed25519Signature(signature)
 	}
 
-	return reports
+	return auditReports
 }
 
 // (17.19) Determines if a single work report is considered audited.
