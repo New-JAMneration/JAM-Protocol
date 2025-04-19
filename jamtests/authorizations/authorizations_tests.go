@@ -313,6 +313,14 @@ func (a *AuthorizationTestCase) GetPostState() interface{} {
 	return a.PostState
 }
 
+func (a *AuthorizationTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AuthorizationTestCase) ExpectError() error {
+	return nil
+}
+
 func (a *AuthorizationTestCase) Validate() error {
 	return nil
 }

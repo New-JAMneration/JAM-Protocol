@@ -84,6 +84,13 @@ type PreimageState struct {
 
 type PreimageErrorCode types.ErrorCode
 
+func (p *PreimageErrorCode) Error() string {
+	if p == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *p)
+}
+
 const (
 	PreimageUnneeded         PreimageErrorCode = iota // 0
 	PreimagesNotSortedUnique PreimageErrorCode = 1
@@ -637,6 +644,17 @@ func (p *PreimageTestCase) Dump() error {
 
 func (p *PreimageTestCase) GetPostState() interface{} {
 	return p.PostState
+}
+
+func (p *PreimageTestCase) GetOutput() interface{} {
+	return p.Output
+}
+
+func (p *PreimageTestCase) ExpectError() error {
+	if p.Output.Err == nil {
+		return nil
+	}
+	return p.Output.Err
 }
 
 func (p *PreimageTestCase) Validate() error {

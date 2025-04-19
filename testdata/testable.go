@@ -7,6 +7,12 @@ type Testable interface {
 	// Get State
 	GetPostState() interface{}
 
+	// Get Output
+	GetOutput() interface{}
+
+	// Expect Error
+	ExpectError() error
+
 	// Valide
 	Validate() error
 }

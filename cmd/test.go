@@ -124,7 +124,8 @@ For example:
 			fmt.Println("----------------------------------------")
 			passed := 0
 			failed := 0
-			for _, testFile := range testFiles {
+			for idx, testFile := range testFiles {
+				log.Printf("------------------{%v}--------------------", idx)
 				// Parse the test data
 				data, err := reader.ParseTestData(testFile.Data)
 				if err != nil {
@@ -132,14 +133,33 @@ For example:
 				}
 
 				// Run the est
-				runner.Run(data)
-				err = runner.Verify(data)
-				if err != nil {
-					fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
-					failed++
+
+				outputErr := runner.Run(data)
+				expectedErr := data.ExpectError()
+
+				if expectedErr != nil {
+					if outputErr == nil {
+						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
+						failed++
+					} else {
+						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
+						passed++
+					}
+					// Check the error message
 				} else {
-					fmt.Printf("Test %s passed\n", testFile.Name)
-					passed++
+					if outputErr != nil {
+						fmt.Printf("Test %s failed: unexpected error: %v\n", testFile.Name, outputErr)
+						failed++
+					} else {
+						err = runner.Verify(data)
+						if err != nil {
+							fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
+							failed++
+						} else {
+							fmt.Printf("Test %s passed\n", testFile.Name)
+							passed++
+						}
+					}
 				}
 
 			}
