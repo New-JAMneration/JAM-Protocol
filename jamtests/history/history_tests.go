@@ -205,6 +205,15 @@ func (h *HistoryTestCase) Dump() error {
 func (h *HistoryTestCase) GetPostState() interface{} {
 	return h.PostState
 }
+
+func (h *HistoryTestCase) GetOutput() interface{} {
+	return h.Output
+}
+
+func (h *HistoryTestCase) ExpectError() error {
+	return nil
+}
+
 func (h *HistoryTestCase) Validate() error {
 	return nil
 }

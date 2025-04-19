@@ -111,6 +111,13 @@ type ReportsState struct {
 
 type ReportsErrorCode types.ErrorCode
 
+func (e *ReportsErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
+
 const (
 	BadCoreIndex                ReportsErrorCode = iota // 0
 	FutureReportSlot                                    // 1
@@ -701,6 +708,18 @@ func (r *ReportsTestCase) Dump() error {
 func (r *ReportsTestCase) GetPostState() interface{} {
 	return r.PostState
 }
+
+func (r *ReportsTestCase) GetOutput() interface{} {
+	return r.Output
+}
+
+func (r *ReportsTestCase) ExpectError() error {
+	if r.Output.Err == nil {
+		return nil
+	}
+	return r.Output.Err
+}
+
 func (r *ReportsTestCase) Validate() error {
 	return nil
 }
