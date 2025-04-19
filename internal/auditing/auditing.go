@@ -450,7 +450,7 @@ func ProcessAuditing(validatorIndex int) error {
 	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
 	judgementPool := []types.AuditReport{}
 
-	// 建構 J⊤(w): positiveJudgers
+	// J⊤(w): positiveJudgers
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
 	// (17.3)~(17.7): Compute initial assignment a₀
@@ -471,7 +471,7 @@ func ProcessAuditing(validatorIndex int) error {
 		Q,
 		assignmentMap,
 		positiveJudgers,
-		hash.Blake2bHash, // or your hash func
+		hash.Blake2bHash,
 		validatorIndex,
 	)
 
