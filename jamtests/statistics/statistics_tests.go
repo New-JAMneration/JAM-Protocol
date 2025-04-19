@@ -221,6 +221,14 @@ func (s *StatisticsTestCase) GetPostState() interface{} {
 	return s.PostState
 }
 
+func (s *StatisticsTestCase) GetOutput() interface{} {
+	return s.Output
+}
+
+func (s *StatisticsTestCase) ExpectError() error {
+	return nil
+}
+
 func (s *StatisticsTestCase) Validate() error {
 	return nil
 }

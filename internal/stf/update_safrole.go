@@ -10,25 +10,34 @@ func UpdateSafrole() error {
 	// This function will update GammaK, GammaZ, Lambda, Kappa
 	safrole.KeyRotate()
 
-	// Create new ticket accumulator
-	// This function will update GammaA
+	ourEtErr := safrole.CreateNewTicketAccumulator()
+	if ourEtErr != nil {
+		// s.GetIntermediateStates().SetTauInput(s.GetPriorStates().GetTau())
+		return ourEtErr
+	}
 
-	// will got the VRF error
-	// Failed to create verifier: invalid input
-	// safrole.CreateNewTicketAccumulator()
+	// Sealing
+	safrole.SealingByTickets()
+	safrole.SealingByBandersnatchs()
 
-	// Update GammaS
-	// safrole.UpdateSlotKeySequence()
+	// Update Eta'0
+	safrole.UpdateEtaPrime0()
 
 	// Entropy update
 	// This function will update Eta
-	// safrole.UpdateEntropy()
-
-	// Update Eta'0
-	// safrole.UpdateEtaPrime0()
+	safrole.UpdateEntropy()
 
 	// Update Header Entropy
-	// safrole.UpdateHeaderEntropy()
+	safrole.UpdateHeaderEntropy()
+
+	// Update GammaS
+	safrole.UpdateSlotKeySequence()
+
+	err := safrole.CreateEpochMarker()
+	if err != nil {
+		return err
+	}
+	safrole.CreateWinningTickets()
 
 	return nil
 }

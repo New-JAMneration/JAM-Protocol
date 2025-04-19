@@ -608,6 +608,14 @@ func (a *AccumulateTestCase) GetPostState() interface{} {
 	return a.PostState
 }
 
+func (a *AccumulateTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AccumulateTestCase) ExpectError() error {
+	return nil
+}
+
 func (a *AccumulateTestCase) Validate() error {
 	s := store.GetInstance()
 

@@ -66,6 +66,13 @@ type AssuranceState struct {
 */
 type AssuranceErrorCode types.ErrorCode
 
+func (a *AssuranceErrorCode) Error() string {
+	if a == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *a)
+}
+
 const (
 	BadAttestationParent      AssuranceErrorCode = iota // 0
 	BadValidatorIndex                                   // 1
@@ -397,6 +404,17 @@ func (a *AssuranceTestCase) Dump() error {
 
 func (a *AssuranceTestCase) GetPostState() interface{} {
 	return a.PostState
+}
+
+func (a *AssuranceTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AssuranceTestCase) ExpectError() error {
+	if a.Output.Err == nil {
+		return nil
+	}
+	return a.Output.Err
 }
 
 func (a *AssuranceTestCase) Validate() error {

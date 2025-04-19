@@ -61,6 +61,13 @@ type DisputeState struct {
 
 type DisputeErrorCode types.ErrorCode
 
+func (d *DisputeErrorCode) Error() string {
+	if d == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *d)
+}
+
 const (
 	AlreadyJudged             DisputeErrorCode = iota // 0
 	BadVoteSplit                                      // 1
@@ -378,6 +385,17 @@ func (d *DisputeTestCase) Dump() error {
 
 func (d *DisputeTestCase) GetPostState() interface{} {
 	return d.PostState
+}
+
+func (d *DisputeTestCase) GetOutput() interface{} {
+	return d.Output
+}
+
+func (d *DisputeTestCase) ExpectError() error {
+	if d.Output.Err == nil {
+		return nil
+	}
+	return d.Output.Err
 }
 
 func (d *DisputeTestCase) Validate() error {
