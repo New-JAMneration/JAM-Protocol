@@ -3,6 +3,7 @@ package auditing
 import (
 	"crypto/ed25519"
 	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
@@ -48,25 +49,41 @@ func GetQ() []*types.WorkReport {
 //
 // (17.4) U = $jam_audit
 // Generate s₀ from jam_audit and block author entropy using this validator's key
-func GetS0(validatorIndex int) types.BandersnatchVrfSignature {
-	s := store.GetInstance()
-	posteriorState := s.GetPriorStates()
-	header := s.GetIntermediateHeader()
+func GetS0(validatorIndex int) (types.BandersnatchVrfSignature, error) {
+	store_instance := store.GetInstance()
+	posteriorState := store_instance.GetPriorStates()
+	header := store_instance.GetIntermediateHeader()
 
 	// Get block author's entropy hash Y(Hᵥ)
 	authorKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
-	authorHandler, _ := safrole.CreateVRFHandler(authorKey)
-	yHv, _ := authorHandler.VRFIetfOutput(header.EntropySource[:])
+	authorHandler, err := safrole.CreateVRFHandler(authorKey)
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create VRF handler for authorKey: %w", err)
+	}
+	yHv, err := authorHandler.VRFIetfOutput(header.EntropySource[:])
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to compute VRF output for author: %w", err)
+	}
 
 	// Combine context: Xᵁ = $jam_audit ⌢ Y(Hᵥ)
 	context := append(types.ByteSequence(types.JamAudit[:]), yHv...)
 
 	// s₀ = VRF⟨context⟩ using own key
 	validatorKey := posteriorState.GetKappa()[validatorIndex].Bandersnatch
-	validatorHandler, _ := safrole.CreateVRFHandler(validatorKey)
-	s0, _ := validatorHandler.VRFIetfOutput(context)
+	validatorHandler, err := safrole.CreateVRFHandler(validatorKey)
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create VRF handler for validatorKey: %w", err)
+	}
+	signature, err := validatorHandler.RingSign(context, []byte(""))
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to sign context: %w", err)
+	}
+	s0, err := validatorHandler.VRFIetfOutput(signature[:])
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to compute VRF output for validator: %w", err)
+	}
 
-	return types.BandersnatchVrfSignature(s0)
+	return types.BandersnatchVrfSignature(s0), nil
 }
 
 // (17.5) a0 = {(c, w) | (c, w) ∈ p⋅⋅⋅+10, w ≠ ∅}
@@ -77,12 +94,21 @@ func GetS0(validatorIndex int) types.BandersnatchVrfSignature {
 func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) (output []types.AuditReport) { // TODO: get s0 from local data?
 	// (17.3) get s0
 	s := store.GetInstance()
-	s0 := GetS0(validatorIndex)
+	s0, err := GetS0(validatorIndex)
+	if err != nil {
+		log.Fatalf("GetS0 failed: %v", err)
+	}
 
 	// (17.7) compute r = 𝒴(s₀)
 	validatorKey := s.GetPosteriorStates().GetKappa()[validatorIndex].Bandersnatch
-	handler, _ := safrole.CreateVRFHandler(validatorKey)
-	r, _ := handler.VRFIetfOutput(s0[:]) // (17.7)
+	handler, err := safrole.CreateVRFHandler(validatorKey)
+	if err != nil {
+		log.Fatalf("failed to create VRF handler for validatorKey: %v", err)
+	}
+	r, err := handler.VRFIetfOutput(s0[:]) // (17.7)
+	if err != nil {
+		log.Fatalf("failed to compute VRF output for validator: %v", err)
+	}
 
 	// (17.6) p = F([...], r): shuffle all cores
 	shuffle_array := make([]types.U32, types.CoresCount)
@@ -414,13 +440,7 @@ func ProcessAuditing(validatorIndex int) error {
 	// 建構 J⊤(w): positiveJudgers
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
-	// Loop all validators
-	// (17.3)~(17.4): Get s₀
-	s0 := GetS0(validatorIndex)
-
-	fmt.Printf("s0: %x\n", s0)
-
-	// (17.5)~(17.7): Compute initial assignment a₀
+	// (17.3)~(17.7): Compute initial assignment a₀
 	a0 := ComputeA0ForValidator(Q, validatorIndex)
 
 	// Store a₀ assignment for J⊤ use
