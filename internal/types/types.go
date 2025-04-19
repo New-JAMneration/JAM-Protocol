@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -1379,3 +1380,8 @@ type AuditReport struct {
 
 // (17.12)
 type AssignmentMap map[WorkPackageHash][]ValidatorIndex
+
+type AuditPool struct {
+	mu   sync.RWMutex
+	data map[WorkPackageHash][]AuditReport
+}

@@ -417,50 +417,61 @@ func IsBlockAudited(
 	return true
 }
 
-func ProcessAuditing(validatorIndex int) ([]types.WorkReport, error) {
-	// Get Q (17.1~2)
-	reportPerCore := GetQ()
+func PublishAuditReport(audit types.AuditReport) error {
+	// TODO: Implement the logic to publish the audit report
+	// This could involve sending the report to a network, saving it to a database, etc.
+	return nil
+}
 
-	// Compute a₀ for this validator (17.3~7)
-	initialAssignment := ComputeA0ForValidator(reportPerCore, validatorIndex)
+func SingleNodeAuditingAndPublish(validatorIndex int) error {
+	// Get reports to audit
+	Q := GetQ()
 
-	// Build assignment map Aₙ₋₁(w) from a₀ (this validator's perspective only)
-	priorAssignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	for _, item := range initialAssignment {
+	// Collect audit assignment for local validator
+	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
+	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
+
+	// a₀: Initial deterministic assignment
+	a0 := ComputeA0ForValidator(Q, validatorIndex)
+	for _, item := range a0 {
 		hash := item.Report.PackageSpec.Hash
-		priorAssignmentMap[hash] = append(priorAssignmentMap[hash], types.ValidatorIndex(validatorIndex))
+		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
 	}
 
-	// Compute tranche index (17.8)
-	trancheIndex := GetTranchIndex()
+	// Compute tranche index
+	tranche := GetTranchIndex()
 
-	// Compute aₙ (17.15~16)
-	trancheAssignment := ComputeAnForValidator(
-		trancheIndex,
-		reportPerCore,
-		priorAssignmentMap,
-		map[types.WorkPackageHash]map[types.ValidatorIndex]bool{}, // No other positiveJudgers known locally
+	// aₙ: Compute stochastic audit assignments (based on no-show)
+	aN := ComputeAnForValidator(
+		tranche,
+		Q,
+		assignmentMap,
+		positiveJudgers,
 		hash.Blake2bHash,
 		validatorIndex,
 	)
 
-	// Sign audited judgment (17.18)
-	signedJudgments := BuildJudgements(trancheIndex, trancheAssignment, hash.Blake2bHash, validatorIndex)
-
-	// Filter judged reports that now satisfy audit condition (17.19~20)
-	var auditedReports []types.WorkReport
-	for _, report := range reportPerCore {
-		if report == nil {
-			continue
-		}
-		hash := report.PackageSpec.Hash
-		assigned := priorAssignmentMap[hash]
-		filtered := FilterJudgments(signedJudgments, hash)
-
-		if IsWorkReportAudited(*report, filtered, assigned) {
-			auditedReports = append(auditedReports, *report)
+	// Update positiveJudgers map
+	for _, a := range aN {
+		if a.AuditResult {
+			hash := a.Report.PackageSpec.Hash
+			if _, ok := positiveJudgers[hash]; !ok {
+				positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
+			}
+			positiveJudgers[hash][a.ValidatorID] = true
 		}
 	}
 
-	return auditedReports, nil
+	// Sign judgements
+	signed := BuildJudgements(tranche, aN, hash.Blake2bHash, validatorIndex)
+
+	// Publish to audit pool
+	for _, audit := range signed {
+		err := PublishAuditReport(audit)
+		if err != nil {
+			return fmt.Errorf("failed to publish audit report for core %d: %w", audit.CoreID, err)
+		}
+	}
+
+	return nil
 }
