@@ -21,14 +21,8 @@ type Store struct {
 	intermediateStates          *IntermediateStates
 	posteriorStates             *PosteriorStates
 	ancestorHeaders             *AncestorHeaders
-	intermediateHeader          *IntermediateHeader
+	intermediateHeader          *IntermediateHeader // should be implemented in processingBlock
 	posteriorCurrentValidators  *PosteriorCurrentValidators
-	beefyCommitmentOutput       *BeefyCommitmentOutputs // B in (12.15)
-	availableWorkReports        *AvailableWorkReports
-	presentWorkReports          *PresentWorkReports
-	accumulatedWorkReports      *AccumulatedWorkReports   // W^! (accumulated immediately)
-	queuedWorkReports           *QueuedWorkReports        // W^Q (queued execution)
-	accumulatableWorkReports    *AccumulatableWorkReports // W^* (accumulatable work-reports in this block)
 	accumulationStatistics      *AccumulationStatistics
 	deferredTransfersStatistics *DeferredTransfersStatistics
 }
@@ -46,12 +40,6 @@ func GetInstance() *Store {
 			ancestorHeaders:             NewAncestorHeaders(),
 			intermediateHeader:          NewIntermediateHeader(),
 			posteriorCurrentValidators:  NewPosteriorValidators(),
-			beefyCommitmentOutput:       NewBeefyCommitmentOutputs(),
-			availableWorkReports:        NewAvailableWorkReports(),
-			presentWorkReports:          NewPresentWorkReports(),
-			accumulatedWorkReports:      NewAccumulatedWorkReports(),
-			queuedWorkReports:           NewQueuedWorkReports(),
-			accumulatableWorkReports:    NewAccumulatableWorkReports(),
 			accumulationStatistics:      NewAccumulationStatistics(),
 			deferredTransfersStatistics: NewDeferredTransfersStatistics(),
 		}
@@ -71,12 +59,6 @@ func ResetInstance() {
 		ancestorHeaders:             NewAncestorHeaders(),
 		intermediateHeader:          NewIntermediateHeader(),
 		posteriorCurrentValidators:  NewPosteriorValidators(),
-		beefyCommitmentOutput:       NewBeefyCommitmentOutputs(),
-		availableWorkReports:        NewAvailableWorkReports(),
-		presentWorkReports:          NewPresentWorkReports(),
-		accumulatedWorkReports:      NewAccumulatedWorkReports(),
-		queuedWorkReports:           NewQueuedWorkReports(),
-		accumulatableWorkReports:    NewAccumulatableWorkReports(),
 		accumulationStatistics:      NewAccumulationStatistics(),
 		deferredTransfersStatistics: NewDeferredTransfersStatistics(),
 	}
@@ -173,26 +155,6 @@ func (s *Store) ResetIntermediateHeader() {
 	s.intermediateHeader.ResetHeader()
 }
 
-// BeefyCommitmentOutput (12.15 B)
-func (s *Store) GetBeefyCommitmentOutputs() *BeefyCommitmentOutputs {
-	return s.beefyCommitmentOutput
-}
-
-// AccumulatedWorkReports
-func (s *Store) GetAccumulatedWorkReportsPointer() *AccumulatedWorkReports {
-	return s.accumulatedWorkReports
-}
-
-// QueuedWorkReports
-func (s *Store) GetQueuedWorkReportsPointer() *QueuedWorkReports {
-	return s.queuedWorkReports
-}
-
-// AccumulatableWorkReports
-func (s *Store) GetAccumulatableWorkReportsPointer() *AccumulatableWorkReports {
-	return s.accumulatableWorkReports
-}
-
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)
 
 // // Get
@@ -213,14 +175,4 @@ func (s *Store) GetAccumulationStatisticsPointer() *AccumulationStatistics {
 // DeferredTransfersStatistics
 func (s *Store) GetDeferredTransfersStatisticsPointer() *DeferredTransfersStatistics {
 	return s.deferredTransfersStatistics
-}
-
-// AvailableWorkReports
-func (s *Store) GetAvailableWorkReportsPointer() *AvailableWorkReports {
-	return s.availableWorkReports
-}
-
-// PresentWorkReports
-func (s *Store) GetPresentWorkReportsPointer() *PresentWorkReports {
-	return s.presentWorkReports
 }

@@ -202,7 +202,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 	sort.Slice(input.Reports, func(i, j int) bool {
 		return input.Reports[i].CoreIndex < input.Reports[j].CoreIndex
 	})
-	s.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(input.Reports)
+	s.GetIntermediateStates().SetAccumulatableWorkReports(input.Reports)
 }
 
 // Validate final state
