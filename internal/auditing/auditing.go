@@ -157,7 +157,7 @@ func GetTranchIndex() types.U64 {
 // following formula:
 // S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
 func BuildAnnouncement(
-	n types.U32, // tranche index
+	n types.U8, // tranche index
 	an []types.AuditReport, // an: assignment at tranche n
 	hashFunc func(types.ByteSequence) types.OpaqueHash, // H(w): hash function
 	validatorIndex int,
@@ -183,9 +183,9 @@ func BuildAnnouncement(
 
 	// (17.9) context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
 	context := XI
-	context = append(context, utilities.SerializeFixedLength(n, 4)...) // ⌢ n
-	context = append(context, xn...)                                   // ⌢ xn
-	context = append(context, headerHash[:]...)                        // ⌢ H(H)
+	context = append(context, utilities.SerializeFixedLength(types.U32(n), 4)...) // ⌢ n
+	context = append(context, xn...)                                              // ⌢ xn
+	context = append(context, headerHash[:]...)                                   // ⌢ H(H)
 
 	// Sign context with validator Ed25519 private key: S = Sign(context)
 	signature := ed25519.Sign(validatorPrivKey, context)
@@ -261,7 +261,7 @@ func GetYHv() ([]byte, error) {
 // (17.16) an ≡ { V/256F Y(sn(w))0 < mn | w ∈ Q, w ≠ ∅}
 // where mn = SAn−1(w) ∖ J⊺(w)S
 func ComputeAnForValidator(
-	n types.U64,
+	n types.U8,
 	Q []*types.WorkReport,
 	priorAssignments map[types.WorkPackageHash][]types.ValidatorIndex, // Aₙ₋₁(w)
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, // J⊤(w)
@@ -307,11 +307,11 @@ func ComputeAnForValidator(
 		}
 
 		// Build context ⟨XU ⌢ Y(Hv) ⌢ H(w) ⌢ n⟩
-		conext := types.ByteSequence(types.JamAudit[:])                    // XU
-		context := append(conext, Y_Hv...)                                 // Y(Hv)
-		Hw := hashFunc(utilities.WorkReportSerialization(report))          // H(w)
-		context = append(context, Hw[:]...)                                // H(w)
-		context = append(context, utilities.SerializeFixedLength(n, 4)...) // n
+		conext := types.ByteSequence(types.JamAudit[:])                               // XU
+		context := append(conext, Y_Hv...)                                            // Y(Hv)
+		Hw := hashFunc(utilities.WorkReportSerialization(report))                     // H(w)
+		context = append(context, Hw[:]...)                                           // H(w)
+		context = append(context, utilities.SerializeFixedLength(types.U32(n), 4)...) // n
 
 		// Compute sₙ(w)
 		signature, err := vrfHandler.IETFSign(context, []byte(""))
@@ -362,7 +362,7 @@ func EvaluateReport(
 
 // (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
 func BuildJudgements(
-	tranche types.U64,
+	tranche types.U8,
 	auditReports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
 	validator_index int,
@@ -455,63 +455,108 @@ func PublishAuditReport(audit types.AuditReport) error {
 	return nil
 }
 
-func SingleNodeAuditingAndPublish(validatorIndex int) error {
-	// Get reports to audit
+func SingleNodeAuditingAndPublish(validatorIndex int, validatorPrivKey ed25519.PrivateKey) error {
+	// Step 1: Collect work reports assigned per core (17.1–17.2)
 	Q := GetQ()
 
-	// Collect audit assignment for local validator
-	// TODO collect audit assignment / positive judgers
+	// Step 2: Prepare assignment map Aₙ₋₁(w) and judgement state J⊤(w)
 	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
-	// a0: Initial deterministic assignment
+	// Step 3: Compute initial deterministic assignment a₀ (17.3–17.7)
 	a0, err := ComputeA0ForValidator(Q, validatorIndex)
 	if err != nil {
-		return fmt.Errorf("failed to compute initial audit assignment: %w", err)
+		return fmt.Errorf("failed to compute a₀: %w", err)
 	}
+
+	// Step 4: Store a₀ into assignment map (only own info known at this point)
 	for _, item := range a0 {
 		hash := item.Report.PackageSpec.Hash
 		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
 	}
 
-	// Compute tranche index
-	// TODO confirm the logic of tranche index
-	tranche := GetTranchIndex()
-
-	// aₙ: Compute stochastic audit assignments (based on no-show)
-	aN, err := ComputeAnForValidator(
-		tranche,
-		Q,
-		assignmentMap,
-		positiveJudgers,
-		hash.Blake2bHash,
-		validatorIndex,
-	)
+	// Step 5: Publish CE144 Announcement for a₀
+	announcement := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	fmt.Println("Announcement:", announcement)
+	// TODO BroadcastAnnouncement(announcement)
 	if err != nil {
-		return fmt.Errorf("failed to compute audit assignment: %w", err)
+		return fmt.Errorf("failed to broadcast a₀ announcement: %w", err)
 	}
-	// TODO logic of audit report evaluation
-	// Update positiveJudgers map
-	for _, a := range aN {
-		if a.AuditResult {
-			hash := a.Report.PackageSpec.Hash
+
+	// Step 6: Evaluate initial judgments (17.17)
+	for i := range a0 {
+		// TODO audit function a0[i].AuditResult = EvaluateAuditReport(a0[i].Report) // Placeholder
+		if a0[i].AuditResult {
+			hash := a0[i].Report.PackageSpec.Hash
 			if _, ok := positiveJudgers[hash]; !ok {
 				positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
 			}
-			positiveJudgers[hash][a.ValidatorID] = true
+			positiveJudgers[hash][types.ValidatorIndex(validatorIndex)] = true
 		}
 	}
 
-	// Sign judgements
-	signed := BuildJudgements(tranche, aN, hash.Blake2bHash, validatorIndex)
-
-	// Publish to audit pool
-	for _, audit := range signed {
+	// Step 7: Sign and broadcast CE145 judgments for a₀
+	signedA0 := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
+	for _, audit := range signedA0 {
 		err := PublishAuditReport(audit)
 		if err != nil {
 			return fmt.Errorf("failed to publish audit report for core %d: %w", audit.CoreID, err)
 		}
 	}
 
-	return nil
+	// Step 8: Wait and incorporate announcements from other validators
+	/*
+		peerAnnouncements := WaitForAnnouncements(0)
+		for _, ann := range peerAnnouncements {
+			update assignmentMap with ann.a0
+			update positiveJudgers if ann has signature
+		}
+	*/
+
+	// Step 9: Iterate over tranches (stochastic audit)
+	for tranche := types.U8(1); ; tranche++ {
+		aN, err := ComputeAnForValidator(
+			tranche,
+			Q,
+			assignmentMap,
+			positiveJudgers,
+			hash.Blake2bHash,
+			validatorIndex,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to compute aₙ: %w", err)
+		}
+
+		// Step 10: Evaluate audits (17.17)
+		for i := range aN {
+			// TODO audit function aN[i].AuditResult = EvaluateAuditReport(aN[i].Report) // Placeholder
+			if aN[i].AuditResult {
+				hash := aN[i].Report.PackageSpec.Hash
+				if _, ok := positiveJudgers[hash]; !ok {
+					positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
+				}
+				positiveJudgers[hash][aN[i].ValidatorID] = true
+			}
+		}
+
+		// Step 11: Sign and publish judgments (17.18 / CE145)
+		signed := BuildJudgements(tranche, aN, hash.Blake2bHash, validatorIndex)
+		for _, audit := range signed {
+			err := PublishAuditReport(audit)
+			if err != nil {
+				return fmt.Errorf("failed to publish audit report: %w", err)
+			}
+		}
+
+		// Step 12: Broadcast CE144 Announcement
+		announcement := BuildAnnouncement(tranche, aN, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		fmt.Println("Announcement:", announcement)
+		// TODO  BroadcastAnnouncement(announcement)
+		if err != nil {
+			return fmt.Errorf("failed to broadcast tranche %d announcement: %w", tranche, err)
+		}
+
+		// TODO: Break when auditing requirements are satisfied
+		// if IsBlockAudited(Q, judgmentPool, assignmentMap) { break }
+	}
 }
