@@ -5,13 +5,13 @@ package stf
 // The functions should validate inputs and handle errors appropriately
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
+	// Update Disputes
+	
 	// Update Safrole
 	err := UpdateSafrole()
 	if err != nil {
 		return err
 	}
-
-	// Update Disputes
 
 	// Update Reports
 
