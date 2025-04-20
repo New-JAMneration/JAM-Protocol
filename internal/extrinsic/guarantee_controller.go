@@ -104,8 +104,7 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 
 	// Save the work reports to the store
 	store := store.GetInstance()
-	store.GetPresentWorkReportsPointer().SetPresentWorkReports(workReports)
-
+	store.GetIntermediateStates().SetPresentWorkReports(workReports)
 	return workReports
 }
 
