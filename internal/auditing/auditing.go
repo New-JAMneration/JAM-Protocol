@@ -460,10 +460,11 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 	Q := GetQ()
 
 	// Collect audit assignment for local validator
+	// TODO collect audit assignment / positive judgers
 	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
-	// a₀: Initial deterministic assignment
+	// a0: Initial deterministic assignment
 	a0, err := ComputeA0ForValidator(Q, validatorIndex)
 	if err != nil {
 		return fmt.Errorf("failed to compute initial audit assignment: %w", err)
@@ -474,6 +475,7 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 	}
 
 	// Compute tranche index
+	// TODO confirm the logic of tranche index
 	tranche := GetTranchIndex()
 
 	// aₙ: Compute stochastic audit assignments (based on no-show)
@@ -488,6 +490,7 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 	if err != nil {
 		return fmt.Errorf("failed to compute audit assignment: %w", err)
 	}
+	// TODO logic of audit report evaluation
 	// Update positiveJudgers map
 	for _, a := range aN {
 		if a.AuditResult {
