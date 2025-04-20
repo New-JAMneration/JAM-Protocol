@@ -3,7 +3,6 @@ package auditing
 import (
 	"crypto/ed25519"
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
@@ -19,178 +18,204 @@ import (
 //
 //	∅ otherwise 		c <− NC
 //
-// Construct Q: A list of length NC, one report per core if assigned
+// GetQ constructs the audit report candidates Q (formula 17.1 ~ 17.2).
 func GetQ() []*types.WorkReport {
 	store := store.GetInstance()
-	rho := store.GetPriorStates().GetState().Rho
-	availableReports := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
 
-	// Create a lookup table of hashes for fast check
+	// ρ(rho): Current assignment map (per core)
+	rho := store.GetPriorStates().GetRho()
+
+	// W: Available work reports
+	W := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
+
+	// Create a set of available work package hashes
 	available := make(map[types.WorkPackageHash]bool)
-	for _, report := range availableReports {
+	for _, report := range W {
 		available[report.PackageSpec.Hash] = true
 	}
 
 	Q := make([]*types.WorkReport, types.CoresCount)
 	for index, assignment := range rho {
+		// check if core has an assignment
 		if assignment != nil {
 			report := assignment.Report
+			// Only keep it if the assigned report is still available in W (ρ[c]w ∈ W)
 			if available[report.PackageSpec.Hash] {
 				Q[index] = &report
 			}
+			// else: Q[index] stays nil (∅ otherwise c <− NC)
 		}
 	}
 	return Q
 }
 
-// (17.3) s0 ∈ F[]  ⟨XU ⌢ Y(Hv)⟩
-//
-//	κ[v]b
-//
-// (17.4) U = $jam_audit
-// Generate s₀ from jam_audit and block author entropy using this validator's key
+// GetS0 computes the initial audit seed s₀ for a validator, following Formula (17.3)-(17.4).
+// Returns the VRF output (s₀) as BandersnatchVrfSignature.
 func GetS0(validatorIndex int) (types.BandersnatchVrfSignature, error) {
-	store_instance := store.GetInstance()
-	posteriorState := store_instance.GetPriorStates()
-	header := store_instance.GetIntermediateHeader()
+	store := store.GetInstance()
+	priorStates := store.GetPriorStates()
 
-	// Get block author's entropy hash Y(Hᵥ)
-	authorKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
-	authorHandler, err := safrole.CreateVRFHandler(authorKey)
+	entropyHash, err := GetYHv() // Y(Hᵥ): VRF output of block author's entropy
 	if err != nil {
-		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create VRF handler for authorKey: %w", err)
-	}
-	yHv, err := authorHandler.VRFIetfOutput(header.EntropySource[:])
-	if err != nil {
-		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to compute VRF output for author: %w", err)
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to get Y(Hᵥ): %w", err)
 	}
 
-	// Combine context: Xᵁ = $jam_audit ⌢ Y(Hᵥ)
-	context := append(types.ByteSequence(types.JamAudit[:]), yHv...)
+	// Construct context XU ⌢ Y(Hᵥ)
+	context := append(types.ByteSequence(types.JamAudit[:]), entropyHash...)
 
-	// s₀ = VRF⟨context⟩ using own key
-	validatorKey := posteriorState.GetKappa()[validatorIndex].Bandersnatch
-	validatorHandler, err := safrole.CreateVRFHandler(validatorKey)
+	// Sign the context with validator's key and extract VRF output
+	validatorKey := priorStates.GetKappa()[validatorIndex].Bandersnatch
+	validatorVRF, err := safrole.CreateVRFHandler(validatorKey)
 	if err != nil {
-		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create VRF handler for validatorKey: %w", err)
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create validator VRF handler: %w", err)
 	}
-	signature, err := validatorHandler.RingSign(context, []byte(""))
+
+	// Sign the context (empty message)
+	vrfSignature, err := validatorVRF.IETFSign(context, []byte(""))
 	if err != nil {
-		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to sign context: %w", err)
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to sign audit context: %w", err)
 	}
-	s0, err := validatorHandler.VRFIetfOutput(signature[:])
+
+	// Derive VRF output from signature
+	s0, err := validatorVRF.VRFIetfOutput(vrfSignature[:])
 	if err != nil {
-		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to compute VRF output for validator: %w", err)
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to compute VRF output: %w", err)
 	}
 
 	return types.BandersnatchVrfSignature(s0), nil
 }
 
-// (17.5) a0 = {(c, w) | (c, w) ∈ p⋅⋅⋅+10, w ≠ ∅}
-// (17.6) where p = F([(c, Qc) | c c <− NC], r)
-// (17.7) and r = Y(s0)
+// ComputeA0ForValidator generates the initial audit assignment a0 for a given validator,
+// based on formulas (17.3)~(17.7):
 //
-//	Generate initial audit assignment set a0 for validator v
-func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) (output []types.AuditReport) { // TODO: get s0 from local data?
-	// (17.3) get s0
-	store_instance := store.GetInstance()
+//	(17.3) s0 = VRF⟨XU ⌢ Y(Hᵥ)⟩ using validator key
+//	(17.7) r = 𝒴(s0)    → VRF output over s₀
+//	(17.6) p = Shuffle([0..CoresCount), r)
+//	(17.5) a0 = top 10 of (c, Q[c]) where Q[c] ≠ ∅
+//
+// Returns a list of AuditReports
+func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) ([]types.AuditReport, error) {
+	store := store.GetInstance()
+
+	// Get initial audit seed s0 (17.3)
 	s0, err := GetS0(validatorIndex)
 	if err != nil {
-		log.Fatalf("GetS0 failed: %v", err)
+		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get s0: %w", err)
 	}
 
-	// (17.7) compute r = 𝒴(s₀)
-	validatorKey := store_instance.GetPosteriorStates().GetKappa()[validatorIndex].Bandersnatch
+	// Compute r = 𝒴(s0) — derive audit random seed (17.7)
+	validatorKey := store.GetPosteriorStates().GetKappa()[validatorIndex].Bandersnatch
 	handler, err := safrole.CreateVRFHandler(validatorKey)
 	if err != nil {
-		log.Fatalf("failed to create VRF handler for validatorKey: %v", err)
-	}
-	r, err := handler.VRFIetfOutput(s0[:]) // (17.7)
-	if err != nil {
-		log.Fatalf("failed to compute VRF output for validator: %v", err)
+		return nil, fmt.Errorf("ComputeA0ForValidator: failed to create VRF handler for validator: %w", err)
 	}
 
-	// (17.6) p = F([...], r): shuffle all cores
-	shuffle_array := make([]types.U32, types.CoresCount)
-	for i := types.U32(0); i < types.U32(types.CoresCount); i++ {
-		shuffle_array[i] = i
+	vrfOutput, err := handler.VRFIetfOutput(s0[:])
+	if err != nil {
+		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get VRF output from s₀: %w", err)
 	}
-	p := shuffle.Shuffle(shuffle_array, types.OpaqueHash(r))
-	// (17.5) a0 = top 10 shuffled (c, w) where w ≠ ∅
-	for _, idx := range p {
-		if Q[idx] != nil {
-			output = append(output, types.AuditReport{
-				CoreID: types.CoreIndex(idx),
-				Report: *Q[idx],
+
+	// Generate core shuffle p = F([0..N], r) (17.6)
+	coreIndices := make([]types.U32, types.CoresCount)
+	for i := range coreIndices {
+		coreIndices[i] = types.U32(i)
+	}
+	shuffled := shuffle.Shuffle(coreIndices, types.OpaqueHash(vrfOutput))
+
+	// Step 4: Select top 10 assigned reports (17.5)
+	var a0 []types.AuditReport
+	for _, coreIdx := range shuffled {
+		report := Q[coreIdx]
+		if report != nil {
+			a0 = append(a0, types.AuditReport{
+				CoreID:      types.CoreIndex(coreIdx),
+				Report:      *report,
+				AuditResult: false,
 			})
-			if len(output) == 10 {
+			if len(a0) == 10 {
 				break
 			}
 		}
 	}
-	return output
+
+	return a0, nil
 }
 
 // (17.8) let n = (T − P ⋅ Ht) / A
-// - T  = current wall-clock time (seconds)
-// - P  = SlotPeriod (e.g. 6s, constant)
-// - Ht = slot number from block header
-// - A  = TranchePeriod (e.g. 8s, constant)
 // GetTranchIndex computes tranche index from wall-clock time and block slot
 func GetTranchIndex() types.U64 {
-	T := header.GetCurrentTimeInSecond()
-	H_t := store.GetInstance().GetIntermediateHeader().Slot
-	n := (types.U64(T) - types.U64(types.SlotPeriod)*types.U64(H_t)) / types.TranchePeriod
+	T := types.U64(header.GetCurrentTimeInSecond())                   // T current time (seconds)
+	Ht := types.U64(store.GetInstance().GetIntermediateHeader().Slot) // Ht slot number from block header
+	P := types.U64(types.SlotPeriod)                                  // P: seconds per slot
+	A := types.U64(types.TranchePeriod)                               // A: seconds per tranche
+	n := (T - P*Ht) / A                                               // n = (T - P ⋅ Ht) / A
 	return n
 }
 
-// (17.9) S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
-// (17.10) where xn = E([E2(c) ⌢ H(w) S(c, w) ∈ an])
-// (17.11) XI = $jam_announce
-
-// BuildAnnouncement generates signature S over assigned audit reports in tranche n
+// BuildAnnouncement generates the announcement signature S
+// over the validator's audit assignment aₙ at tranche index n,
+// following formula:
+// S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
 func BuildAnnouncement(
-	n types.U32,
-	reports []types.AuditReport,
-	hashFunc func(types.ByteSequence) types.OpaqueHash,
+	n types.U32, // tranche index
+	an []types.AuditReport, // an: assignment at tranche n
+	hashFunc func(types.ByteSequence) types.OpaqueHash, // H(w): hash function
 	validatorIndex int,
+	validatorPrivKey ed25519.PrivateKey, // κ[v]ᵉ: Ed25519 private key
 ) types.Ed25519Signature {
 
+	// (17.10) Compute xn = concat of E([E2(c) ⌢ H(w)] for all (c, w) ∈ an)
 	var xnPayload types.ByteSequence
-
-	// (17.10) Build xn = hash(coreID || H(w)) for each (c, w) ∈ aₙ
-	for _, value := range reports {
-		xnPayload = append(xnPayload, utilities.SerializeFixedLength(types.U64(value.CoreID), 2)...) // E2(c)
-		H_w := hashFunc(utilities.WorkReportSerialization(value.Report))                             // H(w)
-		xnPayload = append(xnPayload, H_w[:]...)                                                     // concat
+	for _, pair := range an {
+		coreID := utilities.SerializeFixedLength(types.U64(pair.CoreID), 2) // E2(c)
+		hashW := hashFunc(utilities.WorkReportSerialization(pair.Report))   // H(w)
+		xnPayload = append(xnPayload, coreID...)
+		xnPayload = append(xnPayload, hashW[:]...)
 	}
-
 	xn := utilities.SerializeByteSequence(xnPayload)
 
 	// (17.11) XI = $jam_announce
-	// Context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
-	header := store.GetInstance().GetIntermediateHeader()              // H
-	context := types.ByteSequence(types.JamAnnounce[:])                // XI
-	context = append(context, utilities.SerializeFixedLength(n, 4)...) // n
-	context = append(context, xn...)                                   // xn
-	headerBytes := utilities.HeaderSerialization(header)
-	headerHash := hashFunc(headerBytes) // H(H)
-	context = append(context, headerHash[:]...)
+	XI := types.ByteSequence(types.JamAnnounce[:])
 
-	// (17.9) S = Sign⟨context⟩ using Ed25519
-	validator_key := store.GetInstance().GetPriorStates().GetKappa()[validatorIndex].Ed25519
-	signature := ed25519.Sign(validator_key[:], context)
+	// Get H(H): hash of the intermediate header
+	header := store.GetInstance().GetIntermediateHeader()
+	headerHash := hashFunc(utilities.HeaderSerialization(header))
+
+	// (17.9) context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
+	context := XI
+	context = append(context, utilities.SerializeFixedLength(n, 4)...) // ⌢ n
+	context = append(context, xn...)                                   // ⌢ xn
+	context = append(context, headerHash[:]...)                        // ⌢ H(H)
+
+	// Sign context with validator Ed25519 private key: S = Sign(context)
+	signature := ed25519.Sign(validatorPrivKey, context)
 	return types.Ed25519Signature(signature)
 }
 
-// GetAssignedValidators returns the list of validator indices assigned to audit a given work-report.
-// (17.12) An ∶ W → ℘⟨NV⟩
-func GetAssignedValidators(w types.WorkReport, assignmentMap types.AssignmentMap) []types.ValidatorIndex {
-	if validators, ok := assignmentMap[w.PackageSpec.Hash]; ok {
-		return validators
+// (17.12) GetAssignedValidators returns the set Aₙ(w) of validators assigned to work-report w.
+func GetAssignedValidators(
+	w types.WorkReport,
+	An types.AssignmentMap, // An: assignment map
+) []types.ValidatorIndex {
+	if assigned, ok := An[w.PackageSpec.Hash]; ok {
+		return assigned
 	}
-	// key doesn't exist return ∅
-	return []types.ValidatorIndex{}
+	return []types.ValidatorIndex{} // ∅ if not found
+}
+
+// (17.13) ∀(c, w) ∈ a0 ∶ v ∈ q0(w)
+func UpdateAssignmentMap(
+	A0 []types.AuditReport,
+	An types.AssignmentMap, // An: assignment map
+) types.AssignmentMap {
+	for _, audit := range A0 {
+		hash := audit.Report.PackageSpec.Hash
+		if _, ok := An[hash]; !ok {
+			An[hash] = []types.ValidatorIndex{}
+		}
+		An[hash] = append(An[hash], audit.ValidatorID)
+	}
+	return An
 }
 
 // ClassifyJudgments categorizes the validators who gave positive (J⊤) or negative (J⊥) judgments for a given work report.
@@ -214,48 +239,66 @@ func ClassifyJudgments(
 	}
 	return
 }
+func GetYHv() ([]byte, error) {
+	// Compute Y(Hᵥ) — entropy hashed by block author's key
+	store := store.GetInstance()
+	priorStates := store.GetPriorStates()
+	header := store.GetIntermediateHeader()
+	authorKey := priorStates.GetKappa()[header.AuthorIndex].Bandersnatch
+	authorVRF, err := safrole.CreateVRFHandler(authorKey)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to create author VRF handler: %w", err)
+	}
 
-// (17.15) sn(w) ∈ F[] κ[v]b ⟨XU ⌢ Y(Hv ) ⌢ H(w) n⟩
+	entropyHash, err := authorVRF.VRFIetfOutput(header.EntropySource[:])
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to compute Y(Hᵥ): %w", err)
+	}
+	return entropyHash, nil
+}
+
+// (17.15) sn(w) ∈ F[] κ[v]b ⟨XU ⌢ Y(Hv) ⌢ H(w) n⟩
 // (17.16) an ≡ { V/256F Y(sn(w))0 < mn | w ∈ Q, w ≠ ∅}
 // where mn = SAn−1(w) ∖ J⊺(w)S
-
 func ComputeAnForValidator(
-	trancheIndex types.U64,
-	workReportPool []*types.WorkReport,
+	n types.U64,
+	Q []*types.WorkReport,
 	priorAssignments map[types.WorkPackageHash][]types.ValidatorIndex, // Aₙ₋₁(w)
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, // J⊤(w)
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
-	validatorIndex int,
-) []types.AuditReport {
-	var auditAssignments []types.AuditReport
-	storeInstance := store.GetInstance()
-	posteriorState := storeInstance.GetPosteriorStates()
-	header := storeInstance.GetIntermediateHeader()
+	v int,
+) ([]types.AuditReport, error) {
+	var an []types.AuditReport
 
-	// Author info for Y(Hᵥ)
-	authorPublicKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
-	authorVRFHandler, err := safrole.CreateVRFHandler(authorPublicKey)
+	store := store.GetInstance()
+	priorStates := store.GetPriorStates()
+
+	// Y(Hᵥ): VRF output of block author's entropy
+	Y_Hv, err := GetYHv()
 	if err != nil {
-		log.Fatalf("failed to create VRF handler for author key: %v", err)
-	}
-	authorVRFOutput, err := authorVRFHandler.VRFIetfOutput(header.EntropySource[:])
-	if err != nil {
-		log.Fatalf("failed to compute VRF output for author: %v", err)
+		return nil, fmt.Errorf("failed to get Y(Hᵥ): %w", err)
 	}
 
-	for _, workPtr := range workReportPool {
-		if workPtr == nil {
+	// validator handler
+	validatorKey := priorStates.GetKappa()[v].Bandersnatch
+	vrfHandler, err := safrole.CreateVRFHandler(validatorKey)
+	if err != nil {
+		return nil, fmt.Errorf("CreateVRFHandler for validator: %w", err)
+	}
+
+	for _, wPtr := range Q {
+		if wPtr == nil {
 			continue
 		}
-		report := *workPtr
+		report := *wPtr
 		reportHash := report.PackageSpec.Hash
 		assignedValidators := priorAssignments[reportHash]
 		positiveJudgedMap := positiveJudgers[reportHash]
 
-		// Count validators who have not submitted judgment
+		// mₙ = |Aₙ₋₁(w) ∖ J⊤(w)|
 		noShowCount := 0
-		for _, v := range assignedValidators {
-			if !positiveJudgedMap[v] {
+		for _, vid := range assignedValidators {
+			if !positiveJudgedMap[vid] {
 				noShowCount++
 			}
 		}
@@ -263,47 +306,36 @@ func ComputeAnForValidator(
 			continue
 		}
 
-		// Build VRF context: $jam_audit ⌢ Y(Hv) ⌢ H(w) ⌢ n
-		context := append(types.ByteSequence(types.JamAudit[:]), authorVRFOutput...)
-		reportHashBytes := hashFunc(utilities.WorkReportSerialization(report))
-		context = append(context, reportHashBytes[:]...)
-		context = append(context, utilities.SerializeFixedLength(trancheIndex, 4)...)
+		// Build context ⟨XU ⌢ Y(Hv) ⌢ H(w) ⌢ n⟩
+		conext := types.ByteSequence(types.JamAudit[:])                    // XU
+		context := append(conext, Y_Hv...)                                 // Y(Hv)
+		Hw := hashFunc(utilities.WorkReportSerialization(report))          // H(w)
+		context = append(context, Hw[:]...)                                // H(w)
+		context = append(context, utilities.SerializeFixedLength(n, 4)...) // n
 
-		// Generate sₙ(w)
-		validatorKey := posteriorState.GetKappa()[validatorIndex].Bandersnatch
-		validatorVRFHandler, err := safrole.CreateVRFHandler(validatorKey)
+		// Compute sₙ(w)
+		signature, err := vrfHandler.IETFSign(context, []byte(""))
 		if err != nil {
-			log.Fatalf("failed to create VRF handler for validator key: %v", err)
+			return nil, fmt.Errorf("signing sₙ(w) failed: %w", err)
 		}
-		signature, err := validatorVRFHandler.RingSign(context, []byte(""))
+		sn_w, err := vrfHandler.VRFIetfOutput(signature[:])
 		if err != nil {
-			log.Fatalf("failed to sign context: %v", err)
+			return nil, fmt.Errorf("VRF output Y(sₙ(w)) failed: %w", err)
 		}
-		snOutput, err := validatorVRFHandler.VRFIetfOutput(signature[:])
-		if err != nil {
-			log.Fatalf("failed to compute sn(w) VRF output: %v", err)
-		}
-		signature, err = validatorVRFHandler.RingSign(snOutput, []byte(""))
-		if err != nil {
-			log.Fatalf("failed to sign context: %v", err)
-		}
-		// Compute scaled guess: V / (256F)
-		finalOutput, err := authorVRFHandler.VRFIetfOutput(signature[:])
-		if err != nil {
-			log.Fatalf("failed to compute final VRF output: %v", err)
-		}
-		vrfScaledGuess := int(finalOutput[0]) * types.ValidatorsCount / (256 * types.BiasFactor)
 
-		if vrfScaledGuess < noShowCount {
-			auditAssignments = append(auditAssignments, types.AuditReport{
+		//  V * Y(sn(w))0 / 256F < m
+		// This report is assigned to the validator
+		if int(sn_w[0])*types.ValidatorsCount/(256*types.BiasFactor) < noShowCount {
+			an = append(an, types.AuditReport{
 				CoreID:      report.CoreIndex,
 				Report:      report,
-				ValidatorID: types.ValidatorIndex(validatorIndex),
+				ValidatorID: types.ValidatorIndex(v),
 				AuditResult: false,
 			})
 		}
 	}
-	return auditAssignments
+
+	return an, nil
 }
 
 /*
@@ -432,7 +464,10 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
 	// a₀: Initial deterministic assignment
-	a0 := ComputeA0ForValidator(Q, validatorIndex)
+	a0, err := ComputeA0ForValidator(Q, validatorIndex)
+	if err != nil {
+		return fmt.Errorf("failed to compute initial audit assignment: %w", err)
+	}
 	for _, item := range a0 {
 		hash := item.Report.PackageSpec.Hash
 		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
@@ -442,7 +477,7 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 	tranche := GetTranchIndex()
 
 	// aₙ: Compute stochastic audit assignments (based on no-show)
-	aN := ComputeAnForValidator(
+	aN, err := ComputeAnForValidator(
 		tranche,
 		Q,
 		assignmentMap,
@@ -450,7 +485,9 @@ func SingleNodeAuditingAndPublish(validatorIndex int) error {
 		hash.Blake2bHash,
 		validatorIndex,
 	)
-
+	if err != nil {
+		return fmt.Errorf("failed to compute audit assignment: %w", err)
+	}
 	// Update positiveJudgers map
 	for _, a := range aN {
 		if a.AuditResult {
