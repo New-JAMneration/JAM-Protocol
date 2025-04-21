@@ -15,6 +15,7 @@ type RefineInput struct {
 	ImportSegments      [][]types.ExportSegment // bold{i}
 	ExportSegmentOffset uint                    // zeta
 	ServiceAccounts     types.ServiceAccountState
+	ExtrinsicDataMap    // extrinsic data map
 }
 
 type RefineOutput struct {
@@ -31,7 +32,11 @@ type IntegratedPVMType struct {
 	PC          ProgramCounter // i
 }
 
-type IntegratedPVMMap map[uint64]IntegratedPVMType
+type (
+	IntegratedPVMMap map[uint64]IntegratedPVMType
+	ExtrinsicData    []byte
+	ExtrinsicDataMap map[types.OpaqueHash]ExtrinsicData
+)
 
 // 14.17 P_n : Y -> Y_(k*n)
 func zeroPadding(seq types.ByteSequence, n int) types.ByteSequence {
@@ -49,7 +54,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// lookupData = Λ(δ[w_s], (p_x)_t, w_c)
 	lookupData := service_account.HistoricalLookup(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
 
-	if accountExists || (accountExists && len(lookupData) == 0) {
+	if !accountExists || (accountExists && len(lookupData) == 0) {
 		return RefineOutput{
 			WorkResult:    types.WorkExecResultBadCode,
 			ExportSegment: []types.ExportSegment{},
