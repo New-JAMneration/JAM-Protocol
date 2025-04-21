@@ -449,123 +449,132 @@ func IsBlockAudited(
 	return true
 }
 
-func PublishAuditReport(audit types.AuditReport) error {
+func BroadcastAuditReport(audit []types.AuditReport) {
 	// TODO: Implement the logic to publish the audit report
 	// This could involve sending the report to a network, saving it to a database, etc.
-	return nil
 }
 
-func SingleNodeAuditingAndPublish(validatorIndex int, validatorPrivKey ed25519.PrivateKey) error {
-	// Step 1: Collect work reports assigned per core (17.1–17.2)
+// CE144
+func BroadcastAnnouncement(validatorIndex int, tranche types.U8, assignment map[types.WorkPackageHash][]types.ValidatorIndex, signature types.Ed25519Signature) {
+	// TODO: Implement the logic to broadcast the announcement
+	// This could involve sending the announcement to a network, saving it to a database, etc.
+}
+func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
+	// TODO: Implement the logic to update the assignment map from other nodes
+	// This could involve receiving messages from other nodes and merging their assignment maps.
+	return assignmentMap
+}
+func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	// TODO: Implement the logic to update the positive judgers from other nodes
+	// This could involve receiving messages from other nodes and merging their positive judgers.
+	return positiveJudgers
+}
+
+func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	for _, audit := range audits {
+		if audit.AuditResult {
+			h := audit.Report.PackageSpec.Hash
+			if _, ok := positiveJudgers[h]; !ok {
+				positiveJudgers[h] = make(map[types.ValidatorIndex]bool)
+			}
+			positiveJudgers[h][audit.ValidatorID] = true
+		}
+	}
+	return positiveJudgers
+}
+
+// 17.17
+func GetJudgement(report types.AuditReport) bool {
+	// TODO : Implement the logic to evaluate the audit report
+	return true
+}
+func SingleNodeAuditingAndPublish(
+	validatorIndex int,
+	validatorPrivKey ed25519.PrivateKey,
+) error {
+	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
 	Q := GetQ()
-	reports_for_block := []types.WorkReport{}
+	var workReports []types.WorkReport
 	for _, report := range Q {
 		if report != nil {
-			reports_for_block = append(reports_for_block, *report)
+			workReports = append(workReports, *report)
 		}
 	}
 
-	// Step 2: Prepare assignment map Aₙ₋₁(w) and judgement state J⊤(w)
-	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
+	// Step 2: Initialize assignment map A and positive judger state J⊤
+	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)          // key = work report hash, value = validator index assigned to the report
+	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool) // key = work report hash, value = positive judgers
 
-	// Step 3: Compute initial deterministic assignment a₀ (17.3–17.7)
-	a0, err := ComputeA0ForValidator(Q, validatorIndex)
+	// Step 3: (17.3–17.7) Compute initial deterministic assignment a₀
+	a0, err := ComputeA0ForValidator(Q, validatorIndex) // a0: assigned reports for local validator
 	if err != nil {
 		return fmt.Errorf("failed to compute a₀: %w", err)
 	}
 
-	// Step 4: Store a₀ into assignment map (only own info known at this point)
-	for _, item := range a0 {
-		hash := item.Report.PackageSpec.Hash
+	// Step 4: Update local validator's assignment into the assignment map
+	for _, audit := range a0 {
+		hash := audit.Report.PackageSpec.Hash
 		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
 	}
 
-	// Step 5: Publish CE144 Announcement for a₀
-	announcement := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
-	fmt.Println("Announcement:", announcement)
-	/* TODO broadcast announcement CE144
-	if err := BroadcastAnnouncement(announcement); err != nil {
-		return fmt.Errorf("failed to broadcast a₀ announcement: %w", err)
-	}*/
+	// Step 5: Sign and broadcast A0 assignment (CE144)
+	a0Announcement := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	BroadcastAnnouncement(validatorIndex, 0, assignmentMap, a0Announcement)
 
-	// TODO　Evaluate initial judgments (17.17)
+	// Step 6: (17.17) Evaluate judgment for each assigned report in a0
 	for i := range a0 {
-		// TODO audit function a0[i].AuditResult = EvaluateAuditReport(a0[i].Report) // Placeholder
-		if a0[i].AuditResult {
-			hash := a0[i].Report.PackageSpec.Hash
-			if _, ok := positiveJudgers[hash]; !ok {
-				positiveJudgers[hash] = make(map[types.ValidatorIndex]bool)
-			}
-			positiveJudgers[hash][types.ValidatorIndex(validatorIndex)] = true
-		}
+		a0[i].AuditResult = GetJudgement(a0[i])
 	}
 
-	// Sign and broadcast CE145 judgments
+	// Step 7: Update positive judger map with local judgement results
+	UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
+
+	// Step 8: Sign and broadcast local judgement results (CE145)
 	signedA0 := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
-	for _, audit := range signedA0 {
-		err := PublishAuditReport(audit)
-		if err != nil {
-			return fmt.Errorf("failed to publish audit report for core %d: %w", audit.CoreID, err)
-		}
+	BroadcastAuditReport(signedA0)
+
+	// Step 9: Receive CE144 and CE145 from other nodes to update state
+	UpdateAssignmentMapFromOtherNode(assignmentMap)
+	UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+
+	// Step 10: (17.20) Check if all reports from the current block have passed audit
+	if IsBlockAudited(workReports, signedA0, assignmentMap) {
+		return nil // Auditing complete
 	}
 
-	// TODO: Wait for CE144/145 messages from peers
-	//       Update assignmentMap and positiveJudgers
-	/*
-		receivedAnnouncements := WaitForAnnouncements()
-		UpdateAssignmentMapAndPositiveJudgers(receivedAnnouncements, assignmentMap, positiveJudgers)
-	*/
-
-	// Step 9: Iterate over tranches (stochastic audit)
-	// 7. 開始 audit process loop for tranche n ≥ 1
+	// Step 11: Begin tranche loop for stochastic audit (n ≥ 1)
 	for tranche := types.U8(1); ; tranche++ {
-		// (17.15) 計算補審 assignment an
+		// (17.15–17.16) Compute stochastic assignment aₙ based on no-shows
 		an, err := ComputeAnForValidator(tranche, Q, assignmentMap, positiveJudgers, hash.Blake2bHash, validatorIndex)
 		if err != nil {
 			return fmt.Errorf("failed to compute aₙ: %w", err)
 		}
 
-		// (17.17) 審查報告內容：決定是否正審
-		/* TODO EvaluateReport
+		// Step 12: Evaluate each report in aₙ
 		for i := range an {
-			// an[i].AuditResult = EvaluateReport(an[i].Report) // TODO: 根據實際判斷條件實作
-		}*/
-
-		// (17.18) Sign
-		signed := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex)
-
-		// Update positiveJudgers
-		for _, audit := range signed {
-			if audit.AuditResult {
-				h := audit.Report.PackageSpec.Hash
-				if _, ok := positiveJudgers[h]; !ok {
-					positiveJudgers[h] = make(map[types.ValidatorIndex]bool)
-				}
-				positiveJudgers[h][audit.ValidatorID] = true
-			}
+			an[i].AuditResult = GetJudgement(an[i])
 		}
 
-		// broadcast CE145
-		for _, audit := range signed {
-			if err := PublishAuditReport(audit); err != nil {
-				return fmt.Errorf("failed to publish audit report for core %d: %w", audit.CoreID, err)
-			}
-		}
+		// Step 13: Broadcast CE144 announcement for aₙ
+		anAnnouncement := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnnouncement)
 
-		// broadcast (optional CE144 tranche n)
-		// TODO: Build and broadcast tranche n announcement
-		/*
-			announcement := BuildAnnouncement(tranche, an, ...)
-			err := BroadcastAnnouncement(announcement)
-		*/
+		// Step 14: Update positive judgers
+		UpdatePositiveJudgersFromAudit(an, positiveJudgers)
 
-		// TODO: Wait CE144 / CE145 update assignmentMap 和 positiveJudgers
+		// Step 15: Sign and broadcast CE145 judgments
+		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex)
+		BroadcastAuditReport(signedAn)
 
-		// 檢查是否所有報告都完成審查 (17.20)
-		if IsBlockAudited(reports_for_block, signed, assignmentMap) {
+		// Step 16: Update local assignment and judgement state with messages from other nodes
+		UpdateAssignmentMapFromOtherNode(assignmentMap)
+		UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+
+		// Step 17: Check if audit condition has been satisfied for all reports for single block
+		if IsBlockAudited(workReports, signedAn, assignmentMap) {
 			break
 		}
 	}
+
 	return nil
 }
