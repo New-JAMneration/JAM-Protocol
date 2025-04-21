@@ -74,6 +74,13 @@ type (
 	Gas       U64
 )
 
+func (e *ErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
+
 type (
 	Entropy       OpaqueHash
 	EntropyBuffer [4]Entropy

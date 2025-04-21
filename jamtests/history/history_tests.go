@@ -50,6 +50,15 @@ type HistoryState struct {
 	Beta types.BlocksHistory `json:"beta"`
 }
 
+type HistoryErrorCode types.ErrorCode
+
+func (h *HistoryErrorCode) Error() string {
+	if h == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *h)
+}
+
 // HistoryInput
 func (h *HistoryInput) Decode(d *types.Decoder) error {
 	var err error
@@ -205,6 +214,17 @@ func (h *HistoryTestCase) Dump() error {
 func (h *HistoryTestCase) GetPostState() interface{} {
 	return h.PostState
 }
+
+func (h *HistoryTestCase) GetOutput() interface{} {
+	return h.Output
+}
+
+func (h *HistoryTestCase) ExpectError() error {
+	// TODO: Implement error handling
+	// Should be implemented in the future once the testcase has an error
+	return nil
+}
+
 func (h *HistoryTestCase) Validate() error {
 	return nil
 }

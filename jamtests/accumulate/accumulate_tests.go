@@ -67,7 +67,7 @@ type AccumulateInput struct {
 
 type AccumulateOutput struct {
 	Ok  *types.AccumulateRoot `json:"ok,omitempty"`
-	Err interface{}           `json:"err,omitempty"` // err NULL
+	Err *AccumulatedErrorCode `json:"err,omitempty"` // err NULL
 }
 
 type AccumulateTestCase struct {
@@ -75,6 +75,15 @@ type AccumulateTestCase struct {
 	PreState  AccumulateState  `json:"pre_state"`
 	Output    AccumulateOutput `json:"output"`
 	PostState AccumulateState  `json:"post_state"`
+}
+
+type AccumulatedErrorCode types.ErrorCode
+
+func (a *AccumulatedErrorCode) Error() string {
+	if a == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *a)
 }
 
 // AccumulateInput
@@ -606,6 +615,17 @@ func (a *AccumulateTestCase) Dump() error {
 
 func (a *AccumulateTestCase) GetPostState() interface{} {
 	return a.PostState
+}
+
+func (a *AccumulateTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AccumulateTestCase) ExpectError() error {
+	if a.Output.Err == nil {
+		return nil
+	}
+	return a.Output.Err
 }
 
 func (a *AccumulateTestCase) Validate() error {

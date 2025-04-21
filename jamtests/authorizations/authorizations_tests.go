@@ -69,6 +69,15 @@ type AuthorizationState struct {
 	Varphi types.AuthQueues `json:"auth_queues"`
 }
 
+type AuthorizationErrorCode types.ErrorCode
+
+func (a *AuthorizationErrorCode) Error() string {
+	if a == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *a)
+}
+
 // Unmarshal JSON CoreAuthorizer
 func (c *CoreAuthorizer) UnmarshalJSON(data []byte) error {
 	var err error
@@ -311,6 +320,16 @@ func (a *AuthorizationTestCase) Dump() error {
 
 func (a *AuthorizationTestCase) GetPostState() interface{} {
 	return a.PostState
+}
+
+func (a *AuthorizationTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AuthorizationTestCase) ExpectError() error {
+	// TODO: Implement error handling
+	// Should be implemented in the future once the testcase has an error
+	return nil
 }
 
 func (a *AuthorizationTestCase) Validate() error {

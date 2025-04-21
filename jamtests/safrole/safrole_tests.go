@@ -52,6 +52,13 @@ type SafroleOutputData struct {
 
 type SafroleErrorCode types.ErrorCode
 
+func (e *SafroleErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
+
 type SafroleOutput struct {
 	Ok  *SafroleOutputData `json:"ok,omitempty"`
 	Err *SafroleErrorCode  `json:"err,omitempty"`
@@ -554,14 +561,26 @@ func (s *SafroleTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
 
 	// Miss PostOffenders?
+	storeInstance.GetPriorStates().SetPsiO(s.PreState.PostOffenders)
 
 	// How to set the Extrinsic?
-
+	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(s.Input.Extrinsic)
 	return nil
 }
 
 func (s *SafroleTestCase) GetPostState() interface{} {
 	return s.PostState
+}
+
+func (s *SafroleTestCase) GetOutput() interface{} {
+	return s.Output
+}
+
+func (s *SafroleTestCase) ExpectError() error {
+	if s.Output.Err == nil {
+		return nil
+	}
+	return s.Output.Err
 }
 
 func (s *SafroleTestCase) Validate() error {
