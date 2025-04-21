@@ -90,6 +90,7 @@ type RefineArgs struct {
 	ExportSegment    []types.ExportSegment // e
 	ServiceID        types.ServiceId       // s
 	TimeSlot         types.TimeSlot        // t
+	ExtrinsicDataMap                       // extrinsic data map
 }
 
 type HostCallArgs struct {
@@ -1586,27 +1587,15 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	workItem3 := input.Addition.WorkPackage.Items[input.Registers[11]]
 	// w_12 < |p_w[w_11]x|
 	condition32 := input.Registers[12] < uint64(len(workItem3.Extrinsic))
-	// H(x) =  p_w[w_11]x[w_12]
-	encoded3, _ := encoder.Encode(workItem3.Extrinsic)
-	// (H(x), |x|)
-	extrinsicSpec3 := types.ExtrinsicSpec{
-		Hash: hash.Blake2bHash(encoded3),
-		Len:  types.U32(len(workItem3.Extrinsic)),
-	}
-	condition33 := extrinsicSpec3.Hash == workItem3.Extrinsic[input.Registers[12]].Hash && extrinsicSpec3.Len == workItem3.Extrinsic[input.Registers[12]].Len
+	// extrinsic data exists
+	extrinsicData3, condition33 := input.Addition.ExtrinsicDataMap[workItem3.Extrinsic[input.Registers[12]].Hash]
 
 	// condition reg[10] == 4
 	// workItem4 = p_w[i]
 	workItem4 := input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex]
-	// H(x) = p_w[i]_x[w_11]
-	encoded4, _ := encoder.Encode(workItem4.Extrinsic[input.Registers[11]])
-	// (H(x), |x|)
-	extrinsicSpec4 := types.ExtrinsicSpec{
-		Hash: hash.Blake2bHash(encoded4),
-		Len:  types.U32(len(workItem4.Extrinsic)),
-	}
 
-	condition4 := extrinsicSpec4.Hash == workItem4.Extrinsic[input.Registers[11]].Hash && extrinsicSpec4.Len == workItem4.Extrinsic[input.Registers[11]].Len
+	// condition4 := extrinsicSpec4.Hash == workItem4.Extrinsic[input.Registers[11]].Hash && extrinsicSpec4.Len == workItem4.Extrinsic[input.Registers[11]].Len
+	extrinsicData4, condition4 := input.Addition.ExtrinsicDataMap[workItem4.Extrinsic[input.Registers[11]].Hash]
 
 	var v []byte
 	var dataLength uint64
@@ -1630,12 +1619,12 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 	case input.Registers[10] == 3 && condition31 && condition32 && condition33:
 		// v = x = p_w[w_11]_x
-		v = encoded3
+		v = extrinsicData3
 		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 4 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex].Extrinsic)) && condition4:
 		// v = x = p_w[i]x
-		v = encoded4
+		v = extrinsicData4
 		dataLength = uint64(len(v))
 
 	case input.Registers[10] == 5 && input.Registers[11] < uint64(len(input.Addition.ImportSegments)) && input.Registers[12] < uint64(len(input.Addition.ImportSegments[input.Registers[11]])):
