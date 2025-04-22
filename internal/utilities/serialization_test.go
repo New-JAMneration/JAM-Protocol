@@ -343,3 +343,55 @@ func TestWrapDictionaryKeyMap(t *testing.T) {
 		t.Errorf("The wrapped map should match the expected output.")
 	}
 }
+
+func TestWrapStatisticsServiceMap_EdgeCases(t *testing.T) {
+	// Test cases
+	tests := []struct {
+		name  string
+		input map[types.ServiceId]types.ServiceActivityRecord
+	}{
+		{
+			name:  "nil map",
+			input: nil,
+		},
+		{
+			name:  "empty map",
+			input: make(map[types.ServiceId]types.ServiceActivityRecord),
+		},
+		{
+			name: "map with zero values",
+			input: map[types.ServiceId]types.ServiceActivityRecord{
+				0: {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the function
+			result := WrapStatisticsServiceMap(tt.input)
+
+			// Serialize the result
+			serialized := result.Serialize()
+			t.Log("Serialized result:", serialized)
+
+			// For nil and empty maps, the serialized result should be empty
+			if tt.name == "nil map" || tt.name == "empty map" {
+				if len(serialized) != 0 {
+					t.Errorf("WrapStatisticsServiceMap(%s).Serialize() = %X, want empty byte sequence", tt.name, serialized)
+				}
+			} else if tt.name == "map with zero values" {
+				// For map with zero values, the serialized result should not be empty
+				if len(serialized) == 0 {
+					t.Errorf("WrapStatisticsServiceMap(%s).Serialize() returned empty byte sequence, expected non-empty", tt.name)
+				}
+
+				// Check that the key is properly serialized as U64(0)
+				keyBytes := U64Wrapper{Value: 0}.Serialize()
+				if !bytes.Contains(serialized, keyBytes) {
+					t.Errorf("WrapStatisticsServiceMap(%s).Serialize() does not contain serialized U64(0) key", tt.name)
+				}
+			}
+		})
+	}
+}
