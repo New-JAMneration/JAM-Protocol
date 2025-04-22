@@ -1,12 +1,17 @@
 package merklization
 
 import (
+	"encoding/json"
 	"errors"
+	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -314,5 +319,70 @@ func TestMerklizationState(t *testing.T) {
 
 	if resultLen != expectedLen {
 		t.Errorf("Expected %v, got %v", expectedLen, resultLen)
+	}
+}
+
+// This test will break
+func TestJamTestNetMerkleStateRoot(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		// "assurances",
+		"fallback",
+		// "orderedaccumulation",
+		// "safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join("../", utils.JAM_TEST_NET_DIR, "data", dirName, "state_transitions")
+
+		files, err := utils.GetTargetExtensionFiles(dir, utils.JSON_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+		for _, file := range files {
+
+			// Read the binary file
+			jsonPath := filepath.Join(dir, file)
+			// data, err := utils.GetBytesFromFile(binPath)
+			// if err != nil {
+			// 	t.Errorf("failed to read file: %v", err)
+			// }
+			type state_json struct {
+				StateRoot string     `json:"state_root"`
+				KeyVals   [][]string `json:"keyvals"`
+			}
+			type StateTransition_json struct {
+				PreState  state_json  `json:"pre_state"`
+				Block     types.Block `json:"block"`
+				PostState state_json  `json:"post_state"`
+			}
+			var inputInfo StateTransition_json
+			jsonData, err := os.ReadFile(jsonPath)
+			if err != nil {
+				t.Errorf("Failed to read JSON file %s: %v", jsonPath, err)
+				continue
+			}
+
+			err = json.Unmarshal(jsonData, &inputInfo)
+			if err != nil {
+				t.Errorf("Failed to unmarshal JSON file %s: %v", jsonPath, err)
+				continue
+			}
+
+			// inputInfo.PreState.StateRoot
+		}
+
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
 	}
 }

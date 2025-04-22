@@ -187,7 +187,8 @@ func MerklizationSerializedState(serializedState map[types.OpaqueHash]types.Byte
 // Merklization of the state.
 // (D.5)
 func MerklizationState(state types.State) (types.OpaqueHash, error) {
-	serializedState, err := StateSerialize(state)
+	// serializedState, err := StateSerialize(state)
+	serializedState, err := StateEncoder(state)
 	if err != nil {
 		return types.OpaqueHash{}, err
 	}
