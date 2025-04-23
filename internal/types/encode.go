@@ -2681,3 +2681,32 @@ func (s *State) Encode(e *Encoder) error {
 
 	return nil
 }
+
+type SliceHash struct {
+	A []OpaqueHash
+	B []OpaqueHash
+}
+
+func (s *SliceHash) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(s.A))); err != nil {
+		return err
+	}
+
+	for _, hash := range s.A {
+		if err := hash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if err := e.EncodeLength(uint64(len(s.B))); err != nil {
+		return err
+	}
+
+	for _, hash := range s.B {
+		if err := hash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
