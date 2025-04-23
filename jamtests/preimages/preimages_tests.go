@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -639,6 +640,39 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (p *PreimageTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	inputDelta := make(types.ServiceAccountState)
+	for _, delta := range p.PreState.Accounts {
+		// Create or get ServiceAccount, ensure its internal maps are initialized
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo:    types.ServiceInfo{},
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+
+		// Fill PreimageLookup
+		for _, preimage := range delta.Data.Preimages {
+			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+		}
+
+		// Fill LookupDict
+		for _, lookup := range delta.Data.LookupMeta {
+			serviceAccount.LookupDict[types.LookupMetaMapkey{
+				Hash:   lookup.Key.Hash,
+				Length: lookup.Key.Length,
+			}] = lookup.Val
+		}
+
+		// Store ServiceAccount into inputDelta
+		inputDelta[delta.Id] = serviceAccount
+	}
+
+	storeInstance.GetProcessingBlockPointer().SetPreimagesExtrinsic(p.Input.Preimages)
+	storeInstance.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
+	storeInstance.GetPosteriorStates().SetTau(p.Input.Slot)
+
 	return nil
 }
 
@@ -658,5 +692,6 @@ func (p *PreimageTestCase) ExpectError() error {
 }
 
 func (p *PreimageTestCase) Validate() error {
+	// TODO: Implement validation
 	return nil
 }
