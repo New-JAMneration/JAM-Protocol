@@ -3,6 +3,7 @@ package jamtests
 import (
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -208,6 +209,18 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (h *HistoryTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
+	storeInstance.GetProcessingBlockPointer().SetBlock(types.Block{
+		Header: types.Header{
+			Parent:          h.Input.HeaderHash,
+			ParentStateRoot: h.Input.ParentStateRoot,
+		},
+	})
+
+	// How to Set AccumulateRoot and WorkPackages?
+
 	return nil
 }
 
@@ -226,5 +239,6 @@ func (h *HistoryTestCase) ExpectError() error {
 }
 
 func (h *HistoryTestCase) Validate() error {
+	// TODO: Implement validation
 	return nil
 }
