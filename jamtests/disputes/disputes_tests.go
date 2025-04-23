@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -380,6 +381,17 @@ func (d *DisputeOutput) IsError() bool {
 
 // TODO: Implement the Dump method
 func (d *DisputeTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetPsi(d.PreState.Psi)
+	storeInstance.GetPriorStates().SetRho(d.PreState.Rho)
+	storeInstance.GetPriorStates().SetTau(d.PreState.Tau)
+	storeInstance.GetPriorStates().SetKappa(d.PreState.Kappa)
+	storeInstance.GetPriorStates().SetLambda(d.PreState.Lambda)
+
+	// Set DisputeInput Extrinsic?
+	storeInstance.GetProcessingBlockPointer().SetDisputesExtrinsic(d.Input.Disputes)
+
 	return nil
 }
 
@@ -399,5 +411,6 @@ func (d *DisputeTestCase) ExpectError() error {
 }
 
 func (d *DisputeTestCase) Validate() error {
+	// TODO: Implement validation logic
 	return nil
 }
