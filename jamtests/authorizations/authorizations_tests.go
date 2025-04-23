@@ -322,6 +322,12 @@ func (a *AuthorizationTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	storeInstance.GetPriorStates().SetVarphi(a.PreState.Varphi)
 
+	storeInstance.GetIntermediateHeaderPointer().SetSlot(a.Input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(a.Input.Slot)
+
+	// Missing the CoreAuthorizer
+	// How to set the CoreAuthorizer?
+
 	return nil
 }
 
