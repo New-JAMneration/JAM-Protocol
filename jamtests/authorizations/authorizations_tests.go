@@ -3,7 +3,9 @@ package jamtests
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -315,6 +317,11 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
+	storeInstance.GetPriorStates().SetVarphi(a.PreState.Varphi)
+
 	return nil
 }
 
@@ -333,5 +340,15 @@ func (a *AuthorizationTestCase) ExpectError() error {
 }
 
 func (a *AuthorizationTestCase) Validate() error {
+	storeInstance := store.GetInstance()
+
+	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetAlpha(), a.PostState.Alpha) {
+		return fmt.Errorf("Alpha mismatch: expected %v, got %v", a.PostState.Alpha, storeInstance.GetPosteriorStates().GetAlpha())
+	}
+
+	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetVarphi(), a.PostState.Varphi) {
+		return fmt.Errorf("Varphi mismatch: expected %v, got %v", a.PostState.Varphi, storeInstance.GetPosteriorStates().GetVarphi())
+	}
+
 	return nil
 }
