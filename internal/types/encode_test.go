@@ -182,7 +182,6 @@ func TestEncodeMetaCode(t *testing.T) {
 	}
 }
 
-// This test will break
 func TestEncodeWorkExecResult(t *testing.T) {
 	// test "ok" type of WorkExecResult
 	okResult := WorkExecResult{

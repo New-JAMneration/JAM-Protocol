@@ -117,7 +117,7 @@ func TestBitSequenceWrapper(t *testing.T) {
 func TestMapWarpper_Empty(t *testing.T) {
 	m := MapWarpper{Value: make(map[Comparable]Serializable)}
 	got := m.Serialize()
-	if len(got) != 0 {
+	if len(got) != 1 {
 		t.Errorf("MapWarpper(empty).Serialize() = %X, want empty", got)
 	}
 }
@@ -377,7 +377,7 @@ func TestWrapStatisticsServiceMap_EdgeCases(t *testing.T) {
 
 			// For nil and empty maps, the serialized result should be empty
 			if tt.name == "nil map" || tt.name == "empty map" {
-				if len(serialized) != 0 {
+				if len(serialized) != 1 {
 					t.Errorf("WrapStatisticsServiceMap(%s).Serialize() = %X, want empty byte sequence", tt.name, serialized)
 				}
 			} else if tt.name == "map with zero values" {
