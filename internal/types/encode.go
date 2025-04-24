@@ -955,12 +955,13 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 		return err
 	}
 
+	// TODO: not sure if we still need this check
 	if len(a.Bitfield) != int(AvailBitfieldBytes) {
 		return fmt.Errorf("Bitfield length is not equal to AvailBitfieldBytes")
 	}
 
 	// Bitfield
-	if _, err := e.buf.Write(a.Bitfield); err != nil {
+	if err := a.Bitfield.Encode(e); err != nil {
 		return err
 	}
 
@@ -975,6 +976,13 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 	}
 
 	return nil
+}
+
+func (bf *Bitfield) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Bitfield")
+
+	_, err := e.buf.Write(bf.ToOctetSlice())
+	return err
 }
 
 // AssurancesExtrinsic
@@ -2346,39 +2354,39 @@ func (g *Gamma) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulatedHistory
-func (ah *AccumulatedHistory) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulatedHistory")
+// // AccumulatedHistory
+// func (ah *AccumulatedHistory) Encode(e *Encoder) error {
+// 	cLog(Cyan, "Encoding AccumulatedHistory")
 
-	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
-		return err
-	}
+// 	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
+// 		return err
+// 	}
 
-	for _, workPackageHash := range *ah {
-		if err := workPackageHash.Encode(e); err != nil {
-			return err
-		}
-	}
+// 	for _, workPackageHash := range *ah {
+// 		if err := workPackageHash.Encode(e); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// AccumulatedHistories
-func (ah *AccumulatedHistories) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
+// // AccumulatedHistories
+// func (ah *AccumulatedHistories) Encode(e *Encoder) error {
+// 	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
 
-	if len(*ah) != int(EpochLength) {
-		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
-	}
+// 	if len(*ah) != int(EpochLength) {
+// 		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
+// 	}
 
-	for _, accumulatedHistory := range *ah {
-		if err := accumulatedHistory.Encode(e); err != nil {
-			return err
-		}
-	}
+// 	for _, accumulatedHistory := range *ah {
+// 		if err := accumulatedHistory.Encode(e); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (s *Storage) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Storage")
@@ -2676,6 +2684,90 @@ func (s *State) Encode(e *Encoder) error {
 
 	// Delta
 	if err := s.Delta.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// deferredTransfer
+func (d *DeferredTransfer) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfer")
+
+	// SenderID
+	if err := d.SenderID.Encode(e); err != nil {
+		return err
+	}
+
+	// ReceiverID
+	if err := d.ReceiverID.Encode(e); err != nil {
+		return err
+	}
+
+	// Balance
+	if err := d.Balance.Encode(e); err != nil {
+		return err
+	}
+
+	// Memo
+	if _, err := e.buf.Write(d.Memo[:]); err != nil {
+		return err
+	}
+
+	// GasLimit
+	if err := d.GasLimit.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DeferredTransfers) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding DeferredTransfers")
+
+	if err := e.EncodeLength(uint64(len(*d))); err != nil {
+		return err
+	}
+
+	for _, deferredTransfer := range *d {
+		if err := deferredTransfer.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *Operand) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Operand")
+
+	// Hash
+	if err := o.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	// ExportsRoot
+	if err := o.ExportsRoot.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthorizerHash
+	if err := o.AuthorizerHash.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthOutput
+	if err := o.AuthOutput.Encode(e); err != nil {
+		return err
+	}
+
+	// PayloadHash
+	if err := o.PayloadHash.Encode(e); err != nil {
+		return err
+	}
+
+	// Result
+	if err := o.Result.Encode(e); err != nil {
 		return err
 	}
 

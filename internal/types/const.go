@@ -35,7 +35,7 @@ func SetTinyMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 3
 	TicketsPerValidator = 3
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 5
@@ -51,7 +51,7 @@ func SetFullMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 683
@@ -72,7 +72,7 @@ var (
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
 
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 
 	AuthPoolMaxSize = 8
 	AuthQueueSize   = 80
@@ -113,8 +113,10 @@ const (
 // work package constants
 const (
 	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
-	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.3
-	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.3
+	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.4
+	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.4
+	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	TotalGas           = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	MaxSegments        = 3072                             // W_M: import/export segment total limit (14.4). graypaper 0.6.3
 	ECPiecesPerSegment = 6                                // W_P: The number of erasure-coded pieces in a segment
 	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
@@ -126,4 +128,11 @@ const (
 const (
 	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 	GenesisStatePath = "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
+)
+
+// PVM constants
+const (
+	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
+	TransferMemoSize              = 128                       // W_T
+	LookupAnchorMaxAge            = 14400                     // L
 )
