@@ -7,6 +7,13 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
+// key 1: Alpha
+func EncodeAlphaKey() types.OpaqueHash {
+	alphaWrapper := StateWrapper{StateIndex: 1}
+	return alphaWrapper.StateKeyConstruct()
+}
+
+// value 1: Alpha
 func SerializeAlpha(alpha types.AuthPools) (output types.ByteSequence) {
 	for _, authPool := range alpha {
 		output = append(output, utilities.SerializeU64(types.U64(len(authPool)))...)
@@ -26,6 +33,13 @@ func EncodeAlpha(alpha types.AuthPools) types.ByteSequence {
 	return encodedAlpha
 }
 
+// key 2: Varphi
+func EncodeVarphiKey() types.OpaqueHash {
+	varphiWrapper := StateWrapper{StateIndex: 2}
+	return varphiWrapper.StateKeyConstruct()
+}
+
+// value 2: Varphi
 func SerializeVarphi(varphi types.AuthQueues) (output types.ByteSequence) {
 	for _, v := range varphi {
 		for _, authQueue := range v {
@@ -44,6 +58,13 @@ func EncodeVarphi(varphi types.AuthQueues) types.ByteSequence {
 	return encodedVarphi
 }
 
+// key 3: Beta
+func EncodeBetaKey() types.OpaqueHash {
+	betaWrapper := StateWrapper{StateIndex: 3}
+	return betaWrapper.StateKeyConstruct()
+}
+
+// value 3: Beta
 func SerializeBeta(beta types.BlocksHistory) (output types.ByteSequence) {
 	output = append(output, utilities.SerializeU64(types.U64(len(beta)))...)
 	for _, blockInfo := range beta {
@@ -76,6 +97,13 @@ func EncodeBeta(beta types.BlocksHistory) types.ByteSequence {
 	return encodedBeta
 }
 
+// key 4: gamma
+func EncodeGammaKey() types.OpaqueHash {
+	gammaWrapper := StateWrapper{StateIndex: 4}
+	return gammaWrapper.StateKeyConstruct()
+}
+
+// value 4: gamma
 func SerializeGamma(gamma types.Gamma) (output types.ByteSequence) {
 	// gamma_k
 	for _, v := range gamma.GammaK {
@@ -119,6 +147,13 @@ func EncodeGamma(gamma types.Gamma) types.ByteSequence {
 	return encodedGamma
 }
 
+// key 5: phi
+func EncodePsiKey() types.OpaqueHash {
+	psiWrapper := StateWrapper{StateIndex: 5}
+	return psiWrapper.StateKeyConstruct()
+}
+
+// value 5: phi
 func SerializePsi(psi types.DisputesRecords) (output types.ByteSequence) {
 	// psi_g
 	output = append(output, utilities.SerializeU64(types.U64(len(psi.Good)))...)
@@ -155,6 +190,13 @@ func EncodePsi(psi types.DisputesRecords) types.ByteSequence {
 	return encodedPsi
 }
 
+// key 6: eta
+func EncodeEtaKey() types.OpaqueHash {
+	epsilonWrapper := StateWrapper{StateIndex: 6}
+	return epsilonWrapper.StateKeyConstruct()
+}
+
+// value 6: eta
 func SerializeEta(eta types.EntropyBuffer) (output types.ByteSequence) {
 	for _, entropy := range eta {
 		output = append(output, utilities.SerializeByteSequence(entropy[:])...)
@@ -171,6 +213,13 @@ func EncodeEta(eta types.EntropyBuffer) types.ByteSequence {
 	return encodedEta
 }
 
+// key 7: iota
+func EncodeIotaKey() types.OpaqueHash {
+	iotaWrapper := StateWrapper{StateIndex: 7}
+	return iotaWrapper.StateKeyConstruct()
+}
+
+// value 7: iota
 func SerializeIota(iota types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range iota {
 		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
@@ -190,6 +239,13 @@ func EncodeIota(iota types.ValidatorsData) types.ByteSequence {
 	return encodedIota
 }
 
+// key 8: kappa
+func EncodeKappaKey() types.OpaqueHash {
+	kappaWrapper := StateWrapper{StateIndex: 8}
+	return kappaWrapper.StateKeyConstruct()
+}
+
+// value 8: kappa
 func SerializeKappa(kappa types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range kappa {
 		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
@@ -209,6 +265,13 @@ func EncodeKappa(kappa types.ValidatorsData) types.ByteSequence {
 	return encodedKappa
 }
 
+// key 9: lambda
+func EncodeLambdaKey() types.OpaqueHash {
+	lambdaWrapper := StateWrapper{StateIndex: 9}
+	return lambdaWrapper.StateKeyConstruct()
+}
+
+// value 9: lambda
 func SerializeLambda(lambda types.ValidatorsData) (output types.ByteSequence) {
 	for _, v := range lambda {
 		output = append(output, utilities.SerializeByteSequence(v.Bandersnatch[:])...)
@@ -228,6 +291,13 @@ func EncodeLambda(lambda types.ValidatorsData) types.ByteSequence {
 	return encodedLambda
 }
 
+// key 10: rho
+func EncodeRhoKey() types.OpaqueHash {
+	rhoWrapper := StateWrapper{StateIndex: 10}
+	return rhoWrapper.StateKeyConstruct()
+}
+
+// value 10: rho
 func SerializeRho(rho types.AvailabilityAssignments) (output types.ByteSequence) {
 	for _, v := range rho {
 		if v != nil {
@@ -250,6 +320,13 @@ func EncodeRho(rho types.AvailabilityAssignments) types.ByteSequence {
 	return encodedRho
 }
 
+// key 11: tau
+func EncodeTauKey() types.OpaqueHash {
+	tauWrapper := StateWrapper{StateIndex: 11}
+	return tauWrapper.StateKeyConstruct()
+}
+
+// value 11: tau
 func SerializeTau(tau types.TimeSlot) (output types.ByteSequence) {
 	output = utilities.SerializeFixedLength(types.U32(tau), 4)
 	return output
@@ -264,6 +341,13 @@ func EncodeTau(tau types.TimeSlot) types.ByteSequence {
 	return encodedTau
 }
 
+// key 12: chi
+func EncodeChiKey() types.OpaqueHash {
+	chiWrapper := StateWrapper{StateIndex: 12}
+	return chiWrapper.StateKeyConstruct()
+}
+
+// value 12: chi
 func SerializeChi(chi types.Privileges) (output types.ByteSequence) {
 	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Bless), 4)...)
 	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Assign), 4)...)
@@ -285,6 +369,13 @@ func EncodeChi(chi types.Privileges) types.ByteSequence {
 	return encodedChi
 }
 
+// key 13: pi
+func EncodePiKey() types.OpaqueHash {
+	piWrapper := StateWrapper{StateIndex: 13}
+	return piWrapper.StateKeyConstruct()
+}
+
+// value 13: pi
 func SerializePi(pi types.Statistics) (output types.ByteSequence) {
 	for _, activityRecord := range pi.ValsCurrent {
 		output = append(output, utilities.SerializeFixedLength(activityRecord.Blocks, 4)...)
@@ -332,6 +423,13 @@ func EncodePi(pi types.Statistics) types.ByteSequence {
 	return encodedPi
 }
 
+// key 14: theta
+func EncodeThetaKey() types.OpaqueHash {
+	thetaWrapper := StateWrapper{StateIndex: 14}
+	return thetaWrapper.StateKeyConstruct()
+}
+
+// value 14: theta
 func SerializeTheta(theta types.ReadyQueue) (output types.ByteSequence) {
 	for _, unaccumulateWorkReports := range theta {
 		output = append(output, utilities.SerializeU64(types.U64(len(unaccumulateWorkReports)))...)
@@ -355,6 +453,13 @@ func EncodeTheta(theta types.ReadyQueue) types.ByteSequence {
 	return encodedTheta
 }
 
+// key 15: xi
+func EncodeXiKey() types.OpaqueHash {
+	xiWrapper := StateWrapper{StateIndex: 15}
+	return xiWrapper.StateKeyConstruct()
+}
+
+// value 15: xi
 func SerializeXi(xi types.AccumulatedQueue) (output types.ByteSequence) {
 	for _, v := range xi {
 		output = append(output, utilities.SerializeU64(types.U64(len(v)))...)
@@ -374,6 +479,13 @@ func EncodeXi(xi types.AccumulatedQueue) types.ByteSequence {
 	return encodedXi
 }
 
+// key 16: delta1
+func EncodeDelta1Key() types.OpaqueHash {
+	delta1Wrapper := StateWrapper{StateIndex: 16}
+	return delta1Wrapper.StateKeyConstruct()
+}
+
+// value 16: delta1
 func SerializeDelta1(s types.ServiceAccount) (output types.ByteSequence) {
 	// a_c
 	delta1Output := types.ByteSequence(s.ServiceInfo.CodeHash[:])
@@ -432,6 +544,49 @@ func EncodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	}
 	output = append(output, encodedKeys...)
 	return output
+}
+
+// key 16: delta1
+func EncodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (key16 types.OpaqueHash, delta1Output types.ByteSequence) {
+	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.U32(id)}
+	key16 = serviceWrapper.StateKeyConstruct()
+
+	delta1Output = EncodeDelta1(delta)
+	return key16, delta1Output
+}
+
+// key 17: delta2
+func EncodeDelta2KeyVal(id types.ServiceId, account types.ServiceAccount, key types.OpaqueHash, value types.ByteSequence) (key17 types.OpaqueHash, delta2Output types.ByteSequence) {
+	hash := append(utilities.SerializeFixedLength(types.U32(1<<32-1), 4), key[0:29]...)
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+	key17 = serviceWrapper.StateKeyConstruct()
+	delta2Output = value
+	return key17, delta2Output
+}
+
+// key 18: delta3
+func EncodeDelta3KeyVal(id types.ServiceId, account types.ServiceAccount, key types.OpaqueHash, value types.ByteSequence) (key18 types.OpaqueHash, delta3Output types.ByteSequence) {
+	hash := append(utilities.SerializeFixedLength(types.U32(1<<32-2), 4), key[1:30]...)
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+	key18 = serviceWrapper.StateKeyConstruct()
+	delta3Output = value
+	return key18, delta3Output
+}
+
+// key 19: delta4
+func EncodeDelta4KeyVal(id types.ServiceId, account types.ServiceAccount, key types.LookupMetaMapkey, value types.TimeSlotSet) (key19 types.OpaqueHash, delta4Output types.ByteSequence) {
+	h := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
+	hashKey := append(utilities.SerializeFixedLength(types.U32(key.Length), 4), h[2:31]...)
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hashKey)}
+	key19 = serviceWrapper.StateKeyConstruct()
+
+	for _, timeSlot := range value {
+		delta4Output = append(delta4Output, utilities.SerializeFixedLength(types.U64(timeSlot), 4)...)
+	}
+
+	delta4Output = append(utilities.SerializeU64(types.U64(len(value))), utilities.SerializeByteSequence(delta4Output)...)
+
+	return key19, delta4Output
 }
 
 func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence, error) {
@@ -554,7 +709,8 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 			for _, timeSlot := range value {
 				delta4Output = append(delta4Output, utilities.SerializeFixedLength(types.U64(timeSlot), 4)...)
 			}
-			delta4Output = append(utilities.SerializeU64(types.U64(len(delta4Output))), utilities.SerializeByteSequence(delta4Output)...)
+			delta4Output = append(utilities.SerializeU64(types.U64(len(value))), utilities.SerializeByteSequence(delta4Output)...)
+
 			serialized[key] = delta4Output
 		}
 	}
@@ -565,124 +721,93 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 func StateEncoder(state types.State) (map[types.OpaqueHash]types.ByteSequence, error) {
 	serialized := make(map[types.OpaqueHash]types.ByteSequence)
 
-	// key 1: Alpha
-	alphaWrapper := StateWrapper{StateIndex: 1}
-	key1 := alphaWrapper.StateKeyConstruct()
+	// key 1: alpha
+	key1 := EncodeAlphaKey()
 	serialized[key1] = EncodeAlpha(state.Alpha)
 
-	// key 2: Varphi
-	varphiWrapper := StateWrapper{StateIndex: 2}
-	key2 := varphiWrapper.StateKeyConstruct()
+	// key 2: varphi
+	key2 := EncodeVarphiKey()
 	serialized[key2] = EncodeVarphi(state.Varphi)
 
-	// key 3: Beta
-	betaWrapper := StateWrapper{StateIndex: 3}
-	key3 := betaWrapper.StateKeyConstruct()
+	// key 3: beta
+	key3 := EncodeBetaKey()
 	serialized[key3] = EncodeBeta(state.Beta)
 
 	// key 4: gamma
-	gammaWrapper := StateWrapper{StateIndex: 4}
-	key4 := gammaWrapper.StateKeyConstruct()
+	key4 := EncodeGammaKey()
 	serialized[key4] = EncodeGamma(state.Gamma)
 
-	// key 5: phi
-	psiWrapper := StateWrapper{StateIndex: 5}
-	key5 := psiWrapper.StateKeyConstruct()
+	// key 5: psi
+	key5 := EncodePsiKey()
 	serialized[key5] = EncodePsi(state.Psi)
 
 	// key 6: eta
-	etaWrapper := StateWrapper{StateIndex: 6}
-	key6 := etaWrapper.StateKeyConstruct()
+	key6 := EncodeEtaKey()
 	serialized[key6] = EncodeEta(state.Eta)
 
 	// key 7: iota
-	iotaWrapper := StateWrapper{StateIndex: 7}
-	key7 := iotaWrapper.StateKeyConstruct()
+	key7 := EncodeIotaKey()
 	serialized[key7] = EncodeIota(state.Iota)
 
 	// key 8: kappa
-	kappaWrapper := StateWrapper{StateIndex: 8}
-	key8 := kappaWrapper.StateKeyConstruct()
+	key8 := EncodeKappaKey()
 	serialized[key8] = EncodeKappa(state.Kappa)
 
 	// key 9: lambda
-	lambdaWrapper := StateWrapper{StateIndex: 9}
-	key9 := lambdaWrapper.StateKeyConstruct()
+	key9 := EncodeLambdaKey()
 	serialized[key9] = EncodeLambda(state.Lambda)
 
 	// key 10: rho
-	rhoWrapper := StateWrapper{StateIndex: 10}
-	key10 := rhoWrapper.StateKeyConstruct()
+	key10 := EncodeRhoKey()
 	serialized[key10] = EncodeRho(state.Rho)
 
 	// key 11: tau
-	tauWrapper := StateWrapper{StateIndex: 11}
-	key11 := tauWrapper.StateKeyConstruct()
+	key11 := EncodeTauKey()
 	serialized[key11] = EncodeTau(state.Tau)
 
 	// key 12: chi
-	chiWrapper := StateWrapper{StateIndex: 12}
-	key12 := chiWrapper.StateKeyConstruct()
+	key12 := EncodeChiKey()
 	serialized[key12] = EncodeChi(state.Chi)
 
 	// key 13: pi
-	piWrapper := StateWrapper{StateIndex: 13}
-	key13 := piWrapper.StateKeyConstruct()
+	key13 := EncodePiKey()
 	serialized[key13] = EncodePi(state.Pi)
 
 	// key 14: theta
-	thetaWrapper := StateWrapper{StateIndex: 14}
-	key14 := thetaWrapper.StateKeyConstruct()
+	key14 := EncodeThetaKey()
 	serialized[key14] = EncodeTheta(state.Theta)
 
 	// key 15: xi
-	xiWrapper := StateWrapper{StateIndex: 15}
-	key15 := xiWrapper.StateKeyConstruct()
+	key15 := EncodeXiKey()
 	serialized[key15] = EncodeXi(state.Xi)
 
 	// delta 1
-	for k, v := range state.Delta {
-		serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.U32(k)}
-		key := serviceWrapper.StateKeyConstruct()
-
-		delta1Output := EncodeDelta1(v)
-		serialized[key] = delta1Output
+	for id, account := range state.Delta {
+		key16, delta1Output := EncodeDelta1KeyVal(id, account)
+		serialized[key16] = delta1Output
 	}
 
 	// delta 2
 	for id, account := range state.Delta {
-		for key, value := range account.StorageDict {
-			hash := append(utilities.SerializeFixedLength(types.U32(1<<32-1), 4), key[0:29]...)
-			serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
-			key := serviceWrapper.StateKeyConstruct()
-			serialized[key] = value
+		for key, val := range account.StorageDict {
+			key17, delta2Output := EncodeDelta2KeyVal(id, account, key, val)
+			serialized[key17] = delta2Output
 		}
 	}
 
 	// delta 3
 	for id, account := range state.Delta {
-		for key, value := range account.PreimageLookup {
-			hash := append(utilities.SerializeFixedLength(types.U32(1<<32-2), 4), key[1:30]...)
-			serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
-			key := serviceWrapper.StateKeyConstruct()
-			serialized[key] = value
+		for key, val := range account.PreimageLookup {
+			key18, delta3Output := EncodeDelta3KeyVal(id, account, key, val)
+			serialized[key18] = delta3Output
 		}
 	}
 
 	// delta 4
 	for id, account := range state.Delta {
-		for key, value := range account.LookupDict {
-			h := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
-			hashKey := append(utilities.SerializeFixedLength(types.U32(key.Length), 4), h[2:31]...)
-			serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hashKey)}
-			key := serviceWrapper.StateKeyConstruct()
-
-			var delta4Output types.ByteSequence
-			for _, timeSlot := range value {
-				delta4Output = append(delta4Output, utilities.SerializeFixedLength(types.U64(timeSlot), 4)...)
-			}
-			delta4Output = append(utilities.SerializeU64(types.U64(len(delta4Output))), utilities.SerializeByteSequence(delta4Output)...)
-			serialized[key] = delta4Output
+		for key, val := range account.LookupDict {
+			key19, delta4Output := EncodeDelta4KeyVal(id, account, key, val)
+			serialized[key19] = delta4Output
 		}
 	}
 
