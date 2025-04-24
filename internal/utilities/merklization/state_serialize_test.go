@@ -154,21 +154,21 @@ func TestStateSerialize(t *testing.T) {
 				continue
 			}
 
-			output := SerializeAlpha(state.Alpha)
-			output = append(output, SerializeVarphi(state.Varphi)...)
-			output = append(output, SerializeBeta(state.Beta)...)
-			output = append(output, SerializeGamma(state.Gamma)...)
-			output = append(output, SerializePsi(state.Psi)...)
-			output = append(output, SerializeEta(state.Eta)...)
-			output = append(output, SerializeIota(state.Iota)...)
-			output = append(output, SerializeKappa(state.Kappa)...)
-			output = append(output, SerializeLambda(state.Lambda)...)
-			output = append(output, SerializeRho(state.Rho)...)
-			output = append(output, SerializeTau(state.Tau)...)
-			output = append(output, SerializeChi(state.Chi)...)
-			output = append(output, SerializePi(state.Pi)...)
-			output = append(output, SerializeTheta(state.Theta)...)
-			output = append(output, SerializeXi(state.Xi)...)
+			output := serializeAlpha(state.Alpha)
+			output = append(output, serializeVarphi(state.Varphi)...)
+			output = append(output, serializeBeta(state.Beta)...)
+			output = append(output, serializeGamma(state.Gamma)...)
+			output = append(output, serializePsi(state.Psi)...)
+			output = append(output, serializeEta(state.Eta)...)
+			output = append(output, serializeIota(state.Iota)...)
+			output = append(output, serializeKappa(state.Kappa)...)
+			output = append(output, serializeLambda(state.Lambda)...)
+			output = append(output, serializeRho(state.Rho)...)
+			output = append(output, serializeTau(state.Tau)...)
+			output = append(output, serializeChi(state.Chi)...)
+			output = append(output, serializePi(state.Pi)...)
+			output = append(output, serializeTheta(state.Theta)...)
+			output = append(output, serializeXi(state.Xi)...)
 			if !bytes.Equal(data[:len(output)], output[:]) {
 				t.Error("serialize failed")
 			}
@@ -260,42 +260,42 @@ func TestJamTestNetStateEncodeAndSerialization(t *testing.T) {
 			// }
 			// Compare the two serialized data
 			var (
-				serializedAlpha  = SerializeAlpha(jsonState.Alpha)
-				serializedVarphi = SerializeVarphi(jsonState.Varphi)
-				serializedBeta   = SerializeBeta(jsonState.Beta)
-				serializedGamma  = SerializeGamma(jsonState.Gamma)
-				serializedPsi    = SerializePsi(jsonState.Psi)
-				serializedEta    = SerializeEta(jsonState.Eta)
-				serializedIota   = SerializeIota(jsonState.Iota)
-				serializedKappa  = SerializeKappa(jsonState.Kappa)
-				serializedLambda = SerializeLambda(jsonState.Lambda)
-				serializedRho    = SerializeRho(jsonState.Rho)
-				serializedTau    = SerializeTau(jsonState.Tau)
-				serializedChi    = SerializeChi(jsonState.Chi)
-				serializedPi     = SerializePi(jsonState.Pi)
-				serializedTheta  = SerializeTheta(jsonState.Theta)
-				serializedXi     = SerializeXi(jsonState.Xi)
+				serializedAlpha  = serializeAlpha(jsonState.Alpha)
+				serializedVarphi = serializeVarphi(jsonState.Varphi)
+				serializedBeta   = serializeBeta(jsonState.Beta)
+				serializedGamma  = serializeGamma(jsonState.Gamma)
+				serializedPsi    = serializePsi(jsonState.Psi)
+				serializedEta    = serializeEta(jsonState.Eta)
+				serializedIota   = serializeIota(jsonState.Iota)
+				serializedKappa  = serializeKappa(jsonState.Kappa)
+				serializedLambda = serializeLambda(jsonState.Lambda)
+				serializedRho    = serializeRho(jsonState.Rho)
+				serializedTau    = serializeTau(jsonState.Tau)
+				serializedChi    = serializeChi(jsonState.Chi)
+				serializedPi     = serializePi(jsonState.Pi)
+				serializedTheta  = serializeTheta(jsonState.Theta)
+				serializedXi     = serializeXi(jsonState.Xi)
 			)
 			var (
-				encodedAlpha  = EncodeAlpha(jsonState.Alpha)
-				encodedVarphi = EncodeVarphi(jsonState.Varphi)
-				encodedBeta   = EncodeBeta(jsonState.Beta)
-				encodedGamma  = EncodeGamma(jsonState.Gamma)
-				encodedPsi    = EncodePsi(jsonState.Psi)
-				encodedEta    = EncodeEta(jsonState.Eta)
-				encodedIota   = EncodeIota(jsonState.Iota)
-				encodedKappa  = EncodeKappa(jsonState.Kappa)
-				encodedLambda = EncodeLambda(jsonState.Lambda)
-				encodedRho    = EncodeRho(jsonState.Rho)
-				encodedTau    = EncodeTau(jsonState.Tau)
-				encodedChi    = EncodeChi(jsonState.Chi)
-				encodedPi     = EncodePi(jsonState.Pi)
-				encodedTheta  = EncodeTheta(jsonState.Theta)
-				encodedXi     = EncodeXi(jsonState.Xi)
+				encodedAlpha  = encodeAlpha(jsonState.Alpha)
+				encodedVarphi = encodeVarphi(jsonState.Varphi)
+				encodedBeta   = encodeBeta(jsonState.Beta)
+				encodedGamma  = encodeGamma(jsonState.Gamma)
+				encodedPsi    = encodePsi(jsonState.Psi)
+				encodedEta    = encodeEta(jsonState.Eta)
+				encodedIota   = encodeIota(jsonState.Iota)
+				encodedKappa  = encodeKappa(jsonState.Kappa)
+				encodedLambda = encodeLambda(jsonState.Lambda)
+				encodedRho    = encodeRho(jsonState.Rho)
+				encodedTau    = encodeTau(jsonState.Tau)
+				encodedChi    = encodeChi(jsonState.Chi)
+				encodedPi     = encodePi(jsonState.Pi)
+				encodedTheta  = encodeTheta(jsonState.Theta)
+				encodedXi     = encodeXi(jsonState.Xi)
 			)
 			for _, v := range jsonState.Delta {
-				serializedDelta1 := SerializeDelta1(v)
-				encodedDelta1 := EncodeDelta1(v)
+				serializedDelta1 := serializeDelta1(v)
+				encodedDelta1 := encodeDelta1(v)
 				if !reflect.DeepEqual(encodedDelta1, serializedDelta1) {
 					diff := cmp.Diff(encodedDelta1, serializedDelta1)
 					t.Error(dirName, binPath, "serialize Delta1 failed", diff)
@@ -376,9 +376,9 @@ func TestJamTestNetStateRoot(t *testing.T) {
 
 	dirNames := []string{
 		"assurances",
-		// "fallback",
-		// "orderedaccumulation",
-		// "safrole",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
 	}
 
 	for _, dirName := range dirNames {
@@ -461,21 +461,21 @@ func TestJamTestNetStateRoot(t *testing.T) {
 			}
 
 			var (
-				encodedAlpha  = EncodeAlpha(state.Alpha)
-				encodedVarphi = EncodeVarphi(state.Varphi)
-				encodedBeta   = EncodeBeta(state.Beta)
-				encodedGamma  = EncodeGamma(state.Gamma)
-				encodedPsi    = EncodePsi(state.Psi)
-				encodedEta    = EncodeEta(state.Eta)
-				encodedIota   = EncodeIota(state.Iota)
-				encodedKappa  = EncodeKappa(state.Kappa)
-				encodedLambda = EncodeLambda(state.Lambda)
-				encodedRho    = EncodeRho(state.Rho)
-				encodedTau    = EncodeTau(state.Tau)
-				encodedChi    = EncodeChi(state.Chi)
-				encodedPi     = EncodePi(state.Pi)
-				encodedTheta  = EncodeTheta(state.Theta)
-				encodedXi     = EncodeXi(state.Xi)
+				encodedAlpha  = encodeAlpha(state.Alpha)
+				encodedVarphi = encodeVarphi(state.Varphi)
+				encodedBeta   = encodeBeta(state.Beta)
+				encodedGamma  = encodeGamma(state.Gamma)
+				encodedPsi    = encodePsi(state.Psi)
+				encodedEta    = encodeEta(state.Eta)
+				encodedIota   = encodeIota(state.Iota)
+				encodedKappa  = encodeKappa(state.Kappa)
+				encodedLambda = encodeLambda(state.Lambda)
+				encodedRho    = encodeRho(state.Rho)
+				encodedTau    = encodeTau(state.Tau)
+				encodedChi    = encodeChi(state.Chi)
+				encodedPi     = encodePi(state.Pi)
+				encodedTheta  = encodeTheta(state.Theta)
+				encodedXi     = encodeXi(state.Xi)
 			)
 
 			// Read the json file
@@ -527,7 +527,7 @@ func TestJamTestNetStateRoot(t *testing.T) {
 									}
 
 									if val, keyExists := account.LookupDict[targetKey]; keyExists {
-										key16, delta4Output := EncodeDelta4KeyVal(accountID, account, targetKey, val)
+										key16, delta4Output := encodeDelta4KeyVal(accountID, targetKey, val)
 
 										if !reflect.DeepEqual(types.OpaqueHash(hex2Bytes(keyVal[0])), key16) {
 											diff := cmp.Diff(types.OpaqueHash(hex2Bytes(keyVal[0])), key16)
@@ -556,7 +556,7 @@ func TestJamTestNetStateRoot(t *testing.T) {
 							if hashStr, exist := accountInfoMap["h"]; exist {
 								targetKey := types.OpaqueHash(hex2Bytes(hashStr.(string)))
 								if val, keyExists := account.PreimageLookup[targetKey]; keyExists {
-									key16, delta3Output := EncodeDelta3KeyVal(accountID, account, targetKey, val)
+									key16, delta3Output := encodeDelta3KeyVal(accountID, targetKey, val)
 
 									if !reflect.DeepEqual(types.OpaqueHash(hex2Bytes(keyVal[0])), key16) {
 										diff := cmp.Diff(types.OpaqueHash(hex2Bytes(keyVal[0])), key16)
@@ -585,7 +585,7 @@ func TestJamTestNetStateRoot(t *testing.T) {
 								targetKey := types.OpaqueHash(hex2Bytes(hashStr.(string)))
 
 								if val, keyExists := account.StorageDict[targetKey]; keyExists {
-									key16, delta2Output := EncodeDelta2KeyVal(accountID, account, targetKey, val)
+									key16, delta2Output := encodeDelta2KeyVal(accountID, targetKey, val)
 
 									if !reflect.DeepEqual(types.OpaqueHash(hex2Bytes(keyVal[0])), key16) {
 										diff := cmp.Diff(types.OpaqueHash(hex2Bytes(keyVal[0])), key16)
@@ -604,8 +604,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c1" {
 					c1 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c1, EncodeAlphaKey()) {
-						diff := cmp.Diff(c1, EncodeAlphaKey())
+					if !reflect.DeepEqual(c1, encodeAlphaKey()) {
+						diff := cmp.Diff(c1, encodeAlphaKey())
 						t.Error("c1 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -616,8 +616,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c2" {
 					c2 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c2, EncodeVarphiKey()) {
-						diff := cmp.Diff(c2, EncodeVarphiKey())
+					if !reflect.DeepEqual(c2, encodeVarphiKey()) {
+						diff := cmp.Diff(c2, encodeVarphiKey())
 						t.Error("c2 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -628,8 +628,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c3" {
 					c3 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c3, EncodeBetaKey()) {
-						diff := cmp.Diff(c3, EncodeBetaKey())
+					if !reflect.DeepEqual(c3, encodeBetaKey()) {
+						diff := cmp.Diff(c3, encodeBetaKey())
 						t.Error("c3 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -640,8 +640,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c4" {
 					c4 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c4, EncodeGammaKey()) {
-						diff := cmp.Diff(c4, EncodeGammaKey())
+					if !reflect.DeepEqual(c4, encodeGammaKey()) {
+						diff := cmp.Diff(c4, encodeGammaKey())
 						t.Error("c4 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -652,8 +652,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c5" {
 					c5 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c5, EncodePsiKey()) {
-						diff := cmp.Diff(c5, EncodePsiKey())
+					if !reflect.DeepEqual(c5, encodePsiKey()) {
+						diff := cmp.Diff(c5, encodePsiKey())
 						t.Error("c5 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -664,8 +664,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c6" {
 					c6 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c6, EncodeEtaKey()) {
-						diff := cmp.Diff(c6, EncodeEtaKey())
+					if !reflect.DeepEqual(c6, encodeEtaKey()) {
+						diff := cmp.Diff(c6, encodeEtaKey())
 						t.Error("c6 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -676,8 +676,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c7" {
 					c7 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c7, EncodeIotaKey()) {
-						diff := cmp.Diff(c7, EncodeIotaKey())
+					if !reflect.DeepEqual(c7, encodeIotaKey()) {
+						diff := cmp.Diff(c7, encodeIotaKey())
 						t.Error("c7 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -688,8 +688,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c8" {
 					c8 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c8, EncodeKappaKey()) {
-						diff := cmp.Diff(c8, EncodeKappaKey())
+					if !reflect.DeepEqual(c8, encodeKappaKey()) {
+						diff := cmp.Diff(c8, encodeKappaKey())
 						t.Error("c8 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -700,8 +700,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c9" {
 					c9 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c9, EncodeLambdaKey()) {
-						diff := cmp.Diff(c9, EncodeLambdaKey())
+					if !reflect.DeepEqual(c9, encodeLambdaKey()) {
+						diff := cmp.Diff(c9, encodeLambdaKey())
 						t.Error("c9 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -712,8 +712,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c10" {
 					c10 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c10, EncodeRhoKey()) {
-						diff := cmp.Diff(c10, EncodeRhoKey())
+					if !reflect.DeepEqual(c10, encodeRhoKey()) {
+						diff := cmp.Diff(c10, encodeRhoKey())
 						t.Error("c10 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -724,8 +724,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c11" {
 					c11 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c11, EncodeTauKey()) {
-						diff := cmp.Diff(c11, EncodeTauKey())
+					if !reflect.DeepEqual(c11, encodeTauKey()) {
+						diff := cmp.Diff(c11, encodeTauKey())
 						t.Error("c11 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -736,8 +736,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c12" {
 					c12 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c12, EncodeChiKey()) {
-						diff := cmp.Diff(c12, EncodeChiKey())
+					if !reflect.DeepEqual(c12, encodeChiKey()) {
+						diff := cmp.Diff(c12, encodeChiKey())
 						t.Error("c12 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -748,8 +748,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c13" {
 					c13 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c13, EncodePiKey()) {
-						diff := cmp.Diff(c13, EncodePiKey())
+					if !reflect.DeepEqual(c13, encodePiKey()) {
+						diff := cmp.Diff(c13, encodePiKey())
 						t.Error("c13 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -760,8 +760,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c14" {
 					c14 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c14, EncodeThetaKey()) {
-						diff := cmp.Diff(c14, EncodeThetaKey())
+					if !reflect.DeepEqual(c14, encodeThetaKey()) {
+						diff := cmp.Diff(c14, encodeThetaKey())
 						t.Error("c14 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -772,8 +772,8 @@ func TestJamTestNetStateRoot(t *testing.T) {
 				}
 				if keyVal[2] == "c15" {
 					c15 := types.OpaqueHash(hex2Bytes(keyVal[0]))
-					if !reflect.DeepEqual(c15, EncodeXiKey()) {
-						diff := cmp.Diff(c15, EncodeXiKey())
+					if !reflect.DeepEqual(c15, encodeXiKey()) {
+						diff := cmp.Diff(c15, encodeXiKey())
 						t.Error("c15 key does not match", diff)
 					}
 					val := types.ByteSequence(hex2Bytes(keyVal[1]))
@@ -788,7 +788,7 @@ func TestJamTestNetStateRoot(t *testing.T) {
 					if accountID, exist := accountInfoMap["s"]; exist {
 						accountID := types.ServiceId(accountID.(int))
 						if account, exists := state.Delta[accountID]; exists {
-							key16, delta1Output := EncodeDelta1KeyVal(accountID, account)
+							key16, delta1Output := encodeDelta1KeyVal(accountID, account)
 							if !reflect.DeepEqual(key16, types.OpaqueHash(hex2Bytes(keyVal[0]))) {
 								diff := cmp.Diff(key16, types.OpaqueHash(hex2Bytes(keyVal[0])))
 								t.Error(dirName, jsonPath, "key16 does not match", diff)
@@ -805,10 +805,7 @@ func TestJamTestNetStateRoot(t *testing.T) {
 			// === Compare state_root ===
 			stateRoot := transitionState.PostState.StateRoot
 			hexToOpaqueHash := types.OpaqueHash(hex2Bytes(stateRoot))
-			ourStateRoot, err := MerklizationState(state)
-			if err != nil {
-				t.Error("MerklizationState raised error", err)
-			}
+			ourStateRoot := MerklizationState(state)
 			if !reflect.DeepEqual(ourStateRoot, hexToOpaqueHash) {
 				diff := cmp.Diff(ourStateRoot, hexToOpaqueHash)
 				t.Error("MerklizationState failed", diff)
