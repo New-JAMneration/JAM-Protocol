@@ -15,7 +15,10 @@ type PosteriorStates struct {
 // NewPosteriorStates returns a new instance of PosteriorStates
 func NewPosteriorStates() *PosteriorStates {
 	return &PosteriorStates{
-		state: &types.State{},
+		state: &types.State{
+			Theta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:    make(types.AccumulatedQueue, types.EpochLength),
+		},
 	}
 }
 
@@ -407,28 +410,28 @@ func (s *PosteriorStates) GetPi() types.Statistics {
 func (s *PosteriorStates) SetPiCurrent(current types.ActivityRecords) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Pi.Current = current
+	s.state.Pi.ValsCurrent = current
 }
 
 // GetPiCurrent returns the pi.Current value
 func (s *PosteriorStates) GetPiCurrent() types.ActivityRecords {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Pi.Current
+	return s.state.Pi.ValsCurrent
 }
 
 // SetPiLast sets the pi Last.value
 func (s *PosteriorStates) SetPiLast(last types.ActivityRecords) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Pi.Last = last
+	s.state.Pi.ValsLast = last
 }
 
 // GetPiLast returns the pi.Last value
 func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Pi.Last
+	return s.state.Pi.ValsLast
 }
 
 // SetTheta sets the theta value
@@ -446,14 +449,14 @@ func (s *PosteriorStates) GetTheta() types.ReadyQueue {
 }
 
 // SetXi sets the xi value
-func (s *PosteriorStates) SetXi(xi types.AccumulatedHistories) {
+func (s *PosteriorStates) SetXi(xi types.AccumulatedQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Xi = xi
 }
 
 // GetXi returns the xi value
-func (s *PosteriorStates) GetXi() types.AccumulatedHistories {
+func (s *PosteriorStates) GetXi() types.AccumulatedQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Xi
