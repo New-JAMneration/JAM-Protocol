@@ -205,7 +205,7 @@ func updateXi(store *store.Store, n types.U64) {
 // Update ReadyQueue(Theta)
 func updateTheta(store *store.Store) {
 	// (12.10) let m = H_t mode E
-	headerSlot := store.GetIntermediateHeaderPointer().GetSlot()
+	headerSlot := store.GetProcessingBlockPointer().GetSlot()
 	m := int(headerSlot) % types.EpochLength
 
 	// (6.2) tau and tau prime

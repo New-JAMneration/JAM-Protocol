@@ -21,7 +21,6 @@ type Store struct {
 	intermediateStates          *IntermediateStates
 	posteriorStates             *PosteriorStates
 	ancestorHeaders             *AncestorHeaders
-	intermediateHeader          *IntermediateHeader // should be implemented in processingBlock
 	posteriorCurrentValidators  *PosteriorCurrentValidators
 	accumulationStatistics      *AccumulationStatistics
 	deferredTransfersStatistics *DeferredTransfersStatistics
@@ -38,7 +37,6 @@ func GetInstance() *Store {
 			intermediateStates:          NewIntermediateStates(),
 			posteriorStates:             NewPosteriorStates(),
 			ancestorHeaders:             NewAncestorHeaders(),
-			intermediateHeader:          NewIntermediateHeader(),
 			posteriorCurrentValidators:  NewPosteriorValidators(),
 			accumulationStatistics:      NewAccumulationStatistics(),
 			deferredTransfersStatistics: NewDeferredTransfersStatistics(),
@@ -57,7 +55,6 @@ func ResetInstance() {
 		intermediateStates:          NewIntermediateStates(),
 		posteriorStates:             NewPosteriorStates(),
 		ancestorHeaders:             NewAncestorHeaders(),
-		intermediateHeader:          NewIntermediateHeader(),
 		posteriorCurrentValidators:  NewPosteriorValidators(),
 		accumulationStatistics:      NewAccumulationStatistics(),
 		deferredTransfersStatistics: NewDeferredTransfersStatistics(),
@@ -100,10 +97,6 @@ func (s *Store) GetIntermediateStates() *IntermediateStates {
 	return s.intermediateStates
 }
 
-func (s *Store) GetIntermediateHeaders() *IntermediateHeader {
-	return s.intermediateHeader
-}
-
 func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
 }
@@ -135,24 +128,6 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
-}
-
-// IntermediateHeader
-
-func (s *Store) AddIntermediateHeader(header types.Header) {
-	s.intermediateHeader.AddHeader(header)
-}
-
-func (s *Store) GetIntermediateHeader() types.Header {
-	return s.intermediateHeader.GetHeader()
-}
-
-func (s *Store) GetIntermediateHeaderPointer() *IntermediateHeader {
-	return s.intermediateHeader
-}
-
-func (s *Store) ResetIntermediateHeader() {
-	s.intermediateHeader.ResetHeader()
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

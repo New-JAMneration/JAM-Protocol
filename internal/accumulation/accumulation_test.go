@@ -162,7 +162,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 
 	// Set time slot
 	s.GetPriorStates().SetTau(preState.Slot)
-	s.GetIntermediateHeaderPointer().SetSlot(input.Slot)
+	s.GetProcessingBlockPointer().SetSlot(input.Slot)
 	s.GetPosteriorStates().SetTau(input.Slot)
 
 	// Set entropy
