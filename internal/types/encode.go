@@ -2761,6 +2761,11 @@ func (o *Operand) Encode(e *Encoder) error {
 		return err
 	}
 
+	// GasLimit 0.6.5
+	if err := o.GasLimit.Encode(e); err != nil {
+		return err
+	}
+
 	// Result
 	if err := o.Result.Encode(e); err != nil {
 		return err
