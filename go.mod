@@ -21,6 +21,8 @@ require (
 	github.com/test-go/testify v1.1.4
 )
 
+require github.com/google/go-cmp v0.7.0
+
 require (
 	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

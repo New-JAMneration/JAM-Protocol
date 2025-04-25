@@ -6,9 +6,8 @@ func Psi_M(
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	argument Argument, // argument
-	omega Omega, // jump table
-	addition []any, // host-call context
-	program StandardProgram,
+	omegas Omegas, // jump table
+	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
@@ -21,7 +20,8 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(Psi_H(counter, gas, standardProgram.Registers, standardProgram.Memory, omega, []any{addition}, program))
+	// can be simplified during the refactor phase
+	g, v, a := R(Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, addition))
 	return Psi_M_ReturnType{
 		Gas:           g,
 		ReasonOrBytes: v,
@@ -30,7 +30,7 @@ func Psi_M(
 }
 
 // (A.41) R
-func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
+func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
 	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
 	case OUT_OF_GAS:
 		return Psi_H_Return.Gas, OUT_OF_GAS, Psi_H_Return.Addition
@@ -51,29 +51,23 @@ func R(Psi_H_Return Psi_H_ReturnType) (Gas, any, any) {
 }
 
 func isReadable(start, offset uint64, m Memory) bool {
-	startPage := start / ZP
-	endPage := (start + offset) / ZP
-	for i := startPage; i <= endPage; i++ {
-		if m.Pages[uint32(i)].Access == MemoryInaccessible {
-			return false
-		}
-	}
-	return true
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset) / ZP)
+
+	return !(m.GetPageAccess(startPage) == MemoryInaccessible ||
+		m.GetPageAccess(endPage) == MemoryInaccessible)
 }
 
 func isWriteable(start, offset uint64, m Memory) bool {
-	startPage := start / ZP
-	endPage := (start + offset) / ZP
-	for i := startPage; i <= endPage; i++ {
-		if m.Pages[uint32(i)].Access != MemoryReadWrite {
-			return false
-		}
-	}
-	return true
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset) / ZP)
+
+	return m.GetPageAccess(startPage) == MemoryReadWrite &&
+		m.GetPageAccess(endPage) == MemoryReadWrite
 }
 
 type Psi_M_ReturnType struct {
 	Gas           Gas
 	ReasonOrBytes any
-	Addition      any
+	Addition      HostCallArgs
 }

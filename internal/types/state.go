@@ -18,7 +18,7 @@ type State struct {
 	Chi    Privileges              `json:"chi"`
 	Pi     Statistics              `json:"pi"`
 	Theta  ReadyQueue              `json:"theta"`
-	Xi     AccumulatedHistories    `json:"xi"`
+	Xi     AccumulatedQueue        `json:"xi"`
 	Delta  ServiceAccountState     `json:"accounts"`
 }
 
@@ -107,14 +107,14 @@ type UnaccumulateWorkReport struct {
 }
 
 // (12.1)
-type (
-	AccumulatedHistories []AccumulatedHistory
-	AccumulatedHistory   []WorkPackageHash
-)
+// type (
+// 	AccumulatedQueue []AccumulatedQueueItem
+// 	AccumulatedQueueItem   []WorkPackageHash
+// )
 
-func (accumulatedHistories AccumulatedHistories) Validate() error {
-	if len(accumulatedHistories) != EpochLength {
-		return fmt.Errorf("AccumulatedHistories must have exactly %d items, but got %d", EpochLength, len(accumulatedHistories))
+func (AccumulatedQueue AccumulatedQueue) Validate() error {
+	if len(AccumulatedQueue) != EpochLength {
+		return fmt.Errorf("AccumulatedQueue must have exactly %d items, but got %d", EpochLength, len(AccumulatedQueue))
 	}
 	return nil
 }

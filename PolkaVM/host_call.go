@@ -1,13 +1,12 @@
 package PolkaVM
 
 import (
-	"errors"
-	"fmt"
+	"bytes"
+	"log"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -33,15 +32,16 @@ const (
 	ForgetOp                                // forget = 15
 	YieldOp                                 // yield = 16
 	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18
-	ExportOp                                // export = 19
-	MachineOp                               // machine = 20
-	PeekOp                                  // peek = 21
-	PokeOp                                  // poke = 22
-	ZeroOp                                  // zero = 23
-	VoidOp                                  // void = 24
-	InvokeOp                                // invoke = 25
-	ExpungeOp                               // expunge = 26
+	FetchOp                                 // fetch = 18;
+
+	ExportOp  // export = 19
+	MachineOp // machine = 20
+	PeekOp    // peek = 21
+	PokeOp    // poke = 22
+	ZeroOp    // zero = 23
+	VoidOp    // void = 24
+	InvokeOp  // invoke = 25
+	ExpungeOp // expunge = 26
 )
 
 type HistoryState struct {
@@ -55,42 +55,70 @@ type OmegaInput struct {
 	Gas       Gas           // gas counter
 	Registers Registers     // PVM registers
 	Memory    Memory        // memory
-	Addition  []any         // Extra parameter for each host-call function
+	Addition  HostCallArgs  // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason   error     // Exit reason
-	NewGas       Gas       // New Gas
-	NewRegisters Registers // New Register
-	NewMemory    Memory    // New Memory
-	Addition     []any     // addition host-call context
+	ExitReason   error        // Exit reason
+	NewGas       Gas          // New Gas
+	NewRegisters Registers    // New Register
+	NewMemory    Memory       // New Memory
+	Addition     HostCallArgs // addition host-call context
 }
 
 // Ω⟨X⟩
-type Omega func(OmegaInput) OmegaOutput
+type (
+	Omega  func(OmegaInput) OmegaOutput
+	Omegas map[OperationType]Omega
+)
 
-type Psi_H_ReturnType struct {
-	ExitReason error     // exit reason
-	Counter    uint32    // new instruction counter
-	Gas        Gas       // gas remain
-	Reg        Registers // new registers
-	Ram        Memory    // new memory
-	Addition   []any     // addition host-call context
+type GeneralArgs struct {
+	ServiceAccount      types.ServiceAccount
+	ServiceId           types.ServiceId
+	ServiceAccountState types.ServiceAccountState
 }
 
-// (A.31) Ψ_H
+type AccumulateArgs struct {
+	ResultContextX ResultContext
+	ResultContextY ResultContext
+	Timeslot       types.TimeSlot
+}
+
+type RefineArgs struct {
+	RefineMap          any
+	ImportSegment      any
+	ExportSegment      any
+	ExportSegmentIndex any
+}
+
+type HostCallArgs struct {
+	GeneralArgs
+	AccumulateArgs
+	RefineArgs
+}
+
+type Psi_H_ReturnType struct {
+	ExitReason error        // exit reason
+	Counter    uint32       // new instruction counter
+	Gas        Gas          // gas remain
+	Reg        Registers    // new registers
+	Ram        Memory       // new memory
+	Addition   HostCallArgs // addition host-call context
+}
+
+// (A.34) Ψ_H
 func Psi_H(
+	program StandardProgram,
 	counter ProgramCounter, // program counter
 	gas Gas, // gas counter
 	reg Registers, // registers
 	ram Memory, // memory
-	omega Omega, // jump table
-	addition []any, // host-call context
-	program StandardProgram,
+	omegas Omegas, // jump table
+	addition HostCallArgs, // host-call context
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
 	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, gas, reg, ram)
-	fmt.Println(exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime)
+
 	reason := exitreason_prime.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -106,6 +134,10 @@ func Psi_H(
 		input.Registers = reg_prime
 		input.Memory = ram
 		input.Addition = addition
+		omega := omegas[input.Operation]
+		if omega == nil {
+			omega = omegas[27]
+		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		if omega_reason.Reason == PAGE_FAULT {
@@ -116,7 +148,7 @@ func Psi_H(
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(ProgramCounter(skip(int(counter_prime), program.ProgramBlob.Bitmasks)), omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omega, omega_result.Addition, program)
+			return Psi_H(program, counter_prime, omega_result.NewGas, omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
 			psi_result.Counter = uint32(counter_prime)
@@ -129,12 +161,35 @@ func Psi_H(
 	return
 }
 
-var hostCallFunctions = [26]Omega{
-	0: gas,
-	1: lookup,
-	2: read,
-	3: write,
-	4: info,
+var HostCallFunctions = [28]Omega{
+	0:  gas,
+	1:  lookup,
+	2:  read,
+	3:  write,
+	4:  info,
+	5:  bless,
+	6:  assign,
+	7:  designate,
+	8:  checkpoint,
+	9:  new,
+	10: upgrade,
+	11: transfer,
+	12: eject,
+	13: query,
+	14: solicit,
+	15: forget,
+	16: yield,
+}
+
+func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+	input.Registers[7] = WHAT
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas - 10,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
 }
 
 // Gas Function（ΩG）
@@ -160,26 +215,12 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-func getServiceID(addition []any) (uint64, error) {
-	if len(addition) == 0 {
-		return 0, errors.New("serviceID not found in Addition")
-	}
-
-	serviceID, ok := addition[0].(uint64)
-	if !ok {
-		return 0, errors.New("serviceID is not of type uint64")
-	}
-
-	return serviceID, nil
-}
-
 // ΩL(ϱ, ω, μ, s, s, d)
 func lookup(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -190,10 +231,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
+
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == serviceID {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -237,8 +277,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	f := min(input.Registers[10], uint64(len(concated_bytes)))
-	l := min(input.Registers[11], uint64(len(concated_bytes))-f)
+
+	f := min(input.Registers[10], uint64(len(v)))
+	l := min(input.Registers[11], uint64(len(v))-f)
 
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -250,8 +291,9 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		}
 	} else {
 		new_registers := input.Registers
-		new_registers[7] = uint64(len(concated_bytes))
+		new_registers[7] = uint64(len(v))
 		new_memory := input.Memory
+
 		for offset := uint32(0); offset < uint32(l); offset++ {
 			address := uint32(offset + uint32(o))
 			page := address / ZP
@@ -278,11 +320,10 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+	delta := input.Addition.ServiceAccountState
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -294,27 +335,16 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
-	var s_star uint64
+	var sStar uint64
 	var a types.ServiceAccount
+	// s* = ?
 	if input.Registers[7] == 0xffffffffffffffff {
-		s_star = serviceID
-		a = serviceAccount
-	} else if value, exists := delta[types.ServiceId(s_star)]; exists {
-		s_star = input.Registers[7]
-		a = value
+		sStar = uint64(serviceID)
 	} else {
-		new_registers := input.Registers
-		new_registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+		sStar = input.Registers[7]
 	}
+	// assign ko, kz, o first and check v = panic ?
+	// since v = panic is the first condition to check
 	ko, kz, o := input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
 		return OmegaOutput{
@@ -325,17 +355,52 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes []byte
-	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(s_star), 4)...)
+	// a = ?
+	if sStar == uint64(serviceID) {
+		a = serviceAccount
+	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
+		a = value
+	} else {
+		// a = nil , v not panic, => v = nil
+		new_registers := input.Registers
+		new_registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
+	// first compute k
+	encoder := types.NewEncoder()
+	serviceStar := types.ServiceId(sStar)
+	concated_bytes, _ := encoder.Encode(&serviceStar)
+	// mu_ko...+kz
 	for address := uint32(ko); address < uint32(ko+kz); address++ {
 		page := address / ZP
 		index := address % ZP
 		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 	}
+
 	k := hash.Blake2bHash(concated_bytes)
 	v, exists := a.StorageDict[k]
 	f := min(input.Registers[11], uint64(len(concated_bytes)))
 	l := min(input.Registers[12], uint64(len(concated_bytes))-f)
+	// first check not writable, then check v = nil (not exists)
+	if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// v = nil
 	if !exists {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -346,41 +411,32 @@ func read(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
-	} else if !isWriteable(o, l, input.Memory) {
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	} else {
-		new_registers := input.Registers
-		new_registers[7] = uint64(len(v))
-		new_memory := input.Memory
-		for i := uint32(0); i < uint32(l); i++ {
-			address := i + uint32(o)
-			page := address / ZP
-			index := address % ZP
-			new_memory.Pages[page].Value[index] = v[uint32(f)+i]
-		}
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    new_memory,
-			Addition:     input.Addition,
-		}
+	}
+
+	new_registers := input.Registers
+	new_registers[7] = uint64(len(v))
+	new_memory := input.Memory
+	for i := uint32(0); i < uint32(l); i++ {
+		address := i + uint32(o)
+		page := address / ZP
+		index := address % ZP
+		new_memory.Pages[page].Value[index] = v[uint32(f)+i]
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: new_registers,
+		NewMemory:    new_memory,
+		Addition:     input.Addition,
 	}
 }
 
 // ΩW (ϱ, ω, μ, s, s)
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	serviceAccount := input.Addition.ServiceAccount
+
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -391,9 +447,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	serviceAccount := delta[types.ServiceId(serviceID)]
 
 	ko, kz, vo, vz := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(ko, kz, input.Memory) {
@@ -405,8 +458,9 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	var concated_bytes []byte
-	concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
+
+	encoder := types.NewEncoder()
+	concated_bytes, _ := encoder.Encode(&serviceID)
 	for address := uint32(ko); address < uint32(ko+kz); address++ {
 		page := address / ZP
 		index := address % ZP
@@ -418,17 +472,27 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a = serviceAccount
 		delete(a.StorageDict, k)
 	} else if isReadable(vo, vz, input.Memory) {
-		var concated_bytes []byte
-		concated_bytes = append(concated_bytes, utilities.SerializeFixedLength(types.U64(serviceID), 4)...)
+		concated_bytes = []byte{}
 		for address := uint32(vo); address < uint32(vo+vz); address++ {
 			page := address / ZP
 			index := address % ZP
 			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
 		}
 		a = serviceAccount
+		// need extra storage space :
+		// check a_t > a_b : storage need gas, balance is not enough for storage
+		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+			new_registers := input.Registers
+			new_registers[7] = FULL
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: new_registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
 		a.StorageDict[k] = concated_bytes
-		delta[types.ServiceId(serviceID)] = a
-		store.GetInstance().GetPriorStates().SetDelta(delta)
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -439,17 +503,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	if a.ServiceInfo.Balance < service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID)).Minbalance {
-		new_registers := input.Registers
-		new_registers[7] = FULL
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
 	value, exists := serviceAccount.StorageDict[k]
 	var l uint64
 	if exists {
@@ -459,7 +512,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 	new_registers := input.Registers
 	new_registers[7] = l
-	// TODO update s to a
+
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
@@ -469,7 +522,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s)
+// ΩR(ϱ, ω, μ, s, d)
 /*
 ϱ: gas
 ω: registers
@@ -479,11 +532,8 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID, err := getServiceID(input.Addition)
-	if err != nil {
-		fmt.Println("Addition context error")
-		return output
-	}
+	serviceID := input.Addition.ServiceId
+	delta := input.Addition.ServiceAccountState
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -494,8 +544,6 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	delta := store.GetInstance().GetPriorStates().GetDelta()
 
 	var t types.ServiceAccount
 	var empty bool
@@ -524,18 +572,33 @@ func info(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	derivatives := service_account.GetSerivecAccountDerivatives(types.ServiceId(serviceID))
+
+	derivatives := GetSerivecAccountDerivatives(t)
 
 	var serialized_bytes types.ByteSequence
-	serialized_bytes = append(serialized_bytes, utilities.SerializeByteSequence(t.ServiceInfo.CodeHash[:])...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(t.ServiceInfo.Balance)...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(derivatives.Minbalance)...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinItemGas))...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(t.ServiceInfo.MinMemoGas))...)
-	result := utilities.WrapDictionaryKeyMap(t.LookupDict)
-	encoded := result.Serialize()
+	encoder := types.NewEncoder()
+	// t_c
+	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
 	serialized_bytes = append(serialized_bytes, encoded...)
-	serialized_bytes = append(serialized_bytes, utilities.SerializeU64(types.U64(derivatives.Items))...)
+	// t_b
+	encoded, _ = encoder.Encode(&t.ServiceInfo.Balance)
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_t
+	encoded, _ = encoder.Encode(&derivatives.Minbalance)
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_g
+	encoded, _ = encoder.Encode(&t.ServiceInfo.MinItemGas)
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_m
+	encoded, _ = encoder.Encode(&t.ServiceInfo.MinMemoGas)
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_o
+	encoded, _ = encoder.Encode(&derivatives.Bytes)
+	serialized_bytes = append(serialized_bytes, encoded...)
+	// t_i
+	encoded, _ = encoder.Encode(&derivatives.Items)
+	serialized_bytes = append(serialized_bytes, encoded...)
+
 	o := input.Registers[8]
 
 	if !isWriteable(o, uint64(len(serialized_bytes)), input.Memory) {
@@ -546,23 +609,871 @@ func info(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
-	} else {
-		new_memory := input.Memory
-		for i := 0; i < len(serialized_bytes); i++ {
-			address := uint32(int(o) + i)
-			page := address / ZP
-			index := address % ZP
-			new_memory.Pages[page].Value[index] = serialized_bytes[i]
-		}
+	}
+	new_memory := input.Memory
+	for i := 0; i < len(serialized_bytes); i++ {
+		address := uint32(int(o) + i)
+		page := address / ZP
+		index := address % ZP
+		new_memory.Pages[page].Value[index] = serialized_bytes[i]
+	}
 
-		new_registers := input.Registers
-		new_registers[7] = OK
+	new_registers := input.Registers
+	new_registers[7] = OK
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: new_registers,
+		NewMemory:    new_memory,
+		Addition:     input.Addition,
+	}
+}
+
+// bless = 5
+func bless(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
 		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
+	}
+	newGas := input.Gas - gasFee
+
+	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
+
+	offset := uint64(12 * n)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// (m, a, v) \not in N_s
+	limit := uint64(1 << 32)
+	if m >= limit || a >= limit || v >= limit {
+		input.Registers[7] = WHO
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// otherwise
+	// read data from memory, might cross many pages
+	rawData := input.Memory.Read(o, offset)
+
+	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
+	alwaysAccum := types.AlwaysAccumulateMap{}
+	decoder := types.NewDecoder()
+	err := decoder.Decode(rawData, alwaysAccum)
+	if err != nil {
+		log.Fatalf("host-call function \"bless\" decode alwaysAccum error : %v", err)
+	}
+
+	input.Registers[7] = OK
+
+	input.Addition.ResultContextX.PartialState.Privileges = types.Privileges{
+		Bless:       types.ServiceId(m),
+		Assign:      types.ServiceId(a),
+		Designate:   types.ServiceId(v),
+		AlwaysAccum: alwaysAccum,
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// assign = 6
+func assign(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o := input.Registers[8]
+
+	offset := uint64(32 * types.AuthQueueSize)
+	if !isReadable(o, offset, input.Memory) { // not readable, panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// w7 >= C
+	if input.Registers[7] >= uint64(types.CoresCount) {
+		input.Registers[7] = CORE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	rawData := input.Memory.Read(o, offset)
+
+	// decode rawData
+	authQueue := types.AuthQueue{}
+	decoder := types.NewDecoder()
+	err := decoder.Decode(rawData, authQueue)
+	if err != nil {
+		log.Fatalf("host-call function \"assign\" decode error : %v", err)
+	}
+
+	input.Addition.ResultContextX.PartialState.Authorizers[input.Registers[7]] = authQueue
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// designate = 7
+func designate(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o := input.Registers[7]
+
+	offset := uint64(336 * types.ValidatorsCount)
+	if !isReadable(o, offset, input.Memory) { // not readable, panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// 336 * types.ValidatorsCount might cross many pages
+	rawData := input.Memory.Read(o, offset) // bold{v}
+
+	validatorsData := types.ValidatorsData{}
+	decoder := types.NewDecoder()
+	err := decoder.Decode(rawData, validatorsData)
+	if err != nil {
+		log.Fatalf("host-call function \"designate\" decode validatorsData error : %v", err)
+	}
+
+	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// checkpoint = 8
+func checkpoint(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	input.Addition.ResultContextY = input.Addition.ResultContextX
+	input.Registers[7] = uint64(newGas)
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// new = 9
+func new(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, l, g, m := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+
+	offset := uint64(32)
+	if !(isReadable(o, offset, input.Memory) && l < (1<<32)) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	c := input.Memory.Read(o, offset)
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !sExists {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+	// s_b < (x_s)_t
+	if s.ServiceInfo.Balance < GetSerivecAccountDerivatives(s).Minbalance {
+		input.Registers[7] = CASH
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	var cDecoded types.U32
+	decoder := types.NewDecoder()
+	err := decoder.Decode(c, &cDecoded)
+	if err != nil {
+		log.Fatalf("host-call function \"new\" decode error %v: ", err)
+	}
+
+	var a types.ServiceAccount
+
+	accountDer := GetSerivecAccountDerivatives(a)
+	at := accountDer.Minbalance
+	// s_b = (x_s)_b - at
+	s.ServiceInfo.Balance -= at
+	// new an account
+	serviceinfo := types.ServiceInfo{
+		CodeHash:   types.OpaqueHash(c), // c
+		Balance:    at,                  // b
+		MinItemGas: types.Gas(g),        // g
+		MinMemoGas: types.Gas(m),        // m
+	}
+	lookupKey := types.LookupMetaMapkey{
+		Hash:   types.OpaqueHash(c),
+		Length: types.U32(l),
+	}
+	lookupMetaMapEntry := types.LookupMetaMapEntry{
+		lookupKey: types.TimeSlotSet{},
+	}
+
+	a = types.ServiceAccount{
+		ServiceInfo:    serviceinfo,
+		PreimageLookup: types.PreimagesMapEntry{}, // p
+		LookupDict:     lookupMetaMapEntry,        // l
+		StorageDict:    types.Storage{},           // s
+	}
+
+	importServiceID := input.Addition.ResultContextX.ImportServiceId
+	// reg[7] = x_i
+	input.Registers[7] = uint64(importServiceID)
+	// x_i = check(i)
+	i := (1 << 8) + (importServiceID-(1<<8)+42)%(1<<32-1<<9)
+	input.Addition.ResultContextX.ImportServiceId = check(i, input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	// x_i -> a
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
+	// x_s -> s
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// upgrade = 10
+func upgrade(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, g, m := input.Registers[7], input.Registers[8], input.Registers[9]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	c := input.Memory.Read(o, offset)
+
+	input.Registers[7] = OK
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	// x_bold{s} = (x_u)_d[x_s]
+	if serviceAccount, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		serviceAccount.ServiceInfo.CodeHash = types.OpaqueHash(c)
+		serviceAccount.ServiceInfo.MinItemGas = types.Gas(g)
+		serviceAccount.ServiceInfo.MinMemoGas = types.Gas(m)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = serviceAccount
+	} else {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// transfer = 11
+func transfer(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10) + Gas(input.Registers[9])
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+
+	if !isReadable(o, uint64(types.TransferMemoSize), input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// m
+	rawData := input.Memory.Read(o, types.TransferMemoSize)
+
+	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
+		// not exist
+		input.Registers[7] = WHO
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
+		input.Registers[7] = LOW
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	serviceID := input.Addition.ResultContextX.ServiceId
+	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
+		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
+		if b < GetSerivecAccountDerivatives(accountS).Minbalance {
+			input.Registers[7] = CASH
+
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+
+		t := types.DeferredTransfer{
+			SenderID:   serviceID,
+			ReceiverID: types.ServiceId(d),
+			Balance:    types.U64(a),
+			Memo:       [128]byte(rawData),
+			GasLimit:   types.Gas(l),
+		}
+
+		accountS.ServiceInfo.Balance = b
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
+		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
+	} else {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// eject = 12
+func eject(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	d, o := input.Registers[7], input.Registers[8]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := input.Memory.Read(o, offset)
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]
+	if !(types.ServiceId(d) != serviceID && accountExists) {
+		// bold{d} = panic => CONTINUE, WHO
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// else : d = account
+	serviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
+	// not sure need to add d_b first or not
+	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], serviceIDSerialized) {
+		// d_c not equal E_32(x_s)
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	l := max(81, accountD.ServiceInfo.Bytes) - 81 // a_o
+
+	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(l)} // x_bold{s}_l
+	lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
+
+	if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
+		input.Registers[7] = HUH
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	timeslot := input.Addition.Timeslot
+	lookupDataLength := len(lookupData)
+
+	if lookupDataLength == 2 {
+		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
+
+				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
+				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
+
+				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
+				input.Registers[7] = OK
+
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			// according GP, no need to check the service exists => it should in ServiceAccountState
+			log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
+		}
+	}
+
+	input.Registers[7] = HUH
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// query = 13
+func query(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, z := input.Registers[7], input.Registers[8]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := input.Memory.Read(o, offset)
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	// x_bold{s} = (x_u)_d[x_s]
+	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !accountExists {
+		// according GP, no need to check the service exists => it should in ServiceAccountState
+		log.Fatalf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+	lookupData, lookupDataExists := account.LookupDict[lookupKey]
+	if lookupDataExists {
+		// a = lookupData[h,z]
+		switch len(lookupData) {
+		case 0:
+			input.Registers[7], input.Registers[8] = 0, 0
+		case 1:
+			input.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = 0
+		case 2:
+			input.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = uint64(lookupData[1])
+		case 3:
+			input.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
+			input.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
+		}
+	} else {
+		// a = panic
+		input.Registers[7] = NONE
+		input.Registers[8] = 0
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// solicit = 14
+func solicit(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, z := input.Registers[7], input.Registers[8]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := input.Memory.Read(o, offset)
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	timeslot := input.Addition.Timeslot
+	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		lookupData, lookupDataExists := a.LookupDict[lookupKey]
+		// a_l[(h,z)] = [] => no changes, do not need to implement
+		if lookupDataExists && len(lookupData) == 2 {
+			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
+			lookupData = append(lookupData, timeslot)
+			a.LookupDict[lookupKey] = lookupData
+		} else {
+			// a = panic
+			input.Registers[7] = HUH
+
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+		// a_b < a_t
+		if a.ServiceInfo.Balance < GetSerivecAccountDerivatives(a).Minbalance {
+			input.Registers[7] = FULL
+		}
+
+		// else
+		input.Registers[7] = OK
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+	} else {
+		log.Fatalf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// forget = 15
+func forget(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, z := input.Registers[7], input.Registers[8]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := input.Memory.Read(o, offset)
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	timeslot := input.Addition.Timeslot
+	// x_bold{s} = (x_u)_d[x_s] check service exists
+	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
+		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
+			lookupDataLength := len(lookupData)
+
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+				// delete (h,z) from a_l
+				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
+				// delete (h) from a_p
+				delete(a.PreimageLookup, types.OpaqueHash(h))
+			} else if lookupDataLength == 1 {
+				// a_l[h,z] = [x,t]
+				lookupData = append(lookupData, timeslot)
+				a.LookupDict[lookupKey] = lookupData
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+				// a_l[h,z] = [w,t]
+				lookupData[0] = lookupData[2]
+				lookupData[1] = timeslot
+				lookupData = lookupData[:2]
+				a.LookupDict[lookupKey] = lookupData
+			} else { // otherwise, panic
+				input.Registers[7] = HUH
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			// x'_s = a
+			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
+			input.Registers[7] = OK
+		} else { // otherwise : lookupData (x_s)_l[h,z] not exist
+			input.Registers[7] = HUH
+		}
+	} else {
+		log.Fatalf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// yield = 16
+func yield(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o := input.Registers[7]
+
+	offset := uint64(32)
+	if !isReadable(o, offset, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	h := input.Memory.Read(o, offset)
+
+	input.Registers[7] = OK
+
+	copy(input.Addition.ResultContextX.Exception[:], h)
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// B.14
+func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
+	for {
+		if _, accountExists := serviceAccountState[serviceID]; !accountExists {
+			return serviceID
+		}
+
+		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
 	}
 }
