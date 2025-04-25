@@ -85,10 +85,12 @@ type AccumulateArgs struct {
 }
 
 type RefineArgs struct {
-	RefineMap          any
-	ImportSegment      any
-	ExportSegment      any
-	ExportSegmentIndex any
+	RefineInput                            // i, p(package), o, bold{i}, zeta
+	IntegratedPVMMap                       // D ( N -> M ) : N -> (p(program_code), u, i)
+	ExportSegment    []types.ExportSegment // e
+	ServiceID        types.ServiceId       // s
+	TimeSlot         types.TimeSlot        // t
+	ExtrinsicDataMap                       // extrinsic data map
 }
 
 type HostCallArgs struct {
@@ -180,6 +182,16 @@ var HostCallFunctions = [28]Omega{
 	14: solicit,
 	15: forget,
 	16: yield,
+	17: historicalLookup,
+	18: fetch,
+	19: export,
+	20: machine,
+	21: peek,
+	22: poke,
+	23: zero,
+	24: void,
+	25: invoke,
+	26: expunge,
 }
 
 func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
@@ -1462,6 +1474,738 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	input.Registers[7] = OK
 
 	copy(input.Addition.ResultContextX.Exception[:], h)
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// historical_lookup = 17
+func historicalLookup(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	// first check v panic, then assign a
+	h, o := input.Registers[8], input.Registers[9]
+
+	offset := uint64(32)
+	if !isReadable(h, offset, input.Memory) { // not readable, return panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	var codeHash types.OpaqueHash
+	codeHash = types.OpaqueHash(input.Memory.Read(h, offset))
+
+	// assign a
+	var a types.ServiceAccount
+	var v types.ByteSequence
+
+	a, accountExists := input.Addition.ServiceAccountState[input.Addition.ServiceID]
+	if accountExists && input.Registers[7] == 0xffffffffffffffff {
+		v = service_account.HistoricalLookup(a, input.Addition.TimeSlot, codeHash)
+	} else if a, accountExists := input.Addition.ServiceAccountState[types.ServiceId(input.Registers[7])]; accountExists {
+		v = service_account.HistoricalLookup(a, input.Addition.TimeSlot, codeHash)
+	} else {
+		// otherwise if a = nil => v = nil, here will not check writeable first, since no need to write in memory
+		input.Registers[7] = NONE
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	f := min(input.Registers[10], uint64(len(v)))
+	l := min(input.Registers[11], uint64(len(v))-f)
+
+	if !isWriteable(o, l, input.Memory) { // not writeable, return panic
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	input.Registers[7] = uint64(len(v))
+
+	offset = l
+	input.Memory.Write(f, offset, v)
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// fetch = 18
+func fetch(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	// pre-processing
+	encoder := types.NewEncoder()
+	// condition reg[10] == 3
+	// w_11 < |p_w|
+	condition31 := input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items))
+	// workItem3 = p_w[w_11]
+	workItem3 := input.Addition.WorkPackage.Items[input.Registers[11]]
+	// w_12 < |p_w[w_11]x|
+	condition32 := input.Registers[12] < uint64(len(workItem3.Extrinsic))
+	// extrinsic data exists
+	extrinsicData3, condition33 := input.Addition.ExtrinsicDataMap[workItem3.Extrinsic[input.Registers[12]].Hash]
+
+	// condition reg[10] == 4
+	// workItem4 = p_w[i]
+	workItem4 := input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex]
+
+	// condition4 := extrinsicSpec4.Hash == workItem4.Extrinsic[input.Registers[11]].Hash && extrinsicSpec4.Len == workItem4.Extrinsic[input.Registers[11]].Len
+	extrinsicData4, condition4 := input.Addition.ExtrinsicDataMap[workItem4.Extrinsic[input.Registers[11]].Hash]
+
+	var v []byte
+	var dataLength uint64
+
+	switch {
+	case input.Registers[10] == 0:
+		wp, _ := encoder.Encode(input.Addition.WorkPackage)
+		// v = |E(p)
+		v = wp
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 1:
+		// v = o
+		v = input.Addition.AuthOutput
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 2 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items)):
+		// v = p_w[w_11]y
+		v = input.Addition.WorkPackage.Items[input.Registers[11]].Payload
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 3 && condition31 && condition32 && condition33:
+		// v = x = p_w[w_11]_x
+		v = extrinsicData3
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 4 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex].Extrinsic)) && condition4:
+		// v = x = p_w[i]x
+		v = extrinsicData4
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 5 && input.Registers[11] < uint64(len(input.Addition.ImportSegments)) && input.Registers[12] < uint64(len(input.Addition.ImportSegments[input.Registers[11]])):
+		v = input.Addition.ImportSegments[input.Registers[11]][input.Registers[12]][:]
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 6 && input.Registers[11] < uint64(len(input.Addition.ImportSegments[input.Addition.WorkItemIndex])):
+		v = input.Addition.ImportSegments[input.Addition.WorkItemIndex][input.Registers[11]][:]
+		dataLength = uint64(len(v))
+
+	case input.Registers[10] == 7:
+		v = input.Addition.WorkPackage.Authorizer.Params
+		dataLength = uint64(len(input.Addition.WorkPackage.Authorizer.Params))
+	default: // default = nil
+		dataLength = 0
+	}
+
+	o := input.Registers[7]
+	f := min(input.Registers[8], dataLength)
+	l := min(input.Registers[9], dataLength-f)
+
+	// need to first check writable
+	if !isWriteable(o, l, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if v = nil
+	if v == nil {
+		input.Registers[7] = NONE
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	input.Memory.Write(f, l, v[f:])
+	input.Registers[7] = dataLength
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// export = 19
+func export(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	p := input.Registers[7]
+	z := min(input.Registers[8], types.SegmentSize)
+
+	if !isReadable(p, z, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	segmentLength := input.Addition.ExportSegmentOffset + uint(len(input.Addition.ExportSegment))
+	// otherwise if ζ + |e| >= W_M
+	if segmentLength > types.MaxSegments {
+		input.Registers[7] = FULL
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// data = mu_p...+z
+	data := input.Memory.Read(p, z)
+	x := zeroPadding(data, types.SegmentSize)
+	exportSegment := types.ExportSegment{}
+	copy(exportSegment[:], x)
+
+	input.Registers[7] = uint64(input.Addition.ExportSegmentOffset) + uint64(segmentLength)
+	input.Addition.ExportSegment = append(input.Addition.ExportSegment, exportSegment)
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// machine = 20
+func machine(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	po, pz, i := input.Registers[7], input.Registers[8], input.Registers[9]
+	// pz = offset
+	if !isReadable(po, pz, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	p := input.Memory.Read(po, pz)
+
+	// find first i not in K(m)
+	n := uint64(0)
+	for ; n <= ^uint64(0); n++ {
+		if _, pvmTypeExists := input.Addition.IntegratedPVMMap[n]; !pvmTypeExists {
+			break
+		}
+	}
+
+	var u Memory
+	_, exitReason := DeBlobProgramCode(p)
+	// otherwise if deblob(p) = PANIC
+	if exitReason.(*PVMExitReason).Reason == PANIC {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise
+	input.Registers[7] = n
+	input.Addition.IntegratedPVMMap[n] = IntegratedPVMType{
+		ProgramCode: ProgramCode(p),
+		Memory:      u,
+		PC:          ProgramCounter(i),
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// peek = 21
+func peek(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n, o, s, z := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+
+	// z = offset
+	if !isWriteable(o, z, input.Memory) { // not writeable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if n not in K(m)
+	if _, exists := input.Addition.IntegratedPVMMap[n]; !exists {
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if N_s...+z not subset of \mathbf{V}_m[n]_u
+	// can be simplify to check readable, if not readable => Inaccessible
+	if !isReadable(s, z, input.Addition.IntegratedPVMMap[n].Memory) {
+		input.Registers[7] = OOB
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise
+	// read data from m[n]_u first
+	integratedPVMType := input.Addition.IntegratedPVMMap[n]
+	data := integratedPVMType.Memory.Read(s, z)
+	// write data into memory
+	input.Memory.Write(o, z, data)
+
+	input.Registers[7] = OK
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// poke = 22
+func poke(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n, s, o, z := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+
+	if !isReadable(s, z, input.Memory) { // not readable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if n not in K(m)
+	if _, exists := input.Addition.IntegratedPVMMap[n]; !exists {
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if N_o...+z not subset of \mathbf{V}_m[n]_u
+	if !isWriteable(o, z, input.Addition.IntegratedPVMMap[n].Memory) { // not writeable, return
+		input.Registers[7] = OOB
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise
+	// read data from memory first
+	data := input.Memory.Read(s, z)
+	// write data into m[n]_u
+	integratedPVMType := input.Addition.IntegratedPVMMap[n]
+	integratedPVMType.Memory.Write(o, z, data)
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// zero = 23
+func zero(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n, p, c := input.Registers[7], input.Registers[8], input.Registers[9]
+
+	if p < 16 || (p+c) >= (1<<32)/ZP {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			// exitReason is ncessary to keep PVM running, according previous setting, HUH, WHO is also CONTINUE
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
+		// u = panic
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// u = m[n]u
+	for i := uint32(p); i < uint32(c); i++ {
+		input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
+			Value:  make([]byte, ZP),
+			Access: MemoryReadWrite,
+		}
+	}
+
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// void = 24
+func void(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n, p, c := input.Registers[7], input.Registers[8], input.Registers[9]
+	// u = panic
+	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
+		// u = panic
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if p < 16 or p + c >= 2^32 / ZP or i in N_p...+c : (u_A)_i = nil
+	if p < 16 || p+c >= (1<<32)/ZP || !isReadable(p, c, input.Addition.IntegratedPVMMap[n].Memory) {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise : ok
+	for i := uint32(p); i < uint32(c); i++ {
+		input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
+			Value:  make([]byte, ZP),
+			Access: MemoryInaccessible,
+		}
+	}
+
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// invoke = 25
+func invoke(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n, o := input.Registers[7], input.Registers[8]
+
+	offset := uint64(112)
+	// g = panic
+	if !isWriteable(o, offset, input.Addition.IntegratedPVMMap[n].Memory) { // not writeable, return
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if n not in M
+	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// assign g, w  |  g => gas , w => registers[13]   , 8(gas) + 8(uint64) * 13 = 112
+	var gas uint64
+	var w Registers
+
+	// first read data from memory
+	data := input.Memory.Read(o, offset)
+
+	decoder := types.NewDecoder()
+	// decode gas
+	err := decoder.Decode(data[:8], gas)
+	if err != nil {
+		log.Fatalf("host-call function \"invoke\" decode gas error : %v", err)
+	}
+	// decode registers
+	for i := uint64(1); i < offset/8; i++ {
+		err = decoder.Decode(data[8*i:8*(i+1)], w[i-1])
+		if err != nil {
+			log.Fatalf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
+		}
+	}
+	// psi
+	c, pcPrime, gasPrime, wPrime, uPrime := SingleStepInvoke(input.Addition.IntegratedPVMMap[n].ProgramCode, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+
+	// mu* = mu
+	encoder := types.NewEncoder()
+	data = types.ByteSequence(make([]byte, offset))
+	encoded, _ := encoder.Encode(gasPrime)
+	copy(data, encoded)
+	for i := uint64(1); i < offset/8; i++ {
+		encoded, _ := encoder.Encode(wPrime[i-1])
+		copy(data[8*i:8*(i+1)], encoded)
+	}
+	// write data into memory (mu)
+	input.Memory.Write(o, offset, data)
+
+	// m* = m
+	tmp := input.Addition.IntegratedPVMMap[n]
+	tmp.Memory = uPrime
+	if c.(*PVMExitReason).Reason == HOST_CALL {
+		tmp.PC = pcPrime + 1
+	} else {
+		tmp.PC = pcPrime
+	}
+	input.Addition.IntegratedPVMMap[n] = tmp
+
+	switch c.(*PVMExitReason).Reason {
+	case HOST_CALL:
+		input.Registers[7] = INNERHOST
+		input.Registers[8] = *c.(*PVMExitReason).HostCall
+
+	case PAGE_FAULT:
+		input.Registers[7] = INNERFAULT
+		input.Registers[8] = *c.(*PVMExitReason).FaultAddr
+
+	case OUT_OF_GAS:
+		input.Registers[7] = INNEROOG
+
+	case PANIC:
+		input.Registers[7] = INNERPANIC
+
+	case HALT:
+		input.Registers[7] = INNERHALT
+
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// expunge = 26
+func expunge(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	n := input.Registers[7]
+	// n not in K(m)
+	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
+		input.Registers[7] = WHO
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	input.Registers[7] = uint64(input.Addition.IntegratedPVMMap[n].PC)
+	// m ˋ n
+	delete(input.Addition.IntegratedPVMMap, n)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
