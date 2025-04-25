@@ -400,7 +400,7 @@ func readExtrinsicAssurancesFromJson(filename string, data assurancesExtrinsic) 
 		signature := stringToHex(data.Signature)
 		outputData = append(outputData, types.AvailAssurance{
 			Anchor:         types.OpaqueHash(stringToHex(data.Anchor)),
-			Bitfield:       []byte(stringToHex(data.Bitfield)[:]),
+			Bitfield:       types.MustMakeBitfieldFromHexString(data.Bitfield),
 			ValidatorIndex: types.ValidatorIndex(data.ValidatorIndex),
 			Signature:      types.Ed25519Signature(signature),
 		})

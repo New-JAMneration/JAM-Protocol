@@ -291,6 +291,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// (12.22)
 	// Update the partial state set to posterior state
 	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
+	store.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(output.AccumulatedServiceOutput)
 
 	return output, nil
 }

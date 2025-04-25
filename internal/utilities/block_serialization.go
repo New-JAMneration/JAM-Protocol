@@ -96,7 +96,7 @@ func ExtrinsicAssuranceSerialization(assurances types.AssurancesExtrinsic) (outp
 	output = append(output, SerializeU64(types.U64(len(assurances)))...)
 	for _, assurance := range assurances {
 		output = append(output, SerializeByteSequence(assurance.Anchor[:])...)
-		output = append(output, SerializeByteSequence(assurance.Bitfield[:])...)
+		output = append(output, SerializeByteSequence(assurance.Bitfield.ToOctetSlice())...)
 		output = append(output, SerializeFixedLength(types.U32(assurance.ValidatorIndex), 2)...)
 		output = append(output, SerializeByteSequence(assurance.Signature[:])...)
 	}

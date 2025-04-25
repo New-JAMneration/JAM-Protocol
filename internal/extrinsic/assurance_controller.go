@@ -111,7 +111,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
-		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield)}.Serialize()
+		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield.ToOctetSlice())}.Serialize()
 		hased := hash.Blake2bHash(append(anchor, bitfield...))
 		message := []byte(types.JamAvailable)
 		message = append(message, hased[:]...)
@@ -133,44 +133,12 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 		for j := 0; j < types.CoresCount; j++ {
 			// rhoDagger[j] nil : core j has no report to be process
 			// assurers can not set nil core
-			if a.AvailAssurances[i].Bitfield[j] == byte(1) && rhoDagger[j] == nil {
+			if a.AvailAssurances[i].Bitfield.GetBit(j) == 1 && rhoDagger[j] == nil {
 				return errors.New("core_engaged")
 			}
 		}
 	}
 	return nil
-}
-
-// BitfieldOctetSequenceToBinarySequence transform the input octet bitfield to a binary sequence
-func (a *AvailAssuranceController) BitfieldOctetSequenceToBinarySequence() {
-	// input (bitfield) : octet sequence ,  output	(binaryBitfield) : binary sequence
-	if len(a.AvailAssurances) <= 0 {
-		return
-	}
-	/*
-		length := len(a.AvailAssurances[0].Bitfield)
-		bitLength := length * 8
-	*/
-	bitLength := types.CoresCount
-	for assuranceIndex := 0; assuranceIndex < len(a.AvailAssurances); assuranceIndex++ {
-		binaryBitfield := make([]byte, bitLength)
-
-		for i := 0; i < len(a.AvailAssurances[0].Bitfield); i++ {
-			for j := 0; j < 8; j++ {
-				if i*8+j >= bitLength {
-					break
-				}
-				if a.AvailAssurances[assuranceIndex].Bitfield[i]&(1<<j) != 0 {
-					binaryBitfield[i*8+j] = 1
-				} else {
-					binaryBitfield[i*8+j] = 0
-				}
-			}
-		}
-
-		a.AvailAssurances[assuranceIndex].Bitfield = make([]byte, bitLength)
-		copy(a.AvailAssurances[assuranceIndex].Bitfield, binaryBitfield)
-	}
 }
 
 // Filter newly available work reports | Eq. 11.16
@@ -182,7 +150,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 	// compute total availability of a report | at this moment of the workflow, the bitfield is transformed into a binary sequence.
 	for i := 0; i < len(a.AvailAssurances); i++ {
 		for j := 0; j < types.CoresCount; j++ {
-			if a.AvailAssurances[i].Bitfield[j] == 1 {
+			if a.AvailAssurances[i].Bitfield.GetBit(j) == 1 {
 				totalAvailable[j]++
 			}
 		}
