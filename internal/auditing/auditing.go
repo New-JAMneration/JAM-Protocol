@@ -383,7 +383,7 @@ func BuildJudgements(
 		context = append(context, hashW[:]...)                       // Xe(w) ⌢ H(w)
 
 		// Sign the message
-		validator_key := store.GetInstance().GetPosteriorStates().GetKappa()[validator_index].Ed25519
+		validator_key := store.GetInstance().GetPriorStates().GetKappa()[validator_index].Ed25519
 		signature := ed25519.Sign(validator_key[:], context)
 		auditReports[index].Signature = types.Ed25519Signature(signature)
 	}
