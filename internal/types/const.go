@@ -35,7 +35,7 @@ func SetTinyMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 3
 	TicketsPerValidator = 3
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 5
@@ -51,7 +51,7 @@ func SetFullMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 683
@@ -72,7 +72,7 @@ var (
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
 
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 
 	AuthPoolMaxSize = 8
 	AuthQueueSize   = 80

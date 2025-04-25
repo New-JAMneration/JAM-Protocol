@@ -35,7 +35,6 @@ func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) (err error) {
 			return err
 		}
 	}
-	assurances.BitfieldOctetSequenceToBinarySequence()
 
 	err = assurances.ValidateBitField()
 	if err != nil {
