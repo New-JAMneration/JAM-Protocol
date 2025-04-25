@@ -4,10 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 type WorkPackageProcessor interface {
@@ -26,31 +24,29 @@ func NewWorkPackageController(workPackage *types.WorkPackage) *WorkPackageContro
 }
 
 type InitialPackageProcessor struct {
-	*WorkPackageController
-	// 加入 CE133 需要的額外參數，例如從 builder 接收的 extrinsic raw bytes
-	pa                types.OpaqueHash
-	pm                types.ByteSequence
-	pc                types.ByteSequence
+	WorkPackageController
+	CoreIndex         types.CoreIndex
 	Extrinsics        types.ByteSequence
-	ErasureStore      *store.SegmentErasureMap
+	ErasureMap        *store.SegmentErasureMap
 	SegmentRootLookup *store.HashSegmentMap
 }
 
 func NewInitialPackageProcessor(wp *types.WorkPackage, extrinsics []byte) *InitialPackageProcessor {
 	return &InitialPackageProcessor{
-		WorkPackageController: NewWorkPackageController(wp),
+		WorkPackageController: *NewWorkPackageController(wp),
 		Extrinsics:            extrinsics,
 	}
 }
 
 func (p *InitialPackageProcessor) Process() error {
-	pa, pm, pc, err := VerifyAuthorization(p.WorkPackage)
+	if err := p.WorkPackage.Validate(); err != nil {
+		return err
+	}
+	delta := store.GetInstance().GetPriorStates().GetDelta()
+	pa, _, pc, err := VerifyAuthorization(p.WorkPackage, delta)
 	if err != nil {
 		return err
 	}
-	p.pa = pa
-	p.pm = pm
-	p.pc = pc
 
 	specs := FlattenExtrinsicSpecs(p.WorkPackage)
 	extrinsicMap, err := ExtractExtrinsics(p.Extrinsics, specs)
@@ -58,114 +54,49 @@ func (p *InitialPackageProcessor) Process() error {
 		return err
 	}
 
-	if err := p.fetchImportSegments(); err != nil {
+	importSegments, err := p.fetchImportSegments()
+	if err != nil {
 		return err
 	}
 
-	if err := p.refine(); err != nil {
+	// CE134: send core index, segment lookup dict, wp bundle to other guarantors
+	// and wait for them to send back work report hash and ed25519 signature
+	// two goroutines to two different guarantors
+
+	var lookup types.SegmentRootLookup
+	_, err = workResultCompute(*p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, lookup)
+	if err != nil {
 		return err
 	}
 
-	if err := p.updateSegmentRootDict(); err != nil {
-		return err
-	}
+	// check if work report is same between all the guarantors
 
-	if err := p.sendToOtherGuarantors(); err != nil {
-		return err
-	}
+	// if err := p.updateSegmentRootDict(); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
 
-func (p *InitialPackageProcessor) fetchImportSegments() (map[types.OpaqueHash]map[types.U16]types.ExportSegment, error) {
+func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment, error) {
+
 	lookupDict := p.SegmentRootLookup
-	segmentErasureMap := p.ErasureStore
-	result := make(map[types.OpaqueHash]map[types.U16]types.ExportSegment)
+	segmentErasureMap := p.ErasureMap
+	result := make([][]types.ExportSegment, len(p.WorkPackage.Items))
 	for _, item := range p.WorkPackage.Items {
 		for _, imp := range item.ImportSegments {
 			segmentRoot := lookupDict.Lookup(imp.TreeRoot)
-
 			erasureRoot, err := segmentErasureMap.Get(segmentRoot)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get erasure root for %s: %w", hex.EncodeToString(segmentRoot[:]), err)
 			}
 
-			data, err := FetchFromDA(erasureRoot, imp.Index)
+			data, err := fetchFromDA(erasureRoot, imp.Index)
 			if err != nil {
-				return nil, fmt.Errorf("failed to fetch segment from DA: %w", err)
+				return nil, fmt.Errorf("failed to fetch data from DA for %s: %w", hex.EncodeToString(erasureRoot[:]), err)
 			}
-
-			if result[segmentRoot] == nil {
-				result[segmentRoot] = make(map[types.U16]types.ExportSegment)
-			}
-			result[segmentRoot][imp.Index] = data
-
-			if err := p.StoreSegment(segmentRoot, imp.Index, data); err != nil {
-				return nil, fmt.Errorf("failed to store segment: %w", err)
-			}
+			result = append(result, data)
 		}
 	}
 	return result, nil
-}
-
-// 14.9
-func VerifyAuthorization(wp *types.WorkPackage) (types.OpaqueHash, types.ByteSequence, types.ByteSequence, error) {
-	pa := hash.Blake2bHash(append(wp.Authorizer.CodeHash[:], wp.Authorizer.Params[:]...))
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	pm, pc, err := service_account.HistoricalLookupFunction(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.Authorizer.CodeHash)
-	if err != nil {
-		return types.OpaqueHash{}, types.ByteSequence{}, types.ByteSequence{}, err
-	}
-
-	return pa, pm, pc, err
-}
-
-func FlattenExtrinsicSpecs(wp *types.WorkPackage) []types.ExtrinsicSpec {
-	var allSpecs []types.ExtrinsicSpec
-	for _, wi := range wp.Items {
-		allSpecs = append(allSpecs, wi.Extrinsic...)
-	}
-	return allSpecs
-}
-
-func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (ExtrinsicLookup, error) {
-	var result ExtrinsicLookup
-	curr := 0
-
-	for _, spec := range specs {
-		length := int(spec.Len)
-		if curr+length > len(data) {
-			return nil, fmt.Errorf("extrinsic length overflow")
-		}
-
-		extracted := data[curr : curr+length]
-		if hash.Blake2bHash(extracted) != spec.Hash {
-			return nil, fmt.Errorf("extrinsic hash mismatch")
-		}
-
-		result[spec.Hash] = append([]byte(nil), extracted...)
-		curr += length
-	}
-
-	if curr != len(data) {
-		return nil, fmt.Errorf("data remains after extrinsics parsed")
-	}
-
-	return result, nil
-}
-
-type ExtrinsicLookup map[types.OpaqueHash]types.ByteSequence
-
-// ParseExtrinsic takes a raw byte stream and the wx list and returns hash → preimage mapping
-func ParseExtrinsic(raw []byte, extrinsicSpecs []types.ExtrinsicSpec) ExtrinsicLookup {
-	result := make(map[types.OpaqueHash][]byte)
-	offset := 0
-	for _, spec := range extrinsicSpecs {
-		length := int(spec.Length)
-		data := raw[offset : offset+length]
-		hash := types.Blake2bHash(data)
-		result[hash] = data
-		offset += length
-	}
-	return result
 }
