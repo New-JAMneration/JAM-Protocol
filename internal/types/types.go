@@ -197,6 +197,16 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
+func (a *AuthPool) RemovePairedValue(h AuthorizerHash) {
+	result := (*a)[:0]
+	for _, v := range *a {
+		if !bytes.Equal(v[:], h[:]) {
+			result = append(result, v)
+		}
+	}
+	*a = result
+}
+
 type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
@@ -447,7 +457,7 @@ type WorkReport struct {
 	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
 	Context           RefineContext     `json:"context"`                       // x
 	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
-	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
+	AuthorizerHash    AuthorizerHash    `json:"authorizer_hash,omitempty"`     // a
 	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
 	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
 	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
@@ -906,12 +916,15 @@ func (v ValidatorSignature) Validate() error {
 
 // (11.23)  Work Report Guarantee
 type ReportGuarantee struct {
-	Report     WorkReport           `json:"report"`
-	Slot       TimeSlot             `json:"slot,omitempty"`
-	Signatures []ValidatorSignature `json:"signatures,omitempty"`
+	Report     WorkReport           `json:"report"`               // gw
+	Slot       TimeSlot             `json:"slot,omitempty"`       // gt
+	Signatures []ValidatorSignature `json:"signatures,omitempty"` // ga
 }
 
 func (r *ReportGuarantee) Validate() error {
+	if err := r.Report.Validate(); err != nil {
+		return err
+	}
 	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
 		return errors.New("signatures length must be between 2 and 3")
 	}
@@ -929,6 +942,11 @@ type GuaranteesExtrinsic []ReportGuarantee
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
 		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
+	}
+	for i, report := range *g {
+		if err := report.Validate(); err != nil {
+			return fmt.Errorf("report %d validation failed: %w", i, err)
+		}
 	}
 	return nil
 }
