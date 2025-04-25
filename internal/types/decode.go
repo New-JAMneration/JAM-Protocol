@@ -3033,6 +3033,10 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
+	if err = o.GasLimit.Decode(decoder); err != nil {
+		return err
+	}
+
 	if err = o.Result.Decode(decoder); err != nil {
 		return err
 	}

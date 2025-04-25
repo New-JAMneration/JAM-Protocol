@@ -1378,6 +1378,7 @@ type Operand struct {
 	AuthOutput     ByteSequence    // o
 	PayloadHash    OpaqueHash      // y
 	Result         WorkExecResult  // d
+	GasLimit       Gas             // g   0.6.5
 }
 
 // (12.15) U
