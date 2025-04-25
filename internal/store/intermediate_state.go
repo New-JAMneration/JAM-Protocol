@@ -17,12 +17,12 @@ type IntermediateState struct {
 	RhoDoubleDagger          types.AvailabilityAssignments
 	DeltaDagger              types.ServiceAccountState
 	DeltaDoubleDagger        types.ServiceAccountState
-	BeefyCommitmentOutputs   BeefyCommitmentOutputs
-	AvailableWorkReports     AvailableWorkReports
-	PresentWorkReports       PresentWorkReports
-	AccumulatedWorkReports   AccumulatedWorkReports
-	QueuedWorkReports        QueuedWorkReports
-	AccumulatableWorkReports AccumulatableWorkReports
+	BeefyCommitmentOutputs   types.AccumulatedServiceOutput
+	AvailableWorkReports     []types.WorkReport
+	PresentWorkReports       []types.WorkReport
+	AccumulatedWorkReports   []types.WorkReport
+	QueuedWorkReports        types.ReadyQueueItem
+	AccumulatableWorkReports []types.WorkReport
 }
 
 func NewIntermediateStates() *IntermediateStates {
@@ -33,12 +33,12 @@ func NewIntermediateStates() *IntermediateStates {
 			RhoDoubleDagger:          types.AvailabilityAssignments{},
 			DeltaDagger:              types.ServiceAccountState{},
 			DeltaDoubleDagger:        types.ServiceAccountState{},
-			BeefyCommitmentOutputs:   *NewBeefyCommitmentOutputs(),
-			AvailableWorkReports:     *NewAvailableWorkReports(),
-			PresentWorkReports:       *NewPresentWorkReports(),
-			AccumulatedWorkReports:   *NewAccumulatedWorkReports(),
-			QueuedWorkReports:        *NewQueuedWorkReports(),
-			AccumulatableWorkReports: *NewAccumulatableWorkReports(),
+			BeefyCommitmentOutputs:   make(types.AccumulatedServiceOutput),
+			AvailableWorkReports:     []types.WorkReport{},
+			PresentWorkReports:       []types.WorkReport{},
+			AccumulatedWorkReports:   []types.WorkReport{},
+			QueuedWorkReports:        types.ReadyQueueItem{},
+			AccumulatableWorkReports: []types.WorkReport{},
 		},
 	}
 }
@@ -108,71 +108,71 @@ func (s *IntermediateStates) GetDeltaDoubleDagger() types.ServiceAccountState {
 func (s *IntermediateStates) SetBeefyCommitmentOutput(c types.AccumulatedServiceOutput) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.BeefyCommitmentOutputs.SetBeefyCommitmentOutput(c)
+	s.state.BeefyCommitmentOutputs = c
 }
 
 func (s *IntermediateStates) GetBeefyCommitmentOutput() types.AccumulatedServiceOutput {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.BeefyCommitmentOutputs.GetBeefyCommitmentOutput()
+	return s.state.BeefyCommitmentOutputs
 }
 
 func (s *IntermediateStates) SetAvailableWorkReports(w []types.WorkReport) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.AvailableWorkReports.SetAvailableWorkReports(w)
+	s.state.AvailableWorkReports = w
 }
 
 func (s *IntermediateStates) GetAvailableWorkReports() []types.WorkReport {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.AvailableWorkReports.GetAvailableWorkReports()
+	return s.state.AvailableWorkReports
 }
 
 func (s *IntermediateStates) SetPresentWorkReports(w []types.WorkReport) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.PresentWorkReports.SetPresentWorkReports(w)
+	s.state.PresentWorkReports = w
 }
 
 func (s *IntermediateStates) GetPresentWorkReports() []types.WorkReport {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.PresentWorkReports.GetPresentWorkReports()
+	return s.state.PresentWorkReports
 }
 
 func (s *IntermediateStates) SetAccumulatedWorkReports(w []types.WorkReport) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.AccumulatedWorkReports.SetAccumulatedWorkReports(w)
+	s.state.AccumulatedWorkReports = w
 }
 
 func (s *IntermediateStates) GetAccumulatedWorkReports() []types.WorkReport {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.AccumulatedWorkReports.GetAccumulatedWorkReports()
+	return s.state.AccumulatedWorkReports
 }
 
 func (s *IntermediateStates) SetQueuedWorkReports(w types.ReadyQueueItem) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.QueuedWorkReports.SetQueuedWorkReports(w)
+	s.state.QueuedWorkReports = w
 }
 
 func (s *IntermediateStates) GetQueuedWorkReports() types.ReadyQueueItem {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.QueuedWorkReports.GetQueuedWorkReports()
+	return s.state.QueuedWorkReports
 }
 
 func (s *IntermediateStates) SetAccumulatableWorkReports(w []types.WorkReport) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.AccumulatableWorkReports.SetAccumulatableWorkReports(w)
+	s.state.AccumulatableWorkReports = w
 }
 
 func (s *IntermediateStates) GetAccumulatableWorkReports() []types.WorkReport {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.AccumulatableWorkReports.GetAccumulatableWorkReports()
+	return s.state.AccumulatableWorkReports
 }
