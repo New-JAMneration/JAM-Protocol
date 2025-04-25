@@ -288,13 +288,13 @@ func (h HostCallArgs) GetHostCallArgs() PolkaVM.HostCallArgs {
 	}
 
 	result.ServiceAccountState = h.InitialDelta.ToServiceAccountState()
-
-	// Refine args
-	result.RefineMap = h.InitialRefineMap
-	result.ImportSegment = h.InitialImportSegment
-	result.ExportSegment = h.InitialExportSegment
-	result.ExportSegmentIndex = h.InitialExportSegmentIndex
-
+	/*
+		// Refine args
+		result.RefineMap = h.InitialRefineMap
+		result.ImportSegment = h.InitialImportSegment
+		result.ExportSegment = h.InitialExportSegment
+		result.ExportSegmentIndex = h.InitialExportSegmentIndex
+	*/
 	// Accumulate args
 	if h.InitialTimeslot != nil {
 		result.Timeslot = types.TimeSlot(*h.InitialTimeslot)

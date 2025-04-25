@@ -238,6 +238,8 @@ func (a AuthQueues) Validate() error {
 
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
 
+type ExportSegment [SegmentSize]byte
+
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
 	Index    U16        `json:"index,omitempty"`     // index of prior exported segments
