@@ -51,7 +51,7 @@ func GetQ() []*types.WorkReport {
 
 // GetS0 computes the initial audit seed s₀ for a validator, following Formula (17.3)-(17.4).
 // Returns the VRF output (s₀) as BandersnatchVrfSignature.
-func GetS0(validatorIndex int) (types.BandersnatchVrfSignature, error) {
+func GetS0(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature, error) {
 	store := store.GetInstance()
 	priorStates := store.GetPriorStates()
 
@@ -94,7 +94,7 @@ func GetS0(validatorIndex int) (types.BandersnatchVrfSignature, error) {
 //	(17.5) a0 = top 10 of (c, Q[c]) where Q[c] ≠ ∅
 //
 // Returns a list of AuditReports
-func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) ([]types.AuditReport, error) {
+func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
 	store := store.GetInstance()
 
 	// Get initial audit seed s0 (17.3)
@@ -104,7 +104,7 @@ func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex int) ([]types.A
 	}
 
 	// Compute r = 𝒴(s0) — derive audit random seed (17.7)
-	validatorKey := store.GetPosteriorStates().GetKappa()[validatorIndex].Bandersnatch
+	validatorKey := store.GetPriorStates().GetKappa()[validatorIndex].Bandersnatch
 	handler, err := safrole.CreateVRFHandler(validatorKey)
 	if err != nil {
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to create VRF handler for validator: %w", err)
@@ -156,11 +156,12 @@ func GetTranchIndex() types.U64 {
 // over the validator's audit assignment aₙ at tranche index n,
 // following formula:
 // S ≡ Eκ[v]e ⟨XI + n ⌢ xn ⌢ H(H)⟩
+// This Getfunction will change in future. Just remind
 func BuildAnnouncement(
 	n types.U8, // tranche index
 	an []types.AuditReport, // an: assignment at tranche n
 	hashFunc func(types.ByteSequence) types.OpaqueHash, // H(w): hash function
-	validatorIndex int,
+	validatorIndex types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey, // κ[v]ᵉ: Ed25519 private key
 ) types.Ed25519Signature {
 
@@ -183,9 +184,9 @@ func BuildAnnouncement(
 
 	// (17.9) context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
 	context := XI
-	context = append(context, utilities.SerializeFixedLength(types.U32(n), 4)...) // ⌢ n
-	context = append(context, xn...)                                              // ⌢ xn
-	context = append(context, headerHash[:]...)                                   // ⌢ H(H)
+	context = append(context, []byte{uint8(n)}...) // ⌢ n
+	context = append(context, xn...)               // ⌢ xn
+	context = append(context, headerHash[:]...)    // ⌢ H(H)
 
 	// Sign context with validator Ed25519 private key: S = Sign(context)
 	signature := ed25519.Sign(validatorPrivKey, context)
@@ -266,7 +267,7 @@ func ComputeAnForValidator(
 	priorAssignments map[types.WorkPackageHash][]types.ValidatorIndex, // Aₙ₋₁(w)
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, // J⊤(w)
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
-	v int,
+	validator_index types.ValidatorIndex,
 ) ([]types.AuditReport, error) {
 	var an []types.AuditReport
 
@@ -280,7 +281,7 @@ func ComputeAnForValidator(
 	}
 
 	// validator handler
-	validatorKey := priorStates.GetKappa()[v].Bandersnatch
+	validatorKey := priorStates.GetKappa()[validator_index].Bandersnatch
 	vrfHandler, err := safrole.CreateVRFHandler(validatorKey)
 	if err != nil {
 		return nil, fmt.Errorf("CreateVRFHandler for validator: %w", err)
@@ -329,7 +330,7 @@ func ComputeAnForValidator(
 			an = append(an, types.AuditReport{
 				CoreID:      report.CoreIndex,
 				Report:      report,
-				ValidatorID: types.ValidatorIndex(v),
+				ValidatorID: types.ValidatorIndex(validator_index),
 				AuditResult: false,
 			})
 		}
@@ -365,7 +366,7 @@ func BuildJudgements(
 	tranche types.U8,
 	auditReports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
-	validator_index int,
+	validator_index types.ValidatorIndex,
 ) []types.AuditReport {
 	for index, audit := range auditReports {
 		report := audit.Report
@@ -455,7 +456,7 @@ func BroadcastAuditReport(audit []types.AuditReport) {
 }
 
 // CE144
-func BroadcastAnnouncement(validatorIndex int, tranche types.U8, assignment map[types.WorkPackageHash][]types.ValidatorIndex, signature types.Ed25519Signature) {
+func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8, assignment map[types.WorkPackageHash][]types.ValidatorIndex, signature types.Ed25519Signature) {
 	// TODO: Implement the logic to broadcast the announcement
 	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
@@ -489,7 +490,7 @@ func GetJudgement(report types.AuditReport) bool {
 	return true
 }
 func SingleNodeAuditingAndPublish(
-	validatorIndex int,
+	validatorIndex types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey,
 ) error {
 	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
