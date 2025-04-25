@@ -48,9 +48,8 @@ func (w *WorkReportController) ValidateLookupDictAndPrerequisites() error {
 func (w *WorkReportController) ValidateOutputSize() error {
 	totalSize := len(w.WorkReport.AuthOutput)
 	for _, result := range w.WorkReport.Results {
-		for _, outputs := range result.Result {
-			totalSize += len(outputs)
-		}
+		// only compute $\mathcal{Y}$ => ok
+		totalSize += len(result.Result["ok"])
 	}
 
 	if totalSize > types.WorkReportOutputBlobsMaximumSize {
