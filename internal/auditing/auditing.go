@@ -18,31 +18,32 @@ import (
 //
 //	∅ otherwise 		c <− NC
 //
-// CollectAuditReportCandidates constructs the audit report candidates Q (formula 17.1 ~ 17.2).
-// CollectAuditReportCandidates constructs audit report candidates Q (formula 17.1 ~ 17.2).
-func CollectFirstAuditReportCandidates() []*types.WorkReport {
+// GetQ constructs the audit report candidates Q (formula 17.1 ~ 17.2).
+func GetQ() []*types.WorkReport {
 	store := store.GetInstance()
 
-	// p(rho): Current core -> report assignment
-	coreAssignments := store.GetPriorStates().GetRho()
+	// ρ(rho): Current assignment map (per core)
+	rho := store.GetPriorStates().GetRho()
 
 	// W: Available work reports
 	W := store.GetIntermediateStates().GetAvailableWorkReports()
 
-	// Build set of available work package hashes
+	// Create a set of available work package hashes
 	available := make(map[types.WorkPackageHash]bool)
 	for _, report := range W {
 		available[report.PackageSpec.Hash] = true
 	}
-	// Initialize Q
+
 	Q := make([]*types.WorkReport, types.CoresCount)
-	for coreIdx, coreAssignment := range coreAssignments {
-		if coreAssignment != nil {
-			report := coreAssignment.Report
+	for index, assignment := range rho {
+		// check if core has an assignment
+		if assignment != nil {
+			report := assignment.Report
+			// Only keep it if the assigned report is still available in W (ρ[c]w ∈ W)
 			if available[report.PackageSpec.Hash] {
-				// In available list W (if ρ[c]w ∈ W)
-				Q[coreIdx] = &report
+				Q[index] = &report
 			}
+			// else: Q[index] stays nil (∅ otherwise c <− NC)
 		}
 	}
 	return Q
@@ -93,13 +94,13 @@ func GetS0(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature,
 //	(17.5) a0 = top 10 of (c, Q[c]) where Q[c] ≠ ∅
 //
 // Returns a list of AuditReports
-func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
+func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
 	store := store.GetInstance()
 
 	// Get initial audit seed s0 (17.3)
 	s0, err := GetS0(validatorIndex)
 	if err != nil {
-		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get s₀: %w", err)
+		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get s0: %w", err)
 	}
 
 	// Compute r = 𝒴(s0) — derive audit random seed (17.7)
@@ -109,7 +110,7 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to create VRF handler for validator: %w", err)
 	}
 
-	auditSeedR, err := handler.VRFIetfOutput(s0[:])
+	vrfOutput, err := handler.VRFIetfOutput(s0[:])
 	if err != nil {
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get VRF output from s₀: %w", err)
 	}
@@ -119,19 +120,19 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 	for i := range coreIndices {
 		coreIndices[i] = types.U32(i)
 	}
-	shuffledCores := shuffle.Shuffle(coreIndices, types.OpaqueHash(auditSeedR))
+	shuffled := shuffle.Shuffle(coreIndices, types.OpaqueHash(vrfOutput))
 
 	// Step 4: Select top 10 assigned reports (17.5)
 	var a0 []types.AuditReport
-	for _, coreIdx := range shuffledCores {
+	for _, coreIdx := range shuffled {
 		report := Q[coreIdx]
 		if report != nil {
 			a0 = append(a0, types.AuditReport{
 				CoreID:      types.CoreIndex(coreIdx),
 				Report:      *report,
-				AuditResult: false, // initially unknown
+				AuditResult: false,
 			})
-			if len(a0) == 10 { // Limit to 10 reports
+			if len(a0) == 10 {
 				break
 			}
 		}
@@ -260,7 +261,6 @@ func GetYHv() ([]byte, error) {
 // (17.15) sn(w) ∈ F[] κ[v]b ⟨XU ⌢ Y(Hv) ⌢ H(w) n⟩
 // (17.16) an ≡ { V/256F Y(sn(w))0 < mn | w ∈ Q, w ≠ ∅}
 // where mn = SAn−1(w) ∖ J⊺(w)S
-
 func ComputeAnForValidator(
 	n types.U8,
 	Q []*types.WorkReport,
@@ -308,8 +308,8 @@ func ComputeAnForValidator(
 		}
 
 		// Build context ⟨XU ⌢ Y(Hv) ⌢ H(w) ⌢ n⟩
-		context := types.ByteSequence(types.JamAudit[:])                              // XU
-		context = append(context, Y_Hv...)                                            // Y(Hv)
+		conext := types.ByteSequence(types.JamAudit[:])                               // XU
+		context := append(conext, Y_Hv...)                                            // Y(Hv)
 		Hw := hashFunc(utilities.WorkReportSerialization(report))                     // H(w)
 		context = append(context, Hw[:]...)                                           // H(w)
 		context = append(context, utilities.SerializeFixedLength(types.U32(n), 4)...) // n
@@ -460,9 +460,17 @@ func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8
 	// TODO: Implement the logic to broadcast the announcement
 	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
-func WaitNextTranche(tranche types.U8) {
-
+func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
+	// TODO: Implement the logic to update the assignment map from other nodes
+	// This could involve receiving messages from other nodes and merging their assignment maps.
+	return assignmentMap
 }
+func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	// TODO: Implement the logic to update the positive judgers from other nodes
+	// This could involve receiving messages from other nodes and merging their positive judgers.
+	return positiveJudgers
+}
+
 func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	for _, audit := range audits {
 		if audit.AuditResult {
@@ -475,17 +483,6 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	}
 	return positiveJudgers
 }
-func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
-	// TODO CE 145 QUIC, the final input types TBD
-	return positiveJudgers
-}
-
-func SyncAssignmentMapFromOtherNodes(
-	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
-	validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash][]types.ValidatorIndex {
-	// TODO CE 144 QUIC, the final input types TBD
-	return assignmentMap
-}
 
 // 17.17
 func GetJudgement(report types.AuditReport) bool {
@@ -497,7 +494,7 @@ func SingleNodeAuditingAndPublish(
 	validatorPrivKey ed25519.PrivateKey,
 ) error {
 	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
-	Q := CollectFirstAuditReportCandidates()
+	Q := GetQ()
 	var workReports []types.WorkReport
 	for _, report := range Q {
 		if report != nil {
@@ -510,7 +507,7 @@ func SingleNodeAuditingAndPublish(
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool) // key = work report hash, value = positive judgers
 
 	// Step 3: (17.3–17.7) Compute initial deterministic assignment a₀
-	a0, err := ComputeInitialAuditAssignment(Q, validatorIndex) // a0: assigned reports for local validator
+	a0, err := ComputeA0ForValidator(Q, validatorIndex) // a0: assigned reports for local validator
 	if err != nil {
 		return fmt.Errorf("failed to compute a₀: %w", err)
 	}
@@ -538,13 +535,14 @@ func SingleNodeAuditingAndPublish(
 	BroadcastAuditReport(signedA0)
 
 	// Step 9: Receive CE144 and CE145 from other nodes to update state
-	assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, 0)
-	positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, 0)
+	UpdateAssignmentMapFromOtherNode(assignmentMap)
+	UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+
 	// Step 10: (17.20) Check if all reports from the current block have passed audit
 	if IsBlockAudited(workReports, signedA0, assignmentMap) {
 		return nil // Auditing complete
 	}
-	WaitNextTrahche(0)
+
 	// Step 11: Begin tranche loop for stochastic audit (n ≥ 1)
 	for tranche := types.U8(1); ; tranche++ {
 		// (17.15–17.16) Compute stochastic assignment aₙ based on no-shows
@@ -570,14 +568,13 @@ func SingleNodeAuditingAndPublish(
 		BroadcastAuditReport(signedAn)
 
 		// Step 16: Update local assignment and judgement state with messages from other nodes
-		assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, tranche)
-		positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, tranche)
+		UpdateAssignmentMapFromOtherNode(assignmentMap)
+		UpdatePositiveJudgersFromOtherNode(positiveJudgers)
 
 		// Step 17: Check if audit condition has been satisfied for all reports for single block
 		if IsBlockAudited(workReports, signedAn, assignmentMap) {
 			break
 		}
-		WaitNextTranche(tranche)
 	}
 
 	return nil
