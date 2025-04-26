@@ -197,7 +197,7 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
-func (a *AuthPool) RemovePairedValue(h AuthorizerHash) {
+func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
 	result := (*a)[:0]
 	for _, v := range *a {
 		if !bytes.Equal(v[:], h[:]) {
@@ -457,7 +457,7 @@ type WorkReport struct {
 	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
 	Context           RefineContext     `json:"context"`                       // x
 	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
-	AuthorizerHash    AuthorizerHash    `json:"authorizer_hash,omitempty"`     // a
+	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
 	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
 	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
 	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}

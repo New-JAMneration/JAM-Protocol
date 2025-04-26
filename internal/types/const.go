@@ -74,7 +74,7 @@ var (
 
 	MaxBlocksHistory = 8 // H
 
-	AuthPoolMaxSize = 8
+	AuthPoolMaxSize = 8 // O
 	AuthQueueSize   = 80
 
 	ValidatorsSuperMajority = 5
