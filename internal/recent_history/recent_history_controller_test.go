@@ -340,7 +340,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	// handmade AccumulatedServiceOutput
 	mockC := make(types.AccumulatedServiceOutput)
 	mockC[types.AccumulatedServiceHash{ServiceId: 1, Hash: my.Input.AccumulateRoot}] = true
-	s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+	s.GetIntermediateStates().SetBeefyCommitmentOutput(mockC)
 
 	accumulationResultTreeRoot := r(mockC)
 
@@ -553,7 +553,7 @@ func TestRecentHistory(t *testing.T) {
 				},
 			})
 		}
-		s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+		s.GetIntermediateStates().SetBeefyCommitmentOutput(mockC)
 
 		// Test CheckDuplicate
 		// Start test CheckDuplicate
@@ -707,7 +707,7 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 			},
 		}
 		s.AddBlock(mockBlock)
-		s.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(mockC)
+		s.GetIntermediateStates().SetBeefyCommitmentOutput(mockC)
 
 		// Test AddToBetaDagger
 		// Start test STFBeta2BetaDagger (4.6)
