@@ -202,7 +202,7 @@ func readHeaderFromJson(filename string, data heder) (outputData types.Header) {
 
 		for _, data := range data.EpochMark.Validators {
 			validator := stringToHex(data)
-			outputData.EpochMark.Validators = append(outputData.EpochMark.Validators, types.BandersnatchPublic(validator))
+			outputData.EpochMark.Validators = append(outputData.EpochMark.Validators, types.EpochMarkValidatorKeys{Bandersnatch: types.BandersnatchPublic(validator)})
 		}
 	}
 
@@ -400,7 +400,7 @@ func readExtrinsicAssurancesFromJson(filename string, data assurancesExtrinsic) 
 		signature := stringToHex(data.Signature)
 		outputData = append(outputData, types.AvailAssurance{
 			Anchor:         types.OpaqueHash(stringToHex(data.Anchor)),
-			Bitfield:       []byte(stringToHex(data.Bitfield)[:]),
+			Bitfield:       types.MustMakeBitfieldFromHexString(data.Bitfield),
 			ValidatorIndex: types.ValidatorIndex(data.ValidatorIndex),
 			Signature:      types.Ed25519Signature(signature),
 		})

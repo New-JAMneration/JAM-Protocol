@@ -2,6 +2,7 @@ package mmr
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -313,5 +314,92 @@ func TestSuperPeak(t *testing.T) {
 		if !bytes.Equal(want[:], (*got)[:]) {
 			t.Errorf("SuperPeak([p1,p2,p3]) = %x; want %x", *got, want)
 		}
+	})
+}
+
+func TestMMR_AppendOne_Comprehensive(t *testing.T) {
+	t.Run("appending nil data returns original peaks", func(t *testing.T) {
+		m := NewMMR(hash.Blake2bHash)
+		if m == nil {
+			t.Fatal("failed to create MMR")
+		}
+
+		// Initial state - empty peaks
+		if len(m.Peaks) != 0 {
+			t.Errorf("expected empty peaks initially, got %d peaks", len(m.Peaks))
+		}
+
+		// Append nil data
+		result := m.AppendOne(nil)
+		if len(result) != 0 {
+			t.Errorf("expected same peaks after appending nil, got %d peaks", len(result))
+		}
+	})
+
+	t.Run("appending empty data adds a peak", func(t *testing.T) {
+		m := NewMMR(hash.Blake2bHash)
+		if m == nil {
+			t.Fatal("failed to create MMR")
+		}
+
+		// Create empty peak with zeros
+		var nilContent types.OpaqueHash
+		var nilPeak = &nilContent
+
+		// Empty data should be added as a peak
+		result := m.AppendOne(nilPeak)
+		if len(result) != 1 {
+			t.Errorf("expected 1 peak after appending empty data, got %d peaks", len(result))
+		}
+	})
+
+	t.Run("appending data to empty MMR creates single peak", func(t *testing.T) {
+		m := NewMMR(hash.Blake2bHash)
+		if m == nil {
+			t.Fatal("failed to create MMR")
+		}
+
+		hashA := hash.Blake2bHash([]byte("TestData"))
+		result := m.AppendOne(&hashA)
+
+		if len(result) != 1 {
+			t.Errorf("expected 1 peak after appending to empty MMR, got %d", len(result))
+		}
+
+		if !reflect.DeepEqual(result[0][:], hashA[:]) {
+			t.Errorf("peak value doesn't match appended data: expected %x, got %x", hashA, result[0])
+		}
+	})
+
+	t.Run("observe appending behavior with multiple values", func(t *testing.T) {
+		m := NewMMR(hash.Blake2bHash)
+		if m == nil {
+			t.Fatal("failed to create MMR")
+		}
+
+		// Create test hashes
+		hash1 := hash.Blake2bHash([]byte("Data1"))
+		hash2 := hash.Blake2bHash([]byte("Data2"))
+		hash3 := hash.Blake2bHash([]byte("Data3"))
+		hash4 := hash.Blake2bHash([]byte("Data4"))
+
+		// Append first hash
+		peaks1 := m.AppendOne(&hash1)
+		if len(peaks1) != 1 {
+			t.Errorf("after appending 1 item, expected 1 peak, got %d", len(peaks1))
+		}
+		t.Logf("After hash1: %d peaks", len(peaks1))
+
+		// Append second hash
+		peaks2 := m.AppendOne(&hash2)
+		t.Logf("After hash2: %d peaks", len(peaks2))
+
+		// Append third hash
+		peaks3 := m.AppendOne(&hash3)
+		t.Logf("After hash3: %d peaks", len(peaks3))
+
+		// Append fourth hash
+		peaks4 := m.AppendOne(&hash4)
+		t.Logf("After hash4: %d peaks", len(peaks4))
 	})
 }

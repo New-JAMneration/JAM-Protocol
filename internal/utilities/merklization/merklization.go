@@ -186,11 +186,9 @@ func MerklizationSerializedState(serializedState map[types.OpaqueHash]types.Byte
 // MerklizationState is a function that takes a state and returns the
 // Merklization of the state.
 // (D.5)
-func MerklizationState(state types.State) (types.OpaqueHash, error) {
-	serializedState, err := StateSerialize(state)
-	if err != nil {
-		return types.OpaqueHash{}, err
-	}
+func MerklizationState(state types.State) types.OpaqueHash {
+	// serializedState, err := StateSerialize(state)
+	serializedState, _ := StateEncoder(state)
 
-	return MerklizationSerializedState(serializedState), nil
+	return MerklizationSerializedState(serializedState)
 }
