@@ -76,20 +76,21 @@ func GetTestFromBin[T any](filename string, jamtests_case *T) error {
 	return nil
 }
 
-func GetTestFromJson[T any](filename string, jamtests_case *T) (T, error) {
+func GetTestFromJson[T any](filename string) (T, error) {
+	var jamtests_case T
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return *jamtests_case, fmt.Errorf("failed to read file: %v", err)
+		return jamtests_case, fmt.Errorf("failed to read file: %v", err)
 	}
 
 	// Decode the json data
-	err = json.Unmarshal(data, jamtests_case)
+	err = json.Unmarshal(data, &jamtests_case)
 	if err != nil {
-		return *jamtests_case, fmt.Errorf("failed to decode json data: %v", err)
+		return jamtests_case, fmt.Errorf("failed to decode json data: %v", err)
 	}
 
 	// Return the decoded data
-	return *jamtests_case, nil
+	return jamtests_case, nil
 }
 
 func TestDecodeJamTestNetState(t *testing.T) {
@@ -133,7 +134,7 @@ func TestDecodeJamTestNetState(t *testing.T) {
 			// Read the json file
 			filename := file[:len(file)-len(BIN_EXTENTION)]
 			jsonFilePath := filepath.Join(dir, filename+JSON_EXTENTION)
-			jsonData, err := GetTestFromJson(jsonFilePath, &types.State{})
+			jsonData, err := GetTestFromJson[types.State](jsonFilePath)
 			if err != nil {
 				t.Errorf("Error: %v", err)
 			}

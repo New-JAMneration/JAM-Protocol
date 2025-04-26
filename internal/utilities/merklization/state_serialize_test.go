@@ -246,7 +246,7 @@ func TestJamTestNetStateEncodeAndSerialization(t *testing.T) {
 			baseFileName := filepath.Base(binPath)
 			baseFileName = baseFileName[:len(baseFileName)-len(utils.BIN_EXTENTION)]
 			jsonFilePath := filepath.Join(snapshotsDir, baseFileName+utils.JSON_EXTENTION)
-			jsonState, err := utils.GetTestFromJson(jsonFilePath, &types.State{})
+			jsonState, err := utils.GetTestFromJson[types.State](jsonFilePath)
 			if err != nil {
 				t.Errorf("Error: %v", err)
 			}
