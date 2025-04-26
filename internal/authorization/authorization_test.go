@@ -40,7 +40,6 @@ func TestAuthorizationTestVectors(t *testing.T) {
 		}
 
 		// Set up test input state
-		// inputAuths := authorization.Input.Auths
 		var (
 			inputSlot      = authorization.Input.Slot
 			inputEg        = authorization.Input.Auths
