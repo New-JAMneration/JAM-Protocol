@@ -13,6 +13,11 @@ import (
 )
 
 func TestAuthorizationTestVectors(t *testing.T) {
+	if types.TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else if types.TEST_MODE == "full" {
+		types.SetFullMode()
+	}
 
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "authorizations", types.TEST_MODE)
 
@@ -42,7 +47,7 @@ func TestAuthorizationTestVectors(t *testing.T) {
 			priorState     = authorization.PreState
 			posteriorState = authorization.PostState
 		)
-		mockEgs := types.GuaranteesExtrinsic{}
+		mockEgs := make(types.GuaranteesExtrinsic, 0, len(inputEg))
 		for _, eg := range inputEg {
 			mockEgs = append(mockEgs, types.ReportGuarantee{
 				Report: types.WorkReport{
@@ -51,20 +56,21 @@ func TestAuthorizationTestVectors(t *testing.T) {
 				},
 			})
 		}
-		// t.Logf("inputEg %+v", mockEgs)
 		// Get store instance and required states
 		s := store.GetInstance()
 		s.GetProcessingBlockPointer().SetSlot(inputSlot)
 		s.GetProcessingBlockPointer().SetGuaranteesExtrinsic(mockEgs)
-		s.GetPriorStates().SetAlpha(priorState.Alpha)
 		s.GetPosteriorStates().SetVarphi(posteriorState.Varphi)
-		s.GetPosteriorStates().SetTau(inputSlot)
-		// Get output state
+		s.GetPriorStates().SetAlpha(priorState.Alpha)
+
+		// === Run Authorization ===
 		err = Authorization()
 		if err != nil {
 			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Fatalf("Error: %v", err)
 		}
+
+		// Get output state
 		outputAlpha := s.GetPosteriorStates().GetAlpha()
 		// Validate output state
 		if !reflect.DeepEqual(posteriorState.Varphi, priorState.Varphi) {
