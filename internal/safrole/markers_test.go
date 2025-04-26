@@ -52,7 +52,7 @@ func TestCreateEpochMarkerNewEpoch(t *testing.T) {
 	CreateEpochMarker()
 
 	// Check if epoch marker is created
-	epochMarker := s.GetIntermediateHeaderPointer().GetEpochMark()
+	epochMarker := s.GetProcessingBlockPointer().GetEpochMark()
 
 	if epochMarker == nil {
 		t.Errorf("Epoch marker should not be nil")
@@ -109,7 +109,7 @@ func TestCreateEpochMarkerSameEpoch(t *testing.T) {
 	CreateEpochMarker()
 
 	// Check if epoch marker is nil
-	if s.GetIntermediateHeaderPointer().GetEpochMark() != nil {
+	if s.GetProcessingBlockPointer().GetEpochMark() != nil {
 		t.Errorf("Epoch marker should be nil")
 	}
 }
@@ -285,7 +285,7 @@ func TestCreateWinningTicketsPassFullConditions(t *testing.T) {
 
 	CreateWinningTickets()
 
-	if s.GetIntermediateHeaderPointer().GetTicketsMark() == nil {
+	if s.GetProcessingBlockPointer().GetTicketsMark() == nil {
 		t.Errorf("Tickets mark should not be nil")
 	}
 }
@@ -356,7 +356,7 @@ func TestCreateWinningTicketsDifferentEpoch(t *testing.T) {
 	CreateWinningTickets()
 
 	// Check if epoch marker is nil
-	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+	if s.GetProcessingBlockPointer().GetTicketsMark() != nil {
 		t.Errorf("Tickets mark should be nil")
 	}
 }
@@ -427,7 +427,7 @@ func TestCreateWinningTicketsSlotIndexNotEndOfSubmission(t *testing.T) {
 	CreateWinningTickets()
 
 	// Check if epoch marker is nil
-	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+	if s.GetProcessingBlockPointer().GetTicketsMark() != nil {
 		t.Errorf("Tickets mark should be nil")
 	}
 }
@@ -454,7 +454,7 @@ func TestCreateWinningTicketsGammaALengthNotEqualEpochLength(t *testing.T) {
 	CreateWinningTickets()
 
 	// Check if epoch marker is nil
-	if s.GetIntermediateHeaderPointer().GetTicketsMark() != nil {
+	if s.GetProcessingBlockPointer().GetTicketsMark() != nil {
 		t.Errorf("Tickets mark should be nil")
 	}
 }
@@ -581,16 +581,16 @@ func TestCreateWinningTicketsWithJamTestNet(t *testing.T) {
 
 	CreateWinningTickets()
 
-	if s.GetIntermediateHeaderPointer().GetTicketsMark() == nil {
+	if s.GetProcessingBlockPointer().GetTicketsMark() == nil {
 		t.Errorf("Tickets mark should not be nil")
 	}
 
-	if len(*s.GetIntermediateHeaderPointer().GetTicketsMark()) != len(expectedTicketsMark) {
+	if len(*s.GetProcessingBlockPointer().GetTicketsMark()) != len(expectedTicketsMark) {
 		t.Errorf("Tickets mark length is incorrect")
 	}
 
 	// Check if tickets mark is correct
-	ticketsMark := s.GetIntermediateHeaderPointer().GetTicketsMark()
+	ticketsMark := s.GetProcessingBlockPointer().GetTicketsMark()
 	for i, ticket := range *ticketsMark {
 		if ticket.Id != expectedTicketsMark[i].Id {
 			t.Errorf("Tickets mark id is incorrect")

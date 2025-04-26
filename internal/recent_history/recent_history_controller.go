@@ -194,7 +194,7 @@ func STFBetaDagger2BetaPrime() {
 		rhc        = NewRecentHistoryController()
 		betas      = s.GetIntermediateStates().GetBetaDagger()
 		block      = s.GetBlock()
-		c          = s.GetBeefyCommitmentOutputs().GetBeefyCommitmentOutput()
+		c          = s.GetIntermediateStates().GetBeefyCommitmentOutput()
 		headerHash = block.Header.Parent
 		eg         = block.Extrinsic.Guarantees
 	)

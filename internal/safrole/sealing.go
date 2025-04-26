@@ -19,7 +19,7 @@ func SealingByTickets() {
 	if len(gammaSTickets) == 0 {
 		return
 	}
-	header := s.GetIntermediateHeader()
+	header := s.GetProcessingBlockPointer().GetHeader()
 	index := uint(header.Slot) % uint(len(posterior_state.GetGammaS().Tickets))
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
@@ -35,7 +35,7 @@ func SealingByTickets() {
 	handler, _ := CreateVRFHandler(public_key)
 	signature, _ := handler.IETFSign(context, message)
 
-	s.GetIntermediateHeaders().SetSeal(types.BandersnatchVrfSignature(signature))
+	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
 }
 
 func SealingByBandersnatchs() {
@@ -53,7 +53,7 @@ func SealingByBandersnatchs() {
 	if len(GammaSKeys) == 0 {
 		return
 	}
-	header := s.GetIntermediateHeader()
+	header := s.GetProcessingBlockPointer().GetHeader()
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	public_key := GammaSKeys[index]
 	message := utilities.HeaderUSerialization(header)
@@ -65,7 +65,7 @@ func SealingByBandersnatchs() {
 
 	handler, _ := CreateVRFHandler(public_key)
 	signature, _ := handler.IETFSign(context, message)
-	s.GetIntermediateHeaders().SetSeal(types.BandersnatchVrfSignature(signature))
+	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
 }
 
 func UpdateEtaPrime0() {
@@ -75,7 +75,7 @@ func UpdateEtaPrime0() {
 
 	posterior_state := s.GetPosteriorStates()
 	prior_state := s.GetPriorStates()
-	header := s.GetIntermediateHeader()
+	header := s.GetProcessingBlockPointer().GetHeader()
 
 	//public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
@@ -139,11 +139,11 @@ func UpdateHeaderEntropy() {
 	// Get prior state
 	posterior_state := s.GetPosteriorStates()
 
-	header := s.GetIntermediateHeader()
+	header := s.GetProcessingBlockPointer().GetHeader()
 
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch // Ha
 	seal := header.Seal                                                       // Hs
-	s.GetIntermediateHeaders().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
+	s.GetProcessingBlockPointer().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
 }
 
 func UpdateSlotKeySequence() {

@@ -527,7 +527,7 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 	)
 
 	// test GetSerivecAccountDerivatives
-	accountDer := GetSerivecAccountDerivatives(mockAccount)
+	accountDer := GetServiceAccountDerivatives(mockAccount)
 	t.Log("accountDer:", accountDer)
 	t.Logf("a_i=2*|a_l|+|a_s|\n LHS: %v, RHS: %v", accountDer.Items, 2*len(mockAccount.LookupDict)+len(mockAccount.StorageDict))
 	var totalZ types.U32

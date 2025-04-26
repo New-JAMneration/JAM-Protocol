@@ -197,6 +197,23 @@ func (w TimeSlotSetWrapper) Serialize() types.ByteSequence {
 	return bytes
 }
 
+func (w ServiceRecordWrapper) Serialize() types.ByteSequence {
+	bytes := []byte{}
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.ProvidedCount))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.ProvidedSize))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.RefinementCount))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.RefinementGasUsed))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.Imports))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.Exports))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.ExtrinsicSize))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.ExtrinsicCount))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.AccumulateCount))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.AccumulateGasUsed))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.OnTransfersCount))...)
+	bytes = append(bytes, SerializeU64(types.U64(w.Value.OnTransfersGasUsed))...)
+	return bytes
+}
+
 // helper functions that directly take the jam_types values
 // and return a Serializable wrapper. This makes usage easier.
 func WrapU8(v types.U8) Serializable {
@@ -243,6 +260,22 @@ func (w OpaqueHashWrapper) Less(other interface{}) bool {
 
 func WrapOpaqueHash(v types.OpaqueHash) Serializable {
 	return OpaqueHashWrapper{Value: v}
+}
+
+type ServiceRecordWrapper struct {
+	Value types.ServiceActivityRecord
+}
+
+// func (w ServiceRecordWrapper) Less(other interface{}) bool {
+// 	if otherKey, ok := other.(ServiceRecordWrapper); ok {
+// 		return w.Value.Less(otherKey.Value)
+// 	}
+// 	return false
+// }
+
+func WrapStatisticsServiceRecord(v types.ServiceActivityRecord) Serializable {
+
+	return ServiceRecordWrapper{Value: v}
 }
 
 type DictionaryKeyWrapper struct {
@@ -344,10 +377,24 @@ func WrapOpaqueHashMap(input map[types.OpaqueHash]types.ByteSequence) MapWarpper
 	return MapWarpper{Value: serializableMap}
 }
 
+// For serialize preImageLookup
+func WrapStatisticsServiceMap(input map[types.ServiceId]types.ServiceActivityRecord) MapWarpper {
+	serializableMap := map[Comparable]Serializable{}
+
+	for key, value := range input {
+
+		newKey := U64Wrapper{Value: types.U64(key)}
+		newValue := WrapStatisticsServiceRecord(value)
+		serializableMap[newKey] = newValue
+	}
+
+	return MapWarpper{Value: serializableMap}
+}
+
 func (m *MapWarpper) Serialize() types.ByteSequence {
 	// Handle empty dictionary
 	if len(m.Value) == 0 {
-		return types.ByteSequence{}
+		return WrapU64(0).Serialize()
 	}
 
 	// Extract and sort keys
