@@ -13,11 +13,7 @@ import (
 )
 
 func TestAuthorizationTestVectors(t *testing.T) {
-	if types.TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else if types.TEST_MODE == "full" {
-		types.SetFullMode()
-	}
+	types.SetTestMode()
 
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "authorizations", types.TEST_MODE)
 
