@@ -138,8 +138,8 @@ func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer type
 
 	// calculate derivative invariants
 	var (
-		Items      = calcKeys(account)
-		Bytes      = calcUsedOctets(account)
+		Items      = CalcKeys(account)
+		Bytes      = CalcOctets(account)
 		Minbalance = CalcThresholdBalance(Items, Bytes)
 	)
 	accountDer = types.ServiceAccountDerivatives{
@@ -151,17 +151,15 @@ func GetSerivecAccountDerivatives(account types.ServiceAccount) (accountDer type
 }
 
 // calculate number of items(keys) in storage
-func calcKeys(account types.ServiceAccount) types.U32 {
+func CalcKeys(account types.ServiceAccount) types.U32 {
 	/*
 		a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
 	*/
-	lookupDictKeySize := len(account.LookupDict) * 2
-	storageDictKeySize := len(account.StorageDict)
-	return types.U32(lookupDictKeySize + storageDictKeySize)
+	return types.U32(2*len(account.LookupDict) + len(account.StorageDict))
 }
 
 // calculate total number of octets(datas) used in storage
-func calcUsedOctets(account types.ServiceAccount) types.U64 {
+func CalcOctets(account types.ServiceAccount) types.U64 {
 	/*
 		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]
 	*/
