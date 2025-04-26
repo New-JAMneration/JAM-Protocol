@@ -35,7 +35,7 @@ func SetTinyMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 3
 	TicketsPerValidator = 3
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 5
@@ -51,7 +51,7 @@ func SetFullMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 683
@@ -72,7 +72,7 @@ var (
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
 
-	MaxBlocksHistory = 8
+	MaxBlocksHistory = 8 // H
 
 	AuthPoolMaxSize = 8
 	AuthQueueSize   = 80
@@ -90,6 +90,7 @@ const (
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
+	TranchePeriod                = 8                   // A
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
@@ -98,8 +99,8 @@ const (
 	JamAvailable                 = "jam_available"
 	JamBeefy                     = "jam_beefy"
 	JamGuarantee                 = "jam_guarantee"
-	JamAnnounce                  = "jam_announce"
-	JamAudit                     = "jam_audit"
+	JamAnnounce                  = "jam_announce" // XI
+	JamAudit                     = "jam_audit"    // XU
 )
 
 const (
@@ -113,9 +114,10 @@ const (
 // work package constants
 const (
 	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
-	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.3
-	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.3
-	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.3
+	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.4
+	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.4
+	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	TotalGas           = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	MaxSegments        = 3072                             // W_M: import/export segment total limit (14.4). graypaper 0.6.3
 	ECPiecesPerSegment = 6                                // W_P: The number of erasure-coded pieces in a segment
 	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
@@ -136,3 +138,6 @@ const (
 	TransferMemoSize              = 128                       // W_T
 	LookupAnchorMaxAge            = 14400                     // L
 )
+
+// Auditing (17.16)
+const BiasFactor = 2

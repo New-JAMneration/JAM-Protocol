@@ -984,14 +984,9 @@ func (a *AvailAssurance) Decode(d *Decoder) error {
 		return err
 	}
 
-	bitfield := make([]byte, AvailBitfieldBytes)
-	_, err = d.buf.Read(bitfield)
-	if err != nil {
+	if err = a.Bitfield.Decode(d); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BitField: %x", bitfield))
-
-	a.Bitfield = bitfield
 
 	if err = a.ValidatorIndex.Decode(d); err != nil {
 		return err
@@ -1001,6 +996,25 @@ func (a *AvailAssurance) Decode(d *Decoder) error {
 		return err
 	}
 
+	return nil
+}
+
+func (bf *Bitfield) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Bitfield")
+
+	bytes := make([]byte, AvailBitfieldBytes)
+	_, err := d.buf.Read(bytes)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("BitField: %x", bytes))
+
+	bitfield, err := MakeBitfieldFromByteSlice(bytes)
+	if err != nil {
+		return err
+	}
+
+	*bf = bitfield
 	return nil
 }
 
@@ -2823,48 +2837,48 @@ func (a *ServiceAccountState) Decode(d *Decoder) error {
 	return nil
 }
 
-// AccumulatedHistory
-func (a *AccumulatedHistory) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding AccumulatedHistory")
+// // AccumulatedHistory
+// func (a *AccumulatedHistory) Decode(d *Decoder) error {
+// 	cLog(Cyan, "Decoding AccumulatedHistory")
 
-	length, err := d.DecodeLength()
-	if err != nil {
-		return err
-	}
+// 	length, err := d.DecodeLength()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if length == 0 {
-		return nil
-	}
+// 	if length == 0 {
+// 		return nil
+// 	}
 
-	// make the slice with length
-	history := make([]WorkPackageHash, length)
-	for i := uint64(0); i < length; i++ {
-		if err = history[i].Decode(d); err != nil {
-			return err
-		}
-	}
+// 	// make the slice with length
+// 	history := make([]WorkPackageHash, length)
+// 	for i := uint64(0); i < length; i++ {
+// 		if err = history[i].Decode(d); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	*a = history
+// 	*a = history
 
-	return nil
-}
+// 	return nil
+// }
 
-// AccumulatedHistories (Xi)
-func (a *AccumulatedHistories) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding AccumulatedHistories")
+// // AccumulatedHistories (Xi)
+// func (a *AccumulatedHistories) Decode(d *Decoder) error {
+// 	cLog(Cyan, "Decoding AccumulatedHistories")
 
-	// make the slice with epoch length
-	histories := make([]AccumulatedHistory, EpochLength)
-	for i := 0; i < EpochLength; i++ {
-		if err := histories[i].Decode(d); err != nil {
-			return err
-		}
-	}
+// 	// make the slice with epoch length
+// 	histories := make([]AccumulatedHistory, EpochLength)
+// 	for i := 0; i < EpochLength; i++ {
+// 		if err := histories[i].Decode(d); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	*a = histories
+// 	*a = histories
 
-	return nil
-}
+// 	return nil
+// }
 
 // State
 func (s *State) Decode(d *Decoder) error {

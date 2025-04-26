@@ -181,3 +181,39 @@ func TestEncodeMetaCode(t *testing.T) {
 		t.Errorf("Encoded MetaCode does not match expected")
 	}
 }
+
+func TestEncodeWorkExecResult(t *testing.T) {
+	// test "ok" type of WorkExecResult
+	okResult := WorkExecResult{
+		"ok": []byte{1, 2, 3, 4, 5},
+	}
+
+	// create encoder
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&okResult)
+	if err != nil {
+		t.Errorf("Error encoding WorkExecResult: %v", err)
+	}
+
+	// print encoded result for debugging
+	t.Logf("Encoded WorkExecResult (ok): %v", encoded)
+	t.Logf("Hex: %x", encoded)
+
+	// test if first byte is 0 (corresponding to "ok" type)
+	if len(encoded) < 1 || encoded[0] != 0 {
+		t.Errorf("Expected first byte to be 0 for 'ok' type, got: %v", encoded[0])
+	}
+
+	// decode check
+	decoder := NewDecoder()
+	decodedResult := WorkExecResult{}
+	err = decoder.Decode(encoded, &decodedResult)
+	if err != nil {
+		t.Errorf("Error decoding WorkExecResult: %v", err)
+	}
+
+	// check decoded result
+	if !reflect.DeepEqual(okResult, decodedResult) {
+		t.Errorf("Decoded result doesn't match original\nExpected: %v\nGot: %v", okResult, decodedResult)
+	}
+}

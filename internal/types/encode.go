@@ -955,12 +955,13 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 		return err
 	}
 
+	// TODO: not sure if we still need this check
 	if len(a.Bitfield) != int(AvailBitfieldBytes) {
 		return fmt.Errorf("Bitfield length is not equal to AvailBitfieldBytes")
 	}
 
 	// Bitfield
-	if _, err := e.buf.Write(a.Bitfield); err != nil {
+	if err := a.Bitfield.Encode(e); err != nil {
 		return err
 	}
 
@@ -975,6 +976,13 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 	}
 
 	return nil
+}
+
+func (bf *Bitfield) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Bitfield")
+
+	_, err := e.buf.Write(bf.ToOctetSlice())
+	return err
 }
 
 // AssurancesExtrinsic
@@ -2346,39 +2354,39 @@ func (g *Gamma) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulatedHistory
-func (ah *AccumulatedHistory) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulatedHistory")
+// // AccumulatedHistory
+// func (ah *AccumulatedHistory) Encode(e *Encoder) error {
+// 	cLog(Cyan, "Encoding AccumulatedHistory")
 
-	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
-		return err
-	}
+// 	if err := e.EncodeLength(uint64(len(*ah))); err != nil {
+// 		return err
+// 	}
 
-	for _, workPackageHash := range *ah {
-		if err := workPackageHash.Encode(e); err != nil {
-			return err
-		}
-	}
+// 	for _, workPackageHash := range *ah {
+// 		if err := workPackageHash.Encode(e); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// AccumulatedHistories
-func (ah *AccumulatedHistories) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
+// // AccumulatedHistories
+// func (ah *AccumulatedHistories) Encode(e *Encoder) error {
+// 	cLog(Cyan, "Encoding AccumulatedHistories(Xi)")
 
-	if len(*ah) != int(EpochLength) {
-		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
-	}
+// 	if len(*ah) != int(EpochLength) {
+// 		return fmt.Errorf("AccumulatedHistories length is not equal to EpochLength")
+// 	}
 
-	for _, accumulatedHistory := range *ah {
-		if err := accumulatedHistory.Encode(e); err != nil {
-			return err
-		}
-	}
+// 	for _, accumulatedHistory := range *ah {
+// 		if err := accumulatedHistory.Encode(e); err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (s *Storage) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Storage")

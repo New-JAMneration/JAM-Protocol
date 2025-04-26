@@ -81,10 +81,10 @@ func TestStatistics(t *testing.T) {
 		// Set input to store
 		s := store.GetInstance()
 		s.GetProcessingBlockPointer().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
-		s.GetPriorStates().SetTau(statisticsTestCase.PreState.Tau)
-		s.GetPosteriorStates().SetTau(statisticsTestCase.Input.Slot)
-		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Pi)
-		s.GetPosteriorStates().SetKappa(statisticsTestCase.PreState.Kappa)
+		s.GetPriorStates().SetTau(types.TimeSlot(statisticsTestCase.PreState.Slot))
+		s.GetPosteriorStates().SetTau(types.TimeSlot(statisticsTestCase.Input.Slot))
+		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Statistics)
+		s.GetPosteriorStates().SetKappa(statisticsTestCase.PreState.CurrValidators)
 
 		UpdateValidatorActivityStatistics(statisticsTestCase.Input.Extrinsic)
 
@@ -95,8 +95,8 @@ func TestStatistics(t *testing.T) {
 		expectedStatistics := statisticsTestCase.PostState
 
 		// Compare statistics struct
-		if !reflect.DeepEqual(statistics, expectedStatistics.Pi) {
-			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Pi, statistics)
+		if !reflect.DeepEqual(statistics, expectedStatistics.Statistics) {
+			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics, statistics)
 		}
 	}
 }

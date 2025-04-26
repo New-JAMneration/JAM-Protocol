@@ -46,8 +46,9 @@ type ServiceItem struct {
 type Services []ServiceItem
 
 type ReportsInput struct {
-	Guarantees types.GuaranteesExtrinsic `json:"guarantees"`
-	Slot       types.TimeSlot            `json:"slot"`
+	Guarantees    types.GuaranteesExtrinsic `json:"guarantees"`
+	Slot          types.TimeSlot            `json:"slot"`
+	KnownPackages []types.WorkPackageHash   `json:"known_packages"`
 }
 
 type ReportedPackage struct {
@@ -234,6 +235,21 @@ func (r *ReportsInput) Decode(d *types.Decoder) error {
 
 	if err = r.Slot.Decode(d); err != nil {
 		return err
+	}
+
+	// Known Packages
+	knownPackagesLength, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if knownPackagesLength != 0 {
+		r.KnownPackages = make([]types.WorkPackageHash, knownPackagesLength)
+		for i := range r.KnownPackages {
+			if err = r.KnownPackages[i].Decode(d); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -470,6 +486,16 @@ func (r *ReportsInput) Encode(e *types.Encoder) error {
 
 	if err = r.Slot.Encode(e); err != nil {
 		return err
+	}
+
+	if err = e.EncodeLength(uint64(len(r.KnownPackages))); err != nil {
+		return err
+	}
+
+	for i := range r.KnownPackages {
+		if err = r.KnownPackages[i].Encode(e); err != nil {
+			return err
+		}
 	}
 
 	return nil

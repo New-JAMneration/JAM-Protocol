@@ -5,12 +5,16 @@ package types
 // If the desired Validate function is not found, please implement one yourself. :)
 // version = 0.5.3
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
+	"strings"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -747,6 +751,30 @@ func (p *PreimagesExtrinsic) Validate() error {
 	return nil
 }
 
+// Len returns the length of the Preimages slice.
+func (p *PreimagesExtrinsic) Len() int {
+	return len(*p)
+}
+
+// Less returns true if the Preimage at index i is less than the Preimage at
+// index j.
+func (p *PreimagesExtrinsic) Less(i, j int) bool {
+	if (*p)[i].Requester == (*p)[j].Requester {
+		return bytes.Compare((*p)[i].Blob, (*p)[j].Blob) < 0
+	}
+	return (*p)[i].Requester < (*p)[j].Requester
+}
+
+// Swap swaps the Preimages at index i and j.
+func (p *PreimagesExtrinsic) Swap(i, j int) {
+	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+}
+
+// Sort sorts the Preimages slice.
+func (p *PreimagesExtrinsic) Sort() {
+	sort.Sort(p)
+}
+
 func (p *PreimagesExtrinsic) ScaleDecode(data []byte) error {
 	_, err := scale.Decode("preimagesextrinsic", data, p)
 	if err != nil {
@@ -767,15 +795,73 @@ func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
 // 11.2.1 Assurances
 type AvailAssurance struct {
 	Anchor         OpaqueHash       `json:"anchor,omitempty"`
-	Bitfield       []byte           `json:"bitfield,omitempty"`
+	Bitfield       Bitfield         `json:"bitfield,omitempty"`
 	ValidatorIndex ValidatorIndex   `json:"validator_index,omitempty"`
 	Signature      Ed25519Signature `json:"signature,omitempty"`
 }
 
 func (a AvailAssurance) Validate() error {
-	if len(a.Bitfield) != AvailBitfieldBytes {
-		return fmt.Errorf("AvailAssurance Bitfield must have size %d", AvailBitfieldBytes)
+	return a.Bitfield.Validate()
+}
+
+type Bitfield []byte
+
+func MakeBitfieldFromHexString(hexStr string) (Bitfield, error) {
+	if !strings.HasPrefix(hexStr, "0x") {
+		return Bitfield{}, errors.New("hex string for bitfield must have the 0x prefix")
 	}
+
+	bytes, err := hex.DecodeString(hexStr[2:])
+	if err != nil {
+		return Bitfield{}, err
+	}
+
+	return MakeBitfieldFromByteSlice(bytes)
+}
+
+func MakeBitfieldFromByteSlice(bytes []byte) (Bitfield, error) {
+	if len(bytes) != AvailBitfieldBytes {
+		return Bitfield{}, fmt.Errorf("Bitfield must have size %d bytes", AvailBitfieldBytes)
+	}
+
+	bitfield := make(Bitfield, CoresCount)
+	for i := range bitfield {
+		bitfield[i] = (bytes[i/8] >> (i % 8)) & 0x01
+	}
+
+	return bitfield, nil
+}
+
+// panics on error
+// this method should only be used by test code
+func MustMakeBitfieldFromHexString(hexStr string) Bitfield {
+	bitfield, err := MakeBitfieldFromHexString(hexStr)
+	if err != nil {
+		panic(err)
+	}
+	return bitfield
+}
+
+func (bf Bitfield) ToOctetSlice() []byte {
+	bytes := make([]byte, AvailBitfieldBytes)
+
+	for i, b := range bf {
+		bytes[i/8] |= b << (i % 8)
+	}
+
+	return bytes
+}
+
+// returns either 1 or 0
+func (bf Bitfield) GetBit(index int) byte {
+	return bf[index]
+}
+
+func (bf Bitfield) Validate() error {
+	if len(bf) != CoresCount {
+		return fmt.Errorf("Bitfield must have size %d", CoresCount)
+	}
+
 	return nil
 }
 
@@ -900,16 +986,16 @@ type OffendersMark []Ed25519Public
 
 // (5.1)
 type Header struct {
-	Parent          HeaderHash               `json:"parent,omitempty"`
-	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"`
-	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`
-	Slot            TimeSlot                 `json:"slot,omitempty"`
-	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`
-	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`
-	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`
-	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`
-	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`
-	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`
+	Parent          HeaderHash               `json:"parent,omitempty"`            // H_p
+	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"` // H_r
+	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`    // H_x
+	Slot            TimeSlot                 `json:"slot,omitempty"`              // H_t
+	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`        // H_e
+	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`      // H_w
+	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`    // H_o
+	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`      // H_i
+	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`    // H_v
+	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`              // H_s
 }
 
 func (h *Header) Validate() error {
@@ -1062,16 +1148,6 @@ type TestCase struct {
 	PreState  State  `json:"pre_state"`
 	Output    Output `json:"output"`
 	PostState State  `json:"post_state"`
-}
-
-// Recent History
-// \mathbf{C} in GP from type B (12.15)
-type BeefyCommitmentOutput []AccumulationOutput // TODO: How to check unique
-
-// Instant-used struct
-type AccumulationOutput struct {
-	Serviceid  ServiceId
-	Commitment OpaqueHash
 }
 
 type InputWrapper[T any] struct {
@@ -1251,6 +1327,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// (12.14) deferred transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1290,20 +1367,20 @@ type AccumulateRoot OpaqueHash
 
 // (12.13)
 type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState
-	ValidatorKeys   ValidatorsData
-	Authorizers     AuthQueues
-	Privileges      Privileges
+	ServiceAccounts ServiceAccountState // d
+	ValidatorKeys   ValidatorsData      // i
+	Authorizers     AuthQueues          // q
+	Privileges      Privileges          // x
 }
 
 // (12.18)
 type Operand struct {
-	Hash           WorkPackageHash
-	ExportsRoot    ExportsRoot
-	AuthorizerHash OpaqueHash
-	AuthOutput     ByteSequence
-	PayloadHash    OpaqueHash
-	Result         WorkExecResult
+	Hash           WorkPackageHash // h
+	ExportsRoot    ExportsRoot     // e
+	AuthorizerHash OpaqueHash      // a
+	AuthOutput     ByteSequence    // o
+	PayloadHash    OpaqueHash      // y
+	Result         WorkExecResult  // d
 }
 
 // (12.15) U
@@ -1312,4 +1389,50 @@ type ServiceGasUsedList []ServiceGasUsed
 type ServiceGasUsed struct {
 	ServiceId ServiceId
 	Gas       Gas
+}
+
+type AccumulatedServiceHash struct {
+	ServiceId ServiceId
+	Hash      OpaqueHash // AccumulationOutput
+}
+
+// (12.15) B
+type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
+
+// (12.23)
+type GasAndNumAccumulatedReports struct {
+	Gas                   Gas
+	NumAccumulatedReports U64
+}
+
+// (12.23)
+// I: accumulation statistics
+// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
+type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+
+// (12.29)
+type NumDeferredTransfersAndTotalGasUsed struct {
+	NumDeferredTransfers U64
+	TotalGasUsed         Gas
+}
+
+// (12.29)
+// X: deferred-transfers statistics
+// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
+type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
+
+type AuditReport struct {
+	CoreID      CoreIndex
+	Report      WorkReport
+	ValidatorID ValidatorIndex
+	AuditResult bool
+	Signature   Ed25519Signature
+}
+
+// (17.12)
+type AssignmentMap map[WorkPackageHash][]ValidatorIndex
+
+type AuditPool struct {
+	mu   sync.RWMutex
+	data map[WorkPackageHash][]AuditReport
 }
