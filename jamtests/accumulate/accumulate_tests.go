@@ -569,7 +569,7 @@ func (a *AccumulateTestCase) Dump() error {
 
 	// Set time slot
 	s.GetPriorStates().SetTau(a.PreState.Slot)
-	s.GetIntermediateHeaderPointer().SetSlot(a.Input.Slot)
+	s.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
 	s.GetPosteriorStates().SetTau(a.Input.Slot)
 
 	// Set entropy
@@ -609,7 +609,7 @@ func (a *AccumulateTestCase) Dump() error {
 	sort.Slice(a.Input.Reports, func(i, j int) bool {
 		return a.Input.Reports[i].CoreIndex < a.Input.Reports[j].CoreIndex
 	})
-	s.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(a.Input.Reports)
+	s.GetIntermediateStates().SetAccumulatableWorkReports(a.Input.Reports)
 	return nil
 }
 

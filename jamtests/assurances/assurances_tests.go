@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -397,8 +398,17 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (a *AssuranceTestCase) Dump() error {
+	s := store.GetInstance()
+
+	// Add block
+	header := types.Header{Slot: a.Input.Slot, Parent: a.Input.Parent}
+	block := types.Block{Header: header}
+	s.AddBlock(block)
+
+	s.GetPosteriorStates().SetKappa(a.PreState.CurrValidators)
+	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
+
 	return nil
 }
 

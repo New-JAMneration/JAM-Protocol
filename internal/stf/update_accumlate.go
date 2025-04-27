@@ -15,8 +15,8 @@ func UpdateAccumlate() error {
 	accumulation.GetAccumulatedHashes()
 
 	// Those two functions should be modified to get W from store
-	accumulation.UpdateImmediatelyAccumulateWorkReports(s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports())
-	accumulation.UpdateQueuedWorkReports(s.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports())
+	accumulation.UpdateImmediatelyAccumulateWorkReports(s.GetIntermediateStates().GetAccumulatableWorkReports())
+	accumulation.UpdateQueuedWorkReports(s.GetIntermediateStates().GetAccumulatableWorkReports())
 	accumulation.UpdateAccumulatableWorkReports()
 
 	// 12.3
