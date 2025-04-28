@@ -158,7 +158,7 @@ func CalculateWorkResults(coreIndex types.CoreIndex, wMap CoreWorkReportMap) Pi_
 		output.ExtrinsicSize += workResult.RefineLoad.ExtrinsicSize
 		output.Exports += workResult.RefineLoad.Exports
 		output.GasUsed += workResult.RefineLoad.GasUsed
-		output.BundleSize += workReport.PackageSpec.Length
+		output.BundleSize = workReport.PackageSpec.Length
 	}
 
 	return output
@@ -178,8 +178,8 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 
 	// **w**: the incoming work-reports (11.28)
 	// **W**: the newly available work-reports (11.16)
-	w := store.GetPresentWorkReportsPointer().GetPresentWorkReports()
-	W := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
+	w := store.GetIntermediateStates().GetPresentWorkReports()
+	W := store.GetIntermediateStates().GetAvailableWorkReports()
 
 	// Create a map for the work reports
 	wMap := createWorkReportMap(w)
@@ -216,7 +216,7 @@ type ServiceWorkResultsMap map[types.ServiceId][]types.WorkResult
 // FIXME: refactor this function, merge with (13.13)?
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	store := store.GetInstance()
-	w := store.GetPresentWorkReportsPointer().GetPresentWorkReports()
+	w := store.GetIntermediateStates().GetPresentWorkReports()
 
 	// Create a map to store the service id map to work results
 	serviceWorkResultsMap := make(ServiceWorkResultsMap)
@@ -235,7 +235,7 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 // Get services from the coming work reports
 func GetServicesFromPresentWorkReport() []types.ServiceId {
 	store := store.GetInstance()
-	w := store.GetPresentWorkReportsPointer().GetPresentWorkReports()
+	w := store.GetIntermediateStates().GetPresentWorkReports()
 
 	services := []types.ServiceId{}
 
@@ -460,6 +460,9 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 
 	// Set the service activity statistics to the store
 	store := store.GetInstance()
+	if len(servicesStatistics) == 0 {
+		servicesStatistics = nil
+	}
 	store.GetPosteriorStates().SetServicesStatistics(servicesStatistics)
 }
 
