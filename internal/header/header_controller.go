@@ -39,14 +39,18 @@ func (h *HeaderController) GetHeader() types.Header {
 // CreateParentHeaderHash creates the parent header hash of the header.
 // (5.2)
 // H_p: parent header hash
-func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) {
-	// serialization
-	serializedHeader := utilities.HeaderSerialization(parentHeader)
+func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) error {
+	encoder := types.NewEncoder()
+	encoded_parent_header, err := encoder.Encode(&parentHeader)
+	if err != nil {
+		return err
+	}
 
 	// hash function (blake2b)
-	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(serializedHeader))
-
+	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
 	h.Header.Parent = parentHeaderHash
+
+	return nil
 }
 
 // CreateExtrinsicHash creates the extrinsic hash of the header.
