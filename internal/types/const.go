@@ -90,6 +90,7 @@ const (
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
+	TranchePeriod                = 8                   // A
 	JamEntropy                   = "jam_entropy"       // XE
 	JamFallbackSeal              = "jam_fallback_seal" // XF
 	JamTicketSeal                = "jam_ticket_seal"   // XT
@@ -98,8 +99,8 @@ const (
 	JamAvailable                 = "jam_available"
 	JamBeefy                     = "jam_beefy"
 	JamGuarantee                 = "jam_guarantee"
-	JamAnnounce                  = "jam_announce"
-	JamAudit                     = "jam_audit"
+	JamAnnounce                  = "jam_announce" // XI
+	JamAudit                     = "jam_audit"    // XU
 )
 
 const (
@@ -122,6 +123,7 @@ const (
 	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
 	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
 	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
+	MaxServiceCodeSize = 4_000_000                        // W_C v0.6.4
 )
 
 // genesis file path
@@ -136,3 +138,6 @@ const (
 	TransferMemoSize              = 128                       // W_T
 	LookupAnchorMaxAge            = 14400                     // L
 )
+
+// Auditing (17.16)
+const BiasFactor = 2

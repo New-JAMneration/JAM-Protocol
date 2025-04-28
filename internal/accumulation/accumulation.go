@@ -38,7 +38,7 @@ func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
 		}
 	}
 	// Store W! — immediately accumulatable work reports
-	store.GetInstance().GetAccumulatedWorkReportsPointer().SetAccumulatedWorkReports(accumulatable_reports)
+	store.GetInstance().GetIntermediateStates().SetAccumulatedWorkReports(accumulatable_reports)
 }
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
@@ -54,7 +54,7 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 	// E(..., ©ξ): perform dependency resolution and ordering
 	work_reports_queue := QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes())
 	// Store WQ — queued reports awaiting prerequisite satisfaction
-	store.GetInstance().GetQueuedWorkReportsPointer().SetQueuedWorkReports(work_reports_queue)
+	store.GetInstance().GetIntermediateStates().SetQueuedWorkReports(work_reports_queue)
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
@@ -151,14 +151,14 @@ func UpdateAccumulatableWorkReports() {
 	store := store.GetInstance()
 
 	// (12.10) Get current slot index 'm'
-	slot := store.GetIntermediateHeaderPointer().GetSlot()
+	slot := store.GetProcessingBlockPointer().GetSlot()
 	E := types.EpochLength
 	m := int(slot) % E
 
 	// Get θ: the available work reports (ϑ)
 	theta := store.GetPriorStates().GetTheta()
-	WQ := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
-	Wbang := store.GetAccumulatedWorkReportsPointer().GetAccumulatedWorkReports()
+	WQ := store.GetIntermediateStates().GetQueuedWorkReports()
+	Wbang := store.GetIntermediateStates().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
 	var composedQueue types.ReadyQueueItem
@@ -185,7 +185,7 @@ func UpdateAccumulatableWorkReports() {
 	Wstar = append(Wstar, AccumulationPriorityQueue(q)...)
 
 	// Update W*
-	store.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(Wstar)
+	store.GetIntermediateStates().SetAccumulatableWorkReports(Wstar)
 }
 
 // (12.16) ∆+ outer accumulation function

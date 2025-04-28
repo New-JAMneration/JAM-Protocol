@@ -8,7 +8,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	input "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -81,9 +80,9 @@ func (v *VerdictWrapper) VerifySignature() error {
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
 		var message []byte
 		if v.Verdict.Votes[i].Vote {
-			message = []byte(input.JamValid)
+			message = []byte(types.JamValid)
 		} else {
-			message = []byte(input.JamInvalid)
+			message = []byte(types.JamInvalid)
 		}
 
 		message = append(message, target...)

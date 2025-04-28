@@ -304,10 +304,7 @@ func TestBitSequenceToString(t *testing.T) {
 func TestMerklizationState(t *testing.T) {
 	testState := types.State{}
 
-	stateRoot, err := MerklizationState(testState)
-	if err != nil {
-		t.Errorf("Error: %v", err)
-	}
+	stateRoot := MerklizationState(testState)
 
 	resultLen := len(stateRoot)
 	expectedLen := len(types.OpaqueHash{})
