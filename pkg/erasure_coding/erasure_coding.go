@@ -7,35 +7,34 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
-const (
-	DataShards  = 342
-	TotalShards = 1023 // 342:1023 (Appendix H)
-	ChunkSize   = 2    // octect pairs
-)
-
-type Shard struct {
-	Index int
-	Data  []byte
-}
-
 type ErasureCoding struct {
-	rs reedsolomon.Encoder
+	rs          reedsolomon.Encoder
+	dataShards  int
+	totalShards int
+	chunkSize   int
 }
 
-func NewErasureCoding() (*ErasureCoding, error) {
-	rs, err := reedsolomon.New(DataShards, TotalShards-DataShards)
+func NewErasureCoding(dataShards int, totalShards int, k int) (*ErasureCoding, error) {
+	if k <= 0 {
+		return nil, fmt.Errorf("invalid k")
+	}
+
+	chunkSize := 2 * k
+	rs, err := reedsolomon.New(dataShards, totalShards-dataShards)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Reed-Solomon encoder: %w", err)
 	}
 	return &ErasureCoding{
-		rs: rs,
+		rs:          rs,
+		dataShards:  dataShards,
+		totalShards: totalShards,
+		chunkSize:   chunkSize,
 	}, nil
 }
 
 // Encode: encode data into shards
-func (ec *ErasureCoding) Encode(data []byte) ([]Shard, error) {
-	// Pad data if necessary
-	paddedData := make([]byte, DataShards*ChunkSize)
+func (ec *ErasureCoding) Encode(data []byte) ([][]byte, error) {
+	paddedData := make([]byte, ec.dataShards*ec.chunkSize)
 	copy(paddedData, data)
 
 	shards, err := ec.rs.Split(paddedData)
@@ -47,37 +46,21 @@ func (ec *ErasureCoding) Encode(data []byte) ([]Shard, error) {
 		return nil, fmt.Errorf("failed to encode shards: %w", err)
 	}
 
-	// Convert to Shard struct with index
-	result := make([]Shard, len(shards))
-	for i, shard := range shards {
-		result[i] = Shard{
-			Index: i,
-			Data:  shard,
-		}
-	}
-
-	return result, nil
+	return shards, nil
 }
 
 // Decode: decode shards into original data
-func (ec *ErasureCoding) Decode(shards []Shard) ([]byte, error) {
-
-	// Use index to reconstruct raw shards
-	rawShards := make([][]byte, TotalShards)
-	for _, shard := range shards {
-		if shard.Index < 0 || shard.Index >= TotalShards {
-			return nil, fmt.Errorf("invalid shard index: %d", shard.Index)
-		}
-		rawShards[shard.Index] = shard.Data
+func (ec *ErasureCoding) Decode(shards [][]byte) ([]byte, error) {
+	if len(shards) != ec.totalShards {
+		return nil, fmt.Errorf("invalid number of shards: expected %d, got %d", ec.totalShards, len(shards))
 	}
 
-	if err := ec.rs.Reconstruct(rawShards); err != nil {
+	if err := ec.rs.Reconstruct(shards); err != nil {
 		return nil, fmt.Errorf("failed to reconstruct shards: %w", err)
 	}
 
-	// Join raw shards into original data
 	var buffer bytes.Buffer
-	if err := ec.rs.Join(&buffer, rawShards, DataShards*ChunkSize); err != nil {
+	if err := ec.rs.Join(&buffer, shards, ec.dataShards*ec.chunkSize); err != nil {
 		return nil, fmt.Errorf("failed to join shards: %w", err)
 	}
 
