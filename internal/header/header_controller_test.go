@@ -1,5 +1,95 @@
 package header
 
+import (
+	"log"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+)
+
+// TODO: Read jamtestnet test vectors to test parent hash
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
+
+func TestCreateParentHash(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirName, "blocks")
+
+		files, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		file_index := 0
+		parent_hash := types.HeaderHash{}
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := utilities.GetBytesFromFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			block := &types.Block{}
+			err = decoder.Decode(binData, block)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Create a header hash
+			encoded_header, err := types.NewEncoder().Encode(&block.Header)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Hash the header encoded data
+			headerHash := types.HeaderHash(hash.Blake2bHash(encoded_header))
+
+			if file_index != 0 {
+				// Compare the parent hash with the header hash
+				if block.Header.Parent != parent_hash {
+					t.Errorf("Error: %v", err)
+				}
+			}
+
+			// Store the parent hash for the next iteration
+			parent_hash = headerHash
+			file_index++
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
 // import (
 // 	"encoding/hex"
 // 	"encoding/json"
