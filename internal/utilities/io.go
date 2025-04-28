@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -87,4 +91,68 @@ func GetTestFromJson[T any](filename string) (T, error) {
 
 	// Return the decoded data
 	return jamtests_case, nil
+}
+
+func TestDecodeJamTestNetState(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
+
+		files, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			// Read the binary file
+			binPath := filepath.Join(dir, file)
+			binData, err := GetBytesFromFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Decode the binary data
+			decoder := types.NewDecoder()
+			state := &types.State{}
+			err = decoder.Decode(binData, state)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Read the json file
+			filename := file[:len(file)-len(BIN_EXTENTION)]
+			jsonFilePath := filepath.Join(dir, filename+JSON_EXTENTION)
+			jsonData, err := GetTestFromJson[types.State](jsonFilePath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Compare the two structs
+			if !reflect.DeepEqual(state, jsonData) {
+				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				t.Errorf("Error: %v", err)
+			} else {
+				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
 }

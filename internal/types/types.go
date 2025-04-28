@@ -14,6 +14,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
@@ -240,6 +241,8 @@ func (a AuthQueues) Validate() error {
 }
 
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
+
+type ExportSegment [SegmentSize]byte
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
@@ -983,16 +986,16 @@ type OffendersMark []Ed25519Public
 
 // (5.1)
 type Header struct {
-	Parent          HeaderHash               `json:"parent,omitempty"`
-	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"`
-	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`
-	Slot            TimeSlot                 `json:"slot,omitempty"`
-	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`
-	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`
-	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`
-	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`
-	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`
-	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`
+	Parent          HeaderHash               `json:"parent,omitempty"`            // H_p
+	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"` // H_r
+	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`    // H_x
+	Slot            TimeSlot                 `json:"slot,omitempty"`              // H_t
+	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`        // H_e
+	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`      // H_w
+	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`    // H_o
+	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`      // H_i
+	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`    // H_v
+	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`              // H_s
 }
 
 func (h *Header) Validate() error {
@@ -1417,3 +1420,19 @@ type NumDeferredTransfersAndTotalGasUsed struct {
 // X: deferred-transfers statistics
 // dictionary<destination service index, (the number of deferred-transfers, total gas used)>
 type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
+
+type AuditReport struct {
+	CoreID      CoreIndex
+	Report      WorkReport
+	ValidatorID ValidatorIndex
+	AuditResult bool
+	Signature   Ed25519Signature
+}
+
+// (17.12)
+type AssignmentMap map[WorkPackageHash][]ValidatorIndex
+
+type AuditPool struct {
+	mu   sync.RWMutex
+	data map[WorkPackageHash][]AuditReport
+}

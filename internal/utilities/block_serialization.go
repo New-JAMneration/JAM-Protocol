@@ -248,25 +248,52 @@ func WorkPackageSpecSerialization(work_package_spec types.WorkPackageSpec) (outp
 
 func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence) {
 	/*
-		(C.23) E(x ∈ L) ≡ E(E4(xs)) ⌢ E(xc, xy) ⌢ E(E8(xg)) ⌢ E(O(xo)) ⌢ E(xu, xi, xx, xz, xe)
+		(C.23) E(x ∈ L) ≡ E(E4(xs)) ⌢ E(xc, xy) ⌢ E(E8(xg)) ⌢ E(O(xd)) ⌢ E(xu, xi, xx, xz, xe)
 
 		ServiceId     ServiceId      `json:"service_id,omitempty"`
 		CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
 		PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
 		Result        WorkExecResult `json:"result,omitempty"`
+		RefineLoad    RefineLoad     `json:"refine_load,omitempty"`    // ASN.1 specific field
 	*/
+	// E(E4(xs))
+	// output = append(output, SerializeByteSequence([]byte{0xe0})...)
 	output = append(output, SerializeFixedLength(types.U64(result.ServiceId), 4)...)
+	// E(xc)
+	// output = append(output, SerializeByteSequence([]byte{0xe1})...)
 	output = append(output, SerializeOpaqueHash(result.CodeHash)...)
+	// E(xy)
+	// output = append(output, SerializeByteSequence([]byte{0xe2})...)
 	output = append(output, SerializeOpaqueHash(result.PayloadHash)...)
+	// E(E8(xg))
+	// output = append(output, SerializeByteSequence([]byte{0xe3})...)
 	output = append(output, SerializeFixedLength(types.U64(result.AccumulateGas), 8)...)
+	// E(O(xd))
+	// output = append(output, SerializeByteSequence([]byte{0xe4})...)
 	output = append(output, SerializeWorkExecResult(result.Result)...)
+	// E(xu)
+	// output = append(output, SerializeByteSequence([]byte{0xe5})...)
+	output = append(output, SerializeU64(types.U64(result.RefineLoad.GasUsed))...)
+	// E(xi)
+	// output = append(output, SerializeByteSequence([]byte{0xe6})...)
+	output = append(output, SerializeU64(types.U64(result.RefineLoad.Imports))...)
+	// E(xx)
+	// output = append(output, SerializeByteSequence([]byte{0xe7})...)
+	output = append(output, SerializeU64(types.U64(result.RefineLoad.ExtrinsicCount))...)
+	// E(xz)
+	// output = append(output, SerializeByteSequence([]byte{0xe8})...)
+	output = append(output, SerializeU64(types.U64(result.RefineLoad.ExtrinsicSize))...)
+	// E(xe)
+	// output = append(output, SerializeByteSequence([]byte{0xe9})...)
+	output = append(output, SerializeU64(types.U64(result.RefineLoad.Exports))...)
 	return output
 }
 
 func WorkReportSerialization(work_report types.WorkReport) (output types.ByteSequence) {
 	/*
-		(C.24) E(x ∈ W) ≡ E(xs, xx, xc, xa, ↕xo, ↕xl, ↕xr)
+		GP v0.6.4
+		(C.24) E(x ∈ W) ≡ E(xs, xx, xc, xa, ↕xo, ↕xl, ↕xr, xg)
 
 		PackageSpec       WorkPackageSpec   `json:"package_spec"`
 		Context           RefineContext     `json:"context"`
@@ -275,25 +302,40 @@ func WorkReportSerialization(work_report types.WorkReport) (output types.ByteSeq
 		AuthOutput        ByteSequence      `json:"auth_output,omitempty"`
 		SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"`
 		Results           []WorkResult      `json:"results,omitempty"`
+		AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`
 	*/
-	output = append(output, WorkPackageSpecSerialization(work_report.PackageSpec)...) // xs
-	output = append(output, RefineContextSerialization(work_report.Context)...)       // xx
+	// xs
+	// output = append(output, SerializeByteSequence([]byte{0xf0})...)
+	output = append(output, WorkPackageSpecSerialization(work_report.PackageSpec)...)
+	// xx
+	// output = append(output, SerializeByteSequence([]byte{0xf1})...)
+	output = append(output, RefineContextSerialization(work_report.Context)...)
+	// xc
+	// output = append(output, SerializeByteSequence([]byte{0xf2})...)
 	output = append(output, SerializeFixedLength(types.U64(work_report.CoreIndex), 2)...)
-	output = append(output, WrapOpaqueHash(work_report.AuthorizerHash).Serialize()...) // xa
-	// xo
+	// xa
+	// output = append(output, SerializeByteSequence([]byte{0xf3})...)
+	output = append(output, WrapOpaqueHash(work_report.AuthorizerHash).Serialize()...)
+	// ↕xo
+	// output = append(output, SerializeByteSequence([]byte{0xf4})...)
 	output = append(output, SerializeU64(types.U64(len(work_report.AuthOutput)))...)
 	output = append(output, SerializeByteSequence(work_report.AuthOutput[:])...)
-	// xl
+	// ↕xl
+	// output = append(output, SerializeByteSequence([]byte{0xf5})...)
 	output = append(output, SerializeU64(types.U64(len(work_report.SegmentRootLookup)))...)
 	for _, item := range work_report.SegmentRootLookup {
 		output = append(output, SerializeByteSequence(item.WorkPackageHash[:])...)
 		output = append(output, SerializeByteSequence(item.SegmentTreeRoot[:])...)
 	}
-	// xr
+	// ↕xr
+	// output = append(output, SerializeByteSequence([]byte{0xf6})...)
 	output = append(output, SerializeU64(types.U64(len(work_report.Results)))...)
 	for _, result := range work_report.Results {
 		output = append(output, WorkResultSerialization(result)...)
 	}
+	// xg
+	// output = append(output, SerializeByteSequence([]byte{0xf7})...)
+	output = append(output, SerializeU64(types.U64(work_report.AuthGasUsed))...)
 	return output
 }
 
