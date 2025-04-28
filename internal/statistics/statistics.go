@@ -98,7 +98,8 @@ type (
 	CoreWorkReportMap map[types.CoreIndex]types.WorkReport
 )
 
-// FIXME: The type of varaibles are different between RefineLoad, ServiceActivityRecord and CoreActivityRecord
+// INFO: The type of varaibles are different between RefineLoad, ServiceActivityRecord and CoreActivityRecord
+// Now, we convert them to the same type in this file.
 type Pi_C_R_Output struct {
 	Imports        types.U16 // i
 	ExtrinsicCount types.U16 // x
@@ -133,9 +134,6 @@ func CalculateDALoad(coreIndex types.CoreIndex, WMap CoreWorkReportMap) types.U3
 	if !ok {
 		return 0
 	}
-
-	// FIXME: (13.10) sum of the spec length from all work reports of the core
-	// However, a core only has one work report in the WMap.
 
 	ceilValue := types.U32(math.Ceil(float64(workReport.PackageSpec.ExportsCount) * 65 / 64))
 	output := workReport.PackageSpec.Length + types.SegmentSize*ceilValue
@@ -213,7 +211,6 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 type ServiceWorkResultsMap map[types.ServiceId][]types.WorkResult
 
 // Create a map (service Id -> []work result)
-// FIXME: refactor this function, merge with (13.13)?
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	store := store.GetInstance()
 	w := store.GetIntermediateStates().GetPresentWorkReports()
@@ -295,8 +292,7 @@ func GetServicesFromDeferredTransfersStatistics() []types.ServiceId {
 	return services
 }
 
-// (13.12)
-// FIXME: refactor this function
+// s (13.12)
 func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
 	// r: services from the incoming work-reports (13.13)
 	r := GetServicesFromPresentWorkReport()
@@ -372,15 +368,9 @@ func CalculateProvidedStatistics(serviceId types.ServiceId, preimagesExtrinsic t
 
 // a
 // AccumulateCount, AccumulateGasUsed
-func CalculateAccumulationStatistics(serviceId types.ServiceId) (accumulateCount types.U32, accumulateGasUsed types.U64) {
+func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.U64) {
 	accumulateCount = 0
 	accumulateGasUsed = 0
-
-	// FIXME: pass I into this function?
-	store := store.GetInstance()
-
-	// Get the accumulation statistics (I)
-	accumulationStatistics := store.GetAccumulationStatisticsPointer().GetAccumulationStatistics()
 
 	value, ok := accumulationStatistics[serviceId]
 	if ok {
@@ -396,17 +386,10 @@ func CalculateAccumulationStatistics(serviceId types.ServiceId) (accumulateCount
 }
 
 // t
-// OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
-// OnTransfersGasUsed U64 `json:"on_transfers_gas_used,omitempty"`
-func CalculateTransfersStatistics(serviceId types.ServiceId) (onTransfersCount types.U32, onTransfersGasUsed types.U64) {
+// OnTransfersCount, OnTransfersGasUsed
+func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersStatistics types.DeferredTransfersStatistics) (onTransfersCount types.U32, onTransfersGasUsed types.U64) {
 	onTransfersCount = 0
 	onTransfersGasUsed = 0
-
-	// FIXME: pass X into this function?
-	store := store.GetInstance()
-
-	// Get the deferred transfers statistics (X)
-	deferredTransfersStatistics := store.GetDeferredTransfersStatisticsPointer().GetDeferredTransfersStatistics()
 
 	value, ok := deferredTransfersStatistics[serviceId]
 	if ok {
@@ -423,6 +406,10 @@ func CalculateTransfersStatistics(serviceId types.ServiceId) (onTransfersCount t
 
 // (13.11)
 func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
+	store := store.GetInstance()
+	accumulationStatisitcs := store.GetAccumulationStatisticsPointer().GetAccumulationStatistics()
+	transfersStatistics := store.GetDeferredTransfersStatisticsPointer().GetDeferredTransfersStatistics()
+
 	services := GetAllServices(extrinsic.Preimages)
 	serviceWorkResultsMap := CreateServiceWorkResultsMap()
 
@@ -437,10 +424,10 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 		providedCount, providedSize := CalculateProvidedStatistics(serviceId, extrinsic.Preimages)
 
 		// a
-		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId)
+		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
 
 		// t
-		onTransfersCount, onTransfersGasUsed := CalculateTransfersStatistics(serviceId)
+		onTransfersCount, onTransfersGasUsed := CalculateTransfersStatistics(serviceId, transfersStatistics)
 
 		servicesStatistics[serviceId] = types.ServiceActivityRecord{
 			ProvidedCount:      providedCount,
@@ -459,7 +446,6 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	}
 
 	// Set the service activity statistics to the store
-	store := store.GetInstance()
 	if len(servicesStatistics) == 0 {
 		servicesStatistics = nil
 	}
