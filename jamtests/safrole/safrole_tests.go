@@ -546,7 +546,7 @@ func (s *SafroleTestCase) Dump() error {
 	storeInstance := store.GetInstance()
 
 	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
-	storeInstance.GetIntermediateHeaderPointer().SetSlot(s.Input.Slot)
+	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
 	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
 
 	storeInstance.GetPriorStates().SetEta(s.PreState.Eta)
