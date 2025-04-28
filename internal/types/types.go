@@ -1417,3 +1417,8 @@ type NumDeferredTransfersAndTotalGasUsed struct {
 // X: deferred-transfers statistics
 // dictionary<destination service index, (the number of deferred-transfers, total gas used)>
 type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
+
+type ExportSegment [SegmentSize]byte
+
+type ExtrinsicData []byte
+type ExtrinsicDataMap map[OpaqueHash]ExtrinsicData

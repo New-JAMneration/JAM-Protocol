@@ -124,6 +124,13 @@ const (
 	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
 )
 
+// erasure coding constants
+// 342:1023 (Appendix H)
+const (
+	DataShards  = 342
+	TotalShards = 1023
+)
+
 // genesis file path
 const (
 	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"

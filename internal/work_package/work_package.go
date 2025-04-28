@@ -8,10 +8,11 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
+	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
 // Xi (14.11)
-func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex, pa types.OpaqueHash, pc types.ByteSequence, extrinsicMap PolkaVM.ExtrinsicDataMap, importSegments [][]types.ExportSegment, delta types.ServiceAccountState, lookup types.SegmentRootLookup) (types.WorkReport, error) {
+func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex, pa types.OpaqueHash, pc types.ByteSequence, extrinsicMap PolkaVM.ExtrinsicDataMap, importSegments [][]types.ExportSegment, delta types.ServiceAccountState, lookup types.SegmentRootLookup, workPackgeBundle []byte) (types.WorkReport, error) {
 	resultType, o, g := PolkaVM.Psi_I(workPackage, coreIndex)
 	if resultType != types.WorkExecResultOk {
 		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", resultType)
@@ -33,7 +34,6 @@ func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex,
 		return types.WorkReport{}, fmt.Errorf("failed to encode work package: %w", err)
 	}
 	workPackageHash := hash.Blake2bHash(encodedWorkPackage)
-	var workPackgeBundle []byte
 	var exportsData []types.ExportSegment
 	for _, export := range exports {
 		exportsData = append(exportsData, export...)
@@ -55,13 +55,14 @@ func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex,
 	}, nil
 }
 
+// (14.16)
 func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []types.ExportSegment) (types.WorkPackageSpec, error) {
 	var exports []types.ByteSequence
 	for _, export := range exportsData {
 		exports = append(exports, types.ByteSequence(export[:]))
 	}
 	exportsRoot := merkle_tree.M(exports, hash.Blake2bHash)
-	erasureRoot, err := ComputeErasureRoot(workPackgeBundle, exportsData)
+	erasureRoot, err := computeErasureRoot(workPackgeBundle, exportsData)
 	if err != nil {
 		return types.WorkPackageSpec{}, fmt.Errorf("failed to compute erasure root: %w", err)
 	}
@@ -74,38 +75,83 @@ func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []
 	}, nil
 }
 
-func ComputeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
+func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
+	bcloud, err := buildBCloud(bundle)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	scloud, err := buildSCloud(exportsData)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	erasureRoot := mergeBCloudSCloud(bcloud, scloud)
+	return erasureRoot, nil
+}
+
+func buildBCloud(bundle []byte) ([]types.OpaqueHash, error) {
 	padded := PadToMultiple(bundle, types.ECBasicSize)
 
-	shards, err := ErasureCode(padded, (len(bundle)+683)/684)
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundle)+683)/684)
 	if err != nil {
-		return types.OpaqueHash{}, err
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+	shards, err := ec.Encode(padded)
+	if err != nil {
+		return nil, err
 	}
 
-	var hashedShards []types.OpaqueHash //bCloud
-	for _, shard := range shards {
-		hashedShards = append(hashedShards, hash.Blake2bHash(types.ByteSequence(shard)))
+	hashedShards := make([]types.OpaqueHash, len(shards))
+	for i, shard := range shards {
+		hashedShards[i] = hash.Blake2bHash(types.ByteSequence(shard))
 	}
 
-	pagedProof, err := PagedProofs(exportsData)
+	return hashedShards, nil
+}
+
+func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
+	pagedProof, err := PagedProofs(exports)
 	if err != nil {
-		return types.OpaqueHash{}, err
+		return nil, err
 	}
-	fullSegments := append(exportsData, pagedProof...)
-	var groupShards [][][]byte
-	for i := 0; i < len(fullSegments); i++ {
-		segmentShards, err := ErasureCode(fullSegments[i][:], 6)
+	fullSegments := append(exports, pagedProof...)
+
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, 6)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+
+	groupShards := make([][][]byte, len(fullSegments))
+	for i := range fullSegments {
+		shards, err := ec.Encode(fullSegments[i][:])
 		if err != nil {
-			return types.OpaqueHash{}, err
+			return nil, err
 		}
-		groupShards = append(groupShards, segmentShards)
+		groupShards[i] = shards
 	}
 
-	// transposed := Transpose(groupShards)
-	// sCloud := for loop merkle_tree.Mb transposed
-	// for loop Transpose([hashedShards, sCloud]) and concat, then use merkle_tree.Mb to get erasure root
+	transposed := Transpose(groupShards)
 
-	return types.OpaqueHash{}, nil
+	merkleResult := make([]types.OpaqueHash, len(transposed))
+	for i := range transposed {
+		byteSequences := make([]types.ByteSequence, len(transposed[i]))
+		for j, shard := range transposed[i] {
+			byteSequences[j] = types.ByteSequence(shard)
+		}
+		merkleResult[i] = merkle_tree.Mb(byteSequences, hash.Blake2bHash)
+	}
+
+	return merkleResult, nil
+}
+
+func mergeBCloudSCloud(bcloud []types.OpaqueHash, scloud []types.OpaqueHash) types.OpaqueHash {
+	merged := make([]types.ByteSequence, len(bcloud))
+	for i := range bcloud {
+		pair := append(bcloud[i][:], scloud[i][:]...)
+		merged[i] = types.ByteSequence(pair)
+	}
+	return merkle_tree.Mb(merged, hash.Blake2bHash)
 }
 
 func Transpose[T any](input [][]T) [][]T {
@@ -125,12 +171,7 @@ func Transpose[T any](input [][]T) [][]T {
 	return output
 }
 
-// mock function for ErasureCode
-func ErasureCode(data []byte, k int) ([][]byte, error) {
-	return nil, nil
-}
-
-// 14.9
+// (14.9)
 func VerifyAuthorization(wp *types.WorkPackage, delta types.ServiceAccountState) (types.OpaqueHash, types.ByteSequence, types.ByteSequence, error) {
 	pa := hash.Blake2bHash(append(wp.Authorizer.CodeHash[:], wp.Authorizer.Params[:]...))
 	bytes := service_account.HistoricalLookup(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.Authorizer.CodeHash)
@@ -151,7 +192,7 @@ func FlattenExtrinsicSpecs(wp *types.WorkPackage) []types.ExtrinsicSpec {
 }
 
 func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PolkaVM.ExtrinsicDataMap, error) {
-	var result PolkaVM.ExtrinsicDataMap
+	result := make(PolkaVM.ExtrinsicDataMap)
 	curr := 0
 
 	for _, spec := range specs {
@@ -275,9 +316,4 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 			types.WorkExecResultBadExports: nil,
 		}, u, emptyExport
 	}
-}
-
-func fetchFromDA(erasureRoot types.OpaqueHash, index types.U16) ([]types.ExportSegment, error) {
-	// need to fetch and reconstruct from DA
-	return []types.ExportSegment{}, nil
 }
