@@ -219,7 +219,32 @@ func (h *HistoryTestCase) Dump() error {
 		},
 	})
 
-	// How to Set AccumulateRoot and WorkPackages?
+	mockAccumulatedServiceOutput := make(types.AccumulatedServiceOutput)
+	mockAccumulatedServiceOutput[types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot}] = true
+	storeInstance.GetIntermediateStates().SetBeefyCommitmentOutput(mockAccumulatedServiceOutput)
+
+	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
+	for _, workPackage := range h.Input.WorkPackages {
+		mockGuarantessExtrinsic = append(mockGuarantessExtrinsic, types.ReportGuarantee{
+			Report: types.WorkReport{
+				PackageSpec: types.WorkPackageSpec{
+					Hash:        types.WorkPackageHash(workPackage.Hash),
+					ExportsRoot: workPackage.ExportsRoot,
+				},
+			},
+		})
+	}
+
+	block := types.Block{
+		Header: types.Header{
+			Parent:          h.Input.HeaderHash,
+			ParentStateRoot: h.Input.ParentStateRoot,
+		},
+		Extrinsic: types.Extrinsic{
+			Guarantees: mockGuarantessExtrinsic,
+		},
+	}
+	storeInstance.AddBlock(block)
 
 	return nil
 }
