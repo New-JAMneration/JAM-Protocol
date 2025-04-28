@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -54,7 +55,13 @@ func (p *InitialPackageProcessor) Process() error {
 		return err
 	}
 
-	importSegments, err := p.fetchImportSegments()
+	importSegments, importProofs, err := p.fetchImportSegments()
+	if err != nil {
+		return err
+	}
+
+	// build work package bundle
+	workPackgeBundle, err := buildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
 	if err != nil {
 		return err
 	}
@@ -64,39 +71,80 @@ func (p *InitialPackageProcessor) Process() error {
 	// two goroutines to two different guarantors
 
 	var lookup types.SegmentRootLookup
-	_, err = workResultCompute(*p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, lookup)
+	_, err = workResultCompute(*p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, lookup, workPackgeBundle)
 	if err != nil {
 		return err
 	}
 
 	// check if work report is same between all the guarantors
 
-	// if err := p.updateSegmentRootDict(); err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
-func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment, error) {
+func buildWorkPackageBundle(
+	wp *types.WorkPackage,
+	extrinsicMap PolkaVM.ExtrinsicDataMap,
+	importSegments [][]types.ExportSegment,
+	importProofs [][]types.OpaqueHash,
+) ([]byte, error) {
+	extrinsics := make([]types.ExtrinsicData, len(wp.Items))
+	for _, item := range wp.Items {
+		for _, extrinsic := range item.Extrinsic {
+			extrinsics = append(extrinsics, types.ExtrinsicData(extrinsicMap[extrinsic.Hash]))
+		}
+	}
 
+	output := []byte{}
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&wp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode work package: %w", err)
+	}
+	output = append(output, encoded...)
+	encoded, err = encoder.Encode(&extrinsics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode extrinsics: %w", err)
+	}
+	output = append(output, encoded...)
+	encoded, err = encoder.Encode(&importSegments)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode import segments: %w", err)
+	}
+	output = append(output, encoded...)
+	encoded, err = encoder.Encode(&importProofs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode import proofs: %w", err)
+	}
+	output = append(output, encoded...)
+
+	return output, nil
+}
+
+func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment, [][]types.OpaqueHash, error) {
 	lookupDict := p.SegmentRootLookup
 	segmentErasureMap := p.ErasureMap
 	result := make([][]types.ExportSegment, len(p.WorkPackage.Items))
+	proofs := make([][]types.OpaqueHash, len(p.WorkPackage.Items))
 	for _, item := range p.WorkPackage.Items {
 		for _, imp := range item.ImportSegments {
 			segmentRoot := lookupDict.Lookup(imp.TreeRoot)
 			erasureRoot, err := segmentErasureMap.Get(segmentRoot)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get erasure root for %s: %w", hex.EncodeToString(segmentRoot[:]), err)
+				return nil, nil, fmt.Errorf("failed to get erasure root for %s: %w", hex.EncodeToString(segmentRoot[:]), err)
 			}
 
-			data, err := fetchFromDA(erasureRoot, imp.Index)
+			data, proof, err := fetchFromDA(erasureRoot, imp.Index)
 			if err != nil {
-				return nil, fmt.Errorf("failed to fetch data from DA for %s: %w", hex.EncodeToString(erasureRoot[:]), err)
+				return nil, nil, fmt.Errorf("failed to fetch data from DA for %s: %w", hex.EncodeToString(erasureRoot[:]), err)
 			}
 			result = append(result, data)
+			proofs = append(proofs, proof)
 		}
 	}
-	return result, nil
+	return result, proofs, nil
+}
+
+func fetchFromDA(erasureRoot types.OpaqueHash, index types.U16) ([]types.ExportSegment, []types.OpaqueHash, error) {
+	// need to fetch and reconstruct from DA
+	return []types.ExportSegment{}, []types.OpaqueHash{}, nil
 }
