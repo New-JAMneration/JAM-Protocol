@@ -460,17 +460,9 @@ func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8
 	// TODO: Implement the logic to broadcast the announcement
 	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
-func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
-	// TODO: Implement the logic to update the assignment map from other nodes
-	// This could involve receiving messages from other nodes and merging their assignment maps.
-	return assignmentMap
-}
-func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
-	// TODO: Implement the logic to update the positive judgers from other nodes
-	// This could involve receiving messages from other nodes and merging their positive judgers.
-	return positiveJudgers
-}
+func WaitNextTrahche(tranche types.U8) {
 
+}
 func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	for _, audit := range audits {
 		if audit.AuditResult {
@@ -483,6 +475,17 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	}
 	return positiveJudgers
 }
+func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	// TODO CE 145 QUIC, the final input types TBD
+	return positiveJudgers
+}
+
+func SyncAssignmentMapFromOtherNodes(
+	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
+	validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash][]types.ValidatorIndex {
+	// TODO CE 144 QUIC, the final input types TBD
+	return assignmentMap
+}
 
 // 17.17
 func GetJudgement(report types.AuditReport) bool {
@@ -494,7 +497,7 @@ func SingleNodeAuditingAndPublish(
 	validatorPrivKey ed25519.PrivateKey,
 ) error {
 	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
-	Q := GetQ()
+	Q := CollectAuditReportCandidates()
 	var workReports []types.WorkReport
 	for _, report := range Q {
 		if report != nil {
@@ -535,14 +538,13 @@ func SingleNodeAuditingAndPublish(
 	BroadcastAuditReport(signedA0)
 
 	// Step 9: Receive CE144 and CE145 from other nodes to update state
-	UpdateAssignmentMapFromOtherNode(assignmentMap)
-	UpdatePositiveJudgersFromOtherNode(positiveJudgers)
-
+	assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, 0)
+	positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, 0)
 	// Step 10: (17.20) Check if all reports from the current block have passed audit
 	if IsBlockAudited(workReports, signedA0, assignmentMap) {
 		return nil // Auditing complete
 	}
-
+	WaitNextTrahche(0)
 	// Step 11: Begin tranche loop for stochastic audit (n ≥ 1)
 	for tranche := types.U8(1); ; tranche++ {
 		// (17.15–17.16) Compute stochastic assignment aₙ based on no-shows
@@ -568,13 +570,14 @@ func SingleNodeAuditingAndPublish(
 		BroadcastAuditReport(signedAn)
 
 		// Step 16: Update local assignment and judgement state with messages from other nodes
-		UpdateAssignmentMapFromOtherNode(assignmentMap)
-		UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+		assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, tranche)
+		positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, tranche)
 
 		// Step 17: Check if audit condition has been satisfied for all reports for single block
 		if IsBlockAudited(workReports, signedAn, assignmentMap) {
 			break
 		}
+		WaitNextTrahche(tranche)
 	}
 
 	return nil
