@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -65,6 +66,13 @@ type AssuranceState struct {
 -- Feel free to ignore the actual value.
 */
 type AssuranceErrorCode types.ErrorCode
+
+func (a *AssuranceErrorCode) Error() string {
+	if a == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *a)
+}
 
 const (
 	BadAttestationParent      AssuranceErrorCode = iota // 0
@@ -387,5 +395,38 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 		return err
 	}
 
+	return nil
+}
+
+func (a *AssuranceTestCase) Dump() error {
+	s := store.GetInstance()
+
+	// Add block
+	header := types.Header{Slot: a.Input.Slot, Parent: a.Input.Parent}
+	block := types.Block{Header: header}
+	s.AddBlock(block)
+
+	s.GetPosteriorStates().SetKappa(a.PreState.CurrValidators)
+	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
+
+	return nil
+}
+
+func (a *AssuranceTestCase) GetPostState() interface{} {
+	return a.PostState
+}
+
+func (a *AssuranceTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AssuranceTestCase) ExpectError() error {
+	if a.Output.Err == nil {
+		return nil
+	}
+	return a.Output.Err
+}
+
+func (a *AssuranceTestCase) Validate() error {
 	return nil
 }

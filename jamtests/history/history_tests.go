@@ -3,6 +3,7 @@ package jamtests
 import (
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -48,6 +49,15 @@ type HistoryOutput struct { // null
 
 type HistoryState struct {
 	Beta types.BlocksHistory `json:"beta"`
+}
+
+type HistoryErrorCode types.ErrorCode
+
+func (h *HistoryErrorCode) Error() string {
+	if h == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *h)
 }
 
 // HistoryInput
@@ -194,5 +204,66 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 		return err
 	}
 
+	return nil
+}
+
+// TODO: Implement Dump method
+func (h *HistoryTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
+	storeInstance.GetProcessingBlockPointer().SetBlock(types.Block{
+		Header: types.Header{
+			Parent:          h.Input.HeaderHash,
+			ParentStateRoot: h.Input.ParentStateRoot,
+		},
+	})
+
+	mockAccumulatedServiceOutput := make(types.AccumulatedServiceOutput)
+	mockAccumulatedServiceOutput[types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot}] = true
+	storeInstance.GetIntermediateStates().SetBeefyCommitmentOutput(mockAccumulatedServiceOutput)
+
+	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
+	for _, workPackage := range h.Input.WorkPackages {
+		mockGuarantessExtrinsic = append(mockGuarantessExtrinsic, types.ReportGuarantee{
+			Report: types.WorkReport{
+				PackageSpec: types.WorkPackageSpec{
+					Hash:        types.WorkPackageHash(workPackage.Hash),
+					ExportsRoot: workPackage.ExportsRoot,
+				},
+			},
+		})
+	}
+
+	block := types.Block{
+		Header: types.Header{
+			Parent:          h.Input.HeaderHash,
+			ParentStateRoot: h.Input.ParentStateRoot,
+		},
+		Extrinsic: types.Extrinsic{
+			Guarantees: mockGuarantessExtrinsic,
+		},
+	}
+	storeInstance.AddBlock(block)
+
+	return nil
+}
+
+func (h *HistoryTestCase) GetPostState() interface{} {
+	return h.PostState
+}
+
+func (h *HistoryTestCase) GetOutput() interface{} {
+	return h.Output
+}
+
+func (h *HistoryTestCase) ExpectError() error {
+	// TODO: Implement error handling
+	// Should be implemented in the future once the testcase has an error
+	return nil
+}
+
+func (h *HistoryTestCase) Validate() error {
+	// TODO: Implement validation
 	return nil
 }
