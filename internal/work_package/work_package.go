@@ -13,10 +13,12 @@ import (
 
 // Xi (14.11)
 func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex, pa types.OpaqueHash, pc types.ByteSequence, extrinsicMap PolkaVM.ExtrinsicDataMap, importSegments [][]types.ExportSegment, delta types.ServiceAccountState, lookup types.SegmentRootLookup, workPackgeBundle []byte) (types.WorkReport, error) {
-	resultType, o, g := PolkaVM.Psi_I(workPackage, coreIndex)
-	if resultType != types.WorkExecResultOk {
-		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", resultType)
+	returnType := PolkaVM.Psi_I(workPackage, coreIndex, pc)
+	if returnType.WorkExecResult != types.WorkExecResultOk {
+		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
 	}
+	o := returnType.WorkOutput
+	g := returnType.Gas
 
 	var results []types.WorkResult
 	var exports [][]types.ExportSegment
@@ -296,9 +298,9 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 		ExtrinsicDataMap:    extrinsicMap,
 	}
 
-	refineOuput := PolkaVM.Psi_R(refineInput)
+	refineOuput := PolkaVM.RefineInvoke(refineInput)
 	r := refineOuput.RefineOutput
-	e := refineOuput.EportSegment
+	e := refineOuput.ExportSegment
 	u := refineOuput.Gas
 
 	if len(e) == int(expectedCount) {
