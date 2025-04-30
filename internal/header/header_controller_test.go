@@ -9,7 +9,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestMain(m *testing.M) {
@@ -43,7 +42,7 @@ func TestCreateParentHash(t *testing.T) {
 		}
 
 		file_index := 0
-		parent_hash := types.HeaderHash{}
+		parentHash := types.HeaderHash{}
 		for _, file := range files {
 			// Read the binary file
 			binPath := filepath.Join(dir, file)
@@ -60,24 +59,25 @@ func TestCreateParentHash(t *testing.T) {
 				t.Errorf("Error: %v", err)
 			}
 
-			// Create a header hash
-			encoded_header, err := types.NewEncoder().Encode(&block.Header)
+			// Create parent hash with controller
+			hc := NewHeaderController()
+			err = hc.CreateParentHeaderHash(block.Header)
 			if err != nil {
 				t.Errorf("Error: %v", err)
 			}
 
-			// Hash the header encoded data
-			headerHash := types.HeaderHash(hash.Blake2bHash(encoded_header))
+			// Get the parent hash from the header controller
+			thisParentHash := hc.GetHeader().Parent
 
 			if file_index != 0 {
 				// Compare the parent hash with the header hash
-				if block.Header.Parent != parent_hash {
+				if block.Header.Parent != parentHash {
 					t.Errorf("Error: %v", err)
 				}
 			}
 
 			// Store the parent hash for the next iteration
-			parent_hash = headerHash
+			parentHash = thisParentHash
 			file_index++
 		}
 	}

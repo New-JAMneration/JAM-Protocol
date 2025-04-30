@@ -48,6 +48,8 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 
 	// hash function (blake2b)
 	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
+
+	// TODO: We have to save the parent hash in the store.
 	h.Header.Parent = parentHeaderHash
 
 	return nil
