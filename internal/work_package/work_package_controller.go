@@ -87,7 +87,7 @@ func buildWorkPackageBundle(
 	importSegments [][]types.ExportSegment,
 	importProofs [][]types.OpaqueHash,
 ) ([]byte, error) {
-	extrinsics := make([]types.ExtrinsicData, len(wp.Items))
+	var extrinsics []types.ExtrinsicData
 	for _, item := range wp.Items {
 		for _, extrinsic := range item.Extrinsic {
 			extrinsics = append(extrinsics, types.ExtrinsicData(extrinsicMap[extrinsic.Hash]))
@@ -125,7 +125,10 @@ func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment
 	segmentErasureMap := p.ErasureMap
 	result := make([][]types.ExportSegment, len(p.WorkPackage.Items))
 	proofs := make([][]types.OpaqueHash, len(p.WorkPackage.Items))
-	for _, item := range p.WorkPackage.Items {
+	for itemIndex, item := range p.WorkPackage.Items {
+		var segs []types.ExportSegment
+		var justifications []types.OpaqueHash
+
 		for _, imp := range item.ImportSegments {
 			segmentRoot := lookupDict.Lookup(imp.TreeRoot)
 			erasureRoot, err := segmentErasureMap.Get(segmentRoot)
@@ -137,10 +140,14 @@ func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to fetch data from DA for %s: %w", hex.EncodeToString(erasureRoot[:]), err)
 			}
-			result = append(result, data)
-			proofs = append(proofs, proof)
+			segs = append(segs, data...)
+			justifications = append(justifications, proof...)
 		}
+
+		result[itemIndex] = segs
+		proofs[itemIndex] = justifications
 	}
+
 	return result, proofs, nil
 }
 
