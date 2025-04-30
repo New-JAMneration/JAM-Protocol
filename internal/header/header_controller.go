@@ -56,56 +56,55 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 // CreateExtrinsicHash creates the extrinsic hash of the header.
 // (5.4), (5.5), (5.6)
 // H_x: extrinsic hash
-// INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
-func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
-	ticketSerializedHash := hash.Blake2bHash(utilities.ExtrinsicTicketSerialization(extrinsic.Tickets))
-	preimageSerializedHash := hash.Blake2bHash(utilities.ExtrinsicPreimageSerialization(extrinsic.Preimages))
-	AssureanceSerializedHash := hash.Blake2bHash(utilities.ExtrinsicAssuranceSerialization(extrinsic.Assurances))
-	DisputeSerializedHash := hash.Blake2bHash(utilities.ExtrinsicDisputeSerialization(extrinsic.Disputes))
-
-	// g (5.6)
-	g := types.ByteSequence{}
-	g = append(g, utilities.SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
-	for _, guarantee := range extrinsic.Guarantees {
-		// w, WorkReport
-		w := guarantee.Report
-		wHash := hash.Blake2bHash(utilities.WorkReportSerialization(w))
-
-		// t, Slot
-		t := guarantee.Slot
-		tSerialized := utilities.SerializeFixedLength(types.U32(t), 4)
-
-		// a, Signatures (credential)
-		signaturesLength, Signatures := utilities.LensElementPair(guarantee.Signatures)
-
-		elementSerialized := types.ByteSequence{}
-		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(wHash[:])...)
-		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(tSerialized)...)
-		elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signaturesLength))...)
-		for _, signature := range Signatures {
-			elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signature.ValidatorIndex))...)
-			elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(signature.Signature[:])...)
-		}
-
-		// If the input type of serialization is octet sequence, we can directly
-		// append it because it is already serialized.
-		g = append(g, elementSerialized...)
+func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error {
+	// Encode the extrinsic elements
+	encodedTicketsExtrinsic, err := utilities.EncodeExtrinsicTickets(extrinsic.Tickets)
+	if err != nil {
+		return err
 	}
 
-	gHash := hash.Blake2bHash(g)
+	encodedPreimagesExtrinsic, err := utilities.EncodeExtrinsicPreimages(extrinsic.Preimages)
+	if err != nil {
+		return err
+	}
 
-	// Serialize the hash of the extrinsic elements
-	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(ticketSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(preimageSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(gHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(AssureanceSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(DisputeSerializedHash).Serialize()...)
+	encodedGuaranteesExtrinsic, err := utilities.EncodeExtrinsicGuarantees(extrinsic.Guarantees)
+	if err != nil {
+		return err
+	}
 
-	// Hash the serialized elements
-	extrinsicHash := hash.Blake2bHash(serializedElements)
+	encodedAssurancesExtrinsic, err := utilities.EncodeExtrinsicAssurances(extrinsic.Assurances)
+	if err != nil {
+		return err
+	}
 
+	encodedDisputesExtrinsic, err := utilities.EncodeExtrinsicDisputes(extrinsic.Disputes)
+	if err != nil {
+		return err
+	}
+
+	// Hash encoded elements
+	encodedTicketsHash := hash.Blake2bHash(encodedTicketsExtrinsic)
+	encodedPreimagesHash := hash.Blake2bHash(encodedPreimagesExtrinsic)
+	encodedGuaranteesHash := hash.Blake2bHash(encodedGuaranteesExtrinsic)
+	encodedAssurancesHash := hash.Blake2bHash(encodedAssurancesExtrinsic)
+	encodedDisputesHash := hash.Blake2bHash(encodedDisputesExtrinsic)
+
+	// Concatenate the encoded elements
+	encodedHash := types.ByteSequence{}
+	encodedHash = append(encodedHash, types.ByteSequence(encodedTicketsHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedPreimagesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedGuaranteesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedAssurancesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedDisputesHash[:])...)
+
+	// Hash the encoded elements
+	extrinsicHash := hash.Blake2bHash(encodedHash)
+
+	// TODO: We have to save the extrinsic hash in the store.
 	h.Header.ExtrinsicHash = extrinsicHash
+
+	return nil
 }
 
 func GetCurrentTimeInSecond() uint64 {

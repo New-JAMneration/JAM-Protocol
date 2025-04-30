@@ -1,6 +1,7 @@
 package header
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// TODO: Read jamtestnet test vectors to test parent hash
 func TestMain(m *testing.M) {
 	// Set the test mode
 	types.SetTestMode()
@@ -83,6 +83,71 @@ func TestCreateParentHash(t *testing.T) {
 	}
 
 	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestCreateExtrinsicHash(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
+	}
+
+	dirNames := []string{
+		"assurances",
+		"fallback",
+		"orderedaccumulation",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirName, "blocks")
+
+		files, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		for _, file := range files {
+			binPath := filepath.Join(dir, file)
+			binData, err := utilities.GetBytesFromFile(binPath)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			decoder := types.NewDecoder()
+			block := &types.Block{}
+			err = decoder.Decode(binData, block)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Create a extrinsic hash with header controller
+			hc := NewHeaderController()
+			hc.CreateExtrinsicHash(block.Extrinsic)
+			if err != nil {
+				t.Errorf("Error: %v", err)
+			}
+
+			// Get the extrinsic hash from the header controller
+			// TODO: We have to get the extrinsic hash from the store
+			extrinsicHash := hc.GetHeader().ExtrinsicHash
+
+			// Compare the extrinsic hash with the block's extrinsic hash
+			if block.Header.ExtrinsicHash != extrinsicHash {
+				t.Errorf("Error: %v", err)
+				extrinsicHashHex := fmt.Sprintf("0x%x", extrinsicHash)
+				blockExtrinsicHashHex := fmt.Sprintf("0x%x", block.Header.ExtrinsicHash)
+				fmt.Println("MyHash: ", extrinsicHashHex)
+				fmt.Println("Answer: ", blockExtrinsicHashHex)
+			}
+		}
+	}
+
 	if BACKUP_TEST_MODE == "tiny" {
 		types.SetTinyMode()
 	} else {
