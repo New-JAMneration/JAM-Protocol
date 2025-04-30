@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -40,7 +40,7 @@ func ParseData[t any](fileName string) (InputWrapper[t], error) {
 	}
 	defer file.Close()
 
-	bytes, err := ioutil.ReadAll(file)
+	bytes, err := io.ReadAll(file)
 	if err != nil {
 		fmt.Printf("Error reading file: %s: %v\n", fileName, err)
 		return InputWrapper[t]{}, err
@@ -65,7 +65,7 @@ type Input struct {
 	Slot                types.TimeSlot            `json:"slot,omitempty"`
 	Parent              types.HeaderHash          `json:"parent,omitempty"`
 	PreStateTest        PreStateTest              `json:"pre_state,omitempty"`
-	PostStateTest       PreStateTest              `json:"post_state,omitemtpy"`
+	PostStateTest       PreStateTest              `json:"post_state,omitempty"`
 }
 
 type PreStateTest struct {
