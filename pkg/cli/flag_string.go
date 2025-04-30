@@ -17,7 +17,7 @@ func (f *StringFlag) Apply(set *flag.FlagSet) {
 }
 
 func (f *StringFlag) String() string {
-	return fmt.Sprintf("tring  %s", f.Usage)
+	return fmt.Sprintf("string  %s", f.Usage)
 }
 
 func (f *StringFlag) NameStr() string {
