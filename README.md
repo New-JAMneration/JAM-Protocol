@@ -42,7 +42,7 @@ For instructions on compiling and using the Rust library, please refer to this [
 
 ## Encoder/Decoder
 
-For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/encoder-decoder.md).
+For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/encoder-and-decoder.md).
 
 ## Coding Style
 
