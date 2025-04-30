@@ -6,7 +6,7 @@ package stf
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
 	// Update Disputes
-	
+
 	// Update Safrole
 	err := UpdateSafrole()
 	if err != nil {
