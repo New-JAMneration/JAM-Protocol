@@ -62,4 +62,4 @@ Please stick to [here](./READMERef/semantic-commit-messages.md) when you are goi
 
 Please follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket’s issue.
 
-![photo](https://github.com/user-attachments/assets/18ee1eae-58cb-4fa2-8d10-93930955759b)
+![ave_mujica_8_30185-30206](https://github.com/user-attachments/assets/89618594-1c19-4e46-b11e-2f74ce25f42a)
