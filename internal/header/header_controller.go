@@ -2,7 +2,6 @@ package header
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -40,14 +39,18 @@ func (h *HeaderController) GetHeader() types.Header {
 // CreateParentHeaderHash creates the parent header hash of the header.
 // (5.2)
 // H_p: parent header hash
-func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) {
-	// serialization
-	serializedHeader := utilities.HeaderSerialization(parentHeader)
+func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) error {
+	encoder := types.NewEncoder()
+	encoded_parent_header, err := encoder.Encode(&parentHeader)
+	if err != nil {
+		return err
+	}
 
 	// hash function (blake2b)
-	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(serializedHeader))
-
+	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
 	h.Header.Parent = parentHeaderHash
+
+	return nil
 }
 
 // CreateExtrinsicHash creates the extrinsic hash of the header.
@@ -105,7 +108,7 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
 	h.Header.ExtrinsicHash = extrinsicHash
 }
 
-func getCurrentTimeInSecond() uint64 {
+func GetCurrentTimeInSecond() uint64 {
 	// The Jam Common Era is 2025-01-01 12:00:00 UTC defined in the graypaper.
 	now := time.Now().UTC()
 	secondsSinceJam := uint64(now.Sub(types.JamCommonEra).Seconds())
@@ -123,7 +126,7 @@ func (h *HeaderController) ValidateTimeSlot(parentHeader types.Header, timeslot 
 	}
 
 	// Get the current time in seconds.
-	currentTimeInSecond := getCurrentTimeInSecond()
+	currentTimeInSecond := GetCurrentTimeInSecond()
 	timeslotInSecond := uint64(timeslot) * uint64(types.SlotPeriod)
 
 	if timeslotInSecond > currentTimeInSecond {
@@ -150,12 +153,7 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 // (5.8) H_r: state root hash
 func (h *HeaderController) CreateStateRootHash(parentState types.State) {
 	// State merklization
-	parentStateRoot, err := merklization.MerklizationState(parentState)
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
+	parentStateRoot := merklization.MerklizationState(parentState)
 	h.Header.ParentStateRoot = types.StateRoot(parentStateRoot)
 }
 

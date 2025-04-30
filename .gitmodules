@@ -12,4 +12,4 @@
 	url = https://github.com/koute/jamtestvectors.git
 [submodule "pkg/test_data/host_function"]
 	path = pkg/test_data/host_function
-	url = git@github.com:clw8998/jamtestvectors.git
+	url = git@github.com:mtsay-jamneration/jamtestvectors.git
