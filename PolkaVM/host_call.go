@@ -42,6 +42,7 @@ const (
 	VoidOp    // void = 24
 	InvokeOp  // invoke = 25
 	ExpungeOp // expunge = 26
+	ProvideOp // provide = 27
 )
 
 type HistoryState struct {
@@ -161,7 +162,7 @@ func Psi_H(
 	return
 }
 
-var HostCallFunctions = [28]Omega{
+var HostCallFunctions = [29]Omega{
 	0:  gas,
 	1:  lookup,
 	2:  read,
@@ -179,6 +180,8 @@ var HostCallFunctions = [28]Omega{
 	14: solicit,
 	15: forget,
 	16: yield,
+
+	27: provide,
 }
 
 func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
@@ -1475,5 +1478,107 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 		}
 
 		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+	}
+}
+
+func provide(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
+
+	o, z := input.Registers[8], input.Registers[9]
+	// i = panic
+	offset := uint64(z)
+	if !isReadable(o, offset, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// i = mu_o...+z
+	i := input.Memory.Read(o, z)
+
+	// s* = s or s = omega_7
+	var sStar types.ServiceId
+	if input.Registers[7] == 0xffffffffffffffff {
+		sStar = input.Addition.ServiceId
+	} else {
+		sStar = types.ServiceId(input.Registers[7])
+	}
+
+	// a = d[s*] or nil,  d = (x_u)_d
+	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(sStar)]
+	if !accountExists {
+		// otherwise if a = nil
+		input.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	lookupKey := types.LookupMetaMapkey{
+		Hash:   hash.Blake2bHash(i),
+		Length: types.U32(z),
+	}
+
+	// otherwise if a_l[H(i), z] not in []
+	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists && len(lookupData) != 0 {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	serviceBlob := ServiceBlob{
+		ServiceID: sStar,
+		Blob:      i,
+	}
+
+	encoder := types.NewEncoder()
+	serialized, _ := encoder.Encode(sStar)
+	encoded, _ := encoder.Encode(i)
+	serialized = append(serialized, encoded...)
+	hashKey := hash.Blake2bHash(serialized)
+	// golang can not have slice in map key, so use hash instead
+	if _, hashExists := input.Addition.ResultContextX.ServiceBlobs[hashKey]; hashExists {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise OK
+	input.Addition.ResultContextX.ServiceBlobs[hashKey] = serviceBlob
+	input.Registers[7] = OK
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
 	}
 }

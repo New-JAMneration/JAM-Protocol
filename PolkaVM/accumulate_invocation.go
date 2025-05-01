@@ -19,10 +19,11 @@ func Psi_A(
 	c := partialState.ServiceAccounts[serviceId].ServiceInfo.CodeHash
 	if storedCode, ok := partialState.ServiceAccounts[serviceId].PreimageLookup[c]; !ok {
 		return Psi_A_ReturnType{
-			PartialStateSet:   I(partialState, serviceId, time, eta).PartialState,
+			PartialStateSet:   partialState,
 			DeferredTransfers: []types.DeferredTransfer{},
 			Result:            nil,
 			Gas:               0,
+			ServiceBlobs:      []ServiceBlob{},
 		}
 	} else {
 
@@ -77,7 +78,8 @@ func Psi_A(
 		F[SolicitOp] = HostCallFunctions[SolicitOp]
 		F[ForgetOp] = HostCallFunctions[ForgetOp]
 		F[YieldOp] = HostCallFunctions[YieldOp]
-		F[27] = accumulateInvocationHostCallException
+		F[ProvideOp] = HostCallFunctions[ProvideOp]
+		F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
 
 		addition := HostCallArgs{
 			GeneralArgs: GeneralArgs{
@@ -92,7 +94,7 @@ func Psi_A(
 		}
 
 		resultM := Psi_M(StandardCodeFormat(storedCode), 5, Gas(gas), Argument(serialized), F, addition)
-		partialState, deferredTransfer, result, gas := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
+		partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 			ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 			ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
 		})
@@ -101,6 +103,7 @@ func Psi_A(
 			DeferredTransfers: deferredTransfer,
 			Result:            result,
 			Gas:               gas,
+			ServiceBlobs:      serviceBlobs,
 		}
 	}
 }
@@ -131,15 +134,25 @@ func wrapWithG(original Omega) Omega {
 }
 
 // (B.13) C
-func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas) {
+func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, ServiceBlobs) {
+	serviceBlobs := make(ServiceBlobs, 0)
 	switch reasonOrBytes.(type) {
 	case error:
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, &resultContext.ResultContextY.Exception, gas
+		for _, v := range resultContext.ResultContextY.ServiceBlobs {
+			serviceBlobs = append(serviceBlobs, v)
+		}
+		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, &resultContext.ResultContextY.Exception, gas, serviceBlobs
 	case types.ByteSequence:
+		for _, v := range resultContext.ResultContextX.ServiceBlobs {
+			serviceBlobs = append(serviceBlobs, v)
+		}
 		opaqueHash := reasonOrBytes.(*types.OpaqueHash)
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs
 	default:
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, &resultContext.ResultContextX.Exception, gas
+		for _, v := range resultContext.ResultContextX.ServiceBlobs {
+			serviceBlobs = append(serviceBlobs, v)
+		}
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, &resultContext.ResultContextX.Exception, gas, serviceBlobs
 	}
 }
 
@@ -191,13 +204,22 @@ type Psi_A_ReturnType struct {
 	DeferredTransfers []types.DeferredTransfer
 	Result            *types.OpaqueHash
 	Gas               types.Gas
+	ServiceBlobs      []ServiceBlob
 }
 
 // (B.7)
 type ResultContext struct {
-	ServiceId         types.ServiceId          // s
-	PartialState      types.PartialStateSet    // u
-	ImportServiceId   types.ServiceId          // i
-	DeferredTransfers []types.DeferredTransfer // t
-	Exception         types.OpaqueHash         // y
+	ServiceId         types.ServiceId                  // s
+	PartialState      types.PartialStateSet            // u
+	ImportServiceId   types.ServiceId                  // i
+	DeferredTransfers []types.DeferredTransfer         // t
+	Exception         types.OpaqueHash                 // y
+	ServiceBlobs      map[types.OpaqueHash]ServiceBlob // p   v0.6.5
 }
+
+// v0.6.5
+type ServiceBlob struct {
+	ServiceID types.ServiceId
+	Blob      []byte
+}
+type ServiceBlobs []ServiceBlob
