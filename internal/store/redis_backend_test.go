@@ -120,8 +120,7 @@ func TestRedisBackend_StoreBlockBySlot(t *testing.T) {
 	backend := NewRedisBackend(rdb)
 
 	// We'll use a TimeSlot as the key
-	var ts types.TimeSlot
-	ts = 123
+	ts := types.TimeSlot(123)
 	extrinsicHash := types.OpaqueHash{}
 	copy(extrinsicHash[:], []byte("extrinsic-hash-32-bytes"))
 

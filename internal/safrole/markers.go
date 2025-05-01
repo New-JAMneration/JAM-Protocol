@@ -50,11 +50,11 @@ func CreateEpochMarker() *types.ErrorCode {
 			Validators:     epochMarkValidatorKeys,
 		}
 
-		s.GetIntermediateHeaderPointer().SetEpochMark(epochMarker)
+		s.GetProcessingBlockPointer().SetEpochMark(epochMarker)
 	} else {
 		// The epoch is the same
 		var epochMarker *types.EpochMark = nil
-		s.GetIntermediateHeaderPointer().SetEpochMark(epochMarker)
+		s.GetProcessingBlockPointer().SetEpochMark(epochMarker)
 	}
 
 	return nil
@@ -86,10 +86,10 @@ func CreateWinningTickets() {
 	if condition1 && condition2 && condition3 {
 		// Z(gamma_a)
 		ticketsMark := types.TicketsMark(OutsideInSequencer(&gammaA))
-		s.GetIntermediateHeaderPointer().SetTicketsMark(&ticketsMark)
+		s.GetProcessingBlockPointer().SetTicketsMark(&ticketsMark)
 	} else {
 		// The epoch is the same
 		var ticketsMark *types.TicketsMark = nil
-		s.GetIntermediateHeaderPointer().SetTicketsMark(ticketsMark)
+		s.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
 	}
 }

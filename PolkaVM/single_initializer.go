@@ -212,18 +212,3 @@ type StandardProgram struct {
 	ProgramBlob ProgramBlob
 	ExitReason  error
 }
-
-func StandardProgramInit(p StandardCodeFormat, a Argument) StandardProgram {
-	programCode, registers, memory, err := SingleInitializer(p, []byte{})
-	if err != nil {
-		return StandardProgram{ExitReason: PVMExitTuple(PANIC, nil)}
-	}
-	programBlob, exitReason := DeBlobProgramCode(programCode)
-	standardProgram := StandardProgram{
-		Memory:      memory,
-		Registers:   registers,
-		ProgramBlob: programBlob,
-		ExitReason:  exitReason,
-	}
-	return standardProgram
-}

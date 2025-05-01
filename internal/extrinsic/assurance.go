@@ -28,12 +28,10 @@ func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) (err error) {
 		return err
 	}
 
-	if err == nil || err.Error() != "bad_validator_index" {
-		err = assurances.ValidateSignature()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
+	err = assurances.ValidateSignature()
+	if err != nil {
+		fmt.Println(err)
+		return err
 	}
 
 	err = assurances.ValidateBitField()
@@ -42,7 +40,7 @@ func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) (err error) {
 		return err
 	}
 
-	assurances.FilterAvailableReports()
+	err = assurances.FilterAvailableReports()
 	if err != nil {
 		fmt.Println(err)
 		return err

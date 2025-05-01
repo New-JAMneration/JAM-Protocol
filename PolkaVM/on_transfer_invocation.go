@@ -69,7 +69,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		},
 	}
 
-	result = Psi_M(account.ServiceInfo.CodeHash[:], 10, Gas(gasLimits), serialized, F, addition)
+	result = Psi_M(account.ServiceInfo.CodeHash[:], 10, gasLimits, serialized, F, addition)
 	account = result.Addition.ServiceAccount
 
 	return account, types.Gas(result.Gas)
