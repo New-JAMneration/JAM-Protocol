@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"log"
+	"maps"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -169,4 +170,35 @@ func ProcessPreimageExtrinsics() error {
 	// Update new double-dagger to posterior state
 	s.GetPosteriorStates().SetDelta(newDeltaDoubleDagger)
 	return nil
+}
+
+// Provide is the preimage integration function (different from IntegratePreimage despite re-using the word "integrate")
+// It transforms a dictionary of service states and a set of service/hash pairs into a new dictionary of service states.
+// (map[N_s]A, (N_s, Y)) -> map[N_s]A
+// v0.6.5 (12.18)
+func Provide(d types.ServiceAccountState, eps types.PreimagesExtrinsic) (types.ServiceAccountState, error) {
+	dPrime := maps.Clone(d)
+
+	for _, preimage := range eps {
+		serviceId := preimage.Requester
+		serviceAccount, found := d[serviceId]
+		if !found {
+			continue
+		}
+
+		lookupKey := types.LookupMetaMapkey{
+			Hash:   hash.Blake2bHash(preimage.Blob),
+			Length: types.U32(len(preimage.Blob)),
+		}
+		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; found && len(timeSlotSet) > 0 {
+			continue
+		}
+
+		tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
+		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
+		serviceAccount.PreimageLookup[lookupKey.Hash] = preimage.Blob
+		dPrime[serviceId] = serviceAccount
+	}
+
+	return dPrime, nil
 }
