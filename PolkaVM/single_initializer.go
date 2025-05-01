@@ -18,8 +18,9 @@ func Z(x int) uint32 {
 	return ZZ * ((uint32(x) + ZZ - 1) / ZZ)
 }
 
+// A.36 Y func
 func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Registers, Memory, error) {
-	c, o, w, z, s, err := DecodeSerializedValues(p)
+	c, o, w, z, s, a, err := DecodeSerializedValues(p)
 	if err != nil {
 		return nil, Registers{}, Memory{}, err
 	}
@@ -100,52 +101,58 @@ func allocateStack(mem *Memory, start, end uint32) {
 	}
 }
 
-func DecodeSerializedValues(p []byte) ([]byte, []byte, []byte, uint16, uint32, error) {
+func DecodeSerializedValues(p []byte) ([]byte, []byte, []byte, uint16, uint32, []byte, error) {
 	var err error
 
 	var oLen, wLen, cLen uint64
 	oLen, p, err = ReadUintFixed(p, 3)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 	wLen, p, err = ReadUintFixed(p, 3)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
 	var z uint64
 	var s uint64
 	z, p, err = ReadUintFixed(p, 2)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 	s, p, err = ReadUintFixed(p, 3)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
 	var o, w, c []byte
 	o, p, err = ReadBytes(p, oLen)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
 	w, p, err = ReadBytes(p, wLen)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
 	cLen, p, err = ReadUintFixed(p, 4)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
 	c, p, err = ReadBytes(p, cLen)
 	if err != nil {
-		return nil, nil, nil, 0, 0, err
+		return nil, nil, nil, 0, 0, nil, err
 	}
 
-	return c, o, w, uint16(z), uint32(s), nil
+	var a []byte // argument data v0.6.5
+	a, p, err = ReadBytes(p, uint64(len(p)))
+	if err != nil {
+		return nil, nil, nil, 0, 0, nil, err
+	}
+
+	return c, o, w, uint16(z), uint32(s), a, nil
 }
 
 func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
