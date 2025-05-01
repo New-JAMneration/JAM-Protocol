@@ -56,6 +56,30 @@ func LoadDisputesTestCase(filename string) (jamtests.DisputeTestCase, error) {
 	return testCases, nil
 }
 
+func GetTestJsonFiles(dir string) []string {
+	jsonFiles := []string{}
+
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	files, err := f.Readdir(-1)
+	if err != nil {
+		return nil
+	}
+
+	extension := ".json"
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == extension {
+			jsonFiles = append(jsonFiles, file.Name())
+		}
+	}
+
+	return jsonFiles
+}
+
 func TestDisputes(t *testing.T) {
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
