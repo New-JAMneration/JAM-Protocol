@@ -150,3 +150,5 @@ const (
 
 // Auditing (17.16)
 const BiasFactor = 2
+
+const SegmentErasureTTL = 28 * 24 * time.Hour // 28 days
