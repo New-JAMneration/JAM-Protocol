@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -17,7 +16,8 @@ func NewSegmentErasureMap(client *RedisClient) *SegmentErasureMap {
 
 func (s *SegmentErasureMap) Save(segmentRoot, erasureRoot types.OpaqueHash) error {
 	key := "segment_erasure:" + hex.EncodeToString(segmentRoot[:])
-	return s.client.Put(key, erasureRoot[:])
+	ttl := types.SegmentErasureTTL
+	return s.client.PutWithTTL(key, erasureRoot[:], ttl)
 }
 
 func (s *SegmentErasureMap) Get(segmentRoot types.OpaqueHash) (types.OpaqueHash, error) {
@@ -27,7 +27,8 @@ func (s *SegmentErasureMap) Get(segmentRoot types.OpaqueHash) (types.OpaqueHash,
 		return types.OpaqueHash{}, err
 	}
 	if val == nil {
-		return types.OpaqueHash{}, fmt.Errorf("segmentRoot not found")
+		// No value found for the given key
+		return types.OpaqueHash{}, nil
 	}
 
 	var erasureRoot types.OpaqueHash

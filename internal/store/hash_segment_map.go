@@ -2,6 +2,11 @@ package store
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -14,48 +19,68 @@ func NewHashSegmentMap(client *RedisClient) *HashSegmentMap {
 	return &HashSegmentMap{client: client}
 }
 
-// 14.12 L(r)
-func (d *HashSegmentMap) Lookup(possiblyMarkedRoot types.OpaqueHash) types.OpaqueHash {
-	key := "segment_lookup:" + hex.EncodeToString(possiblyMarkedRoot[:])
-	val, err := d.client.Get(key)
-	if err != nil || val == nil {
-		return possiblyMarkedRoot
-	}
-	var segmentRoot types.OpaqueHash
-	copy(segmentRoot[:], val)
-	return segmentRoot
+/*
+example map:
+{
+	"1697123456_wpHashA": "segmentRootA",
+	"1697123460_wpHashB": "segmentRootB",
 }
+*/
 
-func (d *HashSegmentMap) Set(workPackageHash, segmentRoot types.OpaqueHash) error {
-	key := "segment_lookup:" + hex.EncodeToString(workPackageHash[:])
-	return d.client.Put(key, segmentRoot[:])
-}
+// dict length <= 8
+func (h *HashSegmentMap) SaveWithLimit(wpHash, segmentRoot types.OpaqueHash) error {
+	key := "segment_dict"
+	existingBytes, err := h.client.Get(key)
+	dict := make(map[string]string)
 
-func (d *HashSegmentMap) SetWithLimit(workPackageHash, segmentRoot types.OpaqueHash) error {
-	key := "segment_lookup:" + hex.EncodeToString(workPackageHash[:])
-	if err := d.client.Put(key, segmentRoot[:]); err != nil {
-		return err
+	if err == nil && existingBytes != nil {
+		json.Unmarshal(existingBytes, &dict)
 	}
 
-	indexKey := "segment_lookup:index"
-	hashHex := hex.EncodeToString(workPackageHash[:])
-	if err := d.client.SAdd(indexKey, []byte(hashHex)); err != nil {
-		return err
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	dict[timestamp+"_"+hex.EncodeToString(wpHash[:])] = hex.EncodeToString(segmentRoot[:])
+
+	if len(dict) > 8 {
+		var keys []string
+		for k := range dict {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		delete(dict, keys[0])
 	}
 
-	members, err := d.client.SMembers(indexKey)
+	encoded, err := json.Marshal(dict)
 	if err != nil {
 		return err
 	}
-	if len(members) > 8 {
-		oldest := members[0]
-		if err := d.client.SRem(indexKey, oldest); err != nil {
-			return err
-		}
-		deleteKey := "segment_lookup:" + string(oldest)
-		if err := d.client.Delete(deleteKey); err != nil {
-			return err
-		}
+	return h.client.Put(key, encoded)
+}
+
+func (h *HashSegmentMap) LoadDict() (map[types.OpaqueHash]types.OpaqueHash, error) {
+	key := "segment_dict"
+	result := make(map[types.OpaqueHash]types.OpaqueHash)
+
+	data, err := h.client.Get(key)
+	if err != nil || data == nil {
+		return result, err
 	}
-	return nil
+
+	var raw map[string]string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	for k, v := range raw {
+		parts := strings.SplitN(k, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		var wpHash, segmentRoot types.OpaqueHash
+		wpBytes, _ := hex.DecodeString(parts[1])
+		rootBytes, _ := hex.DecodeString(v)
+		copy(wpHash[:], wpBytes)
+		copy(segmentRoot[:], rootBytes)
+		result[wpHash] = segmentRoot
+	}
+	return result, nil
 }
