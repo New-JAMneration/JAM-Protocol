@@ -1711,7 +1711,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 
 	segmentLength := input.Addition.ExportSegmentOffset + uint(len(input.Addition.ExportSegment))
 	// otherwise if ζ + |e| >= W_M
-	if segmentLength > types.MaxSegments {
+	if segmentLength > types.MaxExportCount {
 		input.Registers[7] = FULL
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
