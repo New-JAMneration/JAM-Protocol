@@ -26,7 +26,7 @@ func GetQ() []*types.WorkReport {
 	rho := store.GetPriorStates().GetRho()
 
 	// W: Available work reports
-	W := store.GetAvailableWorkReportsPointer().GetAvailableWorkReports()
+	W := store.GetIntermediateStates().GetAvailableWorkReports()
 
 	// Create a set of available work package hashes
 	available := make(map[types.WorkPackageHash]bool)
@@ -144,11 +144,11 @@ func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex types.Validator
 // (17.8) let n = (T − P ⋅ Ht) / A
 // GetTranchIndex computes tranche index from wall-clock time and block slot
 func GetTranchIndex() types.U64 {
-	T := types.U64(header.GetCurrentTimeInSecond())                   // T current time (seconds)
-	Ht := types.U64(store.GetInstance().GetIntermediateHeader().Slot) // Ht slot number from block header
-	P := types.U64(types.SlotPeriod)                                  // P: seconds per slot
-	A := types.U64(types.TranchePeriod)                               // A: seconds per tranche
-	n := (T - P*Ht) / A                                               // n = (T - P ⋅ Ht) / A
+	T := types.U64(header.GetCurrentTimeInSecond())                            // T current time (seconds)
+	Ht := types.U64(store.GetInstance().GetProcessingBlockPointer().GetSlot()) // Ht slot number from block header
+	P := types.U64(types.SlotPeriod)                                           // P: seconds per slot
+	A := types.U64(types.TranchePeriod)                                        // A: seconds per tranche
+	n := (T - P*Ht) / A                                                        // n = (T - P ⋅ Ht) / A
 	return n
 }
 
@@ -179,7 +179,7 @@ func BuildAnnouncement(
 	XI := types.ByteSequence(types.JamAnnounce[:])
 
 	// Get H(H): hash of the intermediate header
-	header := store.GetInstance().GetIntermediateHeader()
+	header := store.GetInstance().GetProcessingBlockPointer().GetHeader()
 	headerHash := hashFunc(utilities.HeaderSerialization(header))
 
 	// (17.9) context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
@@ -244,7 +244,7 @@ func GetYHv() ([]byte, error) {
 	// Compute Y(Hᵥ) — entropy hashed by block author's key
 	store := store.GetInstance()
 	priorStates := store.GetPriorStates()
-	header := store.GetIntermediateHeader()
+	header := store.GetProcessingBlockPointer().GetHeader()
 	authorKey := priorStates.GetKappa()[header.AuthorIndex].Bandersnatch
 	authorVRF, err := safrole.CreateVRFHandler(authorKey)
 	if err != nil {
