@@ -194,10 +194,14 @@ var HostCallFunctions = [29]Omega{
 	24: void,
 	25: invoke,
 	26: expunge,
+<<<<<<< HEAD
 =======
 
 	27: provide,
 >>>>>>> e8b6214 (PVM update v0.6.5)
+=======
+	27: provide,
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 }
 
 func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
@@ -1518,8 +1522,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var codeHash types.OpaqueHash
-	codeHash = types.OpaqueHash(input.Memory.Read(h, offset))
+	codeHash := types.OpaqueHash(input.Memory.Read(h, offset))
 
 	// assign a
 	var a types.ServiceAccount

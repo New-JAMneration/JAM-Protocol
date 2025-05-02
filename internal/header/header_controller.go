@@ -78,11 +78,15 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error 
 	encoder := types.NewEncoder()
 
 	encoded, err := encoder.EncodeUint(guaranteesLength)
+<<<<<<< HEAD
 >>>>>>> 198805e (refactor guarantee serialization using encode)
+=======
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 	if err != nil {
 		return err
 	}
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 	encodedPreimagesExtrinsic, err := utilities.EncodeExtrinsicPreimages(extrinsic.Preimages)
 	if err != nil {
@@ -94,6 +98,8 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error 
 		return err
 	}
 =======
+=======
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 	g = append(g, encoded...)
 
 	for _, guarantee := range extrinsic.Guarantees {

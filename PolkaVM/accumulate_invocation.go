@@ -94,12 +94,17 @@ func Psi_A(
 		}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 		resultM := Psi_M(StandardCodeFormat(storedCode), 5, gas, Argument(serialized), F, addition)
 		partialState, deferredTransfer, result, gas := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 =======
 		resultM := Psi_M(StandardCodeFormat(storedCode), 5, Gas(gas), Argument(serialized), F, addition)
 		partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 >>>>>>> e8b6214 (PVM update v0.6.5)
+=======
+		resultM := Psi_M(StandardCodeFormat(storedCode), 5, types.Gas(gas), Argument(serialized), F, addition)
+		partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 			ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 			ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
 		})
