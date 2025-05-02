@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func SerializeByteSequence(input []byte) (output types.ByteSequence) {
@@ -41,6 +42,24 @@ func ExtrinsicTicketSerialization(tickets types.TicketsExtrinsic) (output types.
 	return output
 }
 
+func EncodeExtrinsicTickets(tickets types.TicketsExtrinsic) (output types.ByteSequence, err error) {
+	/*
+	   (C.14) E(↕ET)
+	*/
+	encoder := types.NewEncoder()
+
+	// Encode the tickets
+	encodedTickets, err := encoder.Encode(&tickets)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append the encoded tickets to the output
+	output = append(output, encodedTickets...)
+
+	return output, nil
+}
+
 func ExtrinsicPreimageSerialization(preimages types.PreimagesExtrinsic) (output types.ByteSequence) {
 	/*
 		(C.15) E(↕[s, ↕p])
@@ -57,6 +76,24 @@ func ExtrinsicPreimageSerialization(preimages types.PreimagesExtrinsic) (output 
 		output = append(output, SerializeByteSequence(preimage.Blob[:])...)
 	}
 	return output
+}
+
+func EncodeExtrinsicPreimages(preimages types.PreimagesExtrinsic) (output types.ByteSequence, err error) {
+	/*
+	   (C.15) E(↕[s, ↕p])
+	*/
+	encoder := types.NewEncoder()
+
+	// Encode the preimages
+	encodedPreimages, err := encoder.Encode(&preimages)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append the encoded preimages to the output
+	output = append(output, encodedPreimages...)
+
+	return output, nil
 }
 
 // INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
@@ -84,6 +121,66 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 	return output
 }
 
+// g (5.6)
+// INFO: This is different between Appendix C (C.16) and (5.6).
+func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
+	encoder := types.NewEncoder()
+
+	encoded := []byte{}
+
+	// Encode the length of the guarantees
+	guaranteesLength := uint64(len(guaranteesExtrinsic))
+	encodedLength, err := encoder.EncodeUint(guaranteesLength)
+	if err != nil {
+		return nil, err
+	}
+
+	encoded = append(encoded, encodedLength...)
+
+	for _, guarantee := range guaranteesExtrinsic {
+		// encode the w
+		encodedReport, err := encoder.Encode(&guarantee.Report)
+		if err != nil {
+			return nil, err
+		}
+
+		// hash the encoded report
+		reportHash := hash.Blake2bHash(types.ByteSequence(encodedReport))
+		encoded = append(encoded, reportHash[:]...)
+
+		// encode the t (slot)
+		encodedSlot, err := encoder.Encode(&(guarantee.Slot))
+		if err != nil {
+			return nil, err
+		}
+
+		encoded = append(encoded, encodedSlot...)
+
+		// encode the length of the guarantee.a
+		signaturesLength := uint64(len(guarantee.Signatures))
+		encodedSignaturesLength, err := encoder.EncodeUint(signaturesLength)
+		if err != nil {
+			return nil, err
+		}
+		encoded = append(encoded, encodedSignaturesLength...)
+
+		// encode the guarantee.a
+		for _, signature := range guarantee.Signatures {
+			encodedSignature, err := encoder.Encode(&signature)
+			if err != nil {
+				return nil, err
+			}
+			encoded = append(encoded, encodedSignature...)
+		}
+	}
+
+	return encoded, nil
+}
+
+func EncodeExtrinsicGuarantees(guarantees types.GuaranteesExtrinsic) (output types.ByteSequence, err error) {
+	return g(guarantees)
+}
+
 func ExtrinsicAssuranceSerialization(assurances types.AssurancesExtrinsic) (output types.ByteSequence) {
 	/*
 		(C.17) ↕[a, f, E2(v), s]
@@ -101,6 +198,24 @@ func ExtrinsicAssuranceSerialization(assurances types.AssurancesExtrinsic) (outp
 		output = append(output, SerializeByteSequence(assurance.Signature[:])...)
 	}
 	return output
+}
+
+func EncodeExtrinsicAssurances(assurances types.AssurancesExtrinsic) (output types.ByteSequence, err error) {
+	/*
+	   (C.17) ↕[a, f, E2(v), s]
+	*/
+	encoder := types.NewEncoder()
+
+	// Encode the assurances
+	encodedAssurances, err := encoder.Encode(&assurances)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append the encoded assurances to the output
+	output = append(output, encodedAssurances...)
+
+	return output, nil
 }
 
 func ExtrinsicDisputeSerialization(disputes types.DisputesExtrinsic) (output types.ByteSequence) {
@@ -146,6 +261,24 @@ func ExtrinsicDisputeSerialization(disputes types.DisputesExtrinsic) (output typ
 		output = append(output, SerializeByteSequence(fault.Signature[:])...)
 	}
 	return output
+}
+
+func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.ByteSequence, err error) {
+	/*
+	   (C.18) E(↕[(r, E4(a), [(v, E2(i), s)]] , ↕c, ↕f)
+	*/
+	encoder := types.NewEncoder()
+
+	// Encode the disputes
+	encodedDisputes, err := encoder.Encode(&disputes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Append the encoded disputes to the output
+	output = append(output, encodedDisputes...)
+
+	return output, nil
 }
 
 func HeaderSerialization(header types.Header) (output types.ByteSequence) {
