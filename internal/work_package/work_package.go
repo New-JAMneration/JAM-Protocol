@@ -11,168 +11,6 @@ import (
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
-// Xi (14.11)
-func workResultCompute(workPackage types.WorkPackage, coreIndex types.CoreIndex, pa types.OpaqueHash, pc types.ByteSequence, extrinsicMap PolkaVM.ExtrinsicDataMap, importSegments [][]types.ExportSegment, delta types.ServiceAccountState, lookup types.SegmentRootLookup, workPackgeBundle []byte) (types.WorkReport, error) {
-	returnType := PolkaVM.Psi_I(workPackage, coreIndex, pc)
-	if returnType.WorkExecResult != types.WorkExecResultOk {
-		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
-	}
-	o := returnType.WorkOutput
-	g := returnType.Gas
-
-	var results []types.WorkResult
-	var exports [][]types.ExportSegment
-
-	for j, item := range workPackage.Items {
-		r, u, e := I(workPackage, j, o, importSegments, extrinsicMap, delta)
-		result := C(item, r, u)
-		results = append(results, result)
-		exports = append(exports, e)
-	}
-
-	encoder := types.NewEncoder()
-	encodedWorkPackage, err := encoder.Encode(&workPackage)
-	if err != nil {
-		return types.WorkReport{}, fmt.Errorf("failed to encode work package: %w", err)
-	}
-	workPackageHash := hash.Blake2bHash(encodedWorkPackage)
-	var exportsData []types.ExportSegment
-	for _, export := range exports {
-		exportsData = append(exportsData, export...)
-	}
-	s, err := A(workPackageHash, workPackgeBundle, exportsData)
-	if err != nil {
-		return types.WorkReport{}, fmt.Errorf("failed to create work package spec: %w", err)
-	}
-
-	return types.WorkReport{
-		PackageSpec:       s,
-		Context:           workPackage.Context,
-		CoreIndex:         coreIndex,
-		AuthorizerHash:    pa,
-		AuthOutput:        o,
-		SegmentRootLookup: lookup,
-		Results:           results,
-		AuthGasUsed:       types.U64(g),
-	}, nil
-}
-
-// (14.16)
-func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []types.ExportSegment) (types.WorkPackageSpec, error) {
-	var exports []types.ByteSequence
-	for _, export := range exportsData {
-		exports = append(exports, types.ByteSequence(export[:]))
-	}
-	exportsRoot := merkle_tree.M(exports, hash.Blake2bHash)
-	erasureRoot, err := computeErasureRoot(workPackgeBundle, exportsData)
-	if err != nil {
-		return types.WorkPackageSpec{}, fmt.Errorf("failed to compute erasure root: %w", err)
-	}
-	return types.WorkPackageSpec{
-		Hash:         types.WorkPackageHash(workPackageHash),
-		Length:       types.U32(len(workPackgeBundle)),
-		ErasureRoot:  types.ErasureRoot(erasureRoot),
-		ExportsRoot:  types.ExportsRoot(exportsRoot),
-		ExportsCount: types.U16(len(exportsData)),
-	}, nil
-}
-
-func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
-	bcloud, err := buildBCloud(bundle)
-	if err != nil {
-		return types.OpaqueHash{}, err
-	}
-
-	scloud, err := buildSCloud(exportsData)
-	if err != nil {
-		return types.OpaqueHash{}, err
-	}
-
-	erasureRoot := mergeBCloudSCloud(bcloud, scloud)
-	return erasureRoot, nil
-}
-
-func buildBCloud(bundle []byte) ([]types.OpaqueHash, error) {
-	padded := PadToMultiple(bundle, types.ECBasicSize)
-
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundle)+683)/684)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
-	shards, err := ec.Encode(padded)
-	if err != nil {
-		return nil, err
-	}
-
-	hashedShards := make([]types.OpaqueHash, len(shards))
-	for i, shard := range shards {
-		hashedShards[i] = hash.Blake2bHash(types.ByteSequence(shard))
-	}
-
-	return hashedShards, nil
-}
-
-func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
-	pagedProof, err := PagedProofs(exports)
-	if err != nil {
-		return nil, err
-	}
-	fullSegments := append(exports, pagedProof...)
-
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, 6)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
-
-	groupShards := make([][][]byte, len(fullSegments))
-	for i := range fullSegments {
-		shards, err := ec.Encode(fullSegments[i][:])
-		if err != nil {
-			return nil, err
-		}
-		groupShards[i] = shards
-	}
-
-	transposed := Transpose(groupShards)
-
-	merkleResult := make([]types.OpaqueHash, len(transposed))
-	for i := range transposed {
-		byteSequences := make([]types.ByteSequence, len(transposed[i]))
-		for j, shard := range transposed[i] {
-			byteSequences[j] = types.ByteSequence(shard)
-		}
-		merkleResult[i] = merkle_tree.Mb(byteSequences, hash.Blake2bHash)
-	}
-
-	return merkleResult, nil
-}
-
-func mergeBCloudSCloud(bcloud []types.OpaqueHash, scloud []types.OpaqueHash) types.OpaqueHash {
-	merged := make([]types.ByteSequence, len(bcloud))
-	for i := range bcloud {
-		pair := append(bcloud[i][:], scloud[i][:]...)
-		merged[i] = types.ByteSequence(pair)
-	}
-	return merkle_tree.Mb(merged, hash.Blake2bHash)
-}
-
-func Transpose[T any](input [][]T) [][]T {
-	if len(input) == 0 || len(input[0]) == 0 {
-		return [][]T{}
-	}
-
-	rows := len(input)
-	cols := len(input[0])
-	output := make([][]T, cols)
-	for i := range output {
-		output[i] = make([]T, rows)
-		for j := range input {
-			output[i][j] = input[j][i]
-		}
-	}
-	return output
-}
-
 // (14.9)
 func VerifyAuthorization(wp *types.WorkPackage, delta types.ServiceAccountState) (types.OpaqueHash, types.ByteSequence, types.ByteSequence, error) {
 	pa := hash.Blake2bHash(append(wp.Authorizer.CodeHash[:], wp.Authorizer.Params[:]...))
@@ -219,6 +57,125 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (Po
 	return result, nil
 }
 
+// (14.15) second param: E(p,X#(pw),S#(pw),J#(pw))
+func buildWorkPackageBundle(
+	wp *types.WorkPackage,
+	extrinsicMap PolkaVM.ExtrinsicDataMap,
+	importSegments types.ExportSegmentMatrix,
+	importProofs types.OpaqueHashMatrix,
+) ([]byte, error) {
+	var extrinsics types.ExtrinsicDataList
+	for _, item := range wp.Items {
+		for _, extrinsic := range item.Extrinsic {
+			extrinsics = append(extrinsics, types.ExtrinsicData(extrinsicMap[extrinsic.Hash]))
+		}
+	}
+
+	bundle := types.WorkPackageBundle{
+		Package:        *wp,
+		Extrinsics:     extrinsics,
+		ImportSegments: importSegments,
+		ImportProofs:   importProofs,
+	}
+	output := []byte{}
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&bundle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode work package bundle: %w", err)
+	}
+	output = append(output, encoded...)
+
+	return output, nil
+}
+
+// Xi (14.11)
+func WorkReportCompute(
+	workPackage *types.WorkPackage,
+	coreIndex types.CoreIndex,
+	pa types.OpaqueHash,
+	pc types.ByteSequence,
+	extrinsicMap PolkaVM.ExtrinsicDataMap,
+	importSegments [][]types.ExportSegment,
+	delta types.ServiceAccountState,
+	workPackgeBundle []byte,
+	workPackageHash types.OpaqueHash,
+	pvm PVMExecutor,
+) (types.WorkReport, error) {
+	returnType := pvm.Psi_I(*workPackage, coreIndex, pc)
+	if returnType.WorkExecResult != types.WorkExecResultOk {
+		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
+	}
+	o := returnType.WorkOutput
+	g := returnType.Gas
+
+	var results []types.WorkResult
+	var exports [][]types.ExportSegment
+
+	for j, item := range workPackage.Items {
+		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm)
+		result := C(item, r, u)
+		results = append(results, result)
+		exports = append(exports, e)
+	}
+
+	var exportsData []types.ExportSegment
+	for _, export := range exports {
+		exportsData = append(exportsData, export...)
+	}
+	s, err := A(workPackageHash, workPackgeBundle, exportsData)
+	if err != nil {
+		return types.WorkReport{}, fmt.Errorf("failed to create work package spec: %w", err)
+	}
+	return types.WorkReport{
+		PackageSpec:    s,
+		Context:        workPackage.Context,
+		CoreIndex:      coreIndex,
+		AuthorizerHash: pa,
+		AuthOutput:     o,
+		Results:        results,
+		AuthGasUsed:    types.U64(g),
+	}, nil
+}
+
+func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PolkaVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
+	workItem := workPackage.Items[j]
+	expectedCount := workItem.ExportCount
+	lSum := types.U16(0)
+	for k := 0; k < j; k++ {
+		lSum += workPackage.Items[k].ExportCount
+	}
+
+	refineInput := PolkaVM.RefineInput{
+		WorkItemIndex:       uint(j),
+		WorkPackage:         workPackage,
+		AuthOutput:          o,
+		ImportSegments:      imports,
+		ExportSegmentOffset: uint(lSum),
+		ServiceAccounts:     delta,
+		ExtrinsicDataMap:    extrinsicMap,
+	}
+
+	refineOuput := pvm.RefineInvoke(refineInput)
+	r := refineOuput.RefineOutput
+	e := refineOuput.ExportSegment
+	u := refineOuput.Gas
+	if len(e) == int(expectedCount) {
+		return types.WorkExecResult{
+			refineOuput.WorkResult: r,
+		}, u, e
+	} else if refineOuput.WorkResult != types.WorkExecResultOk {
+		emptyExport := make([]types.ExportSegment, expectedCount)
+		return types.WorkExecResult{
+			refineOuput.WorkResult: r,
+		}, u, emptyExport
+	} else {
+		emptyExport := make([]types.ExportSegment, expectedCount)
+		return types.WorkExecResult{
+			types.WorkExecResultBadExports: nil,
+		}, u, emptyExport
+	}
+}
+
 // C (14.8)
 func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.WorkResult {
 	payloadHash := hash.Blake2bHash(item.Payload)
@@ -242,6 +199,116 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 			Exports:        zSum,
 		},
 	}
+}
+
+// A (14.16)
+func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []types.ExportSegment) (types.WorkPackageSpec, error) {
+	var exports []types.ByteSequence
+	for _, export := range exportsData {
+		exports = append(exports, types.ByteSequence(export[:]))
+	}
+	exportsRoot := merkle_tree.M(exports, hash.Blake2bHash)
+	erasureRoot, err := computeErasureRoot(workPackgeBundle, exportsData)
+	if err != nil {
+		return types.WorkPackageSpec{}, fmt.Errorf("failed to compute erasure root: %w", err)
+	}
+	return types.WorkPackageSpec{
+		Hash:         types.WorkPackageHash(workPackageHash),
+		Length:       types.U32(len(workPackgeBundle)),
+		ErasureRoot:  types.ErasureRoot(erasureRoot),
+		ExportsRoot:  types.ExportsRoot(exportsRoot),
+		ExportsCount: types.U16(len(exportsData)),
+	}, nil
+}
+
+func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
+	bcloud, err := buildBCloud(bundle)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	scloud, err := buildSCloud(exportsData)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	erasureRoot := mergeBCloudSCloud(bcloud, scloud)
+	return erasureRoot, nil
+}
+
+func buildBCloud(bundle []byte) ([]types.OpaqueHash, error) {
+	padded := PadToMultiple(bundle, types.ECBasicSize)
+
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundle)+683)/684)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+	shards, err := ec.Encode(padded)
+	if err != nil {
+		return nil, err
+	}
+
+	hashedShards := make([]types.OpaqueHash, len(shards))
+	for i, shard := range shards {
+		hashedShards[i] = hash.Blake2bHash(types.ByteSequence(shard))
+	}
+
+	return hashedShards, nil
+}
+
+func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
+	pagedProof, err := PagedProofs(exports)
+	if err != nil {
+		return nil, err
+	}
+	fullSegments := append(exports, pagedProof...)
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, 6)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+
+	groupShards := make([][][]byte, len(fullSegments))
+	for i := range fullSegments {
+		shards, err := ec.Encode(fullSegments[i][:])
+		if err != nil {
+			return nil, err
+		}
+		groupShards[i] = shards
+	}
+	transposed := Transpose(groupShards)
+	merkleResult := make([]types.OpaqueHash, len(transposed))
+	for i := range transposed {
+		byteSequences := make([]types.ByteSequence, len(transposed[i]))
+		for j, shard := range transposed[i] {
+			byteSequences[j] = types.ByteSequence(shard)
+		}
+		merkleResult[i] = merkle_tree.Mb(byteSequences, hash.Blake2bHash)
+	}
+	return merkleResult, nil
+}
+
+func mergeBCloudSCloud(bcloud []types.OpaqueHash, scloud []types.OpaqueHash) types.OpaqueHash {
+	merged := make([]types.ByteSequence, len(bcloud))
+	for i := range bcloud {
+		pair := append(bcloud[i][:], scloud[i][:]...)
+		merged[i] = types.ByteSequence(pair)
+	}
+	return merkle_tree.Mb(merged, hash.Blake2bHash)
+}
+
+func Transpose[T any](input [][]T) [][]T {
+	if len(input) == 0 || len(input[0]) == 0 {
+		return [][]T{}
+	}
+
+	rows := len(input)
+	cols := len(input[0])
+	output := make([][]T, cols)
+	for i := range output {
+		output[i] = make([]T, rows)
+		for j := range input {
+			output[i][j] = input[j][i]
+		}
+	}
+	return output
 }
 
 // (14.10)
@@ -280,42 +347,13 @@ func PadToMultiple(x []byte, n int) []byte {
 	return append(x, padding...)
 }
 
-func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PolkaVM.ExtrinsicDataMap, delta types.ServiceAccountState) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
-	workItem := workPackage.Items[j]
-	expectedCount := workItem.ExportCount
-	lSum := types.U16(0)
-	for k := 0; k < j; k++ {
-		lSum += workPackage.Items[k].ExportCount
+func convertMapToLookup(m map[types.OpaqueHash]types.OpaqueHash) types.SegmentRootLookup {
+	var lookup types.SegmentRootLookup
+	for wpHash, segmentRoot := range m {
+		lookup = append(lookup, types.SegmentRootLookupItem{
+			WorkPackageHash: types.WorkPackageHash(wpHash),
+			SegmentTreeRoot: segmentRoot,
+		})
 	}
-
-	refineInput := PolkaVM.RefineInput{
-		WorkItemIndex:       uint(j),
-		WorkPackage:         workPackage,
-		AuthOutput:          o,
-		ImportSegments:      imports,
-		ExportSegmentOffset: uint(lSum),
-		ServiceAccounts:     delta,
-		ExtrinsicDataMap:    extrinsicMap,
-	}
-
-	refineOuput := PolkaVM.RefineInvoke(refineInput)
-	r := refineOuput.RefineOutput
-	e := refineOuput.ExportSegment
-	u := refineOuput.Gas
-
-	if len(e) == int(expectedCount) {
-		return types.WorkExecResult{
-			refineOuput.WorkResult: r,
-		}, u, e
-	} else if refineOuput.WorkResult != types.WorkExecResultOk {
-		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{
-			refineOuput.WorkResult: r,
-		}, u, emptyExport
-	} else {
-		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{
-			types.WorkExecResultBadExports: nil,
-		}, u, emptyExport
-	}
+	return lookup
 }

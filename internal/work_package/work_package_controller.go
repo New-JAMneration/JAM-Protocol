@@ -1,157 +1,148 @@
 package work_package
 
 import (
-	"encoding/hex"
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-type WorkPackageProcessor interface {
-	Process() error
+type PVMExecutor interface {
+	Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PolkaVM.Psi_I_ReturnType
+	RefineInvoke(input PolkaVM.RefineInput) PolkaVM.RefineOutput
+}
+
+type RealPVMExecutor struct{}
+
+func (e *RealPVMExecutor) Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PolkaVM.Psi_I_ReturnType {
+	return PolkaVM.Psi_I(p, c, code)
+}
+func (e *RealPVMExecutor) RefineInvoke(input PolkaVM.RefineInput) PolkaVM.RefineOutput {
+	return PolkaVM.RefineInvoke(input)
+}
+
+type DASegmentFetcher interface {
+	Fetch(erasureRoot types.OpaqueHash, index types.U16) (types.ExportSegment, []types.OpaqueHash, error)
 }
 
 type WorkPackageController struct {
-	WorkPackage *types.WorkPackage
-}
-
-// NewWorkPackageController creates a new WorkPackageController
-func NewWorkPackageController(workPackage *types.WorkPackage) *WorkPackageController {
-	return &WorkPackageController{
-		WorkPackage: workPackage,
-	}
-}
-
-type InitialPackageProcessor struct {
-	WorkPackageController
+	WorkPackage       *types.WorkPackage
 	CoreIndex         types.CoreIndex
-	Extrinsics        types.ByteSequence
 	ErasureMap        *store.SegmentErasureMap
 	SegmentRootLookup *store.HashSegmentMap
+	PVM               PVMExecutor
+	Fetcher           DASegmentFetcher
+
+	// different guarantors behavior
+	Extrinsics []byte                   // Initial
+	Bundle     *types.WorkPackageBundle // Shared
 }
 
-func NewInitialPackageProcessor(wp *types.WorkPackage, extrinsics []byte) *InitialPackageProcessor {
-	return &InitialPackageProcessor{
-		WorkPackageController: *NewWorkPackageController(wp),
-		Extrinsics:            extrinsics,
+func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
+	return &WorkPackageController{
+		WorkPackage:       wp,
+		CoreIndex:         coreIndex,
+		ErasureMap:        erasureMap,
+		SegmentRootLookup: segmentRootLookup,
+		Extrinsics:        extrinsics,
+		PVM:               &RealPVMExecutor{},
+		Fetcher:           fetcher,
 	}
 }
 
-func (p *InitialPackageProcessor) Process() error {
+func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err := p.WorkPackage.Validate(); err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
 	delta := store.GetInstance().GetPriorStates().GetDelta()
 	pa, _, pc, err := VerifyAuthorization(p.WorkPackage, delta)
 	if err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
 
 	specs := FlattenExtrinsicSpecs(p.WorkPackage)
 	extrinsicMap, err := ExtractExtrinsics(p.Extrinsics, specs)
 	if err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
 
-	importSegments, importProofs, err := p.fetchImportSegments()
+	dict, err := p.SegmentRootLookup.LoadDict()
 	if err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
-
+	importSegments, importProofs, err := p.fetchImportSegments(dict)
+	if err != nil {
+		return types.WorkReport{}, err
+	}
 	// build work package bundle
 	workPackgeBundle, err := buildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
 	if err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
+
+	// Get work package hash
+	encoder := types.NewEncoder()
+	encodedWorkPackage, err := encoder.Encode(p.WorkPackage)
+	if err != nil {
+		return types.WorkReport{}, err
+	}
+	workPackageHash := hash.Blake2bHash(encodedWorkPackage)
 
 	// CE134: send core index, segment lookup dict, wp bundle to other guarantors
 	// and wait for them to send back work report hash and ed25519 signature
 	// two goroutines to two different guarantors
-
-	var lookup types.SegmentRootLookup
-	_, err = workResultCompute(*p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, lookup, workPackgeBundle)
+	report, err := WorkReportCompute(p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackgeBundle, workPackageHash, p.PVM)
 	if err != nil {
-		return err
+		return types.WorkReport{}, err
 	}
+	newDict, err := p.SegmentRootLookup.SaveWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
+	if err != nil {
+		return types.WorkReport{}, err
+	}
+	lookup := convertMapToLookup(newDict)
+	report.SegmentRootLookup = lookup
 
 	// check if work report is same between all the guarantors
 
-	return nil
+	return report, nil
 }
 
-func buildWorkPackageBundle(
-	wp *types.WorkPackage,
-	extrinsicMap PolkaVM.ExtrinsicDataMap,
-	importSegments [][]types.ExportSegment,
-	importProofs [][]types.OpaqueHash,
-) ([]byte, error) {
-	var extrinsics []types.ExtrinsicData
-	for _, item := range wp.Items {
-		for _, extrinsic := range item.Extrinsic {
-			extrinsics = append(extrinsics, types.ExtrinsicData(extrinsicMap[extrinsic.Hash]))
-		}
-	}
+func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
+	var segments types.ExportSegmentMatrix
+	var proofs types.OpaqueHashMatrix
 
-	output := []byte{}
-	encoder := types.NewEncoder()
-	encoded, err := encoder.Encode(&wp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode work package: %w", err)
-	}
-	output = append(output, encoded...)
-	encoded, err = encoder.Encode(&extrinsics)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode extrinsics: %w", err)
-	}
-	output = append(output, encoded...)
-	encoded, err = encoder.Encode(&importSegments)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode import segments: %w", err)
-	}
-	output = append(output, encoded...)
-	encoded, err = encoder.Encode(&importProofs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode import proofs: %w", err)
-	}
-	output = append(output, encoded...)
+	for _, item := range p.WorkPackage.Items {
+		var rowSegments []types.ExportSegment
+		var rowProofs []types.OpaqueHash
 
-	return output, nil
-}
-
-func (p *InitialPackageProcessor) fetchImportSegments() ([][]types.ExportSegment, [][]types.OpaqueHash, error) {
-	lookupDict := p.SegmentRootLookup
-	segmentErasureMap := p.ErasureMap
-	result := make([][]types.ExportSegment, len(p.WorkPackage.Items))
-	proofs := make([][]types.OpaqueHash, len(p.WorkPackage.Items))
-	for itemIndex, item := range p.WorkPackage.Items {
-		var segs []types.ExportSegment
-		var justifications []types.OpaqueHash
-
-		for _, imp := range item.ImportSegments {
-			segmentRoot := lookupDict.Lookup(imp.TreeRoot)
-			erasureRoot, err := segmentErasureMap.Get(segmentRoot)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get erasure root for %s: %w", hex.EncodeToString(segmentRoot[:]), err)
+		for _, spec := range item.ImportSegments {
+			segmentRoot := spec.TreeRoot
+			// L (14.12)
+			if mapped, ok := lookupDict[spec.TreeRoot]; ok {
+				segmentRoot = mapped
 			}
-
-			data, proof, err := fetchFromDA(erasureRoot, imp.Index)
+			erasureRoot, err := p.ErasureMap.Get(segmentRoot)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to fetch data from DA for %s: %w", hex.EncodeToString(erasureRoot[:]), err)
+				return nil, nil, err
 			}
-			segs = append(segs, data...)
-			justifications = append(justifications, proof...)
+			segment, proof, err := p.Fetcher.Fetch(erasureRoot, spec.Index)
+			if err != nil {
+				return nil, nil, err
+			}
+			rowSegments = append(rowSegments, segment)
+			rowProofs = append(rowProofs, proof...)
 		}
 
-		result[itemIndex] = segs
-		proofs[itemIndex] = justifications
+		segments = append(segments, rowSegments)
+		proofs = append(proofs, rowProofs)
 	}
-
-	return result, proofs, nil
+	return segments, proofs, nil
 }
 
-func fetchFromDA(erasureRoot types.OpaqueHash, index types.U16) ([]types.ExportSegment, []types.OpaqueHash, error) {
+// TODO: Change this when implementing CE
+type FakeFetcher struct{}
+
+func (f *FakeFetcher) Fetch(erasureRoot types.OpaqueHash, index types.U16) ([]types.ExportSegment, []types.OpaqueHash, error) {
 	// need to fetch and reconstruct from DA
 	return []types.ExportSegment{}, []types.OpaqueHash{}, nil
 }
