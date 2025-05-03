@@ -12,11 +12,11 @@ This folder contains test data and test vectors copied from various repos, pull 
 
 ### Running all host-call tests
 
-`go test ./PolkaVM -run TestHostCall`
+`go test ./PVM -run TestHostCall`
 
 ### Running a specific test
 
-`go test ./PolkaVM -run TestHostCall/Lookup/hostLookupNONE`
+`go test ./PVM -run TestHostCall/Lookup/hostLookupNONE`
 
 ### Running multiple tests
 
@@ -24,16 +24,16 @@ This folder contains test data and test vectors copied from various repos, pull 
 
 To run all tests on the Info function:
 
-`go test ./PolkaVM -run "TestHostCall/Info"`
+`go test ./PVM -run "TestHostCall/Info"`
 
 To run tests on all general functions:
 
-`go test ./PolkaVM -run "TestHostCall/(Lookup|Info|Read|Write)"`
+`go test ./PVM -run "TestHostCall/(Lookup|Info|Read|Write)"`
 
 To run two Info tests:
 
-`go test ./PolkaVM -run "TestHostCall/Info/hostInfo(NONE|OK)"`
+`go test ./PVM -run "TestHostCall/Info/hostInfo(NONE|OK)"`
 
 To run two tests on two separate functions:
 
-`go test ./PolkaVM -run "TestHostCall/(Info/hostInfoNONE|Lookup/hostLookupNONE)"`
+`go test ./PVM -run "TestHostCall/(Info/hostInfoNONE|Lookup/hostLookupNONE)"`
