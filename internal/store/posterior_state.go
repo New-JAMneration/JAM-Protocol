@@ -434,6 +434,34 @@ func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
 	return s.state.Pi.ValsLast
 }
 
+// Set cores statistics
+func (s *PosteriorStates) SetCoresStatistics(coresStatistics types.CoresStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Cores = coresStatistics
+}
+
+// Get cores statistics
+func (s *PosteriorStates) GetCoresStatistics() types.CoresStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Cores
+}
+
+// Set services statistics
+func (s *PosteriorStates) SetServicesStatistics(servicesStatistics types.ServicesStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Pi.Services = servicesStatistics
+}
+
+// Get services statistics
+func (s *PosteriorStates) GetServicesStatistics() types.ServicesStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Pi.Services
+}
+
 // SetTheta sets the theta value
 func (s *PosteriorStates) SetTheta(theta types.ReadyQueue) {
 	s.mu.Lock()
