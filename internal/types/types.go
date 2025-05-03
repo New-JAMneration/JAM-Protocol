@@ -1605,6 +1605,7 @@ type WorkPackageBundle struct {
 	ImportProofs   OpaqueHashMatrix
 }
 
+
 // v0.6.5
 type ServiceBlob struct {
 	ServiceID ServiceID
