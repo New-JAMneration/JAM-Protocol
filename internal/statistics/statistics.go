@@ -135,7 +135,7 @@ func CalculateDALoad(coreIndex types.CoreIndex, WMap CoreWorkReportMap) types.U3
 		return 0
 	}
 
-	ceilValue := types.U32(math.Ceil(float64(workReport.PackageSpec.ExportsCount) * 65 / 64))
+	ceilValue := types.U32((workReport.PackageSpec.ExportsCount*65 + 63) / 64)
 	output := workReport.PackageSpec.Length + types.SegmentSize*ceilValue
 
 	return output
@@ -156,8 +156,8 @@ func CalculateWorkResults(coreIndex types.CoreIndex, wMap CoreWorkReportMap) Pi_
 		output.ExtrinsicSize += workResult.RefineLoad.ExtrinsicSize
 		output.Exports += workResult.RefineLoad.Exports
 		output.GasUsed += workResult.RefineLoad.GasUsed
-		output.BundleSize = workReport.PackageSpec.Length
 	}
+	output.BundleSize = workReport.PackageSpec.Length
 
 	return output
 }
