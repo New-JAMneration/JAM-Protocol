@@ -1,4 +1,4 @@
-package PolkaVM_test
+package PVM_test
 
 import (
 	"encoding/hex"
@@ -11,36 +11,36 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 const hostCallTestVectorsDir = "../pkg/test_data/host_function/host_function"
 
-var hostCallMap = map[string]PolkaVM.OperationType{
-	"Eject":             PolkaVM.EjectOp,
-	"Export":            PolkaVM.ExportOp,
-	"Expunge":           PolkaVM.ExpungeOp,
-	"Forget":            PolkaVM.ForgetOp,
-	"Historical_lookup": PolkaVM.HistoricalLookupOp,
-	"Import":            PolkaVM.FetchOp, // by process of elimination, Import has to be FetchOp.
-	"Info":              PolkaVM.InfoOp,
-	"Invoke":            PolkaVM.InvokeOp,
-	"Lookup":            PolkaVM.LookupOp,
-	"Machine":           PolkaVM.MachineOp,
-	"New":               PolkaVM.NewOp,
-	"Peek":              PolkaVM.PeekOp,
-	"Poke":              PolkaVM.PokeOp,
-	"Query":             PolkaVM.QueryOp,
-	"Solicit":           PolkaVM.SolicitOp,
-	"Transfer":          PolkaVM.TransferOp,
-	"Upgrade":           PolkaVM.UpgradeOp,
-	"Void":              PolkaVM.VoidOp,
-	"Write":             PolkaVM.WriteOp,
-	"Yield":             PolkaVM.YieldOp,
-	"Zero":              PolkaVM.ZeroOp,
-	"Read":              PolkaVM.ReadOp,
+var hostCallMap = map[string]PVM.OperationType{
+	"Eject":             PVM.EjectOp,
+	"Export":            PVM.ExportOp,
+	"Expunge":           PVM.ExpungeOp,
+	"Forget":            PVM.ForgetOp,
+	"Historical_lookup": PVM.HistoricalLookupOp,
+	"Import":            PVM.FetchOp, // by process of elimination, Import has to be FetchOp.
+	"Info":              PVM.InfoOp,
+	"Invoke":            PVM.InvokeOp,
+	"Lookup":            PVM.LookupOp,
+	"Machine":           PVM.MachineOp,
+	"New":               PVM.NewOp,
+	"Peek":              PVM.PeekOp,
+	"Poke":              PVM.PokeOp,
+	"Query":             PVM.QueryOp,
+	"Solicit":           PVM.SolicitOp,
+	"Transfer":          PVM.TransferOp,
+	"Upgrade":           PVM.UpgradeOp,
+	"Void":              PVM.VoidOp,
+	"Write":             PVM.WriteOp,
+	"Yield":             PVM.YieldOp,
+	"Zero":              PVM.ZeroOp,
+	"Read":              PVM.ReadOp,
 }
 
 func TestHostCall(t *testing.T) {
@@ -103,12 +103,12 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 	t.Logf("successfully loaded file %v", filePath)
 
 	operation := hostCallMap[functionName]
-	omega := PolkaVM.HostCallFunctions[operation]
+	omega := PVM.HostCallFunctions[operation]
 	if omega == nil {
 		t.Skipf("skipping test: %v/%v", functionName, filePath)
 	}
 
-	input := PolkaVM.OmegaInput{
+	input := PVM.OmegaInput{
 		Operation: operation,
 		Gas:       setup.InitialGas,
 		Registers: setup.InitialRegisters.ToRegisters(),
@@ -125,7 +125,7 @@ func testOneCase(t *testing.T, functionName string, filePath string) {
 
 	checkValue(t, "registers", setup.ExpectedRegisters.ToRegisters(), output.NewRegisters)
 	checkMemory(t, setup.ExpectedMemory.ToMemory(false), output.NewMemory)
-	checkValue(t, "gas", PolkaVM.Gas(setup.ExpectedGas), output.NewGas)
+	checkValue(t, "gas", PVM.Gas(setup.ExpectedGas), output.NewGas)
 
 	if len(setup.ExpectedDelta) > 0 {
 		checkValue(t, "delta", setup.ExpectedDelta.ToServiceAccountState(), output.Addition.ServiceAccountState)
@@ -161,7 +161,7 @@ func checkValueExt(t *testing.T, label string, sublabel string, expected any, ac
 	}
 }
 
-func checkMemory(t *testing.T, expected PolkaVM.Memory, actual PolkaVM.Memory) {
+func checkMemory(t *testing.T, expected PVM.Memory, actual PVM.Memory) {
 	for pageNumber, expectedPage := range expected.Pages {
 		actualPage, found := actual.Pages[pageNumber]
 
@@ -178,21 +178,21 @@ func checkMemory(t *testing.T, expected PolkaVM.Memory, actual PolkaVM.Memory) {
 }
 
 type HostCallTestSetup struct {
-	Name              string      `json:"name"`
-	InitialGas        PolkaVM.Gas `json:"initial-gas"`
-	InitialRegisters  Registers   `json:"initial-regs"`
-	InitialMemory     Memory      `json:"initial-memory"`
-	ExpectedGas       PolkaVM.Gas `json:"expected-gas"`
-	ExpectedRegisters Registers   `json:"expected-regs"`
-	ExpectedMemory    Memory      `json:"expected-memory"`
+	Name              string    `json:"name"`
+	InitialGas        PVM.Gas   `json:"initial-gas"`
+	InitialRegisters  Registers `json:"initial-regs"`
+	InitialMemory     Memory    `json:"initial-memory"`
+	ExpectedGas       PVM.Gas   `json:"expected-gas"`
+	ExpectedRegisters Registers `json:"expected-regs"`
+	ExpectedMemory    Memory    `json:"expected-memory"`
 
 	HostCallArgs
 }
 
 type Registers map[string]uint64
 
-func (r *Registers) ToRegisters() PolkaVM.Registers {
-	var result PolkaVM.Registers
+func (r *Registers) ToRegisters() PVM.Registers {
+	var result PVM.Registers
 
 	for registerNumberStr, registerValue := range *r {
 		registerNumber, err := strconv.ParseUint(registerNumberStr, 10, 64)
@@ -214,8 +214,8 @@ type Memory struct {
 	Pages map[string]Page `json:"pages"`
 }
 
-func (m *Memory) ToMemory(fullPage bool) PolkaVM.Memory {
-	pages := make(map[uint32]*PolkaVM.Page)
+func (m *Memory) ToMemory(fullPage bool) PVM.Memory {
+	pages := make(map[uint32]*PVM.Page)
 
 	for pageNumberStr, pageSetup := range m.Pages {
 		pageNumber, err := strconv.ParseUint(pageNumberStr, 10, 32)
@@ -227,7 +227,7 @@ func (m *Memory) ToMemory(fullPage bool) PolkaVM.Memory {
 		pages[uint32(pageNumber)] = &page
 	}
 
-	return PolkaVM.Memory{
+	return PVM.Memory{
 		Pages: pages,
 	}
 }
@@ -237,14 +237,14 @@ type Page struct {
 	Access MemoryAccess `json:"access"`
 }
 
-func (p *Page) ToPage(fullPage bool) PolkaVM.Page {
+func (p *Page) ToPage(fullPage bool) PVM.Page {
 	value := p.Value
 	if fullPage {
-		value = make([]byte, PolkaVM.ZP)
+		value = make([]byte, PVM.ZP)
 		copy(value, p.Value)
 	}
 
-	return PolkaVM.Page{
+	return PVM.Page{
 		Value:  value,
 		Access: p.Access.ToMemoryAccess(),
 	}
@@ -256,16 +256,16 @@ type MemoryAccess struct {
 	Readable     bool `json:"readable"`
 }
 
-func (a *MemoryAccess) ToMemoryAccess() PolkaVM.MemoryAccess {
+func (a *MemoryAccess) ToMemoryAccess() PVM.MemoryAccess {
 	switch {
 	case a.Inaccessible:
-		return PolkaVM.MemoryInaccessible
+		return PVM.MemoryInaccessible
 	case a.Writable: // ignores a.Readable in this case
-		return PolkaVM.MemoryReadWrite
+		return PVM.MemoryReadWrite
 	case a.Readable:
-		return PolkaVM.MemoryReadOnly
+		return PVM.MemoryReadOnly
 	default:
-		return PolkaVM.MemoryInaccessible
+		return PVM.MemoryInaccessible
 	}
 }
 
@@ -275,8 +275,8 @@ type HostCallArgs struct {
 	AccumulateArgs
 }
 
-func (h HostCallArgs) GetHostCallArgs() PolkaVM.HostCallArgs {
-	var result PolkaVM.HostCallArgs
+func (h HostCallArgs) GetHostCallArgs() PVM.HostCallArgs {
+	var result PVM.HostCallArgs
 
 	// General args
 	if h.InitialServiceAccount != nil {
@@ -384,7 +384,7 @@ func recomputeServiceAccountDerivatives(serviceAccount *types.ServiceAccount) {
 	serviceAccount.ServiceInfo.Bytes = derivatives.Bytes
 }
 
-func recomputeResultContextDerivatives(resultContext *PolkaVM.ResultContext) {
+func recomputeResultContextDerivatives(resultContext *PVM.ResultContext) {
 	for serviceID, serviceAccount := range resultContext.PartialState.ServiceAccounts {
 		recomputeServiceAccountDerivatives(&serviceAccount)
 		resultContext.PartialState.ServiceAccounts[serviceID] = serviceAccount
@@ -477,8 +477,8 @@ type XContent struct {
 	Y *CodeHash       `json:"Y"`
 }
 
-func (x XContent) ToResultContext() PolkaVM.ResultContext {
-	var result PolkaVM.ResultContext
+func (x XContent) ToResultContext() PVM.ResultContext {
+	var result PVM.ResultContext
 
 	result.ServiceId = x.S
 	result.PartialState = x.U.ToPartialStateSet()

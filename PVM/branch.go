@@ -1,4 +1,4 @@
-package PolkaVM
+package PVM
 
 func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask) (ExitReasonTypes, ProgramCounter) {
 	switch {
