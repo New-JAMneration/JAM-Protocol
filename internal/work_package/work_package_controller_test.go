@@ -302,7 +302,6 @@ func TestPrepareInputs_Shared(t *testing.T) {
 		},
 	}
 
-	// extrinsics := []byte("abcdef")
 	coreIndex := types.CoreIndex(0)
 
 	// mock PVM

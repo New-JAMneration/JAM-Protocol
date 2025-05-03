@@ -34,8 +34,8 @@ type WorkPackageController struct {
 
 	// different guarantors behavior
 	Extrinsics  []byte             // Initial
+	WorkPackage *types.WorkPackage // Initial
 	Bundle      []byte             // Shared
-	WorkPackage *types.WorkPackage // Shared
 }
 
 func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
@@ -52,7 +52,6 @@ func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *
 
 func NewSharedController(bundle []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex) *WorkPackageController {
 	return &WorkPackageController{
-		// WorkPackage:       wp,
 		CoreIndex:         coreIndex,
 		ErasureMap:        erasureMap,
 		SegmentRootLookup: segmentRootLookup,
