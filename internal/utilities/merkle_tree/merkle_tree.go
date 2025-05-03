@@ -45,7 +45,7 @@ func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHa
 		output = hashFunc(v[0][:])
 		return output
 	} else {
-		return Mb(v, hashFunc) // Use N for multiple elements
+		return N(v, hashFunc).Hash // Use N for multiple elements
 	}
 }
 
