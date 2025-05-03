@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -133,7 +133,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 
 	for serviceId := range deltaDagger {
 		selectionFunctionOutput := selectionFunction(t, serviceId)
-		onTransferInput := PolkaVM.OnTransferInput{
+		onTransferInput := PVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
@@ -141,7 +141,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		}
 
 		// (12.27) x
-		serviceAccount, gas := PolkaVM.OnTransferInvoke(onTransferInput)
+		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
 		// (12.28)
 		deltaDoubleDagger[serviceId] = serviceAccount

@@ -1,4 +1,4 @@
-package PolkaVM
+package PVM
 
 // Memory related constants
 const (
