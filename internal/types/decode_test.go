@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 )
 
@@ -158,5 +160,219 @@ func TestDecodeMetaCode(t *testing.T) {
 		if !reflect.DeepEqual(metaCode, tc.expectedMetaCode) {
 			t.Errorf("Decoded MetaCode does not match expected")
 		}
+	}
+}
+
+func TestExtrinsicData_EncodeDecode(t *testing.T) {
+	original := types.ExtrinsicData([]byte("abcde"))
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&original)
+	if err != nil {
+		t.Fatalf("encode error: %v", err)
+	}
+
+	var decoded types.ExtrinsicData
+	decoder := types.NewDecoder()
+	err = decoder.Decode(encoded, &decoded)
+	if err != nil {
+		t.Errorf("Error decoding ExtrinsicData: %v", err)
+	}
+
+	if !bytes.Equal(original, decoded) {
+		t.Errorf("expected %v, got %v", original, decoded)
+	}
+}
+
+func TestExtrinsicDataList_EncodeDecode(t *testing.T) {
+	original := types.ExtrinsicDataList{
+		[]byte("abc"),
+		[]byte("12345"),
+	}
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&original)
+	if err != nil {
+		t.Fatalf("encode error: %v", err)
+	}
+
+	var decoded types.ExtrinsicDataList
+	decoder := types.NewDecoder()
+	err = decoder.Decode(encoded, &decoded)
+	if err != nil {
+		t.Errorf("Error decoding ExtrinsicDataList: %v", err)
+	}
+
+	if !reflect.DeepEqual(original, decoded) {
+		t.Errorf("decoded ExtrinsicDataList does not match original")
+	}
+}
+
+func TestExportSegmentMatrix_EncodeDecode(t *testing.T) {
+	var seg1, seg2, seg3 types.ExportSegment
+	copy(seg1[:], []byte("seg1"))
+	copy(seg2[:], []byte("seg2"))
+	copy(seg3[:], []byte("seg3"))
+	original := types.ExportSegmentMatrix{
+		{seg1, seg2},
+		{seg3},
+	}
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&original)
+	if err != nil {
+		t.Fatalf("encode error: %v", err)
+	}
+
+	var decoded types.ExportSegmentMatrix
+	decoder := types.NewDecoder()
+	err = decoder.Decode(encoded, &decoded)
+	if err != nil {
+		t.Errorf("Error decoding ExportSegmentMatrix: %v", err)
+	}
+
+	if !reflect.DeepEqual(original, decoded) {
+		t.Errorf("decoded ExportSegmentMatrix does not match original")
+	}
+}
+
+func TestOpaqueHashMatrix_EncodeDecode(t *testing.T) {
+	h1 := types.OpaqueHash{1, 2, 3}
+	h2 := types.OpaqueHash{4, 5, 6}
+	original := types.OpaqueHashMatrix{
+		{h1, h2},
+		{h1},
+	}
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&original)
+	if err != nil {
+		t.Fatalf("encode error: %v", err)
+	}
+
+	var decoded types.OpaqueHashMatrix
+	decoder := types.NewDecoder()
+	err = decoder.Decode(encoded, &decoded)
+	if err != nil {
+		t.Errorf("Error decoding OpaqueHashMatrix: %v", err)
+	}
+
+	if !reflect.DeepEqual(original, decoded) {
+		t.Errorf("decoded OpaqueHashMatrix does not match original")
+	}
+}
+
+func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
+	h1 := types.OpaqueHash{1, 2, 3}
+	seg := types.ExportSegment{}
+	copy(seg[:], []byte("seg"))
+
+	bundle := types.WorkPackageBundle{
+		Package: types.WorkPackage{
+			Authorization: types.ByteSequence{0x01, 0x02, 0x03},
+			AuthCodeHost:  types.ServiceId(1),
+			Authorizer: types.Authorizer{
+				CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
+				Params:   types.ByteSequence{0x07, 0x08, 0x09},
+			},
+			Context: types.RefineContext{
+				Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
+				StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
+				BeefyRoot:        types.BeefyRoot{0x10, 0x11, 0x12},
+				LookupAnchor:     types.HeaderHash{0x13, 0x14, 0x15},
+				LookupAnchorSlot: types.TimeSlot(12345),
+				Prerequisites:    nil,
+			},
+			Items: []types.WorkItem{
+				{
+					Service:            types.ServiceId(1),
+					CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
+					Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
+					RefineGasLimit:     types.Gas(1000),
+					AccumulateGasLimit: types.Gas(2000),
+					ExportCount:        types.U16(3),
+					ImportSegments: []types.ImportSpec{
+						{TreeRoot: types.OpaqueHash{0x1C, 0x1D, 0x1E}, Index: types.U16(1)},
+					},
+					Extrinsic: []types.ExtrinsicSpec{
+						{Hash: hash.Blake2bHash([]byte("abc")), Len: 3},
+						{Hash: hash.Blake2bHash([]byte("def")), Len: 3},
+					},
+				},
+			},
+		},
+		Extrinsics: types.ExtrinsicDataList{
+			[]byte("abc"),
+		},
+		ImportSegments: types.ExportSegmentMatrix{
+			{seg},
+		},
+		ImportProofs: types.OpaqueHashMatrix{
+			{h1},
+		},
+	}
+
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&bundle)
+	if err != nil {
+		t.Fatalf("failed to encode WorkPackageBundle: %v", err)
+	}
+	var decoded types.WorkPackageBundle
+	decoder := types.NewDecoder()
+	err = decoder.Decode(encoded, &decoded)
+	if err != nil {
+		t.Fatalf("failed to decode WorkPackageBundle: %v", err)
+	}
+
+	if !reflect.DeepEqual(bundle, decoded) {
+		t.Errorf("decoded WorkPackageBundle does not match original")
+	}
+}
+
+func TestWorkPackage_EncodeDecode(t *testing.T) {
+	wp := types.WorkPackage{
+		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:  types.ServiceId(1),
+		Authorizer: types.Authorizer{
+			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
+			Params:   types.ByteSequence{0x07, 0x08, 0x09},
+		},
+		Context: types.RefineContext{
+			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
+			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
+			BeefyRoot:        types.BeefyRoot{0x10, 0x11, 0x12},
+			LookupAnchor:     types.HeaderHash{0x13, 0x14, 0x15},
+			LookupAnchorSlot: types.TimeSlot(12345),
+			Prerequisites:    nil,
+		},
+		Items: []types.WorkItem{
+			{
+				Service:            types.ServiceId(1),
+				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
+				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
+				RefineGasLimit:     types.Gas(1000),
+				AccumulateGasLimit: types.Gas(2000),
+				ExportCount:        types.U16(3),
+				ImportSegments: []types.ImportSpec{
+					{TreeRoot: types.OpaqueHash{0x1C, 0x1D, 0x1E}, Index: types.U16(1)},
+				},
+				Extrinsic: []types.ExtrinsicSpec{
+					{Hash: hash.Blake2bHash([]byte("abc")), Len: 3},
+					{Hash: hash.Blake2bHash([]byte("def")), Len: 3},
+				},
+			},
+		},
+	}
+
+	e := types.NewEncoder()
+	encoded, err := e.Encode(&wp)
+	if err != nil {
+		t.Fatalf("failed to encode WorkPackage: %v", err)
+	}
+
+	var decoded types.WorkPackage
+	d := types.NewDecoder()
+	err = d.Decode(encoded, &decoded)
+	if err != nil {
+		t.Fatalf("failed to decode WorkPackage: %v", err)
+	}
+	if !reflect.DeepEqual(wp, decoded) {
+		t.Errorf("decoded WorkPackage does not match original")
 	}
 }

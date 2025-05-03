@@ -255,6 +255,8 @@ func (a AuthQueues) Validate() error {
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
 
 type ExportSegment [SegmentSize]byte
+type ExportSegmentMatrix [][]ExportSegment
+type OpaqueHashMatrix [][]OpaqueHash
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
@@ -1458,4 +1460,12 @@ type AuditPool struct {
 }
 
 type ExtrinsicData []byte
+type ExtrinsicDataList []ExtrinsicData
 type ExtrinsicDataMap map[OpaqueHash]ExtrinsicData
+
+type WorkPackageBundle struct {
+	Package        WorkPackage
+	Extrinsics     ExtrinsicDataList
+	ImportSegments ExportSegmentMatrix
+	ImportProofs   OpaqueHashMatrix
+}
