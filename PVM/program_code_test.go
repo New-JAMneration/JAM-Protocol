@@ -1,5 +1,4 @@
-// nolint:ST1003
-package PolkaVM
+package PVM
 
 import (
 	"io"

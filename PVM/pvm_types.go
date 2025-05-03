@@ -1,4 +1,4 @@
-package PolkaVM
+package PVM
 
 type (
 	Registers      [13]uint64

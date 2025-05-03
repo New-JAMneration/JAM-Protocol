@@ -1,5 +1,5 @@
 // test.go
-package PolkaVM
+package PVM
 
 import (
 	"errors"

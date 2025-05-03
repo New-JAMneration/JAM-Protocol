@@ -1,4 +1,4 @@
-package PolkaVM
+package PVM
 
 import (
 	"encoding/json"

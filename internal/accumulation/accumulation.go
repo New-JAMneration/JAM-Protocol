@@ -3,7 +3,7 @@ package accumulation
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -440,7 +440,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	// τ′: Posterior validator state used by Ψₐ
 	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
-	pvm_result := PolkaVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands, eta0)
+	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands, eta0)
 	output.AccumulationOutput = pvm_result.Result
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
