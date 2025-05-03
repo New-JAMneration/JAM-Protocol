@@ -1,4 +1,4 @@
-package PolkaVM
+package PVM
 
 import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
