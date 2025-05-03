@@ -2976,7 +2976,6 @@ func (s *ExportSegment) Encode(e *Encoder) error {
 	if _, err := e.buf.Write(s[:]); err != nil {
 		return err
 	}
-
 	cLog(Yellow, fmt.Sprintf("ExportSegment: %v", *s))
 	return nil
 }
