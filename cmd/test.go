@@ -16,6 +16,7 @@ var (
 	testSize       string
 	testType       string
 	testFileFormat string
+	testRunSTF     bool
 )
 
 // TestCommand returns the test command
@@ -52,6 +53,12 @@ For example:
 				Usage:        "Test data format (json, binary) - only for jam-test-vectors",
 				DefaultValue: "binary",
 				Destination:  &testFileFormat,
+			},
+			&cli.BooleanFlag{
+				Name:         "stf",
+				Usage:        "Run the whole STF (State Transition Function) instead of partial test",
+				DefaultValue: false,
+				Destination:  &testRunSTF,
 			},
 		},
 		Run: func(args []string) {
@@ -134,7 +141,7 @@ For example:
 
 				// Run the est
 
-				outputErr := runner.Run(data)
+				outputErr := runner.Run(data, testRunSTF)
 				expectedErr := data.ExpectError()
 
 				if expectedErr != nil {
