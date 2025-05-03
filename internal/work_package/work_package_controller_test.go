@@ -100,7 +100,7 @@ func TestFetchImportSegments(t *testing.T) {
 	mockFetcher.AssertExpectations(t)
 }
 
-func TestWorkPackageController_Process(t *testing.T) {
+func TestWorkPackageController_InitialProcess(t *testing.T) {
 	// run miniredis server
 	rdb, err := miniredis.Run()
 	if err != nil {
@@ -215,6 +215,150 @@ func TestWorkPackageController_Process(t *testing.T) {
 	require.Equal(t, report.AuthOutput, types.ByteSequence("auth output"))
 
 	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
+
+	encode := types.NewEncoder()
+	encoded, err := encode.Encode(wp)
+	require.NoError(t, err)
+	workPackageHash := hash.Blake2bHash(encoded)
+	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
+
+	// Check the local map with report
+	dict, err := segmentMap.LoadDict()
+	for _, lookupItem := range report.SegmentRootLookup {
+		key := types.OpaqueHash(lookupItem.WorkPackageHash[:])
+		require.Equal(t, dict[key], lookupItem.SegmentTreeRoot)
+	}
+	require.NoError(t, err)
+	require.Greater(t, len(dict), 0, "segment root dict should be updated")
+
+	// TODO: only check few things now, can check more with test package and report
+}
+
+func TestPrepareInputs_Shared(t *testing.T) {
+	// run miniredis server
+	rdb, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("failed to init miniredis %v:", err)
+	}
+	defer rdb.Close()
+
+	client := store.NewRedisClient(rdb.Addr(), "", 0)
+
+	segmentMap := store.NewHashSegmentMap(client)
+	erasureMap := store.NewSegmentErasureMap(client)
+	erasureMap.Save(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
+	erasureMap.Save(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+
+	inputDelta := types.ServiceAccountState{
+		types.ServiceId(1): {
+			ServiceInfo: types.ServiceInfo{
+				CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
+				Balance:    1000,
+				MinItemGas: types.Gas(100),
+				MinMemoGas: types.Gas(100),
+				Bytes:      types.U64(1),
+				Items:      types.U32(1),
+			},
+			PreimageLookup: nil,
+			LookupDict:     nil,
+			StorageDict:    nil,
+		},
+	}
+	s := store.GetInstance()
+	s.GetPriorStates().SetDelta(inputDelta)
+
+	wp := &types.WorkPackage{
+		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:  types.ServiceId(1),
+		Authorizer: types.Authorizer{
+			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
+			Params:   types.ByteSequence{0x07, 0x08, 0x09},
+		},
+		Context: types.RefineContext{
+			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
+			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
+			BeefyRoot:        types.BeefyRoot{0x10, 0x11, 0x12},
+			LookupAnchor:     types.HeaderHash{0x13, 0x14, 0x15},
+			LookupAnchorSlot: types.TimeSlot(12345),
+			Prerequisites:    nil,
+		},
+		Items: []types.WorkItem{
+			{
+				Service:            types.ServiceId(1),
+				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
+				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
+				RefineGasLimit:     types.Gas(1000),
+				AccumulateGasLimit: types.Gas(2000),
+				ExportCount:        types.U16(1),
+				ImportSegments: []types.ImportSpec{
+					{TreeRoot: types.OpaqueHash{0x01}, Index: 0},
+					{TreeRoot: types.OpaqueHash{0x03}, Index: 1},
+				},
+				Extrinsic: []types.ExtrinsicSpec{
+					{Hash: hash.Blake2bHash([]byte("abc")), Len: 3},
+					{Hash: hash.Blake2bHash([]byte("def")), Len: 3},
+				},
+			},
+		},
+	}
+
+	// extrinsics := []byte("abcdef")
+	coreIndex := types.CoreIndex(0)
+
+	// mock PVM
+	mockPVM := new(MockPVMExecutor)
+	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PolkaVM.Psi_I_ReturnType{
+		WorkExecResult: types.WorkExecResultOk,
+		WorkOutput:     []byte("auth output"),
+		Gas:            types.Gas(10),
+	})
+	mockPVM.On("RefineInvoke", mock.Anything).Return(PolkaVM.RefineOutput{
+		WorkResult:   types.WorkExecResultOk,
+		RefineOutput: []byte("refine output"),
+		ExportSegment: []types.ExportSegment{
+			[4104]byte{0x1F, 0x20, 0x21},
+		},
+		Gas: types.Gas(10),
+	})
+
+	extrinsics := types.ExtrinsicDataList{
+		[]byte("abc"),
+		[]byte("def"),
+	}
+
+	fakeSegment := types.ExportSegment{}
+	copy(fakeSegment[:], []byte("seg"))
+
+	bundle := &types.WorkPackageBundle{
+		Package:        *wp,
+		Extrinsics:     extrinsics,
+		ImportSegments: types.ExportSegmentMatrix{{fakeSegment, fakeSegment}},
+		ImportProofs:   types.OpaqueHashMatrix{{types.OpaqueHash{0x01}}},
+	}
+
+	// encode bundle
+	encoder := types.NewEncoder()
+	data, err := encoder.Encode(bundle)
+	require.NoError(t, err)
+
+	controller := NewSharedController(data, erasureMap, segmentMap, coreIndex)
+	controller.PVM = mockPVM
+
+	fmt.Println("Processing work package...")
+	report, err := controller.Process()
+
+	require.NoError(t, err)
+	require.Equal(t, report.CoreIndex, coreIndex)
+
+	require.Equal(t, report.AuthOutput, types.ByteSequence("auth output"))
+
+	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
+
+	encode := types.NewEncoder()
+	encoded, err := encode.Encode(wp)
+	require.NoError(t, err)
+	workPackageHash := hash.Blake2bHash(encoded)
+	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
 
 	// Check the local map with report
 	dict, err := segmentMap.LoadDict()

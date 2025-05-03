@@ -26,7 +26,6 @@ type DASegmentFetcher interface {
 }
 
 type WorkPackageController struct {
-	WorkPackage       *types.WorkPackage
 	CoreIndex         types.CoreIndex
 	ErasureMap        *store.SegmentErasureMap
 	SegmentRootLookup *store.HashSegmentMap
@@ -34,8 +33,9 @@ type WorkPackageController struct {
 	Fetcher           DASegmentFetcher
 
 	// different guarantors behavior
-	Extrinsics []byte                   // Initial
-	Bundle     *types.WorkPackageBundle // Shared
+	Extrinsics  []byte             // Initial
+	Bundle      []byte             // Shared
+	WorkPackage *types.WorkPackage // Shared
 }
 
 func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
@@ -50,48 +50,38 @@ func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *
 	}
 }
 
+func NewSharedController(bundle []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex) *WorkPackageController {
+	return &WorkPackageController{
+		// WorkPackage:       wp,
+		CoreIndex:         coreIndex,
+		ErasureMap:        erasureMap,
+		SegmentRootLookup: segmentRootLookup,
+		Bundle:            bundle,
+		PVM:               &RealPVMExecutor{},
+	}
+}
+
 func (p *WorkPackageController) Process() (types.WorkReport, error) {
-	if err := p.WorkPackage.Validate(); err != nil {
+	workPackage, extrinsicMap, importSegments, workPackageBundle, workPackageHash, err := p.prepareInputs()
+	if err != nil {
+		return types.WorkReport{}, err
+	}
+
+	if err := workPackage.Validate(); err != nil {
 		return types.WorkReport{}, err
 	}
 	delta := store.GetInstance().GetPriorStates().GetDelta()
-	pa, _, pc, err := VerifyAuthorization(p.WorkPackage, delta)
+	pa, _, pc, err := VerifyAuthorization(&workPackage, delta)
 	if err != nil {
 		return types.WorkReport{}, err
 	}
 
-	specs := FlattenExtrinsicSpecs(p.WorkPackage)
-	extrinsicMap, err := ExtractExtrinsics(p.Extrinsics, specs)
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-
-	dict, err := p.SegmentRootLookup.LoadDict()
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-	importSegments, importProofs, err := p.fetchImportSegments(dict)
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-	// build work package bundle
-	workPackgeBundle, err := buildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-
-	// Get work package hash
-	encoder := types.NewEncoder()
-	encodedWorkPackage, err := encoder.Encode(p.WorkPackage)
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-	workPackageHash := hash.Blake2bHash(encodedWorkPackage)
-
+	// if p.Bundle == nil => initial controller
 	// CE134: send core index, segment lookup dict, wp bundle to other guarantors
 	// and wait for them to send back work report hash and ed25519 signature
 	// two goroutines to two different guarantors
-	report, err := WorkReportCompute(p.WorkPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackgeBundle, workPackageHash, p.PVM)
+
+	report, err := WorkReportCompute(&workPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackageBundle, workPackageHash, p.PVM)
 	if err != nil {
 		return types.WorkReport{}, err
 	}
@@ -105,6 +95,62 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	// check if work report is same between all the guarantors
 
 	return report, nil
+}
+
+func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PolkaVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
+	if p.Bundle == nil {
+		// initial controller
+		specs := FlattenExtrinsicSpecs(p.WorkPackage)
+		extrinsicMap, err := ExtractExtrinsics(p.Extrinsics, specs)
+		if err != nil {
+			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+		}
+
+		dict, err := p.SegmentRootLookup.LoadDict()
+		if err != nil {
+			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+		}
+		importSegments, importProofs, err := p.fetchImportSegments(dict)
+		if err != nil {
+			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+		}
+		// build work package bundle
+		workPackgeBundle, err := buildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
+		if err != nil {
+			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+		}
+
+		// Get work package hash
+		encoder := types.NewEncoder()
+		encodedWorkPackage, err := encoder.Encode(p.WorkPackage)
+		if err != nil {
+			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+		}
+		workPackageHash := hash.Blake2bHash(encodedWorkPackage)
+
+		return *p.WorkPackage, extrinsicMap, importSegments, workPackgeBundle, workPackageHash, nil
+	}
+	// shared controller
+	// Decode to get work package bundle
+	var bundle types.WorkPackageBundle
+	decoder := types.NewDecoder()
+	err := decoder.Decode(p.Bundle, &bundle)
+	if err != nil {
+		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+	}
+
+	extrinsicMap, err := extractExtrinsicMapFromBundle(&bundle.Package, bundle.Extrinsics)
+	if err != nil {
+		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+	}
+	encoder := types.NewEncoder()
+	encodedWorkPackage, err := encoder.Encode(&bundle.Package)
+	if err != nil {
+		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+	}
+	workPackageHash := hash.Blake2bHash(encodedWorkPackage)
+	// TODO: did not use bundle.ImportProofs now
+	return bundle.Package, extrinsicMap, bundle.ImportSegments, p.Bundle, workPackageHash, nil
 }
 
 func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
