@@ -32,7 +32,7 @@ func TestHashSegmentMap_LoadDict(t *testing.T) {
 		copy(wpHash[:], []byte(fmt.Sprintf("wp%02d", i)))
 		copy(segRoot[:], []byte(fmt.Sprintf("seg%02d", i)))
 
-		err := dict.SaveWithLimit(wpHash, segRoot)
+		_, err := dict.SaveWithLimit(wpHash, segRoot)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second)
 	}
@@ -64,7 +64,7 @@ func TestHashSegmentMap_SaveWithLimit(t *testing.T) {
 		copy(wpHash[:], []byte(fmt.Sprintf("wp%02d", i)))
 		copy(segRoot[:], []byte(fmt.Sprintf("seg%02d", i)))
 
-		err := dict.SaveWithLimit(wpHash, segRoot)
+		_, err := dict.SaveWithLimit(wpHash, segRoot)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // Simulate time difference
 	}
@@ -91,4 +91,30 @@ func TestHashSegmentMap_SaveWithLimit(t *testing.T) {
 		require.True(t, exists)
 		require.Equal(t, expected, val)
 	}
+}
+
+func TestHashSegmentMap_LoadDict_ReturnData(t *testing.T) {
+	client, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	dict := NewHashSegmentMap(client)
+
+	// Add test data
+	var wpHash1, segRoot1 types.OpaqueHash
+	copy(wpHash1[:], []byte("wp01"))
+	copy(segRoot1[:], []byte("seg01"))
+	data, err := dict.SaveWithLimit(wpHash1, segRoot1)
+	require.NoError(t, err)
+	require.Len(t, data, 1)
+	require.Equal(t, segRoot1, data[wpHash1], "Expected wpHash %v to return segRoot %v", wpHash1, segRoot1)
+
+	// Add another test data
+	var wpHash2, segRoot2 types.OpaqueHash
+	copy(wpHash2[:], []byte("wp02"))
+	copy(segRoot2[:], []byte("seg02"))
+	data, err = dict.SaveWithLimit(wpHash2, segRoot2)
+	require.NoError(t, err)
+	require.Len(t, data, 2)
+	require.Equal(t, segRoot1, data[wpHash1], "Expected wpHash %v to return segRoot %v", wpHash1, segRoot1)
+	require.Equal(t, segRoot2, data[wpHash2], "Expected wpHash %v to return segRoot %v", wpHash2, segRoot2)
 }

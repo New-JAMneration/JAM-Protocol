@@ -28,7 +28,7 @@ example map:
 */
 
 // dict length <= 8
-func (h *HashSegmentMap) SaveWithLimit(wpHash, segmentRoot types.OpaqueHash) error {
+func (h *HashSegmentMap) SaveWithLimit(wpHash, segmentRoot types.OpaqueHash) (map[types.OpaqueHash]types.OpaqueHash, error) {
 	key := "segment_dict"
 	existingBytes, err := h.client.Get(key)
 	dict := make(map[string]string)
@@ -51,9 +51,27 @@ func (h *HashSegmentMap) SaveWithLimit(wpHash, segmentRoot types.OpaqueHash) err
 
 	encoded, err := json.Marshal(dict)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return h.client.Put(key, encoded)
+	if err := h.client.Put(key, encoded); err != nil {
+		return nil, err
+	}
+
+	// Convert the map back to the original format
+	final := make(map[types.OpaqueHash]types.OpaqueHash)
+	for k, v := range dict {
+		parts := strings.SplitN(k, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		var wph, sr types.OpaqueHash
+		wpBytes, _ := hex.DecodeString(parts[1])
+		segBytes, _ := hex.DecodeString(v)
+		copy(wph[:], wpBytes)
+		copy(sr[:], segBytes)
+		final[wph] = sr
+	}
+	return final, nil
 }
 
 func (h *HashSegmentMap) LoadDict() (map[types.OpaqueHash]types.OpaqueHash, error) {
