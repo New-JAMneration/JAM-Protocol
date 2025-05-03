@@ -357,3 +357,17 @@ func convertMapToLookup(m map[types.OpaqueHash]types.OpaqueHash) types.SegmentRo
 	}
 	return lookup
 }
+
+func extractExtrinsicMapFromBundle(workPackage *types.WorkPackage, extrinsics types.ExtrinsicDataList) (PolkaVM.ExtrinsicDataMap, error) {
+	specs := FlattenExtrinsicSpecs(workPackage)
+
+	if len(specs) != len(extrinsics) {
+		return nil, fmt.Errorf("extrinsic count mismatch: %d specs vs %d data", len(specs), len(extrinsics))
+	}
+
+	result := make(PolkaVM.ExtrinsicDataMap)
+	for i, spec := range specs {
+		result[spec.Hash] = PolkaVM.ExtrinsicData(extrinsics[i])
+	}
+	return result, nil
+}
