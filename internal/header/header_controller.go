@@ -15,25 +15,25 @@ import (
 // This controller is used to manage the header.
 // You can use this controller to create a header.
 type HeaderController struct {
-	Header types.Header
+	Store *store.Store
 }
 
 // NewHeaderController creates a new HeaderController.
 func NewHeaderController() *HeaderController {
 	return &HeaderController{
-		Header: types.Header{},
+		Store: store.GetInstance(),
 	}
 }
 
 // Set sets the Header to the given Header.
 // You can load the test data and generate a header from this function.
 func (h *HeaderController) SetHeader(header types.Header) {
-	h.Header = header
+	h.Store.GetProcessingBlockPointer().SetHeader(header)
 }
 
 // Get returns the Header.
 func (h *HeaderController) GetHeader() types.Header {
-	return h.Header
+	return h.Store.GetProcessingBlockPointer().GetHeader()
 }
 
 // CreateParentHeaderHash creates the parent header hash of the header.
@@ -48,9 +48,7 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 
 	// hash function (blake2b)
 	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
-
-	// TODO: We have to save the parent hash in the store.
-	h.Header.Parent = parentHeaderHash
+	h.Store.GetProcessingBlockPointer().SetParent(parentHeaderHash)
 
 	return nil
 }
@@ -102,9 +100,7 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error 
 
 	// Hash the encoded elements
 	extrinsicHash := hash.Blake2bHash(encodedHash)
-
-	// TODO: We have to save the extrinsic hash in the store.
-	h.Header.ExtrinsicHash = extrinsicHash
+	h.Store.GetProcessingBlockPointer().SetExtrinsicHash(extrinsicHash)
 
 	return nil
 }
@@ -147,7 +143,7 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 		return err
 	}
 
-	h.Header.Slot = currentTimeslot
+	h.Store.GetProcessingBlockPointer().SetSlot(currentTimeslot)
 	return nil
 }
 
@@ -155,12 +151,12 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 func (h *HeaderController) CreateStateRootHash(parentState types.State) {
 	// State merklization
 	parentStateRoot := merklization.MerklizationState(parentState)
-	h.Header.ParentStateRoot = types.StateRoot(parentStateRoot)
+	h.Store.GetProcessingBlockPointer().SetParentStateRoot(types.StateRoot(parentStateRoot))
 }
 
 // H_i: a Bandersnatch block author index
 func (h *HeaderController) CreateBlockAuthorIndex(authorIndex types.ValidatorIndex) {
-	h.Header.AuthorIndex = authorIndex
+	h.Store.GetProcessingBlockPointer().SetAuthorIndex(authorIndex)
 }
 
 // H_a = k'[H_i]
@@ -180,30 +176,30 @@ func (h *HeaderController) GetAuthorBandersnatchKey(header types.Header) types.B
 // H_e: epoch
 // (5.10)
 func (h *HeaderController) CreateEpochMark(epochMark *types.EpochMark) {
-	h.Header.EpochMark = epochMark
+	h.Store.GetProcessingBlockPointer().SetEpochMark(epochMark)
 }
 
 // H_w: winning tickets
 // (5.10)
 func (h *HeaderController) CreateWinningTickets(ticketsMark *types.TicketsMark) {
-	h.Header.TicketsMark = ticketsMark
+	h.Store.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
 }
 
 // H_o: offenders markers
 // (5.10)
 func (h *HeaderController) CreateOffendersMarkers(offendersMark types.OffendersMark) {
-	h.Header.OffendersMark = offendersMark
+	h.Store.GetProcessingBlockPointer().SetOffendersMark(offendersMark)
 }
 
 // H_v: the entropy-yielding VRF signature
 // EntropySource
 func (h *HeaderController) CreateEntropySource(vrfSignature types.BandersnatchVrfSignature) {
-	h.Header.EntropySource = vrfSignature
+	h.Store.GetProcessingBlockPointer().SetEntropySource(vrfSignature)
 }
 
 // H_s: a block seal
 func (h *HeaderController) CreateBlockSeal(blockSeal types.BandersnatchVrfSignature) {
-	h.Header.Seal = blockSeal
+	h.Store.GetProcessingBlockPointer().SetSeal(blockSeal)
 }
 
 // GetParentHeader returns all ancestor headers.
