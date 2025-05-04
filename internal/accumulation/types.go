@@ -38,8 +38,9 @@ type SingleServiceAccumulationInput struct {
 }
 
 type SingleServiceAccumulationOutput struct {
-	PartialStateSet    types.PartialStateSet    // an alterations state-context
-	DeferredTransfers  []types.DeferredTransfer // a sequence of transfers
-	AccumulationOutput *types.OpaqueHash        // a possible accumulation-output
-	GasUsed            types.Gas                // the actual PVM gas used
+	PartialStateSet        types.PartialStateSet    // an alterations state-context
+	DeferredTransfers      []types.DeferredTransfer // a sequence of transfers
+	AccumulationOutput     *types.OpaqueHash        // a possible accumulation-output
+	GasUsed                types.Gas                // the actual PVM gas used
+	AccumulatedServiceHash types.AccumulatedServiceHash
 }
