@@ -264,12 +264,14 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 
 // (12.17) ∆∗ parallelized accumulation function
 // (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
-// (o, w, f ) ↦ (((d ∪ n) ∖ m, i′, q′, x′),Ìt, b, u)
+// (o, w, f ) ↦ ((d′, i′, q′, x′),Ìt, b, u, p∗)
 // where:
 // s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 // u = [(s, ∆1(o, w, f , s)u) S s <− s]
 // b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
 // t = [∆1(o, w, f, s)t S s <− s]
+// p =  s<−s⋃ ∆1(o, w, f , s)p
+// d′ = P ((d ∪ n) ∖ m, p)
 //
 //	(d, i, q, (m, a, v, z)) = o
 //
@@ -305,6 +307,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	var t []types.DeferredTransfer
 	n := make(types.ServiceAccountState)
 	m := d
+	p := types.PreimagesExtrinsic{}
 	for service_id := range s {
 		var single_input SingleServiceAccumulationInput
 		single_input.ServiceId = service_id
@@ -312,6 +315,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 		single_output, _ := SingleServiceAccumulation(single_input)
+		// p =  ⋃∆1(o, w, f , s)p
+		p = append(p, single_output.Preimage)
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
@@ -385,8 +390,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for key := range m {
 		delete(d, key)
 	}
-	new_partial_state.ServiceAccounts = d
-
+	d_prime, err := Provide(d, p)
+	new_partial_state.ServiceAccounts = d_prime
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
 	return output, nil
@@ -445,8 +450,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
-	output.AccumulatedServiceHash.ServiceId = input.ServiceId
-	output.AccumulatedServiceHash.Hash = *pvm_result.Result
+	output.Preimage.Requester = input.ServiceId
+	output.Preimage.Blob = types.ByteSequence(pvm_result.Result[:])
 	return output, nil
 }
 
