@@ -12,16 +12,20 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
-	BetaDagger               types.BlocksHistory
-	RhoDagger                types.AvailabilityAssignments
-	RhoDoubleDagger          types.AvailabilityAssignments
-	DeltaDagger              types.ServiceAccountState
-	DeltaDoubleDagger        types.ServiceAccountState
-	BeefyCommitmentOutputs   types.AccumulatedServiceOutput
-	AvailableWorkReports     []types.WorkReport
-	PresentWorkReports       []types.WorkReport
-	AccumulatedWorkReports   []types.WorkReport
-	QueuedWorkReports        types.ReadyQueueItem
+	BetaDagger             types.BlocksHistory
+	RhoDagger              types.AvailabilityAssignments
+	RhoDoubleDagger        types.AvailabilityAssignments
+	DeltaDagger            types.ServiceAccountState
+	DeltaDoubleDagger      types.ServiceAccountState
+	BeefyCommitmentOutputs types.AccumulatedServiceOutput
+	// (11.16) \mathbf{W} GP 0.6.4
+	AvailableWorkReports []types.WorkReport
+	PresentWorkReports   []types.WorkReport
+	// (12.4) \mathbf{W}^! GP 0.6.4
+	AccumulatedWorkReports []types.WorkReport
+	// (12.5) \mathbf{W}^Q GP 0.6.4
+	QueuedWorkReports types.ReadyQueueItem
+	// (12.11) \mathbf{W}^* GP 0.6.4
 	AccumulatableWorkReports []types.WorkReport
 }
 
