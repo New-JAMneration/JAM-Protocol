@@ -142,7 +142,7 @@ For example:
 					log.Printf("got error: %v", err)
 				}
 
-				// Run the est
+				// Run the test
 
 				outputErr := runner.Run(data, testRunSTF)
 				expectedErr := data.ExpectError()
