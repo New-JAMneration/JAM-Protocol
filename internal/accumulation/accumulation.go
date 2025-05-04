@@ -190,14 +190,14 @@ func UpdateAccumulatableWorkReports() {
 
 // (12.16) ∆+ outer accumulation function
 // (NG, ⟦W⟧, U, D⟨NS → NG⟩) → (N, U, ⟦T⟧, B, U )
-// (g, w, o, f )↦ (0, o, [], {}) if i = 0
+// (g, w, o, f )↦ (0, o, [], {}, []) if i = 0
 //
 //	(i + j, o′, t∗⌢ t, b∗ ∪ b, u∗⌢ u) o/w
 //
 // where i = max(NSwS+1) ∶   ∑   ∑     (rg ) ≤ g
 //
 //							w∈w...i  r∈wr
-//	 and (u∗, o∗, t∗, b∗) = ∆∗(o, w...i, f )
+//	 and (o∗, t∗, b∗, u∗) = ∆∗(o, w...i, f )
 //
 // and (j, o′, t, b, u) = ∆+(g − ∑u, wi..., o∗, {})
 //
@@ -298,8 +298,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 	}
 	// K(f)
-	for serivce_id := range input.AlwaysAccumulateMap {
-		s[serivce_id] = true
+	for service_id := range input.AlwaysAccumulateMap {
+		s[service_id] = true
 	}
 	d := input.PartialStateSet.ServiceAccounts
 	var t []types.DeferredTransfer
@@ -392,20 +392,20 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	return output, nil
 }
 
-// (12.19) ∆1 single-service accumulation function
+// (12.20) ∆1 single-service accumulation function
 
 // ∆1∶
 // (U, ⟦W⟧, D⟨NS → NG⟩, NS ) → o ∈ U , t ∈ ⟦T⟧ ,
 //
-//					  b ∈ H? , u ∈ NG
-//	(o, w, f , s) ↦ ΨA(o, τ ′, s, g, p)
+//					  b ∈ H? , u ∈ NG p ∈ {NS , Y}
+//	(o, w, f, s) ↦ ΨA(o, τ ′, s, g, i)
 //
 // where:
 //
 //	g = U(fs, 0) + ∑(rg )
 //				w∈w,r∈wr,rs=s
 //
-// p d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
+// i d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
 //
 //	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
@@ -445,6 +445,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
+	output.AccumulatedServiceHash.ServiceId = input.ServiceId
+	output.AccumulatedServiceHash.Hash = *pvm_result.Result
 	return output, nil
 }
 
