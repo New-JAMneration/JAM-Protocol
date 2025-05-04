@@ -74,8 +74,10 @@ var (
 
 	MaxBlocksHistory = 8 // H
 
+	// O
 	AuthPoolMaxSize = 8
-	AuthQueueSize   = 80
+	// Q
+	AuthQueueSize = 80
 
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes      = 1
@@ -123,6 +125,7 @@ const (
 	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
 	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
 	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
+	MaxServiceCodeSize = 4_000_000                        // W_C v0.6.4
 )
 
 // genesis file path

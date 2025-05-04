@@ -29,6 +29,18 @@ func (b *ProcessingBlock) GetBlock() types.Block {
 	return *b.block
 }
 
+func (b *ProcessingBlock) SetHeader(header types.Header) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Header = header
+}
+
+func (b *ProcessingBlock) GetHeader() types.Header {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.block.Header
+}
+
 // Get Extrinsics from the block
 func (b *ProcessingBlock) GetExtrinsics() types.Extrinsic {
 	b.mu.RLock()

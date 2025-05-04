@@ -162,7 +162,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 
 	// Set time slot
 	s.GetPriorStates().SetTau(preState.Slot)
-	s.GetIntermediateHeaderPointer().SetSlot(input.Slot)
+	s.GetProcessingBlockPointer().SetSlot(input.Slot)
 	s.GetPosteriorStates().SetTau(input.Slot)
 
 	// Set entropy
@@ -202,7 +202,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 	sort.Slice(input.Reports, func(i, j int) bool {
 		return input.Reports[i].CoreIndex < input.Reports[j].CoreIndex
 	})
-	s.GetAccumulatableWorkReportsPointer().SetAccumulatableWorkReports(input.Reports)
+	s.GetIntermediateStates().SetAccumulatableWorkReports(input.Reports)
 }
 
 // Validate final state
