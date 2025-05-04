@@ -38,7 +38,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations)",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics)",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
@@ -74,11 +74,11 @@ For example:
 			switch mode {
 			case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 				testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-				testdata.AuthorizationsMode:
+				testdata.AuthorizationsMode, testdata.StatisticsMode:
 				// Valid mode
 			default:
 				fmt.Printf("Error: Invalid test mode '%s'\n", testMode)
-				fmt.Println("Valid modes are: safrole, assurances, preimages, disputes, history, accumulate, authorizations")
+				fmt.Println("Valid modes are: safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics")
 				os.Exit(1)
 			}
 
