@@ -5,7 +5,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	input "github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // DisputeController is a struct that contains a slice of Dispute (for controller logic)
@@ -31,7 +30,7 @@ func (d *DisputeController) ValidateFaults() error {
 		faultMap[report.Target] = true
 	}
 
-	good := input.ValidatorsCount*2/3 + 1
+	good := types.ValidatorsCount*2/3 + 1
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == good {
 			if !faultMap[types.WorkReportHash(report.ReportHash)] {

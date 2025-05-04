@@ -172,7 +172,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 
 	// Set the available work reports to the available work reports
 	store := store.GetInstance()
-	store.GetAvailableWorkReportsPointer().SetAvailableWorkReports(availableWorkReports)
+	store.GetIntermediateStates().SetAvailableWorkReports(availableWorkReports)
 
 	return availableWorkReports
 }

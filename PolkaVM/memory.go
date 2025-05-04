@@ -43,3 +43,14 @@ func (m *Memory) Read(start uint64, offset uint64) types.ByteSequence {
 
 	return buffer
 }
+
+func (m *Memory) Write(start uint64, offset uint64, data types.ByteSequence) {
+	pageNumber := uint32(start / ZP)
+	pageIndex := start % ZP
+
+	for copied := uint64(0); copied < offset; {
+		copied += uint64(copy(m.Pages[pageNumber].Value[pageIndex:], data[copied:]))
+		pageNumber++
+		pageIndex = 0
+	}
+}

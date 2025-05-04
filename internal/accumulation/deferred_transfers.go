@@ -56,7 +56,7 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	// Get W^*
 	store := store.GetInstance()
-	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	output := []types.WorkResult{}
 
@@ -167,7 +167,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 // Update the AccumulatedQueue(AccumulatedQueue)
 func updateXi(store *store.Store, n types.U64) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	priorXi := store.GetPriorStates().GetXi()
 	posteriorXi := store.GetPosteriorStates().GetXi()
@@ -205,7 +205,7 @@ func updateXi(store *store.Store, n types.U64) {
 // Update ReadyQueue(Theta)
 func updateTheta(store *store.Store) {
 	// (12.10) let m = H_t mode E
-	headerSlot := store.GetIntermediateHeaderPointer().GetSlot()
+	headerSlot := store.GetProcessingBlockPointer().GetSlot()
 	m := int(headerSlot) % types.EpochLength
 
 	// (6.2) tau and tau prime
@@ -218,7 +218,7 @@ func updateTheta(store *store.Store) {
 	tauOffset := tauPrime - tau
 
 	// Get queued work reports
-	queueWorkReports := store.GetQueuedWorkReportsPointer().GetQueuedWorkReports()
+	queueWorkReports := store.GetIntermediateStates().GetQueuedWorkReports()
 
 	// Get prior theta and posterior theta (ReadyQueue)
 	priorTheta := store.GetPriorStates().GetTheta()
@@ -252,7 +252,7 @@ func updateTheta(store *store.Store) {
 // (12.20) (12.21)
 func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, error) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetAccumulatableWorkReportsPointer().GetAccumulatableWorkReports()
+	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	// (12.13) PartialStateSet
 	priorState := store.GetPriorStates()
@@ -291,7 +291,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// (12.22)
 	// Update the partial state set to posterior state
 	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
-	store.GetBeefyCommitmentOutputs().SetBeefyCommitmentOutput(output.AccumulatedServiceOutput)
+	store.GetIntermediateStates().SetBeefyCommitmentOutput(output.AccumulatedServiceOutput)
 
 	return output, nil
 }

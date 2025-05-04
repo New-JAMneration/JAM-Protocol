@@ -76,6 +76,13 @@ type (
 	Gas       U64
 )
 
+func (e *ErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
+
 type (
 	Entropy       OpaqueHash
 	EntropyBuffer [4]Entropy
@@ -197,6 +204,16 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
+func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
+	result := (*a)[:0]
+	for _, v := range *a {
+		if !bytes.Equal(v[:], h[:]) {
+			result = append(result, v)
+		}
+	}
+	*a = result
+}
+
 type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
@@ -217,8 +234,9 @@ func (a AuthPools) Validate() error {
 type AuthQueue []AuthorizerHash
 
 func (a AuthQueue) Validate() error {
+	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != AuthQueueSize {
-		return fmt.Errorf("AuthQueue exceeds max-auth-queue-size limit of %d", AuthQueueSize)
+		return fmt.Errorf("length of authQueue %d exceeds max-auth-queue-size limit of %d", len(a), AuthQueueSize)
 	}
 	return nil
 }
@@ -226,12 +244,13 @@ func (a AuthQueue) Validate() error {
 type AuthQueues []AuthQueue
 
 func (a AuthQueues) Validate() error {
+	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != CoresCount {
-		return fmt.Errorf("AuthQueues exceeds max-auth-queues limit of %d", CoresCount)
+		return fmt.Errorf("length of authQueues %d exceeds cores limit of %d", len(a), CoresCount)
 	}
 
-	for _, pool := range a {
-		err := pool.Validate()
+	for _, queue := range a {
+		err := queue.Validate()
 		if err != nil {
 			return err
 		}
@@ -241,6 +260,8 @@ func (a AuthQueues) Validate() error {
 }
 
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
+
+type ExportSegment [SegmentSize]byte
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
@@ -906,14 +927,17 @@ func (v ValidatorSignature) Validate() error {
 
 // (11.23)  Work Report Guarantee
 type ReportGuarantee struct {
-	Report     WorkReport           `json:"report"`
-	Slot       TimeSlot             `json:"slot,omitempty"`
-	Signatures []ValidatorSignature `json:"signatures,omitempty"`
+	Report     WorkReport           `json:"report"`               // g_w
+	Slot       TimeSlot             `json:"slot,omitempty"`       // g_t
+	Signatures []ValidatorSignature `json:"signatures,omitempty"` // g_a
 }
 
 func (r *ReportGuarantee) Validate() error {
+	if err := r.Report.Validate(); err != nil {
+		return fmt.Errorf("report validation failed: %w", err)
+	}
 	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
-		return errors.New("signatures length must be between 2 and 3")
+		return fmt.Errorf("signatures length must be between 2 and 3, got %d", len(r.Signatures))
 	}
 	for i, sig := range r.Signatures {
 		if err := sig.Validate(); err != nil {
@@ -928,7 +952,12 @@ type GuaranteesExtrinsic []ReportGuarantee
 // (11.23)
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
-		return fmt.Errorf("GuaranteesExtrinsic exceeds maximum size of %d cores", CoresCount)
+		return fmt.Errorf("Len of guaranteesExtrinsic %d exceeds maximum size of %d cores", len(*g), CoresCount)
+	}
+	for i, report := range *g {
+		if err := report.Validate(); err != nil {
+			return fmt.Errorf("eg's report[%d] validation failed: %w", i, err)
+		}
 	}
 	return nil
 }
