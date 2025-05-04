@@ -460,7 +460,7 @@ func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8
 	// TODO: Implement the logic to broadcast the announcement
 	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
-func WaitNextTrahche(tranche types.U8) {
+func WaitNextTranche(tranche types.U8) {
 
 }
 func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
@@ -577,7 +577,7 @@ func SingleNodeAuditingAndPublish(
 		if IsBlockAudited(workReports, signedAn, assignmentMap) {
 			break
 		}
-		WaitNextTrahche(tranche)
+		WaitNextTranche(tranche)
 	}
 
 	return nil
