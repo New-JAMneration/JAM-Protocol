@@ -451,7 +451,9 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
 	output.Preimage.Requester = input.ServiceId
-	output.Preimage.Blob = types.ByteSequence(pvm_result.Result[:])
+	if pvm_result.Result != nil {
+		output.Preimage.Blob = types.ByteSequence((*pvm_result.Result)[:])
+	}
 	return output, nil
 }
 
