@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -102,8 +103,10 @@ For example:
 				// Validate test size for jam-test-vectors
 				size := testdata.TestSize(testSize)
 				switch size {
-				case testdata.TinySize, testdata.FullSize:
-					// Valid size
+				case testdata.TinySize:
+					types.SetTinyMode()
+				case testdata.FullSize:
+					types.SetFullMode()
 				default:
 					fmt.Printf("Error: Invalid test size '%s'\n", testSize)
 					fmt.Println("Valid sizes are: tiny, full")
