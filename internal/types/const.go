@@ -128,6 +128,13 @@ const (
 	MaxServiceCodeSize = 4_000_000                        // W_C v0.6.4
 )
 
+// erasure coding constants
+// 342:1023 (Appendix H)
+const (
+	DataShards  = 342
+	TotalShards = 1023
+)
+
 // genesis file path
 const (
 	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
@@ -143,3 +150,5 @@ const (
 
 // Auditing (17.16)
 const BiasFactor = 2
+
+const SegmentErasureTTL = 28 * 24 * time.Hour // 28 days
