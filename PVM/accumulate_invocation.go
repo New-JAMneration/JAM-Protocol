@@ -23,7 +23,7 @@ func Psi_A(
 			DeferredTransfers: []types.DeferredTransfer{},
 			Result:            nil,
 			Gas:               0,
-			ServiceBlobs:      []ServiceBlob{},
+			ServiceBlobs:      []types.ServiceBlob{},
 		}
 	} else {
 
@@ -134,8 +134,8 @@ func wrapWithG(original Omega) Omega {
 }
 
 // (B.13) C
-func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, ServiceBlobs) {
-	serviceBlobs := make(ServiceBlobs, 0)
+func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs) {
+	serviceBlobs := make(types.ServiceBlobs, 0)
 	switch reasonOrBytes.(type) {
 	case error:
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
@@ -204,22 +204,15 @@ type Psi_A_ReturnType struct {
 	DeferredTransfers []types.DeferredTransfer
 	Result            *types.OpaqueHash
 	Gas               types.Gas
-	ServiceBlobs      []ServiceBlob
+	ServiceBlobs      []types.ServiceBlob
 }
 
 // (B.7)
 type ResultContext struct {
-	ServiceId         types.ServiceId                  // s
-	PartialState      types.PartialStateSet            // u
-	ImportServiceId   types.ServiceId                  // i
-	DeferredTransfers []types.DeferredTransfer         // t
-	Exception         types.OpaqueHash                 // y
-	ServiceBlobs      map[types.OpaqueHash]ServiceBlob // p   v0.6.5
+	ServiceId         types.ServiceId                        // s
+	PartialState      types.PartialStateSet                  // u
+	ImportServiceId   types.ServiceId                        // i
+	DeferredTransfers []types.DeferredTransfer               // t
+	Exception         types.OpaqueHash                       // y
+	ServiceBlobs      map[types.OpaqueHash]types.ServiceBlob // p   v0.6.5
 }
-
-// v0.6.5
-type ServiceBlob struct {
-	ServiceID types.ServiceId
-	Blob      []byte
-}
-type ServiceBlobs []ServiceBlob
