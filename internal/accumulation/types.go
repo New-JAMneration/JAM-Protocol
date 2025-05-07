@@ -42,5 +42,5 @@ type SingleServiceAccumulationOutput struct {
 	DeferredTransfers  []types.DeferredTransfer // a sequence of transfers
 	AccumulationOutput *types.OpaqueHash        // a possible accumulation-output
 	GasUsed            types.Gas                // the actual PVM gas used
-	Preimage           types.Preimage           // a hash service pair of the accumulated service
+	ServiceBlob        types.ServiceBlob        // a hash service pair of the accumulated service
 }

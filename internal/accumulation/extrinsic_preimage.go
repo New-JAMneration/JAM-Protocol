@@ -176,19 +176,19 @@ func ProcessPreimageExtrinsics() error {
 // It transforms a dictionary of service states and a set of service/hash pairs into a new dictionary of service states.
 // (map[N_s]A, (N_s, Y)) -> map[N_s]A
 // v0.6.5 (12.18)
-func Provide(d types.ServiceAccountState, eps types.PreimagesExtrinsic) (types.ServiceAccountState, error) {
+func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.ServiceAccountState, error) {
 	dPrime := maps.Clone(d)
 
-	for _, preimage := range eps {
-		serviceId := preimage.Requester
+	for _, serviceblob := range eps {
+		serviceId := serviceblob.ServiceID
 		serviceAccount, found := d[serviceId]
 		if !found {
 			continue
 		}
 
 		lookupKey := types.LookupMetaMapkey{
-			Hash:   hash.Blake2bHash(preimage.Blob),
-			Length: types.U32(len(preimage.Blob)),
+			Hash:   hash.Blake2bHash(serviceblob.Blob),
+			Length: types.U32(len(serviceblob.Blob)),
 		}
 		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; found && len(timeSlotSet) > 0 {
 			continue
@@ -196,7 +196,7 @@ func Provide(d types.ServiceAccountState, eps types.PreimagesExtrinsic) (types.S
 
 		tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
-		serviceAccount.PreimageLookup[lookupKey.Hash] = preimage.Blob
+		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
 		dPrime[serviceId] = serviceAccount
 	}
 
