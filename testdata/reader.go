@@ -40,6 +40,7 @@ type TestSize string
 const (
 	TinySize TestSize = "tiny"
 	FullSize TestSize = "full"
+	DataSize TestSize = "data"
 )
 
 // DataFormat represents the format of the test data

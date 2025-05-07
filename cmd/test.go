@@ -45,7 +45,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "size",
-				Usage:        "Test size (tiny, full) - only for jam-test-vectors",
+				Usage:        "Test size (tiny, full, data) - only for jam-test-vectors",
 				DefaultValue: "tiny",
 				Destination:  &testSize,
 			},
@@ -103,13 +103,13 @@ For example:
 				// Validate test size for jam-test-vectors
 				size := testdata.TestSize(testSize)
 				switch size {
-				case testdata.TinySize:
+				case testdata.TinySize, testdata.DataSize:
 					types.SetTinyMode()
 				case testdata.FullSize:
 					types.SetFullMode()
 				default:
 					fmt.Printf("Error: Invalid test size '%s'\n", testSize)
-					fmt.Println("Valid sizes are: tiny, full")
+					fmt.Println("Valid sizes are: tiny, full, data")
 					os.Exit(1)
 				}
 				reader = testdata.NewTestDataReader(mode, size, dataFormat)
