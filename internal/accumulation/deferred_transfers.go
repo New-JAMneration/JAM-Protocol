@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -133,7 +133,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 
 	for serviceId := range deltaDagger {
 		selectionFunctionOutput := selectionFunction(t, serviceId)
-		onTransferInput := PolkaVM.OnTransferInput{
+		onTransferInput := PVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
@@ -141,7 +141,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		}
 
 		// (12.27) x
-		serviceAccount, gas := PolkaVM.OnTransferInvoke(onTransferInput)
+		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
 		// (12.28)
 		deltaDoubleDagger[serviceId] = serviceAccount
@@ -160,7 +160,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 
 	// Save the deferred transfers statistics
-	store.GetDeferredTransfersStatisticsPointer().SetDeferredTransfersStatistics(deferredTransfersStatisics)
+	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
 // (12.31) (12.32)
@@ -309,7 +309,7 @@ func DeferredTransfers() error {
 
 	// (12.23) (12.24) (12.25)
 	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
-	store.GetAccumulationStatisticsPointer().SetAccumulationStatistics(accumulationStatistics)
+	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
 	updateDeltaDoubleDagger(store, output.DeferredTransfers)

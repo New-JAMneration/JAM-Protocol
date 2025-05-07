@@ -12,33 +12,37 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
-	BetaDagger               types.BlocksHistory
-	RhoDagger                types.AvailabilityAssignments
-	RhoDoubleDagger          types.AvailabilityAssignments
-	DeltaDagger              types.ServiceAccountState
-	DeltaDoubleDagger        types.ServiceAccountState
-	BeefyCommitmentOutputs   types.AccumulatedServiceOutput
-	AvailableWorkReports     []types.WorkReport
-	PresentWorkReports       []types.WorkReport
-	AccumulatedWorkReports   []types.WorkReport
-	QueuedWorkReports        types.ReadyQueueItem
-	AccumulatableWorkReports []types.WorkReport
+	BetaDagger                  types.BlocksHistory
+	RhoDagger                   types.AvailabilityAssignments
+	RhoDoubleDagger             types.AvailabilityAssignments
+	DeltaDagger                 types.ServiceAccountState
+	DeltaDoubleDagger           types.ServiceAccountState
+	BeefyCommitmentOutputs      types.AccumulatedServiceOutput
+	AvailableWorkReports        []types.WorkReport
+	PresentWorkReports          []types.WorkReport
+	AccumulatedWorkReports      []types.WorkReport
+	QueuedWorkReports           types.ReadyQueueItem
+	AccumulatableWorkReports    []types.WorkReport
+	AccumulationStatistics      types.AccumulationStatistics
+	DeferredTransfersStatistics types.DeferredTransfersStatistics
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaDagger:               types.BlocksHistory{},
-			RhoDagger:                types.AvailabilityAssignments{},
-			RhoDoubleDagger:          types.AvailabilityAssignments{},
-			DeltaDagger:              types.ServiceAccountState{},
-			DeltaDoubleDagger:        types.ServiceAccountState{},
-			BeefyCommitmentOutputs:   make(types.AccumulatedServiceOutput),
-			AvailableWorkReports:     []types.WorkReport{},
-			PresentWorkReports:       []types.WorkReport{},
-			AccumulatedWorkReports:   []types.WorkReport{},
-			QueuedWorkReports:        types.ReadyQueueItem{},
-			AccumulatableWorkReports: []types.WorkReport{},
+			BetaDagger:                  types.BlocksHistory{},
+			RhoDagger:                   types.AvailabilityAssignments{},
+			RhoDoubleDagger:             types.AvailabilityAssignments{},
+			DeltaDagger:                 types.ServiceAccountState{},
+			DeltaDoubleDagger:           types.ServiceAccountState{},
+			BeefyCommitmentOutputs:      make(types.AccumulatedServiceOutput),
+			AvailableWorkReports:        []types.WorkReport{},
+			PresentWorkReports:          []types.WorkReport{},
+			AccumulatedWorkReports:      []types.WorkReport{},
+			QueuedWorkReports:           types.ReadyQueueItem{},
+			AccumulatableWorkReports:    []types.WorkReport{},
+			AccumulationStatistics:      types.AccumulationStatistics{},
+			DeferredTransfersStatistics: types.DeferredTransfersStatistics{},
 		},
 	}
 }
@@ -175,4 +179,28 @@ func (s *IntermediateStates) GetAccumulatableWorkReports() []types.WorkReport {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.AccumulatableWorkReports
+}
+
+func (s *IntermediateStates) SetAccumulationStatistics(w types.AccumulationStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.AccumulationStatistics = w
+}
+
+func (s *IntermediateStates) GetAccumulationStatistics() types.AccumulationStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.AccumulationStatistics
+}
+
+func (s *IntermediateStates) SetDeferredTransfersStatistics(w types.DeferredTransfersStatistics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.DeferredTransfersStatistics = w
+}
+
+func (s *IntermediateStates) GetDeferredTransfersStatistics() types.DeferredTransfersStatistics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.DeferredTransfersStatistics
 }

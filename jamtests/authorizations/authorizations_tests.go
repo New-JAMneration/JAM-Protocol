@@ -3,7 +3,9 @@ package jamtests
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -67,6 +69,15 @@ type AuthorizationOutput struct { // null
 type AuthorizationState struct {
 	Alpha  types.AuthPools  `json:"auth_pools"`
 	Varphi types.AuthQueues `json:"auth_queues"`
+}
+
+type AuthorizationErrorCode types.ErrorCode
+
+func (a *AuthorizationErrorCode) Error() string {
+	if a == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *a)
 }
 
 // Unmarshal JSON CoreAuthorizer
@@ -299,6 +310,50 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 	if err = a.PostState.Encode(e); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// TODO: Implement Dump method
+func (a *AuthorizationTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
+	storeInstance.GetPriorStates().SetVarphi(a.PreState.Varphi)
+
+	storeInstance.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(a.Input.Slot)
+
+	// Missing the CoreAuthorizer
+	// How to set the CoreAuthorizer?
+
+	return nil
+}
+
+func (a *AuthorizationTestCase) GetPostState() interface{} {
+	return a.PostState
+}
+
+func (a *AuthorizationTestCase) GetOutput() interface{} {
+	return a.Output
+}
+
+func (a *AuthorizationTestCase) ExpectError() error {
+	// TODO: Implement error handling
+	// Should be implemented in the future once the testcase has an error
+	return nil
+}
+
+func (a *AuthorizationTestCase) Validate() error {
+	storeInstance := store.GetInstance()
+
+	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetAlpha(), a.PostState.Alpha) {
+		return fmt.Errorf("Alpha mismatch: expected %v, got %v", a.PostState.Alpha, storeInstance.GetPosteriorStates().GetAlpha())
+	}
+
+	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetVarphi(), a.PostState.Varphi) {
+		return fmt.Errorf("Varphi mismatch: expected %v, got %v", a.PostState.Varphi, storeInstance.GetPosteriorStates().GetVarphi())
 	}
 
 	return nil
