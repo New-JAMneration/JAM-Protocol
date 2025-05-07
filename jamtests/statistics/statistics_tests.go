@@ -3,6 +3,7 @@ package jamtests
 import (
 	"encoding/json"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -209,5 +210,31 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *StatisticsTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+	storeInstance.GetProcessingBlockPointer().SetAuthorIndex(s.Input.AuthorIndex)
+	storeInstance.GetPriorStates().SetTau(s.PreState.Slot)
+	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
+	storeInstance.GetPriorStates().SetPi(s.PreState.Statistics)
+	storeInstance.GetPosteriorStates().SetKappa(s.PreState.CurrValidators)
+	return nil
+}
+
+func (s *StatisticsTestCase) GetPostState() interface{} {
+	return s.PostState
+}
+
+func (s *StatisticsTestCase) GetOutput() interface{} {
+	return s.Output
+}
+
+func (s *StatisticsTestCase) ExpectError() error {
+	return nil
+}
+
+func (s *StatisticsTestCase) Validate() error {
 	return nil
 }

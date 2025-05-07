@@ -955,11 +955,6 @@ func (a *AvailAssurance) Encode(e *Encoder) error {
 		return err
 	}
 
-	// TODO: not sure if we still need this check
-	if len(a.Bitfield) != int(AvailBitfieldBytes) {
-		return fmt.Errorf("Bitfield length is not equal to AvailBitfieldBytes")
-	}
-
 	// Bitfield
 	if err := a.Bitfield.Encode(e); err != nil {
 		return err

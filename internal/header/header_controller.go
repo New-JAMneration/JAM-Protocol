@@ -15,25 +15,25 @@ import (
 // This controller is used to manage the header.
 // You can use this controller to create a header.
 type HeaderController struct {
-	Header types.Header
+	Store *store.Store
 }
 
 // NewHeaderController creates a new HeaderController.
 func NewHeaderController() *HeaderController {
 	return &HeaderController{
-		Header: types.Header{},
+		Store: store.GetInstance(),
 	}
 }
 
 // Set sets the Header to the given Header.
 // You can load the test data and generate a header from this function.
 func (h *HeaderController) SetHeader(header types.Header) {
-	h.Header = header
+	h.Store.GetProcessingBlockPointer().SetHeader(header)
 }
 
 // Get returns the Header.
 func (h *HeaderController) GetHeader() types.Header {
-	return h.Header
+	return h.Store.GetProcessingBlockPointer().GetHeader()
 }
 
 // CreateParentHeaderHash creates the parent header hash of the header.
@@ -48,7 +48,7 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 
 	// hash function (blake2b)
 	parentHeaderHash := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
-	h.Header.Parent = parentHeaderHash
+	h.Store.GetProcessingBlockPointer().SetParent(parentHeaderHash)
 
 	return nil
 }
@@ -56,56 +56,53 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 // CreateExtrinsicHash creates the extrinsic hash of the header.
 // (5.4), (5.5), (5.6)
 // H_x: extrinsic hash
-// INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
-func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) {
-	ticketSerializedHash := hash.Blake2bHash(utilities.ExtrinsicTicketSerialization(extrinsic.Tickets))
-	preimageSerializedHash := hash.Blake2bHash(utilities.ExtrinsicPreimageSerialization(extrinsic.Preimages))
-	AssureanceSerializedHash := hash.Blake2bHash(utilities.ExtrinsicAssuranceSerialization(extrinsic.Assurances))
-	DisputeSerializedHash := hash.Blake2bHash(utilities.ExtrinsicDisputeSerialization(extrinsic.Disputes))
-
-	// g (5.6)
-	g := types.ByteSequence{}
-	g = append(g, utilities.SerializeU64(types.U64(len(extrinsic.Guarantees)))...)
-	for _, guarantee := range extrinsic.Guarantees {
-		// w, WorkReport
-		w := guarantee.Report
-		wHash := hash.Blake2bHash(utilities.WorkReportSerialization(w))
-
-		// t, Slot
-		t := guarantee.Slot
-		tSerialized := utilities.SerializeFixedLength(types.U32(t), 4)
-
-		// a, Signatures (credential)
-		signaturesLength, Signatures := utilities.LensElementPair(guarantee.Signatures)
-
-		elementSerialized := types.ByteSequence{}
-		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(wHash[:])...)
-		elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(tSerialized)...)
-		elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signaturesLength))...)
-		for _, signature := range Signatures {
-			elementSerialized = append(elementSerialized, utilities.SerializeU64(types.U64(signature.ValidatorIndex))...)
-			elementSerialized = append(elementSerialized, utilities.SerializeByteSequence(signature.Signature[:])...)
-		}
-
-		// If the input type of serialization is octet sequence, we can directly
-		// append it because it is already serialized.
-		g = append(g, elementSerialized...)
+func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error {
+	// Encode the extrinsic elements
+	encodedTicketsExtrinsic, err := utilities.EncodeExtrinsicTickets(extrinsic.Tickets)
+	if err != nil {
+		return err
 	}
 
-	gHash := hash.Blake2bHash(g)
+	encodedPreimagesExtrinsic, err := utilities.EncodeExtrinsicPreimages(extrinsic.Preimages)
+	if err != nil {
+		return err
+	}
 
-	// Serialize the hash of the extrinsic elements
-	serializedElements := types.ByteSequence{}
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(ticketSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(preimageSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(gHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(AssureanceSerializedHash).Serialize()...)
-	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(DisputeSerializedHash).Serialize()...)
+	encodedGuaranteesExtrinsic, err := utilities.EncodeExtrinsicGuarantees(extrinsic.Guarantees)
+	if err != nil {
+		return err
+	}
 
-	// Hash the serialized elements
-	extrinsicHash := hash.Blake2bHash(serializedElements)
+	encodedAssurancesExtrinsic, err := utilities.EncodeExtrinsicAssurances(extrinsic.Assurances)
+	if err != nil {
+		return err
+	}
 
-	h.Header.ExtrinsicHash = extrinsicHash
+	encodedDisputesExtrinsic, err := utilities.EncodeExtrinsicDisputes(extrinsic.Disputes)
+	if err != nil {
+		return err
+	}
+
+	// Hash encoded elements
+	encodedTicketsHash := hash.Blake2bHash(encodedTicketsExtrinsic)
+	encodedPreimagesHash := hash.Blake2bHash(encodedPreimagesExtrinsic)
+	encodedGuaranteesHash := hash.Blake2bHash(encodedGuaranteesExtrinsic)
+	encodedAssurancesHash := hash.Blake2bHash(encodedAssurancesExtrinsic)
+	encodedDisputesHash := hash.Blake2bHash(encodedDisputesExtrinsic)
+
+	// Concatenate the encoded elements
+	encodedHash := types.ByteSequence{}
+	encodedHash = append(encodedHash, types.ByteSequence(encodedTicketsHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedPreimagesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedGuaranteesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedAssurancesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedDisputesHash[:])...)
+
+	// Hash the encoded elements
+	extrinsicHash := hash.Blake2bHash(encodedHash)
+	h.Store.GetProcessingBlockPointer().SetExtrinsicHash(extrinsicHash)
+
+	return nil
 }
 
 func GetCurrentTimeInSecond() uint64 {
@@ -146,7 +143,7 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 		return err
 	}
 
-	h.Header.Slot = currentTimeslot
+	h.Store.GetProcessingBlockPointer().SetSlot(currentTimeslot)
 	return nil
 }
 
@@ -154,12 +151,12 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 func (h *HeaderController) CreateStateRootHash(parentState types.State) {
 	// State merklization
 	parentStateRoot := merklization.MerklizationState(parentState)
-	h.Header.ParentStateRoot = types.StateRoot(parentStateRoot)
+	h.Store.GetProcessingBlockPointer().SetParentStateRoot(types.StateRoot(parentStateRoot))
 }
 
 // H_i: a Bandersnatch block author index
 func (h *HeaderController) CreateBlockAuthorIndex(authorIndex types.ValidatorIndex) {
-	h.Header.AuthorIndex = authorIndex
+	h.Store.GetProcessingBlockPointer().SetAuthorIndex(authorIndex)
 }
 
 // H_a = k'[H_i]
@@ -179,30 +176,30 @@ func (h *HeaderController) GetAuthorBandersnatchKey(header types.Header) types.B
 // H_e: epoch
 // (5.10)
 func (h *HeaderController) CreateEpochMark(epochMark *types.EpochMark) {
-	h.Header.EpochMark = epochMark
+	h.Store.GetProcessingBlockPointer().SetEpochMark(epochMark)
 }
 
 // H_w: winning tickets
 // (5.10)
 func (h *HeaderController) CreateWinningTickets(ticketsMark *types.TicketsMark) {
-	h.Header.TicketsMark = ticketsMark
+	h.Store.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
 }
 
 // H_o: offenders markers
 // (5.10)
 func (h *HeaderController) CreateOffendersMarkers(offendersMark types.OffendersMark) {
-	h.Header.OffendersMark = offendersMark
+	h.Store.GetProcessingBlockPointer().SetOffendersMark(offendersMark)
 }
 
 // H_v: the entropy-yielding VRF signature
 // EntropySource
 func (h *HeaderController) CreateEntropySource(vrfSignature types.BandersnatchVrfSignature) {
-	h.Header.EntropySource = vrfSignature
+	h.Store.GetProcessingBlockPointer().SetEntropySource(vrfSignature)
 }
 
 // H_s: a block seal
 func (h *HeaderController) CreateBlockSeal(blockSeal types.BandersnatchVrfSignature) {
-	h.Header.Seal = blockSeal
+	h.Store.GetProcessingBlockPointer().SetSeal(blockSeal)
 }
 
 // GetParentHeader returns all ancestor headers.

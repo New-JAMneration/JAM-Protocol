@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -50,6 +51,13 @@ type SafroleOutputData struct {
 }
 
 type SafroleErrorCode types.ErrorCode
+
+func (e *SafroleErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
 
 type SafroleOutput struct {
 	Ok  *SafroleOutputData `json:"ok,omitempty"`
@@ -529,6 +537,60 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 	if err = t.PostState.Encode(e); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// TODO: Implement Dump method
+func (s *SafroleTestCase) Dump() error {
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
+	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
+
+	storeInstance.GetPriorStates().SetEta(s.PreState.Eta)
+	// Set Eta0?
+
+	storeInstance.GetPriorStates().SetLambda(s.PreState.Lambda)
+	storeInstance.GetPriorStates().SetKappa(s.PreState.Kappa)
+	storeInstance.GetPriorStates().SetGammaK(s.PreState.GammaK)
+	storeInstance.GetPriorStates().SetIota(s.PreState.Iota)
+	storeInstance.GetPriorStates().SetGammaA(s.PreState.GammaA)
+	storeInstance.GetPriorStates().SetGammaS(s.PreState.GammaS)
+	storeInstance.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
+
+	// Miss PostOffenders?
+	storeInstance.GetPriorStates().SetPsiO(s.PreState.PostOffenders)
+
+	// How to set the Extrinsic?
+	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(s.Input.Extrinsic)
+	return nil
+}
+
+func (s *SafroleTestCase) GetPostState() interface{} {
+	return s.PostState
+}
+
+func (s *SafroleTestCase) GetOutput() interface{} {
+	return s.Output
+}
+
+func (s *SafroleTestCase) ExpectError() error {
+	if s.Output.Err == nil {
+		return nil
+	}
+	return s.Output.Err
+}
+
+func (s *SafroleTestCase) Validate() error {
+	storeInstance := store.GetInstance()
+
+	if storeInstance.GetPosteriorStates().GetTau() != s.PostState.Tau {
+		return fmt.Errorf("tau mismatch: expected %v, got %v", s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau())
+	}
+
+	// rest of the validation logic
 
 	return nil
 }
