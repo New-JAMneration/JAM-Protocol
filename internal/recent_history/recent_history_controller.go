@@ -140,7 +140,7 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 }
 
 // item $n$ = (header hash $h$, accumulation-result mmr $\mathbf{b}$, state root $s$, WorkReportHash $\mathbf{p}$)
-func (rhc *RecentHistoryController) n(headerHash types.HeaderHash, eg types.GuaranteesExtrinsic, accumulationResultTreeRoot types.OpaqueHash) (items types.BlockInfo) {
+func (rhc *RecentHistoryController) N(headerHash types.HeaderHash, eg types.GuaranteesExtrinsic, accumulationResultTreeRoot types.OpaqueHash) (items types.BlockInfo) {
 	accumulationResultMmr := rhc.b(accumulationResultTreeRoot)
 	workReportHash := p(eg)
 	zeroHash := types.StateRoot(types.OpaqueHash{})
@@ -180,7 +180,7 @@ func STFBeta2BetaDagger() {
 		s               = store.GetInstance()
 		rhc             = NewRecentHistoryController()
 		betas           = s.GetPriorStates().GetBeta()
-		block           = s.GetBlock()
+		block           = s.GetProcessingBlockPointer().GetBlock()
 		parentStateRoot = block.Header.ParentStateRoot
 	)
 	rhc.Betas = betas
@@ -193,13 +193,13 @@ func STFBetaDagger2BetaPrime() {
 		s          = store.GetInstance()
 		rhc        = NewRecentHistoryController()
 		betas      = s.GetIntermediateStates().GetBetaDagger()
-		block      = s.GetBlock()
+		block      = s.GetProcessingBlockPointer().GetBlock()
 		c          = s.GetIntermediateStates().GetBeefyCommitmentOutput()
 		headerHash = block.Header.Parent
 		eg         = block.Extrinsic.Guarantees
 	)
 	rhc.Betas = betas
 	accumulationResultTreeRoot := r(c)
-	items := rhc.n(headerHash, eg, accumulationResultTreeRoot)
+	items := rhc.N(headerHash, eg, accumulationResultTreeRoot)
 	rhc.AddToBetaPrime(items)
 }
