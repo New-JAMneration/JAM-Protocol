@@ -396,6 +396,9 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		delete(d, key)
 	}
 	d_prime, err := Provide(d, p)
+	if err != nil {
+		return output, fmt.Errorf("failed to provide service accounts: %w", err)
+	}
 	new_partial_state.ServiceAccounts = d_prime
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
@@ -456,7 +459,9 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
 	output.Preimage.Requester = input.ServiceId
-	output.Preimage.Blob = types.ByteSequence(pvm_result.Result[:])
+	if len(pvm_result.ServiceBlobs) > 0 {
+		output.Preimage.Blob = types.ByteSequence(pvm_result.ServiceBlobs[0].Blob)
+	}
 	return output, nil
 }
 

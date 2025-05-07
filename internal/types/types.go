@@ -1536,3 +1536,10 @@ type WorkPackageBundle struct {
 	ImportSegments ExportSegmentMatrix
 	ImportProofs   OpaqueHashMatrix
 }
+
+// v0.6.5
+type ServiceBlob struct {
+	ServiceID ServiceId
+	Blob      []byte
+}
+type ServiceBlobs []ServiceBlob
