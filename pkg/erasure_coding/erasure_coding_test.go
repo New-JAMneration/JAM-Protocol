@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"testing"
 )
@@ -18,59 +18,47 @@ type TestInput struct {
 	} `json:"segment"`
 }
 
-func TestReconstructFixedData(t *testing.T) {
-	// Open json test data file
-	file, err := os.Open("test_json_input.json")
+func TestErasureCoding(t *testing.T) {
+	ec, err := NewErasureCoding(342, 1023, 6)
 	if err != nil {
-		t.Fatalf("Cannot open JSON file: %v\n", err)
-		return
-	}
-	defer file.Close()
-
-	var input TestInput
-	if err := json.NewDecoder(file).Decode(&input); err != nil {
-		t.Fatalf("Cannot parse JSON file: %v\n", err)
-		return
+		t.Fatalf("failed to create erasure coding: %v", err)
 	}
 
-	// Decode original data
-	originalData, err := hex.DecodeString(input.Data)
+	// mock data
+	data := make([]byte, 4104) // or multiple of 684
+	for i := 0; i < len(data); i++ {
+		data[i] = byte(i % 256)
+	}
+
+	// Encode
+	shards, err := ec.Encode(data)
 	if err != nil {
-		t.Fatalf("Cannot decode original data: %v\n", err)
-		return
+		t.Fatalf("Encode failed: %v", err)
+	}
+	if len(shards) != 1023 {
+		t.Fatalf("unexpected shards count: got %d, want 1023", len(shards))
 	}
 
-	shards := make([]Shard, len(input.Segment.Segments[0].SegmentEC))
-	for i, hexStr := range input.Segment.Segments[0].SegmentEC {
-		data, err := hex.DecodeString(hexStr)
-		if err != nil {
-			t.Fatalf("Cannot decode segment %d: %v\n", i, err)
-			return
-		}
-		shards[i] = Shard{Index: i, Data: data}
+	// take first 342 shards
+	selectedShards := make([][]byte, 1023)
+	for i := 0; i < 342; i++ {
+		selectedShards[i] = shards[i]
 	}
 
-	// Initialize ErasureCoding
-	ec, err := NewErasureCoding()
+	// Decode
+	recovered, err := ec.Decode(selectedShards)
 	if err != nil {
-		t.Fatalf("Initialization failed: %v\n", err)
-		return
+		t.Fatalf("Decode failed: %v", err)
 	}
 
-	// Reconstruct data
-	reconstructedData, err := ec.Decode(shards)
-	if err != nil {
-		t.Fatalf("Data Reconstruction failed: %v", err)
+	if !bytes.Equal(data, recovered[:len(data)]) {
+		t.Fatal("recovered data does not match original")
 	}
 
-	// Check the first 342*2 bytes of the reconstructed data
-	if !bytes.Equal(reconstructedData[:342*2], originalData[:342*2]) {
-		t.Fatalf("Reconstructed data does not match original data:\nGot: %x\nWant: %x", reconstructedData[:342*2], originalData[:342*2])
-	}
 	t.Logf("Reconstructed data successfully")
 }
 
-func TestReconstructWithMinimumShards(t *testing.T) {
+func TestReconstructWithTestFile(t *testing.T) {
 	// Open json test data file
 	file, err := os.Open("test_json_input.json")
 	if err != nil {
@@ -90,7 +78,7 @@ func TestReconstructWithMinimumShards(t *testing.T) {
 	}
 
 	// Initialize erasure coding
-	ec, err := NewErasureCoding()
+	ec, err := NewErasureCoding(342, 1023, len(data)/684)
 	if err != nil {
 		t.Fatalf("Initialization failed: %v", err)
 	}
@@ -98,14 +86,14 @@ func TestReconstructWithMinimumShards(t *testing.T) {
 	// Encode data
 	shards, err := ec.Encode(data)
 	if err != nil {
-		t.Fatalf("編碼失敗: %v", err)
+		t.Fatalf("Encoding fail: %v", err)
 	}
 
 	// Simulate data loss
 	totalShards := len(shards)
 	lostShards := rand.Perm(totalShards)[:681]
 	for _, i := range lostShards {
-		shards[i].Data = nil
+		shards[i] = nil
 	}
 
 	// Reconstruct data
