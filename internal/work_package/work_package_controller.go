@@ -84,6 +84,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err != nil {
 		return types.WorkReport{}, err
 	}
+	// (14.13)
 	newDict, err := p.SegmentRootLookup.SaveWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
 	if err != nil {
 		return types.WorkReport{}, err
@@ -152,6 +153,7 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PolkaVM.Extr
 	return bundle.Package, extrinsicMap, bundle.ImportSegments, p.Bundle, workPackageHash, nil
 }
 
+// get (14.14) S & J from DA
 func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
 	var segments types.ExportSegmentMatrix
 	var proofs types.OpaqueHashMatrix
@@ -188,6 +190,6 @@ func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueH
 type FakeFetcher struct{}
 
 func (f *FakeFetcher) Fetch(erasureRoot types.OpaqueHash, index types.U16) ([]types.ExportSegment, []types.OpaqueHash, error) {
-	// need to fetch and reconstruct from DA
+	// need to fetch and reconstruct from DA, including justification check (CE139/140)
 	return []types.ExportSegment{}, []types.OpaqueHash{}, nil
 }
