@@ -2296,7 +2296,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	serviceBlob := ServiceBlob{
+	serviceBlob := types.ServiceBlob{
 		ServiceID: sStar,
 		Blob:      i,
 	}
