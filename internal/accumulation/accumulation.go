@@ -319,7 +319,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_input.PartialStateSet = input.PartialStateSet
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-		single_output, _ := SingleServiceAccumulation(single_input)
+		single_output, err := SingleServiceAccumulation(single_input)
+		if err != nil {
+			fmt.Println("SingleServiceAccumulation failed:", err)
+		}
 		// p =  ⋃∆1(o, w, f , s)p
 		p = append(p, single_output.ServiceBlobs...)
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
