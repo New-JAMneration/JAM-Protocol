@@ -316,7 +316,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 		single_output, _ := SingleServiceAccumulation(single_input)
 		// p =  ⋃∆1(o, w, f , s)p
-		p = append(p, single_output.ServiceBlob)
+		p = append(p, single_output.ServiceBlobs...)
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
@@ -453,16 +453,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
-	output.ServiceBlob.ServiceID = input.ServiceId
-	for _, blob := range pvm_result.ServiceBlobs {
-		if blob.ServiceID == input.ServiceId {
-			output.ServiceBlob.Blob = blob.Blob
-			break
-		}
-	}
-	if output.ServiceBlob.Blob == nil {
-		return output, fmt.Errorf("failed to find service blob for service ID %s", input.ServiceId)
-	}
+	output.ServiceBlobs = pvm_result.ServiceBlobs
 	return output, nil
 }
 
