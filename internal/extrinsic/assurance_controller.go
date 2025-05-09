@@ -144,7 +144,6 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 // Filter newly available work reports | Eq. 11.16
 func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger types.AvailabilityAssignments) []types.WorkReport {
 	// Filter newly available work reports from rhoDagger
-	availableNumber := types.ValidatorsCount * 2 / 3
 	totalAvailable := make([]int, types.CoresCount)
 
 	// compute total availability of a report | at this moment of the workflow, the bitfield is transformed into a binary sequence.
@@ -159,7 +158,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 	availableWorkReports := []types.WorkReport{}
 	for i := 0; i < types.CoresCount; i++ {
 		// If the votes for this core are greater than the available number, add the work report to the available work reports
-		if totalAvailable[i] > availableNumber {
+		if totalAvailable[i] >= types.ValidatorsSuperMajority {
 			// Get work reports from rhoDagger
 			if rhoDagger[i] == nil {
 				continue
@@ -190,10 +189,6 @@ func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkR
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() error {
-	if len(a.AvailAssurances) == 0 {
-		return nil
-	}
-
 	store := store.GetInstance()
 
 	rhoDagger := store.GetIntermediateStates().GetRhoDagger()

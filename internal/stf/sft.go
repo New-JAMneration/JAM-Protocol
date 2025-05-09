@@ -13,6 +13,12 @@ func RunSTF() error {
 		return err
 	}
 
+	// Update Assurances
+	err = UpdateAssurances()
+	if err != nil {
+		return err
+	}
+
 	// Update Reports
 
 	// Update Accumlate

@@ -68,7 +68,7 @@ func GetTestJsonFiles(dir string) []string {
 }
 
 func TestAssurances(t *testing.T) {
-	dir := "../../pkg/test_data/jam-test-vectors/assurances/" + os.Getenv("TEST_MODE") + "/"
+	dir := "../../../pkg/test_data/jam-test-vectors/assurances/" + os.Getenv("TEST_MODE") + "/"
 	jsonFiles := GetTestJsonFiles(dir)
 
 	for _, file := range jsonFiles {
@@ -81,12 +81,14 @@ func TestAssurances(t *testing.T) {
 		}
 		s := store.GetInstance()
 		GenerateBlockForHeader(assurancesTestCase.Input)
-		s.GetPosteriorStates().SetKappa(assurancesTestCase.PreState.CurrValidators)
+		s.GetPriorStates().SetKappa(assurancesTestCase.PreState.CurrValidators)
+		s.GetPriorStates().SetRho(assurancesTestCase.PreState.AvailAssignments)
 		s.GetIntermediateStates().SetRhoDagger(assurancesTestCase.PreState.AvailAssignments)
+		s.GetProcessingBlockPointer().SetAssurancesExtrinsic(assurancesTestCase.Input.Assurances)
 
 		assurancesState := jamtests.AssuranceState{}
 
-		err = assurance.Assurance(assurancesTestCase.Input.Assurances)
+		err = assurance.Assurance()
 		if err != nil {
 			s.GetIntermediateStates().SetRhoDoubleDagger(assurancesTestCase.PreState.AvailAssignments)
 			s.GetPosteriorStates().SetKappa(assurancesTestCase.PreState.CurrValidators)
