@@ -3,10 +3,12 @@ package jamtests
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/google/go-cmp/cmp"
 )
 
 // ANSI color codes
@@ -317,17 +319,22 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
+	// Set up test input state
+	mockEgs := make(types.GuaranteesExtrinsic, 0, len(a.Input.Auths))
+	for _, eg := range a.Input.Auths {
+		mockEgs = append(mockEgs, types.ReportGuarantee{
+			Report: types.WorkReport{
+				CoreIndex:      eg.CoreIndex,
+				AuthorizerHash: eg.AuthorizerHash,
+			},
+		})
+	}
+	// Get store instance and required states
 	storeInstance := store.GetInstance()
-
-	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
-	storeInstance.GetPriorStates().SetVarphi(a.PreState.Varphi)
-
 	storeInstance.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
-	storeInstance.GetPosteriorStates().SetTau(a.Input.Slot)
-
-	// Missing the CoreAuthorizer
-	// How to set the CoreAuthorizer?
-
+	storeInstance.GetProcessingBlockPointer().SetGuaranteesExtrinsic(mockEgs)
+	storeInstance.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
+	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	return nil
 }
 
@@ -349,11 +356,30 @@ func (a *AuthorizationTestCase) Validate() error {
 	storeInstance := store.GetInstance()
 
 	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetAlpha(), a.PostState.Alpha) {
-		return fmt.Errorf("Alpha mismatch: expected %v, got %v", a.PostState.Alpha, storeInstance.GetPosteriorStates().GetAlpha())
+		return fmt.Errorf("alpha state mismatch: expected %v, got %v", a.PostState.Alpha, storeInstance.GetPosteriorStates().GetAlpha())
 	}
 
 	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetVarphi(), a.PostState.Varphi) {
-		return fmt.Errorf("Varphi mismatch: expected %v, got %v", a.PostState.Varphi, storeInstance.GetPosteriorStates().GetVarphi())
+		return fmt.Errorf("varphi state mismatch: expected %v, got %v", a.PostState.Varphi, storeInstance.GetPosteriorStates().GetVarphi())
+	}
+
+	// Get output state
+	outputAlpha := storeInstance.GetPosteriorStates().GetAlpha()
+	// Validate output state
+	if !reflect.DeepEqual(a.PreState.Varphi, a.PostState.Varphi) {
+		diff := cmp.Diff(a.PreState.Varphi, a.PostState.Varphi)
+		return fmt.Errorf("varphi state are not equal: %v", diff)
+	} else if !reflect.DeepEqual(outputAlpha, a.PostState.Alpha) {
+		// diff := cmp.Diff(posteriorState.Alpha, outputAlpha)
+		for i := range outputAlpha {
+			if !reflect.DeepEqual(outputAlpha[i], a.PostState.Alpha[i]) {
+				log.Printf("len(outputAlpha[%d]): %d, len(posteriorState.Alpha[%d]): %d", i, len(outputAlpha[i]), i, len(a.PostState.Alpha[i]))
+				needDiff := cmp.Diff(a.PreState.Alpha[i], a.PostState.Alpha[i])
+				log.Printf("expected diff: %v", needDiff)
+				deepDiff := cmp.Diff(a.PostState.Alpha[i], outputAlpha[i])
+				return fmt.Errorf("alpha state[%d] are not equal: %v", i, deepDiff)
+			}
+		}
 	}
 
 	return nil
