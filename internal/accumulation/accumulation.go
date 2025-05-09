@@ -29,23 +29,28 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 //   - wl == {}  : there is no segment root lookup required
 //
 // These work reports are independent and can be accumulated without waiting.
-func UpdateImmediatelyAccumulateWorkReports(reports []types.WorkReport) {
+func UpdateImmediatelyAccumulateWorkReports() {
+	intermediateState := store.GetInstance().GetIntermediateStates()
+	availableReports := intermediateState.GetAvailableWorkReports()
+
 	var accumulatable_reports []types.WorkReport
-	for _, report := range reports {
+	for _, report := range availableReports {
 		// Check for no prerequisites and no segment root lookup dependencies
 		if len(report.Context.Prerequisites) == 0 && len(report.SegmentRootLookup) == 0 {
 			accumulatable_reports = append(accumulatable_reports, report)
 		}
 	}
 	// Store W! — immediately accumulatable work reports
-	store.GetInstance().GetIntermediateStates().SetAccumulatedWorkReports(accumulatable_reports)
+	intermediateState.SetAccumulatedWorkReports(accumulatable_reports)
 }
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
 // Get all workreport with dependency, and store in QueuedWorkReports
-func UpdateQueuedWorkReports(reports []types.WorkReport) {
+func UpdateQueuedWorkReports() {
+	intermediateState := store.GetInstance().GetIntermediateStates()
+	availableReports := intermediateState.GetAvailableWorkReports()
 	var reports_with_dependency types.ReadyQueueItem
-	for _, report := range reports {
+	for _, report := range availableReports {
 		if len(report.Context.Prerequisites) != 0 || len(report.SegmentRootLookup) != 0 {
 			// D(w): extract the dependency structure from report
 			reports_with_dependency = append(reports_with_dependency, GetDependencyFromWorkReport(report))
@@ -54,7 +59,7 @@ func UpdateQueuedWorkReports(reports []types.WorkReport) {
 	// E(..., ©ξ): perform dependency resolution and ordering
 	work_reports_queue := QueueEditingFunction(reports_with_dependency, GetAccumulatedHashes())
 	// Store WQ — queued reports awaiting prerequisite satisfaction
-	store.GetInstance().GetIntermediateStates().SetQueuedWorkReports(work_reports_queue)
+	intermediateState.SetQueuedWorkReports(work_reports_queue)
 }
 
 // (12.6) D(w) ≡ (w, {(wx)p} ∪ K(wl))
@@ -448,12 +453,12 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	return output, nil
 }
 
-func ProcessAccumulation(W []types.WorkReport) error {
+func ProcessAccumulation() error {
 	// Compute W!
-	UpdateImmediatelyAccumulateWorkReports(W)
+	UpdateImmediatelyAccumulateWorkReports()
 
 	// Compute WQ
-	UpdateQueuedWorkReports(W)
+	UpdateQueuedWorkReports()
 
 	// Compute W*
 	UpdateAccumulatableWorkReports()
