@@ -3,11 +3,12 @@ package extrinsic
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 // Assurance is a struct that contains a slice of Assurance
-func Assurance(assuranceExtrinsic types.AssurancesExtrinsic) (err error) {
+func Assurance() (err error) {
+	assuranceExtrinsic := store.GetInstance().GetProcessingBlockPointer().GetAssurancesExtrinsic()
 	assurances := AvailAssuranceController{AvailAssurances: assuranceExtrinsic}
 
 	err = assurances.ValidateAnchor()

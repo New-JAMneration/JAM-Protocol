@@ -1,5 +1,13 @@
 package stf
 
+import (
+	"log"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
+)
+
 func UpdateAssurances() error {
-	return nil
+	log.Println("Update assurances")
+
+	return extrinsic.Assurance()
 }

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/google/go-cmp/cmp"
 )
 
 // ANSI color codes
@@ -399,6 +401,7 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 }
 
 func (a *AssuranceTestCase) Dump() error {
+	store.ResetInstance()
 	s := store.GetInstance()
 
 	// Add block
@@ -406,8 +409,10 @@ func (a *AssuranceTestCase) Dump() error {
 	block := types.Block{Header: header}
 	s.AddBlock(block)
 
-	s.GetPosteriorStates().SetKappa(a.PreState.CurrValidators)
+	s.GetPriorStates().SetKappa(a.PreState.CurrValidators)
+	s.GetPriorStates().SetRho(a.PreState.AvailAssignments)
 	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
+	s.GetProcessingBlockPointer().SetAssurancesExtrinsic(a.Input.Assurances)
 
 	return nil
 }
@@ -424,9 +429,27 @@ func (a *AssuranceTestCase) ExpectError() error {
 	if a.Output.Err == nil {
 		return nil
 	}
+
 	return a.Output.Err
 }
 
 func (a *AssuranceTestCase) Validate() error {
+	s := store.GetInstance()
+
+	// kappa is not updated during assurance so there is no point in comparing the value of kappa to match the expected value.
+
+	if err := checkValue("Availability assignments", s.GetIntermediateStates().GetRhoDoubleDagger(), a.PostState.AvailAssignments); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkValue[T any](label string, actual T, expected T) error {
+	if !reflect.DeepEqual(actual, expected) {
+		diff := cmp.Diff(actual, expected)
+		return fmt.Errorf("%s do not match.\nExpected: %v\n  Actual: %v\n    Diff: %v", label, expected, actual, diff)
+	}
+
 	return nil
 }
