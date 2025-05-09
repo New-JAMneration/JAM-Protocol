@@ -1470,3 +1470,10 @@ type AuditPool struct {
 	mu   sync.RWMutex
 	data map[WorkPackageHash][]AuditReport
 }
+
+// v0.6.5
+type ServiceBlob struct {
+	ServiceID ServiceId
+	Blob      []byte
+}
+type ServiceBlobs []ServiceBlob

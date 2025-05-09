@@ -190,14 +190,14 @@ func UpdateAccumulatableWorkReports() {
 
 // (12.16) ∆+ outer accumulation function
 // (NG, ⟦W⟧, U, D⟨NS → NG⟩) → (N, U, ⟦T⟧, B, U )
-// (g, w, o, f )↦ (0, o, [], {}) if i = 0
+// (g, w, o, f )↦ (0, o, [], {}, []) if i = 0
 //
 //	(i + j, o′, t∗⌢ t, b∗ ∪ b, u∗⌢ u) o/w
 //
 // where i = max(NSwS+1) ∶   ∑   ∑     (rg ) ≤ g
 //
 //							w∈w...i  r∈wr
-//	 and (u∗, o∗, t∗, b∗) = ∆∗(o, w...i, f )
+//	 and (o∗, t∗, b∗, u∗) = ∆∗(o, w...i, f )
 //
 // and (j, o′, t, b, u) = ∆+(g − ∑u, wi..., o∗, {})
 //
@@ -264,12 +264,14 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 
 // (12.17) ∆∗ parallelized accumulation function
 // (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
-// (o, w, f ) ↦ (((d ∪ n) ∖ m, i′, q′, x′),Ìt, b, u)
+// (o, w, f ) ↦ ((d′, i′, q′, x′),Ìt, b, u, p∗)
 // where:
 // s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 // u = [(s, ∆1(o, w, f , s)u) S s <− s]
 // b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
 // t = [∆1(o, w, f, s)t S s <− s]
+// p =  s<−s⋃ ∆1(o, w, f , s)p
+// d′ = P ((d ∪ n) ∖ m, p)
 //
 //	(d, i, q, (m, a, v, z)) = o
 //
@@ -298,20 +300,26 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 	}
 	// K(f)
-	for serivce_id := range input.AlwaysAccumulateMap {
-		s[serivce_id] = true
+	for service_id := range input.AlwaysAccumulateMap {
+		s[service_id] = true
 	}
 	d := input.PartialStateSet.ServiceAccounts
 	var t []types.DeferredTransfer
 	n := make(types.ServiceAccountState)
 	m := d
+	p := types.ServiceBlobs{}
 	for service_id := range s {
 		var single_input SingleServiceAccumulationInput
 		single_input.ServiceId = service_id
 		single_input.PartialStateSet = input.PartialStateSet
 		single_input.WorkReports = input.WorkReports
 		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-		single_output, _ := SingleServiceAccumulation(single_input)
+		single_output, err := SingleServiceAccumulation(single_input)
+		if err != nil {
+			fmt.Println("SingleServiceAccumulation failed:", err)
+		}
+		// p =  ⋃∆1(o, w, f , s)p
+		p = append(p, single_output.ServiceBlobs...)
 		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
@@ -385,27 +393,30 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for key := range m {
 		delete(d, key)
 	}
-	new_partial_state.ServiceAccounts = d
-
+	d_prime, err := Provide(d, p)
+	if err != nil {
+		return output, fmt.Errorf("failed to provide service accounts: %w", err)
+	}
+	new_partial_state.ServiceAccounts = d_prime
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
 	return output, nil
 }
 
-// (12.19) ∆1 single-service accumulation function
+// (12.20) ∆1 single-service accumulation function
 
 // ∆1∶
 // (U, ⟦W⟧, D⟨NS → NG⟩, NS ) → o ∈ U , t ∈ ⟦T⟧ ,
 //
-//					  b ∈ H? , u ∈ NG
-//	(o, w, f , s) ↦ ΨA(o, τ ′, s, g, p)
+//					  b ∈ H? , u ∈ NG p ∈ {NS , Y}
+//	(o, w, f, s) ↦ ΨA(o, τ ′, s, g, i)
 //
 // where:
 //
 //	g = U(fs, 0) + ∑(rg )
 //				w∈w,r∈wr,rs=s
 //
-// p d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
+// i d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
 //
 //	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
@@ -445,6 +456,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
 	output.PartialStateSet = pvm_result.PartialStateSet
+	output.ServiceBlobs = pvm_result.ServiceBlobs
 	return output, nil
 }
 

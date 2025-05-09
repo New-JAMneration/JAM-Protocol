@@ -183,7 +183,6 @@ var HostCallFunctions = [29]Omega{
 	14: solicit,
 	15: forget,
 	16: yield,
-<<<<<<< HEAD
 	17: historicalLookup,
 	18: fetch,
 	19: export,
@@ -194,14 +193,7 @@ var HostCallFunctions = [29]Omega{
 	24: void,
 	25: invoke,
 	26: expunge,
-<<<<<<< HEAD
-=======
-
 	27: provide,
->>>>>>> e8b6214 (PVM update v0.6.5)
-=======
-	27: provide,
->>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 }
 
 func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
@@ -2303,7 +2295,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	serviceBlob := ServiceBlob{
+	serviceBlob := types.ServiceBlob{
 		ServiceID: sStar,
 		Blob:      i,
 	}
