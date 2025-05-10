@@ -53,7 +53,10 @@ func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFun
 
 func TestN(t *testing.T) {
 	hash := hash.Blake2bHash
-
+	h1 := hash(append(types.ByteSequence("leaf"), 1))
+	h2 := hash(append(types.ByteSequence("leaf"), 2))
+	h3 := hash(append(types.ByteSequence("leaf"), 3))
+	h4 := hash(append(types.ByteSequence("leaf"), 4))
 	t.Run("empty slice", func(t *testing.T) {
 		var empty []types.ByteSequence
 		result := N(empty, hash)
@@ -61,14 +64,11 @@ func TestN(t *testing.T) {
 	})
 	t.Run("single element", func(t *testing.T) {
 		data := []types.ByteSequence{{42}}
-		h1 := hash(append(types.ByteSequence("leaf"), 1))
 		data[0] = h1[:]
 		result := N(data, hash)
 		require.Equal(t, h1, result)
 	})
 	t.Run("two elements", func(t *testing.T) {
-		h1 := hash(append(types.ByteSequence("leaf"), 1))
-		h2 := hash(append(types.ByteSequence("leaf"), 2))
 		data := []types.ByteSequence{
 			types.ByteSequence(h1[:]),
 			types.ByteSequence(h2[:]),
@@ -83,9 +83,6 @@ func TestN(t *testing.T) {
 		require.Equal(t, expected, result)
 	})
 	t.Run("three elements", func(t *testing.T) {
-		h1 := hash(append(types.ByteSequence("leaf"), 1))
-		h2 := hash(append(types.ByteSequence("leaf"), 2))
-		h3 := hash(append(types.ByteSequence("leaf"), 3))
 		data := []types.ByteSequence{
 			h1[:],
 			h2[:],
@@ -112,10 +109,6 @@ func TestN(t *testing.T) {
 		require.Equal(t, expected, result)
 	})
 	t.Run("four elements", func(t *testing.T) {
-		h1 := hash(append(types.ByteSequence("leaf"), 1))
-		h2 := hash(append(types.ByteSequence("leaf"), 2))
-		h3 := hash(append(types.ByteSequence("leaf"), 3))
-		h4 := hash(append(types.ByteSequence("leaf"), 4))
 		data := []types.ByteSequence{
 			h1[:],
 			h2[:],
