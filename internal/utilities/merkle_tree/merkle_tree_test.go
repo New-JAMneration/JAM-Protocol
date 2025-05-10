@@ -14,6 +14,8 @@ func TestJ0_VerifyMerkleProof(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		segment = append(segment, types.ByteSequence{byte(i)})
 	}
+
+	// PrintMerkleTree(segment, hash.Blake2bHash)
 	fmt.Println("segment:", segment)
 	root := M(segment, hash.Blake2bHash)
 
