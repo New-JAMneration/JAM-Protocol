@@ -18,8 +18,8 @@ import (
 //
 //	∅ otherwise 		c <− NC
 //
-// GetQ constructs the audit report candidates Q (formula 17.1 ~ 17.2).
-func GetQ() []*types.WorkReport {
+// CollectAuditReportCandidates constructs the audit report candidates Q (formula 17.1 ~ 17.2).
+func CollectAuditReportCandidates() []*types.WorkReport {
 	store := store.GetInstance()
 
 	// ρ(rho): Current assignment map (per core)
@@ -49,13 +49,13 @@ func GetQ() []*types.WorkReport {
 	return Q
 }
 
-// GetS0 computes the initial audit seed s₀ for a validator, following Formula (17.3)-(17.4).
-// Returns the VRF output (s₀) as BandersnatchVrfSignature.
-func GetS0(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature, error) {
+// GenerateValidatorAuditSeed computes the initial audit seed s0 for a validator, following Formula (17.3)-(17.4).
+// Returns the VRF output (s0) as BandersnatchVrfSignature.
+func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature, error) {
 	store := store.GetInstance()
 	priorStates := store.GetPriorStates()
 
-	entropyHash, err := GetYHv() // Y(Hᵥ): VRF output of block author's entropy
+	entropyHash, err := ComputeAuthorEntropyVrfOutput() // Y(Hᵥ): VRF output of block author's entropy
 	if err != nil {
 		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to get Y(Hᵥ): %w", err)
 	}
@@ -94,11 +94,11 @@ func GetS0(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature,
 //	(17.5) a0 = top 10 of (c, Q[c]) where Q[c] ≠ ∅
 //
 // Returns a list of AuditReports
-func ComputeA0ForValidator(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
+func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
 	store := store.GetInstance()
 
 	// Get initial audit seed s0 (17.3)
-	s0, err := GetS0(validatorIndex)
+	s0, err := GenerateValidatorAuditSeed(validatorIndex)
 	if err != nil {
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to get s0: %w", err)
 	}
@@ -240,7 +240,10 @@ func ClassifyJudgments(
 	}
 	return
 }
-func GetYHv() ([]byte, error) {
+
+// (17.14) Y(Hᵥ) ∈ F[] κ[v]b ⟨XU ⌢ H(Hv)⟩
+// GetYHv computes the VRF output Y(Hᵥ) using the block author's key and the block header's entropy source.
+func ComputeAuthorEntropyVrfOutput() ([]byte, error) {
 	// Compute Y(Hᵥ) — entropy hashed by block author's key
 	store := store.GetInstance()
 	priorStates := store.GetPriorStates()
@@ -275,7 +278,7 @@ func ComputeAnForValidator(
 	priorStates := store.GetPriorStates()
 
 	// Y(Hᵥ): VRF output of block author's entropy
-	Y_Hv, err := GetYHv()
+	Y_Hv, err := ComputeAuthorEntropyVrfOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Y(Hᵥ): %w", err)
 	}
@@ -483,6 +486,22 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	}
 	return positiveJudgers
 }
+func WaitNextTranche(tranche types.U8) {
+	// TODO: Implement the logic to wait for the next tranche
+	// This could involve sleeping for a certain duration or waiting for an event.
+}
+
+func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	// TODO CE 145 QUIC, the final input types TBD
+	return positiveJudgers
+}
+
+func SyncAssignmentMapFromOtherNodes(
+	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
+	validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash][]types.ValidatorIndex {
+	// TODO CE 144 QUIC, the final input types TBD
+	return assignmentMap
+}
 
 // 17.17
 func GetJudgement(report types.AuditReport) bool {
@@ -494,7 +513,7 @@ func SingleNodeAuditingAndPublish(
 	validatorPrivKey ed25519.PrivateKey,
 ) error {
 	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
-	Q := GetQ()
+	Q := CollectAuditReportCandidates()
 	var workReports []types.WorkReport
 	for _, report := range Q {
 		if report != nil {
@@ -507,7 +526,7 @@ func SingleNodeAuditingAndPublish(
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool) // key = work report hash, value = positive judgers
 
 	// Step 3: (17.3–17.7) Compute initial deterministic assignment a₀
-	a0, err := ComputeA0ForValidator(Q, validatorIndex) // a0: assigned reports for local validator
+	a0, err := ComputeInitialAuditAssignment(Q, validatorIndex) // a0: assigned reports for local validator
 	if err != nil {
 		return fmt.Errorf("failed to compute a₀: %w", err)
 	}
@@ -535,8 +554,8 @@ func SingleNodeAuditingAndPublish(
 	BroadcastAuditReport(signedA0)
 
 	// Step 9: Receive CE144 and CE145 from other nodes to update state
-	UpdateAssignmentMapFromOtherNode(assignmentMap)
-	UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+	assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, 0)
+	positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, 0)
 
 	// Step 10: (17.20) Check if all reports from the current block have passed audit
 	if IsBlockAudited(workReports, signedA0, assignmentMap) {
@@ -568,13 +587,14 @@ func SingleNodeAuditingAndPublish(
 		BroadcastAuditReport(signedAn)
 
 		// Step 16: Update local assignment and judgement state with messages from other nodes
-		UpdateAssignmentMapFromOtherNode(assignmentMap)
-		UpdatePositiveJudgersFromOtherNode(positiveJudgers)
+		assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, tranche)
+		positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, tranche)
 
 		// Step 17: Check if audit condition has been satisfied for all reports for single block
 		if IsBlockAudited(workReports, signedAn, assignmentMap) {
 			break
 		}
+		WaitNextTranche(tranche)
 	}
 
 	return nil
