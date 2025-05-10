@@ -54,3 +54,50 @@ func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFun
 	fmt.Printf("Expected root: %x\n", root)
 	return current == root
 }
+func TestN_EmptyInput(t *testing.T) {
+	hash := hash.Blake2bHash
+	var empty []types.ByteSequence
+	require.Equal(t, types.OpaqueHash{}, N(empty, hash))
+}
+
+func TestM_SingleElement(t *testing.T) {
+	hash := hash.Blake2bHash
+	input := []types.ByteSequence{{42}}
+	expected := hash(append(types.ByteSequence("leaf"), 42))
+	require.Equal(t, expected, M(input, hash))
+}
+
+func TestC_Padding(t *testing.T) {
+	hash := hash.Blake2bHash
+	input := []types.ByteSequence{{1}, {2}, {3}}
+	out := C(input, hash)
+	require.Len(t, out, 4)
+	require.NotEqual(t, types.OpaqueHash{}, out[0])
+	require.Equal(t, types.OpaqueHash{}, out[3])
+}
+
+func TestT_PathLength(t *testing.T) {
+	hash := hash.Blake2bHash
+	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
+	c := C(input, hash)
+	var C []types.ByteSequence
+	for _, val := range c {
+		C = append(C, types.ByteSequence(val[:]))
+	}
+
+	path := T(C, 2, hash)
+	require.Len(t, path, 2) // depth-2 tree，包含兩個 sibling
+}
+
+func TestJx_Equals_T(t *testing.T) {
+	hash := hash.Blake2bHash
+	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
+	output := C(input, hash)
+	C := make([]types.ByteSequence, len(output))
+	for i, val := range output {
+		C[i] = types.ByteSequence(val[:])
+	}
+	tPath := T(C, 2, hash)
+	jxPath := Jx(0, input, 2, hash)
+	require.Equal(t, tPath, jxPath)
+}
