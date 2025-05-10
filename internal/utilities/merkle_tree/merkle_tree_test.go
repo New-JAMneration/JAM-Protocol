@@ -193,6 +193,27 @@ func TestJ0_Equals_T(t *testing.T) {
 	require.Equal(t, tPath, jxPath)
 }
 
+func TestJ1_Equals_T(t *testing.T) {
+	hash := hash.Blake2bHash
+	input := []types.ByteSequence{
+		{0}, {1}, {2}, {3},
+		{4}, {5}, {6}, {7},
+	}
+
+	C_res := C(input, hash)
+	var C []types.ByteSequence
+	for _, h := range C_res {
+		C = append(C, types.ByteSequence(h[:]))
+	}
+
+	pageIndex := types.U32(1)
+	leafIndex := pageIndex << 1 // i * 2^x
+	jxPath := Jx(1, input, pageIndex, hash)
+	fullT := T(C, leafIndex, hash)
+
+	require.Equal(t, fullT[:len(jxPath)], jxPath)
+}
+
 func TestN_PanicsOnInvalidSingleElement(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
