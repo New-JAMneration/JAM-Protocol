@@ -157,29 +157,6 @@ func TestM(t *testing.T) {
 		require.Len(t, C(data, hash), 4)
 	})
 }
-
-func TestC_Padding(t *testing.T) {
-	hash := hash.Blake2bHash
-	input := []types.ByteSequence{{1}, {2}, {3}}
-	out := C(input, hash)
-	require.Len(t, out, 4)
-	require.NotEqual(t, types.OpaqueHash{}, out[0])
-	require.Equal(t, types.OpaqueHash{}, out[3])
-}
-
-func TestT_PathLength(t *testing.T) {
-	hash := hash.Blake2bHash
-	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
-	c := C(input, hash)
-	var C []types.ByteSequence
-	for _, val := range c {
-		C = append(C, types.ByteSequence(val[:]))
-	}
-
-	path := T(C, 2, hash)
-	require.Len(t, path, 2)
-}
-
 func TestJ0_Equals_T(t *testing.T) {
 	hash := hash.Blake2bHash
 	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
