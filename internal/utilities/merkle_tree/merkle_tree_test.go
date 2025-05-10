@@ -9,23 +9,19 @@ import (
 	"github.com/test-go/testify/require"
 )
 
-func TestJ0_VerifyMerkleProof(t *testing.T) {
+func TestJ0_VerifyMerkleProof_AllLeaves(t *testing.T) {
 	var segment []types.ByteSequence
 	for i := 0; i < 8; i++ {
 		segment = append(segment, types.ByteSequence{byte(i)})
 	}
 
-	// PrintMerkleTree(segment, hash.Blake2bHash)
-	fmt.Println("segment:", segment)
 	root := M(segment, hash.Blake2bHash)
 
-	n := 2
-	proof := Jx(0, segment, types.U32(n), hash.Blake2bHash)
-	for i, p := range proof {
-		fmt.Printf("proof[%d]: %x\n", i, p)
+	for n := 0; n < len(segment); n++ {
+		proof := Jx(0, segment, types.U32(n), hash.Blake2bHash)
+		ok := VerifyMerkleProof(segment[n], proof, n, hash.Blake2bHash, root)
+		require.True(t, ok, "failed on leaf index %d", n)
 	}
-	ok := VerifyMerkleProof(segment[n], proof, n, hash.Blake2bHash, root)
-	require.True(t, ok)
 }
 
 func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFunc func(types.ByteSequence) types.OpaqueHash, root types.OpaqueHash) bool {
@@ -39,19 +35,19 @@ func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFun
 		if index%2 == 0 {
 			node = append(types.ByteSequence("node"), current[:]...)
 			node = append(node, sibling[:]...)
-			fmt.Printf("Level %d: Left %x, Right %x\n", level, current, sibling)
+			// fmt.Printf("Level %d: Left %x, Right %x\n", level, current, sibling)
 		} else {
 			node = append(types.ByteSequence("node"), sibling[:]...)
 			node = append(node, current[:]...)
-			fmt.Printf("Level %d: Left %x, Right %x\n", level, sibling, current)
+			// fmt.Printf("Level %d: Left %x, Right %x\n", level, sibling, current)
 		}
 		current = hashFunc(node)
-		fmt.Printf("Level %d result: %x\n", level, current)
+		// fmt.Printf("Level %d result: %x\n", level, current)
 		index /= 2
 	}
 
-	fmt.Printf("Computed root: %x\n", current)
-	fmt.Printf("Expected root: %x\n", root)
+	// fmt.Printf("Computed root: %x\n", current)
+	// fmt.Printf("Expected root: %x\n", root)
 	return current == root
 }
 
@@ -202,4 +198,18 @@ func TestJ0_Equals_T(t *testing.T) {
 	tPath := T(C, 2, hash)
 	jxPath := Jx(0, input, 2, hash)
 	require.Equal(t, tPath, jxPath)
+}
+
+func TestN_PanicsOnInvalidSingleElement(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for single element not 32 bytes, but none occurred")
+		} else {
+			fmt.Println("✅ Panic caught as expected:", r)
+		}
+	}()
+
+	hash := hash.Blake2bHash
+	invalid := []types.ByteSequence{{0x01, 0x02, 0x03}} // Not 32 bytes
+	N(invalid, hash)                                    // should panic
 }
