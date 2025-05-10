@@ -54,17 +54,119 @@ func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFun
 	fmt.Printf("Expected root: %x\n", root)
 	return current == root
 }
-func TestN_EmptyInput(t *testing.T) {
+
+func TestN(t *testing.T) {
 	hash := hash.Blake2bHash
-	var empty []types.ByteSequence
-	require.Equal(t, types.OpaqueHash{}, N(empty, hash))
+
+	t.Run("empty slice", func(t *testing.T) {
+		var empty []types.ByteSequence
+		result := N(empty, hash)
+		require.Equal(t, types.OpaqueHash{}, result)
+	})
+	t.Run("single element", func(t *testing.T) {
+		data := []types.ByteSequence{{42}}
+		h1 := hash(append(types.ByteSequence("leaf"), 1))
+		data[0] = h1[:]
+		result := N(data, hash)
+		require.Equal(t, h1, result)
+	})
+	t.Run("two elements", func(t *testing.T) {
+		h1 := hash(append(types.ByteSequence("leaf"), 1))
+		h2 := hash(append(types.ByteSequence("leaf"), 2))
+		data := []types.ByteSequence{
+			types.ByteSequence(h1[:]),
+			types.ByteSequence(h2[:]),
+		}
+
+		merge := types.ByteSequence("node")
+		merge = append(merge, data[0]...)
+		merge = append(merge, data[1]...)
+		expected := hash(merge)
+
+		result := N(data, hash)
+		require.Equal(t, expected, result)
+	})
+	t.Run("three elements", func(t *testing.T) {
+		h1 := hash(append(types.ByteSequence("leaf"), 1))
+		h2 := hash(append(types.ByteSequence("leaf"), 2))
+		h3 := hash(append(types.ByteSequence("leaf"), 3))
+		data := []types.ByteSequence{
+			h1[:],
+			h2[:],
+			h3[:],
+		}
+
+		// Merkle tree:
+		// left : data[0]
+		// right: hash(data[1], data[2])
+		// root : hash(node, left, right)
+		left := data[0]
+
+		right := types.ByteSequence("node")
+		right = append(right, data[1]...)
+		right = append(right, data[2]...)
+		right_hash := hash(right)
+
+		merge := types.ByteSequence("node")
+		merge = append(merge, left...)
+		merge = append(merge, right_hash[:]...)
+		expected := hash(merge)
+
+		result := N(data, hash)
+		require.Equal(t, expected, result)
+	})
+	t.Run("four elements", func(t *testing.T) {
+		h1 := hash(append(types.ByteSequence("leaf"), 1))
+		h2 := hash(append(types.ByteSequence("leaf"), 2))
+		h3 := hash(append(types.ByteSequence("leaf"), 3))
+		h4 := hash(append(types.ByteSequence("leaf"), 4))
+		data := []types.ByteSequence{
+			h1[:],
+			h2[:],
+			h3[:],
+			h4[:],
+		}
+
+		// data[0-1]
+		left := types.ByteSequence("node")
+		left = append(left, data[0]...)
+		left = append(left, data[1]...)
+		leftHash := hash(left)
+
+		// data[2-3]
+		right := types.ByteSequence("node")
+		right = append(right, data[2]...)
+		right = append(right, data[3]...)
+		rightHash := hash(right)
+
+		// data[0-3]
+		merge := types.ByteSequence("node")
+		merge = append(merge, leftHash[:]...)
+		merge = append(merge, rightHash[:]...)
+		expected := hash(merge)
+
+		result := N(data, hash)
+		require.Equal(t, expected, result)
+	})
+
 }
 
-func TestM_SingleElement(t *testing.T) {
+func TestM(t *testing.T) {
 	hash := hash.Blake2bHash
-	input := []types.ByteSequence{{42}}
-	expected := hash(append(types.ByteSequence("leaf"), 42))
-	require.Equal(t, expected, M(input, hash))
+
+	t.Run("one leaf only", func(t *testing.T) {
+		data := []types.ByteSequence{{99}}
+		expected := hash(append(types.ByteSequence("leaf"), 99))
+		result := M(data, hash)
+		require.Equal(t, expected, result)
+	})
+
+	t.Run("non-power-of-2 leaf padding", func(t *testing.T) {
+		data := []types.ByteSequence{{1}, {2}, {3}} // Should pad to 4
+		result := M(data, hash)
+		require.NotEqual(t, types.OpaqueHash{}, result)
+		require.Len(t, C(data, hash), 4)
+	})
 }
 
 func TestC_Padding(t *testing.T) {
@@ -86,10 +188,10 @@ func TestT_PathLength(t *testing.T) {
 	}
 
 	path := T(C, 2, hash)
-	require.Len(t, path, 2) // depth-2 tree，包含兩個 sibling
+	require.Len(t, path, 2)
 }
 
-func TestJx_Equals_T(t *testing.T) {
+func TestJ0_Equals_T(t *testing.T) {
 	hash := hash.Blake2bHash
 	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
 	output := C(input, hash)
