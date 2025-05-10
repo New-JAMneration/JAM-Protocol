@@ -166,6 +166,7 @@ func TestJ0_Equals_T(t *testing.T) {
 		C[i] = types.ByteSequence(val[:])
 	}
 	tPath := T(C, 2, hash)
+	require.Len(t, tPath, 2)
 	jxPath := Jx(0, input, 2, hash)
 	require.Equal(t, tPath, jxPath)
 }
@@ -203,4 +204,61 @@ func TestN_PanicsOnInvalidSingleElement(t *testing.T) {
 	hash := hash.Blake2bHash
 	invalid := []types.ByteSequence{{0x01, 0x02, 0x03}} // Not 32 bytes
 	N(invalid, hash)                                    // should panic
+}
+
+func TestT_OutputLength(t *testing.T) {
+	hash := hash.Blake2bHash
+	for n := 2; n <= 64; n *= 2 {
+		t.Run(fmt.Sprintf("len=%d", n), func(t *testing.T) {
+			var input []types.ByteSequence
+			for i := 0; i < n; i++ {
+				input = append(input, types.ByteSequence{byte(i)})
+			}
+
+			C_res := C(input, hash)
+			var hashedLeaves []types.ByteSequence
+			for _, h := range C_res {
+				hashedLeaves = append(hashedLeaves, types.ByteSequence(h[:]))
+			}
+
+			leafIndex := types.U32(n / 2)
+			path := T(hashedLeaves, leafIndex, hash)
+
+			expectedLen := 0
+			for (1 << expectedLen) < len(hashedLeaves) {
+				expectedLen++
+			}
+			// output length should be log2(n)
+			require.Len(t, path, expectedLen, "T() output length mismatch for len=%d", n)
+		})
+	}
+}
+
+func TestJx_OutputLength(t *testing.T) {
+	hash := hash.Blake2bHash
+
+	for n := 2; n <= 64; n *= 2 {
+		maxLog := 0
+		for (1 << maxLog) < n {
+			maxLog++
+		}
+
+		// test all x values from 0 to maxLog
+		for x := 0; x <= maxLog; x++ {
+			t.Run(fmt.Sprintf("len=%d_x=%d", n, x), func(t *testing.T) {
+				var input []types.ByteSequence
+				for i := 0; i < n; i++ {
+					input = append(input, types.ByteSequence{byte(i)})
+				}
+
+				pageIndex := types.U32(0)
+				path := Jx(types.U8(x), input, pageIndex, hash)
+
+				expectedLen := max(0, maxLog-x)
+				require.Len(t, path, expectedLen,
+					"Jx output length mismatch: expected %d, got %d (len=%d, x=%d)",
+					expectedLen, len(path), n, x)
+			})
+		}
+	}
 }
