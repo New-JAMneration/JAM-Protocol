@@ -53,6 +53,7 @@ func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFun
 
 func TestN(t *testing.T) {
 	hash := hash.Blake2bHash
+	// leafs
 	h1 := hash(append(types.ByteSequence("leaf"), 1))
 	h2 := hash(append(types.ByteSequence("leaf"), 2))
 	h3 := hash(append(types.ByteSequence("leaf"), 3))
@@ -208,6 +209,10 @@ func TestN_PanicsOnInvalidSingleElement(t *testing.T) {
 
 func TestT_OutputLength(t *testing.T) {
 	hash := hash.Blake2bHash
+
+	// test all n values from 2 to 64 (powers of 2)
+	// n = 2, 4, 8, 16, 32, 64
+	// log2(n) = 1, 2, 3, 4, 5, 6
 	for n := 2; n <= 64; n *= 2 {
 		t.Run(fmt.Sprintf("len=%d", n), func(t *testing.T) {
 			var input []types.ByteSequence
@@ -237,6 +242,9 @@ func TestT_OutputLength(t *testing.T) {
 func TestJx_OutputLength(t *testing.T) {
 	hash := hash.Blake2bHash
 
+	// test all n values from 2 to 64 (powers of 2)
+	// n = 2, 4, 8, 16, 32, 64
+	// log2(n) = 1, 2, 3, 4, 5, 6
 	for n := 2; n <= 64; n *= 2 {
 		maxLog := 0
 		for (1 << maxLog) < n {
@@ -266,13 +274,15 @@ func TestJx_OutputLength(t *testing.T) {
 func TestM_WithPadding(t *testing.T) {
 	hash := hash.Blake2bHash
 
+	// input with 3 elements, should be padded to 4
+	// and then hashed
 	input := []types.ByteSequence{
 		[]byte("a"),
 		[]byte("b"),
 		[]byte("c"),
 	}
 
-	// 手動構造 padding 完後的 Merkle root
+	// leafs
 	l0 := hash(append([]byte("leaf"), input[0]...))
 	l1 := hash(append([]byte("leaf"), input[1]...))
 	l2 := hash(append([]byte("leaf"), input[2]...))
