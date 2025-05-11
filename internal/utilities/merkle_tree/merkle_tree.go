@@ -12,8 +12,11 @@ type HashOrByteSequence struct {
 // N: Calculates the Merkle root from integers.
 func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output types.OpaqueHash) {
 	if len(v) == 0 {
+		// H0
+		output = types.OpaqueHash{} // zero hash
 		return output
 	} else if len(v) == 1 {
+		// v0
 		if len(v[0]) == 0 {
 			output = types.OpaqueHash{} // zero hash
 			return output
