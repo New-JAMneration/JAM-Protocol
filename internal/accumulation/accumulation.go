@@ -447,6 +447,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 					PayloadHash:    item.PayloadHash,               // y: ry — result payload hash
 					AuthOutput:     report.AuthOutput,              // o: wo
 					Result:         item.Result,                    // d: rd
+					GasLimit:       item.AccumulateGas,             // g: rg
 				}
 				operands = append(operands, operand)
 			}
