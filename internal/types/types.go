@@ -353,9 +353,14 @@ func (wp *WorkPackage) Validate() error {
 		return fmt.Errorf("total size exceeds %v bytes", MaxTotalSize)
 	}
 
-	// import/export segment count check （14.4)
-	if totalImportSegments+totalExportSegments > MaxSegments {
-		return fmt.Errorf("total import and export segments exceed %v", MaxSegments)
+	// import segment count check （14.4)
+	if totalImportSegments > MaxImportCount {
+		return fmt.Errorf("total import segments exceed %d", MaxImportCount)
+	}
+
+	// export segment count check (14.4)
+	if totalExportSegments > MaxExportCount {
+		return fmt.Errorf("total export segments exceed %v", MaxExportCount)
 	}
 
 	// extrinsics count check (14.4)
@@ -1402,12 +1407,14 @@ type PartialStateSet struct {
 	Privileges      Privileges          // x
 }
 
-// (12.18)
+// (12.18 pre-0.6.5)
+// (12.19 0.6.5)
 type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
 	AuthorizerHash OpaqueHash      // a
 	PayloadHash    OpaqueHash      // y
+	GasLimit       Gas             // g   0.6.5
 	GasUsed        Gas             // g
 	Result         WorkExecResult  // d
 	AuthOutput     ByteSequence    // o
@@ -1466,6 +1473,13 @@ type AuditPool struct {
 	mu   sync.RWMutex
 	data map[WorkPackageHash][]AuditReport
 }
+
+// v0.6.5
+type ServiceBlob struct {
+	ServiceID ServiceId
+	Blob      []byte
+}
+type ServiceBlobs []ServiceBlob
 
 type ExtrinsicData []byte
 type ExtrinsicDataList []ExtrinsicData

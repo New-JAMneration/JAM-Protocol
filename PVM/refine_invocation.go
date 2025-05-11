@@ -109,7 +109,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	F[VoidOp] = HostCallFunctions[VoidOp]
 	F[InvokeOp] = HostCallFunctions[InvokeOp]
 	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
-	F[27] = RefineHostCallException
+	F[OperationType(len(HostCallFunctions)-1)] = RefineHostCallException
 
 	// addition
 	// Though Psi_M addition input is nil, still need the RefineInput for historical_lookup op (only for historical_lookup)

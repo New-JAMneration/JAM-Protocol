@@ -22,7 +22,7 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) Psi_
 
 	F := Omegas{}
 	F[GasOp] = HostCallFunctions[GasOp]
-	F[27] = accumulateInvocationHostCallException
+	F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
 
 	addition := HostCallArgs{}
 

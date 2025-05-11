@@ -56,13 +56,36 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 // CreateExtrinsicHash creates the extrinsic hash of the header.
 // (5.4), (5.5), (5.6)
 // H_x: extrinsic hash
+<<<<<<< HEAD
 func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error {
 	// Encode the extrinsic elements
 	encodedTicketsExtrinsic, err := utilities.EncodeExtrinsicTickets(extrinsic.Tickets)
+=======
+// INFO: This is different between Appendix C (C.16) and (5.4), (5.5), (5.6).
+func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error {
+	ticketSerializedHash := hash.Blake2bHash(utilities.ExtrinsicTicketSerialization(extrinsic.Tickets))
+	preimageSerializedHash := hash.Blake2bHash(utilities.ExtrinsicPreimageSerialization(extrinsic.Preimages))
+	AssureanceSerializedHash := hash.Blake2bHash(utilities.ExtrinsicAssuranceSerialization(extrinsic.Assurances))
+	DisputeSerializedHash := hash.Blake2bHash(utilities.ExtrinsicDisputeSerialization(extrinsic.Disputes))
+
+	// g (5.6)
+	g := types.ByteSequence{}
+
+	// Encode the length of the guarantees
+	guaranteesLength := uint64(len(extrinsic.Guarantees))
+	encoder := types.NewEncoder()
+
+	encoded, err := encoder.EncodeUint(guaranteesLength)
+<<<<<<< HEAD
+>>>>>>> 198805e (refactor guarantee serialization using encode)
+=======
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
 	if err != nil {
 		return err
 	}
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 	encodedPreimagesExtrinsic, err := utilities.EncodeExtrinsicPreimages(extrinsic.Preimages)
 	if err != nil {
 		return err
@@ -72,6 +95,58 @@ func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error 
 	if err != nil {
 		return err
 	}
+=======
+=======
+>>>>>>> e3e8407da15c5f41c0b06b8d0dd7c7e578c98728
+	g = append(g, encoded...)
+
+	for _, guarantee := range extrinsic.Guarantees {
+		// encode the w
+		encoded, err := encoder.Encode(&guarantee.Report)
+		if err != nil {
+			return err
+		}
+
+		// hash the encoded data
+		hash := hash.Blake2bHash(types.ByteSequence(encoded))
+
+		// append the encoded data to the output
+		g = append(g, hash[:]...)
+
+		// encode the t
+		encoded, err = encoder.Encode(&(guarantee.Slot))
+		if err != nil {
+			return err
+		}
+
+		g = append(g, encoded...)
+
+		// encode the length of the guarantee.a
+		signatureLength := uint64(len(guarantee.Signatures))
+		encoded, err = encoder.EncodeUint(signatureLength)
+		if err != nil {
+			return err
+		}
+		g = append(g, encoded...)
+
+		// encode the guarantee.a
+		for _, signature := range guarantee.Signatures {
+			encoded, err = encoder.Encode(&signature)
+			if err != nil {
+				return err
+			}
+			g = append(g, encoded...)
+		}
+	}
+
+	// Serialize the hash of the extrinsic elements
+	serializedElements := types.ByteSequence{}
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(ticketSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(preimageSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, g...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(AssureanceSerializedHash).Serialize()...)
+	serializedElements = append(serializedElements, utilities.WrapOpaqueHash(DisputeSerializedHash).Serialize()...)
+>>>>>>> 198805e (refactor guarantee serialization using encode)
 
 	encodedAssurancesExtrinsic, err := utilities.EncodeExtrinsicAssurances(extrinsic.Assurances)
 	if err != nil {
