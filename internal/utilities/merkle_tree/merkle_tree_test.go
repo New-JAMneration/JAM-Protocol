@@ -143,7 +143,12 @@ func TestN(t *testing.T) {
 
 func TestM(t *testing.T) {
 	hash := hash.Blake2bHash
-
+	t.Run("empty", func(t *testing.T) {
+		data := []types.ByteSequence{}
+		expected := types.OpaqueHash{}
+		result := M(data, hash)
+		require.Equal(t, expected, result)
+	})
 	t.Run("one leaf only", func(t *testing.T) {
 		data := []types.ByteSequence{{99}}
 		expected := hash(append(types.ByteSequence("leaf"), 99))
