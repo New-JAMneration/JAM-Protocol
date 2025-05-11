@@ -1407,9 +1407,10 @@ type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
 	AuthorizerHash OpaqueHash      // a
-	AuthOutput     ByteSequence    // o
 	PayloadHash    OpaqueHash      // y
+	GasUsed        Gas             // g
 	Result         WorkExecResult  // d
+	AuthOutput     ByteSequence    // o
 }
 
 // (12.15) U
