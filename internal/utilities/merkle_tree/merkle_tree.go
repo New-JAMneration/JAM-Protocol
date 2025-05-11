@@ -19,7 +19,7 @@ func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 			return output
 		}
 		if len(v[0]) != 32 {
-			panic("N(): single ByteSequence element must be 32 bytes to convert into OpaqueHash(expected to be a hashed data)")
+			panic("N(): single ByteSequence element expected to be 0 or 32 bytes")
 		}
 		copy(output[:], v[0])
 		return output
