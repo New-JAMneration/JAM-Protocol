@@ -9,9 +9,9 @@ import (
 	"github.com/test-go/testify/require"
 )
 
-func TestJ0_VerifyMerkleProof_AllLeaves(t *testing.T) {
+func TestJ0_VerifyMerkleProof_AllLeavesWithPadding(t *testing.T) {
 	var segment []types.ByteSequence
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 7; i++ {
 		segment = append(segment, types.ByteSequence{byte(i)})
 	}
 
@@ -261,4 +261,28 @@ func TestJx_OutputLength(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestM_WithPadding(t *testing.T) {
+	hash := hash.Blake2bHash
+
+	input := []types.ByteSequence{
+		[]byte("a"),
+		[]byte("b"),
+		[]byte("c"),
+	}
+
+	// 手動構造 padding 完後的 Merkle root
+	l0 := hash(append([]byte("leaf"), input[0]...))
+	l1 := hash(append([]byte("leaf"), input[1]...))
+	l2 := hash(append([]byte("leaf"), input[2]...))
+	l3 := types.OpaqueHash{} // zero padding
+
+	n0 := hash(append(append([]byte("node"), l0[:]...), l1[:]...)) // left
+	n1 := hash(append(append([]byte("node"), l2[:]...), l3[:]...)) // right
+
+	expected := hash(append(append([]byte("node"), n0[:]...), n1[:]...))
+
+	root := M(input, hash)
+	require.Equal(t, expected, root)
 }
