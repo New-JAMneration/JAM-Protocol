@@ -392,12 +392,13 @@ func (wp *WorkPackage) Validate() error {
 type WorkExecResultType string
 
 const (
-	WorkExecResultOk           WorkExecResultType = "ok"
-	WorkExecResultOutOfGas                        = "out-of-gas"
-	WorkExecResultPanic                           = "panic"
-	WorkExecResultBadExports                      = "bad-exports"
-	WorkExecResultBadCode                         = "bad-code"
-	WorkExecResultCodeOversize                    = "code-oversize"
+	WorkExecResultOk             WorkExecResultType = "ok"
+	WorkExecResultOutOfGas                          = "out-of-gas"
+	WorkExecResultPanic                             = "panic"
+	WorkExecResultBadExports                        = "bad-exports"
+	WorkExecResultReportOversize                    = "report-oversize"
+	WorkExecResultBadCode                           = "bad-code"
+	WorkExecResultCodeOversize                      = "code-oversize"
 )
 
 type WorkExecResult map[WorkExecResultType][]byte
