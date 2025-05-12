@@ -64,7 +64,7 @@ func BranchEncoding(left, right types.OpaqueHash) types.BitSequence {
 	return encoding // 512 bits
 }
 
-func embeddedValueLeaf(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
+func embeddedValueLeaf(key StateKey, value types.ByteSequence) types.BitSequence {
 	leftPrefixBit := types.BitSequence{true}                       // 1 bit
 	embeddedValueLeafPrefixBit := types.BitSequence{false}         // 1 bit
 	prefix := append(leftPrefixBit, embeddedValueLeafPrefixBit...) // 2 bits
@@ -76,7 +76,7 @@ func embeddedValueLeaf(key types.OpaqueHash, value types.ByteSequence) types.Bit
 	encoding := types.BitSequence{}
 	encoding = append(encoding, prefix...)
 	encoding = append(encoding, valueSizeBits[2:]...)
-	encoding = append(encoding, bytesToBits(key[:])[:248]...)
+	encoding = append(encoding, bytesToBits(key[:])...)
 	encoding = append(encoding, bytesToBits(value)...)
 
 	// Calculate the size, if it has space left, fill it with 0
@@ -87,7 +87,7 @@ func embeddedValueLeaf(key types.OpaqueHash, value types.ByteSequence) types.Bit
 	return encoding
 }
 
-func regularLeaf(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
+func regularLeaf(key StateKey, value types.ByteSequence) types.BitSequence {
 	leftPrefixBit := types.BitSequence{true}                                    // 1 bit
 	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
 	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
@@ -96,14 +96,14 @@ func regularLeaf(key types.OpaqueHash, value types.ByteSequence) types.BitSequen
 	encoding = append(encoding, leftPrefixBit...)
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)
-	encoding = append(encoding, bytesToBits(key[:])[:248]...)
+	encoding = append(encoding, bytesToBits(key[:])...)
 	valueHash := hash.Blake2bHash(value)
 	encoding = append(encoding, bytesToBits(valueHash[:])...)
 
 	return encoding
 }
 
-func LeafEncoding(key types.OpaqueHash, value types.ByteSequence) types.BitSequence {
+func LeafEncoding(key StateKey, value types.ByteSequence) types.BitSequence {
 	if len(value) <= 32 {
 		return embeddedValueLeaf(key, value)
 	} else {
@@ -125,7 +125,7 @@ func bitSequenceToString(bitSequence types.BitSequence) string {
 }
 
 type SerializedStateKeyValue struct {
-	key   types.OpaqueHash
+	key   StateKey
 	value types.ByteSequence
 }
 
@@ -170,7 +170,7 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 // basic Merklization function
 // $M_{\sigma}(\sigma)$
 // Input: $T(\sigma)$ a dictionary, serialized states
-func MerklizationSerializedState(serializedState map[types.OpaqueHash]types.ByteSequence) types.OpaqueHash {
+func MerklizationSerializedState(serializedState map[StateKey]types.ByteSequence) types.OpaqueHash {
 	merklizationInput := make(MerklizationInput)
 
 	for stateKey, stateValue := range serializedState {
