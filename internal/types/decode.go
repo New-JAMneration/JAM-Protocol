@@ -749,9 +749,12 @@ func (w *WorkExecResult) Decode(d *Decoder) error {
 		cLog(Yellow, "WorkExecResultBadExports")
 		(*w)["bad-exports"] = nil
 	case 4:
+		cLog(Yellow, "WorkExecResultReportOversize")
+		(*w)["report-oversize"] = nil
+	case 5:
 		cLog(Yellow, "WorkExecResultBadCode")
 		(*w)["bad-code"] = nil
-	case 5:
+	case 6:
 		cLog(Yellow, "WorkExecResultCodeOversize")
 		(*w)["code-oversize"] = nil
 	}
