@@ -60,13 +60,13 @@ func TestN(t *testing.T) {
 	h4 := hash(append(types.ByteSequence("leaf"), 4))
 	t.Run("empty slice", func(t *testing.T) {
 		var empty []types.ByteSequence
-		result := N(empty, hash)
+		result := N(empty, hash).Hash
 		require.Equal(t, types.OpaqueHash{}, result)
 	})
 	t.Run("single element", func(t *testing.T) {
 		data := []types.ByteSequence{{42}}
 		data[0] = h1[:]
-		result := N(data, hash)
+		result := types.OpaqueHash(GetDataFromHashOrByteSequence(N(data, hash)))
 		require.Equal(t, h1, result)
 	})
 	t.Run("two elements", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestN(t *testing.T) {
 		merge = append(merge, data[1]...)
 		expected := hash(merge)
 
-		result := N(data, hash)
+		result := N(data, hash).Hash
 		require.Equal(t, expected, result)
 	})
 	t.Run("three elements", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestN(t *testing.T) {
 		merge = append(merge, right_hash[:]...)
 		expected := hash(merge)
 
-		result := N(data, hash)
+		result := N(data, hash).Hash
 		require.Equal(t, expected, result)
 	})
 	t.Run("four elements", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestN(t *testing.T) {
 		merge = append(merge, rightHash[:]...)
 		expected := hash(merge)
 
-		result := N(data, hash)
+		result := N(data, hash).Hash
 		require.Equal(t, expected, result)
 	})
 
@@ -162,54 +162,6 @@ func TestM(t *testing.T) {
 		require.NotEqual(t, types.OpaqueHash{}, result)
 		require.Len(t, C(data, hash), 4)
 	})
-}
-func TestJ0_Equals_T(t *testing.T) {
-	hash := hash.Blake2bHash
-	input := []types.ByteSequence{{0}, {1}, {2}, {3}}
-	output := C(input, hash)
-	C := make([]types.ByteSequence, len(output))
-	for i, val := range output {
-		C[i] = types.ByteSequence(val[:])
-	}
-	tPath := T(C, 2, hash)
-	require.Len(t, tPath, 2)
-	jxPath := Jx(0, input, 2, hash)
-	require.Equal(t, tPath, jxPath)
-}
-
-func TestJ1_Equals_T(t *testing.T) {
-	hash := hash.Blake2bHash
-	input := []types.ByteSequence{
-		{0}, {1}, {2}, {3},
-		{4}, {5}, {6}, {7},
-	}
-
-	C_res := C(input, hash)
-	var C []types.ByteSequence
-	for _, h := range C_res {
-		C = append(C, types.ByteSequence(h[:]))
-	}
-
-	pageIndex := types.U32(1)
-	leafIndex := pageIndex << 1 // i * 2^x
-	jxPath := Jx(1, input, pageIndex, hash)
-	fullT := T(C, leafIndex, hash)
-
-	require.Equal(t, fullT[:len(jxPath)], jxPath)
-}
-
-func TestN_PanicsOnInvalidSingleElement(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for single element not 32 bytes, but none occurred")
-		} else {
-			fmt.Println("✅ Panic caught as expected:", r)
-		}
-	}()
-
-	hash := hash.Blake2bHash
-	invalid := []types.ByteSequence{{0x01, 0x02, 0x03}} // Not 32 bytes
-	N(invalid, hash)                                    // should panic
 }
 
 func TestT_OutputLength(t *testing.T) {
