@@ -1666,3 +1666,18 @@ func (s *Statistics) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+func (s *StateKey) UnmarshalJSON(data []byte) error {
+	decoded, err := hex.DecodeString(string(data[2 : len(data)-1]))
+	if err != nil {
+		return fmt.Errorf("failed to decode hex string: %w", err)
+	}
+
+	if len(decoded) != len(StateKey{}) {
+		return fmt.Errorf("decoded length %d does not match expected length %d", len(decoded), len(StateKey{}))
+	}
+
+	copy(s[:], decoded)
+
+	return nil
+}
