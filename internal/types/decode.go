@@ -3046,3 +3046,17 @@ func (o *Operand) Decode(decoder *Decoder) error {
 
 	return nil
 }
+
+func (s *StateKey) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding StateKey")
+
+	var val StateKey
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("StateKey: %x", val))
+
+	*s = val
+	return nil
+}
