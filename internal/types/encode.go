@@ -733,13 +733,18 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 			return err
 		}
 		return nil
-	case "bad-code":
+	case "report-oversize":
 		if _, err := e.buf.Write([]byte{4}); err != nil {
 			return err
 		}
 		return nil
-	case "code-oversize":
+	case "bad-code":
 		if _, err := e.buf.Write([]byte{5}); err != nil {
+			return err
+		}
+		return nil
+	case "code-oversize":
+		if _, err := e.buf.Write([]byte{6}); err != nil {
 			return err
 		}
 		return nil
