@@ -3028,10 +3028,6 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
-	if err = o.AuthOutput.Decode(decoder); err != nil {
-		return err
-	}
-
 	if err = o.PayloadHash.Decode(decoder); err != nil {
 		return err
 	}
@@ -3041,6 +3037,10 @@ func (o *Operand) Decode(decoder *Decoder) error {
 	}
 
 	if err = o.Result.Decode(decoder); err != nil {
+		return err
+	}
+
+	if err = o.AuthOutput.Decode(decoder); err != nil {
 		return err
 	}
 
