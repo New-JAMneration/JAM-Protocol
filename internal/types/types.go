@@ -1478,3 +1478,6 @@ type ServiceBlob struct {
 	Blob      []byte
 }
 type ServiceBlobs []ServiceBlob
+
+// For state serialization, merklization, and reading trace test cases
+type StateKey [31]byte
