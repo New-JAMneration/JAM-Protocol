@@ -2756,11 +2756,6 @@ func (o *Operand) Encode(e *Encoder) error {
 		return err
 	}
 
-	// AuthOutput
-	if err := o.AuthOutput.Encode(e); err != nil {
-		return err
-	}
-
 	// PayloadHash
 	if err := o.PayloadHash.Encode(e); err != nil {
 		return err
@@ -2773,6 +2768,11 @@ func (o *Operand) Encode(e *Encoder) error {
 
 	// Result
 	if err := o.Result.Encode(e); err != nil {
+		return err
+	}
+
+	// AuthOutput
+	if err := o.AuthOutput.Encode(e); err != nil {
 		return err
 	}
 
