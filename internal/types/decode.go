@@ -3098,6 +3098,20 @@ func (s *ExportSegment) Decode(d *Decoder) error {
 	return nil
 }
 
+func (s *StateKey) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding StateKey")
+
+	var val StateKey
+	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	if err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("StateKey: %x", val))
+
+	*s = val
+	return nil
+}
+
 func (m *ExportSegmentMatrix) Decode(d *Decoder) error {
 	outerLen, err := d.DecodeLength()
 	if err != nil {
