@@ -8,7 +8,7 @@ import (
 )
 
 // key 1: Alpha
-func encodeAlphaKey() types.OpaqueHash {
+func encodeAlphaKey() StateKey {
 	alphaWrapper := StateWrapper{StateIndex: 1}
 	return alphaWrapper.StateKeyConstruct()
 }
@@ -34,7 +34,7 @@ func encodeAlpha(alpha types.AuthPools) types.ByteSequence {
 }
 
 // key 2: Varphi
-func encodeVarphiKey() types.OpaqueHash {
+func encodeVarphiKey() StateKey {
 	varphiWrapper := StateWrapper{StateIndex: 2}
 	return varphiWrapper.StateKeyConstruct()
 }
@@ -59,7 +59,7 @@ func encodeVarphi(varphi types.AuthQueues) types.ByteSequence {
 }
 
 // key 3: Beta
-func encodeBetaKey() types.OpaqueHash {
+func encodeBetaKey() StateKey {
 	betaWrapper := StateWrapper{StateIndex: 3}
 	return betaWrapper.StateKeyConstruct()
 }
@@ -98,7 +98,7 @@ func encodeBeta(beta types.BlocksHistory) types.ByteSequence {
 }
 
 // key 4: gamma
-func encodeGammaKey() types.OpaqueHash {
+func encodeGammaKey() StateKey {
 	gammaWrapper := StateWrapper{StateIndex: 4}
 	return gammaWrapper.StateKeyConstruct()
 }
@@ -148,7 +148,7 @@ func encodeGamma(gamma types.Gamma) types.ByteSequence {
 }
 
 // key 5: phi
-func encodePsiKey() types.OpaqueHash {
+func encodePsiKey() StateKey {
 	psiWrapper := StateWrapper{StateIndex: 5}
 	return psiWrapper.StateKeyConstruct()
 }
@@ -191,7 +191,7 @@ func encodePsi(psi types.DisputesRecords) types.ByteSequence {
 }
 
 // key 6: eta
-func encodeEtaKey() types.OpaqueHash {
+func encodeEtaKey() StateKey {
 	epsilonWrapper := StateWrapper{StateIndex: 6}
 	return epsilonWrapper.StateKeyConstruct()
 }
@@ -214,7 +214,7 @@ func encodeEta(eta types.EntropyBuffer) types.ByteSequence {
 }
 
 // key 7: iota
-func encodeIotaKey() types.OpaqueHash {
+func encodeIotaKey() StateKey {
 	iotaWrapper := StateWrapper{StateIndex: 7}
 	return iotaWrapper.StateKeyConstruct()
 }
@@ -240,7 +240,7 @@ func encodeIota(iota types.ValidatorsData) types.ByteSequence {
 }
 
 // key 8: kappa
-func encodeKappaKey() types.OpaqueHash {
+func encodeKappaKey() StateKey {
 	kappaWrapper := StateWrapper{StateIndex: 8}
 	return kappaWrapper.StateKeyConstruct()
 }
@@ -266,7 +266,7 @@ func encodeKappa(kappa types.ValidatorsData) types.ByteSequence {
 }
 
 // key 9: lambda
-func encodeLambdaKey() types.OpaqueHash {
+func encodeLambdaKey() StateKey {
 	lambdaWrapper := StateWrapper{StateIndex: 9}
 	return lambdaWrapper.StateKeyConstruct()
 }
@@ -292,7 +292,7 @@ func encodeLambda(lambda types.ValidatorsData) types.ByteSequence {
 }
 
 // key 10: rho
-func encodeRhoKey() types.OpaqueHash {
+func encodeRhoKey() StateKey {
 	rhoWrapper := StateWrapper{StateIndex: 10}
 	return rhoWrapper.StateKeyConstruct()
 }
@@ -321,7 +321,7 @@ func encodeRho(rho types.AvailabilityAssignments) types.ByteSequence {
 }
 
 // key 11: tau
-func encodeTauKey() types.OpaqueHash {
+func encodeTauKey() StateKey {
 	tauWrapper := StateWrapper{StateIndex: 11}
 	return tauWrapper.StateKeyConstruct()
 }
@@ -342,7 +342,7 @@ func encodeTau(tau types.TimeSlot) types.ByteSequence {
 }
 
 // key 12: chi
-func encodeChiKey() types.OpaqueHash {
+func encodeChiKey() StateKey {
 	chiWrapper := StateWrapper{StateIndex: 12}
 	return chiWrapper.StateKeyConstruct()
 }
@@ -370,7 +370,7 @@ func encodeChi(chi types.Privileges) types.ByteSequence {
 }
 
 // key 13: pi
-func encodePiKey() types.OpaqueHash {
+func encodePiKey() StateKey {
 	piWrapper := StateWrapper{StateIndex: 13}
 	return piWrapper.StateKeyConstruct()
 }
@@ -418,7 +418,7 @@ func encodePi(pi types.Statistics) types.ByteSequence {
 }
 
 // key 14: theta
-func encodeThetaKey() types.OpaqueHash {
+func encodeThetaKey() StateKey {
 	thetaWrapper := StateWrapper{StateIndex: 14}
 	return thetaWrapper.StateKeyConstruct()
 }
@@ -448,7 +448,7 @@ func encodeTheta(theta types.ReadyQueue) types.ByteSequence {
 }
 
 // key 15: xi
-func encodeXiKey() types.OpaqueHash {
+func encodeXiKey() StateKey {
 	xiWrapper := StateWrapper{StateIndex: 15}
 	return xiWrapper.StateKeyConstruct()
 }
@@ -541,63 +541,108 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 }
 
 // key 16: delta1
-func serializeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (key16 types.OpaqueHash, delta1Output types.ByteSequence) {
-	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.U32(id)}
+func serializeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (key16 StateKey, delta1Output types.ByteSequence) {
+	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceId(id)}
 	key16 = serviceWrapper.StateKeyConstruct()
 	delta1Output = serializeDelta1(delta)
 	return key16, delta1Output
 }
 
-func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (key16 types.OpaqueHash, delta1Output types.ByteSequence) {
-	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.U32(id)}
+func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (key16 StateKey, delta1Output types.ByteSequence) {
+	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceId(id)}
 	key16 = serviceWrapper.StateKeyConstruct()
 	delta1Output = encodeDelta1(delta)
 	return key16, delta1Output
 }
 
 // key 17: delta2
-func serializeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key17 types.OpaqueHash, delta2Output types.ByteSequence) {
-	hash := append(utilities.SerializeFixedLength(types.U32(1<<32-1), 4), key[0:29]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+func serializeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key17 StateKey, delta2Output types.ByteSequence) {
+	encoder := types.NewEncoder()
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 1), encodeLength)
+	part_2 := key[:23]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key17 = serviceWrapper.StateKeyConstruct()
 	delta2Output = value
+
 	return key17, delta2Output
 }
 
-func encodeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key17 types.OpaqueHash, delta2Output types.ByteSequence) {
+func encodeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key17 StateKey, delta2Output types.ByteSequence) {
 	encoder := types.NewEncoder()
-	preimage, _ := encoder.EncodeUintWithLength((1<<32 - 1), 4)
-	hash := append(preimage, key[0:29]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 1), encodeLength)
+	part_2 := key[:23]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key17 = serviceWrapper.StateKeyConstruct()
 	delta2Output = value
+
 	return key17, delta2Output
 }
 
 // key 18: delta3
-func serializeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key18 types.OpaqueHash, delta3Output types.ByteSequence) {
-	hash := append(utilities.SerializeFixedLength(types.U32(1<<32-2), 4), key[1:30]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+func serializeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key18 StateKey, delta3Output types.ByteSequence) {
+	encoder := types.NewEncoder()
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
+	part_2 := key[1:24]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key18 = serviceWrapper.StateKeyConstruct()
 	delta3Output = value
+
 	return key18, delta3Output
 }
 
-func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key18 types.OpaqueHash, delta3Output types.ByteSequence) {
+func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key18 StateKey, delta3Output types.ByteSequence) {
 	encoder := types.NewEncoder()
-	preimage, _ := encoder.EncodeUintWithLength((1<<32 - 2), 4)
-	hash := append(preimage, key[1:30]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hash)}
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
+	part_2 := key[1:24]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key18 = serviceWrapper.StateKeyConstruct()
 	delta3Output = value
+
 	return key18, delta3Output
 }
 
 // key 19: delta4
-func serializeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (key19 types.OpaqueHash, delta4Output types.ByteSequence) {
-	h := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
-	hashKey := append(utilities.SerializeFixedLength(types.U32(key.Length), 4), h[2:31]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hashKey)}
+func serializeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (key19 StateKey, delta4Output types.ByteSequence) {
+	encoder := types.NewEncoder()
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
+	hash := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
+	part_2 := hash[2:25]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key19 = serviceWrapper.StateKeyConstruct()
 
 	for _, timeSlot := range value {
@@ -609,27 +654,32 @@ func serializeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value
 	return key19, delta4Output
 }
 
-func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (key19 types.OpaqueHash, delta4Output types.ByteSequence) {
-	h := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
+func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (key19 StateKey, delta4Output types.ByteSequence) {
 	encoder := types.NewEncoder()
-	preimage, _ := encoder.EncodeUintWithLength(uint64(key.Length), 4)
-	hashKey := append(preimage, h[2:31]...)
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.U32(id), Hash: types.OpaqueHash(hashKey)}
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
+	hash := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
+	part_2 := hash[2:25]
+
+	h := [27]byte{}
+	copy(h[:], part_1)
+	copy(h[encodeLength:], part_2)
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
 	key19 = serviceWrapper.StateKeyConstruct()
 
 	for _, timeSlot := range value {
-		serTimeSlot, _ := encoder.EncodeUintWithLength(uint64(timeSlot), 4)
-		delta4Output = append(delta4Output, serTimeSlot...)
+		delta4Output = append(delta4Output, utilities.SerializeFixedLength(types.U64(timeSlot), 4)...)
 	}
 
-	NumberOfTimeSlots, _ := encoder.EncodeUint(uint64(len(value)))
-	delta4Output = append(NumberOfTimeSlots, delta4Output...)
+	delta4Output = append(utilities.SerializeU64(types.U64(len(value))), delta4Output...)
 
 	return key19, delta4Output
 }
 
-func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence, error) {
-	serialized := make(map[types.OpaqueHash]types.ByteSequence)
+func StateSerialize(state types.State) (map[StateKey]types.ByteSequence, error) {
+	serialized := make(map[StateKey]types.ByteSequence)
 
 	// key 1: Alpha
 	alphaWrapper := StateWrapper{StateIndex: 1}
@@ -739,8 +789,8 @@ func StateSerialize(state types.State) (map[types.OpaqueHash]types.ByteSequence,
 	return serialized, nil
 }
 
-func StateEncoder(state types.State) (map[types.OpaqueHash]types.ByteSequence, error) {
-	serialized := make(map[types.OpaqueHash]types.ByteSequence)
+func StateEncoder(state types.State) (map[StateKey]types.ByteSequence, error) {
+	serialized := make(map[StateKey]types.ByteSequence)
 
 	// key 1: alpha
 	key1 := encodeAlphaKey()
