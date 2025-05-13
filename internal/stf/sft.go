@@ -30,6 +30,10 @@ func RunSTF() error {
 	// Update History (beta^dagger -> beta^prime)
 
 	// Update Preimages
+	err = UpdatePreimages()
+	if err != nil {
+		return err
+	}
 
 	// Update Authorization
 
