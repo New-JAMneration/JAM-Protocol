@@ -2837,11 +2837,12 @@ func (l *ExtrinsicDataList) Encode(e *Encoder) error {
 }
 
 func (s *ExportSegment) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding ExtrinsicData")
+	cLog(Cyan, "Encoding ExportSegment")
 
 	if _, err := e.buf.Write(s[:]); err != nil {
 		return err
 	}
+
 	cLog(Yellow, fmt.Sprintf("ExportSegment: %v", *s))
 	return nil
 }
@@ -2895,5 +2896,17 @@ func (b *WorkPackageBundle) Encode(e *Encoder) error {
 	if err := b.ImportProofs.Encode(e); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *StateKey) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding StateKey")
+
+	if _, err := e.buf.Write(s[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("StateKey: %v", s[:]))
+
 	return nil
 }
