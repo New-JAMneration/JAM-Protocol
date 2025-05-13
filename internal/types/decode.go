@@ -3060,3 +3060,34 @@ func (s *StateKey) Decode(d *Decoder) error {
 	*s = val
 	return nil
 }
+
+// Decode StateKeyVals
+func (s *StateKeyVals) Decode(d *Decoder) error {
+	var err error
+
+	// Decode the length of the array
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Allocate space for the array
+	*s = make(StateKeyVals, length)
+
+	// Decode each element in the array
+	for i := uint64(0); i < length; i++ {
+		if err = (*s)[i].Key.Decode(d); err != nil {
+			return err
+		}
+
+		if err = (*s)[i].Value.Decode(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
