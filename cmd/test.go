@@ -149,10 +149,10 @@ For example:
 
 				if expectedErr != nil {
 					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
+						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
 						failed++
 					} else {
-						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
+						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
 						passed++
 					}
 					// Check the error message
