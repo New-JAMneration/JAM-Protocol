@@ -2790,3 +2790,26 @@ func (s *StateKey) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// Encode StateKeyVals
+func (s *StateKeyVals) Encode(e *Encoder) error {
+	var err error
+
+	// Encode the length of the array
+	if err = e.EncodeLength(uint64(len(*s))); err != nil {
+		return err
+	}
+
+	// Encode each element in the array
+	for i := range *s {
+		if err = (*s)[i].Key.Encode(e); err != nil {
+			return err
+		}
+
+		if err = (*s)[i].Value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
