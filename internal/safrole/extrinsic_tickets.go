@@ -3,7 +3,7 @@ package safrole
 
 import (
 	"bytes"
-	"fmt"
+	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -47,6 +47,9 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
 	gammaK := s.GetPosteriorStates().GetGammaK()
+	if len(gammaK) != types.ValidatorsCount {
+		log.Printf("Gamma K size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
+	}
 	ring := []byte{}
 	for _, validator := range gammaK {
 		ring = append(ring, []byte(validator.Bandersnatch[:])...)
@@ -55,7 +58,7 @@ func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulato
 
 	verifier, err := vrf.NewVerifier(ring, ringSize)
 	if err != nil {
-		fmt.Printf("Failed to create verifier: %v\n", err)
+		log.Printf("Failed to create verifier: %v\n", err)
 	}
 	defer verifier.Free()
 

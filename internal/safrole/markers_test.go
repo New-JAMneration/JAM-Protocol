@@ -20,7 +20,7 @@ func TestCreateEpochMarkerNewEpoch(t *testing.T) {
 
 	// Set gamma_k into posterior state
 	// Load fake validators
-	fakeValidators := LoadFakeValidators()
+	fakeValidators := LoadTinyValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}
@@ -91,7 +91,7 @@ func TestCreateEpochMarkerSameEpoch(t *testing.T) {
 
 	// Set gamma_k into posterior state
 	// Load fake validators
-	fakeValidators := LoadFakeValidators()
+	fakeValidators := LoadTinyValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}

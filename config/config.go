@@ -79,7 +79,6 @@ func initJamConst() {
 	types.EpochLength = Config.Const.EpochLength
 	types.MaxTicketsPerBlock = Config.Const.MaxTicketsPerBlock
 	types.TicketsPerValidator = Config.Const.TicketsPerValidator
-	types.MaxBlocksHistory = Config.Const.MaxBlocksHistory
 	types.AuthPoolMaxSize = Config.Const.AuthPoolMaxSize
 	types.AuthQueueSize = Config.Const.AuthQueueSize
 	types.ValidatorsSuperMajority = Config.Const.ValidatorsSuperMajority
