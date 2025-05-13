@@ -168,6 +168,13 @@ func (s *PosteriorStates) SetEta0(entropy types.Entropy) {
 	s.state.Eta[0] = entropy
 }
 
+// SetEta0 sets the eta0 value
+func (s *PosteriorStates) GetEta0() types.Entropy {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.Eta[0]
+}
+
 // SetIota sets the iota value
 func (s *PosteriorStates) SetIota(variota types.ValidatorsData) {
 	s.mu.Lock()

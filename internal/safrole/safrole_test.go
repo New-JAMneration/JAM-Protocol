@@ -1,12 +1,21 @@
 package safrole
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestGetEpochIndex(t *testing.T) {
@@ -302,3 +311,309 @@ func TestReplaceOffenderKeys(t *testing.T) {
 }
 
 // TODO: Add tests for GetNewSafroleState, UpdateBandersnatchKeyRoot
+
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
+
+func TestSafroleTestVectors(t *testing.T) {
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		if binFile != "skip-epoch-tail-1.bin" {
+			continue
+		}
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		t.Logf("▶ Processing [%s] %s", types.TEST_MODE, binFile)
+
+		// Test accumulate
+		testSafroleFile(t, binPath, binFile)
+	}
+}
+
+func testSafroleFile(t *testing.T, binPath string, binFile string) {
+	// Load accumulate test case
+	testCase := &jamtests_safrole.SafroleTestCase{}
+	err := utils.GetTestFromBin(binPath, testCase)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	// Setup test state
+	setupTestState(testCase.PreState, testCase.Input)
+
+	/*
+	   Execute safrole
+	*/
+	// --- STEP 1 Get Safrole Mode --- //
+	s := store.GetInstance()
+
+	// --- STEP 2 Get Epoch --- //
+
+	tau := s.GetPriorStates().GetTau()
+	tauPrime := testCase.Input.Slot
+	s.GetPosteriorStates().SetTau(tauPrime)
+	e := GetEpochIndex(tau)
+	ePrime := GetEpochIndex(tauPrime)
+	t.Log("tau", tau, "-> tauPrime", tauPrime)
+	t.Log("e: ", e, "-> ePrime: ", ePrime)
+
+	// --- STEP 3 Update Entropy123 --- //
+	// (GP 6.23)
+	UpdateEntropy()
+
+	// --- safrole.go (GP 6.2, 6.13, 6.14) --- //
+	// (6.2, 6.13, 6.14)
+	// This function will update GammaK, GammaZ, Lambda, Kappa
+	/*
+		KeyRotate()
+	*/
+
+	// Get prior state
+	priorState := s.GetPriorStates()
+
+	// Get previous time slot index
+	// tau := priorState.GetTau()
+
+	// Get current time slot
+	// now := time.Now().UTC()
+	// timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
+	// tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+	// tauPrime := testCase.Input.Slot
+	// s.GetPosteriorStates().SetTau(tauPrime)
+	// Execute key rotation
+	// newSafroleState := keyRotation(tau, tauPrime, priorState.GetState())
+	// e := GetEpochIndex(tau)
+	// ePrime := GetEpochIndex(tauPrime)
+	// t.Log("tau", tau, "-> tauPrime", tauPrime)
+	// t.Log("e: ", e, "-> ePrime: ", ePrime)
+
+	if ePrime > e {
+		// Update state to posterior state
+		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
+		s.GetPosteriorStates().SetKappa(priorState.GetGammaK())
+		s.GetPosteriorStates().SetLambda(priorState.GetKappa())
+		z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
+		if zErr != nil {
+			fmt.Printf("Error updating Bandersnatch key root: %v\n", zErr)
+			return
+		}
+		s.GetPosteriorStates().SetGammaZ(z)
+	} else {
+		s.GetPosteriorStates().SetGammaK(priorState.GetGammaK())
+		s.GetPosteriorStates().SetKappa(priorState.GetKappa())
+		s.GetPosteriorStates().SetLambda(priorState.GetLambda())
+		s.GetPosteriorStates().SetGammaZ(priorState.GetGammaZ())
+	}
+
+	// (GP 6.22)
+	// UpdateEtaPrime0()
+	/*
+		UpdateEtaPrime0()
+	*/
+	// === manually set Y(H_v) ===
+	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
+	// s := store.GetInstance()
+
+	// posterior_state := s.GetPosteriorStates()
+	prior_state := s.GetPriorStates()
+	// header := s.GetProcessingBlockPointer().GetHeader()
+
+	//public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	// public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
+	// entropy_source := header.EntropySource
+	eta := prior_state.GetEta()
+	// handler, _ := CreateVRFHandler(public_key)
+	// vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
+	hash_input := append(eta[0][:], testCase.Input.Entropy[:]...)
+	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	// === manually set Y(H_v) ===
+
+	// // (GP 6.17)
+	// UpdateHeaderEntropy()
+
+	// (GP 6.24) contain slot_key_sequence.go (GP 6.25, 6.26)
+	UpdateSlotKeySequence()
+
+	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
+
+	// --- ticketbody_controller.go (GP 6.5, 6.6) --- //
+	// --- STEP 4 Check TicketExtrinsic --- //
+	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
+
+	ourEtErr := CreateNewTicketAccumulator()
+	// (GP 6.28)
+	CreateWinningTickets()
+
+	// --- sealing.go (GP 6.15~6.24) --- //
+	SealingByBandersnatchs()
+	SealingByTickets()
+
+	// gammaS := s.GetPriorStates().GetGammaS()
+	// if gammaS.Keys != nil { // Fallback Mode
+	// 	log.Println("sealing with keys")
+	// 	// (GP 6.16)
+	// 	SealingByBandersnatchs()
+	// } else if gammaS.Tickets != nil { // Normal Mode
+	// 	log.Println("sealing with tickets")
+	// 	// (GP 6.15)
+	// 	SealingByTickets()
+	// }
+
+	// --- markers.go (GP 6.27, 6.28) --- //
+	// (GP 6.27)
+	ourEpochMarkErr := CreateEpochMarker()
+	if ourEpochMarkErr != nil {
+		t.Log("markerErr:", int(*ourEpochMarkErr))
+	}
+
+	// Validate final state
+	validateFinalState(t, binFile, testCase, ourEtErr, ourEpochMarkErr)
+
+}
+
+// Setup test state
+func setupTestState(preState jamtests_safrole.SafroleState, input jamtests_safrole.SafroleInput) {
+	store.ResetInstance()
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetTau(preState.Tau)
+	storeInstance.GetProcessingBlockPointer().SetSlot(input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(input.Slot)
+
+	storeInstance.GetPriorStates().SetEta(preState.Eta)
+	// Set Eta0?
+
+	storeInstance.GetPriorStates().SetLambda(preState.Lambda)
+	storeInstance.GetPriorStates().SetKappa(preState.Kappa)
+	storeInstance.GetPriorStates().SetGammaK(preState.GammaK)
+	storeInstance.GetPriorStates().SetIota(preState.Iota)
+	storeInstance.GetPriorStates().SetGammaA(preState.GammaA)
+	storeInstance.GetPriorStates().SetGammaS(preState.GammaS)
+	storeInstance.GetPriorStates().SetGammaZ(preState.GammaZ)
+
+	// Miss PostOffenders?
+	storeInstance.GetPosteriorStates().SetPsiO(preState.PostOffenders)
+
+	// How to set the Extrinsic?
+	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(input.Extrinsic)
+}
+
+// Validate final state
+func validateFinalState(t *testing.T, binFile string,
+	testCase *jamtests_safrole.SafroleTestCase,
+	ourEtErr *types.ErrorCode, ourEpochMarkerErr *types.ErrorCode,
+) {
+	s := store.GetInstance()
+	ourEpochMarker := s.GetProcessingBlockPointer().GetEpochMark()
+	ourTicketsMark := s.GetProcessingBlockPointer().GetTicketsMark()
+	expectedErr := testCase.Output.Err
+	expectedOk := testCase.Output.Ok
+
+	// Handle safrole output error
+	safroleOutputErrCode := -1 // -1 indicates invalid error code
+
+	if expectedErr == nil && expectedOk != nil { // OK case
+		log.Printf("input safroleOkInfo: %v", *expectedOk)
+
+		if !reflect.DeepEqual(expectedOk.EpochMark, ourEpochMarker) {
+			if expectedOk.EpochMark != nil && ourEpochMarker != nil {
+				diff := cmp.Diff(*expectedOk.EpochMark, *ourEpochMarker)
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("epoch marker mismatch: %v", diff)
+			} else {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("epoch marker mismatch: expected %v\n, got %v\n", expectedOk.EpochMark, ourEpochMarker)
+			}
+		}
+
+		if !reflect.DeepEqual(expectedOk.TicketsMark, ourTicketsMark) {
+			if expectedOk.TicketsMark != nil && ourTicketsMark != nil {
+				diff := cmp.Diff(*expectedOk.TicketsMark, *ourTicketsMark)
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("tickets mark mismatch: %v", diff)
+			} else {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("tickets mark mismatch: expected %v\n, got %v\n", expectedOk.TicketsMark, ourTicketsMark)
+			}
+		}
+
+		// if !reflect.DeepEqual(testCase.PostState.Iota, testCase.PreState.Iota) {
+		// 	diff := cmp.Diff(testCase.PreState.Iota, testCase.PostState.Iota)
+		// 	t.Logf("[%s] %s: iota should change: %v", types.TEST_MODE, binFile, diff)
+		// } else {
+		// 	t.Logf("[%s] %s: iota should not change", types.TEST_MODE, binFile)
+		// }
+		validateState(t, testCase.PostState)
+
+		t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
+	} else { // Error case
+		safroleOutputErrCode = int(*expectedErr)
+		log.Printf("input ErrCode: %v", safroleOutputErrCode)
+
+		matchesEtErr := ourEtErr != nil && safroleOutputErrCode == int(*ourEtErr)
+		matchesEpochMarkerErr := ourEpochMarkerErr != nil && safroleOutputErrCode == int(*ourEpochMarkerErr)
+
+		if matchesEtErr || matchesEpochMarkerErr {
+			if !reflect.DeepEqual(testCase.PreState, testCase.PostState) {
+				diff := cmp.Diff(testCase.PreState, testCase.PostState)
+				t.Errorf("error case state mismatch: %v", diff)
+			}
+			t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
+		} else {
+			t.Errorf("error code mismatch: expected %v, got %v", safroleOutputErrCode, ourEtErr)
+			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+
+	// Validate final state
+
+	// Additional validation logic
+}
+
+func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
+	storeInstance := store.GetInstance()
+	if !reflect.DeepEqual(expectedState.Tau, storeInstance.GetPosteriorStates().GetTau()) {
+		diff := cmp.Diff(expectedState.Tau, storeInstance.GetPosteriorStates().GetTau())
+		t.Errorf("tau mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.Eta, storeInstance.GetPosteriorStates().GetEta()) {
+		diff := cmp.Diff(expectedState.Eta, storeInstance.GetPosteriorStates().GetEta())
+		t.Errorf("eta mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.Lambda, storeInstance.GetPosteriorStates().GetLambda()) {
+		diff := cmp.Diff(expectedState.Lambda, storeInstance.GetPosteriorStates().GetLambda())
+		t.Errorf("lambda mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.Kappa, storeInstance.GetPosteriorStates().GetKappa()) {
+		diff := cmp.Diff(expectedState.Kappa, storeInstance.GetPosteriorStates().GetKappa())
+		t.Errorf("kappa mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.GammaK, storeInstance.GetPosteriorStates().GetGammaK()) {
+		diff := cmp.Diff(expectedState.GammaK, storeInstance.GetPosteriorStates().GetGammaK())
+		t.Errorf("gamma_k mismatch:\n%v", diff)
+		// We don't compare iota here, this state will be update in accumulation
+		// } else if !reflect.DeepEqual(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota()) {
+		// diff := cmp.Diff(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota())
+		// t.Errorf("iota mismatch:\n%v", diff)
+	} else if !cmp.Equal(expectedState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(expectedState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty())
+		t.Errorf("gamma_a mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.GammaS, storeInstance.GetPosteriorStates().GetGammaS()) {
+		diff := cmp.Diff(expectedState.GammaS, storeInstance.GetPosteriorStates().GetGammaS())
+		t.Errorf("gamma_s mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ()) {
+		diff := cmp.Diff(expectedState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ())
+		t.Errorf("gamma_z mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(expectedState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO()) {
+		diff := cmp.Diff(expectedState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO())
+		t.Errorf("post_offenders mismatch:\n%v", diff)
+	}
+}

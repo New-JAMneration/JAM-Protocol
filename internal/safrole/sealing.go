@@ -112,6 +112,8 @@ func UpdateEntropy() {
 			eta[i+1] = eta[i]
 		}
 	}
+	// This make sure we won't overwrite eta0
+	eta[0] = posterior_state.GetEta0()
 	posterior_state.SetEta(eta)
 }
 
@@ -133,6 +135,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	return signature
 }
 
+// NO REFERENCES
 func UpdateHeaderEntropy() {
 	s := store.GetInstance()
 
@@ -175,7 +178,8 @@ func UpdateSlotKeySequence() {
 	slot_index := GetSlotIndex(tau)
 	var new_GammaS types.TicketsOrKeys
 	gammaA := priorState.GetGammaA()
-	if ePrime == e+1 && len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+
+	if ePrime == e+1 && len(gammaA) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 		new_GammaS.Tickets = OutsideInSequencer(&gammaA)
 	} else if ePrime == e { // γs if e′ = e
 		new_GammaS = priorState.GetGammaS()
