@@ -27,6 +27,19 @@ func (e *Encoder) Encode(v interface{}) ([]byte, error) {
 	return e.buf.Bytes(), nil
 }
 
+func (e *Encoder) EncodeMany(vs ...any) ([]byte, error) {
+	cLog(Cyan, "Encoding")
+	e.buf.Reset()
+
+	for _, v := range vs {
+		if err := e.encodeStruct(v); err != nil {
+			return nil, err
+		}
+	}
+
+	return e.buf.Bytes(), nil
+}
+
 type Encodable interface {
 	Encode(e *Encoder) error
 }
