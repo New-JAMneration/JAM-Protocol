@@ -1482,9 +1482,9 @@ type ServiceBlobs []ServiceBlob
 // For state serialization, merklization, and reading trace test cases
 type StateKey [31]byte
 
-type TraceKeyVal struct {
+type StateKeyVal struct {
 	Key   StateKey
 	Value ByteSequence
 }
 
-type StateKeyVals []TraceKeyVal
+type StateKeyVals []StateKeyVal
