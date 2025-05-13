@@ -21,7 +21,7 @@ import (
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
 // Constants
@@ -924,42 +924,48 @@ func TestUnmarshalPrivileges(t *testing.T) {
 }
 
 func TestDecodeJamTestNetTransitions(t *testing.T) {
-	var err error
-
-	dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", "generic", "state_transitions")
-	jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
-	if err != nil {
-		t.Fatalf("Failed to get JSON files: %v", err)
-	}
-	binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
-	if err != nil {
-		t.Fatalf("Failed to get BIN files: %v", err)
+	dirnames := []string{
+		"assurances",
+		"generic",
+		"orderedaccumulation",
 	}
 
-	for i := 0; i < len(jsonTestFiles); i++ {
-		jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
-		binTestFile := filepath.Join(dir, binTestFiles[i])
-
-		// Decode the JSON data
-		jsonData, err := utilities.GetTestFromJson[jamtests.TraceTestCase](jsonTestFile)
+	for _, dirname := range dirnames {
+		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirname, "state_transitions")
+		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
 		if err != nil {
-			t.Fatalf("Failed to decode JSON data: %v", err)
+			t.Fatalf("Failed to get JSON files: %v", err)
+		}
+		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get BIN files: %v", err)
 		}
 
-		// Decode the bin data
-		traceTestCase := jamtests.TraceTestCase{}
-		err = utilities.GetTestFromBin[jamtests.TraceTestCase](binTestFile, &traceTestCase)
-		if err != nil {
-			t.Fatalf("Failed to decode bin data: %v", err)
-		}
+		for i := 0; i < len(jsonTestFiles); i++ {
+			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
+			binTestFile := filepath.Join(dir, binTestFiles[i])
 
-		// Compare the two data
-		if !reflect.DeepEqual(jsonData, traceTestCase) {
-			log.Printf("❌ [%s] %s", types.TEST_MODE, jsonTestFiles[i])
-			t.Fatalf("Decoded data is not equal to the expected data")
-		} else {
-			// print the two file equal
-			log.Printf("✅ [%s] %s equal to %s", types.TEST_MODE, jsonTestFiles[i], binTestFiles[i])
+			// Decode the JSON data
+			jsonData, err := utilities.GetTestFromJson[jamtests_trace.TraceTestCase](jsonTestFile)
+			if err != nil {
+				t.Fatalf("Failed to decode JSON data: %v", err)
+			}
+
+			// Decode the bin data
+			traceTestCase := jamtests_trace.TraceTestCase{}
+			err = utilities.GetTestFromBin[jamtests_trace.TraceTestCase](binTestFile, &traceTestCase)
+			if err != nil {
+				t.Fatalf("Failed to decode bin data: %v", err)
+			}
+
+			// Compare the two data
+			if !reflect.DeepEqual(jsonData, traceTestCase) {
+				log.Printf("❌ [%s] %s", dirname, binTestFiles[i])
+				t.Fatalf("Decoded data is not equal to the expected data")
+			} else {
+				// print the two file equal
+				log.Printf("✅ [%s] %s", dirname, binTestFiles[i])
+			}
 		}
 	}
 }

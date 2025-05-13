@@ -2778,3 +2778,15 @@ func (o *Operand) Encode(e *Encoder) error {
 
 	return nil
 }
+
+func (s *StateKey) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding StateKey")
+
+	if _, err := e.buf.Write(s[:]); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("StateKey: %v", s[:]))
+
+	return nil
+}
