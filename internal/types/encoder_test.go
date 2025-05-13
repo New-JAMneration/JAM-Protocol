@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 	jamtests_authorizations "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
@@ -16,6 +17,7 @@ import (
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
 func CompareBinaryData(data1 []byte, data2 []byte) bool {
@@ -878,5 +880,57 @@ func TestEncodeDecodeJamTestNetState(t *testing.T) {
 		types.SetTinyMode()
 	} else {
 		types.SetFullMode()
+	}
+}
+
+func TestEncodeJamTestNetTransitions(t *testing.T) {
+	dirnames := []string{
+		"assurances",
+		"generic",
+		"orderedaccumulation",
+	}
+
+	for _, dirname := range dirnames {
+		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirname, "state_transitions")
+		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get JSON files: %v", err)
+		}
+		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get BIN files: %v", err)
+		}
+
+		for i := 0; i < len(jsonTestFiles); i++ {
+			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
+			binTestFile := filepath.Join(dir, binTestFiles[i])
+
+			// Decode the JSON data
+			jsonData, err := utilities.GetTestFromJson[jamtests_trace.TraceTestCase](jsonTestFile)
+			if err != nil {
+				t.Fatalf("Failed to decode JSON data: %v", err)
+			}
+
+			// Encode the JSON data
+			encoder := types.NewEncoder()
+			encoded, err := encoder.Encode(&jsonData)
+			if err != nil {
+				t.Fatalf("Failed to encode JSON data: %v", err)
+			}
+
+			// Read the binary file
+			binData, err := utilities.GetBytesFromFile(binTestFile)
+			if err != nil {
+				t.Fatalf("Failed to read binary file: %v", err)
+			}
+
+			// Compare the binary data
+			if !CompareBinaryData(encoded, binData) {
+				log.Printf("❌ [%s] %s", dirname, jsonTestFiles[i])
+				t.Fatalf("Binary data is not equal to the expected data")
+			} else {
+				log.Printf("✅ [%s] %s", dirname, jsonTestFiles[i])
+			}
+		}
 	}
 }
