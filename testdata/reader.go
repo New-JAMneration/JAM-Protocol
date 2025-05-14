@@ -17,6 +17,7 @@ import (
 	jamtestsreports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtestssafrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtestsstatistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
+	jamteststraces "github.com/New-JAMneration/JAM-Protocol/jamtests/traces"
 )
 
 // TestMode represents the type of test to run
@@ -205,6 +206,13 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		if err := json.Unmarshal(data, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal jamtestnet state transition data: %v", err)
 		}
+	case "trace":
+		var traceTestCase jamteststraces.TraceTestCase
+		if err := decoder.Decode(data, &traceTestCase); err != nil {
+			return nil, fmt.Errorf("failed to decode trace test data: %v", err)
+		}
+		result = &traceTestCase
+
 	default:
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}

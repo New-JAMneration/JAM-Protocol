@@ -1,6 +1,9 @@
 package jamtestvector
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 )
@@ -13,7 +16,7 @@ func NewJamTestVectorsRunner(mode testdata.TestMode) *JamTestVectorsRunner {
 	return &JamTestVectorsRunner{Mode: mode}
 }
 
-func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
+func (r *JamTestVectorsRunner) RunFnnc(runSTF bool) error {
 	if runSTF {
 		return stf.RunSTF()
 	}
@@ -40,6 +43,36 @@ func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
 	default:
 		return nil
 	}
+}
+
+func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
+	testCase := data.(testdata.Testable)
+
+	// Execute STF
+	err := r.RunFnnc(runSTF)
+	if err != nil {
+		return err
+	}
+
+	// Old passed logic
+	expectedErr := testCase.ExpectError()
+	if expectedErr != nil {
+		if err == nil {
+			return fmt.Errorf("expected error but got none")
+		}
+		log.Printf("Test passed (expected error: %v)", expectedErr)
+	} else {
+		if err != nil {
+			return fmt.Errorf("unexpected error: %v", err)
+		}
+		err = r.Verify(testCase)
+		if err != nil {
+			return err
+		}
+		log.Println("Test passed")
+	}
+
+	return nil
 }
 
 func (r *JamTestVectorsRunner) Verify(data testdata.Testable) error {

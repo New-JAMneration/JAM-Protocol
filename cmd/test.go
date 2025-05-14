@@ -9,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
 	jamtestnet "github.com/New-JAMneration/JAM-Protocol/testdata/jam_testnet"
+	"github.com/New-JAMneration/JAM-Protocol/testdata/traces"
 )
 
 var (
@@ -25,14 +26,15 @@ func TestCommand() *cli.Command {
 		Use:   "test",
 		Short: "Run JAM Protocol tests",
 		Long: `Run tests for the JAM Protocol. 
-You can specify the test type (jam-test-vectors, jamtestnet), mode (safrole, assurances, etc.), and size (tiny, full).
+You can specify the test type (jam-test-vectors, jamtestnet, trace), mode (safrole, assurances, etc.), and size (tiny, full).
 For example:
   jam test --type jam-test-vectors --mode safrole --size tiny
-  jam test --type jamtestnet --mode assurances`,
+  jam test --type jamtestnet --mode assurances
+  jam test --type trace --mode safrole`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:         "type",
-				Usage:        "Test data type (jam-test-vectors, jamtestnet)",
+				Usage:        "Test data type (jam-test-vectors, jamtestnet, trace)",
 				DefaultValue: "jam-test-vectors",
 				Destination:  &testType,
 			},
@@ -62,65 +64,39 @@ For example:
 			},
 		},
 		Run: func(args []string) {
-			// Validate test type
-			if testType != "jam-test-vectors" && testType != "jamtestnet" {
-				fmt.Printf("Error: Invalid test type '%s'\n", testType)
-				fmt.Println("Valid types are: jam-test-vectors, jamtestnet")
+			// Validate inputs
+			if err := validateTestType(testType); err != nil {
+				fmt.Println(err)
 				os.Exit(1)
 			}
 
-			// Validate test mode
 			mode := testdata.TestMode(testMode)
-			switch mode {
-			case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
-				testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-				testdata.AuthorizationsMode:
-				// Valid mode
-			default:
-				fmt.Printf("Error: Invalid test mode '%s'\n", testMode)
-				fmt.Println("Valid modes are: safrole, assurances, preimages, disputes, history, accumulate, authorizations")
+			if err := validateTestMode(mode); err != nil {
+				fmt.Println(err)
 				os.Exit(1)
 			}
 
-			// Validate format
-			var dataFormat testdata.DataFormat
-			switch testFileFormat {
-			case "binary":
-				dataFormat = testdata.BinaryFormat
-			case "json":
-				dataFormat = testdata.JSONFormat
-			default:
-				fmt.Printf("Error: Invalid format '%s'\n", testFileFormat)
-				fmt.Println("Valid formats are: binary, json")
+			dataFormat, err := validateTestFormat(testFileFormat)
+			if err != nil {
+				fmt.Println(err)
 				os.Exit(1)
 			}
 
-			// Create test data reader based on type
-			var reader *testdata.TestDataReader
-			var runner testdata.TestRunner
-			if testType == "jam-test-vectors" {
-				// Validate test size for jam-test-vectors
-				size := testdata.TestSize(testSize)
-				switch size {
-				case testdata.TinySize, testdata.FullSize:
-					// Valid size
-				default:
-					fmt.Printf("Error: Invalid test size '%s'\n", testSize)
-					fmt.Println("Valid sizes are: tiny, full")
-					os.Exit(1)
-				}
-				reader = testdata.NewTestDataReader(mode, size, dataFormat)
-				runner = jamtestvector.NewJamTestVectorsRunner(mode)
-			} else {
-				reader = testdata.NewJamTestNetReader(mode, dataFormat)
-				runner = jamtestnet.NewJamTestNetRunner(mode)
+			// Create reader and runner
+			reader, runner, err := createReaderAndRunner(testType, mode, testdata.TestSize(testSize), dataFormat)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
 			}
 
 			// Read test data
-			testFiles, err := reader.ReadTestData()
-			if err != nil {
-				fmt.Printf("Error reading test data: %v\n", err)
-				os.Exit(1)
+			var testFiles []testdata.TestData
+			if testType != "trace" {
+				testFiles, err = reader.ReadTestData()
+				if err != nil {
+					fmt.Printf("Error reading test data: %v\n", err)
+					os.Exit(1)
+				}
 			}
 
 			// Print results
@@ -131,45 +107,27 @@ For example:
 			fmt.Println("----------------------------------------")
 			passed := 0
 			failed := 0
+
 			for idx, testFile := range testFiles {
 				log.Printf("------------------{%v}--------------------", idx)
 				// Parse the test data
 				data, err := reader.ParseTestData(testFile.Data)
 				if err != nil {
 					log.Printf("got error: %v", err)
+					failed++
+					continue
 				}
 
-				// Run the est
-
-				outputErr := runner.Run(data, testRunSTF)
-				expectedErr := data.ExpectError()
-
-				if expectedErr != nil {
-					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
-						failed++
-					} else {
-						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
-						passed++
-					}
-					// Check the error message
+				// Run the test
+				if err := runner.Run(data, testRunSTF); err != nil {
+					fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
+					failed++
 				} else {
-					if outputErr != nil {
-						fmt.Printf("Test %s failed: unexpected error: %v\n", testFile.Name, outputErr)
-						failed++
-					} else {
-						err = runner.Verify(data)
-						if err != nil {
-							fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
-							failed++
-						} else {
-							fmt.Printf("Test %s passed\n", testFile.Name)
-							passed++
-						}
-					}
+					fmt.Printf("Test %s passed\n", testFile.Name)
+					passed++
 				}
-
 			}
+
 			fmt.Println("----------------------------------------")
 			fmt.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
 		},
@@ -180,4 +138,65 @@ func init() {
 	testCmd := TestCommand()
 
 	cli.AddCommand(testCmd)
+}
+
+// Encapsulate validation logic into separate functions
+func validateTestType(testType string) error {
+	if testType != "jam-test-vectors" && testType != "jamtestnet" && testType != "trace" {
+		return fmt.Errorf("invalid test type '%s'", testType)
+	}
+	return nil
+}
+
+func validateTestMode(mode testdata.TestMode) error {
+	switch mode {
+	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
+		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
+		testdata.AuthorizationsMode:
+		return nil
+	default:
+		return fmt.Errorf("invalid test mode '%s'", mode)
+	}
+}
+
+func validateTestSize(size testdata.TestSize) error {
+	switch size {
+	case testdata.TinySize, testdata.FullSize:
+		return nil
+	default:
+		return fmt.Errorf("invalid test size '%s'", size)
+	}
+}
+
+func validateTestFormat(format string) (testdata.DataFormat, error) {
+	switch format {
+	case "binary":
+		return testdata.BinaryFormat, nil
+	case "json":
+		return testdata.JSONFormat, nil
+	default:
+		return "", fmt.Errorf("invalid format '%s'", format)
+	}
+}
+
+// Factory functions for creating readers and runners
+func createReaderAndRunner(testType string, mode testdata.TestMode, size testdata.TestSize, format testdata.DataFormat) (*testdata.TestDataReader, testdata.TestRunner, error) {
+	var reader *testdata.TestDataReader
+	var runner testdata.TestRunner
+
+	switch testType {
+	case "jam-test-vectors":
+		if err := validateTestSize(size); err != nil {
+			return nil, nil, err
+		}
+		reader = testdata.NewTestDataReader(mode, size, format)
+		runner = jamtestvector.NewJamTestVectorsRunner(mode)
+	case "jamtestnet":
+		reader = testdata.NewJamTestNetReader(mode, format)
+		runner = jamtestnet.NewJamTestNetRunner(mode)
+	case "trace":
+		runner = traces.NewTraceRunner("./traces", "safrole")
+	}
+
+	return reader, runner, nil
 }
