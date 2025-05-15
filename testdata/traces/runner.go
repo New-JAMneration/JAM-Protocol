@@ -16,21 +16,14 @@ var (
 )
 
 type TraceRunner struct {
-	// BaseDir is the root directory that contains trace folders.
-	BaseDir string
-	// Folder is the specific trace folder to run, e.g. "safrole", "fallback".
-	Folder string
-
 	// Store is the global protocol store. The runner mutates it between traces.
 	Store *store.Store
 }
 
 // NewTraceRunner constructs a TraceRunner with sane defaults.
-func NewTraceRunner(baseDir, folder string) *TraceRunner {
+func NewTraceRunner() *TraceRunner {
 	return &TraceRunner{
-		BaseDir: baseDir,
-		Folder:  folder,
-		Store:   store.GetInstance(),
+		Store: store.GetInstance(),
 	}
 }
 
