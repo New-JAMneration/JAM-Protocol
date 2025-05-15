@@ -40,7 +40,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations)",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, fallback (for trace))",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
@@ -98,35 +98,36 @@ For example:
 			}
 
 			// Print results
-			fmt.Printf("\nTest Results for %s (type: %s) (format: %s): \n", mode, testType, testFileFormat)
+			msg := fmt.Sprintf("Test Results for %s (type: %s) (format: %s) ", mode, testType, testFileFormat)
 			if testType == "jam-test-vectors" {
-				fmt.Printf("Size: %s\n", testSize)
+				msg += fmt.Sprintf("(size: %s) ", testSize)
 			}
+			log.Printf(msg)
+
 			passed := 0
 			failed := 0
 
 			for idx, testFile := range testFiles {
 				log.Printf("------------------{%v}--------------------", idx)
-				// Parse the test data
 				data, err := reader.ParseTestData(testFile.Data)
 				if err != nil {
-					log.Printf("got error: %v", err)
+					log.Printf("got error during parsing: %v", err)
 					failed++
 					continue
 				}
 
 				// Run the test
 				if err := runner.Run(data, testRunSTF); err != nil {
-					fmt.Printf("Test %s failed: %v\n", testFile.Name, err)
+					log.Printf("Test %s failed: %v", testFile.Name, err)
 					failed++
 				} else {
-					fmt.Printf("Test %s passed\n", testFile.Name)
+					log.Printf("Test %s passed", testFile.Name)
 					passed++
 				}
 			}
 
-			fmt.Println("----------------------------------------")
-			fmt.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+			log.Printf("----------------------------------------")
+			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
 		},
 	}
 }
@@ -192,10 +193,6 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
-		// Only suuport the json type for now
-		if format != "json" {
-			format = "json"
-		}
 
 		reader = testdata.NewTracesReader(mode, format)
 		runner = traces.NewTraceRunner()
