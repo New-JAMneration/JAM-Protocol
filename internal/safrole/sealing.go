@@ -2,7 +2,6 @@ package safrole
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -79,16 +78,16 @@ func SealingByBandersnatchs() error {
 	return nil
 }
 
-// (6.15~6.16) make seal for new header
+// (6.15~6.16) Make H_s (seal for new header)
 func SealingHeader() error {
 	s := store.GetInstance()
 	gammaS := s.GetPosteriorStates().GetGammaS()
-	if gammaS.Keys != nil {
+	if len(gammaS.Keys) > 0 {
 		err := SealingByBandersnatchs()
 		if err != nil {
 			return err
 		}
-	} else if gammaS.Tickets != nil {
+	} else if len(gammaS.Tickets) > 0 {
 		err := SealingByTickets()
 		if err != nil {
 			return err
@@ -111,7 +110,8 @@ func UpdateEtaPrime0() error {
 	entropy_source := header.EntropySource
 	eta := prior_state.GetEta()
 
-	verifier, err := vrf.NewVerifier(public_key[:], 1023)
+	// TODO: verify correctness of vrfOutput
+	verifier, err := vrf.NewVerifier(public_key[:], 1)
 	if err != nil {
 		return fmt.Errorf("NewVerifier: %v", err)
 	}
@@ -120,9 +120,7 @@ func UpdateEtaPrime0() error {
 	if err != nil {
 		return fmt.Errorf("VRFIetfOutput: %v", err)
 	}
-	log.Println("vrfOutput", len(vrfOutput))
 	hash_input := append(eta[0][:], vrfOutput...)
-	log.Println(len(hash_input))
 	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 	return nil
 }
