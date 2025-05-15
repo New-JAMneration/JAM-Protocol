@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtestsaccumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -33,6 +34,9 @@ const (
 	AuthorizationsMode TestMode = "authorizations"
 	StatisticsMode     TestMode = "statistics"
 	ReportsMode        TestMode = "reports"
+
+	// Trace
+	FallbackMode TestMode = "fallback"
 )
 
 // TestSize represents the size of the test data
@@ -95,6 +99,19 @@ func NewJamTestNetReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
+func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
+	reader := &TestDataReader{
+		dataType: "trace",
+		mode:     mode,
+		format:   format,
+	}
+
+	// TODO: we could suppport the different project traces
+	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "traces", string(mode))
+
+	return reader
+}
+
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
@@ -133,6 +150,11 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read test files: %v", err)
 	}
+
+	// Sort the test files by name
+	sort.Slice(testFiles, func(i, j int) bool {
+		return testFiles[i].Name < testFiles[j].Name
+	})
 
 	return testFiles, nil
 }
@@ -212,7 +234,6 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 			return nil, fmt.Errorf("failed to decode trace test data: %v", err)
 		}
 		result = &traceTestCase
-
 	default:
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}
