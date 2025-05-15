@@ -91,20 +91,17 @@ For example:
 
 			// Read test data
 			var testFiles []testdata.TestData
-			if testType != "trace" {
-				testFiles, err = reader.ReadTestData()
-				if err != nil {
-					fmt.Printf("Error reading test data: %v\n", err)
-					os.Exit(1)
-				}
+			testFiles, err = reader.ReadTestData()
+			if err != nil {
+				fmt.Printf("Error reading test data: %v\n", err)
+				os.Exit(1)
 			}
 
 			// Print results
-			fmt.Printf("\nTest Results for %s (%s):\n", mode, testType)
+			fmt.Printf("\nTest Results for %s (type: %s) (format: %s): \n", mode, testType, testFileFormat)
 			if testType == "jam-test-vectors" {
 				fmt.Printf("Size: %s\n", testSize)
 			}
-			fmt.Println("----------------------------------------")
 			passed := 0
 			failed := 0
 
@@ -152,7 +149,7 @@ func validateTestMode(mode testdata.TestMode) error {
 	switch mode {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-		testdata.AuthorizationsMode:
+		testdata.AuthorizationsMode, testdata.FallbackMode:
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)
@@ -195,7 +192,13 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
-		runner = traces.NewTraceRunner("./traces", "safrole")
+		// Only suuport the json type for now
+		if format != "json" {
+			format = "json"
+		}
+
+		reader = testdata.NewTracesReader(mode, format)
+		runner = traces.NewTraceRunner()
 	}
 
 	return reader, runner, nil
