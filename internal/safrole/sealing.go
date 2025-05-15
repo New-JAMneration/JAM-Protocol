@@ -7,6 +7,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
@@ -110,7 +111,7 @@ func UpdateEtaPrime0() error {
 	entropy_source := header.EntropySource
 	eta := prior_state.GetEta()
 
-	verifier, err := vrf.NewVerifier(public_key[:], uint(1))
+	verifier, err := vrf.NewVerifier(public_key[:], 1023)
 	if err != nil {
 		return fmt.Errorf("NewVerifier: %v", err)
 	}
@@ -120,18 +121,9 @@ func UpdateEtaPrime0() error {
 		return fmt.Errorf("VRFIetfOutput: %v", err)
 	}
 	log.Println("vrfOutput", len(vrfOutput))
-	// handler, err := CreateVRFHandler(public_key)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer handler.Free()
-	// vrfOutput, err := handler.VRFIetfOutput(entropy_source[:])
-	// if err != nil {
-	// 	return err
-	// }
 	hash_input := append(eta[0][:], vrfOutput...)
 	log.Println(len(hash_input))
-	// s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 	return nil
 }
 
@@ -143,17 +135,6 @@ func UpdateEntropy(e types.TimeSlot, ePrime types.TimeSlot) {
 	*/
 
 	s := store.GetInstance()
-
-	// prior_state := s.GetPriorStates()
-
-	// posterior_state := s.GetPosteriorStates()
-
-	// tau := prior_state.GetTau()
-
-	// tauPrime := posterior_state.GetTau()
-
-	// e := GetEpochIndex(tau)
-	// ePrime := GetEpochIndex(tauPrime)
 	eta := s.GetPriorStates().GetEta()
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {

@@ -151,6 +151,7 @@ func LoadTinyValidators() FakeValidators {
 	return TinyValidators
 }
 
+// This function only supports tiny mode
 func CreateVRFHandler(bandersnatchKey types.BandersnatchPublic) (*vrf.Handler, error) {
 	// Only the secret key of the prover is needed
 	fakeValidators := LoadTinyValidators()
