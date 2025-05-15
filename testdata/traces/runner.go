@@ -3,6 +3,7 @@ package traces
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -28,13 +29,17 @@ func NewTraceRunner() *TraceRunner {
 }
 
 func (tr *TraceRunner) Run(data interface{}, _ bool) error {
-	testCase := data.(jamteststraces.TraceTestCase)
+	testCase := data.(*jamteststraces.TraceTestCase)
 
 	// Initialize the genesis if the state root is 0
 	if testCase.PreState.StateRoot == genesisStateRoot {
 		if err := tr.InitializeGenesis(testCase); err != nil {
 			return err
 		}
+	}
+
+	if len(tr.Store.GetBlocks()) == 0 {
+		return fmt.Errorf("no blocks in the store")
 	}
 
 	// Verify the header
@@ -51,7 +56,7 @@ func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 		return err
 	}
 
-	return tr.Verify(&testCase)
+	return tr.Verify(testCase)
 }
 
 // Verify checks the block header's parent_hash and state_root against the
@@ -60,7 +65,8 @@ func (tr *TraceRunner) Verify(data testdata.Testable) error {
 	return data.Validate()
 }
 
-func (tr *TraceRunner) InitializeGenesis(data jamteststraces.TraceTestCase) error {
+func (tr *TraceRunner) InitializeGenesis(data *jamteststraces.TraceTestCase) error {
+	log.Printf("Initializing genesis block....")
 	// TODO: Initialize the genesis
 	return nil
 }
