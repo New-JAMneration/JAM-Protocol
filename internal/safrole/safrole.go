@@ -132,7 +132,6 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 	// Get prior state
 	priorState := s.GetPriorStates()
 
-	log.Println("e", e, "ePrime", ePrime)
 	if ePrime > e {
 		// Update state to posterior state
 		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
@@ -183,10 +182,10 @@ func OuterUsedSafrole() *types.ErrorCode {
 	}
 
 	// (GP 6.22)
-	// err = UpdateEtaPrime0()
-	// if err != nil {
-	// 	log.Println("UpdateEtaPrime0Err:", err)
-	// }
+	err = UpdateEtaPrime0()
+	if err != nil {
+		log.Println("UpdateEtaPrime0Err:", err)
+	}
 
 	// (GP 6.17) // This will be used to write H_v to new header
 	// UpdateHeaderEntropy()
