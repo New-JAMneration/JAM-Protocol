@@ -21,6 +21,7 @@ type config struct {
 		ValidatorsCount         int `json:"validators_count"`
 		CoresCount              int `json:"cores_count"`
 		EpochLength             int `json:"epoch_length"`
+		SlotSubmissionEnd       int `json:"slot_submission_end"`
 		MaxTicketsPerBlock      int `json:"max_tickets_per_block"`
 		TicketsPerValidator     int `json:"tickets_per_validator"`
 		MaxBlocksHistory        int `json:"max_blocks_history"`
@@ -77,6 +78,7 @@ func initJamConst() {
 	types.ValidatorsCount = Config.Const.ValidatorsCount
 	types.CoresCount = Config.Const.CoresCount
 	types.EpochLength = Config.Const.EpochLength
+	types.SlotSubmissionEnd = Config.Const.SlotSubmissionEnd
 	types.MaxTicketsPerBlock = Config.Const.MaxTicketsPerBlock
 	types.TicketsPerValidator = Config.Const.TicketsPerValidator
 	types.AuthPoolMaxSize = Config.Const.AuthPoolMaxSize
