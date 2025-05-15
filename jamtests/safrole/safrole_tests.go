@@ -591,6 +591,9 @@ func (s *SafroleTestCase) ExpectError() error {
 
 func (s *SafroleTestCase) Validate() error {
 	storeInstance := store.GetInstance()
+	// Set eta^prime_0 here
+	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
+	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 	/*
 		Check EpochMark and TicketsMark
 	*/
