@@ -8,7 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	jamteststraces "github.com/New-JAMneration/JAM-Protocol/jamtests/traces"
+	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 )
 
@@ -29,7 +29,7 @@ func NewTraceRunner() *TraceRunner {
 }
 
 func (tr *TraceRunner) Run(data interface{}, _ bool) error {
-	testCase := data.(*jamteststraces.TraceTestCase)
+	testCase := data.(*jamteststrace.TraceTestCase)
 
 	// Initialize the genesis if the state root is 0
 	if testCase.PreState.StateRoot == genesisStateRoot {
@@ -65,7 +65,7 @@ func (tr *TraceRunner) Verify(data testdata.Testable) error {
 	return data.Validate()
 }
 
-func (tr *TraceRunner) InitializeGenesis(data *jamteststraces.TraceTestCase) error {
+func (tr *TraceRunner) InitializeGenesis(data *jamteststrace.TraceTestCase) error {
 	log.Printf("Initializing genesis block....")
 	// TODO: Initialize the genesis
 	return nil
