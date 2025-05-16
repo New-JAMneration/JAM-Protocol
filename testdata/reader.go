@@ -107,7 +107,11 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	}
 
 	// TODO: we could suppport the different project traces
-	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "traces", string(mode))
+	folderName := mode
+	if mode == ReportsMode {
+		folderName = "reports-l0"
+	}
+	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "traces", string(folderName))
 
 	return reader
 }
@@ -226,11 +230,17 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		// For jamtestnet, we need to handle state transitions
 		return nil, fmt.Errorf("work in progress: %s", r.dataType)
 	case "trace":
-		var traceTestCase jamteststrace.TraceTestCase
-		if err := r.readFile(data, &traceTestCase); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal/decode trace test data: %v", err)
+		switch r.mode {
+		case SafroleMode, FallbackMode, ReportsMode:
+			var traceTestCase jamteststrace.TraceTestCase
+			if err := r.readFile(data, &traceTestCase); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal/decode trace test data: %v", err)
+			}
+			result = &traceTestCase
+		default:
+			return nil, fmt.Errorf("unsupported test mode for trace: %s", r.mode)
 		}
-		result = &traceTestCase
+
 	default:
 		return nil, fmt.Errorf("unsupported test type: %s", r.dataType)
 	}

@@ -213,7 +213,6 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
-
 		reader = testdata.NewTracesReader(mode, format)
 		runner = traces.NewTraceRunner()
 	}
