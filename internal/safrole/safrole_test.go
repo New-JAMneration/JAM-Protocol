@@ -1,12 +1,20 @@
 package safrole
 
 import (
+	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestGetEpochIndex(t *testing.T) {
@@ -148,6 +156,8 @@ func TestKeyRotate(t *testing.T) {
 	now := time.Now().UTC()
 	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
+	e := GetEpochIndex(tauPrime)
+	ePrime := GetEpochIndex(tauPrime)
 
 	// Add a block to the store
 	s.AddBlock(types.Block{
@@ -215,7 +225,7 @@ func TestKeyRotate(t *testing.T) {
 
 	s.GenerateGenesisState(priorState.GetState())
 
-	KeyRotate()
+	KeyRotate(e, ePrime)
 
 	// Get posterior state
 	posteriorState = s.GetPosteriorStates()
@@ -302,3 +312,187 @@ func TestReplaceOffenderKeys(t *testing.T) {
 }
 
 // TODO: Add tests for GetNewSafroleState, UpdateBandersnatchKeyRoot
+
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
+
+func TestSafroleTestVectors(t *testing.T) {
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		// if binFile != "enact-epoch-change-with-no-tickets-2.bin" {
+		// 	continue
+		// }
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+		t.Logf("▶ Processing [%s] %s", types.TEST_MODE, binFile)
+
+		// Test accumulate
+		testSafroleFile(t, binPath, binFile)
+	}
+}
+
+func testSafroleFile(t *testing.T, binPath string, binFile string) {
+	// Load accumulate test case
+	testCase := &jamtests_safrole.SafroleTestCase{}
+	err := utils.GetTestFromBin(binPath, testCase)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	setupTestState(testCase.PreState, testCase.Input)
+
+	errCode := OuterUsedSafrole()
+
+	validateFinalState(t, binFile, testCase, errCode)
+
+}
+
+// Setup test state
+func setupTestState(preState jamtests_safrole.SafroleState, input jamtests_safrole.SafroleInput) {
+	store.ResetInstance()
+	storeInstance := store.GetInstance()
+
+	storeInstance.GetPriorStates().SetTau(preState.Tau)
+	storeInstance.GetProcessingBlockPointer().SetSlot(input.Slot)
+	storeInstance.GetPosteriorStates().SetTau(input.Slot)
+
+	storeInstance.GetPriorStates().SetEta(preState.Eta)
+	// Set eta^prime_0 here
+	hash_input := append(preState.Eta[0][:], input.Entropy[:]...)
+	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+
+	storeInstance.GetPriorStates().SetLambda(preState.Lambda)
+	storeInstance.GetPriorStates().SetKappa(preState.Kappa)
+	storeInstance.GetPriorStates().SetGammaK(preState.GammaK)
+	storeInstance.GetPriorStates().SetIota(preState.Iota)
+	storeInstance.GetPriorStates().SetGammaA(preState.GammaA)
+	storeInstance.GetPriorStates().SetGammaS(preState.GammaS)
+	storeInstance.GetPriorStates().SetGammaZ(preState.GammaZ)
+
+	storeInstance.GetPosteriorStates().SetPsiO(preState.PostOffenders)
+
+	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(input.Extrinsic)
+}
+
+// Validate final state
+func validateFinalState(t *testing.T, binFile string,
+	testCase *jamtests_safrole.SafroleTestCase,
+	errCode *types.ErrorCode,
+) {
+	s := store.GetInstance()
+
+	ourEpochMarker := s.GetProcessingBlockPointer().GetEpochMark()
+	ourTicketsMark := s.GetProcessingBlockPointer().GetTicketsMark()
+	expectedErr := testCase.Output.Err
+	expectedOk := testCase.Output.Ok
+
+	// Handle safrole output error
+	safroleOutputErrCode := -1 // -1 indicates invalid error code
+
+	if expectedErr == nil && expectedOk != nil { // OK case
+		log.Printf("input safroleOkInfo: %v", *expectedOk)
+
+		if !reflect.DeepEqual(expectedOk.EpochMark, ourEpochMarker) {
+			if expectedOk.EpochMark != nil && ourEpochMarker != nil {
+				diff := cmp.Diff(*expectedOk.EpochMark, *ourEpochMarker)
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("epoch marker mismatch: %v", diff)
+			} else {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("epoch marker mismatch: expected %v\n, got %v\n", expectedOk.EpochMark, ourEpochMarker)
+			}
+		}
+
+		if !reflect.DeepEqual(expectedOk.TicketsMark, ourTicketsMark) {
+			if expectedOk.TicketsMark != nil && ourTicketsMark != nil {
+				diff := cmp.Diff(*expectedOk.TicketsMark, *ourTicketsMark)
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("tickets mark mismatch: %v", diff)
+			} else {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("tickets mark mismatch: expected %v\n, got %v\n", expectedOk.TicketsMark, ourTicketsMark)
+			}
+		}
+
+		/*
+			Validate iota doesn't change
+		*/
+		// if !reflect.DeepEqual(testCase.PostState.Iota, testCase.PreState.Iota) {
+		// 	diff := cmp.Diff(testCase.PreState.Iota, testCase.PostState.Iota)
+		// 	t.Logf("[%s] %s: iota should change: %v", types.TEST_MODE, binFile, diff)
+		// } else {
+		// 	t.Logf("[%s] %s: iota should not change", types.TEST_MODE, binFile)
+		// }
+		validateState(t, testCase.PostState)
+
+		t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
+	} else { // Error case
+		safroleOutputErrCode = int(*expectedErr)
+		log.Printf("input ErrCode: %v", safroleOutputErrCode)
+
+		if errCode != nil && safroleOutputErrCode == int(*errCode) {
+			if !reflect.DeepEqual(testCase.PreState, testCase.PostState) {
+				diff := cmp.Diff(testCase.PreState, testCase.PostState)
+				t.Errorf("error case state mismatch: %v", diff)
+			}
+			t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
+		} else {
+			t.Errorf("error code mismatch: expected %v, got %v", safroleOutputErrCode, *errCode)
+			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+		}
+	}
+}
+
+func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
+	storeInstance := store.GetInstance()
+	posteriorState := storeInstance.GetPosteriorStates()
+
+	checks := []struct {
+		name        string
+		expected    interface{}
+		actual      interface{}
+		compareOpts []cmp.Option
+	}{
+		{"tau", expectedState.Tau, posteriorState.GetTau(), nil},
+		{"eta", expectedState.Eta, posteriorState.GetEta(), nil},
+		{"lambda", expectedState.Lambda, posteriorState.GetLambda(), nil},
+		{"kappa", expectedState.Kappa, posteriorState.GetKappa(), nil},
+		{"gamma_k", expectedState.GammaK, posteriorState.GetGammaK(), nil},
+		{"gamma_a", expectedState.GammaA, posteriorState.GetGammaA(), []cmp.Option{cmpopts.EquateEmpty()}},
+		{"gamma_s", expectedState.GammaS, posteriorState.GetGammaS(), nil},
+		{"gamma_z", expectedState.GammaZ, posteriorState.GetGammaZ(), nil},
+		{"post_offenders", expectedState.PostOffenders, posteriorState.GetPsiO(), nil},
+	}
+
+	for _, check := range checks {
+		var equal bool
+		if check.compareOpts != nil {
+			equal = cmp.Equal(check.expected, check.actual, check.compareOpts...)
+		} else {
+			equal = reflect.DeepEqual(check.expected, check.actual)
+		}
+
+		if !equal {
+			var diff string
+			if check.compareOpts != nil {
+				diff = cmp.Diff(check.expected, check.actual, check.compareOpts...)
+			} else {
+				diff = cmp.Diff(check.expected, check.actual)
+			}
+			t.Errorf("%s mismatch:\n%v", check.name, diff)
+			return
+		}
+	}
+}

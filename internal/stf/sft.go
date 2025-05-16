@@ -22,13 +22,20 @@ func RunSTF() error {
 	// Update Reports
 
 	// Update Accumlate
-	UpdateAccumlate()
+	err = UpdateAccumlate()
+	if err != nil {
+		return err
+	}
 
-	// Update Authorization
+	// Update History (beta^dagger -> beta^prime)
 
 	// Update Preimages
+	err = UpdatePreimages()
+	if err != nil {
+		return err
+	}
 
-	// Update History
+	// Update Authorization
 
 	// Update Statistics
 
