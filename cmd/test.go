@@ -150,7 +150,7 @@ func validateTestMode(mode testdata.TestMode) error {
 	switch mode {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-		testdata.AuthorizationsMode, testdata.FallbackMode:
+		testdata.AuthorizationsMode, testdata.FallbackMode, testdata.ReportsMode:
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)
@@ -193,7 +193,6 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
-
 		reader = testdata.NewTracesReader(mode, format)
 		runner = traces.NewTraceRunner()
 	}
