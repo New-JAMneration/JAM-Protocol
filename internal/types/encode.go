@@ -1361,7 +1361,7 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 }
 
 // ActivityRecord
-func (a *ActivityRecord) Encode(e *Encoder) error {
+func (a *ValidatorActivityRecord) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ActivityRecord")
 
 	// Blocks
@@ -1398,7 +1398,7 @@ func (a *ActivityRecord) Encode(e *Encoder) error {
 }
 
 // ActivityRecords
-func (a *ActivityRecords) Encode(e *Encoder) error {
+func (a *ValidatorsStatistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ActivityRecords")
 
 	if len(*a) != int(ValidatorsCount) {
@@ -1628,7 +1628,7 @@ func (s *Statistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Statistics")
 
 	// ValsCurrent
-	if err := s.ValsCurrent.Encode(e); err != nil {
+	if err := s.ValsCurr.Encode(e); err != nil {
 		return err
 	}
 

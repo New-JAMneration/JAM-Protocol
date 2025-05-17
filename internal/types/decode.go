@@ -787,7 +787,7 @@ func (r *RefineLoad) Decode(d *Decoder) error {
 		return err
 	}
 
-	r.GasUsed = U64(gasUsed)
+	r.GasUsed = Gas(gasUsed)
 
 	imports, err := d.DecodeInteger()
 	if err != nil {
@@ -911,7 +911,7 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 
-	w.AuthGasUsed = U64(authGasUsed)
+	w.AuthGasUsed = Gas(authGasUsed)
 
 	return nil
 }
@@ -1497,7 +1497,7 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 }
 
 // ActivityRecord
-func (a *ActivityRecord) Decode(d *Decoder) error {
+func (a *ValidatorActivityRecord) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ActivityRecord")
 
 	var err error
@@ -1530,13 +1530,13 @@ func (a *ActivityRecord) Decode(d *Decoder) error {
 }
 
 // ActivityRecords
-func (a *ActivityRecords) Decode(d *Decoder) error {
+func (a *ValidatorsStatistics) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ActivityRecords")
 
 	var err error
 
 	// make the slice with length
-	records := make([]ActivityRecord, ValidatorsCount)
+	records := make([]ValidatorActivityRecord, ValidatorsCount)
 	for i := 0; i < ValidatorsCount; i++ {
 		if err = records[i].Decode(d); err != nil {
 			return err
@@ -1615,7 +1615,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	c.GasUsed = U64(gasUsed)
+	c.GasUsed = Gas(gasUsed)
 	cLog(Yellow, fmt.Sprintf("GasUsed: %v", c.GasUsed))
 
 	return nil
@@ -1675,7 +1675,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	s.RefinementGasUsed = U64(refinementGasUsed)
+	s.RefinementGasUsed = Gas(refinementGasUsed)
 	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", refinementGasUsed))
 
 	cLog(Cyan, "Decoding Imports")
@@ -1723,7 +1723,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	s.AccumulateGasUsed = U64(accumulateGasUsed)
+	s.AccumulateGasUsed = Gas(accumulateGasUsed)
 	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", accumulateGasUsed))
 
 	cLog(Cyan, "Decoding OnTransfersCount")
@@ -1739,7 +1739,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	s.OnTransfersGasUsed = U64(onTransfersGasUsed)
+	s.OnTransfersGasUsed = Gas(onTransfersGasUsed)
 	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", onTransfersGasUsed))
 
 	return nil
@@ -1788,7 +1788,7 @@ func (s *Statistics) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = s.ValsCurrent.Decode(d); err != nil {
+	if err = s.ValsCurr.Decode(d); err != nil {
 		return err
 	}
 

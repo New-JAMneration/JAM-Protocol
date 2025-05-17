@@ -262,7 +262,7 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 // RefineLoad
 func (r *RefineLoad) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		GasUsed        U64 `json:"gas_used,omitempty"`
+		GasUsed        Gas `json:"gas_used,omitempty"`
 		Imports        U16 `json:"imports,omitempty"`
 		ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
 		ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
@@ -1644,17 +1644,17 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 
 func (s *Statistics) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		ValsCurrent ActivityRecords    `json:"vals_current,omitempty"`
-		ValsLast    ActivityRecords    `json:"vals_last,omitempty"`
-		Cores       CoresStatistics    `json:"cores,omitempty"`
-		Services    ServicesStatistics `json:"services,omitempty"`
+		ValsCurr ValidatorsStatistics `json:"vals_curr,omitempty"`
+		ValsLast ValidatorsStatistics `json:"vals_last,omitempty"`
+		Cores    CoresStatistics      `json:"cores,omitempty"`
+		Services ServicesStatistics   `json:"services,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	s.ValsCurrent = temp.ValsCurrent
+	s.ValsCurr = temp.ValsCurr
 	s.ValsLast = temp.ValsLast
 	s.Cores = temp.Cores
 

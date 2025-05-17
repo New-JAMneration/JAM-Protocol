@@ -416,7 +416,7 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 }
 
 type RefineLoad struct {
-	GasUsed        U64 `json:"gas_used,omitempty"`        // u
+	GasUsed        Gas `json:"gas_used,omitempty"`        // u
 	Imports        U16 `json:"imports,omitempty"`         // i
 	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
 	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
@@ -481,7 +481,7 @@ type WorkReport struct {
 	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
 	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
 	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
-	AuthGasUsed       U64               `json:"auth_gas_used,omitempty"`       // g
+	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
 }
 
 func (w *WorkReport) Validate() error {
@@ -564,7 +564,7 @@ func (b BlocksHistory) Validate() error {
 
 // Statistics
 
-type ActivityRecord struct {
+type ValidatorActivityRecord struct {
 	Blocks        U32 `json:"blocks,omitempty"`
 	Tickets       U32 `json:"tickets,omitempty"`
 	PreImages     U32 `json:"pre_images,omitempty"`
@@ -573,9 +573,9 @@ type ActivityRecord struct {
 	Assurances    U32 `json:"assurances,omitempty"`
 }
 
-type ActivityRecords []ActivityRecord
+type ValidatorsStatistics []ValidatorActivityRecord
 
-func (a ActivityRecords) Validate() error {
+func (a ValidatorsStatistics) Validate() error {
 	if len(a) != ValidatorsCount {
 		return fmt.Errorf("ActivityRecords must have %v activity record", ValidatorsCount)
 	}
@@ -591,7 +591,7 @@ type CoreActivityRecord struct {
 	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
 	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
 	BundleSize     U32 `json:"bundle_size,omitempty"`
-	GasUsed        U64 `json:"gas_used,omitempty"`
+	GasUsed        Gas `json:"gas_used,omitempty"`
 }
 
 type CoresStatistics []CoreActivityRecord
@@ -608,25 +608,25 @@ type ServiceActivityRecord struct {
 	ProvidedCount      U16 `json:"provided_count,omitempty"`
 	ProvidedSize       U32 `json:"provided_size,omitempty"`
 	RefinementCount    U32 `json:"refinement_count,omitempty"`
-	RefinementGasUsed  U64 `json:"refinement_gas_used,omitempty"`
+	RefinementGasUsed  Gas `json:"refinement_gas_used,omitempty"`
 	Imports            U32 `json:"imports,omitempty"`
 	Exports            U32 `json:"exports,omitempty"`
 	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
 	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
 	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
-	AccumulateGasUsed  U64 `json:"accumulate_gas_used,omitempty"`
+	AccumulateGasUsed  Gas `json:"accumulate_gas_used,omitempty"`
 	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
-	OnTransfersGasUsed U64 `json:"on_transfers_gas_used,omitempty"`
+	OnTransfersGasUsed Gas `json:"on_transfers_gas_used,omitempty"`
 }
 
 type ServicesStatistics map[ServiceId]ServiceActivityRecord
 
 // v0.6.4 (13.1)
 type Statistics struct {
-	ValsCurrent ActivityRecords    `json:"vals-current,omitempty"`
-	ValsLast    ActivityRecords    `json:"vals-last,omitempty"`
-	Cores       CoresStatistics    `json:"cores,omitempty"`
-	Services    ServicesStatistics `json:"services,omitempty"`
+	ValsCurr ValidatorsStatistics `json:"vals-curr,omitempty"`
+	ValsLast ValidatorsStatistics `json:"vals-last,omitempty"`
+	Cores    CoresStatistics      `json:"cores,omitempty"`
+	Services ServicesStatistics   `json:"services,omitempty"`
 }
 
 // Tickets   (6.5)   or  6.7.  ?
