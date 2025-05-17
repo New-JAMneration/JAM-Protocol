@@ -837,8 +837,10 @@ func (w *WorkReport) Encode(e *Encoder) error {
 		return err
 	}
 
+	// Work report core index is compact
+	// https://github.com/davxy/jam-test-vectors/commit/fed98559dabaa7058d7f9d83cb8c9353bd78d544
 	// CoreIndex
-	if err := w.CoreIndex.Encode(e); err != nil {
+	if err := e.EncodeLength(uint64(w.CoreIndex)); err != nil {
 		return err
 	}
 
