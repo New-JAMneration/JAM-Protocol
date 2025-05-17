@@ -173,6 +173,11 @@ func TestStatistics(t *testing.T) {
 		// input
 		s.GetProcessingBlockPointer().SetSlot(statisticsTestCase.Input.Slot)
 		s.GetProcessingBlockPointer().SetAuthorIndex(statisticsTestCase.Input.AuthorIndex)
+		s.GetPriorStates().SetTau(types.TimeSlot(statisticsTestCase.PreState.Slot))
+		s.GetPosteriorStates().SetTau(types.TimeSlot(statisticsTestCase.Input.Slot))
+		s.GetPriorStates().SetPiCurrent(statisticsTestCase.PreState.ValsCurrStats)
+		s.GetPriorStates().SetPiLast(statisticsTestCase.PreState.ValsLastStats)
+		s.GetPosteriorStates().SetKappa(statisticsTestCase.PreState.CurrValidators)
 
 		// w (present work reports) from guarantee extrinsic
 		reports := []types.WorkReport{}
@@ -202,9 +207,12 @@ func TestStatistics(t *testing.T) {
 		// Expected statistics
 		expectedStatistics := statisticsTestCase.PostState
 
-		// Don't compare the services statistics
-		if !reflect.DeepEqual(statistics.ValsCurrent, expectedStatistics.Statistics.ValsCurrent) {
-			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics.ValsCurrent, statistics.ValsCurrent)
+		if !reflect.DeepEqual(statistics.ValsCurr, expectedStatistics.ValsCurrStats) {
+			t.Errorf("ValsCurrStats mismatch in %s: got %v, want %v", file, statistics.ValsCurr, expectedStatistics.ValsCurrStats)
+		}
+
+		if !reflect.DeepEqual(statistics.ValsLast, expectedStatistics.ValsLastStats) {
+			t.Errorf("ValsLastStats mismatch in %s: got %v, want %v", file, statistics.ValsLast, expectedStatistics.ValsLastStats)
 		}
 
 		if !reflect.DeepEqual(statistics.ValsLast, expectedStatistics.Statistics.ValsLast) {
