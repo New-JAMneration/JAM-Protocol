@@ -24,9 +24,10 @@ type StatisticsOutput struct { // null
 }
 
 type StatisticsState struct {
-	Statistics     types.Statistics     `json:"statistics"`
-	Slot           types.TimeSlot       `json:"slot"`
-	CurrValidators types.ValidatorsData `json:"curr_validators"`
+	ValsCurrStats  types.ValidatorsStatistics `json:"vals_curr_stats"`
+	ValsLastStats  types.ValidatorsStatistics `json:"vals_last_stats"`
+	Slot           types.TimeSlot             `json:"slot"`
+	CurrValidators types.ValidatorsData       `json:"curr_validators"`
 }
 
 // StatisticsState UnmarshalJSON
@@ -34,16 +35,18 @@ func (s *StatisticsState) UnmarshalJSON(data []byte) error {
 	var err error
 
 	var state struct {
-		Statistics     types.Statistics     `json:"statistics"`
-		Slot           types.TimeSlot       `json:"slot"`
-		CurrValidators types.ValidatorsData `json:"curr_validators"`
+		ValsCurrStats  types.ValidatorsStatistics `json:"vals_curr_stats"`
+		ValsLastStats  types.ValidatorsStatistics `json:"vals_last_stats"`
+		Slot           types.TimeSlot             `json:"slot"`
+		CurrValidators types.ValidatorsData       `json:"curr_validators"`
 	}
 
 	if err = json.Unmarshal(data, &state); err != nil {
 		return err
 	}
 
-	s.Statistics = state.Statistics
+	s.ValsCurrStats = state.ValsCurrStats
+	s.ValsLastStats = state.ValsLastStats
 	s.Slot = state.Slot
 	s.CurrValidators = state.CurrValidators
 
@@ -123,7 +126,11 @@ func (o *StatisticsOutput) Decode(d *types.Decoder) error {
 func (s *StatisticsState) Decode(d *types.Decoder) error {
 	var err error
 
-	if err = s.Statistics.Decode(d); err != nil {
+	if err = s.ValsCurrStats.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.ValsLastStats.Decode(d); err != nil {
 		return err
 	}
 
@@ -175,7 +182,11 @@ func (o *StatisticsOutput) Encode(e *types.Encoder) error {
 func (s *StatisticsState) Encode(e *types.Encoder) error {
 	var err error
 
-	if err = s.Statistics.Encode(e); err != nil {
+	if err = s.ValsCurrStats.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.ValsLastStats.Encode(e); err != nil {
 		return err
 	}
 
@@ -218,7 +229,8 @@ func (s *StatisticsTestCase) Dump() error {
 	storeInstance.GetProcessingBlockPointer().SetAuthorIndex(s.Input.AuthorIndex)
 	storeInstance.GetPriorStates().SetTau(s.PreState.Slot)
 	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
-	storeInstance.GetPriorStates().SetPi(s.PreState.Statistics)
+	storeInstance.GetPriorStates().SetPiCurrent(s.PreState.ValsCurrStats)
+	storeInstance.GetPriorStates().SetPiLast(s.PreState.ValsLastStats)
 	storeInstance.GetPosteriorStates().SetKappa(s.PreState.CurrValidators)
 	return nil
 }

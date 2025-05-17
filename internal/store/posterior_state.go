@@ -407,28 +407,28 @@ func (s *PosteriorStates) GetPi() types.Statistics {
 }
 
 // SetPiCurrent sets the pi.Current value
-func (s *PosteriorStates) SetPiCurrent(current types.ActivityRecords) {
+func (s *PosteriorStates) SetPiCurrent(current types.ValidatorsStatistics) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Pi.ValsCurrent = current
+	s.state.Pi.ValsCurr = current
 }
 
 // GetPiCurrent returns the pi.Current value
-func (s *PosteriorStates) GetPiCurrent() types.ActivityRecords {
+func (s *PosteriorStates) GetPiCurrent() types.ValidatorsStatistics {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Pi.ValsCurrent
+	return s.state.Pi.ValsCurr
 }
 
 // SetPiLast sets the pi Last.value
-func (s *PosteriorStates) SetPiLast(last types.ActivityRecords) {
+func (s *PosteriorStates) SetPiLast(last types.ValidatorsStatistics) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Pi.ValsLast = last
 }
 
 // GetPiLast returns the pi.Last value
-func (s *PosteriorStates) GetPiLast() types.ActivityRecords {
+func (s *PosteriorStates) GetPiLast() types.ValidatorsStatistics {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Pi.ValsLast
