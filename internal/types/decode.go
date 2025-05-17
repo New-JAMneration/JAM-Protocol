@@ -866,9 +866,14 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = w.CoreIndex.Decode(d); err != nil {
+	// Work report core index is compact
+	// https://github.com/davxy/jam-test-vectors/commit/fed98559dabaa7058d7f9d83cb8c9353bd78d544
+	coreIndex, err := d.DecodeLength()
+	if err != nil {
 		return err
 	}
+	w.CoreIndex = CoreIndex(coreIndex)
+	cLog(Yellow, fmt.Sprintf("CoreIndex: %v", w.CoreIndex))
 
 	if err = w.AuthorizerHash.Decode(d); err != nil {
 		return err
