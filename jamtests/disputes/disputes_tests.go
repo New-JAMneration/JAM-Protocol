@@ -84,6 +84,8 @@ const (
 	BadJudgementAge                                   // 11
 	BadValidatorIndex                                 // 12
 	BadSignature                                      // 13
+	BadGuarantorKey                                   // 14
+	BadAuditorKey                                     // 15
 )
 
 var DisputeErrorMap = map[string]DisputeErrorCode{
@@ -101,6 +103,8 @@ var DisputeErrorMap = map[string]DisputeErrorCode{
 	"bad_judgement_age":            BadJudgementAge,
 	"bad_validator_index":          BadValidatorIndex,
 	"bad_signature":                BadSignature,
+	"bad_guarantor_key":            BadGuarantorKey,
+	"bad_auditor_key":              BadAuditorKey,
 }
 
 func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
