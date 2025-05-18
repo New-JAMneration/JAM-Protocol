@@ -81,7 +81,8 @@ type AccountsMapEntry struct {
 }
 
 type PreimageState struct {
-	Accounts []AccountsMapEntry `json:"accounts"`
+	Accounts   []AccountsMapEntry       `json:"accounts"`
+	Statistics types.ServicesStatistics `json:"statistics"`
 }
 
 type PreimageErrorCode types.ErrorCode
@@ -180,6 +181,26 @@ func (i *PreimageInput) UnmarshalJSON(data []byte) error {
 	}
 
 	i.Slot = temp.Slot
+
+	return nil
+}
+
+// UnmarshalJSON PreimageState
+func (p *PreimageState) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		Accounts   []AccountsMapEntry       `json:"accounts"`
+		Statistics types.ServicesStatistics `json:"statistics"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if len(temp.Accounts) != 0 {
+		p.Accounts = temp.Accounts
+	}
+
+	p.Statistics = temp.Statistics
 
 	return nil
 }
@@ -402,23 +423,27 @@ func (p *PreimageState) Decode(d *types.Decoder) error {
 
 	var err error
 
-	length, err := d.DecodeLength()
+	accountsLength, err := d.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	if length == 0 {
-		return nil
+	if accountsLength == 0 {
+		p.Accounts = nil
+	} else {
+		// make a slice of length length
+		p.Accounts = make([]AccountsMapEntry, accountsLength)
+		for i := uint64(0); i < accountsLength; i++ {
+			cLog(Blue, fmt.Sprintf("Decoding Account %d", i))
+
+			if err = p.Accounts[i].Decode(d); err != nil {
+				return err
+			}
+		}
 	}
 
-	// make a slice of length length
-	p.Accounts = make([]AccountsMapEntry, length)
-	for i := uint64(0); i < length; i++ {
-		cLog(Blue, fmt.Sprintf("Decoding Account %d", i))
-
-		if err = p.Accounts[i].Decode(d); err != nil {
-			return err
-		}
+	if err = p.Statistics.Decode(d); err != nil {
+		return err
 	}
 
 	return nil
@@ -610,6 +635,10 @@ func (p *PreimageState) Encode(e *types.Encoder) error {
 		if err = account.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	if err = p.Statistics.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
