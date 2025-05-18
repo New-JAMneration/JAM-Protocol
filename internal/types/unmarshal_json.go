@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 func (v *Validator) UnmarshalJSON(data []byte) error {
@@ -968,6 +969,9 @@ func (w *WorkExecResult) UnmarshalJSON(data []byte) error {
 	*w = make(WorkExecResult)
 
 	for key, value := range raw {
+		// To read test file from jam-test-vectors traces
+		// replace "_" with "-" in the key
+		key = strings.ReplaceAll(key, "_", "-")
 		resultType := WorkExecResultType(key)
 
 		if key == "ok" {
