@@ -934,3 +934,56 @@ func TestEncodeJamTestNetTransitions(t *testing.T) {
 		}
 	}
 }
+
+func TestEncodeJamTestVectorsTraces(t *testing.T) {
+	dirNames := []string{
+		"fallback",
+		"reports-l0",
+		"safrole",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_VECTORS_DIR, "traces", dirName)
+		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get JSON files: %v", err)
+		}
+
+		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get BIN files: %v", err)
+		}
+
+		for i := 0; i < len(jsonTestFiles); i++ {
+			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
+			binTestFile := filepath.Join(dir, binTestFiles[i])
+
+			// Decode the JSON data
+			jsonData, err := utilities.GetTestFromJson[jamtests_trace.TraceTestCase](jsonTestFile)
+			if err != nil {
+				t.Fatalf("Failed to decode JSON data: %v", err)
+			}
+
+			// Encode the JSON data
+			encoder := types.NewEncoder()
+			encoded, err := encoder.Encode(&jsonData)
+			if err != nil {
+				t.Fatalf("Failed to encode JSON data: %v", err)
+			}
+
+			// Read the binary file
+			binData, err := utilities.GetBytesFromFile(binTestFile)
+			if err != nil {
+				t.Fatalf("Failed to read binary file: %v", err)
+			}
+
+			// Compare the binary data
+			if !CompareBinaryData(encoded, binData) {
+				log.Printf("❌ [%s] %s", dirName, jsonTestFiles[i])
+				t.Fatalf("Binary data is not equal to the expected data")
+			} else {
+				log.Printf("✅ [%s] %s", dirName, jsonTestFiles[i])
+			}
+		}
+	}
+}

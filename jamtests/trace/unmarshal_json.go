@@ -18,6 +18,11 @@ func (s *TraceState) UnmarshalJSON(data []byte) error {
 	}
 
 	s.StateRoot = raw.StateRoot
+
+	if len(raw.KeyVals) == 0 {
+		return nil
+	}
+
 	s.KeyVals = raw.KeyVals
 
 	return nil
