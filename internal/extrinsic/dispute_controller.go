@@ -61,9 +61,12 @@ func (d *DisputeController) ValidateCulprits() error {
 }
 
 // UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
-func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) {
+func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) error {
 	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
-	updateVerdicts := CompareVerdictsWithPsi(priorPsi, newVerdicts)
+	updateVerdicts, err := CompareVerdictsWithPsi(priorPsi, newVerdicts)
+	if err != nil {
+		return err
+	}
 
 	posteriorPsiG := UpdatePsiG(priorPsi, updateVerdicts)
 	posteriorPsiB := UpdatePsiB(priorPsi, updateVerdicts)
@@ -72,9 +75,10 @@ func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) {
 	posteriorState.SetPsiG(posteriorPsiG)
 	posteriorState.SetPsiB(posteriorPsiB)
 	posteriorState.SetPsiW(posteriorPsiW)
+	return nil
 }
 
-func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) types.DisputesRecords {
+func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) (types.DisputesRecords, error) {
 	var updates types.DisputesRecords
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum == types.ValidatorsCount*2/3+1 {
@@ -83,9 +87,11 @@ func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequen
 			updates.Bad = append(updates.Bad, types.WorkReportHash(verdict.ReportHash))
 		} else if verdict.PositiveJudgmentsSum == types.ValidatorsCount*1/3 {
 			updates.Wonky = append(updates.Wonky, types.WorkReportHash(verdict.ReportHash))
+		} else {
+			return types.DisputesRecords{}, fmt.Errorf("bad_vote_split")
 		}
 	}
-	return updates
+	return updates, nil
 }
 
 func UpdatePsiG(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
