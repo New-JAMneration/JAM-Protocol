@@ -64,7 +64,7 @@ func BranchEncoding(left, right types.OpaqueHash) types.BitSequence {
 	return encoding // 512 bits
 }
 
-func embeddedValueLeaf(key StateKey, value types.ByteSequence) types.BitSequence {
+func embeddedValueLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence {
 	leftPrefixBit := types.BitSequence{true}                       // 1 bit
 	embeddedValueLeafPrefixBit := types.BitSequence{false}         // 1 bit
 	prefix := append(leftPrefixBit, embeddedValueLeafPrefixBit...) // 2 bits
@@ -87,7 +87,7 @@ func embeddedValueLeaf(key StateKey, value types.ByteSequence) types.BitSequence
 	return encoding
 }
 
-func regularLeaf(key StateKey, value types.ByteSequence) types.BitSequence {
+func regularLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence {
 	leftPrefixBit := types.BitSequence{true}                                    // 1 bit
 	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
 	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
@@ -103,7 +103,7 @@ func regularLeaf(key StateKey, value types.ByteSequence) types.BitSequence {
 	return encoding
 }
 
-func LeafEncoding(key StateKey, value types.ByteSequence) types.BitSequence {
+func LeafEncoding(key types.StateKey, value types.ByteSequence) types.BitSequence {
 	if len(value) <= 32 {
 		return embeddedValueLeaf(key, value)
 	} else {
@@ -124,14 +124,9 @@ func bitSequenceToString(bitSequence types.BitSequence) string {
 	return str
 }
 
-type SerializedStateKeyValue struct {
-	key   StateKey
-	value types.ByteSequence
-}
-
 // INFO: Convert the BitSequence to a bitstrings, because we cannot use []bool as a
 // key in a map
-type MerklizationInput map[string]SerializedStateKeyValue
+type MerklizationInput map[string]types.StateKeyVal
 
 func Merklization(d MerklizationInput) types.OpaqueHash {
 	if len(d) == 0 {
@@ -141,8 +136,8 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 
 	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
 	if len(d) == 1 {
-		for _, value := range d {
-			leftEncoding := LeafEncoding(value.key, value.value)
+		for _, stateKeyVal := range d {
+			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
 			bytes, _ := bitsToBytes(leftEncoding)
 			return hash.Blake2bHash(bytes)
 		}
@@ -170,23 +165,27 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 // basic Merklization function
 // $M_{\sigma}(\sigma)$
 // Input: $T(\sigma)$ a dictionary, serialized states
-func MerklizationSerializedState(serializedState map[StateKey]types.ByteSequence) types.OpaqueHash {
+func MerklizationSerializedState(serializedState types.StateKeyVals) types.StateRoot {
 	merklizationInput := make(MerklizationInput)
 
-	for stateKey, stateValue := range serializedState {
-		key := bitSequenceToString(bytesToBits(stateKey[:]))
-		value := SerializedStateKeyValue{stateKey, stateValue}
+	// Convert the StateKeyVals to merklization input
+	for _, stateKeyVal := range serializedState {
+		key := bitSequenceToString(bytesToBits(stateKeyVal.Key[:]))
+		value := types.StateKeyVal{
+			Key:   stateKeyVal.Key,
+			Value: stateKeyVal.Value,
+		}
 
 		merklizationInput[key] = value
 	}
 
-	return Merklization(merklizationInput)
+	return types.StateRoot(Merklization(merklizationInput))
 }
 
 // MerklizationState is a function that takes a state and returns the
 // Merklization of the state.
 // (D.5)
-func MerklizationState(state types.State) types.OpaqueHash {
+func MerklizationState(state types.State) types.StateRoot {
 	// serializedState, err := StateSerialize(state)
 	serializedState, _ := StateEncoder(state)
 
