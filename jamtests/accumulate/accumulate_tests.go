@@ -36,6 +36,11 @@ func cLog(color string, string string) {
 	}
 }
 
+type StorageMapEntry struct {
+	Key   types.ByteSequence `json:"key"`
+	Value types.ByteSequence `json:"value"`
+}
+
 type PreimagesMapEntry struct {
 	Hash types.OpaqueHash   `json:"hash"`
 	Blob types.ByteSequence `json:"blob"`
@@ -43,6 +48,7 @@ type PreimagesMapEntry struct {
 
 type Account struct {
 	Service   types.ServiceInfo   `json:"service"`
+	Storage   []StorageMapEntry   `json:"storage"`
 	Preimages []PreimagesMapEntry `json:"preimages"`
 }
 
@@ -52,12 +58,13 @@ type AccountsMapEntry struct {
 }
 
 type AccumulateState struct {
-	Slot        types.TimeSlot         `json:"slot"`
-	Entropy     types.Entropy          `json:"entropy"`
-	ReadyQueue  types.ReadyQueue       `json:"ready_queue"`
-	Accumulated types.AccumulatedQueue `json:"accumulated"`
-	Privileges  types.Privileges       `json:"privileges"`
-	Accounts    []AccountsMapEntry     `json:"accounts"`
+	Slot        types.TimeSlot           `json:"slot"`
+	Entropy     types.Entropy            `json:"entropy"`
+	ReadyQueue  types.ReadyQueue         `json:"ready_queue"`
+	Accumulated types.AccumulatedQueue   `json:"accumulated"`
+	Privileges  types.Privileges         `json:"privileges"`
+	Statistics  types.ServicesStatistics `json:"statistics"`
+	Accounts    []AccountsMapEntry       `json:"accounts"`
 }
 
 type AccumulateInput struct {
@@ -113,12 +120,13 @@ func (a *AccumulateState) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling AccumulateState")
 
 	var temp struct {
-		Slot        types.TimeSlot         `json:"slot"`
-		Entropy     types.Entropy          `json:"entropy"`
-		ReadyQueue  types.ReadyQueue       `json:"ready_queue"`
-		Accumulated types.AccumulatedQueue `json:"accumulated"`
-		Privileges  types.Privileges       `json:"privileges"`
-		Accounts    []AccountsMapEntry     `json:"accounts"`
+		Slot        types.TimeSlot           `json:"slot"`
+		Entropy     types.Entropy            `json:"entropy"`
+		ReadyQueue  types.ReadyQueue         `json:"ready_queue"`
+		Accumulated types.AccumulatedQueue   `json:"accumulated"`
+		Privileges  types.Privileges         `json:"privileges"`
+		Statistics  types.ServicesStatistics `json:"statistics"`
+		Accounts    []AccountsMapEntry       `json:"accounts"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -137,7 +145,40 @@ func (a *AccumulateState) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Privileges = temp.Privileges
+
+	a.Statistics = temp.Statistics
+
 	a.Accounts = temp.Accounts
+
+	return nil
+}
+
+// Unmarshal json StorageMapEntry
+func (s *StorageMapEntry) UnmarshalJSON(data []byte) error {
+	cLog(Cyan, "Unmarshalling StorageMapEntry")
+
+	var temp struct {
+		Key   string `json:"key,omitempty"`
+		Value string `json:"value,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	keyBytes, err := hex.DecodeString(temp.Key[2:])
+	if err != nil {
+		return err
+	}
+
+	s.Key = types.ByteSequence(keyBytes)
+
+	valueBytes, err := hex.DecodeString(temp.Value[2:])
+	if err != nil {
+		return err
+	}
+
+	s.Value = types.ByteSequence(valueBytes)
 
 	return nil
 }
@@ -175,6 +216,7 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 
 	var temp struct {
 		Service   types.ServiceInfo   `json:"service"`
+		Storage   []StorageMapEntry   `json:"storage"`
 		Preimages []PreimagesMapEntry `json:"preimages"`
 	}
 
@@ -183,7 +225,18 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Service = temp.Service
-	a.Preimages = temp.Preimages
+
+	if len(temp.Storage) != 0 {
+		a.Storage = temp.Storage
+	} else {
+		a.Storage = nil
+	}
+
+	if len(temp.Preimages) != 0 {
+		a.Preimages = temp.Preimages
+	} else {
+		a.Preimages = nil
+	}
 
 	return nil
 }
@@ -269,6 +322,22 @@ func (a *AccumulateOutput) Decode(d *types.Decoder) error {
 	return nil
 }
 
+// StorageMapEntry
+func (s *StorageMapEntry) Decode(d *types.Decoder) error {
+	cLog(Cyan, "Decoding StorageMapEntry")
+	var err error
+
+	if err = s.Key.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Value.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PreimagesMapEntry
 func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
 	var err error
@@ -293,19 +362,36 @@ func (a *Account) Decode(d *types.Decoder) error {
 		return err
 	}
 
-	length, err := d.DecodeLength()
+	// Storage
+	storageLength, err := d.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	if length == 0 {
-		return nil
+	if storageLength == 0 {
+		a.Storage = nil
+	} else {
+		a.Storage = make([]StorageMapEntry, storageLength)
+		for i := uint64(0); i < storageLength; i++ {
+			if err = a.Storage[i].Decode(d); err != nil {
+				return err
+			}
+		}
 	}
 
-	a.Preimages = make([]PreimagesMapEntry, length)
-	for i := uint64(0); i < length; i++ {
-		if err = a.Preimages[i].Decode(d); err != nil {
-			return err
+	preimageLength, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if preimageLength == 0 {
+		a.Preimages = nil
+	} else {
+		a.Preimages = make([]PreimagesMapEntry, preimageLength)
+		for i := uint64(0); i < preimageLength; i++ {
+			if err = a.Preimages[i].Decode(d); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -350,6 +436,10 @@ func (a *AccumulateState) Decode(d *types.Decoder) error {
 	}
 
 	if err = a.Privileges.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Statistics.Decode(d); err != nil {
 		return err
 	}
 
@@ -423,6 +513,23 @@ func (a *AccumulateInput) Encode(e *types.Encoder) error {
 	return nil
 }
 
+// StorageMapEntry
+func (s *StorageMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding StorageMapEntry")
+
+	var err error
+
+	if err = s.Key.Encode(e); err != nil {
+		return err
+	}
+
+	if err = s.Value.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PreimagesMapEntry
 func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding PreimagesMapEntry")
@@ -448,6 +555,18 @@ func (a *Account) Encode(e *types.Encoder) error {
 		return err
 	}
 
+	// Storage
+	if err = e.EncodeLength(uint64(len(a.Storage))); err != nil {
+		return err
+	}
+
+	for _, storage := range a.Storage {
+		if err = storage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Preimages
 	if err = e.EncodeLength(uint64(len(a.Preimages))); err != nil {
 		return err
 	}
@@ -499,6 +618,10 @@ func (a *AccumulateState) Encode(e *types.Encoder) error {
 	}
 
 	if err = a.Privileges.Encode(e); err != nil {
+		return err
+	}
+
+	if err = a.Statistics.Encode(e); err != nil {
 		return err
 	}
 
