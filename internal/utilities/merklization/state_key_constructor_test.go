@@ -7,7 +7,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func TestStateWrapper(t *testing.T) {
+func TestStateKeyContractorStateWrapper(t *testing.T) {
 	testCases := []struct {
 		stateIndex                types.U8
 		expectedStateKeyHexString string
@@ -39,7 +39,7 @@ func TestStateWrapper(t *testing.T) {
 			t.Errorf("Error decoding expected state key hex: %v", err)
 		}
 
-		expectedStateKey := StateKey{}
+		expectedStateKey := types.StateKey{}
 		copy(expectedStateKey[:], bytes)
 
 		if actual != expectedStateKey {
@@ -50,7 +50,7 @@ func TestStateWrapper(t *testing.T) {
 	}
 }
 
-func TestStateServiceWrapper(t *testing.T) {
+func TestStateKeyContractorStateServiceWrapper(t *testing.T) {
 	testCases := []struct {
 		stateIndex                types.U8
 		serviceIndex              types.ServiceId
@@ -77,7 +77,7 @@ func TestStateServiceWrapper(t *testing.T) {
 			t.Errorf("Error decoding expected state key hex: %v", err)
 		}
 
-		expectedStateKey := StateKey{}
+		expectedStateKey := types.StateKey{}
 		copy(expectedStateKey[:], bytes)
 
 		if actual != expectedStateKey {
@@ -88,7 +88,7 @@ func TestStateServiceWrapper(t *testing.T) {
 	}
 }
 
-func TestServiceWrapper(t *testing.T) {
+func TestStateKeyContractorServiceWrapper(t *testing.T) {
 	var serviceIndex types.ServiceId = 700
 	var h [27]byte = [27]byte{
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -104,7 +104,7 @@ func TestServiceWrapper(t *testing.T) {
 		t.Errorf("Error encoding service index: %v", err)
 	}
 
-	expectedStateKey := StateKey{
+	expectedStateKey := types.StateKey{
 		n[0], h[0], n[1], h[1], n[2], h[2], n[3], h[3],
 		h[4], h[5], h[6], h[7],
 		h[8], h[9], h[10], h[11],
