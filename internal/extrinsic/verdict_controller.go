@@ -77,6 +77,9 @@ func (v *VerdictWrapper) VerifySignature() error {
 	invalidVotes := make([]int, 0)
 
 	for i := 0; i < VoteNum; i++ {
+		if int(v.Verdict.Votes[i].Index) >= len(k) {
+			return fmt.Errorf("bad_guarantor_key")
+		}
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
 		var message []byte
 		if v.Verdict.Votes[i].Vote {
