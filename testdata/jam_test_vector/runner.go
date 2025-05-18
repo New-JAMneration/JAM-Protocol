@@ -1,6 +1,9 @@
 package jamtestvector
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 )
@@ -13,8 +16,63 @@ func NewJamTestVectorsRunner(mode testdata.TestMode) *JamTestVectorsRunner {
 	return &JamTestVectorsRunner{Mode: mode}
 }
 
-func (r *JamTestVectorsRunner) Run(data interface{}) error {
-	return stf.RunSTF()
+func (r *JamTestVectorsRunner) RunFnnc(runSTF bool) error {
+	if runSTF {
+		return stf.RunSTF()
+	}
+
+	switch r.Mode {
+	case testdata.SafroleMode:
+		return stf.UpdateSafrole()
+	case testdata.AccumulateMode:
+		return stf.UpdateAccumlate()
+	case testdata.PreimagesMode:
+		return stf.UpdatePreimages()
+	case testdata.DisputesMode:
+		return stf.UpdateDisputes()
+	case testdata.HistoryMode:
+		return stf.UpdateHistory()
+	case testdata.AuthorizationsMode:
+		return stf.UpdateAuthorizations()
+	case testdata.StatisticsMode:
+		return stf.UpdateStatistics()
+	case testdata.ReportsMode:
+		return stf.UpdateReports()
+	case testdata.AssurancesMode:
+		return stf.UpdateAssurances()
+	default:
+		return nil
+	}
+}
+
+func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
+	testCase := data.(testdata.Testable)
+
+	// Execute STF
+	err := r.RunFnnc(runSTF)
+	if err != nil {
+		return err
+	}
+
+	// Old passed logic
+	expectedErr := testCase.ExpectError()
+	if expectedErr != nil {
+		if err == nil {
+			return fmt.Errorf("expected error but got none")
+		}
+		log.Printf("Test passed (expected error: %v)", expectedErr)
+	} else {
+		if err != nil {
+			return fmt.Errorf("unexpected error: %v", err)
+		}
+		err = r.Verify(testCase)
+		if err != nil {
+			return err
+		}
+		log.Println("Test passed")
+	}
+
+	return nil
 }
 
 func (r *JamTestVectorsRunner) Verify(data testdata.Testable) error {
