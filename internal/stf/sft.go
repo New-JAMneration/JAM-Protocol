@@ -6,9 +6,12 @@ package stf
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
 	// Update Disputes
-
+	err := UpdateDisputes()
+	if err != nil {
+		return err
+	}
 	// Update Safrole
-	err := UpdateSafrole()
+	err = UpdateSafrole()
 	if err != nil {
 		return err
 	}

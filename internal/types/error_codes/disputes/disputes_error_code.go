@@ -17,4 +17,6 @@ const (
 	BadJudgementAge                                  // 11
 	BadValidatorIndex                                // 12
 	BadSignature                                     // 13
+	BadGuarantorKey                                  // 14
+	BadAuditorKey                                    // 15
 )
