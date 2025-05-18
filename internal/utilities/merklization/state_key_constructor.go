@@ -4,11 +4,9 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-type StateKey [31]byte
-
 // StateKeyConstruct is an interface
 type StateKeyConstruct interface {
-	StateKeyConstruct() (output StateKey)
+	StateKeyConstruct() (output types.StateKey)
 }
 
 // StateWrapper is a wrapper for U8
@@ -36,13 +34,13 @@ func encodeServiceId(serviceId types.ServiceId) []byte {
 }
 
 // D.1 State-Key-Construction
-func (s StateWrapper) StateKeyConstruct() (output StateKey) {
+func (s StateWrapper) StateKeyConstruct() (output types.StateKey) {
 	// [i, 0, 0,...]
 	output[0] = byte(s.StateIndex)
 	return output
 }
 
-func (w StateServiceWrapper) StateKeyConstruct() (output StateKey) {
+func (w StateServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	// [i, n_0, 0, n_1, 0, n2, 0, n3, 0, 0,...] where n = encode_4(service_id)
 	output[0] = byte(w.StateIndex)
 
@@ -56,7 +54,7 @@ func (w StateServiceWrapper) StateKeyConstruct() (output StateKey) {
 }
 
 // StateKeyConstruct returns a OpaqueHash
-func (w ServiceWrapper) StateKeyConstruct() (output StateKey) {
+func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	// [n_0, h_0, n_1, h_1, n_2, h_2, n_3, h_3, h_4, h_5,...,h_26] where n = encode_4(service_id)
 
 	// Encode the service index
