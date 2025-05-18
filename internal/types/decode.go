@@ -1764,8 +1764,8 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 	services := make(ServicesStatistics)
 
 	for i := uint64(0); i < length; i++ {
-		serviceId, err := d.DecodeInteger()
-		if err != nil {
+		var serviceId ServiceId
+		if err = serviceId.Decode(d); err != nil {
 			return err
 		}
 

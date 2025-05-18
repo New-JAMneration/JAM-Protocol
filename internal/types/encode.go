@@ -1590,8 +1590,7 @@ func (s *ServicesStatistics) Encode(e *Encoder) error {
 
 	// Iterate over the map and encode the key and value
 	for _, key := range keys {
-		// Key (ServiceId) (C.6)
-		if err := e.EncodeInteger(uint64(key)); err != nil {
+		if err := key.Encode(e); err != nil {
 			return err
 		}
 

@@ -406,6 +406,7 @@ func (w *WorkReport) UnmarshalJSON(data []byte) error {
 		AuthOutput        string            `json:"auth_output,omitempty"`
 		SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"`
 		Results           []WorkResult      `json:"results,omitempty"`
+		AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -436,6 +437,7 @@ func (w *WorkReport) UnmarshalJSON(data []byte) error {
 
 	w.SegmentRootLookup = temp.SegmentRootLookup
 	w.Results = temp.Results
+	w.AuthGasUsed = temp.AuthGasUsed
 
 	return nil
 }
@@ -1632,6 +1634,7 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 
 	if len(temp) == 0 {
 		*s = nil
+		return nil
 	}
 
 	*s = make(ServicesStatistics, len(temp))
