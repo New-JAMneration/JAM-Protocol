@@ -148,9 +148,9 @@ For example:
 						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
 						failed++
 					}
-					if outputErr != expectedErr {
-						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
-						passed++
+					if outputErr.Error() != expectedErr.Error() {
+						fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
+						failed++
 					} else {
 						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
 						passed++

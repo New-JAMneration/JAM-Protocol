@@ -1,6 +1,9 @@
 package extrinsic
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 )
@@ -13,7 +16,7 @@ func Guarantee() error {
 	// GP 0.6.6 Eqs
 	guarantees := NewGuaranteeController()
 	guarantees.Guarantees = extrinsic
-	// if strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()]))
+
 	// 11.23
 	err := guarantees.Validate()
 	if err != nil {
@@ -58,6 +61,7 @@ func Guarantee() error {
 	// 11.36-11.38
 	err = guarantees.ValidateWorkPackageHashes()
 	if err != nil {
+		err = transform(err)
 		return err
 	}
 
@@ -89,9 +93,9 @@ func Guarantee() error {
 }
 
 func transform(outputError error) error {
-	// if error code is defined in jamtests, transform the outputError to errorCode
+	// if error code is defined in jamtests error map, transform the outputError to errorCode
 	if reportsErrCode, errCodeExists := jamtests.ReportsErrorMap[outputError.Error()]; errCodeExists {
-		return &reportsErrCode
+		return errors.New(strconv.Itoa(int(reportsErrCode)))
 	}
 
 	return outputError

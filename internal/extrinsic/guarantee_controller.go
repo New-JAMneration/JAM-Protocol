@@ -52,6 +52,10 @@ func (g *GuaranteeController) Sort() error {
 			return g.Guarantees[i].Report.CoreIndex < g.Guarantees[j].Report.CoreIndex
 		})
 	*/
+	if len(g.Guarantees) == 0 {
+		return nil
+	}
+
 	err := SortUniqueSignatures(g.Guarantees[0].Signatures)
 	if err != nil {
 		// not_sorted_guarantors
