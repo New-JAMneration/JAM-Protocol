@@ -702,8 +702,9 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 }
 
 func (r *ReportsTestCase) Dump() error {
+	store.ResetInstance()
 	s := store.GetInstance()
-	s.ResetInstance()
+
 	// Guarantee Input : extrinsics, slot, known_packages
 	// set guarantee extrinsics
 	s.GetProcessingBlockPointer().SetGuaranteesExtrinsic(r.Input.Guarantees)
@@ -716,9 +717,9 @@ func (r *ReportsTestCase) Dump() error {
 	}
 	s.AddBlock(block)
 	s.GetPosteriorStates().SetTau(r.Input.Slot)
+
 	// set known_packages
 	// known_packages can be either xi or theta
-	// xi := types.AccumulatedQueue{}
 	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
 	xi := types.AccumulatedQueue{item}
 	s.GetPriorStates().SetXi(xi)
