@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
+	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -38,7 +40,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations)",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, reports)",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
@@ -74,7 +76,7 @@ For example:
 			switch mode {
 			case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 				testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-				testdata.AuthorizationsMode:
+				testdata.AuthorizationsMode, testdata.ReportsMode:
 				// Valid mode
 			default:
 				fmt.Printf("Error: Invalid test mode '%s'\n", testMode)
@@ -139,8 +141,7 @@ For example:
 					log.Printf("got error: %v", err)
 				}
 
-				// Run the est
-
+				// Run the test
 				outputErr := runner.Run(data, testRunSTF)
 				expectedErr := data.ExpectError()
 
@@ -148,10 +149,16 @@ For example:
 					if outputErr == nil {
 						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
 						failed++
+						continue
+					}
+					if strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()])) != expectedErr.Error() {
+						fmt.Printf("Test %s failed : expected error %s, but got %s %s\n", testFile.Name, expectedErr, strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()])), outputErr)
+						failed++
 					} else {
 						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
 						passed++
 					}
+
 					// Check the error message
 				} else {
 					if outputErr != nil {

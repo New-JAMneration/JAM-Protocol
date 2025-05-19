@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -144,7 +145,7 @@ const (
 	WorkReportTooBig                                    // 22
 )
 
-var reportsErrorMap = map[string]ReportsErrorCode{
+var ReportsErrorMap = map[string]ReportsErrorCode{
 	"bad_core_index":                  BadCoreIndex,
 	"future_report_slot":              FutureReportSlot,
 	"report_epoch_before_last":        ReportEpochBeforeLast,
@@ -173,7 +174,7 @@ var reportsErrorMap = map[string]ReportsErrorCode{
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := reportsErrorMap[str]; ok {
+		if val, ok := ReportsErrorMap[str]; ok {
 			*e = val
 			return nil
 		}
@@ -700,8 +701,69 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (r *ReportsTestCase) Dump() error {
+	s := store.GetInstance()
+	s.ResetInstance()
+	// Guarantee Input : extrinsics, slot, known_packages
+	// set guarantee extrinsics
+	s.GetProcessingBlockPointer().SetGuaranteesExtrinsic(r.Input.Guarantees)
+
+	// set slot
+	block := types.Block{
+		Header: types.Header{
+			Slot: r.Input.Slot,
+		},
+	}
+	s.AddBlock(block)
+	s.GetPosteriorStates().SetTau(r.Input.Slot)
+	// set known_packages
+	// known_packages can be either xi or theta
+	// xi := types.AccumulatedQueue{}
+	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
+	xi := types.AccumulatedQueue{item}
+	s.GetPriorStates().SetXi(xi)
+
+	// Set AvailAssignments (rhoDoubleDagger)
+	s.GetIntermediateStates().SetRhoDoubleDagger(r.PreState.AvailAssignments)
+
+	// Set CurrValidators
+	s.GetPosteriorStates().SetKappa(r.PreState.CurrValidators)
+
+	// Set PrevValidators
+	s.GetPosteriorStates().SetLambda(r.PreState.PrevValidators)
+
+	// Set Entropy
+	s.GetPosteriorStates().SetEta(r.PreState.Entropy)
+
+	// Set Offenders
+	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
+
+	// Set RecentBlocks
+	s.GetPriorStates().SetBeta(r.PostState.RecentBlocks)
+	s.GetIntermediateStates().SetBetaDagger(r.PostState.RecentBlocks)
+
+	// Set AuthPools
+	s.GetPriorStates().SetAlpha(r.PreState.AuthPools)
+
+	// Set Accounts
+	accounts := make(types.ServiceAccountState)
+	for _, v := range r.PreState.Accounts {
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo: v.Info.Service,
+		}
+		accounts[v.Id] = serviceAccount
+	}
+
+	s.GetPosteriorStates().SetDelta(accounts)
+
+	var statistics types.Statistics
+	// Set CoresStatisitics
+	statistics.Cores = r.PreState.CoresStatistics
+	// Set ServicesStatistics
+	statistics.Services = r.PreState.ServicesStatistics
+
+	s.GetPriorStates().SetPi(statistics)
+
 	return nil
 }
 
@@ -722,4 +784,8 @@ func (r *ReportsTestCase) ExpectError() error {
 
 func (r *ReportsTestCase) Validate() error {
 	return nil
+}
+
+func (r *ReportsTestCase) GetExtrinsic() types.GuaranteesExtrinsic {
+	return r.Input.Guarantees
 }
