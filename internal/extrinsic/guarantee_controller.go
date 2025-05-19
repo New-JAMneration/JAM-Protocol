@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -27,12 +28,18 @@ func NewGuaranteeController() *GuaranteeController {
 
 // Validate Guarantee extrinsic | Eq. 11.23
 func (g *GuaranteeController) Validate() error {
+	for _, guarantee := range g.Guarantees {
+		if guarantee.Report.CoreIndex >= types.CoreIndex(types.CoresCount) {
+			return errors.New("bad_core_index")
+		}
+	}
+
 	if len(g.Guarantees) > types.CoresCount {
-		return fmt.Errorf("GuaranteeController.Validate failed: bad_guarantee_count")
+		return errors.New("bad_core_index")
 	}
 	for _, guarantee := range g.Guarantees {
 		if err := guarantee.Validate(); err != nil {
-			return fmt.Errorf("GuaranteeController.Validate failed: %w", err)
+			return err
 		}
 	}
 	return nil
@@ -40,55 +47,84 @@ func (g *GuaranteeController) Validate() error {
 
 // Sort Guarantee extrinsic | Eq. 11.24-11.25
 func (g *GuaranteeController) Sort() error {
-	sort.Slice(g.Guarantees, func(i, j int) bool {
-		return g.Guarantees[i].Report.CoreIndex < g.Guarantees[j].Report.CoreIndex
-	})
+	/*
+		sort.Slice(g.Guarantees, func(i, j int) bool {
+			return g.Guarantees[i].Report.CoreIndex < g.Guarantees[j].Report.CoreIndex
+		})
+	*/
+	err := SortUniqueSignatures(g.Guarantees[0].Signatures)
+	if err != nil {
+		// not_sorted_guarantors
+		return err
+	}
 	for i := 1; i < len(g.Guarantees); i++ {
-		if g.Guarantees[i].Report.CoreIndex < g.Guarantees[i-1].Report.CoreIndex {
-			return fmt.Errorf("GuaranteeController.Sort failed: coreIndex not sorted")
+		if g.Guarantees[i-1].Report.CoreIndex >= g.Guarantees[i].Report.CoreIndex {
+			return errors.New("out_of_order_guarantee")
 		}
-		SortUniqueSignatures(g.Guarantees[i].Signatures)
+		err := SortUniqueSignatures(g.Guarantees[i].Signatures)
+		if err != nil {
+			// "not_sorted_guarantors"
+			return err
+		}
 	}
 	return nil
 }
 
-func SortUniqueSignatures(signatures []types.ValidatorSignature) {
-	sort.Slice(signatures, func(i, j int) bool {
-		return signatures[i].ValidatorIndex < signatures[j].ValidatorIndex
-	})
-	uniqueSignatures := signatures[:0]
-	for i, sig := range signatures {
-		if i == 0 || sig.ValidatorIndex != signatures[i-1].ValidatorIndex {
-			uniqueSignatures = append(uniqueSignatures, sig)
+func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
+	/*
+		sort.Slice(signatures, func(i, j int) bool {
+			return signatures[i].ValidatorIndex < signatures[j].ValidatorIndex
+		})
+		uniqueSignatures := signatures[:0]
+		for i, sig := range signatures {
+			if i == 0 || sig.ValidatorIndex != signatures[i-1].ValidatorIndex {
+				uniqueSignatures = append(uniqueSignatures, sig)
+			}
+		}
+		copy(signatures, uniqueSignatures)
+	*/
+	if len(signatures) == 0 {
+		return nil
+	}
+
+	for i := 0; i < len(signatures)-1; i++ {
+		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
+			return fmt.Errorf("not_sorted_or_unique_guarantors")
 		}
 	}
-	copy(signatures, uniqueSignatures)
+
+	return nil
 }
 
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
 	tau := store.GetInstance().GetPosteriorStates().GetTau()
 	var guranatorAssignments GuranatorAssignments
+
 	for _, guarantee := range g.Guarantees {
-		if (int(tau))/R == int(tau)/int(guarantee.Slot) {
+		if (int(tau))/R == int(guarantee.Slot)/R {
 			guranatorAssignments = GFunc()
 		} else {
 			guranatorAssignments = GStarFunc()
 		}
-
-		if !((int(tau)/R-1)*R <= int(guarantee.Slot) && int(guarantee.Slot) <= int(tau)) {
-			return fmt.Errorf("invalid_slot")
+		if !((int(tau)/R-1)*R <= int(guarantee.Slot)) {
+			return fmt.Errorf("report_epoch_before_last")
 		}
+
+		if !(int(guarantee.Slot) <= int(tau)) {
+			return fmt.Errorf("future_report_slot")
+		}
+
 		message := []byte(jam_types.JamGuarantee)
 		hashed := hash.Blake2bHash(utilities.WorkReportSerialization(guarantee.Report))
 		message = append(message, hashed[:]...)
 		for _, sig := range guarantee.Signatures {
 			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-				return fmt.Errorf("invalid_core_index")
+				return fmt.Errorf("wrong_assignment")
 			}
 			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
 			if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
-				return fmt.Errorf("invalid_signature")
+				return fmt.Errorf("bad_signature")
 			}
 		}
 	}
@@ -102,9 +138,6 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 		workReports = append(workReports, guarantee.Report)
 	}
 
-	// Save the work reports to the store
-	store := store.GetInstance()
-	store.GetIntermediateStates().SetPresentWorkReports(workReports)
 	return workReports
 }
 
@@ -116,21 +149,24 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	for _, workReport := range workReports {
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
-			return fmt.Errorf("invalid_core_index")
+			return fmt.Errorf("core_engaged")
 		}
 		authPool := alpha[workReport.CoreIndex]
 		if !isAuthPoolContains(authPool, workReport.AuthorizerHash) {
-			return fmt.Errorf("invalid_authorizer")
+			return fmt.Errorf("core_unauthorized")
 		}
 		totalGas := types.U64(0)
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
+			if _, serviceExists := delta[workResult.ServiceId]; !serviceExists {
+				return fmt.Errorf("bad_service_id")
+			}
 			if workResult.AccumulateGas < delta[workResult.ServiceId].ServiceInfo.MinItemGas {
-				return fmt.Errorf("invalid_gas")
+				return fmt.Errorf("service_item_gas_too_low")
 			}
 		}
 		if totalGas > types.U64(types.MaxAccumulateGas) {
-			return fmt.Errorf("invalid_gas")
+			return fmt.Errorf("work_report_gas_too_high")
 		}
 	}
 	return nil
@@ -157,19 +193,27 @@ func (g *GuaranteeController) ContextSet() []types.RefineContext {
 // WorkPackageHashSet | Eq. 11.31
 func (g *GuaranteeController) WorkPackageHashSet() []types.WorkPackageHash {
 	workPackageHashes := make([]types.WorkPackageHash, 0)
+	workPackageMap := make(map[types.WorkPackageHash]bool)
+	// filter duplicate WorkPackageHash
 	for _, guarantee := range g.Guarantees {
-		workPackageHashes = append(workPackageHashes, guarantee.Report.PackageSpec.Hash)
+		workPackageMap[guarantee.Report.PackageSpec.Hash] = true
+	}
+
+	for workPackageHash := range workPackageMap {
+		workPackageHashes = append(workPackageHashes, workPackageHash)
 	}
 	return workPackageHashes
 }
 
 // CardinalityCheck | Eq. 11.32
 func (g *GuaranteeController) CardinalityCheck() error {
-	contexts := g.ContextSet()
+	workReports := g.WorkReportSet()
 	workPackageHashes := g.WorkPackageHashSet()
-	if len(contexts) != len(workPackageHashes) {
-		return fmt.Errorf("invalid_cardinality")
+
+	if len(workReports) != len(workPackageHashes) {
+		return fmt.Errorf("duplicate_package")
 	}
+
 	return nil
 }
 
@@ -178,35 +222,52 @@ func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
 	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
-	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
+
 	for _, context := range contexts {
-		foundMatch := false
+		recentAnchorMatch := false
+		stateRootMatch := false
+		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
 			m := mmr.NewMMRFromPeaks(blockInfo.Mmr.Peaks, hash.Blake2bHash).SuperPeak(blockInfo.Mmr.Peaks)
-			if context.Anchor == blockInfo.HeaderHash && context.StateRoot == blockInfo.StateRoot && context.BeefyRoot == types.BeefyRoot(*m) {
-				foundMatch = true
+			if context.Anchor == blockInfo.HeaderHash {
+				recentAnchorMatch = true
+				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
+				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(*m)
 				break
 			}
 		}
-		if !foundMatch {
-			return fmt.Errorf("invalid_context")
+		if !recentAnchorMatch {
+			return fmt.Errorf("anchor_not_recent")
 		}
-		if context.LookupAnchorSlot < (headerTimeSlot - types.TimeSlot(types.MaxLookupAge)) {
-			return fmt.Errorf("invalid_context")
+		if !stateRootMatch {
+			return fmt.Errorf("bad_state_root")
+		}
+		if !beefyRootMatch {
+			return fmt.Errorf("bad_beefy_mmr_root")
+		}
+
+		if int(context.LookupAnchorSlot) < int(headerTimeSlot)-types.MaxLookupAge {
+			return fmt.Errorf("report_before_last_rotation")
 		}
 	}
-	for _, context := range contexts {
-		foundMatch := false
-		for _, ancestorHeader := range ancestorHeaders {
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
-				foundMatch = true
-				break
+	/*
+		11.35 : this should be a record writing into ancestor Header
+
+		ancestorHeaders := store.GetInstance().GetAncestorHeaders()
+
+		for _, context := range contexts {
+			foundMatch := false
+			for _, ancestorHeader := range ancestorHeaders {
+				if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
+					foundMatch = true
+					break
+				}
+			}
+			if !foundMatch {
+				return fmt.Errorf("invalid_context")
 			}
 		}
-		if !foundMatch {
-			return fmt.Errorf("invalid_context")
-		}
-	}
+	*/
 	return nil
 }
 
@@ -218,7 +279,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	xi := store.GetInstance().GetPriorStates().GetXi()
 	beta := store.GetInstance().GetPriorStates().GetBeta()
 	qMap := make(map[types.WorkPackageHash]bool)
-
+	// q
 	for _, v := range theta {
 		for _, w := range v {
 			qMap[w.Report.PackageSpec.Hash] = true
@@ -243,9 +304,10 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 			betaMap[types.WorkPackageHash(w.Hash)] = true
 		}
 	}
+
 	for _, workPackageHash := range workPackageHashes {
 		if qMap[workPackageHash] || aMap[workPackageHash] || xiMap[workPackageHash] || betaMap[workPackageHash] {
-			return fmt.Errorf("invalid_work_package_hash")
+			return fmt.Errorf("duplicate_package")
 		}
 	}
 	return nil
@@ -255,13 +317,14 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 	w := g.WorkReportSet()
 	beta := store.GetInstance().GetPriorStates().GetBeta()
-	packageSet := make(map[types.OpaqueHash]bool)
+	dependencySet := make(map[types.OpaqueHash]bool)
+	segmentRootSet := make(map[types.OpaqueHash]bool)
 	for _, v := range w {
 		for _, w := range v.Context.Prerequisites {
-			packageSet[types.OpaqueHash(w)] = true
+			dependencySet[types.OpaqueHash(w)] = true
 		}
 		for _, w := range v.SegmentRootLookup {
-			packageSet[types.OpaqueHash(w.WorkPackageHash)] = true
+			segmentRootSet[types.OpaqueHash(w.WorkPackageHash)] = true
 		}
 	}
 	p := g.WorkPackageHashSet()
@@ -274,11 +337,17 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 			checkPackageSet[types.OpaqueHash(w.Hash)] = true
 		}
 	}
-	for k := range packageSet {
+	for k := range dependencySet {
 		if !checkPackageSet[k] {
-			return fmt.Errorf("invalid_work_package_hash")
+			return fmt.Errorf("dependency_missing")
 		}
 	}
+	for k := range segmentRootSet {
+		if !checkPackageSet[k] {
+			return fmt.Errorf("segment_root_lookup_invalid")
+		}
+	}
+
 	return nil
 }
 
@@ -297,8 +366,14 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 	w := g.WorkReportSet()
 	for _, v := range w {
 		for _, w := range v.SegmentRootLookup {
-			if pSet[w.WorkPackageHash] != types.ExportsRoot(w.SegmentTreeRoot) {
-				return fmt.Errorf("invalid_segment_root_lookup")
+			// Segments tree root lookup item not found in recent blocks history.
+			segmentRootLookup, segmentRootExists := pSet[w.WorkPackageHash]
+			if !segmentRootExists {
+				return fmt.Errorf("segment_root_lookup_invalid")
+			}
+			// Segments tree root lookup item found in recent blocks history but with an unexpected value.
+			if segmentRootLookup != types.ExportsRoot(w.SegmentTreeRoot) {
+				return fmt.Errorf("segment_root_lookup_invalid")
 			}
 		}
 	}
@@ -312,7 +387,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 	for _, v := range w {
 		for _, w := range v.Results {
 			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
-				return fmt.Errorf("invalid_work_result")
+				return fmt.Errorf("bad_code_hash")
 			}
 		}
 	}
@@ -329,11 +404,18 @@ func (g *GuaranteeController) TransitionWorkReport() {
 	}
 	for i := range rhoDoubleDagger {
 		if coreIndexMap[types.CoreIndex(i)] {
-			rhoDoubleDagger[i].Report = g.Guarantees[i].Report
-			rhoDoubleDagger[i].Timeout = posteriorTau
+			rhoDoubleDagger[i] = &types.AvailabilityAssignment{
+				Report:  g.Guarantees[i].Report,
+				Timeout: posteriorTau,
+			}
 		}
 	}
+
 	store.GetInstance().GetPosteriorStates().SetRho(rhoDoubleDagger)
+
+	// Save the work reports to the store
+	workReports := g.WorkReportSet()
+	store.GetInstance().GetIntermediateStates().SetPresentWorkReports(workReports)
 }
 
 // Set sets the ReportGuarantee slice
