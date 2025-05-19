@@ -1,9 +1,8 @@
 package extrinsic
 
 import (
-	"log"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 )
 
 func Guarantee() error {
@@ -14,73 +13,72 @@ func Guarantee() error {
 	// GP 0.6.6 Eqs
 	guarantees := NewGuaranteeController()
 	guarantees.Guarantees = extrinsic
-
+	// if strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()]))
 	// 11.23
 	err := guarantees.Validate()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 	// 11.24-11.25
 	err = guarantees.Sort()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.26
 	err = guarantees.ValidateSignatures()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.29-11.30
 	err = guarantees.ValidateWorkReports()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.32
 	err = guarantees.CardinalityCheck()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.33-11.35
 	err = guarantees.ValidateContexts()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.36-11.38
 	err = guarantees.ValidateWorkPackageHashes()
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
 	// 11.39
 	err = guarantees.CheckExtrinsicOrRecentHistory()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.40-11.41
 	err = guarantees.CheckSegmentRootLookup()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
 	// 11.42
 	err = guarantees.CheckWorkResult()
 	if err != nil {
-		log.Println(err)
+		err = transform(err)
 		return err
 	}
 
@@ -88,4 +86,13 @@ func Guarantee() error {
 	guarantees.TransitionWorkReport()
 
 	return nil
+}
+
+func transform(outputError error) error {
+	// if error code is defined in jamtests, transform the outputError to errorCode
+	if reportsErrCode, errCodeExists := jamtests.ReportsErrorMap[outputError.Error()]; errCodeExists {
+		return &reportsErrCode
+	}
+
+	return outputError
 }

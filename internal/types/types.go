@@ -964,11 +964,12 @@ func (r *ReportGuarantee) Validate() error {
 	}
 
 	if len(r.Signatures) < 2 {
-		return fmt.Errorf("insufficient_guarantees")
+		return errors.New("insufficient_guarantees")
 	}
 
 	if len(r.Signatures) > 3 {
-		return fmt.Errorf("too_many_guarantees")
+		// return fmt.Errorf("too_many_guarantees")
+		return errors.New("too_many_guarantees")
 	}
 
 	for _, sig := range r.Signatures {

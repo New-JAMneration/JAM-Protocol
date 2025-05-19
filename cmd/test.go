@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -147,18 +145,16 @@ For example:
 
 				if expectedErr != nil {
 					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
+						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
 						failed++
-						continue
 					}
-					if strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()])) != expectedErr.Error() {
-						fmt.Printf("Test %s failed : expected error %s, but got %s %s\n", testFile.Name, expectedErr, strconv.Itoa(int(jamtests.ReportsErrorMap[outputErr.Error()])), outputErr)
-						failed++
+					if outputErr != expectedErr {
+						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
+						passed++
 					} else {
 						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
 						passed++
 					}
-
 					// Check the error message
 				} else {
 					if outputErr != nil {

@@ -3,7 +3,6 @@ package extrinsic
 import (
 	"crypto/ed25519"
 	"errors"
-	"fmt"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -89,7 +88,7 @@ func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
 
 	for i := 0; i < len(signatures)-1; i++ {
 		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
-			return fmt.Errorf("not_sorted_or_unique_guarantors")
+			return errors.New("not_sorted_or_unique_guarantors")
 		}
 	}
 
@@ -108,11 +107,11 @@ func (g *GuaranteeController) ValidateSignatures() error {
 			guranatorAssignments = GStarFunc()
 		}
 		if !((int(tau)/R-1)*R <= int(guarantee.Slot)) {
-			return fmt.Errorf("report_epoch_before_last")
+			return errors.New("report_epoch_before_last")
 		}
 
 		if !(int(guarantee.Slot) <= int(tau)) {
-			return fmt.Errorf("future_report_slot")
+			return errors.New("future_report_slot")
 		}
 
 		message := []byte(jam_types.JamGuarantee)
@@ -120,11 +119,11 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		message = append(message, hashed[:]...)
 		for _, sig := range guarantee.Signatures {
 			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-				return fmt.Errorf("wrong_assignment")
+				return errors.New("wrong_assignment")
 			}
 			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
 			if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
-				return fmt.Errorf("bad_signature")
+				return errors.New("bad_signature")
 			}
 		}
 	}
@@ -149,24 +148,24 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	for _, workReport := range workReports {
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
-			return fmt.Errorf("core_engaged")
+			return errors.New("core_engaged")
 		}
 		authPool := alpha[workReport.CoreIndex]
 		if !isAuthPoolContains(authPool, workReport.AuthorizerHash) {
-			return fmt.Errorf("core_unauthorized")
+			return errors.New("core_unauthorized")
 		}
 		totalGas := types.U64(0)
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
 			if _, serviceExists := delta[workResult.ServiceId]; !serviceExists {
-				return fmt.Errorf("bad_service_id")
+				return errors.New("bad_service_id")
 			}
 			if workResult.AccumulateGas < delta[workResult.ServiceId].ServiceInfo.MinItemGas {
-				return fmt.Errorf("service_item_gas_too_low")
+				return errors.New("service_item_gas_too_low")
 			}
 		}
 		if totalGas > types.U64(types.MaxAccumulateGas) {
-			return fmt.Errorf("work_report_gas_too_high")
+			return errors.New("work_report_gas_too_high")
 		}
 	}
 	return nil
@@ -211,7 +210,7 @@ func (g *GuaranteeController) CardinalityCheck() error {
 	workPackageHashes := g.WorkPackageHashSet()
 
 	if len(workReports) != len(workPackageHashes) {
-		return fmt.Errorf("duplicate_package")
+		return errors.New("duplicate_package")
 	}
 
 	return nil
@@ -237,22 +236,22 @@ func (g *GuaranteeController) ValidateContexts() error {
 			}
 		}
 		if !recentAnchorMatch {
-			return fmt.Errorf("anchor_not_recent")
+			return errors.New("anchor_not_recent")
 		}
 		if !stateRootMatch {
-			return fmt.Errorf("bad_state_root")
+			return errors.New("bad_state_root")
 		}
 		if !beefyRootMatch {
-			return fmt.Errorf("bad_beefy_mmr_root")
+			return errors.New("bad_beefy_mmr_root")
 		}
 
 		if int(context.LookupAnchorSlot) < int(headerTimeSlot)-types.MaxLookupAge {
-			return fmt.Errorf("report_before_last_rotation")
+			return errors.New("report_before_last_rotation")
 		}
 	}
-	/*
-		11.35 : this should be a record writing into ancestor Header
 
+	// 11.35 : this should be a record writing into ancestor Header
+	/*
 		ancestorHeaders := store.GetInstance().GetAncestorHeaders()
 
 		for _, context := range contexts {
@@ -264,7 +263,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 				}
 			}
 			if !foundMatch {
-				return fmt.Errorf("invalid_context")
+				return errors.New("invalid_context")
 			}
 		}
 	*/
@@ -307,7 +306,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 
 	for _, workPackageHash := range workPackageHashes {
 		if qMap[workPackageHash] || aMap[workPackageHash] || xiMap[workPackageHash] || betaMap[workPackageHash] {
-			return fmt.Errorf("duplicate_package")
+			return errors.New("duplicate_package")
 		}
 	}
 	return nil
@@ -339,12 +338,12 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 	}
 	for k := range dependencySet {
 		if !checkPackageSet[k] {
-			return fmt.Errorf("dependency_missing")
+			return errors.New("dependency_missing")
 		}
 	}
 	for k := range segmentRootSet {
 		if !checkPackageSet[k] {
-			return fmt.Errorf("segment_root_lookup_invalid")
+			return errors.New("segment_root_lookup_invalid")
 		}
 	}
 
@@ -369,11 +368,11 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 			// Segments tree root lookup item not found in recent blocks history.
 			segmentRootLookup, segmentRootExists := pSet[w.WorkPackageHash]
 			if !segmentRootExists {
-				return fmt.Errorf("segment_root_lookup_invalid")
+				return errors.New("segment_root_lookup_invalid")
 			}
 			// Segments tree root lookup item found in recent blocks history but with an unexpected value.
 			if segmentRootLookup != types.ExportsRoot(w.SegmentTreeRoot) {
-				return fmt.Errorf("segment_root_lookup_invalid")
+				return errors.New("segment_root_lookup_invalid")
 			}
 		}
 	}
@@ -387,7 +386,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 	for _, v := range w {
 		for _, w := range v.Results {
 			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
-				return fmt.Errorf("bad_code_hash")
+				return errors.New("bad_code_hash")
 			}
 		}
 	}
