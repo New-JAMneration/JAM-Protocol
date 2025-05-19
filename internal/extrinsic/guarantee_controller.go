@@ -3,6 +3,7 @@ package extrinsic
 import (
 	"crypto/ed25519"
 	"errors"
+	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -249,24 +250,22 @@ func (g *GuaranteeController) ValidateContexts() error {
 			return errors.New("report_before_last_rotation")
 		}
 	}
-
-	// 11.35 : this should be a record writing into ancestor Header
-	/*
-		ancestorHeaders := store.GetInstance().GetAncestorHeaders()
-
-		for _, context := range contexts {
-			foundMatch := false
-			for _, ancestorHeader := range ancestorHeaders {
-				if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
-					foundMatch = true
-					break
-				}
-			}
-			if !foundMatch {
-				return errors.New("invalid_context")
+	// 11.35
+	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
+	for _, context := range contexts {
+		foundMatch := false
+		for _, ancestorHeader := range ancestorHeaders {
+			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
+				foundMatch = true
+				break
 			}
 		}
-	*/
+		if !foundMatch {
+			// return errors.New("invalid_context")
+			log.Println("invalid_context")
+		}
+	}
+
 	return nil
 }
 
