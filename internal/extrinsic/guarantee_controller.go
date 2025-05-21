@@ -8,11 +8,10 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
-	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
@@ -42,7 +41,7 @@ func (g *GuaranteeController) Validate() error {
 	}
 	for _, guarantee := range g.Guarantees {
 		if err := guarantee.Validate(); err != nil {
-			errCode := jamtests.ReportsErrorMap[err.Error()]
+			errCode := ReportsErrorCode.ReportsErrorMap[err.Error()]
 			return &errCode
 		}
 	}
@@ -481,3 +480,34 @@ func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 	r.Guarantees = append(r.Guarantees, newReportGuarantee)
 	r.Sort()
 }
+
+func GetGuarantors(guarantee types.ReportGuarantee) []types.Ed25519Public {
+	tau := store.GetInstance().GetPosteriorStates().GetTau()
+	var guranatorAssignments GuranatorAssignments
+	guarantors := make([]types.Ed25519Public, 0)
+	if (int(tau))/R == int(guarantee.Slot)/R {
+		guranatorAssignments = GFunc()
+	} else {
+		guranatorAssignments = GStarFunc()
+	}
+
+	for _, sig := range guarantee.Signatures {
+		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex])
+	}
+
+	return guarantors
+}
+
+/*
+	for _, sig := range guarantee.Signatures {
+		if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
+			err := ReportsErrorCode.WrongAssignment
+			return &err
+		}
+		publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
+		if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
+			err := ReportsErrorCode.BadSignature
+			return &err
+		}
+	}
+*/

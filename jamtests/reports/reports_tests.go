@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -784,9 +787,78 @@ func (r *ReportsTestCase) ExpectError() error {
 }
 
 func (r *ReportsTestCase) Validate() error {
+	// check outputData
+	outputData := r.wrapOutputData()
+	if len(outputData.Reported) != len(r.Output.Ok.Reported) {
+		log.Println(outputData.Reported)
+		log.Println(r.Output.Ok.Reported)
+		return fmt.Errorf("outputData.Reported mismatch")
+	}
+	// compare with mapped output, since the order may be different
+	reportedMap := make(map[ReportedPackage]bool)
+	for _, reported := range outputData.Reported {
+		reportedMap[reported] = true
+	}
+	for _, expectedReported := range r.Output.Ok.Reported {
+		if !reportedMap[expectedReported] {
+			log.Println(outputData.Reported)
+			log.Println(r.Output.Ok.Reported)
+			return fmt.Errorf("outputData.Reported mismatch")
+		}
+	}
+
+	if len(outputData.Reporters) != len(r.Output.Ok.Reporters) {
+		return fmt.Errorf("outputData.Reporters mismatch")
+	}
+	reporterMap := make(map[types.Ed25519Public]bool)
+	for _, reporter := range outputData.Reporters {
+		reporterMap[reporter] = true
+	}
+	for _, expectedReporter := range r.Output.Ok.Reporters {
+		if !reporterMap[expectedReporter] {
+			return fmt.Errorf("outputData.Reporters mismatch")
+		}
+	}
+
+	// check state (guarantee only transits Rho Prime)
+	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	if !reflect.DeepEqual(rhoPrime, r.PostState.AvailAssignments) {
+		return fmt.Errorf("AvailabilityAssignment (Rho Prime) mismatch")
+	}
+
 	return nil
 }
 
 func (r *ReportsTestCase) GetExtrinsic() types.GuaranteesExtrinsic {
 	return r.Input.Guarantees
+}
+
+func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
+	var outputData ReportsOutputData
+	outputData.Reported = make([]ReportedPackage, 0)
+	outputData.Reporters = make([]types.Ed25519Public, 0)
+
+	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	for _, report := range rhoPrime {
+		if report == nil {
+			continue
+		}
+		reportedPackage := ReportedPackage{
+			WorkPackageHash: report.Report.PackageSpec.Hash,
+			SegmentTreeRoot: types.OpaqueHash(report.Report.PackageSpec.ExportsRoot),
+		}
+
+		// find the corresponding guarantee in input
+		for _, guarantee := range r.Input.Guarantees {
+			// check with package spec hash
+			if reportedPackage.WorkPackageHash != guarantee.Report.PackageSpec.Hash {
+				continue
+			}
+			reporters := extrinsic.GetGuarantors(guarantee)
+			outputData.Reported = append(outputData.Reported, reportedPackage)
+			outputData.Reporters = append(outputData.Reporters, reporters...)
+			break
+		}
+	}
+	return outputData
 }
