@@ -102,17 +102,19 @@ func WorkReportCompute(
 	pvm PVMExecutor,
 ) (types.WorkReport, error) {
 	returnType := pvm.Psi_I(*workPackage, coreIndex, pc)
-	if returnType.WorkExecResult != types.WorkExecResultOk {
-		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
-	}
 	o := returnType.WorkOutput
 	g := returnType.Gas
+	if returnType.WorkExecResult != types.WorkExecResultOk || len(o) > types.WorkReportOutputBlobsMaximumSize {
+		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
+	}
 
 	var results []types.WorkResult
 	var exports [][]types.ExportSegment
 
+	rSum := 0
 	for j, item := range workPackage.Items {
-		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm)
+		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum)
+		rSum += len(r)
 		result := C(item, r, u)
 		results = append(results, result)
 		exports = append(exports, e)
@@ -137,12 +139,12 @@ func WorkReportCompute(
 	}, nil
 }
 
-func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
+func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor, rSum int) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
 	workItem := workPackage.Items[j]
 	expectedCount := workItem.ExportCount
-	lSum := types.U16(0)
+	lSum := 0
 	for k := 0; k < j; k++ {
-		lSum += workPackage.Items[k].ExportCount
+		lSum += int(workPackage.Items[k].ExportCount)
 	}
 
 	refineInput := PVM.RefineInput{
@@ -159,20 +161,26 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 	r := refineOuput.RefineOutput
 	e := refineOuput.ExportSegment
 	u := refineOuput.Gas
-	if len(e) == int(expectedCount) {
+	z := len(o) + rSum
+	if len(r)+z >= types.WorkReportOutputBlobsMaximumSize {
+		emptyExport := make([]types.ExportSegment, expectedCount)
 		return types.WorkExecResult{
-			refineOuput.WorkResult: r,
-		}, u, e
+			types.WorkExecResultReportOversize: nil,
+		}, u, emptyExport
+	} else if len(e) != int(workItem.ExportCount) {
+		emptyExport := make([]types.ExportSegment, expectedCount)
+		return types.WorkExecResult{
+			types.WorkExecResultBadExports: nil,
+		}, u, emptyExport
 	} else if refineOuput.WorkResult != types.WorkExecResultOk {
 		emptyExport := make([]types.ExportSegment, expectedCount)
 		return types.WorkExecResult{
 			refineOuput.WorkResult: r,
 		}, u, emptyExport
 	} else {
-		emptyExport := make([]types.ExportSegment, expectedCount)
 		return types.WorkExecResult{
-			types.WorkExecResultBadExports: nil,
-		}, u, emptyExport
+			refineOuput.WorkResult: r,
+		}, u, e
 	}
 }
 
