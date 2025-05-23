@@ -1,14 +1,17 @@
 package safrole
 
 import (
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 // TODO VERIFY 6.15 6.16
-func SealingByTickets() {
+func SealingByTickets() error {
 	/*
 							  iy = Y(Hs)
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
@@ -16,11 +19,8 @@ func SealingByTickets() {
 	s := store.GetInstance()
 	posterior_state := s.GetPosteriorStates()
 	gammaSTickets := posterior_state.GetGammaS().Tickets
-	if len(gammaSTickets) == 0 {
-		return
-	}
 	header := s.GetProcessingBlockPointer().GetHeader()
-	index := uint(header.Slot) % uint(len(posterior_state.GetGammaS().Tickets))
+	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	i_r := ticket.Attempt
@@ -32,13 +32,19 @@ func SealingByTickets() {
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
 	context = append(context, types.ByteSequence([]byte{uint8(i_r)})...)     // ir
 
-	handler, _ := CreateVRFHandler(public_key)
-	signature, _ := handler.IETFSign(context, message)
-
+	handler, err := CreateVRFHandler(public_key)
+	if err != nil {
+		return err
+	}
+	signature, err := handler.IETFSign(context, message)
+	if err != nil {
+		return err
+	}
 	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	return nil
 }
 
-func SealingByBandersnatchs() {
+func SealingByBandersnatchs() error {
 	/*
 		(6.16) γ′s ∈ ⟦HB⟧  Hs ∈ F EU(H) Ha ⟨XF ⌢ η′3⟩
 	*/
@@ -50,9 +56,6 @@ func SealingByBandersnatchs() {
 	s := store.GetInstance()
 	posterior_state := s.GetPosteriorStates()
 	GammaSKeys := posterior_state.GetGammaS().Keys
-	if len(GammaSKeys) == 0 {
-		return
-	}
 	header := s.GetProcessingBlockPointer().GetHeader()
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	public_key := GammaSKeys[index]
@@ -63,12 +66,37 @@ func SealingByBandersnatchs() {
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
 
-	handler, _ := CreateVRFHandler(public_key)
-	signature, _ := handler.IETFSign(context, message)
+	handler, err := CreateVRFHandler(public_key)
+	if err != nil {
+		return err
+	}
+	signature, err := handler.IETFSign(context, message)
+	if err != nil {
+		return err
+	}
 	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	return nil
 }
 
-func UpdateEtaPrime0() {
+// (6.15~6.16) Make H_s (seal for new header)
+func SealingHeader() error {
+	s := store.GetInstance()
+	gammaS := s.GetPosteriorStates().GetGammaS()
+	if len(gammaS.Keys) > 0 {
+		err := SealingByBandersnatchs()
+		if err != nil {
+			return err
+		}
+	} else if len(gammaS.Tickets) > 0 {
+		err := SealingByTickets()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func UpdateEtaPrime0() error {
 	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
 
 	s := store.GetInstance()
@@ -81,13 +109,23 @@ func UpdateEtaPrime0() {
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	entropy_source := header.EntropySource
 	eta := prior_state.GetEta()
-	handler, _ := CreateVRFHandler(public_key)
-	vrfOutput, _ := handler.VRFIetfOutput(entropy_source[:])
+
+	// TODO: verify correctness of vrfOutput
+	verifier, err := vrf.NewVerifier(public_key[:], 1)
+	if err != nil {
+		return fmt.Errorf("NewVerifier: %v", err)
+	}
+	defer verifier.Free()
+	vrfOutput, err := verifier.VRFIetfOutput(entropy_source[:])
+	if err != nil {
+		return fmt.Errorf("VRFIetfOutput: %v", err)
+	}
 	hash_input := append(eta[0][:], vrfOutput...)
 	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	return nil
 }
 
-func UpdateEntropy() {
+func UpdateEntropy(e types.TimeSlot, ePrime types.TimeSlot) {
 	/*
 								(η0, η1, η2) if e′ > e
 		(6.23) (η′1, η′2, η′3)
@@ -95,24 +133,15 @@ func UpdateEntropy() {
 	*/
 
 	s := store.GetInstance()
-
-	prior_state := s.GetPriorStates()
-
-	posterior_state := s.GetPosteriorStates()
-
-	tau := prior_state.GetTau()
-
-	tauPrime := posterior_state.GetTau()
-
-	e := GetEpochIndex(tau)
-	ePrime := GetEpochIndex(tauPrime)
-	eta := prior_state.GetEta()
+	eta := s.GetPriorStates().GetEta()
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {
 			eta[i+1] = eta[i]
 		}
 	}
-	posterior_state.SetEta(eta)
+	// This make sure we won't overwrite eta0
+	eta[0] = s.GetPosteriorStates().GetEta0()
+	s.GetPosteriorStates().SetEta(eta)
 }
 
 func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.BandersnatchVrfSignature) (sign []byte) {
@@ -133,6 +162,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	return signature
 }
 
+// NO REFERENCES
 func UpdateHeaderEntropy() {
 	s := store.GetInstance()
 
@@ -146,41 +176,32 @@ func UpdateHeaderEntropy() {
 	s.GetProcessingBlockPointer().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(public_key, seal)))
 }
 
-func UpdateSlotKeySequence() {
+// Calculate gamma^prime_s
+func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex types.TimeSlot) {
 	/*
 		Slot Key Sequence Update
 						Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-	// CalculateNewEntropy
 	s := store.GetInstance()
 
 	// Get prior state
 	priorState := s.GetPriorStates()
+	gammaA := priorState.GetGammaA()
 
 	// Get posterior state
 	posteriorState := s.GetPosteriorStates()
+	etaPrime := posteriorState.GetEta()
 
-	// Get previous time slot index
-	tau := priorState.GetTau()
+	var newGammaS types.TicketsOrKeys
 
-	// Get current time slot index
-	tauPrime := posteriorState.GetTau()
-
-	e := GetEpochIndex(tau)
-	ePrime := GetEpochIndex(tauPrime)
-	eta_prime := posteriorState.GetEta()
-
-	slot_index := GetSlotIndex(tau)
-	var new_GammaS types.TicketsOrKeys
-	gammaA := priorState.GetGammaA()
-	if ePrime == e+1 && len(priorState.GetGammaA()) == types.EpochLength && int(slot_index) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
-		new_GammaS.Tickets = OutsideInSequencer(&gammaA)
+	if ePrime == e+1 && len(gammaA) == types.EpochLength && int(slotIndex) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
+		newGammaS.Tickets = OutsideInSequencer(&gammaA)
 	} else if ePrime == e { // γs if e′ = e
-		new_GammaS = priorState.GetGammaS()
+		newGammaS = priorState.GetGammaS()
 	} else { //F(η′2, κ′) otherwise
-		new_GammaS.Keys = FallbackKeySequence(eta_prime[2], posteriorState.GetKappa())
+		newGammaS.Keys = FallbackKeySequence(etaPrime[2], posteriorState.GetKappa())
 	}
-	posteriorState.SetGammaS(new_GammaS)
+	posteriorState.SetGammaS(newGammaS)
 }

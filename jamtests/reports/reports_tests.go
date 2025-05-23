@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -144,7 +148,7 @@ const (
 	WorkReportTooBig                                    // 22
 )
 
-var reportsErrorMap = map[string]ReportsErrorCode{
+var ReportsErrorMap = map[string]ReportsErrorCode{
 	"bad_core_index":                  BadCoreIndex,
 	"future_report_slot":              FutureReportSlot,
 	"report_epoch_before_last":        ReportEpochBeforeLast,
@@ -173,7 +177,7 @@ var reportsErrorMap = map[string]ReportsErrorCode{
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := reportsErrorMap[str]; ok {
+		if val, ok := ReportsErrorMap[str]; ok {
 			*e = val
 			return nil
 		}
@@ -700,8 +704,70 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (r *ReportsTestCase) Dump() error {
+	store.ResetInstance()
+	s := store.GetInstance()
+
+	// Guarantee Input : extrinsics, slot, known_packages
+	// set guarantee extrinsics
+	s.GetProcessingBlockPointer().SetGuaranteesExtrinsic(r.Input.Guarantees)
+
+	// set slot
+	block := types.Block{
+		Header: types.Header{
+			Slot: r.Input.Slot,
+		},
+	}
+	s.AddBlock(block)
+	s.GetPosteriorStates().SetTau(r.Input.Slot)
+
+	// set known_packages
+	// known_packages can be either xi or theta
+	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
+	xi := types.AccumulatedQueue{item}
+	s.GetPriorStates().SetXi(xi)
+
+	// Set AvailAssignments (rhoDoubleDagger)
+	s.GetIntermediateStates().SetRhoDoubleDagger(r.PreState.AvailAssignments)
+
+	// Set CurrValidators
+	s.GetPosteriorStates().SetKappa(r.PreState.CurrValidators)
+
+	// Set PrevValidators
+	s.GetPosteriorStates().SetLambda(r.PreState.PrevValidators)
+
+	// Set Entropy
+	s.GetPosteriorStates().SetEta(r.PreState.Entropy)
+
+	// Set Offenders
+	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
+
+	// Set RecentBlocks
+	s.GetPriorStates().SetBeta(r.PostState.RecentBlocks)
+	s.GetIntermediateStates().SetBetaDagger(r.PostState.RecentBlocks)
+
+	// Set AuthPools
+	s.GetPriorStates().SetAlpha(r.PreState.AuthPools)
+
+	// Set Accounts
+	accounts := make(types.ServiceAccountState)
+	for _, v := range r.PreState.Accounts {
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo: v.Info.Service,
+		}
+		accounts[v.Id] = serviceAccount
+	}
+
+	s.GetPosteriorStates().SetDelta(accounts)
+
+	var statistics types.Statistics
+	// Set CoresStatisitics
+	statistics.Cores = r.PreState.CoresStatistics
+	// Set ServicesStatistics
+	statistics.Services = r.PreState.ServicesStatistics
+
+	s.GetPriorStates().SetPi(statistics)
+
 	return nil
 }
 
@@ -721,5 +787,78 @@ func (r *ReportsTestCase) ExpectError() error {
 }
 
 func (r *ReportsTestCase) Validate() error {
+	// check outputData
+	outputData := r.wrapOutputData()
+	if len(outputData.Reported) != len(r.Output.Ok.Reported) {
+		log.Println(outputData.Reported)
+		log.Println(r.Output.Ok.Reported)
+		return fmt.Errorf("outputData.Reported mismatch")
+	}
+	// compare with mapped output, since the order may be different
+	reportedMap := make(map[ReportedPackage]bool)
+	for _, reported := range outputData.Reported {
+		reportedMap[reported] = true
+	}
+	for _, expectedReported := range r.Output.Ok.Reported {
+		if !reportedMap[expectedReported] {
+			log.Println(outputData.Reported)
+			log.Println(r.Output.Ok.Reported)
+			return fmt.Errorf("outputData.Reported mismatch")
+		}
+	}
+
+	if len(outputData.Reporters) != len(r.Output.Ok.Reporters) {
+		return fmt.Errorf("outputData.Reporters mismatch")
+	}
+	reporterMap := make(map[types.Ed25519Public]bool)
+	for _, reporter := range outputData.Reporters {
+		reporterMap[reporter] = true
+	}
+	for _, expectedReporter := range r.Output.Ok.Reporters {
+		if !reporterMap[expectedReporter] {
+			return fmt.Errorf("outputData.Reporters mismatch")
+		}
+	}
+
+	// check state (guarantee only transits Rho Prime)
+	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	if !reflect.DeepEqual(rhoPrime, r.PostState.AvailAssignments) {
+		return fmt.Errorf("AvailabilityAssignment (Rho Prime) mismatch")
+	}
+
 	return nil
+}
+
+func (r *ReportsTestCase) GetExtrinsic() types.GuaranteesExtrinsic {
+	return r.Input.Guarantees
+}
+
+func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
+	var outputData ReportsOutputData
+	outputData.Reported = make([]ReportedPackage, 0)
+	outputData.Reporters = make([]types.Ed25519Public, 0)
+
+	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	for _, report := range rhoPrime {
+		if report == nil {
+			continue
+		}
+		reportedPackage := ReportedPackage{
+			WorkPackageHash: report.Report.PackageSpec.Hash,
+			SegmentTreeRoot: types.OpaqueHash(report.Report.PackageSpec.ExportsRoot),
+		}
+
+		// find the corresponding guarantee in input
+		for _, guarantee := range r.Input.Guarantees {
+			// check with package spec hash
+			if reportedPackage.WorkPackageHash != guarantee.Report.PackageSpec.Hash {
+				continue
+			}
+			reporters := extrinsic.GetGuarantors(guarantee)
+			outputData.Reported = append(outputData.Reported, reportedPackage)
+			outputData.Reporters = append(outputData.Reporters, reporters...)
+			break
+		}
+	}
+	return outputData
 }

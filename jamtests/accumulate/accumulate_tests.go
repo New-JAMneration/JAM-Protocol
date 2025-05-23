@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 
@@ -609,7 +608,7 @@ func (a *AccumulateTestCase) Dump() error {
 	sort.Slice(a.Input.Reports, func(i, j int) bool {
 		return a.Input.Reports[i].CoreIndex < a.Input.Reports[j].CoreIndex
 	})
-	s.GetIntermediateStates().SetAccumulatableWorkReports(a.Input.Reports)
+	s.GetIntermediateStates().SetAvailableWorkReports(a.Input.Reports)
 	return nil
 }
 
@@ -632,33 +631,40 @@ func (a *AccumulateTestCase) Validate() error {
 	s := store.GetInstance()
 
 	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
-		fmt.Errorf("Time slot does not match expected: %v, but got %v", a.PostState.Slot, s.GetPosteriorStates().GetTau())
+		return fmt.Errorf("time slot does not match expected: %v, but got %v", a.PostState.Slot, s.GetPosteriorStates().GetTau())
 	}
 
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetEta(), types.EntropyBuffer{a.PostState.Entropy}) {
-		fmt.Errorf("Entropy does not match expected: %v, but got %v", a.PostState.Entropy, s.GetPosteriorStates().GetEta())
+		return fmt.Errorf("entropy does not match expected: %v, but got %v", a.PostState.Entropy, s.GetPosteriorStates().GetEta())
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
 	ourTheta := s.GetPosteriorStates().GetTheta()
 	if !reflect.DeepEqual(ourTheta, a.PostState.ReadyQueue) {
-		log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
+		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
 		for i := range ourTheta {
+			if a.PostState.ReadyQueue[i] == nil {
+				a.PostState.ReadyQueue[i] = []types.ReadyRecord{}
+			}
+			if ourTheta[i] == nil {
+				ourTheta[i] = []types.ReadyRecord{}
+			}
 			diff := cmp.Diff(ourTheta[i], a.PostState.ReadyQueue[i])
-			fmt.Errorf("Theta[%d] Diff:\n%v", i, diff)
+			if len(diff) != 0 {
+				return fmt.Errorf("theta[%d] diff:\n%v", i, diff)
+			}
 		}
-
 	}
 
 	// Validate accumulated reports (passed by implementing sort)
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated)
-		fmt.Errorf("Accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
+		return fmt.Errorf("accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
 	}
 
 	// Validate privileges (passed)
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), a.PostState.Privileges) {
-		fmt.Errorf("Privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
+		return fmt.Errorf("privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
 	}
 	return nil
 }

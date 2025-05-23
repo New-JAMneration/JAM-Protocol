@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -692,6 +693,12 @@ func (p *PreimageTestCase) ExpectError() error {
 }
 
 func (p *PreimageTestCase) Validate() error {
-	// TODO: Implement validation
+	storeInstance := store.GetInstance()
+	inputDelta := storeInstance.GetIntermediateStates().GetDeltaDoubleDagger()
+	outputDelta := storeInstance.GetPosteriorStates().GetDelta()
+	// Validate output state
+	if !reflect.DeepEqual(outputDelta, inputDelta) {
+		return errors.New("result states are not equal")
+	}
 	return nil
 }
