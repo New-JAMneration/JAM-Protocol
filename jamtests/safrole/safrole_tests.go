@@ -4,9 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // ANSI color codes
@@ -543,6 +547,7 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (s *SafroleTestCase) Dump() error {
+	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
 	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
@@ -550,7 +555,9 @@ func (s *SafroleTestCase) Dump() error {
 	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
 
 	storeInstance.GetPriorStates().SetEta(s.PreState.Eta)
-	// Set Eta0?
+	// Set eta^prime_0 here
+	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
+	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 
 	storeInstance.GetPriorStates().SetLambda(s.PreState.Lambda)
 	storeInstance.GetPriorStates().SetKappa(s.PreState.Kappa)
@@ -560,11 +567,10 @@ func (s *SafroleTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetGammaS(s.PreState.GammaS)
 	storeInstance.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
 
-	// Miss PostOffenders?
-	storeInstance.GetPriorStates().SetPsiO(s.PreState.PostOffenders)
+	storeInstance.GetPosteriorStates().SetPsiO(s.PreState.PostOffenders)
 
-	// How to set the Extrinsic?
 	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(s.Input.Extrinsic)
+
 	return nil
 }
 
@@ -585,12 +591,64 @@ func (s *SafroleTestCase) ExpectError() error {
 
 func (s *SafroleTestCase) Validate() error {
 	storeInstance := store.GetInstance()
+	// Set eta^prime_0 here
+	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
+	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	/*
+		Check EpochMark and TicketsMark
+	*/
+	ourEpochMarker := storeInstance.GetProcessingBlockPointer().GetEpochMark()
+	ourTicketsMark := storeInstance.GetProcessingBlockPointer().GetTicketsMark()
 
-	if storeInstance.GetPosteriorStates().GetTau() != s.PostState.Tau {
-		return fmt.Errorf("tau mismatch: expected %v, got %v", s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau())
+	if s.Output.Ok.EpochMark != nil && ourEpochMarker != nil {
+		if !reflect.DeepEqual(s.Output.Ok.EpochMark, ourEpochMarker) {
+			diff := cmp.Diff(s.Output.Ok.EpochMark, ourEpochMarker)
+			return fmt.Errorf("epoch marker mismatch:\n%v", diff)
+		}
+	} else if s.Output.Ok.TicketsMark != nil && ourTicketsMark != nil {
+		if !reflect.DeepEqual(s.Output.Ok.TicketsMark, ourTicketsMark) {
+			diff := cmp.Diff(s.Output.Ok.TicketsMark, ourTicketsMark)
+			return fmt.Errorf("tickets mark mismatch:\n%v", diff)
+		}
 	}
 
-	// rest of the validation logic
+	/*
+		Check PosteriorStates
+	*/
+	if !reflect.DeepEqual(s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau()) {
+		diff := cmp.Diff(s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau())
+		return fmt.Errorf("tau mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.Eta, storeInstance.GetPosteriorStates().GetEta()) {
+		diff := cmp.Diff(s.PostState.Eta, storeInstance.GetPosteriorStates().GetEta())
+		return fmt.Errorf("eta mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.Lambda, storeInstance.GetPosteriorStates().GetLambda()) {
+		diff := cmp.Diff(s.PostState.Lambda, storeInstance.GetPosteriorStates().GetLambda())
+		return fmt.Errorf("lambda mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.Kappa, storeInstance.GetPosteriorStates().GetKappa()) {
+		diff := cmp.Diff(s.PostState.Kappa, storeInstance.GetPosteriorStates().GetKappa())
+		return fmt.Errorf("kappa mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.GammaK, storeInstance.GetPosteriorStates().GetGammaK()) {
+		diff := cmp.Diff(s.PostState.GammaK, storeInstance.GetPosteriorStates().GetGammaK())
+		return fmt.Errorf("gamma_k mismatch:\n%v", diff)
+		/*
+			We don't compare iota here, this state will be update in accumulation
+		*/
+		// } else if !reflect.DeepEqual(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota()) {
+		// diff := cmp.Diff(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota())
+		// t.Errorf("iota mismatch:\n%v", diff)
+	} else if !cmp.Equal(s.PostState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(s.PostState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty())
+		return fmt.Errorf("gamma_a mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.GammaS, storeInstance.GetPosteriorStates().GetGammaS()) {
+		diff := cmp.Diff(s.PostState.GammaS, storeInstance.GetPosteriorStates().GetGammaS())
+		return fmt.Errorf("gamma_s mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ()) {
+		diff := cmp.Diff(s.PostState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ())
+		return fmt.Errorf("gamma_z mismatch:\n%v", diff)
+	} else if !reflect.DeepEqual(s.PostState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO()) {
+		diff := cmp.Diff(s.PostState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO())
+		return fmt.Errorf("post_offenders mismatch:\n%v", diff)
+	}
 
 	return nil
 }

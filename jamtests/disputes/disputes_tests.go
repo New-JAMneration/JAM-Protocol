@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/google/go-cmp/cmp"
 )
 
 // ANSI color codes
@@ -84,6 +86,8 @@ const (
 	BadJudgementAge                                   // 11
 	BadValidatorIndex                                 // 12
 	BadSignature                                      // 13
+	BadGuarantorKey                                   // 14
+	BadAuditorKey                                     // 15
 )
 
 var DisputeErrorMap = map[string]DisputeErrorCode{
@@ -101,6 +105,8 @@ var DisputeErrorMap = map[string]DisputeErrorCode{
 	"bad_judgement_age":            BadJudgementAge,
 	"bad_validator_index":          BadValidatorIndex,
 	"bad_signature":                BadSignature,
+	"bad_guarantor_key":            BadGuarantorKey,
+	"bad_auditor_key":              BadAuditorKey,
 }
 
 func (e *DisputeErrorCode) UnmarshalJSON(data []byte) error {
@@ -381,6 +387,7 @@ func (d *DisputeOutput) IsError() bool {
 
 // TODO: Implement the Dump method
 func (d *DisputeTestCase) Dump() error {
+	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
 	storeInstance.GetPriorStates().SetPsi(d.PreState.Psi)
@@ -411,6 +418,29 @@ func (d *DisputeTestCase) ExpectError() error {
 }
 
 func (d *DisputeTestCase) Validate() error {
-	// TODO: Implement validation logic
+	s := store.GetInstance()
+
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetPsi(), d.PostState.Psi)
+		fmt.Errorf("Psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)
+	}
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetRho(), d.PostState.Rho) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetRho(), d.PostState.Rho)
+		fmt.Errorf("Rho does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Rho, s.GetPosteriorStates().GetRho(), diff)
+	}
+	if s.GetPosteriorStates().GetTau() != d.PostState.Tau {
+		fmt.Errorf("Time slot does not match expected: %v, but got %v", d.PostState.Tau, s.GetPosteriorStates().GetTau())
+	}
+
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa)
+		fmt.Errorf("Kappa does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Kappa, s.GetPosteriorStates().GetKappa(), diff)
+	}
+
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda)
+		fmt.Errorf("Lambda does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Lambda, s.GetPosteriorStates().GetLambda(), diff)
+	}
+
 	return nil
 }

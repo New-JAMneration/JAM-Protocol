@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -34,8 +35,45 @@ func (f *FaultController) VerifyFaultValidity() error {
 	if err := f.VerifyReportHashValidty(); err != nil {
 		return err
 	}
+	if err := f.VerifyFaultSignature(); err != nil {
+		return err
+	}
 	if err := f.ExcludeOffenders(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (f *FaultController) VerifyFaultSignature() error {
+	state := store.GetInstance().GetPriorStates()
+	posterior := store.GetInstance().GetPosteriorStates()
+
+	validators := append(state.GetKappa(), state.GetLambda()...)
+	validKeySet := make(map[types.Ed25519Public]struct{})
+	for _, v := range validators {
+		validKeySet[v.Ed25519] = struct{}{}
+	}
+
+	psiO := posterior.GetPsiO()
+	for _, offender := range psiO {
+		delete(validKeySet, offender)
+	}
+
+	for _, vote := range f.Faults {
+		if _, ok := validKeySet[vote.Key]; !ok {
+			return fmt.Errorf("bad_auditor_key")
+		}
+		var msg []byte
+		if vote.Vote {
+			msg = []byte(types.JamValid)
+		} else {
+			msg = []byte(types.JamInvalid)
+		}
+		msg = append(msg, vote.Target[:]...)
+
+		if !ed25519.Verify(vote.Key[:], msg, vote.Signature[:]) {
+			return fmt.Errorf("bad_signature")
+		}
 	}
 	return nil
 }

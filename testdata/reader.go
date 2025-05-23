@@ -40,6 +40,7 @@ type TestSize string
 const (
 	TinySize TestSize = "tiny"
 	FullSize TestSize = "full"
+	DataSize TestSize = "data"
 )
 
 // DataFormat represents the format of the test data
@@ -174,11 +175,11 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 			}
 			result = &historyTestCase
 		case AccumulateMode:
-			var accumlateTestCase jamtestsaccumulate.AccumulateTestCase
-			if err := decoder.Decode(data, &accumlateTestCase); err != nil {
+			var accumulateTestCase jamtestsaccumulate.AccumulateTestCase
+			if err := decoder.Decode(data, &accumulateTestCase); err != nil {
 				return nil, fmt.Errorf("failed to decode accumulate test data: %v", err)
 			}
-			result = &accumlateTestCase
+			result = &accumulateTestCase
 		case AuthorizationsMode:
 			var authorizationsTestCase jamtestsauth.AuthorizationTestCase
 			if err := decoder.Decode(data, &authorizationsTestCase); err != nil {

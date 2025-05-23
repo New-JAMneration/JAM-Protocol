@@ -51,7 +51,10 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) (types.OffendersMark, er
 
 	// update state
 	verdictController.ClearWorkReports(verdictController.VerdictSumSequence)
-	disputeController.UpdatePsiGBW(verdictController.VerdictSumSequence)
+	err := disputeController.UpdatePsiGBW(verdictController.VerdictSumSequence)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := culpritController.VerifyCulpritValidity(); err != nil {
 		return nil, err
