@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -17,14 +17,14 @@ type MockPVMExecutor struct {
 	mock.Mock
 }
 
-func (m *MockPVMExecutor) Psi_I(wp types.WorkPackage, core types.CoreIndex, pc types.ByteSequence) PolkaVM.Psi_I_ReturnType {
+func (m *MockPVMExecutor) Psi_I(wp types.WorkPackage, core types.CoreIndex, pc types.ByteSequence) PVM.Psi_I_ReturnType {
 	args := m.Called(wp, core, pc)
-	return args.Get(0).(PolkaVM.Psi_I_ReturnType)
+	return args.Get(0).(PVM.Psi_I_ReturnType)
 }
 
-func (m *MockPVMExecutor) RefineInvoke(input PolkaVM.RefineInput) PolkaVM.RefineOutput {
+func (m *MockPVMExecutor) RefineInvoke(input PVM.RefineInput) PVM.RefineOutput {
 	args := m.Called(input)
-	return args.Get(0).(PolkaVM.RefineOutput)
+	return args.Get(0).(PVM.RefineOutput)
 }
 
 type MockFetcher struct {
@@ -173,12 +173,12 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 
 	// mock PVM
 	mockPVM := new(MockPVMExecutor)
-	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PolkaVM.Psi_I_ReturnType{
+	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PVM.Psi_I_ReturnType{
 		WorkExecResult: types.WorkExecResultOk,
 		WorkOutput:     []byte("auth output"),
 		Gas:            types.Gas(10),
 	})
-	mockPVM.On("RefineInvoke", mock.Anything).Return(PolkaVM.RefineOutput{
+	mockPVM.On("RefineInvoke", mock.Anything).Return(PVM.RefineOutput{
 		WorkResult:   types.WorkExecResultOk,
 		RefineOutput: []byte("refine output"),
 		ExportSegment: []types.ExportSegment{
@@ -306,12 +306,12 @@ func TestPrepareInputs_Shared(t *testing.T) {
 
 	// mock PVM
 	mockPVM := new(MockPVMExecutor)
-	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PolkaVM.Psi_I_ReturnType{
+	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PVM.Psi_I_ReturnType{
 		WorkExecResult: types.WorkExecResultOk,
 		WorkOutput:     []byte("auth output"),
 		Gas:            types.Gas(10),
 	})
-	mockPVM.On("RefineInvoke", mock.Anything).Return(PolkaVM.RefineOutput{
+	mockPVM.On("RefineInvoke", mock.Anything).Return(PVM.RefineOutput{
 		WorkResult:   types.WorkExecResultOk,
 		RefineOutput: []byte("refine output"),
 		ExportSegment: []types.ExportSegment{
