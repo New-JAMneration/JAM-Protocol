@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/go-redis/redis"
@@ -40,6 +41,15 @@ func (r *RedisClient) Put(key string, value []byte) error {
 	err := r.client.Set(key, value, 0).Err()
 	if err != nil {
 		return fmt.Errorf("Put failed: %w", err)
+	}
+	return nil
+}
+
+func (r *RedisClient) PutWithTTL(key string, value []byte, ttl time.Duration) error {
+	log.Printf("PUT key=%s value(hex)=%s ttl=%v", key, hex.EncodeToString(value), ttl)
+	err := r.client.Set(key, value, ttl).Err()
+	if err != nil {
+		return fmt.Errorf("PutWithTTL failed: %w", err)
 	}
 	return nil
 }
