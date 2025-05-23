@@ -3,7 +3,7 @@ package work_package
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -31,8 +31,8 @@ func FlattenExtrinsicSpecs(wp *types.WorkPackage) []types.ExtrinsicSpec {
 	return allSpecs
 }
 
-func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PolkaVM.ExtrinsicDataMap, error) {
-	result := make(PolkaVM.ExtrinsicDataMap)
+func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PVM.ExtrinsicDataMap, error) {
+	result := make(PVM.ExtrinsicDataMap)
 	curr := 0
 
 	for _, spec := range specs {
@@ -60,7 +60,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (Po
 // (14.15) second param: E(p,X#(pw),S#(pw),J#(pw))
 func buildWorkPackageBundle(
 	wp *types.WorkPackage,
-	extrinsicMap PolkaVM.ExtrinsicDataMap,
+	extrinsicMap PVM.ExtrinsicDataMap,
 	importSegments types.ExportSegmentMatrix,
 	importProofs types.OpaqueHashMatrix,
 ) ([]byte, error) {
@@ -94,7 +94,7 @@ func WorkReportCompute(
 	coreIndex types.CoreIndex,
 	pa types.OpaqueHash,
 	pc types.ByteSequence,
-	extrinsicMap PolkaVM.ExtrinsicDataMap,
+	extrinsicMap PVM.ExtrinsicDataMap,
 	importSegments [][]types.ExportSegment,
 	delta types.ServiceAccountState,
 	workPackgeBundle []byte,
@@ -137,7 +137,7 @@ func WorkReportCompute(
 	}, nil
 }
 
-func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PolkaVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
+func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
 	workItem := workPackage.Items[j]
 	expectedCount := workItem.ExportCount
 	lSum := types.U16(0)
@@ -145,7 +145,7 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 		lSum += workPackage.Items[k].ExportCount
 	}
 
-	refineInput := PolkaVM.RefineInput{
+	refineInput := PVM.RefineInput{
 		WorkItemIndex:       uint(j),
 		WorkPackage:         workPackage,
 		AuthOutput:          o,
@@ -358,16 +358,16 @@ func convertMapToLookup(m map[types.OpaqueHash]types.OpaqueHash) types.SegmentRo
 	return lookup
 }
 
-func extractExtrinsicMapFromBundle(workPackage *types.WorkPackage, extrinsics types.ExtrinsicDataList) (PolkaVM.ExtrinsicDataMap, error) {
+func extractExtrinsicMapFromBundle(workPackage *types.WorkPackage, extrinsics types.ExtrinsicDataList) (PVM.ExtrinsicDataMap, error) {
 	specs := FlattenExtrinsicSpecs(workPackage)
 
 	if len(specs) != len(extrinsics) {
 		return nil, fmt.Errorf("extrinsic count mismatch: %d specs vs %d data", len(specs), len(extrinsics))
 	}
 
-	result := make(PolkaVM.ExtrinsicDataMap)
+	result := make(PVM.ExtrinsicDataMap)
 	for i, spec := range specs {
-		result[spec.Hash] = PolkaVM.ExtrinsicData(extrinsics[i])
+		result[spec.Hash] = PVM.ExtrinsicData(extrinsics[i])
 	}
 	return result, nil
 }

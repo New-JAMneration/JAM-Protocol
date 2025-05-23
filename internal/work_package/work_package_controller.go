@@ -1,24 +1,24 @@
 package work_package
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 type PVMExecutor interface {
-	Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PolkaVM.Psi_I_ReturnType
-	RefineInvoke(input PolkaVM.RefineInput) PolkaVM.RefineOutput
+	Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PVM.Psi_I_ReturnType
+	RefineInvoke(input PVM.RefineInput) PVM.RefineOutput
 }
 
 type RealPVMExecutor struct{}
 
-func (e *RealPVMExecutor) Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PolkaVM.Psi_I_ReturnType {
-	return PolkaVM.Psi_I(p, c, code)
+func (e *RealPVMExecutor) Psi_I(p types.WorkPackage, c types.CoreIndex, code types.ByteSequence) PVM.Psi_I_ReturnType {
+	return PVM.Psi_I(p, c, code)
 }
-func (e *RealPVMExecutor) RefineInvoke(input PolkaVM.RefineInput) PolkaVM.RefineOutput {
-	return PolkaVM.RefineInvoke(input)
+func (e *RealPVMExecutor) RefineInvoke(input PVM.RefineInput) PVM.RefineOutput {
+	return PVM.RefineInvoke(input)
 }
 
 type DASegmentFetcher interface {
@@ -97,7 +97,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	return report, nil
 }
 
-func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PolkaVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
+func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
 	if p.Bundle == nil {
 		// initial controller
 		specs := FlattenExtrinsicSpecs(p.WorkPackage)

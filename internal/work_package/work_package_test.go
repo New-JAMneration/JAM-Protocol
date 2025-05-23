@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/PolkaVM"
+	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -98,7 +98,7 @@ func TestExtractExtrinsics(t *testing.T) {
 	hash1 := hash.Blake2bHash([]byte("abcde"))
 	hash2 := hash.Blake2bHash([]byte("12345"))
 
-	expected := PolkaVM.ExtrinsicDataMap{
+	expected := PVM.ExtrinsicDataMap{
 		hash1: []byte("abcde"),
 		hash2: []byte("12345"),
 	}
@@ -188,7 +188,7 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		},
 	}
 
-	extrinsicMap := PolkaVM.ExtrinsicDataMap{
+	extrinsicMap := PVM.ExtrinsicDataMap{
 		extrinsicHash1: []byte("abcde"),
 		extrinsicHash2: []byte("12345"),
 	}
