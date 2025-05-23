@@ -48,6 +48,12 @@ func (b *ProcessingBlock) GetExtrinsics() types.Extrinsic {
 	return b.block.Extrinsic
 }
 
+func (b *ProcessingBlock) SetExtrinsics(extrinsic types.Extrinsic) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.block.Extrinsic = extrinsic
+}
+
 func (b *ProcessingBlock) GetTicketsExtrinsic() types.TicketsExtrinsic {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

@@ -1,7 +1,6 @@
 package accumulation
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -137,7 +136,8 @@ func testAccumulateFile(t *testing.T, binPath string) {
 	setupTestState(testCase.PreState, testCase.Input)
 
 	// Execute accumulation
-	err = ProcessAccumulation(testCase.Input.Reports)
+	// 12.1, 12.2
+	err = ProcessAccumulation()
 	if err != nil {
 		t.Errorf("ProcessAccumulation raised error: %v", err)
 	}
@@ -202,7 +202,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 	sort.Slice(input.Reports, func(i, j int) bool {
 		return input.Reports[i].CoreIndex < input.Reports[j].CoreIndex
 	})
-	s.GetIntermediateStates().SetAccumulatableWorkReports(input.Reports)
+	s.GetIntermediateStates().SetAvailableWorkReports(input.Reports)
 }
 
 // Validate final state
@@ -222,7 +222,7 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	// Validate ready queue reports (passed expect nil and [])
 	ourTheta := s.GetPosteriorStates().GetTheta()
 	if !reflect.DeepEqual(ourTheta, expectedState.ReadyQueue) {
-		log.Printf("len of queue reports expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
+		// log.Printf("len of queue reports expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
 		for i := range ourTheta {
 			if expectedState.ReadyQueue[i] == nil {
 				expectedState.ReadyQueue[i] = []types.ReadyRecord{}

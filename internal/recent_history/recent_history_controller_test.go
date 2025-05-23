@@ -383,7 +383,7 @@ func TestAddToBetaPrime(t *testing.T) {
 	}
 
 	// n function
-	items := rhc.n(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
+	items := rhc.N(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
 
 	if items.HeaderHash != my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash {
 		t.Errorf("items.HeaderHash %x is not equal to BetaPrime's %x", items.HeaderHash, my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash)
@@ -616,7 +616,7 @@ func TestRecentHistory(t *testing.T) {
 		}
 
 		// n function
-		items := rhc.n(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
+		items := rhc.N(my.Input.HeaderHash, mockEg, my.Input.AccumulateRoot)
 
 		if items.HeaderHash != my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash {
 			t.Errorf("[%d]items.HeaderHash %x is not equal to BetaPrime's %x", i, items.HeaderHash, my.PostState.Beta[len(my.PostState.Beta)-1].HeaderHash)
@@ -818,7 +818,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 				Guarantees: mockEg,
 			},
 		}
-		s.AddBlock(mockBlock)
+		s.GetProcessingBlockPointer().SetBlock(mockBlock)
 
 		// Test AddToBetaDagger
 		// Start test STFBeta2BetaDagger (4.6)
@@ -837,12 +837,12 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		// STFBetaDagger2BetaPrime()
 		var (
 			betas      = s.GetIntermediateStates().GetBetaDagger()
-			block      = s.GetBlock()
+			block      = s.GetProcessingBlockPointer().GetBlock()
 			headerHash = block.Header.Parent
 			eg         = block.Extrinsic.Guarantees
 		)
 		rhc.Betas = betas
-		items := rhc.n(headerHash, eg, inputAccumulateRoot)
+		items := rhc.N(headerHash, eg, inputAccumulateRoot)
 		rhc.AddToBetaPrime(items)
 
 		// Get result of (7.4), beta^prime, from store

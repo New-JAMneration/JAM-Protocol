@@ -2,9 +2,12 @@ package jamtests
 
 import (
 	"fmt"
+	"log"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/google/go-cmp/cmp"
 )
 
 // ANSI color codes
@@ -209,6 +212,7 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (h *HistoryTestCase) Dump() error {
+	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
 	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
@@ -244,7 +248,7 @@ func (h *HistoryTestCase) Dump() error {
 			Guarantees: mockGuarantessExtrinsic,
 		},
 	}
-	storeInstance.AddBlock(block)
+	storeInstance.GetProcessingBlockPointer().SetBlock(block)
 
 	return nil
 }
@@ -264,6 +268,30 @@ func (h *HistoryTestCase) ExpectError() error {
 }
 
 func (h *HistoryTestCase) Validate() error {
-	// TODO: Implement validation
+	s := store.GetInstance()
+	// === (4.6) ===
+	// Get result of BetaDagger from store
+	betaDagger := s.GetIntermediateStates().GetBetaDagger()
+
+	// length of BetaDagger should not exceed maxBlocksHistory
+	if len(betaDagger) > types.MaxBlocksHistory {
+		return fmt.Errorf("expected BetaDagger length not to greater than %d, got %d", types.MaxBlocksHistory, len(betaDagger))
+	}
+
+	// === (4.7) ===
+	// Get result of (7.4), beta^prime, from store
+	betaPrime := s.GetPosteriorStates().GetBeta()
+	// Validate output state
+	// log.Printf("length of betaPrime: %d", len(betaPrime))
+	// log.Printf("length of poststateBeta: %d", len(h.PostState.Beta))
+
+	if len(betaPrime) < 1 {
+		return fmt.Errorf("BetaPrime should not be nil, got %d", len(betaPrime))
+	} else if !reflect.DeepEqual(betaPrime, h.PostState.Beta) {
+		diff := cmp.Diff(h.PostState.Beta, betaPrime)
+		log.Printf("BetaPrime: %+#v", betaPrime[len(betaPrime)-1].Mmr)
+		log.Printf("PostState.Beta: %+#v", h.PostState.Beta[len(h.PostState.Beta)-1].Mmr)
+		return fmt.Errorf("BetaPrime should equal to PostState.Beta\n%s", diff)
+	}
 	return nil
 }

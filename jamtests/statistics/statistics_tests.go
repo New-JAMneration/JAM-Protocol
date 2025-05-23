@@ -2,6 +2,8 @@ package jamtests
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -215,11 +217,25 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 
 func (s *StatisticsTestCase) Dump() error {
 	storeInstance := store.GetInstance()
+
+	// Input
 	storeInstance.GetProcessingBlockPointer().SetAuthorIndex(s.Input.AuthorIndex)
+	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
+	// w (present work reports) from guarantee extrinsic
+	reports := []types.WorkReport{}
+	for _, guarantee := range s.Input.Extrinsic.Guarantees {
+		reports = append(reports, guarantee.Report)
+	}
+	storeInstance.GetIntermediateStates().SetPresentWorkReports(reports)
+	storeInstance.GetProcessingBlockPointer().SetExtrinsics(s.Input.Extrinsic)
+
+	// PreState
 	storeInstance.GetPriorStates().SetTau(s.PreState.Slot)
-	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
 	storeInstance.GetPriorStates().SetPi(s.PreState.Statistics)
-	storeInstance.GetPosteriorStates().SetKappa(s.PreState.CurrValidators)
+	storeInstance.GetPriorStates().SetKappa(s.PreState.CurrValidators)
+
+	// PostState
+	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
 	return nil
 }
 
@@ -236,5 +252,30 @@ func (s *StatisticsTestCase) ExpectError() error {
 }
 
 func (s *StatisticsTestCase) Validate() error {
+	storeInstance := store.GetInstance()
+
+	statistics := storeInstance.GetPosteriorStates().GetPi()
+
+	if !reflect.DeepEqual(statistics.ValsCurrent, s.PostState.Statistics.ValsCurrent) {
+		return fmt.Errorf("statistics.ValsCurrent failed: expected %v, got %v", s.PostState.Statistics.ValsCurrent, statistics.ValsCurrent)
+	}
+
+	if !reflect.DeepEqual(statistics.ValsLast, s.PostState.Statistics.ValsLast) {
+		return fmt.Errorf("statistics.ValsLast failed: expected %v, got %v", s.PostState.Statistics.ValsLast, statistics.ValsLast)
+	}
+
+	if !reflect.DeepEqual(statistics.Cores, s.PostState.Statistics.Cores) {
+		return fmt.Errorf("statistics.Cores failed: expected %v, got %v", s.PostState.Statistics.Cores, statistics.Cores)
+	}
+
+	// Don't compare the services statistics
+	// Issue: https://github.com/davxy/jam-test-vectors/issues/39
+	// Temporarily commented out the services statistics comparison
+
+	// // Compare statistics struct
+	// if !reflect.DeepEqual(statistics, expectedStatistics.Statistics) {
+	// 	t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics, statistics)
+	// }
+
 	return nil
 }
