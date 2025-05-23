@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -215,5 +217,183 @@ func TestEncodeWorkExecResult(t *testing.T) {
 	// check decoded result
 	if !reflect.DeepEqual(okResult, decodedResult) {
 		t.Errorf("Decoded result doesn't match original\nExpected: %v\nGot: %v", okResult, decodedResult)
+	}
+}
+
+func TestEncodeSliceHashStruct(t *testing.T) {
+	testSliceHash := SliceHash{
+		A: []OpaqueHash{
+			{0x01, 0x02, 0x03},
+			{0x04, 0x05, 0x06},
+			{0x07, 0x08, 0x09},
+		},
+		B: []OpaqueHash{
+			{0x0A, 0x0B, 0x0C},
+			{0x0D, 0x0E, 0x0F},
+			{0x10, 0x11, 0x12},
+		},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&testSliceHash)
+	if err != nil {
+		t.Errorf("Error encoding SliceHash: %v", err)
+	}
+
+	fmt.Println(encoded)
+}
+
+func TestExtrinsicData_Encode(t *testing.T) {
+	data := ExtrinsicData([]byte("abcde"))
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&data)
+	if err != nil {
+		t.Errorf("Error encoding ExtrinsicData: %v", err)
+	}
+	expected := []byte{5, 97, 98, 99, 100, 101}
+	if !reflect.DeepEqual(encoded, expected) {
+		t.Errorf("Encoded ExtrinsicData does not match expected")
+	}
+}
+
+func TestExtrinsicDataList_Encode(t *testing.T) {
+	list := ExtrinsicDataList{
+		[]byte("abc"),
+		[]byte("xyz"),
+	}
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&list)
+	if err != nil {
+		t.Errorf("Error encoding ExtrinsicDataList: %v", err)
+	}
+	expected := []byte{2, 3, 97, 98, 99, 3, 120, 121, 122}
+	if !reflect.DeepEqual(encoded, expected) {
+		t.Errorf("Encoded ExtrinsicDataList does not match expected")
+	}
+}
+
+func TestExportSegment_Encode(t *testing.T) {
+	var segment ExportSegment
+	copy(segment[:], []byte("abcde"))
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&segment)
+	if err != nil {
+		t.Fatalf("Error encoding ExportSegment: %v", err)
+	}
+
+	if len(encoded) != 4104 {
+		t.Fatalf("expected encoded length 4104, got %d", len(encoded))
+	}
+
+	if !bytes.Equal(encoded[:5], []byte("abcde")) {
+		t.Errorf("expected first 5 bytes to be 'abcde', got %v", encoded[:5])
+	}
+
+	for i := 5; i < len(encoded); i++ {
+		if encoded[i] != 0 {
+			t.Errorf("expected zero padding at byte %d, got %x", i, encoded[i])
+			break
+		}
+	}
+}
+
+func TestExportSegmentMatrix_Encode(t *testing.T) {
+	var seg1, seg2, seg3 ExportSegment
+	copy(seg1[:], []byte("test-segment-1"))
+	copy(seg2[:], []byte("test-segment-2"))
+	copy(seg3[:], []byte("test-segment-3"))
+
+	matrix := ExportSegmentMatrix{
+		{seg1, seg2}, // 2 segments in one row
+		{seg3},       // 1 segment in second row
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&matrix)
+	if err != nil {
+		t.Fatalf("Error encoding ExportSegmentMatrix: %v", err)
+	}
+
+	expectedLength := 1 + // outer matrix length
+		1 + // row[0] length
+		1 + // row[1] length
+		3*4104 // segment data
+
+	if len(encoded) != expectedLength {
+		t.Errorf("expected encoded length %d, got %d", expectedLength, len(encoded))
+	}
+
+	expected1 := make([]byte, 4104)
+	copy(expected1, []byte("test-segment-1"))
+	expected2 := make([]byte, 4104)
+	copy(expected2, []byte("test-segment-2"))
+	expected3 := make([]byte, 4104)
+	copy(expected3, []byte("test-segment-3"))
+
+	segmentStart := 1 + 1 // matrix len + row[0] len
+	segment0 := encoded[segmentStart : segmentStart+4104]
+	segment1 := encoded[segmentStart+4104 : segmentStart+2*4104]
+	segment2 := encoded[segmentStart+2*4104+1 : segmentStart+3*4104+1] // row[1] len
+
+	if !bytes.Equal(segment0, expected1) {
+		t.Errorf("first segment mismatch")
+		fmt.Printf("expected: %x, got: %x\n", expected1, segment0)
+	}
+	if !bytes.Equal(segment1, expected2) {
+		t.Errorf("second segment mismatch")
+	}
+	if !bytes.Equal(segment2, expected3) {
+		t.Errorf("third segment mismatch")
+	}
+}
+
+func TestOpaqueHashMatrix_Encode(t *testing.T) {
+	hash1 := OpaqueHash{1, 2, 3}
+	hash2 := OpaqueHash{4, 5, 6}
+
+	matrix := OpaqueHashMatrix{
+		{hash1, hash2},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&matrix)
+	if err != nil {
+		t.Fatalf("Error encoding OpaqueHashMatrix: %v", err)
+	}
+
+	offset := 0
+
+	// matrix length
+	if encoded[offset] != 1 {
+		t.Errorf("expected matrix length = 1, got %d", encoded[offset])
+	}
+	offset += 1
+
+	// row[0] length
+	if encoded[offset] != 2 {
+		t.Errorf("expected row[0] length = 2, got %d", encoded[offset])
+	}
+	offset += 1
+
+	// row[0] hash length
+	expected1 := hash1[:]
+	actual1 := encoded[offset : offset+len(expected1)]
+	if !bytes.Equal(actual1, expected1) {
+		t.Errorf("first hash mismatch: expected %v, got %v", expected1, actual1)
+	}
+	offset += len(expected1)
+
+	// row[1] hash length
+	expected2 := hash2[:]
+	actual2 := encoded[offset : offset+len(expected2)]
+	if !bytes.Equal(actual2, expected2) {
+		t.Errorf("second hash mismatch: expected %v, got %v", expected2, actual2)
+	}
+	offset += len(expected2)
+
+	if offset != len(encoded) {
+		t.Errorf("expected total length %d, got %d", offset, len(encoded))
 	}
 }

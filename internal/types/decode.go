@@ -3043,3 +3043,124 @@ func (o *Operand) Decode(decoder *Decoder) error {
 
 	return nil
 }
+
+func (e *ExtrinsicData) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ExtrinsicData")
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	data := make([]byte, length)
+	if _, err := d.buf.Read(data); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExtrinsicData: %x", data))
+	*e = data
+	return nil
+}
+
+func (l *ExtrinsicDataList) Decode(d *Decoder) error {
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	result := make([]ExtrinsicData, length)
+	for i := range result {
+		var ed ExtrinsicData
+		if err := ed.Decode(d); err != nil {
+			return err
+		}
+		result[i] = ed
+	}
+	*l = result
+	return nil
+}
+
+func (s *ExportSegment) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ExportSegment")
+	var val ExportSegment
+	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("OpaqueHash: %x", val))
+
+	*s = val
+	return nil
+}
+
+func (m *ExportSegmentMatrix) Decode(d *Decoder) error {
+	outerLen, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	result := make(ExportSegmentMatrix, outerLen)
+	for i := range result {
+		innerLen, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+		row := make([]ExportSegment, innerLen)
+		for j := range row {
+			var seg ExportSegment
+			if err := seg.Decode(d); err != nil {
+				return err
+			}
+			row[j] = seg
+		}
+		result[i] = row
+	}
+	*m = result
+	return nil
+}
+
+func (m *OpaqueHashMatrix) Decode(d *Decoder) error {
+	outerLen, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	result := make(OpaqueHashMatrix, outerLen)
+	for i := range result {
+		innerLen, err := d.DecodeLength()
+		if err != nil {
+			return err
+		}
+		row := make([]OpaqueHash, innerLen)
+		for j := range row {
+			var op OpaqueHash
+			if err := op.Decode(d); err != nil {
+				return err
+			}
+			row[j] = op
+		}
+		result[i] = row
+	}
+	*m = result
+	return nil
+}
+
+func (b *WorkPackageBundle) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding WorkPackageBundle")
+	var err error
+
+	if err = b.Package.Decode(d); err != nil {
+		return err
+	}
+	if err = b.Extrinsics.Decode(d); err != nil {
+		return err
+	}
+	if err = b.ImportSegments.Decode(d); err != nil {
+		return err
+	}
+	if err = b.ImportProofs.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -2773,3 +2773,122 @@ func (o *Operand) Encode(e *Encoder) error {
 
 	return nil
 }
+
+type SliceHash struct {
+	A []OpaqueHash
+	B []OpaqueHash
+}
+
+func (s *SliceHash) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(s.A))); err != nil {
+		return err
+	}
+
+	for _, hash := range s.A {
+		if err := hash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	if err := e.EncodeLength(uint64(len(s.B))); err != nil {
+		return err
+	}
+
+	for _, hash := range s.B {
+		if err := hash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *ExtrinsicData) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ExtrinsicData")
+
+	if err := e.EncodeLength(uint64(len(*d))); err != nil {
+		return err
+	}
+
+	if _, err := e.buf.Write(*d); err != nil {
+		return err
+	}
+
+	cLog(Yellow, fmt.Sprintf("ExtrinsicData: %v", *d))
+
+	return nil
+}
+
+func (l *ExtrinsicDataList) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(*l))); err != nil {
+		return err
+	}
+	for _, ed := range *l {
+		if err := ed.Encode(e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *ExportSegment) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ExtrinsicData")
+
+	if _, err := e.buf.Write(s[:]); err != nil {
+		return err
+	}
+	cLog(Yellow, fmt.Sprintf("ExportSegment: %v", *s))
+	return nil
+}
+
+func (m *ExportSegmentMatrix) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(*m))); err != nil {
+		return err
+	}
+	for _, row := range *m {
+		if err := e.EncodeLength(uint64(len(row))); err != nil {
+			return err
+		}
+		for _, seg := range row {
+			if err := seg.Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (m *OpaqueHashMatrix) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(*m))); err != nil {
+		return err
+	}
+	for _, row := range *m {
+		if err := e.EncodeLength(uint64(len(row))); err != nil {
+			return err
+		}
+		for _, h := range row {
+			if err := h.Encode(e); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (b *WorkPackageBundle) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding WorkPackageBundle")
+
+	if err := b.Package.Encode(e); err != nil {
+		return err
+	}
+	if err := b.Extrinsics.Encode(e); err != nil {
+		return err
+	}
+	if err := b.ImportSegments.Encode(e); err != nil {
+		return err
+	}
+	if err := b.ImportProofs.Encode(e); err != nil {
+		return err
+	}
+	return nil
+}
