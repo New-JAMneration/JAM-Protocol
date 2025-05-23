@@ -39,7 +39,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics)",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics, reports)",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
@@ -75,7 +75,7 @@ For example:
 			switch mode {
 			case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 				testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-				testdata.AuthorizationsMode, testdata.StatisticsMode:
+				testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode:
 				// Valid mode
 			default:
 				fmt.Printf("Error: Invalid test mode '%s'\n", testMode)
@@ -150,6 +150,10 @@ For example:
 				if expectedErr != nil {
 					if outputErr == nil {
 						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
+						failed++
+					}
+					if outputErr.Error() != expectedErr.Error() {
+						fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
 						failed++
 					} else {
 						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)

@@ -157,6 +157,10 @@ func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.MmrPeak {
 		// then combine the result with the final peak.
 		partial := m.SuperPeak(peaks[:len(peaks)-1])
 
+		if peaks[len(peaks)-1] == nil {
+			return partial
+		}
+
 		// HK ($peak ⌢ MR(h...ShS−1) ⌢ hShS−1) otherwise
 		seq := types.ByteSequence{}
 
@@ -164,10 +168,13 @@ func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.MmrPeak {
 		seq = append(seq, []byte("peak")...)
 
 		// Append the partial hash
-		partialBytes := (*partial)[:]
-		seq = append(seq, partialBytes...)
+		if partial != nil {
+			partialBytes := (*partial)[:]
+			seq = append(seq, partialBytes...)
+		}
 
 		// Append the final peak
+
 		finalPeak := (*peaks[len(peaks)-1])[:]
 		seq = append(seq, finalPeak...)
 
