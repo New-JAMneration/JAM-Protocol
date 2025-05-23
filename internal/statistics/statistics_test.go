@@ -129,8 +129,9 @@ func TestStatisticsWithReportTestVectors(t *testing.T) {
 		extrinsic := types.Extrinsic{
 			Guarantees: guaranteeExtrinsic,
 		}
+		s.GetProcessingBlockPointer().SetExtrinsics(extrinsic)
 
-		UpdateValidatorActivityStatistics(extrinsic)
+		UpdateValidatorActivityStatistics()
 
 		// Get statistics
 		statistics := s.GetPosteriorStates().GetPi()
@@ -179,6 +180,9 @@ func TestStatistics(t *testing.T) {
 			reports = append(reports, guarantee.Report)
 		}
 
+		// Extrinsic
+		s.GetProcessingBlockPointer().SetExtrinsics(statisticsTestCase.Input.Extrinsic)
+
 		// Set input to store
 		s.GetIntermediateStates().SetPresentWorkReports(reports)
 
@@ -190,7 +194,7 @@ func TestStatistics(t *testing.T) {
 		// post_state
 		s.GetPosteriorStates().SetTau(statisticsTestCase.PostState.Slot)
 
-		UpdateValidatorActivityStatistics(statisticsTestCase.Input.Extrinsic)
+		UpdateValidatorActivityStatistics()
 
 		// Get statistics
 		statistics := s.GetPosteriorStates().GetPi()

@@ -2,6 +2,7 @@ package extrinsic
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -34,8 +35,39 @@ func (c *CulpritController) VerifyCulpritValidity() error {
 	if err := c.VerifyReportHashValidty(); err != nil {
 		return err
 	}
+	if err := c.VerifyCulpritSignature(); err != nil {
+		return err
+	}
 	if err := c.ExcludeOffenders(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (c *CulpritController) VerifyCulpritSignature() error {
+	state := store.GetInstance().GetPriorStates()
+	posterior := store.GetInstance().GetPosteriorStates()
+
+	validators := append(state.GetKappa(), state.GetLambda()...)
+	validKeySet := make(map[types.Ed25519Public]struct{})
+	for _, v := range validators {
+		validKeySet[v.Ed25519] = struct{}{}
+	}
+
+	psiO := posterior.GetPsiO()
+	for _, offender := range psiO {
+		delete(validKeySet, offender)
+	}
+
+	for _, culprit := range c.Culprits {
+		if _, ok := validKeySet[culprit.Key]; !ok {
+			return fmt.Errorf("bad_guarantor_key")
+		}
+		msg := []byte(types.JamGuarantee)
+		msg = append(msg, culprit.Target[:]...)
+		if !ed25519.Verify(culprit.Key[:], msg, culprit.Signature[:]) {
+			return fmt.Errorf("bad_signature")
+		}
 	}
 	return nil
 }
@@ -51,7 +83,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 
 	for _, report := range c.Culprits {
 		if !checkMap[report.Target] {
-			return fmt.Errorf("bad_vote_split")
+			return fmt.Errorf("culprits_verdict_not_bad")
 		}
 	}
 	return nil
