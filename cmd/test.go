@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -38,13 +39,13 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations)",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics, reports)",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
 			&cli.StringFlag{
 				Name:         "size",
-				Usage:        "Test size (tiny, full) - only for jam-test-vectors",
+				Usage:        "Test size (tiny, full, data) - only for jam-test-vectors",
 				DefaultValue: "tiny",
 				Destination:  &testSize,
 			},
@@ -74,11 +75,11 @@ For example:
 			switch mode {
 			case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 				testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
-				testdata.AuthorizationsMode:
+				testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode:
 				// Valid mode
 			default:
 				fmt.Printf("Error: Invalid test mode '%s'\n", testMode)
-				fmt.Println("Valid modes are: safrole, assurances, preimages, disputes, history, accumulate, authorizations")
+				fmt.Println("Valid modes are: safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics")
 				os.Exit(1)
 			}
 
@@ -102,11 +103,13 @@ For example:
 				// Validate test size for jam-test-vectors
 				size := testdata.TestSize(testSize)
 				switch size {
-				case testdata.TinySize, testdata.FullSize:
-					// Valid size
+				case testdata.TinySize, testdata.DataSize:
+					types.SetTinyMode()
+				case testdata.FullSize:
+					types.SetFullMode()
 				default:
 					fmt.Printf("Error: Invalid test size '%s'\n", testSize)
-					fmt.Println("Valid sizes are: tiny, full")
+					fmt.Println("Valid sizes are: tiny, full, data")
 					os.Exit(1)
 				}
 				reader = testdata.NewTestDataReader(mode, size, dataFormat)
@@ -139,17 +142,21 @@ For example:
 					log.Printf("got error: %v", err)
 				}
 
-				// Run the est
+				// Run the test
 
 				outputErr := runner.Run(data, testRunSTF)
 				expectedErr := data.ExpectError()
 
 				if expectedErr != nil {
 					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error but got none\n", testFile.Name)
+						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
+						failed++
+					}
+					if outputErr.Error() != expectedErr.Error() {
+						fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
 						failed++
 					} else {
-						fmt.Printf("Test %s passed (expected error: %v)\n", testFile.Name, expectedErr)
+						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
 						passed++
 					}
 					// Check the error message

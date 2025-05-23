@@ -455,8 +455,10 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 // (13.3)
 // π ≡ (πV , πL, πC , πS)
 // (πV, πL) => (current, last)
-func UpdateValidatorActivityStatistics(extrinsic types.Extrinsic) {
+func UpdateValidatorActivityStatistics() {
 	s := store.GetInstance()
+
+	extrinsic := s.GetProcessingBlockPointer().GetExtrinsics()
 
 	preTau := s.GetPriorStates().GetTau()
 	postTau := s.GetPosteriorStates().GetTau()

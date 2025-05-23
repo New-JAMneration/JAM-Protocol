@@ -376,9 +376,9 @@ func BuildJudgements(
 		// Xe
 		var context types.ByteSequence
 		if audit.AuditResult {
-			context = []byte("$jam_valid")
+			context = []byte(types.JamValid)
 		} else {
-			context = []byte("$jam_invalid")
+			context = []byte(types.JamInvalid)
 		}
 
 		// Hash the report content

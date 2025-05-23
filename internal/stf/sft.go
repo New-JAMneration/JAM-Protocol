@@ -6,9 +6,19 @@ package stf
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
 	// Update Disputes
+	err := UpdateDisputes()
+	if err != nil {
+		return err
+	}
 
 	// Update Safrole
-	err := UpdateSafrole()
+	err = UpdateSafrole()
+	if err != nil {
+		return err
+	}
+
+	// Update Assurances
+	err = UpdateAssurances()
 	if err != nil {
 		return err
 	}
@@ -16,13 +26,20 @@ func RunSTF() error {
 	// Update Reports
 
 	// Update Accumlate
-	UpdateAccumlate()
+	err = UpdateAccumlate()
+	if err != nil {
+		return err
+	}
 
-	// Update Authorization
+	// Update History (beta^dagger -> beta^prime)
 
 	// Update Preimages
+	err = UpdatePreimages()
+	if err != nil {
+		return err
+	}
 
-	// Update History
+	// Update Authorization
 
 	// Update Statistics
 

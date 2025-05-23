@@ -32,10 +32,10 @@ func SetTinyMode() {
 	ValidatorsCount = 6
 	CoresCount = 2
 	EpochLength = 12
+	SlotSubmissionEnd = 10
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 3
 	TicketsPerValidator = 3
-	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 5
@@ -48,10 +48,10 @@ func SetFullMode() {
 	ValidatorsCount = 1023
 	CoresCount = 341
 	EpochLength = 600
+	SlotSubmissionEnd = 500
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
-	MaxBlocksHistory = 8 // H
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 683
@@ -62,17 +62,20 @@ func SetFullMode() {
 
 // tiny
 var (
+	// V
 	ValidatorsCount = 6
-	CoresCount      = 2
-	EpochLength     = 12
-
+	// C
+	CoresCount = 2
+	// N
+	TicketsPerValidator = 3
+	// E
+	EpochLength = 12
+	// Y: The number of slots into an epoch at which ticket-submission ends.
+	SlotSubmissionEnd = 10
+	// K
+	MaxTicketsPerBlock = 3
 	// R: The rotation period of validator-core assignments, in timeslots.
 	RotationPeriod = 4
-
-	MaxTicketsPerBlock  = 3
-	TicketsPerValidator = 3
-
-	MaxBlocksHistory = 8 // H
 
 	// O
 	AuthPoolMaxSize = 8
@@ -91,18 +94,19 @@ const (
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
-	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
-	TranchePeriod                = 8                   // A
-	JamEntropy                   = "jam_entropy"       // XE
-	JamFallbackSeal              = "jam_fallback_seal" // XF
-	JamTicketSeal                = "jam_ticket_seal"   // XT
-	JamValid                     = "jam_valid"
-	JamInvalid                   = "jam_invalid"
-	JamAvailable                 = "jam_available"
-	JamBeefy                     = "jam_beefy"
-	JamGuarantee                 = "jam_guarantee"
-	JamAnnounce                  = "jam_announce" // XI
-	JamAudit                     = "jam_audit"    // XU
+	TranchePeriod                = 8 // A
+	// H
+	MaxBlocksHistory = 8
+	JamEntropy       = "jam_entropy"       // XE
+	JamFallbackSeal  = "jam_fallback_seal" // XF
+	JamTicketSeal    = "jam_ticket_seal"   // XT
+	JamValid         = "jam_valid"
+	JamInvalid       = "jam_invalid"
+	JamAvailable     = "jam_available"
+	JamBeefy         = "jam_beefy"
+	JamGuarantee     = "jam_guarantee"
+	JamAnnounce      = "jam_announce" // XI
+	JamAudit         = "jam_audit"    // XU
 )
 
 const (

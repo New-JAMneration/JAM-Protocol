@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -481,6 +482,31 @@ func (w *WorkReport) Validate() error {
 	if len(w.Results) < 1 || len(w.Results) > MaximumWorkItems {
 		return fmt.Errorf("WorkReport Results must have items between 1 and %v, but got %v", MaximumWorkItems, len(w.Results))
 	}
+
+	return nil
+}
+
+// ValidateLookupDictAndPrerequisites checks the number of SegmentRootLookup and Prerequisites < J | Eq. 11.3
+func (w *WorkReport) ValidateLookupDictAndPrerequisites() error {
+	if len(w.SegmentRootLookup)+len(w.Context.Prerequisites) > MaximumDependencyItems {
+		// return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", MaximumDependencyItems, len(w.SegmentRootLookup)+len(w.Context.Prerequisites))
+		return fmt.Errorf("too_many_dependencies")
+	}
+	return nil
+}
+
+// ValidateOutputSize checks the total size of the output | Eq. 11.8
+func (w *WorkReport) ValidateOutputSize() error {
+	totalSize := len(w.AuthOutput)
+	for _, result := range w.Results {
+		for _, outputs := range result.Result {
+			totalSize += len(outputs)
+		}
+	}
+
+	if totalSize > WorkReportOutputBlobsMaximumSize {
+		return fmt.Errorf("work_report_too_big")
+	}
 	return nil
 }
 
@@ -922,7 +948,8 @@ type ValidatorSignature struct {
 
 func (v ValidatorSignature) Validate() error {
 	if int(v.ValidatorIndex) >= ValidatorsCount {
-		return fmt.Errorf("ValidatorIndex %v must be less than %v", v.ValidatorIndex, ValidatorsCount)
+		// return fmt.Errorf("ValidatorIndex %v must be less than %v", v.ValidatorIndex, ValidatorsCount)
+		return fmt.Errorf("bad_validator_index")
 	}
 	return nil
 }
@@ -936,16 +963,42 @@ type ReportGuarantee struct {
 
 func (r *ReportGuarantee) Validate() error {
 	if err := r.Report.Validate(); err != nil {
-		return fmt.Errorf("report validation failed: %w", err)
+		log.Println("report validation failed: %w", err)
 	}
-	if len(r.Signatures) != 2 && len(r.Signatures) != 3 {
-		return fmt.Errorf("signatures length must be between 2 and 3, got %v", len(r.Signatures))
+
+	if len(r.Signatures) < 2 {
+		return errors.New("insufficient_guarantees")
 	}
-	for i, sig := range r.Signatures {
+
+	if len(r.Signatures) > 3 {
+		log.Println("too_many_guarantees")
+	}
+
+	for _, sig := range r.Signatures {
 		if err := sig.Validate(); err != nil {
-			return fmt.Errorf("signature %v validation failed: %w", i, err)
+			return err
 		}
 	}
+
+	for _, sig := range r.Signatures {
+		if err := sig.Validate(); err != nil {
+			// bad_validator_index : validator index is too big
+			return err
+		}
+	}
+
+	err := r.Report.ValidateLookupDictAndPrerequisites()
+	if err != nil {
+		// "too_many_dependencies"
+		return err
+	}
+
+	err = r.Report.ValidateOutputSize()
+	if err != nil {
+		// "too_big_work_report_output"
+		return err
+	}
+
 	return nil
 }
 
