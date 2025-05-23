@@ -6,12 +6,12 @@ toolchain go1.23.4
 
 require (
 	github.com/klauspost/reedsolomon v1.12.4 // for Erasure Coding
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.38.0
 )
 
 require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect; indirect: for Erasure Coding
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 )
 
 require (
@@ -22,6 +22,8 @@ require (
 )
 
 require github.com/google/go-cmp v0.7.0
+
+require github.com/stretchr/objx v0.1.0 // indirect
 
 require (
 	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
