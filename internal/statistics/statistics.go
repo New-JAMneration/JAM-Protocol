@@ -268,7 +268,7 @@ func GetServicesFromAccumulationStatistics() []types.ServiceId {
 	store := store.GetInstance()
 
 	// Get the accumulation statistics (I)
-	accumulationStatistics := store.GetAccumulationStatisticsPointer().GetAccumulationStatistics()
+	accumulationStatistics := store.GetIntermediateStates().GetAccumulationStatistics()
 
 	services := make([]types.ServiceId, 0, len(accumulationStatistics))
 	for key := range accumulationStatistics {
@@ -282,7 +282,7 @@ func GetServicesFromDeferredTransfersStatistics() []types.ServiceId {
 	store := store.GetInstance()
 
 	// Get the deferred transfers statistics (X)
-	deferredTransfersStatistics := store.GetDeferredTransfersStatisticsPointer().GetDeferredTransfersStatistics()
+	deferredTransfersStatistics := store.GetIntermediateStates().GetDeferredTransfersStatistics()
 
 	services := make([]types.ServiceId, 0, len(deferredTransfersStatistics))
 	for key := range deferredTransfersStatistics {
@@ -407,8 +407,8 @@ func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersSt
 // (13.11)
 func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	store := store.GetInstance()
-	accumulationStatisitcs := store.GetAccumulationStatisticsPointer().GetAccumulationStatistics()
-	transfersStatistics := store.GetDeferredTransfersStatisticsPointer().GetDeferredTransfersStatistics()
+	accumulationStatisitcs := store.GetIntermediateStates().GetAccumulationStatistics()
+	transfersStatistics := store.GetIntermediateStates().GetDeferredTransfersStatistics()
 
 	services := GetAllServices(extrinsic.Preimages)
 	serviceWorkResultsMap := CreateServiceWorkResultsMap()

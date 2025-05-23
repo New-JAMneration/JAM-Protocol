@@ -15,15 +15,13 @@ var (
 // Store represents a thread-safe global state container
 type Store struct {
 	// INFO: Add more fields here
-	unfinalizedBlocks           *UnfinalizedBlocks
-	processingBlock             *ProcessingBlock
-	priorStates                 *PriorStates
-	intermediateStates          *IntermediateStates
-	posteriorStates             *PosteriorStates
-	ancestorHeaders             *AncestorHeaders
-	posteriorCurrentValidators  *PosteriorCurrentValidators
-	accumulationStatistics      *AccumulationStatistics
-	deferredTransfersStatistics *DeferredTransfersStatistics
+	unfinalizedBlocks          *UnfinalizedBlocks
+	processingBlock            *ProcessingBlock
+	priorStates                *PriorStates
+	intermediateStates         *IntermediateStates
+	posteriorStates            *PosteriorStates
+	ancestorHeaders            *AncestorHeaders
+	posteriorCurrentValidators *PosteriorCurrentValidators
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -31,15 +29,13 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
-			unfinalizedBlocks:           NewUnfinalizedBlocks(),
-			processingBlock:             NewProcessingBlock(),
-			priorStates:                 NewPriorStates(),
-			intermediateStates:          NewIntermediateStates(),
-			posteriorStates:             NewPosteriorStates(),
-			ancestorHeaders:             NewAncestorHeaders(),
-			posteriorCurrentValidators:  NewPosteriorValidators(),
-			accumulationStatistics:      NewAccumulationStatistics(),
-			deferredTransfersStatistics: NewDeferredTransfersStatistics(),
+			unfinalizedBlocks:          NewUnfinalizedBlocks(),
+			processingBlock:            NewProcessingBlock(),
+			priorStates:                NewPriorStates(),
+			intermediateStates:         NewIntermediateStates(),
+			posteriorStates:            NewPosteriorStates(),
+			ancestorHeaders:            NewAncestorHeaders(),
+			posteriorCurrentValidators: NewPosteriorValidators(),
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -49,15 +45,13 @@ func GetInstance() *Store {
 func ResetInstance() {
 	// reset globalStore
 	globalStore = &Store{
-		unfinalizedBlocks:           NewUnfinalizedBlocks(),
-		processingBlock:             NewProcessingBlock(),
-		priorStates:                 NewPriorStates(),
-		intermediateStates:          NewIntermediateStates(),
-		posteriorStates:             NewPosteriorStates(),
-		ancestorHeaders:             NewAncestorHeaders(),
-		posteriorCurrentValidators:  NewPosteriorValidators(),
-		accumulationStatistics:      NewAccumulationStatistics(),
-		deferredTransfersStatistics: NewDeferredTransfersStatistics(),
+		unfinalizedBlocks:          NewUnfinalizedBlocks(),
+		processingBlock:            NewProcessingBlock(),
+		priorStates:                NewPriorStates(),
+		intermediateStates:         NewIntermediateStates(),
+		posteriorStates:            NewPosteriorStates(),
+		ancestorHeaders:            NewAncestorHeaders(),
+		posteriorCurrentValidators: NewPosteriorValidators(),
 	}
 	log.Println("🚀 Store reset")
 }
@@ -141,13 +135,3 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 // func (s *Store) GetServiceAccountDerivatives() *ServiceAccountDerivatives {
 // 	return s.serviceAccountDerivatives
 // }
-
-// AccumulationStatistics
-func (s *Store) GetAccumulationStatisticsPointer() *AccumulationStatistics {
-	return s.accumulationStatistics
-}
-
-// DeferredTransfersStatistics
-func (s *Store) GetDeferredTransfersStatisticsPointer() *DeferredTransfersStatistics {
-	return s.deferredTransfersStatistics
-}

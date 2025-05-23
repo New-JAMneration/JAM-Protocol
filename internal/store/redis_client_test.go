@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/test-go/testify/require"
@@ -132,4 +133,36 @@ func TestRedisClient_Batch(t *testing.T) {
 	val3, err := rdb.Get("batch-key-3")
 	require.NoError(t, err)
 	require.Nil(t, val3, "Expected batch-key-3 to be deleted")
+}
+
+func TestRedisClient_PutWithTTL(t *testing.T) {
+	// Start a local, in-memory Redis server for testing
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("failed to init miniredis %v:", err)
+	}
+	// Initialize our RedisClient using the in-memory server's address
+	rdb := NewRedisClient(s.Addr(), "", 0)
+	defer s.Close()
+
+	key := "ttl-key"
+	value := []byte("ttl-value")
+	ttl := 1 * time.Second
+
+	err = rdb.PutWithTTL(key, value, ttl)
+	require.NoError(t, err)
+
+	// Check if the key exists
+	gotVal, err := rdb.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, value, gotVal)
+
+	// We need to use miniredis's FastForward method to simulate time passing
+	// because miniredis does not support real TTLs.
+	s.FastForward(ttl + 100*time.Millisecond)
+
+	// Check if the key has expired
+	expiredVal, err := rdb.Get(key)
+	require.NoError(t, err)
+	require.Nil(t, expiredVal)
 }
