@@ -74,22 +74,19 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// otherwise
 	var a []byte
 	encoder := types.NewEncoder()
-	// w_s
-	encoded, _ := encoder.Encode(workItem.CodeHash)
+	// i
+	encoded, _ := encoder.EncodeUint(uint64(input.WorkItemIndex))
 	a = append(a, encoded...)
-	// w_y
+	// w_s
+	encoded, _ = encoder.Encode(workItem.CodeHash)
+	a = append(a, encoded...)
+	// |w_y| . w_y
 	encoded, _ = encoder.Encode(workItem.Payload)
 	a = append(a, encoded...)
 	// H(p)
 	encoded, _ = encoder.Encode(input.WorkPackage)
 	h := hash.Blake2bHash(encoded)
 	a = append(a, h[:]...)
-	// p_x
-	encoded, _ = encoder.Encode(input.WorkPackage.Context)
-	a = append(a, encoded...)
-	// p_u
-	encoded, _ = encoder.Encode(input.WorkPackage.Authorizer.CodeHash)
-	a = append(a, encoded...)
 
 	// E(m, c)
 	_, code, err := service_account.DecodeMetaCode(lookupData)

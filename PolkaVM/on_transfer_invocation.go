@@ -15,17 +15,16 @@ type OnTransferInput struct {
 
 // Psi_T
 func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
-	emptyArray := types.OpaqueHash{}
-	result := Psi_M_ReturnType{}
-	account := types.ServiceAccount{}
-
 	account, accountExists := input.ServiceAccounts[input.ServiceID]
 	if !accountExists {
 		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
+		return account, 0
 	}
 
-	if account.ServiceInfo.CodeHash == emptyArray || len(input.DeferredTransfers) == 0 {
-		return input.ServiceAccounts[input.ServiceID], 0
+	codeHash := account.ServiceInfo.CodeHash
+	programCode, programCodeExists := account.PreimageLookup[codeHash]
+	if !programCodeExists || len(programCode) == 0 || len(programCode) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
+		return account, 0
 	}
 
 	encoder := types.NewEncoder()
@@ -35,17 +34,17 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 
 	F := Omegas{}
 
-	s := input.ServiceAccounts[input.ServiceID]
-	s.ServiceInfo.Balance += balances
+	account.ServiceInfo.Balance += balances
 
 	// timeslot(t) bytes
 	timeslotSer, _ := encoder.Encode(input.Timeslot)
-	deferredTransferSer, _ := encoder.Encode(input.DeferredTransfers)
+	deferredTransferSer, _ := encoder.EncodeUint(uint64(len(input.DeferredTransfers)))
 	// serviceID(s) bytes
 	serviceIDSer, _ := encoder.Encode(input.ServiceID)
 
 	var serialized []byte
-	serialized = append(timeslotSer, serviceIDSer...)
+	serialized = append(serialized, timeslotSer...)
+	serialized = append(serialized, serviceIDSer...)
 	serialized = append(serialized, deferredTransferSer...)
 
 	for _, deferredTransfer := range input.DeferredTransfers {
@@ -55,6 +54,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 
 	// omegas
 	F[LookupOp] = HostCallFunctions[LookupOp]
+	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
 	F[ReadOp] = HostCallFunctions[ReadOp]
 	F[WriteOp] = HostCallFunctions[WriteOp]
 	F[GasOp] = HostCallFunctions[GasOp]
@@ -69,7 +69,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		},
 	}
 
-	result = Psi_M(account.ServiceInfo.CodeHash[:], 10, gasLimits, serialized, F, addition)
+	result := Psi_M(StandardCodeFormat(programCode), 10, gasLimits, serialized, F, addition)
 	account = result.Addition.ServiceAccount
 
 	return account, types.Gas(result.Gas)

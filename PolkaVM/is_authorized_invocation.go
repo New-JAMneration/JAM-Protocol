@@ -4,29 +4,33 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func Psi_I(p types.WorkPackage, c types.CoreIndex, code types.OpaqueHash) Psi_I_ReturnType {
-	serialized := []byte{}
+func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequence) Psi_I_ReturnType {
+	if len(authorizerCode) == 0 {
+		return Psi_I_ReturnType{
+			WorkExecResult: types.WorkExecResultBadCode,
+			Gas:            0,
+		}
+	} else if len(authorizerCode) > types.MaxIsAuthorizedCodeSize {
+		return Psi_I_ReturnType{
+			WorkExecResult: types.WorkExecResultCodeOversize,
+			Gas:            0,
+		}
+	}
+
 	encoder := types.NewEncoder()
-
-	encoded, err := encoder.Encode(&p)
+	encoded, err := encoder.Encode(&c)
 	if err != nil {
 		panic(err)
 	}
-	serialized = append(serialized, encoded...)
-
-	encoded, err = encoder.Encode(&c)
-	if err != nil {
-		panic(err)
-	}
-	serialized = append(serialized, encoded...)
 
 	F := Omegas{}
 	F[GasOp] = HostCallFunctions[GasOp]
+	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
 	F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
 
 	addition := HostCallArgs{}
 
-	resultM := Psi_M(code[:], 0, types.IsAuthorizedGas, Argument(serialized), F, addition)
+	resultM := Psi_M(StandardCodeFormat(authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), F, addition)
 	if resultM.ReasonOrBytes == PANIC {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultPanic,

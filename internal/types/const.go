@@ -115,18 +115,19 @@ const (
 
 // work package constants
 const (
-	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
-	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.4
-	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.4
-	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
-	TotalGas           = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
-	MaxImportCount     = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
-	MaxExportCount     = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
-	ECPiecesPerSegment = 6                                // W_P: The number of erasure-coded pieces in a segment
-	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
-	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
-	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
-	MaxServiceCodeSize = 4_000_000                        // W_C v0.6.4
+	MaxTotalSize            = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
+	MaxRefineGas            = 5_000_000_000                    // G_R v0.6.4
+	MaxAccumulateGas        = 10_000_000                       // G_A v0.6.4
+	IsAuthorizedGas         = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	TotalGas                = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
+	MaxImportCount          = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
+	MaxExportCount          = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
+	ECPiecesPerSegment      = 6                                // W_P: The number of erasure-coded pieces in a segment
+	ECBasicSize             = 684                              // W_E: The basic size of erasure-coded pieces in octets
+	SegmentSize             = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
+	MaxExtrinsics           = 128                              // T (14.4). graypaper 0.6.3
+	MaxServiceCodeSize      = 4_000_000                        // W_C v0.6.4
+	MaxIsAuthorizedCodeSize = 64_000                           // W_A 0.6.6 The maximum size of is-authorized code in octets
 )
 
 // genesis file path
