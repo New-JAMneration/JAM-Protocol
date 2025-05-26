@@ -29,6 +29,7 @@ func SetTestMode() {
 func SetTinyMode() {
 	log.Println("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
+<<<<<<< HEAD
 	ValidatorsCount = 6
 	CoresCount = 2
 	EpochLength = 12
@@ -40,6 +41,16 @@ func SetTinyMode() {
 	AuthQueueSize = 80
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes = 1
+=======
+	ValidatorsCount = 6 // V
+	CoresCount = 2 // C
+	EpochLength = 12 // E 
+	RotationPeriod = 4 // R
+	MaxTicketsPerBlock = 3 // K
+	TicketsPerValidator = 3 // N
+	ValidatorsSuperMajority = 5 
+	AvailBitfieldBytes = 1 
+>>>>>>> 97578b9 (refactor: check tiny/full const.go)
 }
 
 func SetFullMode() {
@@ -52,8 +63,11 @@ func SetFullMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
+<<<<<<< HEAD
 	AuthPoolMaxSize = 8
 	AuthQueueSize = 80
+=======
+>>>>>>> 97578b9 (refactor: check tiny/full const.go)
 	ValidatorsSuperMajority = 683
 	AvailBitfieldBytes = 43
 }
@@ -77,10 +91,15 @@ var (
 	// R: The rotation period of validator-core assignments, in timeslots.
 	RotationPeriod = 4
 
+<<<<<<< HEAD
 	// O
 	AuthPoolMaxSize = 8
 	// Q
 	AuthQueueSize = 80
+=======
+	MaxTicketsPerBlock  = 3
+	TicketsPerValidator = 3
+>>>>>>> 97578b9 (refactor: check tiny/full const.go)
 
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes      = 1
@@ -94,6 +113,7 @@ const (
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
+<<<<<<< HEAD
 	TranchePeriod                = 8 // A
 	// H
 	MaxBlocksHistory = 8
@@ -107,8 +127,25 @@ const (
 	JamGuarantee     = "jam_guarantee"
 	JamAnnounce      = "jam_announce" // XI
 	JamAudit         = "jam_audit"    // XU
+=======
+	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
+	TranchePeriod                = 8                   // A
+	JamEntropy                   = "jam_entropy"       // XE
+	JamFallbackSeal              = "jam_fallback_seal" // XF
+	JamTicketSeal                = "jam_ticket_seal"   // XT
+	JamValid                     = "jam_valid"
+	JamInvalid                   = "jam_invalid"
+	JamAvailable                 = "jam_available"
+	JamBeefy                     = "jam_beefy"
+	JamGuarantee                 = "jam_guarantee"
+	JamAnnounce                  = "jam_announce" // XI
+	JamAudit                     = "jam_audit"    // XU
+	AuthPoolMaxSize              = 8               // O: The maximum number of items in the authorizations pool
+	AuthQueueSize                = 80              // Q: The maximum number of items in the authorizations queue
+	MaxBlocksHistory             = 8               // H: The size of recent history, in blocks
+>>>>>>> 97578b9 (refactor: check tiny/full const.go)
 )
-
+// work item constants
 const (
 	MaximumWorkItems                 = 16        // I (graypaper 0.6.3)
 	MaximumDependencyItems           = 8         // J
@@ -122,7 +159,7 @@ const (
 	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
 	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.4
 	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.4
-	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package's Is-Authorized logic.
 	TotalGas           = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	MaxImportCount     = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
 	MaxExportCount     = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
