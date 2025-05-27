@@ -29,14 +29,14 @@ func SetTestMode() {
 func SetTinyMode() {
 	log.Println("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
-	ValidatorsCount = 6 // V
-	CoresCount = 2 // C
-	EpochLength = 12 // E 
-	RotationPeriod = 4 // R
-	MaxTicketsPerBlock = 3 // K
+	ValidatorsCount = 6     // V
+	CoresCount = 2          // C
+	EpochLength = 12        // E
+	RotationPeriod = 4      // R
+	MaxTicketsPerBlock = 3  // K
 	TicketsPerValidator = 3 // N
-	ValidatorsSuperMajority = 5 
-	AvailBitfieldBytes = 1 
+	ValidatorsSuperMajority = 5
+	AvailBitfieldBytes = 1
 }
 
 func SetFullMode() {
@@ -57,26 +57,25 @@ func SetFullMode() {
 
 // tiny
 var (
-	// V
+	// ValidatorsCount (V) represents the total number of validators.
 	ValidatorsCount = 6
-	// C
+	// CoresCount (C) represents the number of cores.
 	CoresCount = 2
-	// N
+	// TicketsPerValidator (N) represents the number of tickets per validator.
 	TicketsPerValidator = 3
-	// E
+	// EpochLength (E) represents the length of an epoch.
 	EpochLength = 12
-	// Y: The number of slots into an epoch at which ticket-submission ends.
+	// SlotSubmissionEnd (Y) represents the number of slots into an epoch at which ticket-submission ends.
 	SlotSubmissionEnd = 10
-	// K
+	// MaxTicketsPerBlock (K) represents the maximum number of tickets per block.
 	MaxTicketsPerBlock = 3
-	// R: The rotation period of validator-core assignments, in timeslots.
+	// RotationPeriod (R) represents the rotation period of validator-core assignments, in timeslots.
 	RotationPeriod = 4
 
-	MaxTicketsPerBlock  = 3
-	TicketsPerValidator = 3
-
+	// ValidatorsSuperMajority represents the required majority of validators.
 	ValidatorsSuperMajority = 5
-	AvailBitfieldBytes      = 1
+	// AvailBitfieldBytes represents the number of bytes in the availability bitfield.
+	AvailBitfieldBytes = 1
 )
 
 var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -86,23 +85,29 @@ const (
 	AdditionalMinBalancePerItem  = 10  // B_I
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
-	SlotPeriod                   = 6
-	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
-	TranchePeriod                = 8                   // A
-	JamEntropy                   = "jam_entropy"       // XE
-	JamFallbackSeal              = "jam_fallback_seal" // XF
-	JamTicketSeal                = "jam_ticket_seal"   // XT
-	JamValid                     = "jam_valid"
-	JamInvalid                   = "jam_invalid"
-	JamAvailable                 = "jam_available"
-	JamBeefy                     = "jam_beefy"
-	JamGuarantee                 = "jam_guarantee"
-	JamAnnounce                  = "jam_announce" // XI
-	JamAudit                     = "jam_audit"    // XU
-	AuthPoolMaxSize              = 8               // O: The maximum number of items in the authorizations pool
-	AuthQueueSize                = 80              // Q: The maximum number of items in the authorizations queue
-	MaxBlocksHistory             = 8               // H: The size of recent history, in blocks
+
+	// Time-related constants
+	SlotPeriod       = 6
+	TranchePeriod    = 8 // A
+	MaxBlocksHistory = 8 // H: Size of recent history, in blocks
+
+	// JAM protocol identifiers
+	JamEntropy      = "jam_entropy"       // XE
+	JamFallbackSeal = "jam_fallback_seal" // XF
+	JamTicketSeal   = "jam_ticket_seal"   // XT
+	JamValid        = "jam_valid"
+	JamInvalid      = "jam_invalid"
+	JamAvailable    = "jam_available"
+	JamBeefy        = "jam_beefy"
+	JamGuarantee    = "jam_guarantee"
+	JamAnnounce     = "jam_announce" // XI
+	JamAudit        = "jam_audit"    // XU
+
+	// Pool and queue sizes
+	AuthPoolMaxSize = 8  // O: Maximum number of items in authorizations pool
+	AuthQueueSize   = 80 // Q: Maximum number of items in authorizations queue
 )
+
 // work item constants
 const (
 	MaximumWorkItems                 = 16        // I (graypaper 0.6.3)
