@@ -29,19 +29,6 @@ func SetTestMode() {
 func SetTinyMode() {
 	log.Println("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
-<<<<<<< HEAD
-	ValidatorsCount = 6
-	CoresCount = 2
-	EpochLength = 12
-	SlotSubmissionEnd = 10
-	RotationPeriod = 4
-	MaxTicketsPerBlock = 3
-	TicketsPerValidator = 3
-	AuthPoolMaxSize = 8
-	AuthQueueSize = 80
-	ValidatorsSuperMajority = 5
-	AvailBitfieldBytes = 1
-=======
 	ValidatorsCount = 6 // V
 	CoresCount = 2 // C
 	EpochLength = 12 // E 
@@ -50,7 +37,6 @@ func SetTinyMode() {
 	TicketsPerValidator = 3 // N
 	ValidatorsSuperMajority = 5 
 	AvailBitfieldBytes = 1 
->>>>>>> 97578b9 (refactor: check tiny/full const.go)
 }
 
 func SetFullMode() {
@@ -63,11 +49,6 @@ func SetFullMode() {
 	RotationPeriod = 4
 	MaxTicketsPerBlock = 16
 	TicketsPerValidator = 2
-<<<<<<< HEAD
-	AuthPoolMaxSize = 8
-	AuthQueueSize = 80
-=======
->>>>>>> 97578b9 (refactor: check tiny/full const.go)
 	ValidatorsSuperMajority = 683
 	AvailBitfieldBytes = 43
 }
@@ -91,15 +72,8 @@ var (
 	// R: The rotation period of validator-core assignments, in timeslots.
 	RotationPeriod = 4
 
-<<<<<<< HEAD
-	// O
-	AuthPoolMaxSize = 8
-	// Q
-	AuthQueueSize = 80
-=======
 	MaxTicketsPerBlock  = 3
 	TicketsPerValidator = 3
->>>>>>> 97578b9 (refactor: check tiny/full const.go)
 
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes      = 1
@@ -113,21 +87,6 @@ const (
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 	SlotPeriod                   = 6
-<<<<<<< HEAD
-	TranchePeriod                = 8 // A
-	// H
-	MaxBlocksHistory = 8
-	JamEntropy       = "jam_entropy"       // XE
-	JamFallbackSeal  = "jam_fallback_seal" // XF
-	JamTicketSeal    = "jam_ticket_seal"   // XT
-	JamValid         = "jam_valid"
-	JamInvalid       = "jam_invalid"
-	JamAvailable     = "jam_available"
-	JamBeefy         = "jam_beefy"
-	JamGuarantee     = "jam_guarantee"
-	JamAnnounce      = "jam_announce" // XI
-	JamAudit         = "jam_audit"    // XU
-=======
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 	TranchePeriod                = 8                   // A
 	JamEntropy                   = "jam_entropy"       // XE
@@ -143,7 +102,6 @@ const (
 	AuthPoolMaxSize              = 8               // O: The maximum number of items in the authorizations pool
 	AuthQueueSize                = 80              // Q: The maximum number of items in the authorizations queue
 	MaxBlocksHistory             = 8               // H: The size of recent history, in blocks
->>>>>>> 97578b9 (refactor: check tiny/full const.go)
 )
 // work item constants
 const (
