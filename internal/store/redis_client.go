@@ -64,7 +64,7 @@ func (r *RedisClient) Get(key string) ([]byte, error) {
 			// Key not found
 			return nil, nil
 		}
-		return nil, fmt.Errorf("Get failed: %w", err)
+		return nil, fmt.Errorf("[RedisClient Get] failed: %w", err)
 	}
 	return val, nil
 }
