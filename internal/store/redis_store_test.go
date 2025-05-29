@@ -1,6 +1,7 @@
 package store
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -8,35 +9,26 @@ import (
 )
 
 func tearDown() {
-	globalRedisClient = nil
 	redisInitOnce = sync.Once{}
+	CloseMiniRedis()
 }
 
-func TestGetRedisClient_Success(t *testing.T) {
+func TestGetRedisBackendSuccess(t *testing.T) {
 	defer tearDown()
-	// This test ensures we can successfully connect to miniredis
-	rdb, cleanup := setupTestRedis(t)
-	defer cleanup()
-
-	// We already connected in setupTestRedis. Now let's just confirm we have a client.
-	assert.NotNil(t, rdb, "Expected a non-nil RedisClient")
-
-	_, err := GetRedisClient()
+	os.Setenv("USE_MINI_REDIS", "true")
+	_, err := GetRedisBackend()
 	assert.NoError(t, err, "should not fail calling GetRedisClient again")
 }
 
 func TestGetRedisClient_Idempotent(t *testing.T) {
 	defer tearDown()
+	os.Setenv("USE_MINI_REDIS", "true")
 
-	// Show that subsequent calls to GetRedisClient return the same pointer
-	_, cleanup := setupTestRedis(t)
-	defer cleanup()
-
-	rdb, err := GetRedisClient()
+	backend, err := GetRedisBackend()
 	assert.NoError(t, err, "should not fail calling GetRedisClient again")
 
-	rdb2, err := GetRedisClient()
+	backend2, err := GetRedisBackend()
 	assert.NoError(t, err, "should not fail calling GetRedisClient again")
 
-	assert.Equal(t, rdb, rdb2, "expected the same *RedisClient object due to sync.Once")
+	assert.Equal(t, backend, backend2, "expected the same *RedisClient object due to sync.Once")
 }
