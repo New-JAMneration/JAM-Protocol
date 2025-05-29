@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -129,6 +130,35 @@ func (r *RedisBackend) SetFinalizedHead(ctx context.Context, hash types.OpaqueHa
 	key := "meta:finalizedHead"
 	// store the raw 32 bytes
 	return r.client.Put(key, hash[:])
+}
+
+func (r *RedisBackend) SetGenesisBlock(ctx context.Context, block *types.Block) error {
+	key := "meta:genesisBlock"
+	data, err := r.encoder.Encode(block)
+	if err != nil {
+		return fmt.Errorf("failed to marshal genesis block: %w", err)
+	}
+	if err := r.client.Put(key, data); err != nil {
+		return fmt.Errorf("failed to store genesis block: %w", err)
+	}
+	log.Printf("Genesis block stored with key %s", key)
+	return nil
+}
+
+func (r *RedisBackend) GetGenesisBlock(ctx context.Context) (*types.Block, error) {
+	key := "meta:genesisBlock"
+	data, err := r.client.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, nil
+	}
+	block := &types.Block{}
+	if err := r.decoder.Decode(data, block); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal genesis block: %w", err)
+	}
+	return block, nil
 }
 
 func (r *RedisBackend) GetFinalizedHead(ctx context.Context) (*types.OpaqueHash, error) {

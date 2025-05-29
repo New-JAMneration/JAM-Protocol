@@ -125,7 +125,11 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
 	// TODO:This is a temporary fix, should be changed to use genesis block from redis
-	genesisBlock, err := store.GetGenesisBlockFromJson("../../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json")
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return nil, fmt.Errorf("error getting redis backend: %v", err)
+	}
+	genesisBlock, err := redisBackend.GetGenesisBlock(nil)
 	if err != nil {
 		return nil, err
 	}
