@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"math/big"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/cert"
 	"github.com/quic-go/quic-go"
 )
 
@@ -25,25 +26,14 @@ import (
 //   - The "/builder" suffix is used by the initiator when connecting as a work-package builder.
 //
 // TODO: Update the ALPN logic to derive the correct protocol identifier based on chain data.
-func NewTLSConfig(isServer bool) (*tls.Config, error) {
-	// TODO: ALPN
-	const defaultALPN = "jamnp-s/0/00000000"
-
-	if isServer {
-		cert, err := GenerateSelfSignedCert()
-		if err != nil {
-			return nil, err
-		}
-		return &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			NextProtos:   []string{defaultALPN},
-		}, nil
+func NewTLSConfig(isServer, isBuilder bool) (*tls.Config, error) {
+	// randomly generated seed for Ed25519 key generation
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		return nil, err
 	}
 
-	return &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos:         []string{defaultALPN},
-	}, nil
+	return cert.TLSConfigGen(seed, isServer, isBuilder)
 }
 
 // generateSelfSignedCerert
