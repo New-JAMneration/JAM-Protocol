@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"strings"
@@ -70,13 +71,15 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 
 	// Create certificate template
 	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour), // Valid for 1 year
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		DNSNames:     []string{dnsName},
-		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}, // localhost IPv4 and IPv6
+		SerialNumber:          serialNumber,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour), // Valid for 1 year
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:              []string{dnsName},
+		SignatureAlgorithm:    x509.PureEd25519,                                       // Use Ed25519 signature algorithm
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}, // localhost IPv4 and IPv6
+		BasicConstraintsValid: true,
 	}
 
 	// Create the certificate
@@ -124,14 +127,13 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // ALPNGen generates an ALPN string based on a genesis header and builder flag
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
-	// TODO:This is a temporary fix, should be changed to use genesis block from redis
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
 		return nil, fmt.Errorf("error getting redis backend: %v", err)
 	}
 	genesisBlock, err := redisBackend.GetGenesisBlock(nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting genesis block: %v", err)
 	}
 
 	genesisBlockHeaderHash := hash.Blake2bHashPartial(utils.HeaderSerialization(genesisBlock.Header), 8)
@@ -172,11 +174,12 @@ func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, erro
 			if len(rawCerts) == 0 {
 				return errors.New("no certificate provided")
 			}
+
 			cert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
 				return err
 			}
-
+			log.Printf("peer certificate subject!")
 			return ValidateX509Certificate(cert)
 		},
 		MinVersion: tls.VersionTLS13,
@@ -187,31 +190,28 @@ func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, erro
 	}
 
 	if isServer {
-		// Server ALPN
-		serverALPN, err := ALPNGen(isBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("error generating ALPN: %v", err)
-		}
-
-		tlsConfig.ClientAuth = tls.VerifyClientCertIfGiven
+		serverALPN, _ := ALPNGen(isBuilder)
+		tlsConfig.NextProtos = serverALPN
+		tlsConfig.ClientAuth = tls.RequireAnyClientCert
 		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
+				log.Printf("peer did not present any certificates")
 				return errors.New("peer did not present any certificates")
 			}
 
 			if len(state.NegotiatedProtocol) == 0 {
+				log.Printf("ALPN negotiation failed, no protocol negotiated")
 				return errors.New("failed to negotiate protocol (ALPN)")
 			}
 
 			if state.Version != tls.VersionTLS13 {
+				log.Printf("TLS version is not 1.3, got: %s", tls.VersionName(state.Version))
 				return errors.New("TLS version is not 1.3")
 			}
 
+			log.Printf("TLS connection established with protocol: %s", state.NegotiatedProtocol)
 			return nil
 		}
-		tlsConfig.NextProtos = serverALPN
-
-		return tlsConfig, nil
 	}
 
 	return tlsConfig, nil

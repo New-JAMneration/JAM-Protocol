@@ -15,10 +15,12 @@ import (
 	"io"
 	"log"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -167,14 +169,18 @@ func generateTLSConfig() *tls.Config {
 
 // TestRealQuicStreamBlockRequest uses a real QUIC connection to test the block request handler.
 func TestRealQuicStreamBlockRequest(t *testing.T) {
+	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
+	defer store.CloseMiniRedis()
+
 	// Setup TLS configurations.
-	clientTLS, err := quic.NewTLSConfig(false)
+	clientTLS, err := quic.NewTLSConfig(false, false)
+	clientTLS.InsecureSkipVerify = true
 	if err != nil {
 		t.Fatalf("Client TLS config error: %v", err)
 	}
 
 	// Listen on an ephemeral port.
-	listener, err := quic.NewListener("localhost:0", quic.NewTLSConfig, nil)
+	listener, err := quic.NewListener("localhost:0", false, quic.NewTLSConfig, nil)
 	if err != nil {
 		t.Fatalf("Listener error: %v", err)
 	}
