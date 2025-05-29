@@ -15,7 +15,6 @@ import (
 
 var (
 	redisInitOnce      sync.Once
-	globalRedisClient  *RedisClient
 	globalRedisBackend *RedisBackend
 	globalMiniRedis    *miniredis.Miniredis
 )
@@ -25,8 +24,6 @@ func GetRedisBackend() (*RedisBackend, error) {
 		redisConfig := config.Config.Redis
 		client := NewRedisClient(redisConfig.Address, redisConfig.Password, redisConfig.Port)
 		if err := client.Ping(); err != nil {
-			log.Printf("failed to connect to Redis: %v", err)
-
 			// If Redis connection fails, check if we should use miniredis for testing
 			useMini := os.Getenv("USE_MINI_REDIS")
 			if useMini == "true" {
@@ -43,12 +40,7 @@ func GetRedisBackend() (*RedisBackend, error) {
 				return
 			}
 		}
-
-		// If we reach here, we have a valid Redis client (either real or miniredis)
-		globalRedisClient = client
 		globalRedisBackend = NewRedisBackend(client)
-
-		// Set the genesis block in Redis
 		genesisBlock := genGenesisBlock()
 		err := globalRedisBackend.SetGenesisBlock(context.Background(), genesisBlock)
 		if err != nil {
