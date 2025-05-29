@@ -13,8 +13,8 @@ type Listener struct {
 }
 
 // NewListener QUIC listener, addr (e.g. "localhost:4242")
-func NewListener(addr string, tlsConfigProvider func(isServer bool) (*tls.Config, error), quicConfig *quic.Config) (*Listener, error) {
-	tlsConfig, err := tlsConfigProvider(true)
+func NewListener(addr string, isBuilder bool, tlsConfigProvider func(isServer, isBuilder bool) (*tls.Config, error), quicConfig *quic.Config) (*Listener, error) {
+	tlsConfig, err := tlsConfigProvider(true, isBuilder)
 	if err != nil {
 		return nil, err
 	}

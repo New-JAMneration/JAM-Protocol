@@ -3,17 +3,23 @@ package quic
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func TestStreamReadWrite(t *testing.T) {
+	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
+	defer store.CloseMiniRedis()
+
 	// context
 	ctx := context.Background()
 	// Start a QUIC listener (server) on "localhost:0" to let the OS assign a free port.
 	listenAddr := "localhost:0"
 	quicCfg := NewQuicConfig()
-	listener, err := NewListener(listenAddr, NewTLSConfig, quicCfg)
+	listener, err := NewListener(listenAddr, false, NewTLSConfig, quicCfg)
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
 	}
@@ -51,7 +57,8 @@ func TestStreamReadWrite(t *testing.T) {
 	}()
 
 	// Create a client connection and open a stream.
-	tlsCfg, err := NewTLSConfig(false)
+	tlsCfg, err := NewTLSConfig(false, false)
+	tlsCfg.InsecureSkipVerify = true // For testing, skip TLS verification.
 	if err != nil {
 		t.Fatalf("Failed to create client TLS config: %v", err)
 	}
