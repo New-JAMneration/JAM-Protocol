@@ -93,6 +93,8 @@ func Psi_A(
 		AccumulateArgs: AccumulateArgs{
 			ResultContextX: I(partialState, serviceId, time, eta),
 			ResultContextY: I(partialState, serviceId, time, eta),
+			Eta:            eta,
+			Operands:       operands,
 		},
 	}
 

@@ -12,7 +12,7 @@ type RefineInput struct {
 	WorkItemIndex       uint                    // i
 	WorkPackage         types.WorkPackage       // p
 	AuthOutput          types.ByteSequence      // o
-	ImportSegments      [][]types.ExportSegment // bold{i}
+	ImportSegments      [][]types.ExportSegment // overline{bold{i}}
 	ExportSegmentOffset uint                    // zeta
 	ServiceAccounts     types.ServiceAccountState
 	ExtrinsicDataMap    // extrinsic data map
@@ -108,6 +108,11 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
 	F[OperationType(len(HostCallFunctions)-1)] = RefineHostCallException
 
+	var extrinsics []types.ExtrinsicSpec
+	for _, item := range input.WorkPackage.Items {
+		extrinsics = append(extrinsics, item.Extrinsic...)
+	}
+
 	// addition
 	// Though Psi_M addition input is nil, still need the RefineInput for historical_lookup op (only for historical_lookup)
 	addition := HostCallArgs{
@@ -121,6 +126,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 			IntegratedPVMMap: IntegratedPVMMap{},
 			ExportSegment:    []types.ExportSegment{},
 			TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
+			Extrinsics:       extrinsics,
 		},
 	}
 	//	WorkExecResultOutOfGas                        = "out-of-gas"

@@ -83,6 +83,8 @@ type AccumulateArgs struct {
 	ResultContextX ResultContext
 	ResultContextY ResultContext
 	Timeslot       types.TimeSlot
+	Eta            types.Entropy   // italic n / eta_0, used in fetch
+	Operands       []types.Operand // o, used in fetch
 }
 
 type RefineArgs struct {
@@ -91,13 +93,19 @@ type RefineArgs struct {
 	ExportSegment    []types.ExportSegment // e
 	ServiceID        types.ServiceId       // s
 	TimeSlot         types.TimeSlot        // t
-	ExtrinsicDataMap                       // extrinsic data map
+	Extrinsics       []types.ExtrinsicSpec // overline{x}, used in fetch
+	// ExtrinsicDataMap is already present under RefineInput
+}
+
+type OnTransferArgs struct {
+	DeferredTransfer []types.DeferredTransfer // bold{t}
 }
 
 type HostCallArgs struct {
 	GeneralArgs
 	AccumulateArgs
 	RefineArgs
+	OnTransferArgs
 }
 
 type Psi_H_ReturnType struct {
@@ -1565,6 +1573,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
+// TODO: implement the new fetch function in 0.6.6
 // fetch = 18
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)

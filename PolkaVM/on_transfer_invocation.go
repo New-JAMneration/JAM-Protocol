@@ -3,6 +3,7 @@ package PolkaVM
 import (
 	"log"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -52,6 +53,9 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		balances += deferredTransfer.Balance
 	}
 
+	store := store.GetInstance()
+	eta0 := store.GetPriorStates().GetEta()[0]
+
 	// omegas
 	F[LookupOp] = HostCallFunctions[LookupOp]
 	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
@@ -66,6 +70,13 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 			ServiceAccount:      input.ServiceAccounts[input.ServiceID],
 			ServiceId:           input.ServiceID,
 			ServiceAccountState: input.ServiceAccounts,
+		},
+		AccumulateArgs: AccumulateArgs{
+			Eta: eta0,
+		},
+		// TODO: double-check whether Eta0 is a typo
+		OnTransferArgs: OnTransferArgs{
+			DeferredTransfer: input.DeferredTransfers,
 		},
 	}
 
