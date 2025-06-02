@@ -32,6 +32,7 @@ func SetTinyMode() {
 	ValidatorsCount = 6     // V
 	CoresCount = 2          // C
 	EpochLength = 12        // E
+	SlotSubmissionEnd = 10  // Y
 	RotationPeriod = 4      // R
 	MaxTicketsPerBlock = 3  // K
 	TicketsPerValidator = 3 // N
