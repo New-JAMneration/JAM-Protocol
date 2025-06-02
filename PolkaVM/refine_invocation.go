@@ -9,11 +9,11 @@ import (
 )
 
 type RefineInput struct {
-	WorkItemIndex       uint                    // i
-	WorkPackage         types.WorkPackage       // p
-	AuthOutput          types.ByteSequence      // o
-	ImportSegments      [][]types.ExportSegment // overline{bold{i}}
-	ExportSegmentOffset uint                    // zeta
+	WorkItemIndex       uint                  // i
+	WorkPackage         types.WorkPackage     // p
+	AuthOutput          types.ByteSequence    // o
+	ImportSegments      []types.ExportSegment // overline{bold{i}} TODO: what is the type of this?
+	ExportSegmentOffset uint                  // zeta
 	ServiceAccounts     types.ServiceAccountState
 	ExtrinsicDataMap    // extrinsic data map
 }
@@ -122,11 +122,16 @@ func RefineInvoke(input RefineInput) RefineOutput {
 			ServiceAccountState: input.ServiceAccounts,
 		},
 		RefineArgs: RefineArgs{
-			RefineInput:      input,
-			IntegratedPVMMap: IntegratedPVMMap{},
-			ExportSegment:    []types.ExportSegment{},
-			TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
-			Extrinsics:       extrinsics,
+			WorkItemIndex:       types.Some(input.WorkItemIndex),
+			WorkPackage:         types.Some(input.WorkPackage),
+			AuthOutput:          types.Some(input.AuthOutput),
+			ImportSegments:      input.ImportSegments,
+			ExportSegmentOffset: input.ExportSegmentOffset,
+			ExtrinsicDataMap:    input.ExtrinsicDataMap,
+			IntegratedPVMMap:    IntegratedPVMMap{},
+			ExportSegment:       []types.ExportSegment{},
+			TimeSlot:            input.WorkPackage.Context.LookupAnchorSlot,
+			Extrinsics:          extrinsics,
 		},
 	}
 	//	WorkExecResultOutOfGas                        = "out-of-gas"

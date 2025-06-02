@@ -3,6 +3,7 @@ package PolkaVM
 import (
 	"bytes"
 	"log"
+	"reflect"
 
 	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -88,13 +89,17 @@ type AccumulateArgs struct {
 }
 
 type RefineArgs struct {
-	RefineInput                            // i, p(package), o, bold{i}, zeta
-	IntegratedPVMMap                       // D ( N -> M ) : N -> (p(program_code), u, i)
-	ExportSegment    []types.ExportSegment // e
-	ServiceID        types.ServiceId       // s
-	TimeSlot         types.TimeSlot        // t
-	Extrinsics       []types.ExtrinsicSpec // overline{x}, used in fetch
-	// ExtrinsicDataMap is already present under RefineInput
+	WorkItemIndex       *uint                 // i
+	WorkPackage         *types.WorkPackage    // p
+	AuthOutput          *types.ByteSequence   // r
+	ImportSegments      []types.ExportSegment // overline{bold{i}}
+	ExportSegmentOffset uint                  // zeta
+	ExtrinsicDataMap    ExtrinsicDataMap      // extrinsic data map
+	IntegratedPVMMap    IntegratedPVMMap      // D ( N -> M ) : N -> (p(program_code), u, i)
+	ExportSegment       []types.ExportSegment // e
+	ServiceID           types.ServiceId       // s
+	TimeSlot            types.TimeSlot        // t
+	Extrinsics          []types.ExtrinsicSpec // overline{x}, used in fetch
 }
 
 type OnTransferArgs struct {
@@ -1573,7 +1578,22 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// TODO: implement the new fetch function in 0.6.6
+// Encoding of a work item, used in the fetch function.
+// This is added because the encoding for WorkItem used in fetch
+// is a little different from the default encoding
+func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
+	return encoder.EncodeMany(
+		types.U32(item.Service),             // w_s
+		item.CodeHash,                       // w_h
+		types.U64(item.RefineGasLimit),      // w_g
+		types.U64(item.AccumulateGasLimit),  // w_a
+		types.U16(item.ExportCount),         // w_e
+		types.U16(len(item.ImportSegments)), // |w_i|
+		types.U16(len(item.Extrinsic)),      // |w_x|
+		types.U32(len(item.Payload)),        // |w_y|
+	)
+}
+
 // fetch = 18
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
@@ -1589,69 +1609,274 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - gasFee
 
 	// pre-processing
+	var (
+		v   []byte
+		err error
+	)
 	encoder := types.NewEncoder()
-	// condition reg[10] == 3
-	// w_11 < |p_w|
-	condition31 := input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items))
-	// workItem3 = p_w[w_11]
-	workItem3 := input.Addition.WorkPackage.Items[input.Registers[11]]
-	// w_12 < |p_w[w_11]x|
-	condition32 := input.Registers[12] < uint64(len(workItem3.Extrinsic))
-	// extrinsic data exists
-	extrinsicData3, condition33 := input.Addition.ExtrinsicDataMap[workItem3.Extrinsic[input.Registers[12]].Hash]
 
-	// condition reg[10] == 4
-	// workItem4 = p_w[i]
-	workItem4 := input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex]
+	switch input.Registers[10] {
+	case 0:
+		v, err = encoder.EncodeMany(
+			types.U64(types.AdditionalMinBalancePerItem),      // B_I
+			types.U64(types.AdditionalMinBalancePerOctet),     // B_L
+			types.U64(types.BasicMinBalance),                  // B_S
+			types.U16(types.CoresCount),                       // C
+			types.U32(types.UnreferencedPreimageTimeslots),    // D
+			types.U32(types.EpochLength),                      // E
+			types.U64(types.MaxAccumulateGas),                 // G_A
+			types.U64(types.IsAuthorizedGas),                  // G_I
+			types.U64(types.MaxRefineGas),                     // G_R
+			types.U64(types.TotalGas),                         // G_T
+			types.U16(types.MaxBlocksHistory),                 // H
+			types.U16(types.MaximumWorkItems),                 // I
+			types.U16(types.MaximumDependencyItems),           // J
+			types.U32(types.MaxLookupAge),                     // L
+			types.U16(types.AuthPoolMaxSize),                  // O
+			types.U16(types.SlotPeriod),                       // P
+			types.U16(types.AuthQueueSize),                    // Q
+			types.U16(types.RotationPeriod),                   // R
+			types.U16(1024),                                   // S, TODO: Find out where this is kept
+			types.U16(types.MaxExtrinsics),                    // T
+			types.U16(types.WorkReportTimeout),                // U
+			types.U16(types.ValidatorsCount),                  // V
+			types.U32(types.MaxIsAuthorizedCodeSize),          // W_A
+			types.U32(types.MaxTotalSize),                     // W_B
+			types.U32(types.MaxServiceCodeSize),               // W_C
+			types.U32(types.ECBasicSize),                      // W_E
+			types.U32(types.SegmentSize),                      // W_G
+			types.U32(types.MaxImportCount),                   // W_M
+			types.U32(types.ECPiecesPerSegment),               // W_P
+			types.U32(types.WorkReportOutputBlobsMaximumSize), // W_R
+			types.U32(types.TransferMemoSize),                 // W_T
+			types.U32(types.MaxExportCount),                   // W_X
+			types.U32(types.SlotSubmissionEnd),                // Y
+		)
+		break
+	case 1:
+		if reflect.ValueOf(input.Addition.Eta).IsZero() {
+			break
+		}
 
-	// condition4 := extrinsicSpec4.Hash == workItem4.Extrinsic[input.Registers[11]].Hash && extrinsicSpec4.Len == workItem4.Extrinsic[input.Registers[11]].Len
-	extrinsicData4, condition4 := input.Addition.ExtrinsicDataMap[workItem4.Extrinsic[input.Registers[11]].Hash]
+		v, err = encoder.Encode(input.Addition.Eta)
+		break
+	case 2:
+		if input.Addition.AuthOutput == nil {
+			break
+		}
 
-	var v []byte
-	var dataLength uint64
+		v, err = encoder.Encode(input.Addition.AuthOutput)
+		break
+	case 3:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
 
-	switch {
-	case input.Registers[10] == 0:
-		wp, _ := encoder.Encode(input.Addition.WorkPackage)
-		// v = |E(p)
-		v = wp
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.Extrinsics)) {
+			break
+		}
 
-	case input.Registers[10] == 1:
-		// v = o
-		v = input.Addition.AuthOutput
-		dataLength = uint64(len(v))
+		w12 := input.Registers[12]
+		if w12 >= uint64(input.Addition.Extrinsics[w11].Len) {
+			break
+		}
 
-	case input.Registers[10] == 2 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items)):
-		// v = p_w[w_11]y
-		v = input.Addition.WorkPackage.Items[input.Registers[11]].Payload
-		dataLength = uint64(len(v))
+		// TODO: double-check whether taking the hash here is correct
+		v, err = encoder.Encode(input.Addition.Extrinsics[w11].Hash[w12])
+		break
+	case 4:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
+		i := *input.Addition.WorkItemIndex
 
-	case input.Registers[10] == 3 && condition31 && condition32 && condition33:
-		// v = x = p_w[w_11]_x
-		v = extrinsicData3
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(input.Addition.Extrinsics[i].Len) {
+			break
+		}
 
-	case input.Registers[10] == 4 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex].Extrinsic)) && condition4:
-		// v = x = p_w[i]x
-		v = extrinsicData4
-		dataLength = uint64(len(v))
+		v, err = encoder.Encode(input.Addition.Extrinsics[i].Hash[w11])
+		break
+	case 5:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
 
-	case input.Registers[10] == 5 && input.Registers[11] < uint64(len(input.Addition.ImportSegments)) && input.Registers[12] < uint64(len(input.Addition.ImportSegments[input.Registers[11]])):
-		v = input.Addition.ImportSegments[input.Registers[11]][input.Registers[12]][:]
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.ImportSegments)) {
+			break
+		}
 
-	case input.Registers[10] == 6 && input.Registers[11] < uint64(len(input.Addition.ImportSegments[input.Addition.WorkItemIndex])):
-		v = input.Addition.ImportSegments[input.Addition.WorkItemIndex][input.Registers[11]][:]
-		dataLength = uint64(len(v))
+		w12 := input.Registers[12]
+		if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
+			break
+		}
 
-	case input.Registers[10] == 7:
-		v = input.Addition.WorkPackage.Authorizer.Params
-		dataLength = uint64(len(input.Addition.WorkPackage.Authorizer.Params))
-	default: // default = nil
-		dataLength = 0
+		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
+		break
+	case 6:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
+
+		i := *input.Addition.WorkItemIndex
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.ImportSegments[i])) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.ImportSegments[i][w11])
+		break
+	case 7:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(*input.Addition.WorkPackage)
+		break
+	case 8:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.EncodeMany(
+			input.Addition.WorkPackage.Authorizer.CodeHash,
+			input.Addition.WorkPackage.Authorizer.Params,
+		)
+		break
+	case 9:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Authorization)
+		break
+	case 10:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Context)
+		break
+	case 11:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.WorkPackage.Items)))
+		if err != nil {
+			break
+		}
+
+		for _, w := range input.Addition.WorkPackage.Items {
+			sw, err := S(encoder, w)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, sw...)
+		}
+
+		v = buffer
+		break
+	case 12:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+			break
+		}
+
+		v, err = S(encoder, input.Addition.WorkPackage.Items[w11])
+		break
+	case 13:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Items[w11].Payload)
+		break
+	case 14:
+		if len(input.Addition.Operands) == 0 {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.Operands)))
+		if err != nil {
+			break
+		}
+
+		for _, o := range input.Addition.Operands {
+			bytes, err := encoder.Encode(o)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, bytes...)
+		}
+
+		v = buffer
+		break
+	case 15:
+		if len(input.Addition.Operands) == 0 {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.Operands)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.Operands[w11])
+		break
+	case 16:
+		if len(input.Addition.DeferredTransfer) == 0 {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.DeferredTransfer)))
+		if err != nil {
+			break
+		}
+
+		for _, t := range input.Addition.DeferredTransfer {
+			bytes, err := encoder.Encode(t)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, bytes...)
+		}
+
+		v = buffer
+		break
+	case 17:
+		if len(input.Addition.DeferredTransfer) == 0 {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.DeferredTransfer)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.DeferredTransfer[w11])
+		break
 	}
 
+	if err != nil {
+		v = nil
+	}
+
+	dataLength := uint64(len(v))
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
@@ -1668,7 +1893,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if v = nil
-	if v == nil {
+	if len(v) == 0 {
 		input.Registers[7] = NONE
 
 		return OmegaOutput{

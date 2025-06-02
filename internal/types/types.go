@@ -189,7 +189,7 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 // Used in v0.6.3 (14.2)
 type Authorizer struct {
 	CodeHash OpaqueHash   `json:"code_hash,omitempty"` // authorization code hash
-	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob
+	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob, the term is updated to auth config in 0.6.5
 }
 
 type AuthorizerHash OpaqueHash
@@ -1488,3 +1488,7 @@ type StateKeyVal struct {
 }
 
 type StateKeyVals []StateKeyVal
+
+func Some[T any](v T) *T {
+	return &v
+}

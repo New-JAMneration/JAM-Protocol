@@ -29,7 +29,7 @@ func SetTestMode() {
 func SetTinyMode() {
 	log.Println("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
-	ValidatorsCount = 6
+	ValidatorsCount = 6 // V
 	CoresCount = 2
 	EpochLength = 12
 	RotationPeriod = 4
@@ -45,7 +45,7 @@ func SetTinyMode() {
 func SetFullMode() {
 	log.Println("⚙️  Full mode activated")
 	TEST_MODE = "full"
-	ValidatorsCount = 1023
+	ValidatorsCount = 1023 // V
 	CoresCount = 341
 	EpochLength = 600
 	RotationPeriod = 4
@@ -87,10 +87,10 @@ var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 // permanent constants
 const (
-	AdditionalMinBalancePerItem  = 10  // B_I
-	AdditionalMinBalancePerOctet = 1   // B_L
-	BasicMinBalance              = 100 // B_S
-	SlotPeriod                   = 6
+	AdditionalMinBalancePerItem  = 10                  // B_I
+	AdditionalMinBalancePerOctet = 1                   // B_L
+	BasicMinBalance              = 100                 // B_S
+	SlotPeriod                   = 6                   // P
 	SlotSubmissionEnd            = 10                  // Y = 500: The number of slots into an epoch at which ticket-submission ends.
 	TranchePeriod                = 8                   // A
 	JamEntropy                   = "jam_entropy"       // XE
