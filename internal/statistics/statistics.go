@@ -91,7 +91,7 @@ func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	UpdateAvailabilityStatistics(&statistics, authorIndex, extrinsic.Assurances)
 
 	// Update current statistics
-	s.GetPosteriorStates().SetPiCurrent(statistics.ValsCurrent)
+	s.GetPosteriorStates().SetPiCurrent(statistics.ValsCurr)
 }
 
 type (
@@ -105,13 +105,13 @@ type Pi_C_R_Output struct {
 	ExtrinsicCount types.U16 // x
 	ExtrinsicSize  types.U32 // z
 	Exports        types.U16 // e
-	GasUsed        types.U64 // u
+	GasUsed        types.Gas // u
 	BundleSize     types.U32 // b
 }
 
 type Pi_S_R_Output struct {
 	n              types.U32 // n
-	GasUsed        types.U64 // u
+	GasUsed        types.Gas // u
 	Imports        types.U32 // i
 	ExtrinsicCount types.U32 // x
 	ExtrinsicSize  types.U32 // z
@@ -368,14 +368,14 @@ func CalculateProvidedStatistics(serviceId types.ServiceId, preimagesExtrinsic t
 
 // a
 // AccumulateCount, AccumulateGasUsed
-func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.U64) {
+func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
 	accumulateCount = 0
 	accumulateGasUsed = 0
 
 	value, ok := accumulationStatistics[serviceId]
 	if ok {
 		accumulateCount = types.U32(value.NumAccumulatedReports)
-		accumulateGasUsed = types.U64(value.Gas)
+		accumulateGasUsed = value.Gas
 	} else {
 		// If the service id is not found, return 0
 		accumulateCount = 0
@@ -387,14 +387,14 @@ func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStat
 
 // t
 // OnTransfersCount, OnTransfersGasUsed
-func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersStatistics types.DeferredTransfersStatistics) (onTransfersCount types.U32, onTransfersGasUsed types.U64) {
+func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersStatistics types.DeferredTransfersStatistics) (onTransfersCount types.U32, onTransfersGasUsed types.Gas) {
 	onTransfersCount = 0
 	onTransfersGasUsed = 0
 
 	value, ok := deferredTransfersStatistics[serviceId]
 	if ok {
 		onTransfersCount = types.U32(value.NumDeferredTransfers)
-		onTransfersGasUsed = types.U64(value.TotalGasUsed)
+		onTransfersGasUsed = value.TotalGasUsed
 	} else {
 		// If the service id is not found, return 0
 		onTransfersCount = 0

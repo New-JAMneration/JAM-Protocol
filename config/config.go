@@ -81,8 +81,6 @@ func initJamConst() {
 	types.SlotSubmissionEnd = Config.Const.SlotSubmissionEnd
 	types.MaxTicketsPerBlock = Config.Const.MaxTicketsPerBlock
 	types.TicketsPerValidator = Config.Const.TicketsPerValidator
-	types.AuthPoolMaxSize = Config.Const.AuthPoolMaxSize
-	types.AuthQueueSize = Config.Const.AuthQueueSize
 	types.ValidatorsSuperMajority = Config.Const.ValidatorsSuperMajority
 	types.AvailBitfieldBytes = Config.Const.AvailBitfieldBytes
 }
