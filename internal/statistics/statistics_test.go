@@ -193,7 +193,8 @@ func TestStatistics(t *testing.T) {
 
 		// pre_state
 		s.GetPriorStates().SetTau(statisticsTestCase.Input.Slot)
-		s.GetPriorStates().SetPi(statisticsTestCase.PreState.Statistics)
+		s.GetPriorStates().SetPiCurrent(statisticsTestCase.PreState.ValsCurrStats)
+		s.GetPriorStates().SetPiLast(statisticsTestCase.PreState.ValsLastStats)
 		s.GetPriorStates().SetKappa(statisticsTestCase.PreState.CurrValidators)
 
 		// post_state
@@ -213,14 +214,6 @@ func TestStatistics(t *testing.T) {
 
 		if !reflect.DeepEqual(statistics.ValsLast, expectedStatistics.ValsLastStats) {
 			t.Errorf("ValsLastStats mismatch in %s: got %v, want %v", file, statistics.ValsLast, expectedStatistics.ValsLastStats)
-		}
-
-		if !reflect.DeepEqual(statistics.ValsLast, expectedStatistics.Statistics.ValsLast) {
-			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics.ValsLast, statistics.ValsLast)
-		}
-
-		if !reflect.DeepEqual(statistics.Cores, expectedStatistics.Statistics.Cores) {
-			t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics.Cores, statistics.Cores)
 		}
 
 		// Issue: https://github.com/davxy/jam-test-vectors/issues/39

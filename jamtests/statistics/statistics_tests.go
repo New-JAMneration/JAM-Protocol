@@ -268,16 +268,12 @@ func (s *StatisticsTestCase) Validate() error {
 
 	statistics := storeInstance.GetPosteriorStates().GetPi()
 
-	if !reflect.DeepEqual(statistics.ValsCurrent, s.PostState.Statistics.ValsCurrent) {
-		return fmt.Errorf("statistics.ValsCurrent failed: expected %v, got %v", s.PostState.Statistics.ValsCurrent, statistics.ValsCurrent)
+	if !reflect.DeepEqual(statistics.ValsCurr, s.PostState.ValsCurrStats) {
+		return fmt.Errorf("statistics.ValsCurrent failed: expected %v, got %v", s.PostState.ValsCurrStats, statistics.ValsCurr)
 	}
 
-	if !reflect.DeepEqual(statistics.ValsLast, s.PostState.Statistics.ValsLast) {
-		return fmt.Errorf("statistics.ValsLast failed: expected %v, got %v", s.PostState.Statistics.ValsLast, statistics.ValsLast)
-	}
-
-	if !reflect.DeepEqual(statistics.Cores, s.PostState.Statistics.Cores) {
-		return fmt.Errorf("statistics.Cores failed: expected %v, got %v", s.PostState.Statistics.Cores, statistics.Cores)
+	if !reflect.DeepEqual(statistics.ValsLast, s.PostState.ValsLastStats) {
+		return fmt.Errorf("statistics.ValsLast failed: expected %v, got %v", s.PostState.ValsLastStats, statistics.ValsLast)
 	}
 
 	// Don't compare the services statistics
