@@ -1768,7 +1768,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
-<<<<<<< HEAD
 		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
 			break
 		}
@@ -1791,29 +1790,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-=======
-		if w11 >= uint64(input.Addition.Extrinsics[i].Len) {
-			break
-		}
-
-		v, err = encoder.Encode(input.Addition.Extrinsics[i].Hash[w11])
-		break
-	case 5:
-		if input.Addition.WorkItemIndex == nil {
-			break
-		}
-
-		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.ImportSegments)) {
-			break
-		}
-
-		w12 := input.Registers[12]
-		if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
-			break
-		}
-
->>>>>>> e7aae26 (resolve conflicts)
 		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
 		break
 	case 6:
