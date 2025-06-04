@@ -415,6 +415,21 @@ func (s *ServiceId) Decode(d *Decoder) error {
 	return nil
 }
 
+// ServiceIdList
+func (s *ServiceIdList) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceIdList")
+	val := make([]ServiceId, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		var err error
+		if err = val[i].Decode(d); err != nil {
+			return err
+		}
+	}
+	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	*s = val
+	return nil
+}
+
 // ByteSequence
 func (b *ByteSequence) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ByteSequence")

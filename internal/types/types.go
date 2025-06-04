@@ -110,6 +110,7 @@ func (v ValidatorsData) Validate() error {
 // Service
 
 type ServiceId U32
+type ServiceIdList []ServiceId
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 type ServiceInfo struct {
@@ -1445,7 +1446,7 @@ type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
 	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceId           `json:"chi_a"` // AlterPhi
+	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
 	Designate   ServiceId           `json:"chi_v"` // AlterIota
 	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
 }
@@ -1457,7 +1458,10 @@ type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
 	Authorizers     AuthQueues          // q
-	Privileges      Privileges          // x
+	Bless           ServiceId           // m
+	Assign          ServiceIdList       // a
+	Designate       ServiceId           // v
+	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
 // (12.18 pre-0.6.5)
