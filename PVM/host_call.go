@@ -1637,7 +1637,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			types.U16(types.SlotPeriod),                       // P
 			types.U16(types.AuthQueueSize),                    // Q
 			types.U16(types.RotationPeriod),                   // R
-			types.U16(1024),                                   // S, TODO: Find out where this is kept
+			types.U16(1024),                                   // S
 			types.U16(types.MaxExtrinsics),                    // T
 			types.U16(types.WorkReportTimeout),                // U
 			types.U16(types.ValidatorsCount),                  // V
@@ -1683,7 +1683,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		// TODO: double-check whether taking the hash here is correct
 		v, err = encoder.Encode(input.Addition.Extrinsics[w11].Hash[w12])
 		break
 	case 4:
