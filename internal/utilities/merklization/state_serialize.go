@@ -350,7 +350,9 @@ func encodeChiKey() types.StateKey {
 // value 12: chi
 func serializeChi(chi types.Privileges) (output types.ByteSequence) {
 	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Bless), 4)...)
-	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Assign), 4)...)
+	for _, v := range chi.Assign {
+		output = append(output, utilities.SerializeFixedLength(types.U32(v), 4)...)
+	}
 	output = append(output, utilities.SerializeFixedLength(types.U32(chi.Designate), 4)...)
 	output = append(output, utilities.SerializeU64(types.U64(len(chi.AlwaysAccum)))...)
 	for k, v := range chi.AlwaysAccum {
