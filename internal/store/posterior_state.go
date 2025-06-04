@@ -288,14 +288,14 @@ func (s *PosteriorStates) GetManagerServiceIndex() types.ServiceId {
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PosteriorStates) SetAlterPhiServiceIndex(serviceId types.ServiceId) {
+func (s *PosteriorStates) SetAlterPhiServiceIndex(serviceId []types.ServiceId) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Chi.Assign = serviceId
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
-func (s *PosteriorStates) GetAlterPhiServiceIndex() types.ServiceId {
+func (s *PosteriorStates) GetAlterPhiServiceIndex() []types.ServiceId {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi.Assign
