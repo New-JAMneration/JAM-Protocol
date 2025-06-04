@@ -2030,6 +2030,11 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
+	// GratisStorageOffset
+	if err := s.GratisStorageOffset.Encode(e); err != nil {
+		return err
+	}
+
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
 		return err
@@ -2047,6 +2052,21 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	// MinMemoGas
 	if err := s.MinMemoGas.Encode(e); err != nil {
+		return err
+	}
+
+	// CreateTime
+	if err := s.CreateTime.Encode(e); err != nil {
+		return err
+	}
+
+	// RecentAccumulateTime
+	if err := s.RecentAccumulateTime.Encode(e); err != nil {
+		return err
+	}
+
+	// ParentService
+	if err := s.ParentService.Encode(e); err != nil {
 		return err
 	}
 
