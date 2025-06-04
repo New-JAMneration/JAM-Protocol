@@ -127,6 +127,8 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 }
 
 // (9.8) You can use this function to get account derivatives
+// TODO: Items(a_i) and Bytes(a_o) are stored in ServiceInfo,
+// Maybe we can update a_t only
 func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
 	/*
 		∀a ∈ V(δ) ∶
@@ -140,7 +142,7 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	var (
 		Items      = CalcKeys(account)
 		Bytes      = CalcOctets(account)
-		Minbalance = CalcThresholdBalance(Items, Bytes)
+		Minbalance = CalcThresholdBalance(Items, Bytes, account.ServiceInfo.GratisStorageOffset)
 	)
 	accountDer = types.ServiceAccountDerivatives{
 		Items:      Items,
@@ -150,7 +152,7 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	return accountDer
 }
 
-// calculate number of items(keys) in storage
+// a_i: calculate number of items(keys) in storage
 func CalcKeys(account types.ServiceAccount) types.U32 {
 	/*
 		a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
@@ -158,7 +160,7 @@ func CalcKeys(account types.ServiceAccount) types.U32 {
 	return types.U32(2*len(account.LookupDict) + len(account.StorageDict))
 }
 
-// calculate total number of octets(datas) used in storage
+// a_o: calculate total number of octets(datas) used in storage
 func CalcOctets(account types.ServiceAccount) types.U64 {
 	/*
 		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]
@@ -171,17 +173,17 @@ func CalcOctets(account types.ServiceAccount) types.U64 {
 
 	//  calculate all [ 32(size of key) + size of data ]
 	stateContribution := 0
-	for _, x := range account.StorageDict {
-		stateContribution += 32 + len(x)
+	for x, y := range account.StorageDict {
+		stateContribution += 34 + len(y) + len(x)
 	}
 
 	return types.U64(keyContribution + stateContribution)
 }
 
-// calculate threshold(minimum) balance needed for any account in terms of storage footprint
-func CalcThresholdBalance(aI types.U32, aO types.U64) types.U64 {
+// a_t: calculate threshold(minimum) balance needed for any account in terms of storage footprint
+func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
-	return types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
+	return max(0, types.U64(types.BasicMinBalance)+types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI)+types.U64(types.AdditionalMinBalancePerOctet)*aO-aF)
 }
