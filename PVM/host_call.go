@@ -719,6 +719,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 	input.Registers[7] = OK
 
+	// TODO: change based on the PartialState and assign type change
 	input.Addition.ResultContextX.PartialState.Privileges = types.Privileges{
 		Bless:       types.ServiceId(m),
 		Assign:      types.ServiceId(a),
