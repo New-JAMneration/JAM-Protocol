@@ -112,13 +112,19 @@ func (v ValidatorsData) Validate() error {
 type ServiceId U32
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
+// GP 0.6.7
+// TODO: check json tags
 type ServiceInfo struct {
-	CodeHash   OpaqueHash `json:"code_hash,omitempty"`    // a_c
-	Balance    U64        `json:"balance,omitempty"`      // a_b
-	MinItemGas Gas        `json:"min_item_gas,omitempty"` // a_g
-	MinMemoGas Gas        `json:"min_memo_gas,omitempty"` // a_m
-	Bytes      U64        `json:"bytes,omitempty"`        // a_o
-	Items      U32        `json:"items,omitempty"`        // a_i
+	GratisStorageOffset  U64        // a_f
+	CodeHash             OpaqueHash `json:"code_hash,omitempty"`    // a_c
+	Balance              U64        `json:"balance,omitempty"`      // a_b
+	MinItemGas           Gas        `json:"min_item_gas,omitempty"` // a_g
+	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"` // a_m
+	CreateTime           TimeSlot   // a_r
+	RecentAccumulateTime TimeSlot   // a_a
+	ParentService        ServiceId  // a_p
+	Bytes                U64        `json:"bytes,omitempty"` // a_o
+	Items                U32        `json:"items,omitempty"` // a_i
 }
 
 type ServiceAccountDerivatives struct {

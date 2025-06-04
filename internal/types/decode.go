@@ -2238,6 +2238,10 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 
 	var err error
 
+	if err = s.GratisStorageOffset.Decode(d); err != nil {
+		return err
+	}
+
 	if err = s.CodeHash.Decode(d); err != nil {
 		return err
 	}
@@ -2251,6 +2255,18 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	}
 
 	if err = s.MinMemoGas.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.CreateTime.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.RecentAccumulateTime.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.ParentService.Decode(d); err != nil {
 		return err
 	}
 
