@@ -437,6 +437,17 @@ func (s *ServiceId) Encode(e *Encoder) error {
 	return nil
 }
 
+// SerivceIdList
+func (s *ServiceIdList) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceIdList")
+	for _, serviceId := range *s {
+		if err := serviceId.Encode(e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ByteSequence
 func (b *ByteSequence) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ByteSequence")
