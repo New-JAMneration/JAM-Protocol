@@ -99,7 +99,7 @@ type RefineArgs struct {
 	ExportSegment       []types.ExportSegment   // e
 	ServiceID           types.ServiceId         // s
 	TimeSlot            types.TimeSlot          // t
-	Extrinsics          []types.ExtrinsicSpec   // overline{x}, used in fetch
+	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
 }
 
 type OnTransferArgs struct {
@@ -1637,7 +1637,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			types.U16(types.SlotPeriod),                       // P
 			types.U16(types.AuthQueueSize),                    // Q
 			types.U16(types.RotationPeriod),                   // R
-			types.U16(1024),                                   // S
+			types.U16(types.AccumulateQueueSize),              // S
 			types.U16(types.MaxExtrinsics),                    // T
 			types.U16(types.WorkReportTimeout),                // U
 			types.U16(types.ValidatorsCount),                  // V
@@ -1679,11 +1679,11 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		w12 := input.Registers[12]
-		if w12 >= uint64(input.Addition.Extrinsics[w11].Len) {
+		if w12 >= uint64(len(input.Addition.Extrinsics[w11])) {
 			break
 		}
 
-		v, err = encoder.Encode(input.Addition.Extrinsics[w11].Hash[w12])
+		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
 		break
 	case 4:
 		if input.Addition.WorkItemIndex == nil {
@@ -1692,11 +1692,11 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
-		if w11 >= uint64(input.Addition.Extrinsics[i].Len) {
+		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
 			break
 		}
 
-		v, err = encoder.Encode(input.Addition.Extrinsics[i].Hash[w11])
+		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
 		break
 	case 5:
 		if input.Addition.WorkItemIndex == nil {
