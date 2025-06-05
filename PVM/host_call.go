@@ -100,10 +100,14 @@ type RefineArgs struct {
 	ServiceID           types.ServiceId         // s
 	TimeSlot            types.TimeSlot          // t
 <<<<<<< HEAD
+<<<<<<< HEAD
 	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
 =======
 	Extrinsics          []types.ExtrinsicSpec   // overline{x}, used in fetch
 >>>>>>> e7aae26 (resolve conflicts)
+=======
+	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
+>>>>>>> d2737a2 (Made corrections per review feedback.)
 }
 
 type OnTransferArgs struct {
