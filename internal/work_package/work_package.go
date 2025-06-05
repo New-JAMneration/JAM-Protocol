@@ -135,7 +135,7 @@ func WorkReportCompute(
 		AuthorizerHash: pa,
 		AuthOutput:     o,
 		Results:        results,
-		AuthGasUsed:    types.U64(g),
+		AuthGasUsed:    g,
 	}, nil
 }
 
@@ -200,7 +200,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 		AccumulateGas: item.AccumulateGasLimit,
 		Result:        result,
 		RefineLoad: types.RefineLoad{
-			GasUsed:        types.U64(gas),
+			GasUsed:        gas,
 			Imports:        importCount,
 			ExtrinsicCount: item.ExportCount,
 			ExtrinsicSize:  extrinsicSize,
