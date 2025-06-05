@@ -1,6 +1,6 @@
 [submodule "pkg/Rust-VRF"]
 	path = pkg/Rust-VRF
-	url = https://github.com/New-JAMneration/Rust-VRF.git
+	url = git@github.com:New-JAMneration/Rust-VRF.git
 [submodule "pkg/test_data/jam-test-vectors"]
 	path = pkg/test_data/jam-test-vectors
 	url = git@github.com:davxy/jam-test-vectors.git
