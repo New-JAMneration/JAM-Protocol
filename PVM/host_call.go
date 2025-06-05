@@ -1764,7 +1764,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
-
 		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
 			break
 		}
