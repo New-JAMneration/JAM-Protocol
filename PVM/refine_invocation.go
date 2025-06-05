@@ -113,9 +113,10 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		extrinsics[i] = item.Extrinsic
 	}
 
-	var extrinsics []types.ExtrinsicSpec
-	for _, item := range input.WorkPackage.Items {
-		extrinsics = append(extrinsics, item.Extrinsic...)
+	extrinsics := make([][]types.ExtrinsicSpec, len(input.WorkPackage.Items))
+
+	for i, item := range input.WorkPackage.Items {
+		extrinsics[i] = item.Extrinsic
 	}
 
 	// addition

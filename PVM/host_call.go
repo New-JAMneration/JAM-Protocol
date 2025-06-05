@@ -105,11 +105,7 @@ type RefineArgs struct {
 	ExportSegment       []types.ExportSegment   // e
 	ServiceID           types.ServiceId         // s
 	TimeSlot            types.TimeSlot          // t
-<<<<<<< HEAD
 	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
-=======
-	Extrinsics          []types.ExtrinsicSpec   // overline{x}, used in fetch
->>>>>>> e7aae26 (resolve conflicts)
 }
 
 type OnTransferArgs struct {
