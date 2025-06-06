@@ -113,6 +113,11 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		extrinsics[i] = item.Extrinsic
 	}
 
+	var extrinsics []types.ExtrinsicSpec
+	for _, item := range input.WorkPackage.Items {
+		extrinsics = append(extrinsics, item.Extrinsic...)
+	}
+
 	// addition
 	// Though Psi_M addition input is nil, still need the RefineInput for historical_lookup op (only for historical_lookup)
 	addition := HostCallArgs{
