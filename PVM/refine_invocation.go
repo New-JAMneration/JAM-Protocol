@@ -12,7 +12,7 @@ type RefineInput struct {
 	WorkItemIndex       uint                    // i
 	WorkPackage         types.WorkPackage       // p
 	AuthOutput          types.ByteSequence      // o
-	ImportSegments      [][]types.ExportSegment // bold{i}
+	ImportSegments      [][]types.ExportSegment // overline{bold{i}}
 	ExportSegmentOffset uint                    // zeta
 	ServiceAccounts     types.ServiceAccountState
 	ExtrinsicDataMap    // extrinsic data map
@@ -74,22 +74,19 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// otherwise
 	var a []byte
 	encoder := types.NewEncoder()
-	// w_s
-	encoded, _ := encoder.Encode(workItem.CodeHash)
+	// i
+	encoded, _ := encoder.EncodeUint(uint64(input.WorkItemIndex))
 	a = append(a, encoded...)
-	// w_y
+	// w_s
+	encoded, _ = encoder.Encode(workItem.CodeHash)
+	a = append(a, encoded...)
+	// |w_y| . w_y
 	encoded, _ = encoder.Encode(workItem.Payload)
 	a = append(a, encoded...)
 	// H(p)
 	encoded, _ = encoder.Encode(input.WorkPackage)
 	h := hash.Blake2bHash(encoded)
 	a = append(a, h[:]...)
-	// p_x
-	encoded, _ = encoder.Encode(input.WorkPackage.Context)
-	a = append(a, encoded...)
-	// p_u
-	encoded, _ = encoder.Encode(input.WorkPackage.Authorizer.CodeHash)
-	a = append(a, encoded...)
 
 	// E(m, c)
 	_, code, err := service_account.DecodeMetaCode(lookupData)
@@ -111,6 +108,11 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
 	F[27] = RefineHostCallException
 
+	var extrinsics []types.ExtrinsicSpec
+	for _, item := range input.WorkPackage.Items {
+		extrinsics = append(extrinsics, item.Extrinsic...)
+	}
+
 	// addition
 	// Though Psi_M addition input is nil, still need the RefineInput for historical_lookup op (only for historical_lookup)
 	addition := HostCallArgs{
@@ -120,10 +122,16 @@ func RefineInvoke(input RefineInput) RefineOutput {
 			ServiceAccountState: input.ServiceAccounts,
 		},
 		RefineArgs: RefineArgs{
-			RefineInput:      input,
-			IntegratedPVMMap: IntegratedPVMMap{},
-			ExportSegment:    []types.ExportSegment{},
-			TimeSlot:         input.WorkPackage.Context.LookupAnchorSlot,
+			WorkItemIndex:       types.Some(input.WorkItemIndex),
+			WorkPackage:         types.Some(input.WorkPackage),
+			AuthOutput:          types.Some(input.AuthOutput),
+			ImportSegments:      input.ImportSegments,
+			ExportSegmentOffset: input.ExportSegmentOffset,
+			ExtrinsicDataMap:    input.ExtrinsicDataMap,
+			IntegratedPVMMap:    IntegratedPVMMap{},
+			ExportSegment:       []types.ExportSegment{},
+			TimeSlot:            input.WorkPackage.Context.LookupAnchorSlot,
+			Extrinsics:          extrinsics,
 		},
 	}
 	//	WorkExecResultOutOfGas                        = "out-of-gas"
