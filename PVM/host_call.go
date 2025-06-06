@@ -102,15 +102,7 @@ type RefineArgs struct {
 	ExportSegment       []types.ExportSegment   // e
 	ServiceID           types.ServiceId         // s
 	TimeSlot            types.TimeSlot          // t
-<<<<<<< HEAD
-<<<<<<< HEAD
 	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
-=======
-	Extrinsics          []types.ExtrinsicSpec   // overline{x}, used in fetch
->>>>>>> e7aae26 (resolve conflicts)
-=======
-	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
->>>>>>> d2737a2 (Made corrections per review feedback.)
 }
 
 type OnTransferArgs struct {
@@ -1764,12 +1756,14 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
+
 		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
 		break
+
 	case 5:
 		if input.Addition.WorkItemIndex == nil {
 			break
