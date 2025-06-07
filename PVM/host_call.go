@@ -16,35 +16,38 @@ import (
 type OperationType int
 
 const (
-	GasOp              OperationType = iota // gas = 0
-	LookupOp                                // lookup = 1
-	ReadOp                                  // read = 2
-	WriteOp                                 // write = 3
-	InfoOp                                  // info = 4
-	BlessOp                                 // bless = 5
-	AssignOp                                // assign = 6
-	DesignateOp                             // designate = 7
-	CheckpointOp                            // checkpoint = 8
-	NewOp                                   // new = 9
-	UpgradeOp                               // upgrade = 10
-	TransferOp                              // transfer = 11
-	EjectOp                                 // eject = 12
-	QueryOp                                 // query = 13
-	SolicitOp                               // solicit = 14
-	ForgetOp                                // forget = 15
-	YieldOp                                 // yield = 16
-	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18;
+	// ----------------- General Functions -----------------
+	GasOp    OperationType = iota // gas = 0
+	FetchOp                       // fetch = 1
+	LookupOp                      // lookup = 2
+	ReadOp                        // read = 3
+	WriteOp                       // write = 4
+	InfoOp                        // info = 5
 
-	ExportOp  // export = 19
-	MachineOp // machine = 20
-	PeekOp    // peek = 21
-	PokeOp    // poke = 22
-	ZeroOp    // zero = 23
-	VoidOp    // void = 24
-	InvokeOp  // invoke = 25
-	ExpungeOp // expunge = 26
-	ProvideOp // provide = 27
+	// ----------------- Refine Functions -----------------
+	HistoricalLookupOp // historical_lookup = 6
+	ExportOp           // export = 7
+	MachineOp          // machine = 8
+	PeekOp             // peek = 9
+	PokeOp             // poke = 10
+	PagesOp            // pages = 11
+	InvokeOp           // invoke = 12
+	ExpungeOp          // expunge = 13
+
+	// ----------------- Accumulate Functions -----------------
+	BlessOp      // bless = 14
+	AssignOp     // assign = 15
+	DesignateOp  // designate = 16
+	CheckpointOp // checkpoint = 17
+	NewOp        // new = 18
+	UpgradeOp    // upgrade = 19
+	TransferOp   // transfer = 20
+	EjectOp      // eject = 21
+	QueryOp      // query = 22
+	SolicitOp    // solicit = 23
+	ForgetOp     // forget = 24
+	YieldOp      // yield = 25
+	ProvideOp    // provide = 26
 )
 
 type HistoryState struct {
@@ -180,33 +183,32 @@ func Psi_H(
 
 var HostCallFunctions = [29]Omega{
 	0:  gas,
-	1:  lookup,
-	2:  read,
-	3:  write,
-	4:  info,
-	5:  bless,
-	6:  assign,
-	7:  designate,
-	8:  checkpoint,
-	9:  new,
-	10: upgrade,
-	11: transfer,
-	12: eject,
-	13: query,
-	14: solicit,
-	15: forget,
-	16: yield,
-	17: historicalLookup,
-	18: fetch,
-	19: export,
-	20: machine,
-	21: peek,
-	22: poke,
-	23: zero,
-	24: void,
-	25: invoke,
-	26: expunge,
-	27: provide,
+	1:  fetch,
+	2:  lookup,
+	3:  read,
+	4:  write,
+	5:  info,
+	6:  historicalLookup,
+	7:  export,
+	8:  machine,
+	9:  peek,
+	10: poke,
+	11: pages,
+	12: invoke,
+	13: expunge,
+	14: bless,
+	15: assign,
+	16: designate,
+	17: checkpoint,
+	18: new,
+	19: upgrade,
+	20: transfer,
+	21: eject,
+	22: query,
+	23: solicit,
+	24: forget,
+	25: yield,
+	26: provide,
 }
 
 func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
@@ -220,7 +222,7 @@ func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// Gas Function（ΩG）
+// Gas Function（ΩG）, gas = 0
 func gas(input OmegaInput) OmegaOutput {
 	newGas := input.Gas - 10
 	if newGas < 0 {
@@ -243,7 +245,7 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-// ΩL(ϱ, ω, μ, s, s, d)
+// ΩL(ϱ, ω, μ, s, s, d) , lookup = 2
 func lookup(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ServiceId
 	serviceAccount := input.Addition.ServiceAccount
@@ -338,7 +340,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s, d)
+// ΩR(ϱ, ω, μ, s, s, d) , read = 3
 /*
 ϱ: gas
 ω: registers
@@ -460,7 +462,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩW (ϱ, ω, μ, s, s)
+// ΩW (ϱ, ω, μ, s, s) , write = 4
 func write(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ServiceId
 	serviceAccount := input.Addition.ServiceAccount
@@ -550,7 +552,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, d)
+// ΩR(ϱ, ω, μ, s, d) , info = 5
 /*
 ϱ: gas
 ω: registers
@@ -657,7 +659,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// bless = 5
+// bless = 14
 func bless(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -728,7 +730,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// assign = 6
+// assign = 15
 func assign(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -788,7 +790,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// designate = 7
+// designate = 16
 func designate(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -837,7 +839,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// checkpoint = 8
+// checkpoint = 17
 func checkpoint(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -863,7 +865,7 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// new = 9
+// new = 18
 func new(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -961,7 +963,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// upgrade = 10
+// upgrade = 19
 func upgrade(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1013,7 +1015,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// transfer = 11
+// transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10) + Gas(input.Registers[9])
 	if input.Gas < gasFee {
@@ -1105,7 +1107,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// eject = 12
+// eject = 21
 func eject(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1218,7 +1220,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// query = 13
+// query = 22
 func query(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1294,7 +1296,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// solicit = 14
+// solicit = 23
 func solicit(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1375,7 +1377,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// forget = 15
+// forget = 24
 func forget(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1458,7 +1460,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// yield = 16
+// yield = 25
 func yield(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1500,7 +1502,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// historical_lookup = 17
+// historical_lookup = 6
 func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1596,7 +1598,7 @@ func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 	)
 }
 
-// fetch = 18
+// fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1918,7 +1920,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// export = 19
+// export = 7
 func export(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1976,7 +1978,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// machine = 20
+// machine = 8
 func machine(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2043,7 +2045,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// peek = 21
+// peek = 9
 func peek(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2112,7 +2114,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// poke = 22
+// poke = 10
 func poke(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2179,7 +2181,8 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// zero = 23
+// zero is removed in GP 0.6.7
+/*
 func zero(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2237,9 +2240,10 @@ func zero(input OmegaInput) (output OmegaOutput) {
 		Addition:     input.Addition,
 	}
 }
+*/
 
-// void = 24
-func void(input OmegaInput) (output OmegaOutput) {
+// pages = 11 , GP 0.6.7 void is renamed pages
+func pages(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
 		return OmegaOutput{
@@ -2297,7 +2301,7 @@ func void(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// invoke = 25
+// invoke = 12
 func invoke(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2411,7 +2415,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// expunge = 26
+// expunge = 13
 func expunge(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2463,6 +2467,7 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 	}
 }
 
+// provide = 26
 func provide(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
