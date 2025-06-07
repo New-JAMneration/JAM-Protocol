@@ -101,12 +101,11 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	F[GasOp] = HostCallFunctions[GasOp]
 	F[MachineOp] = HostCallFunctions[MachineOp]
 	F[PeekOp] = HostCallFunctions[PeekOp]
-	F[ZeroOp] = HostCallFunctions[ZeroOp]
 	F[PokeOp] = HostCallFunctions[PokeOp]
-	F[VoidOp] = HostCallFunctions[VoidOp]
+	F[PagesOp] = HostCallFunctions[PagesOp]
 	F[InvokeOp] = HostCallFunctions[InvokeOp]
 	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
-	F[27] = RefineHostCallException
+	F[OperationType(len(HostCallFunctions)-1)] = RefineHostCallException
 
 	extrinsics := make([][]types.ExtrinsicSpec, len(input.WorkPackage.Items))
 

@@ -4,7 +4,7 @@ func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask) (ExitR
 	switch {
 	case !C:
 		return CONTINUE, pc
-	case !bitmask.IsStartOfBasicBlock(b):
+	case !bitmask.IsStartOfBasicBlock(b) && b.isOpcodeValid():
 		return PANIC, pc
 	default:
 		return CONTINUE, b
