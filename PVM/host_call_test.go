@@ -36,11 +36,11 @@ var hostCallMap = map[string]PVM.OperationType{
 	"Solicit":           PVM.SolicitOp,
 	"Transfer":          PVM.TransferOp,
 	"Upgrade":           PVM.UpgradeOp,
-	"Void":              PVM.VoidOp,
+	"Pages":             PVM.PagesOp,
 	"Write":             PVM.WriteOp,
 	"Yield":             PVM.YieldOp,
-	"Zero":              PVM.ZeroOp,
-	"Read":              PVM.ReadOp,
+	//"Zero":              PVM.ZeroOp,
+	"Read": PVM.ReadOp,
 }
 
 func TestHostCall(t *testing.T) {
