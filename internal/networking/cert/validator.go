@@ -30,7 +30,7 @@ func ValidateX509DNSNames(cert x509.Certificate) error {
 	return nil
 }
 
-// The certificate’s public key matches the information encoded in the SAN.
+// The certificate's public key matches the information encoded in the SAN.
 func ValidateX509PubKeyMatchesSAN(cert x509.Certificate) error {
 	pk := cert.PublicKey
 	pkEd25519, ok := pk.(ed25519.PublicKey)
@@ -38,12 +38,12 @@ func ValidateX509PubKeyMatchesSAN(cert x509.Certificate) error {
 		return fmt.Errorf("invalid public key type: %T", pk)
 	}
 
-	expectedEncodedPubKey := EncodeBase32(pkEd25519)
+	expectedEncodedPubKey := AlternativeName(pkEd25519)
 
 	dnsNames := cert.DNSNames
 
 	for _, dnsName := range dnsNames {
-		if dnsName != "e"+expectedEncodedPubKey {
+		if dnsName != expectedEncodedPubKey {
 			return fmt.Errorf("invalid DNS name: %v", dnsName)
 		}
 	}
