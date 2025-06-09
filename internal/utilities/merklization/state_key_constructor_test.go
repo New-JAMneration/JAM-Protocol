@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestStateKeyContractorStateWrapper(t *testing.T) {
@@ -90,7 +91,7 @@ func TestStateKeyContractorStateServiceWrapper(t *testing.T) {
 
 func TestStateKeyContractorServiceWrapper(t *testing.T) {
 	var serviceIndex types.ServiceId = 700
-	var h [27]byte = [27]byte{
+	var h types.ByteSequence = types.ByteSequence{
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -104,14 +105,16 @@ func TestStateKeyContractorServiceWrapper(t *testing.T) {
 		t.Errorf("Error encoding service index: %v", err)
 	}
 
+	a := hash.Blake2bHashPartial(h[:], 27)
+
 	expectedStateKey := types.StateKey{
-		n[0], h[0], n[1], h[1], n[2], h[2], n[3], h[3],
-		h[4], h[5], h[6], h[7],
-		h[8], h[9], h[10], h[11],
-		h[12], h[13], h[14], h[15],
-		h[16], h[17], h[18], h[19],
-		h[20], h[21], h[22], h[23],
-		h[24], h[25], h[26],
+		n[0], a[0], n[1], a[1], n[2], a[2], n[3], a[3],
+		a[4], a[5], a[6], a[7],
+		a[8], a[9], a[10], a[11],
+		a[12], a[13], a[14], a[15],
+		a[16], a[17], a[18], a[19],
+		a[20], a[21], a[22], a[23],
+		a[24], a[25], a[26],
 	}
 
 	actual := service.StateKeyConstruct()
