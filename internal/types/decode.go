@@ -2801,17 +2801,18 @@ func (s *Storage) Decode(d *Decoder) error {
 			return nil
 		}
 
-		var key OpaqueHash
+		var key ByteSequence
 		if err = key.Decode(d); err != nil {
 			return err
 		}
+		str := string(key)
 
 		var val ByteSequence
 		if err = val.Decode(d); err != nil {
 			return err
 		}
 
-		(*s)[key] = val
+		(*s)[str] = val
 	}
 
 	return nil
