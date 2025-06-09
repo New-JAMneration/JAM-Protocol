@@ -133,7 +133,6 @@ func TestAlternativeName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// pk := types.Ed25519Public(tt.args.data)
 			if got := AlternativeName(tt.args.data); got != tt.want {
 				t.Errorf("EncodeBase32() = %v, want %v", got, tt.want)
 			}
