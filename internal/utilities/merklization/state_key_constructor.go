@@ -2,6 +2,7 @@ package merklization
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // StateKeyConstruct is an interface
@@ -23,7 +24,7 @@ type StateServiceWrapper struct {
 // ServiceWrapper is a wrapper for ServiceId(U32) and a byte array of length 27
 type ServiceWrapper struct {
 	ServiceIndex types.ServiceId
-	h            [27]byte
+	h            types.ByteSequence
 }
 
 func encodeServiceId(serviceId types.ServiceId) []byte {
@@ -60,13 +61,15 @@ func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	// Encode the service index
 	n := encodeServiceId(w.ServiceIndex)
 
+	a := hash.Blake2bHashPartial(w.h[:], 27)
+
 	for i := 0; i <= 3; i++ {
 		output[2*i] = n[i]
-		output[2*i+1] = w.h[i]
+		output[2*i+1] = a[i]
 	}
 
 	for i := 4; i <= 26; i++ {
-		output[i+4] = w.h[i]
+		output[i+4] = a[i]
 	}
 
 	return output
