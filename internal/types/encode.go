@@ -1930,9 +1930,20 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Mmr
-	if err := bi.Mmr.Encode(e); err != nil {
-		return err
+	// MmrPeak(Encode pointer)
+	if bi.MmrPeak == nil {
+		if err := e.EncodeLength(0); err != nil {
+			return err
+		}
+	} else {
+		if err := e.EncodeLength(1); err != nil {
+			return err
+		}
+
+		// Encode the peak
+		if err := (*bi.MmrPeak).Encode(e); err != nil {
+			return err
+		}
 	}
 
 	// StateRoot
@@ -1970,6 +1981,21 @@ func (bh *BlocksHistory) Encode(e *Encoder) error {
 		if err := blockInfo.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Beta
+func (b *Beta) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Beta")
+
+	if err := b.History.Encode(e); err != nil {
+		return err
+	}
+
+	if err := b.BeefyBelt.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
