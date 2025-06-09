@@ -5,14 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base32"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"log"
 	"math/big"
 	"net"
-	"strings"
 
 	"time"
 
@@ -35,11 +33,47 @@ func Ed25519KeyGen(seed []byte) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	return sk, pk, nil
 }
 
-// EncodeBase32 encodes data using base32 with a custom alphabet
-func EncodeBase32(data []byte) string {
+// AlternativeName returns a string with prefix "e" and followed by
+// the result of import Ed25519 public key base function
+func AlternativeName(pk ed25519.PublicKey) string {
+
+	// E^{-1}_{32} deserialize function for 256-bit unsigned integers (serialization codec appendix)
+	deserialize := func(pk ed25519.PublicKey) *big.Int {
+		x := big.NewInt(0)
+		for i, byte := range pk {
+			tmp := big.NewInt(int64(byte))
+			tmp.Lsh(tmp, uint(8*i))
+			x.Add(x, tmp)
+		}
+		return x
+	}
+
+	n := deserialize(pk)
+
 	// Using the specified alphabet: "abcdefghijklmnopqrstuvwxyz234567"
-	encoder := base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding(base32.NoPadding)
-	return strings.ToLower(encoder.EncodeToString(data))
+	alphabet := "abcdefghijklmnopqrstuvwxyz234567"
+
+	// B(n, l) encodes the deserialized integer, where n is the integer
+	// to base32 and l is the length of the output
+	var encode func(n *big.Int, l int) string
+	encode = func(n *big.Int, l int) string {
+		if l == 0 {
+			return ""
+		}
+
+		// n mod 32
+		mod := new(big.Int).Mod(n, big.NewInt(32))
+		// n / 32
+		div := new(big.Int).Div(n, big.NewInt(32))
+
+		// Get the character at position (n mod 32)
+		char := string(alphabet[mod.Int64()])
+
+		// Recursively encode the remaining part
+		return char + encode(div, l-1)
+	}
+
+	return "e" + encode(n, 52)
 }
 
 // SelfSignedCertGen generates a self-signed X.509 certificate using Ed25519
@@ -58,11 +92,8 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 		return tls.Certificate{}, fmt.Errorf("failed to generate serial number: %v", err)
 	}
 
-	// Encode the public key in base32
-	encodedPk := EncodeBase32(pk)
-
 	// Create the DNS name: "e" followed by the encoded public key
-	dnsName := "e" + encodedPk
+	dnsName := AlternativeName(pk)
 
 	// Ensure the DNS name is exactly 53 characters
 	if len(dnsName) != 53 {
