@@ -1529,9 +1529,9 @@ func (s *Storage) UnmarshalJSON(data []byte) error {
 		}
 
 		if len(valueBytes) == 0 {
-			(*s)[OpaqueHash(keyBytes)] = nil
+			(*s)[string(keyBytes)] = nil
 		} else {
-			(*s)[OpaqueHash(keyBytes)] = ByteSequence(valueBytes)
+			(*s)[string(keyBytes)] = ByteSequence(valueBytes)
 		}
 	}
 

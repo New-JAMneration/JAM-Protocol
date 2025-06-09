@@ -52,7 +52,6 @@ func TestFetchCodeByHash(t *testing.T) {
 	} else if !reflect.DeepEqual(metadata, mockMetadata) {
 		t.Errorf("FetchCodeByHash failed: expected %v, got %v", mockMetadata, metadata)
 	}
-
 }
 
 func TestValidatePreimageLookupDict(t *testing.T) {
@@ -505,17 +504,18 @@ func TestGetSerivecAccountDerivatives(t *testing.T) {
 	// set up test data
 	var (
 		// mockCodeHash = hash(mockCode) -> preimage of mockCodeHash = mockCode
-		mockCode        = types.ByteSequence("0x123456789")
-		mockCodeHash    = hash.Blake2bHash(utils.ByteSequenceWrapper{Value: mockCode}.Serialize())
-		preimage        = mockCode
-		mockPreimageLen = types.U32(len(preimage))
+		mockCode           = types.ByteSequence("0x123456789")
+		mockCodeHash       = hash.Blake2bHash(utils.ByteSequenceWrapper{Value: mockCode}.Serialize())
+		preimage           = mockCode
+		mockPreimageLen    = types.U32(len(preimage))
+		mockCodeHashString = string(mockCodeHash[:])
 
 		mockTimestamp = types.TimeSlot(42)
 
 		// create mock id and ServiceAccount
 		mockAccount = types.ServiceAccount{
-			StorageDict: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: preimage,
+			StorageDict: map[string]types.ByteSequence{
+				mockCodeHashString: preimage,
 			},
 			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
 				mockCodeHash: preimage,
