@@ -2,7 +2,6 @@ package jamtests
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -215,7 +214,7 @@ func (h *HistoryTestCase) Dump() error {
 	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
-	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
+	storeInstance.GetPriorStates().SetBetaH(h.PreState.Beta)
 	storeInstance.GetProcessingBlockPointer().SetBlock(types.Block{
 		Header: types.Header{
 			Parent:          h.Input.HeaderHash,
@@ -225,7 +224,7 @@ func (h *HistoryTestCase) Dump() error {
 
 	mockAccumulatedServiceOutput := make(types.AccumulatedServiceOutput)
 	mockAccumulatedServiceOutput[types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot}] = true
-	storeInstance.GetIntermediateStates().SetBeefyCommitmentOutput(mockAccumulatedServiceOutput)
+	storeInstance.GetPosteriorStates().SetLastAccOut(mockAccumulatedServiceOutput)
 
 	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 	for _, workPackage := range h.Input.WorkPackages {
@@ -271,7 +270,7 @@ func (h *HistoryTestCase) Validate() error {
 	s := store.GetInstance()
 	// === (4.6) ===
 	// Get result of BetaDagger from store
-	betaDagger := s.GetIntermediateStates().GetBetaDagger()
+	betaDagger := s.GetIntermediateStates().GetBetaHDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if len(betaDagger) > types.MaxBlocksHistory {
@@ -285,12 +284,12 @@ func (h *HistoryTestCase) Validate() error {
 	// log.Printf("length of betaPrime: %d", len(betaPrime))
 	// log.Printf("length of poststateBeta: %d", len(h.PostState.Beta))
 
-	if len(betaPrime) < 1 {
-		return fmt.Errorf("BetaPrime should not be nil, got %d", len(betaPrime))
-	} else if !reflect.DeepEqual(betaPrime, h.PostState.Beta) {
-		diff := cmp.Diff(h.PostState.Beta, betaPrime)
-		log.Printf("BetaPrime: %+#v", betaPrime[len(betaPrime)-1].Mmr)
-		log.Printf("PostState.Beta: %+#v", h.PostState.Beta[len(h.PostState.Beta)-1].Mmr)
+	if len(betaPrime.History) < 1 {
+		return fmt.Errorf("BetaPrime should not be nil, got %d", len(betaPrime.History))
+	} else if !reflect.DeepEqual(betaPrime.History, h.PostState.Beta) {
+		diff := cmp.Diff(h.PostState.Beta, betaPrime.History)
+		// log.Printf("BetaPrime: %+#v", betaPrime.History[len(betaPrime.History)-1].Mmr)
+		// log.Printf("PostState.Beta: %+#v", h.PostState.Beta[len(h.PostState.Beta.History)-1].Mmr)
 		return fmt.Errorf("BetaPrime should equal to PostState.Beta\n%s", diff)
 	}
 	return nil

@@ -547,8 +547,8 @@ type ReportedWorkPackage struct {
 }
 
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
-	Mmr        Mmr                   `json:"mmr"`
+	HeaderHash HeaderHash `json:"header_hash,omitempty"`
+	MmrPeak    MmrPeak
 	StateRoot  StateRoot             `json:"state_root,omitempty"`
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
@@ -560,6 +560,12 @@ func (b BlocksHistory) Validate() error {
 		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %v", MaxBlocksHistory)
 	}
 	return nil
+}
+
+// (7.1) GP 0.6.7
+type Beta struct {
+	History   BlocksHistory
+	BeefyBelt Mmr `json:"mmr"`
 }
 
 // Statistics
