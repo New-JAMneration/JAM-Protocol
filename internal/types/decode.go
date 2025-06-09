@@ -2127,8 +2127,26 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = b.Mmr.Decode(d); err != nil {
+	// if err = b.MmrPeak.Decode(d); err != nil {
+	// 	return err
+	// }
+	// check pointer flag
+	pointerFlag, err := d.ReadPointerFlag()
+	if err != nil {
 		return err
+	}
+	pointerIsNil := pointerFlag == 0
+	if pointerIsNil {
+		cLog(Yellow, "MmrPeak is nil")
+	}
+
+	if !pointerIsNil {
+		cLog(Yellow, "MmrPeak is not nil")
+		var val OpaqueHash
+		if err = val.Decode(d); err != nil {
+			return err
+		}
+		b.MmrPeak = &val
 	}
 
 	if err = b.StateRoot.Decode(d); err != nil {
@@ -2178,6 +2196,21 @@ func (b *BlocksHistory) Decode(d *Decoder) error {
 	}
 
 	*b = history
+
+	return nil
+}
+
+// Beta
+func (b *Beta) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Beta")
+
+	if err := b.History.Decode(d); err != nil {
+		return err
+	}
+
+	if err := b.BeefyBelt.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }

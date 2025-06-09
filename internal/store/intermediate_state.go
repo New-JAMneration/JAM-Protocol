@@ -12,12 +12,11 @@ type IntermediateStates struct {
 }
 
 type IntermediateState struct {
-	BetaDagger             types.BlocksHistory
-	RhoDagger              types.AvailabilityAssignments
-	RhoDoubleDagger        types.AvailabilityAssignments
-	DeltaDagger            types.ServiceAccountState
-	DeltaDoubleDagger      types.ServiceAccountState
-	BeefyCommitmentOutputs types.AccumulatedServiceOutput
+	BetaHDagger       types.BlocksHistory
+	RhoDagger         types.AvailabilityAssignments
+	RhoDoubleDagger   types.AvailabilityAssignments
+	DeltaDagger       types.ServiceAccountState
+	DeltaDoubleDagger types.ServiceAccountState
 	// (11.16) \mathbf{W} GP 0.6.4
 	AvailableWorkReports []types.WorkReport
 	PresentWorkReports   []types.WorkReport
@@ -34,12 +33,11 @@ type IntermediateState struct {
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaDagger:                  types.BlocksHistory{},
+			BetaHDagger:                 types.BlocksHistory{},
 			RhoDagger:                   types.AvailabilityAssignments{},
 			RhoDoubleDagger:             types.AvailabilityAssignments{},
 			DeltaDagger:                 types.ServiceAccountState{},
 			DeltaDoubleDagger:           types.ServiceAccountState{},
-			BeefyCommitmentOutputs:      make(types.AccumulatedServiceOutput),
 			AvailableWorkReports:        []types.WorkReport{},
 			PresentWorkReports:          []types.WorkReport{},
 			AccumulatedWorkReports:      []types.WorkReport{},
@@ -51,17 +49,17 @@ func NewIntermediateStates() *IntermediateStates {
 	}
 }
 
-// BetaDagger
-func (s *IntermediateStates) GetBetaDagger() types.BlocksHistory {
+// BetaHDagger
+func (s *IntermediateStates) GetBetaHDagger() types.BlocksHistory {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.BetaDagger
+	return s.state.BetaHDagger
 }
 
-func (s *IntermediateStates) SetBetaDagger(betaDagger types.BlocksHistory) {
+func (s *IntermediateStates) SetBetaHDagger(betaHDagger types.BlocksHistory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.BetaDagger = betaDagger
+	s.state.BetaHDagger = betaHDagger
 }
 
 // RhoDagger
@@ -111,18 +109,6 @@ func (s *IntermediateStates) GetDeltaDoubleDagger() types.ServiceAccountState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.DeltaDoubleDagger
-}
-
-func (s *IntermediateStates) SetBeefyCommitmentOutput(c types.AccumulatedServiceOutput) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.BeefyCommitmentOutputs = c
-}
-
-func (s *IntermediateStates) GetBeefyCommitmentOutput() types.AccumulatedServiceOutput {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.state.BeefyCommitmentOutputs
 }
 
 func (s *IntermediateStates) SetAvailableWorkReports(w []types.WorkReport) {
