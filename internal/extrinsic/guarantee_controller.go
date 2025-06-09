@@ -241,7 +241,7 @@ func (g *GuaranteeController) CardinalityCheck() error {
 // ValidateContexts | Eq. 11.33-11.35
 func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
-	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaDagger()
+	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
 	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
 
 	for _, context := range contexts {
@@ -249,7 +249,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 		stateRootMatch := false
 		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
-			m := mmr.NewMMRFromPeaks(blockInfo.Mmr.Peaks, hash.Blake2bHash).SuperPeak(blockInfo.Mmr.Peaks)
+			m := mmr.NewMMRFromPeaks([]types.MmrPeak{blockInfo.MmrPeak}, hash.Blake2bHash).SuperPeak([]types.MmrPeak{blockInfo.MmrPeak})
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
@@ -323,7 +323,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 		}
 	}
 	betaMap := make(map[types.WorkPackageHash]bool)
-	for _, v := range beta {
+	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			betaMap[types.WorkPackageHash(w.Hash)] = true
 		}
@@ -357,7 +357,7 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 	for _, v := range p {
 		checkPackageSet[types.OpaqueHash(v)] = true
 	}
-	for _, v := range beta {
+	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			checkPackageSet[types.OpaqueHash(w.Hash)] = true
 		}
@@ -385,7 +385,7 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 		pSet[guarantee.Report.PackageSpec.Hash] = guarantee.Report.PackageSpec.ExportsRoot
 	}
 	beta := store.GetInstance().GetPriorStates().GetBeta()
-	for _, v := range beta {
+	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			pSet[types.WorkPackageHash(w.Hash)] = w.ExportsRoot
 		}
