@@ -16,8 +16,9 @@ type PriorStates struct {
 func NewPriorStates() *PriorStates {
 	return &PriorStates{
 		state: &types.State{
-			Theta: make([]types.ReadyQueueItem, types.EpochLength),
-			Xi:    make(types.AccumulatedQueue, types.EpochLength),
+			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:         make(types.AccumulatedQueue, types.EpochLength),
+			LastAccOut: make(types.AccumulatedServiceOutput),
 		},
 	}
 }
@@ -51,14 +52,26 @@ func (s *PriorStates) GetAlpha() types.AuthPools {
 }
 
 // SetBeta sets the beta value
-func (s *PriorStates) SetBeta(beta types.BlocksHistory) {
+func (s *PriorStates) SetBeta(beta types.Beta) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta = beta
 }
 
+func (s *PriorStates) SetBetaH(betaH types.BlocksHistory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta.History = betaH
+}
+
+func (s *PriorStates) SetBetaB(betaB types.Mmr) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.Beta.BeefyBelt = betaB
+}
+
 // GetBeta returns the beta value
-func (s *PriorStates) GetBeta() types.BlocksHistory {
+func (s *PriorStates) GetBeta() types.Beta {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Beta
@@ -489,4 +502,16 @@ func (s *PriorStates) GetXi() types.AccumulatedQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Xi
+}
+
+func (s *PriorStates) SetLastAccOut(c types.AccumulatedServiceOutput) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.LastAccOut = c
+}
+
+func (s *PriorStates) GetLastAccOut() types.AccumulatedServiceOutput {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.LastAccOut
 }
