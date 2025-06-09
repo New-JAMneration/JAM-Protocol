@@ -32,6 +32,7 @@ type (
 	U64          uint64
 	ByteSequence []byte
 	ByteArray32  [32]byte
+	ByteString   string
 )
 
 type BitSequence []bool
@@ -109,8 +110,10 @@ func (v ValidatorsData) Validate() error {
 
 // Service
 
-type ServiceId U32
-type ServiceIdList []ServiceId
+type (
+	ServiceId     U32
+	ServiceIdList []ServiceId
+)
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 // GP 0.6.7
@@ -269,9 +272,11 @@ func (a AuthQueues) Validate() error {
 
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
 
-type ExportSegment [SegmentSize]byte
-type ExportSegmentMatrix [][]ExportSegment
-type OpaqueHashMatrix [][]OpaqueHash
+type (
+	ExportSegment       [SegmentSize]byte
+	ExportSegmentMatrix [][]ExportSegment
+	OpaqueHashMatrix    [][]OpaqueHash
+)
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
@@ -1537,9 +1542,11 @@ type AuditPool struct {
 	data map[WorkPackageHash][]AuditReport
 }
 
-type ExtrinsicData []byte
-type ExtrinsicDataList []ExtrinsicData
-type ExtrinsicDataMap map[OpaqueHash]ExtrinsicData
+type (
+	ExtrinsicData     []byte
+	ExtrinsicDataList []ExtrinsicData
+	ExtrinsicDataMap  map[OpaqueHash]ExtrinsicData
+)
 
 type WorkPackageBundle struct {
 	Package        WorkPackage
