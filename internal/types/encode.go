@@ -2429,15 +2429,15 @@ func (s *Storage) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	keys := make([]OpaqueHash, 0, len(*s))
+	keys := make([]ByteSequence, 0, len(*s))
 	for k := range *s {
-		keys = append(keys, k)
+		keys = append(keys, ByteSequence(k))
 	}
 
 	// Sort the keys (OpaqueHash)
 	sort.Slice(keys, func(i, j int) bool {
 		// OpaqueHash is a byte array, so we need to compare byte by byte
-		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+		return bytes.Compare(keys[i], keys[j]) < 0
 	})
 
 	// Encode the dictionary
@@ -2453,7 +2453,7 @@ func (s *Storage) Encode(e *Encoder) error {
 		}
 
 		// ByteSequence
-		value := (*s)[key]
+		value := (*s)[string(key)]
 
 		if err := value.Encode(e); err != nil {
 			return err

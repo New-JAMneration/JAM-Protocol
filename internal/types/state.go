@@ -57,7 +57,7 @@ type AccountDTO struct {
 }
 
 type (
-	Storage            map[OpaqueHash]ByteSequence
+	Storage            map[string]ByteSequence
 	PreimagesMapEntry  map[OpaqueHash]ByteSequence
 	LookupMetaMapEntry map[LookupMetaMapkey]TimeSlotSet
 )

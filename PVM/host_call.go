@@ -412,21 +412,12 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
-	// first compute k
-	encoder := types.NewEncoder()
-	serviceStar := types.ServiceId(sStar)
-	concated_bytes, _ := encoder.Encode(&serviceStar)
-	// mu_ko...+kz
-	for address := uint32(ko); address < uint32(ko+kz); address++ {
-		page := address / ZP
-		index := address % ZP
-		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-	}
+	// first compute k , mu_ko...+kz
+	storageKey := input.Memory.Read(ko, kz)
 
-	k := hash.Blake2bHash(concated_bytes)
-	v, exists := a.StorageDict[k]
-	f := min(input.Registers[11], uint64(len(concated_bytes)))
-	l := min(input.Registers[12], uint64(len(concated_bytes))-f)
+	v, exists := a.StorageDict[string(storageKey)]
+	f := min(input.Registers[11], uint64(len(v)))
+	l := min(input.Registers[12], uint64(len(v))-f)
 	// first check not writable, then check v = nil (not exists)
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -472,7 +463,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 // ΩW (ϱ, ω, μ, s, s) , write = 4
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
 	serviceAccount := input.Addition.ServiceAccount
 
 	newGas := input.Gas - 10
@@ -497,26 +487,18 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	encoder := types.NewEncoder()
-	concated_bytes, _ := encoder.Encode(&serviceID)
-	for address := uint32(ko); address < uint32(ko+kz); address++ {
-		page := address / ZP
-		index := address % ZP
-		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-	}
-	k := hash.Blake2bHash(concated_bytes)
+	// compute \mathbb{k}
+	storageKey := input.Memory.Read(ko, kz)
+
 	var a types.ServiceAccount
 	if vz == 0 {
 		a = serviceAccount
-		delete(a.StorageDict, k)
+		delete(a.StorageDict, string(storageKey))
 	} else if isReadable(vo, vz, input.Memory) {
-		concated_bytes = []byte{}
-		for address := uint32(vo); address < uint32(vo+vz); address++ {
-			page := address / ZP
-			index := address % ZP
-			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-		}
+		storageValue := input.Memory.Read(vo, vz)
 		a = serviceAccount
+		a.StorageDict[string(storageKey)] = storageValue
+
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
@@ -530,7 +512,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
-		a.StorageDict[k] = concated_bytes
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -541,9 +522,9 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	value, exists := serviceAccount.StorageDict[k]
+	value, storageKeyExists := serviceAccount.StorageDict[string(storageKey)]
 	var l uint64
-	if exists {
+	if storageKeyExists {
 		l = uint64(len(value))
 	} else {
 		l = NONE
@@ -570,8 +551,6 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
-	delta := input.Addition.ServiceAccountState
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -583,22 +562,81 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var t types.ServiceAccount
+	serviceID := input.Addition.ServiceId
+	delta := input.Addition.ServiceAccountState
+
+	var a types.ServiceAccount
 	var empty bool
 	empty = true
 	if input.Registers[7] == 0xffffffffffffffff {
 		value, exist := delta[types.ServiceId(serviceID)]
 		if exist {
-			t = value
+			a = value
 			empty = false
 		}
 	} else {
 		value, exist := delta[types.ServiceId(input.Registers[7])]
 		if exist {
-			t = value
+			a = value
 			empty = false
 		}
+
 	}
+
+	derivatives := service_account.GetServiceAccountDerivatives(a)
+
+	var v types.ByteSequence
+	encoder := types.NewEncoder()
+	// a_c
+	encoded, _ := encoder.Encode(&a.ServiceInfo.CodeHash)
+	v = append(v, encoded...)
+	// a_b
+	encoded, _ = encoder.Encode(&a.ServiceInfo.Balance)
+	v = append(v, encoded...)
+	// a_t
+	encoded, _ = encoder.Encode(&derivatives.Minbalance)
+	v = append(v, encoded...)
+	// a_g
+	encoded, _ = encoder.Encode(&a.ServiceInfo.MinItemGas)
+	v = append(v, encoded...)
+	// a_m
+	encoded, _ = encoder.Encode(&a.ServiceInfo.MinMemoGas)
+	v = append(v, encoded...)
+	// a_o
+	encoded, _ = encoder.Encode(&derivatives.Bytes)
+	v = append(v, encoded...)
+	// a_i
+	encoded, _ = encoder.Encode(&derivatives.Items)
+	v = append(v, encoded...)
+	// a_f
+	encoded, _ = encoder.Encode(&a.ServiceInfo.GratisStorageOffset)
+	v = append(v, encoded...)
+	// a_r
+	encoded, _ = encoder.Encode(&a.ServiceInfo.CreateTime)
+	v = append(v, encoded...)
+	// a_a
+	encoded, _ = encoder.Encode(&a.ServiceInfo.RecentAccumulateTime)
+	v = append(v, encoded...)
+	// a_p
+	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
+	v = append(v, encoded...)
+
+	f := min(input.Registers[11], uint64(len(v)))
+	l := min(input.Registers[12], uint64(len(v))-f)
+
+	o := input.Registers[8]
+	// if mathbf{N}_{o..._l} \not in mathbf{V}^*_mu
+	if !isWriteable(o, l, input.Memory) { // v = ∇ not defined
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// if a is nil => v = nil
 	if empty {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -611,58 +649,13 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	derivatives := service_account.GetServiceAccountDerivatives(t)
+	input.Memory.Write(f, l, v)
 
-	var serialized_bytes types.ByteSequence
-	encoder := types.NewEncoder()
-	// t_c
-	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_b
-	encoded, _ = encoder.Encode(&t.ServiceInfo.Balance)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_t
-	encoded, _ = encoder.Encode(&derivatives.Minbalance)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_g
-	encoded, _ = encoder.Encode(&t.ServiceInfo.MinItemGas)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_m
-	encoded, _ = encoder.Encode(&t.ServiceInfo.MinMemoGas)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_o
-	encoded, _ = encoder.Encode(&derivatives.Bytes)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_i
-	encoded, _ = encoder.Encode(&derivatives.Items)
-	serialized_bytes = append(serialized_bytes, encoded...)
-
-	o := input.Registers[8]
-
-	if !isWriteable(o, uint64(len(serialized_bytes)), input.Memory) {
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-	new_memory := input.Memory
-	for i := 0; i < len(serialized_bytes); i++ {
-		address := uint32(int(o) + i)
-		page := address / ZP
-		index := address % ZP
-		new_memory.Pages[page].Value[index] = serialized_bytes[i]
-	}
-
-	new_registers := input.Registers
-	new_registers[7] = OK
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
-		NewRegisters: new_registers,
-		NewMemory:    new_memory,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
 		Addition:     input.Addition,
 	}
 }
@@ -683,10 +676,39 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
-	offset := uint64(12 * n)
+	// if N_{a...+4C} not readable
+	offset := uint64(4 * types.CoresCount)
+	if !isReadable(a, offset, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// \mathbb{a}
+	rawData := input.Memory.Read(a, uint64(4*types.CoresCount))
+	var assignData types.ServiceIdList
+	decoder := types.NewDecoder()
+	err := decoder.Decode(rawData, assignData)
+
+	offset = uint64(12 * n)
 	if !isReadable(o, offset, input.Memory) { // not readable, return
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if x_s ≠ (x_u)_m
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Bless {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -709,25 +731,19 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 	// otherwise
 	// read data from memory, might cross many pages
-	rawData := input.Memory.Read(o, offset)
+	rawData = input.Memory.Read(o, offset)
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := types.AlwaysAccumulateMap{}
-	decoder := types.NewDecoder()
-	err := decoder.Decode(rawData, alwaysAccum)
+	err = decoder.Decode(rawData, alwaysAccum)
 	if err != nil {
 		log.Fatalf("host-call function \"bless\" decode alwaysAccum error : %v", err)
 	}
 
 	input.Registers[7] = OK
 
-	// TODO: change based on the PartialState and assign type change
-	input.Addition.ResultContextX.PartialState.Privileges = types.Privileges{
-		Bless:       types.ServiceId(m),
-		Assign:      types.ServiceId(a),
-		Designate:   types.ServiceId(v),
-		AlwaysAccum: alwaysAccum,
-	}
+	input.Addition.ResultContextX.PartialState.Assign = assignData
+	input.Addition.ResultContextX.PartialState.AlwaysAccum = alwaysAccum
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -752,7 +768,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	o := input.Registers[8]
+	c, o, a := input.Registers[7], input.Registers[8], input.Registers[9]
 
 	offset := uint64(32 * types.AuthQueueSize)
 	if !isReadable(o, offset, input.Memory) { // not readable, panic
@@ -764,8 +780,21 @@ func assign(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	// w7 >= C
-	if input.Registers[7] >= uint64(types.CoresCount) {
+
+	// otherwise if x_s ≠ (x_u)_a[c]
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if c >= C
+	if c >= uint64(types.CoresCount) {
 		input.Registers[7] = CORE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -778,7 +807,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	rawData := input.Memory.Read(o, offset)
 
-	// decode rawData
+	// decode rawData , authQueue = mathbb{q}
 	authQueue := types.AuthQueue{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, authQueue)
@@ -786,7 +815,8 @@ func assign(input OmegaInput) (output OmegaOutput) {
 		log.Fatalf("host-call function \"assign\" decode error : %v", err)
 	}
 
-	input.Addition.ResultContextX.PartialState.Authorizers[input.Registers[7]] = authQueue
+	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
+	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceId(a)
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -818,6 +848,18 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	if !isReadable(o, offset, input.Memory) { // not readable, panic
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if x_s ≠ (x_u)_v
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Designate {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -887,12 +929,25 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	o, l, g, m := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+	o, l, g, m, f := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
 	offset := uint64(32)
+	// if c = ∇
 	if !(isReadable(o, offset, input.Memory) && l < (1<<32)) { // not readable, return
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if f ≠ 0 and x_s ≠ (x_u)_m
+	if f != 0 && input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextY.PartialState.Bless {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -908,7 +963,8 @@ func new(input OmegaInput) (output OmegaOutput) {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
 		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-	// s_b < (x_s)_t
+
+	// otherwise if s_b < (x_s)_t
 	if s.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
@@ -931,10 +987,14 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// new an account
 	a := types.ServiceAccount{
 		ServiceInfo: types.ServiceInfo{
-			CodeHash:   types.OpaqueHash(c), // c
-			Balance:    0,                   // b, will be updated later
-			MinItemGas: types.Gas(g),        // g
-			MinMemoGas: types.Gas(m),        // m
+			CodeHash:             types.OpaqueHash(c),                     // c
+			Balance:              0,                                       // b, will be updated later
+			MinItemGas:           types.Gas(g),                            // g
+			MinMemoGas:           types.Gas(m),                            // m
+			CreateTime:           input.Addition.TimeSlot,                 // r
+			GratisStorageOffset:  types.U64(0),                            // f
+			RecentAccumulateTime: types.TimeSlot(0),                       // a
+			ParentService:        input.Addition.ResultContextX.ServiceId, // p
 		},
 		PreimageLookup: types.PreimagesMapEntry{}, // p
 		LookupDict: types.LookupMetaMapEntry{ // l
@@ -944,6 +1004,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 			}: types.TimeSlotSet{},
 		},
 		StorageDict: types.Storage{}, // s
+
 	}
 	at := service_account.GetServiceAccountDerivatives(a).Minbalance
 	a.ServiceInfo.Balance = at
@@ -954,12 +1015,12 @@ func new(input OmegaInput) (output OmegaOutput) {
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 	// reg[7] = x_i
 	input.Registers[7] = uint64(importServiceID)
-	// x_i = check(i)
-	i := (1 << 8) + (importServiceID-(1<<8)+42)%(1<<32-1<<9)
-	input.Addition.ResultContextX.ImportServiceId = check(i, input.Addition.ResultContextX.PartialState.ServiceAccounts)
-	// x_i -> a
+	// i* = check(i)
+	iStar := check((1<<8)+(importServiceID-(1<<8)+42)%(1<<32-1<<9), input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	input.Addition.ResultContextX.ImportServiceId = iStar
+	// mathbb{d} : x_i -> a
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
-	// x_s -> s
+	// mathbb{d} : x_s -> s
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 
 	return OmegaOutput{
