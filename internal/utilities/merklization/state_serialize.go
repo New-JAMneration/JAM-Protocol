@@ -560,7 +560,7 @@ func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKe
 }
 
 // key 17: delta2
-func serializeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (key17 types.StateKey, delta2Output types.ByteSequence) {
+func serializeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (key17 types.StateKey, delta2Output types.ByteSequence) {
 	encoder := types.NewEncoder()
 
 	encodeLength := 4
@@ -578,7 +578,7 @@ func serializeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types
 	return key17, delta2Output
 }
 
-func encodeDelta2KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	encoder := types.NewEncoder()
 
 	encodeLength := 4
@@ -777,7 +777,7 @@ func StateSerialize(state types.State) (map[types.StateKey]types.ByteSequence, e
 	// delta 2
 	for id, account := range state.Delta {
 		for key, value := range account.StorageDict {
-			key17, delta2Output := serializeDelta2KeyVal(types.ServiceId(id), key, value)
+			key17, delta2Output := serializeDelta2KeyVal(types.ServiceId(id), types.ByteSequence(key), value)
 			serialized[key17] = delta2Output
 		}
 	}
@@ -919,7 +919,7 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	// delta 2
 	for id, account := range state.Delta {
 		for key, val := range account.StorageDict {
-			stateKeyVal := encodeDelta2KeyVal(id, key, val)
+			stateKeyVal := encodeDelta2KeyVal(id, types.ByteSequence(key), val)
 			serialized = append(serialized, stateKeyVal)
 		}
 	}
