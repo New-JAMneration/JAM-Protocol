@@ -4,13 +4,13 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode *types.ByteSequence) Psi_I_ReturnType {
-	if authorizerCode == nil {
+func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequence) Psi_I_ReturnType {
+	if len(authorizerCode) == 0 {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultBadCode,
 			Gas:            0,
 		}
-	} else if len(*authorizerCode) > types.MaxIsAuthorizedCodeSize {
+	} else if len(authorizerCode) > types.MaxIsAuthorizedCodeSize {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultCodeOversize,
 			Gas:            0,
@@ -30,7 +30,7 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode *types.ByteSeq
 
 	addition := HostCallArgs{}
 
-	resultM := Psi_M(StandardCodeFormat(*authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), F, addition)
+	resultM := Psi_M(StandardCodeFormat(authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), F, addition)
 	if resultM.ReasonOrBytes == PANIC {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultPanic,
