@@ -212,7 +212,6 @@ var HostCallFunctions = map[OperationType]Omega{
 	24:  forget,
 	25:  yield,
 	26:  provide,
-	99:  hostCallException,
 	100: logHostCall,
 }
 
