@@ -82,7 +82,7 @@ func Psi_A(
 	F[ForgetOp] = HostCallFunctions[ForgetOp]
 	F[YieldOp] = HostCallFunctions[YieldOp]
 	F[ProvideOp] = HostCallFunctions[ProvideOp]
-	F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
+	F[100] = logHostCall
 
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
@@ -109,17 +109,6 @@ func Psi_A(
 		Result:            result,
 		Gas:               gas,
 		ServiceBlobs:      serviceBlobs,
-	}
-}
-
-func accumulateInvocationHostCallException(input OmegaInput) (output OmegaOutput) {
-	input.Registers[7] = WHAT
-	return OmegaOutput{
-		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas - 10,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
 	}
 }
 

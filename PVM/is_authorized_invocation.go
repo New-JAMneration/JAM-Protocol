@@ -26,9 +26,14 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequ
 	F := Omegas{}
 	F[GasOp] = HostCallFunctions[GasOp]
 	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
-	F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
+	F[100] = logHostCall
 
-	addition := HostCallArgs{}
+	addition := HostCallArgs{
+		GeneralArgs: GeneralArgs{
+			ServiceId: 0, // TODO: temporarily assign, need to add serviceID & coreID into JAM
+			CoreID:    0,
+		},
+	}
 
 	resultM := Psi_M(StandardCodeFormat(authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), F, addition)
 	if resultM.ReasonOrBytes == PANIC {
