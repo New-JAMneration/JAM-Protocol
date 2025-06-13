@@ -48,6 +48,8 @@ const (
 	ForgetOp     // forget = 24
 	YieldOp      // yield = 25
 	ProvideOp    // provide = 26
+
+	LogOp = OperationType(100)
 )
 
 type HistoryState struct {
@@ -81,6 +83,7 @@ type GeneralArgs struct {
 	ServiceAccount      types.ServiceAccount
 	ServiceId           types.ServiceId
 	ServiceAccountState types.ServiceAccountState
+	CoreID              types.CoreIndex
 }
 
 type AccumulateArgs struct {
@@ -156,7 +159,7 @@ func Psi_H(
 		input.Addition = addition
 		omega := omegas[input.Operation]
 		if omega == nil {
-			omega = omegas[27]
+			omega = hostCallException
 		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
@@ -181,37 +184,40 @@ func Psi_H(
 	return
 }
 
-var HostCallFunctions = [29]Omega{
-	0:  gas,
-	1:  fetch,
-	2:  lookup,
-	3:  read,
-	4:  write,
-	5:  info,
-	6:  historicalLookup,
-	7:  export,
-	8:  machine,
-	9:  peek,
-	10: poke,
-	11: pages,
-	12: invoke,
-	13: expunge,
-	14: bless,
-	15: assign,
-	16: designate,
-	17: checkpoint,
-	18: new,
-	19: upgrade,
-	20: transfer,
-	21: eject,
-	22: query,
-	23: solicit,
-	24: forget,
-	25: yield,
-	26: provide,
+var HostCallFunctions = map[OperationType]Omega{
+	0:   gas,
+	1:   fetch,
+	2:   lookup,
+	3:   read,
+	4:   write,
+	5:   info,
+	6:   historicalLookup,
+	7:   export,
+	8:   machine,
+	9:   peek,
+	10:  poke,
+	11:  pages,
+	12:  invoke,
+	13:  expunge,
+	14:  bless,
+	15:  assign,
+	16:  designate,
+	17:  checkpoint,
+	18:  new,
+	19:  upgrade,
+	20:  transfer,
+	21:  eject,
+	22:  query,
+	23:  solicit,
+	24:  forget,
+	25:  yield,
+	26:  provide,
+	99:  hostCallException,
+	100: logHostCall,
 }
 
-func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+func hostCallException(input OmegaInput) (output OmegaOutput) {
+	// non-defined host call
 	input.Registers[7] = WHAT
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -684,6 +690,9 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	var assignData types.ServiceIdList
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, assignData)
+	if err != nil {
+		log.Printf("host-call function \"bless\" decode assignData error : %v", err)
+	}
 
 	offset = uint64(12 * n)
 	if !isReadable(o, offset, input.Memory) { // not readable, return
@@ -729,7 +738,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	alwaysAccum := types.AlwaysAccumulateMap{}
 	err = decoder.Decode(rawData, alwaysAccum)
 	if err != nil {
-		log.Fatalf("host-call function \"bless\" decode alwaysAccum error : %v", err)
+		log.Printf("host-call function \"bless\" decode alwaysAccum error : %v", err)
 	}
 
 	input.Registers[7] = OK
@@ -804,7 +813,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, authQueue)
 	if err != nil {
-		log.Fatalf("host-call function \"assign\" decode error : %v", err)
+		log.Printf("host-call function \"assign\" decode error : %v", err)
 	}
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
@@ -866,7 +875,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, validatorsData)
 	if err != nil {
-		log.Fatalf("host-call function \"designate\" decode validatorsData error : %v", err)
+		log.Printf("host-call function \"designate\" decode validatorsData error : %v", err)
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
@@ -953,7 +962,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !sExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	// otherwise if s_b < (x_s)_t
@@ -973,7 +982,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(c, &cDecoded)
 	if err != nil {
-		log.Fatalf("host-call function \"new\" decode error %v: ", err)
+		log.Printf("host-call function \"new\" decode error %v: ", err)
 	}
 
 	// new an account
@@ -1064,7 +1073,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = serviceAccount
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -1154,7 +1163,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	input.Registers[7] = OK
@@ -1266,7 +1275,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				}
 			}
 			// according GP, no need to check the service exists => it should in ServiceAccountState
-			log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
+			log.Printf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 		}
 	}
 
@@ -1315,7 +1324,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !accountExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 	lookupData, lookupDataExists := account.LookupDict[lookupKey]
@@ -1426,7 +1435,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		}
 	} else {
-		log.Fatalf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -1509,7 +1518,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			input.Registers[7] = HUH
 		}
 	} else {
-		log.Fatalf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -2413,13 +2422,13 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// decode gas
 	err := decoder.Decode(data[:8], gas)
 	if err != nil {
-		log.Fatalf("host-call function \"invoke\" decode gas error : %v", err)
+		log.Printf("host-call function \"invoke\" decode gas error : %v", err)
 	}
 	// decode registers
 	for i := uint64(1); i < offset/8; i++ {
 		err = decoder.Decode(data[8*i:8*(i+1)], w[i-1])
 		if err != nil {
-			log.Fatalf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
+			log.Printf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
 	// psi
@@ -2625,6 +2634,28 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
+func logHostCall(input OmegaInput) (output OmegaOutput) {
+	level := LogLevel(input.Registers[7])
+	message := input.Memory.Read(input.Registers[10], input.Registers[11])
+
+	if input.Registers[8] == 0 && input.Registers[9] == 0 {
+		getLogger().log(level, input.Addition.CoreID, input.Addition.ServiceID, "message : %v\n", message)
+	} else {
+		target := input.Memory.Read(input.Registers[8], input.Registers[9])
+		getLogger().log(level, input.Addition.CoreID, input.Addition.ServiceID,
+			"taget : %v\n  message : %v\n", target, message)
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
