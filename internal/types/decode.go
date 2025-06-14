@@ -2127,26 +2127,8 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	// if err = b.MmrPeak.Decode(d); err != nil {
-	// 	return err
-	// }
-	// check pointer flag
-	pointerFlag, err := d.ReadPointerFlag()
-	if err != nil {
+	if err = b.MmrPeak.Decode(d); err != nil {
 		return err
-	}
-	pointerIsNil := pointerFlag == 0
-	if pointerIsNil {
-		cLog(Yellow, "MmrPeak is nil")
-	}
-
-	if !pointerIsNil {
-		cLog(Yellow, "MmrPeak is not nil")
-		var val OpaqueHash
-		if err = val.Decode(d); err != nil {
-			return err
-		}
-		b.MmrPeak = &val
 	}
 
 	if err = b.StateRoot.Decode(d); err != nil {

@@ -560,7 +560,7 @@ type ReportedWorkPackage struct {
 
 type BlockInfo struct {
 	HeaderHash HeaderHash `json:"header_hash,omitempty"`
-	MmrPeak    MmrPeak
+	MmrPeak    OpaqueHash
 	StateRoot  StateRoot             `json:"state_root,omitempty"`
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
@@ -577,7 +577,7 @@ func (b BlocksHistory) Validate() error {
 // (7.1) GP 0.6.7
 type Beta struct {
 	History   BlocksHistory
-	BeefyBelt Mmr `json:"mmr"`
+	BeefyBelt OpaqueHash `json:"mmr"`
 }
 
 // Statistics

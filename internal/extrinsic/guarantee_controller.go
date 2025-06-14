@@ -249,11 +249,11 @@ func (g *GuaranteeController) ValidateContexts() error {
 		stateRootMatch := false
 		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
-			m := mmr.NewMMRFromPeaks([]types.MmrPeak{blockInfo.MmrPeak}, hash.Blake2bHash).SuperPeak([]types.MmrPeak{blockInfo.MmrPeak})
+			m := mmr.NewMMRFromPeaks([]types.MmrPeak{&blockInfo.MmrPeak}, hash.Blake2bHash).SuperPeak([]types.MmrPeak{&blockInfo.MmrPeak})
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
-				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(*m)
+				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(m)
 				break
 			}
 		}
