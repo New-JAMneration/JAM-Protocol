@@ -143,15 +143,15 @@ func (m *MMR) Serialize() types.ByteSequence {
 //	    if |h| = 1 => h0
 //	    otherwise => hash( SuperPeak(h[..|h|-1]), h[|h|-1] )
 //	}
-func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.MmrPeak {
+func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.OpaqueHash {
 	switch len(peaks) {
 	case 0:
 		// No peaks => return h^0
 		empty := types.OpaqueHash{}
-		return &empty
+		return empty
 	case 1:
 		// Single peak => return it directly
-		return peaks[0]
+		return *peaks[0]
 	default:
 		// "Fold" the first (n-1) peaks by recursively computing SuperPeak,
 		// then combine the result with the final peak.
@@ -168,18 +168,15 @@ func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.MmrPeak {
 		seq = append(seq, []byte("peak")...)
 
 		// Append the partial hash
-		if partial != nil {
-			partialBytes := (*partial)[:]
-			seq = append(seq, partialBytes...)
-		}
+		partialBytes := partial[:]
+		seq = append(seq, partialBytes...)
 
 		// Append the final peak
-
-		finalPeak := (*peaks[len(peaks)-1])[:]
+		finalPeak := peaks[len(peaks)-1][:]
 		seq = append(seq, finalPeak...)
 
 		result := hash.KeccakHash(seq)
 
-		return &result
+		return result
 	}
 }

@@ -95,7 +95,7 @@ func (rhc *RecentHistoryController) RecentHistory2Dagger(parentStateRoot types.S
 // }
 
 // (7.6) \mathbf{s} GP 0.6.7
-// TODO: remove mock theta
+// TODO: remove mock theta and read from store(posterior LastAccOut)
 func s() (output types.ByteSequence) {
 	newEncoder := types.NewEncoder()
 	mockTheta := []types.AccumulatedServiceHash{}
@@ -116,10 +116,10 @@ func s() (output types.ByteSequence) {
 
 // Merkle Mountain Range $b$
 // (7.7) GP 0.6.7
-func (rhc *RecentHistoryController) b(accumulationResultTreeRoot types.OpaqueHash) types.MmrPeak {
+func (rhc *RecentHistoryController) b() types.OpaqueHash {
 	mmb := s()
-	wrappedMmr := mmr.MmrWrapper(&rhc.Betas.BeefyBelt, hash.KeccakHash)
-	accumulationResultTreeRoot = merkle.Mb([]types.ByteSequence{mmb}, hash.KeccakHash)
+	wrappedMmr := mmr.MmrWrapper(&types.Mmr{Peaks: []types.MmrPeak{&rhc.Betas.BeefyBelt}}, hash.KeccakHash)
+	accumulationResultTreeRoot := merkle.Mb([]types.ByteSequence{mmb}, hash.KeccakHash)
 	// MMR append func $\mathcal{A}$
 	beefybeltPrime := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
 	return wrappedMmr.SuperPeak(beefybeltPrime)
@@ -142,8 +142,8 @@ func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 
 // item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
 // (7.8) GP 0.6.7
-func (rhc *RecentHistoryController) N(headerHash types.HeaderHash, eg types.GuaranteesExtrinsic, accumulationResultTreeRoot types.OpaqueHash) (items types.BlockInfo) {
-	accumulationResultMmr := rhc.b(accumulationResultTreeRoot)
+func (rhc *RecentHistoryController) N(headerHash types.HeaderHash, eg types.GuaranteesExtrinsic) (items types.BlockInfo) {
+	accumulationResultMmr := rhc.b()
 	workReportHash := p(eg)
 	zeroHash := types.StateRoot{}
 
