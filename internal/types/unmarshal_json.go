@@ -496,7 +496,7 @@ func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		HeaderHash string                `json:"header_hash,omitempty"`
-		Mmr        Mmr                   `json:"mmr"`
+		MmrPeak    string                `json:"mmr_peak,omitempty"`
 		StateRoot  string                `json:"state_root,omitempty"`
 		Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 	}
@@ -511,7 +511,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.HeaderHash = HeaderHash(headerHashBytes)
 
-	b.Mmr = temp.Mmr
+	mmrPeakBytes, err := hex.DecodeString(temp.MmrPeak[2:])
+	if err != nil {
+		return err
+	}
+	b.MmrPeak = OpaqueHash(mmrPeakBytes)
 
 	stateRootBytes, err := hex.DecodeString(temp.StateRoot[2:])
 	if err != nil {
@@ -1360,6 +1364,24 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 
 	if len(temp) == 0 {
 		return nil
+	}
+
+	*b = temp
+
+	return nil
+}
+
+// Beta
+func (b *Beta) UnmarshalJSON(data []byte) error {
+	var temp Beta
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	if temp.History == nil {
+		b.History = nil
+	} else {
+		b.History = temp.History
 	}
 
 	*b = temp
