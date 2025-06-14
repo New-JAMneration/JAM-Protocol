@@ -565,7 +565,7 @@ func (b BlocksHistory) Validate() error {
 // (7.1) GP 0.6.7
 type Beta struct {
 	History   BlocksHistory
-	BeefyBelt OpaqueHash `json:"mmr"`
+	BeefyBelt Mmr `json:"mmr"`
 }
 
 // Statistics

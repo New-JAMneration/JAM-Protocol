@@ -63,7 +63,7 @@ func (s *PosteriorStates) SetBetaH(betaH types.BlocksHistory) {
 	s.state.Beta.History = betaH
 }
 
-func (s *PosteriorStates) SetBetaB(betaB types.OpaqueHash) {
+func (s *PosteriorStates) SetBetaB(betaB types.Mmr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta.BeefyBelt = betaB
