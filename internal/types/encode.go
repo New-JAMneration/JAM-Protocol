@@ -1919,20 +1919,9 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// MmrPeak(Encode pointer)
-	if bi.MmrPeak == nil {
-		if err := e.EncodeLength(0); err != nil {
-			return err
-		}
-	} else {
-		if err := e.EncodeLength(1); err != nil {
-			return err
-		}
-
-		// Encode the peak
-		if err := (*bi.MmrPeak).Encode(e); err != nil {
-			return err
-		}
+	// MmrPeak
+	if err := bi.MmrPeak.Encode(e); err != nil {
+		return err
 	}
 
 	// StateRoot

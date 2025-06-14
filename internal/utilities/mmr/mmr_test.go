@@ -90,7 +90,7 @@ func TestMMR_AppendOne(t *testing.T) {
 	// We at least know the MMR has updated peaks
 	foundAB := false
 	for _, peak := range m.Peaks {
-		if *peak != hash.Blake2bHash(types.ByteSequence(append(hashA[:], hashB[:]...))) {
+		if peak != nil && *peak == hash.Blake2bHash(types.ByteSequence(append(hashA[:], hashB[:]...))) {
 			foundAB = true
 			break
 		}
@@ -236,7 +236,7 @@ func TestSuperPeak(t *testing.T) {
 		got := m.SuperPeak([]types.MmrPeak{})
 		expected := types.OpaqueHash{}
 		if !bytes.Equal(got[:], expected[:]) {
-			t.Errorf("SuperPeak([]) = %v; want [32]byte{}", *got)
+			t.Errorf("SuperPeak([]) = %v; want [32]byte{}", got)
 		}
 	})
 
@@ -250,11 +250,8 @@ func TestSuperPeak(t *testing.T) {
 		peaks := []types.MmrPeak{&p1}
 		got := m.SuperPeak(peaks)
 
-		if got == nil {
-			t.Fatalf("SuperPeak([p1]) = nil; want the peak itself")
-		}
-		if !bytes.Equal(p1[:], (*got)[:]) {
-			t.Errorf("SuperPeak([p1]) = %x; want %x", *got, p1)
+		if !bytes.Equal(p1[:], got[:]) {
+			t.Errorf("SuperPeak([p1]) = %x; want %x", got, p1)
 		}
 	})
 
@@ -275,11 +272,8 @@ func TestSuperPeak(t *testing.T) {
 		seq = append(seq, p2[:]...)
 		want := hash.KeccakHash(seq)
 
-		if got == nil {
-			t.Fatalf("SuperPeak([p1,p2]) = nil; want a 32-byte hash")
-		}
-		if !bytes.Equal(want[:], (*got)[:]) {
-			t.Errorf("SuperPeak([p1,p2]) = %x; want %x", *got, want)
+		if !bytes.Equal(want[:], got[:]) {
+			t.Errorf("SuperPeak([p1,p2]) = %x; want %x", got, want)
 		}
 	})
 
@@ -308,11 +302,8 @@ func TestSuperPeak(t *testing.T) {
 		seqFinal = append(seqFinal, p3[:]...)
 		want := hash.KeccakHash(seqFinal)
 
-		if got == nil {
-			t.Fatalf("SuperPeak([p1,p2,p3]) = nil; want 32-byte hash")
-		}
-		if !bytes.Equal(want[:], (*got)[:]) {
-			t.Errorf("SuperPeak([p1,p2,p3]) = %x; want %x", *got, want)
+		if !bytes.Equal(want[:], got[:]) {
+			t.Errorf("SuperPeak([p1,p2,p3]) = %x; want %x", got, want)
 		}
 	})
 }
