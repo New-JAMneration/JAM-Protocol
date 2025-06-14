@@ -2127,7 +2127,7 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = b.Mmr.Decode(d); err != nil {
+	if err = b.MmrPeak.Decode(d); err != nil {
 		return err
 	}
 
@@ -2178,6 +2178,21 @@ func (b *BlocksHistory) Decode(d *Decoder) error {
 	}
 
 	*b = history
+
+	return nil
+}
+
+// Beta
+func (b *Beta) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Beta")
+
+	if err := b.History.Decode(d); err != nil {
+		return err
+	}
+
+	if err := b.BeefyBelt.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }
