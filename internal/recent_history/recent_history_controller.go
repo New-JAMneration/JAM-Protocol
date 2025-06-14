@@ -118,7 +118,7 @@ func s() (output types.ByteSequence) {
 // (7.7) GP 0.6.7
 func (rhc *RecentHistoryController) b() types.OpaqueHash {
 	mmb := s()
-	wrappedMmr := mmr.MmrWrapper(&types.Mmr{Peaks: []types.MmrPeak{&rhc.Betas.BeefyBelt}}, hash.KeccakHash)
+	wrappedMmr := mmr.MmrWrapper(&rhc.Betas.BeefyBelt, hash.KeccakHash)
 	accumulationResultTreeRoot := merkle.Mb([]types.ByteSequence{mmb}, hash.KeccakHash)
 	// MMR append func $\mathcal{A}$
 	beefybeltPrime := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
