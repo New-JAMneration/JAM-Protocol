@@ -3264,3 +3264,53 @@ func (s *StateKeyVals) Decode(d *Decoder) error {
 
 	return nil
 }
+
+// AccumulatedServiceHash
+func (a *AccumulatedServiceHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedServiceHash")
+
+	var err error
+
+	if err = a.ServiceId.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedServiceOutput
+func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedServiceOutput")
+
+	var err error
+
+	// Decode the length of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Initialize the map with the given length
+	*a = make(AccumulatedServiceOutput, length)
+	for i := uint64(0); i < length; i++ {
+		var key AccumulatedServiceHash
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		// Put the key in the map
+		(*a)[key] = true // The value is always true in this context
+	}
+
+	cLog(Yellow, fmt.Sprintf("AccumulatedServiceOutput: %v", *a))
+
+	return nil
+}
