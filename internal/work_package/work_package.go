@@ -162,7 +162,7 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 	e := refineOuput.ExportSegment
 	u := refineOuput.Gas
 	z := len(o) + rSum
-	if len(r)+z >= types.WorkReportOutputBlobsMaximumSize {
+	if len(r)+z > types.WorkReportOutputBlobsMaximumSize {
 		emptyExport := make([]types.ExportSegment, expectedCount)
 		return types.WorkExecResult{
 			types.WorkExecResultReportOversize: nil,

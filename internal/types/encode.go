@@ -437,6 +437,17 @@ func (s *ServiceId) Encode(e *Encoder) error {
 	return nil
 }
 
+// SerivceIdList
+func (s *ServiceIdList) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceIdList")
+	for _, serviceId := range *s {
+		if err := serviceId.Encode(e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ByteSequence
 func (b *ByteSequence) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ByteSequence")
@@ -1919,8 +1930,8 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Mmr
-	if err := bi.Mmr.Encode(e); err != nil {
+	// MmrPeak
+	if err := bi.MmrPeak.Encode(e); err != nil {
 		return err
 	}
 
@@ -1959,6 +1970,21 @@ func (bh *BlocksHistory) Encode(e *Encoder) error {
 		if err := blockInfo.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Beta
+func (b *Beta) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding Beta")
+
+	if err := b.History.Encode(e); err != nil {
+		return err
+	}
+
+	if err := b.BeefyBelt.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
@@ -2019,6 +2045,11 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
+	// GratisStorageOffset
+	if err := s.GratisStorageOffset.Encode(e); err != nil {
+		return err
+	}
+
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
 		return err
@@ -2036,6 +2067,21 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	// MinMemoGas
 	if err := s.MinMemoGas.Encode(e); err != nil {
+		return err
+	}
+
+	// CreateTime
+	if err := s.CreateTime.Encode(e); err != nil {
+		return err
+	}
+
+	// RecentAccumulateTime
+	if err := s.RecentAccumulateTime.Encode(e); err != nil {
+		return err
+	}
+
+	// ParentService
+	if err := s.ParentService.Encode(e); err != nil {
 		return err
 	}
 
@@ -2398,15 +2444,15 @@ func (s *Storage) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	keys := make([]OpaqueHash, 0, len(*s))
+	keys := make([]ByteSequence, 0, len(*s))
 	for k := range *s {
-		keys = append(keys, k)
+		keys = append(keys, ByteSequence(k))
 	}
 
 	// Sort the keys (OpaqueHash)
 	sort.Slice(keys, func(i, j int) bool {
 		// OpaqueHash is a byte array, so we need to compare byte by byte
-		return bytes.Compare(keys[i][:], keys[j][:]) < 0
+		return bytes.Compare(keys[i], keys[j]) < 0
 	})
 
 	// Encode the dictionary
@@ -2422,7 +2468,7 @@ func (s *Storage) Encode(e *Encoder) error {
 		}
 
 		// ByteSequence
-		value := (*s)[key]
+		value := (*s)[string(key)]
 
 		if err := value.Encode(e); err != nil {
 			return err
@@ -2928,6 +2974,46 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 		}
 
 		if err = (*s)[i].Value.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AccumulatedServiceHash
+func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedServiceHash")
+
+	// ServiceId
+	if err := ash.ServiceId.Encode(e); err != nil {
+		return err
+	}
+
+	// Hash
+	if err := ash.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedServiceOutput
+// TODO: We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// We need to follow future updates to the graypaper.
+// Alternatively, we may need to change the implementation of AccumulatedServiceOutput to avoid using a map.
+// In this encode function, I ignore sorting when encoding the dictionary as described in the graypaper. (It's not a map)
+func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedServiceHash")
+
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
+		return err
+	}
+
+	for accumulatedServiceHash := range *a {
+		// AccumulatedServiceHash
+		if err := accumulatedServiceHash.Encode(e); err != nil {
 			return err
 		}
 	}

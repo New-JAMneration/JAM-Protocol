@@ -33,13 +33,17 @@ func calculateMaxGasUsed(alwaysAccumulateMap types.AlwaysAccumulateMap) types.Ga
 
 func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialStateSet) {
 	// (12.22)
-	postChi := o.Privileges
 	deltaDagger := o.ServiceAccounts
 	postIota := o.ValidatorKeys
 	postVarphi := o.Authorizers
 
 	// Update the posterior state
-	store.GetPosteriorStates().SetChi(postChi)
+	store.GetPosteriorStates().SetChi(types.Privileges{
+		Bless:       o.Bless,
+		Assign:      o.Assign,
+		Designate:   o.Designate,
+		AlwaysAccum: o.AlwaysAccum,
+	})
 	store.GetIntermediateStates().SetDeltaDagger(deltaDagger)
 	store.GetPosteriorStates().SetIota(postIota)
 	store.GetPosteriorStates().SetVarphi(postVarphi)
@@ -144,6 +148,10 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
 		// (12.28)
+		if _, exists := deltaDagger[serviceId]; exists {
+			// TODO : apply the changes to the service account
+			// This is a placeholder for the actual changes to the service account
+		}
 		deltaDoubleDagger[serviceId] = serviceAccount
 
 		// Calculate transfers statistics (X)
@@ -265,7 +273,10 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		ServiceAccounts: delta,
 		ValidatorKeys:   iota,
 		Authorizers:     varphi,
-		Privileges:      chi,
+		Bless:           chi.Bless,
+		Assign:          chi.Assign,
+		Designate:       chi.Designate,
+		AlwaysAccum:     chi.AlwaysAccum,
 	}
 
 	// \chi_g
@@ -291,7 +302,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// (12.22)
 	// Update the partial state set to posterior state
 	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
-	store.GetIntermediateStates().SetBeefyCommitmentOutput(output.AccumulatedServiceOutput)
+	store.GetPosteriorStates().SetLastAccOut(output.AccumulatedServiceOutput)
 
 	return output, nil
 }
