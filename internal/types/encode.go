@@ -2980,3 +2980,43 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 
 	return nil
 }
+
+// AccumulatedServiceHash
+func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedServiceHash")
+
+	// ServiceId
+	if err := ash.ServiceId.Encode(e); err != nil {
+		return err
+	}
+
+	// Hash
+	if err := ash.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedServiceOutput
+// TODO: We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// We need to follow future updates to the graypaper.
+// Alternatively, we may need to change the implementation of AccumulatedServiceOutput to avoid using a map.
+// In this encode function, I ignore sorting when encoding the dictionary as described in the graypaper. (It's not a map)
+func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding AccumulatedServiceHash")
+
+	// Encode the size of the map
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
+		return err
+	}
+
+	for accumulatedServiceHash := range *a {
+		// AccumulatedServiceHash
+		if err := accumulatedServiceHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
