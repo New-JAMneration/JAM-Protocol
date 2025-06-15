@@ -120,7 +120,7 @@ const (
 
 // work package constants
 const (
-	MaxTotalSize            = 13_794_305                         // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
+	MaxTotalSize            = 13_794_305                       // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
 	MaxRefineGas            = 5_000_000_000                    // G_R v0.6.4
 	MaxAccumulateGas        = 10_000_000                       // G_A v0.6.4
 	IsAuthorizedGas         = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
