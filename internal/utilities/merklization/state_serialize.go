@@ -3,7 +3,6 @@ package merklization
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // key 1: Alpha
@@ -378,8 +377,7 @@ func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value ty
 
 	encodeLength := 4
 	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
-	hash := hash.Blake2bHash(types.ByteSequence(key.Hash[:]))
-	part_2 := hash[2:25]
+	part_2 := key.Hash
 
 	h := types.ByteSequence{}
 	copy(h, part_1)
