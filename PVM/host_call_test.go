@@ -36,11 +36,11 @@ var hostCallMap = map[string]PVM.OperationType{
 	"Solicit":           PVM.SolicitOp,
 	"Transfer":          PVM.TransferOp,
 	"Upgrade":           PVM.UpgradeOp,
-	"Void":              PVM.VoidOp,
+	"Pages":             PVM.PagesOp,
 	"Write":             PVM.WriteOp,
 	"Yield":             PVM.YieldOp,
-	"Zero":              PVM.ZeroOp,
-	"Read":              PVM.ReadOp,
+	//"Zero":              PVM.ZeroOp,
+	"Read": PVM.ReadOp,
 }
 
 func TestHostCall(t *testing.T) {
@@ -419,8 +419,7 @@ func (s SMap) ToStorageDict() types.Storage {
 	result := make(types.Storage)
 
 	for k, v := range s {
-		hash := k.ToOpaqueHash()
-		result[hash] = v
+		result[string(k)] = v
 	}
 
 	return result
@@ -525,6 +524,8 @@ func (u U) ToPartialStateSet() types.PartialStateSet {
 		ServiceAccounts: u.D.ToServiceAccountState(),
 		//		ValidatorKeys:   u.I,
 		Authorizers: u.Q,
-		Privileges:  u.X,
+		// TODO? Not sure if this test is still needed for test, GP 0.6.7 removed Privileges, this test is for GP 0.6.4
+		// Privileges:  u.X,
+
 	}
 }

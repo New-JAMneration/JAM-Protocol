@@ -6,7 +6,7 @@ import "fmt"
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
 	Varphi AuthQueues              `json:"varphi"`
-	Beta   BlocksHistory           `json:"beta"`
+	Beta   Beta                    `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
 	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`
@@ -18,8 +18,10 @@ type State struct {
 	Chi    Privileges              `json:"chi"`
 	Pi     Statistics              `json:"pi"`
 	Theta  ReadyQueue              `json:"theta"`
-	Xi     AccumulatedQueue        `json:"xi"`
-	Delta  ServiceAccountState     `json:"accounts"`
+	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+	LastAccOut AccumulatedServiceOutput
+	Xi         AccumulatedQueue    `json:"xi"`
+	Delta      ServiceAccountState `json:"accounts"`
 }
 
 // (6.3)
@@ -57,7 +59,7 @@ type AccountDTO struct {
 }
 
 type (
-	Storage            map[OpaqueHash]ByteSequence
+	Storage            map[string]ByteSequence
 	PreimagesMapEntry  map[OpaqueHash]ByteSequence
 	LookupMetaMapEntry map[LookupMetaMapkey]TimeSlotSet
 )

@@ -349,13 +349,13 @@ func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 
 // opcode 1
 func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
 }
 
 // opcode 10
 func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 
 	lX := min(4, int(skipLength))
 
@@ -374,7 +374,7 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 20
 func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 
 	rA := min(12, (int(instructionCode[pc+1]) % 16))
 	// zeta_{iota+2,...,+8}
@@ -390,10 +390,10 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 30
 func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	offset := 1
 	vy = uint64(uint8(vy))
@@ -404,11 +404,11 @@ func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 31
 func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	offset := 2
 	vy = uint64(uint16(vy))
@@ -419,10 +419,10 @@ func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 32
 func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	offset := 4
 	vy = uint64(uint32(vy))
@@ -433,10 +433,10 @@ func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 33
 func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
@@ -448,7 +448,7 @@ func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	vX, err := decodeOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	reason, newPC := branch(pc, vX, true, bitmask)
@@ -458,14 +458,14 @@ func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	// TODO double-check gas expenditure
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+	return PVMExitTuple(reason, nil), newPC, Gas(1), reg, mem
 }
 
 // opcode 50
 func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	dest := uint32(reg[rA] + vX)
@@ -474,12 +474,12 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
 	}
 
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+	return PVMExitTuple(reason, nil), newPC, Gas(1), reg, mem
 }
 
 // opcode 51
 func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -491,7 +491,7 @@ func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 52
 func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -509,7 +509,7 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 53
 func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -532,7 +532,7 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 54
 func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -550,7 +550,7 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 55
 func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -573,7 +573,7 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 56
 func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -592,7 +592,7 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 57
 func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -615,7 +615,7 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 58
 func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -634,7 +634,7 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 59
 func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -648,7 +648,7 @@ func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 60
 func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -662,7 +662,7 @@ func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 61
 func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -676,7 +676,7 @@ func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 62
 func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -690,7 +690,7 @@ func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 70
 func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -704,7 +704,7 @@ func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 71
 func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -718,7 +718,7 @@ func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength Pr
 
 // opcode 72
 func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -732,7 +732,7 @@ func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 
 // opcode 73
 func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		return PVMExitTuple(PANIC, nil), pc, gasDelta, reg, mem
@@ -748,7 +748,7 @@ func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	branchCondition := false
@@ -791,10 +791,10 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 
 // opcode 100
 func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA]
@@ -804,7 +804,7 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 101
 func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 
 	rA := getRegFloorIndex(instructionCode, pc)
 	minAddr := slices.Min(reg[:]) // x >= h (heap) defined in A.7 --> writable memory
@@ -818,10 +818,10 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 
 // opcode 102
 func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -842,10 +842,10 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 
 // opcode 103
 func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -866,10 +866,10 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 
 // opcode 104
 func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -891,10 +891,10 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 
 // opcode 105
 func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -916,10 +916,10 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 
 // opcode 106
 func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -941,10 +941,10 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 
 // opcode 107
 func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -966,10 +966,10 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 
 // opcode 108
 func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -983,10 +983,10 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 109
 func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -1000,10 +1000,10 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 // opcode 110
 func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := reg[rA]
@@ -1014,10 +1014,10 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 // opcode 111
 func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	regA := types.U64(reg[rA])
@@ -1033,7 +1033,7 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 // opcode 120
 func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1047,7 +1047,7 @@ func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 121
 func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1061,7 +1061,7 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 122
 func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1075,7 +1075,7 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 123
 func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1089,7 +1089,7 @@ func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 124
 func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1107,7 +1107,7 @@ func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 125
 func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1126,7 +1126,7 @@ func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 126
 func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1145,7 +1145,7 @@ func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 127
 func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1164,7 +1164,7 @@ func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 128
 func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1183,7 +1183,7 @@ func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 129
 func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1202,7 +1202,7 @@ func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 130
 func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1221,7 +1221,7 @@ func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 131
 func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1236,7 +1236,7 @@ func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 132
 func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
@@ -1250,7 +1250,7 @@ func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 133
 func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1263,7 +1263,7 @@ func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 134
 func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1276,7 +1276,7 @@ func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 135
 func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1293,7 +1293,7 @@ func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 136
 func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1310,7 +1310,7 @@ func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 137
 func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1327,7 +1327,7 @@ func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 138
 func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1345,7 +1345,7 @@ func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 139
 func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1363,7 +1363,7 @@ func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 140
 func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1377,7 +1377,7 @@ func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 141
 func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1394,7 +1394,7 @@ func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 142
 func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1411,7 +1411,7 @@ func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 143
 func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1428,7 +1428,7 @@ func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 144
 func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1445,7 +1445,7 @@ func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 145
 func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1462,7 +1462,7 @@ func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 146
 func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1476,7 +1476,7 @@ func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 147
 func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1491,7 +1491,7 @@ func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 148
 func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1506,7 +1506,7 @@ func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 149
 func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1518,7 +1518,7 @@ func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 150
 func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1531,7 +1531,7 @@ func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 
 // opcode 151
 func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1548,7 +1548,7 @@ func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 152
 func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1565,7 +1565,7 @@ func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 153
 func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1578,7 +1578,7 @@ func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 154
 func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1591,7 +1591,7 @@ func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 
 // opcode 155
 func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1604,7 +1604,7 @@ func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 156
 func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1617,7 +1617,7 @@ func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 157
 func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1630,7 +1630,7 @@ func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 // opcode 158
 func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1645,7 +1645,7 @@ func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 159
 func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1660,7 +1660,7 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 // opcode 160
 func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1680,7 +1680,7 @@ func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 // opcode 161
 func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, vX, exitReason := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if exitReason != nil {
 		return exitReason, pc, gasDelta, reg, mem
@@ -1702,7 +1702,7 @@ func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	branchCondition := false
@@ -1729,14 +1729,14 @@ func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
 	}
 
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+	return PVMExitTuple(reason, nil), newPC, Gas(1), reg, mem
 }
 
 // opcode 180
 func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
 	rA, rB, vX, vY, err := decodeTwoRegistersAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// per https://github.com/koute/jamtestvectors/blob/master_pvm_initial/pvm/TESTCASES.md#inst_load_imm_and_jump_indirect_invalid_djump_to_zero_different_regs_without_offset_nok
 	// the register update should take place even if the jump panics
@@ -1747,20 +1747,20 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 		return PVMExitTuple(reason, nil), pc, Gas(1), reg, mem
 	}
 
-	return PVMExitTuple(reason, nil), newPC, Gas(2), reg, mem
+	return PVMExitTuple(reason, nil), newPC, Gas(1), reg, mem
 }
 
 // opcode 190
 func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+reg[rB])))
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1768,10 +1768,10 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 191
 func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	bMod32 := uint32(reg[rB])
@@ -1782,15 +1782,15 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 192
 func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]*reg[rB])))
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1798,10 +1798,10 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 193
 func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	bMod32 := uint32(reg[rB])
@@ -1812,7 +1812,7 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	} else {
 		reg[rD], err = SignExtend(4, uint64(aMod32/bMod32))
 		if err != nil {
-			return err, pc, Gas(0), reg, mem
+			return err, pc, Gas(1), reg, mem
 		}
 	}
 
@@ -1821,10 +1821,10 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 194
 func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	a := int64(int32(reg[rA]))
 	b := int64(int32(reg[rB]))
@@ -1842,10 +1842,10 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 195
 func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	bMod32 := uint32(reg[rB])
 	aMod32 := uint32(reg[rA])
@@ -1856,7 +1856,7 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD], err = SignExtend(4, uint64(aMod32%bMod32))
 	}
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1864,10 +1864,10 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 196
 func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	a := int64(int32(reg[rA]))
@@ -1884,15 +1884,15 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 197
 func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	shift := reg[rB] % 32
 	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]<<shift)))
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1900,17 +1900,17 @@ func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 198
 func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	modA := uint32(reg[rA])
 	shift := reg[rB] % 32
 	reg[rD], err = SignExtend(4, uint64(modA>>shift))
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, gasDelta, reg, mem
@@ -1918,10 +1918,10 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 199
 func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 
 	signedA := int32(reg[rA])
@@ -1934,10 +1934,10 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 200
 func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] + reg[rB]
@@ -1947,10 +1947,10 @@ func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 201
 func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] + (^reg[rB] + 1)
@@ -1960,10 +1960,10 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 202
 func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] * reg[rB]
@@ -1973,10 +1973,10 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 203
 func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rB] == 0 {
@@ -1990,10 +1990,10 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 204
 func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rB] == 0 {
@@ -2009,10 +2009,10 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 205
 func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rB] == 0 {
@@ -2026,10 +2026,10 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 206
 func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if int64(reg[rA]) == -(1<<63) && int64(reg[rB]) == -1 {
@@ -2043,10 +2043,10 @@ func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 207
 func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] << (reg[rB] % 64)
@@ -2056,10 +2056,10 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 208
 func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] >> (reg[rB] % 64)
@@ -2069,10 +2069,10 @@ func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 209
 func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = uint64(int64(reg[rA]) >> (reg[rB] % 64))
@@ -2082,10 +2082,10 @@ func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 // opcode 210
 func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] & reg[rB]
@@ -2095,10 +2095,10 @@ func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 
 // opcode 211
 func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] ^ reg[rB]
@@ -2108,10 +2108,10 @@ func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 
 // opcode 212
 func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] | reg[rB]
@@ -2121,10 +2121,10 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 
 // opcode 213
 func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	signedA := int64(reg[rA])
@@ -2143,10 +2143,10 @@ func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 214
 func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	hi, _ := bits.Mul64(reg[rA], reg[rB])
@@ -2157,10 +2157,10 @@ func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 215
 func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	signedA := int64(reg[rA])
@@ -2182,10 +2182,10 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 // opcode 216
 func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rA] < reg[rB] {
@@ -2199,10 +2199,10 @@ func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 217
 func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if int64(reg[rA]) < int64(reg[rB]) {
@@ -2216,10 +2216,10 @@ func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 218
 func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return err, pc, Gas(0), reg, mem
+		return err, pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rB] == 0 {
@@ -2231,10 +2231,10 @@ func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 219
 func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	if reg[rB] != 0 {
@@ -2246,10 +2246,10 @@ func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 220
 func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = bits.RotateLeft64(reg[rA], int(reg[rB]%64))
@@ -2259,10 +2259,10 @@ func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 221
 func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	rotated := uint64(bits.RotateLeft32(uint32(reg[rA]), int(reg[rB]%32)))
@@ -2274,10 +2274,10 @@ func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 222
 func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = bits.RotateLeft64(reg[rA], -int(reg[rB]%64))
@@ -2287,10 +2287,10 @@ func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 223
 func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	rotated := uint64(bits.RotateLeft32(uint32(reg[rA]), -int(reg[rB]%32)))
@@ -2302,10 +2302,10 @@ func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 224
 func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] & ^reg[rB]
@@ -2315,10 +2315,10 @@ func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 // opcode 225
 func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = reg[rA] | ^reg[rB]
@@ -2328,10 +2328,10 @@ func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 // opcode 226
 func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 	// mutation
 	reg[rD] = ^(reg[rA] ^ reg[rB])
@@ -2341,10 +2341,10 @@ func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 
 // opcode 227
 func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	// mutation
@@ -2355,10 +2355,10 @@ func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 
 // opcode 228
 func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	// mutation
@@ -2373,10 +2373,10 @@ func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 
 // opcode 229
 func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	// mutation
@@ -2387,10 +2387,10 @@ func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 
 // opcode 230
 func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasDelta := Gas(2)
+	gasDelta := Gas(1)
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
-		return PVMExitTuple(PANIC, nil), pc, Gas(0), reg, mem
+		return PVMExitTuple(PANIC, nil), pc, Gas(1), reg, mem
 	}
 
 	// mutation

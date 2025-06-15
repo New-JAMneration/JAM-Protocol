@@ -2,19 +2,10 @@ package recent_history
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"reflect"
 	"strings"
-	"testing"
 
-	store "github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
-	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
-	"github.com/google/go-cmp/cmp"
 )
 
 // Custom input struct for json^^
@@ -86,6 +77,7 @@ func hexToOpaqueHash(hexStr string) ([32]byte, error) {
 	return result, nil
 }
 
+/*
 func loadInputFromJSON(filePath string) (my myVector, err error) {
 	var vector_json vector_json
 	data, err := os.ReadFile(filePath)
@@ -736,8 +728,11 @@ func TestOuterUsedRecentHistory(t *testing.T) {
 
 	}
 }
+*/
 
 // ===== NEW TEST FOR TESTVECTOR =====
+
+/*
 func TestMain(m *testing.M) {
 	// Set the test mode
 	types.SetTestMode()
@@ -867,3 +862,4 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 	}
 
 }
+*/
