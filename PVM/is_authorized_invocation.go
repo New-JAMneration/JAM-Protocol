@@ -30,8 +30,8 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequ
 
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
-			ServiceId: 0, // TODO: temporarily assign, need to add serviceID & coreID into JAM
-			CoreID:    0,
+			ServiceId: nil, // TODO: temporarily assign, need to add serviceID & coreID into JAM
+			CoreID:    &c,
 		},
 	}
 

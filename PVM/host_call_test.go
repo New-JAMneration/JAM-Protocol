@@ -284,7 +284,7 @@ func (h HostCallArgs) GetHostCallArgs() PVM.HostCallArgs {
 	}
 
 	if h.InitialServiceIndex != nil {
-		result.ServiceId = *h.InitialServiceIndex
+		result.ServiceId = h.InitialServiceIndex
 	}
 
 	result.ServiceAccountState = h.InitialDelta.ToServiceAccountState()
