@@ -69,7 +69,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceAccount:      input.ServiceAccounts[input.ServiceID],
-			ServiceId:           input.ServiceID,
+			ServiceId:           &input.ServiceID,
 			ServiceAccountState: input.ServiceAccounts,
 		},
 		AccumulateArgs: AccumulateArgs{

@@ -2,6 +2,7 @@ package PVM
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -55,7 +56,7 @@ func getLogger() *Logger {
 	return PVMLogger
 }
 
-func (l *Logger) log(level LogLevel, coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func (l *Logger) log(level LogLevel, coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	if level > l.level {
 		fmt.Println(l.level)
 		return
@@ -74,50 +75,50 @@ func (l *Logger) log(level LogLevel, coreID types.CoreIndex, serviceID types.Ser
 		message = format
 	}
 
-	fmt.Printf("%s [%s][core:%d][service:%d] %s\n", timestamp, levelStr[level], coreID, serviceID, message)
+	log.Printf("%s [%s][core:%d][service:%d] %s\n", timestamp, levelStr[level], coreID, serviceID, message)
 
 	if level == FATAL {
 		os.Exit(1)
 	}
 }
 
-func Debug(coreID types.CoreIndex, serviceID types.ServiceId, args ...interface{}) {
+func Debug(coreID *types.CoreIndex, serviceID *types.ServiceId, args ...interface{}) {
 	getLogger().log(DEBUG, coreID, serviceID, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Debugf(coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func Debugf(coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	getLogger().log(DEBUG, coreID, serviceID, format, args...)
 }
 
-func Info(coreID types.CoreIndex, serviceID types.ServiceId, args ...interface{}) {
+func Info(coreID *types.CoreIndex, serviceID *types.ServiceId, args ...interface{}) {
 	getLogger().log(INFO, coreID, serviceID, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Infof(coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func Infof(coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	getLogger().log(INFO, coreID, serviceID, format, args...)
 }
 
-func Warn(coreID types.CoreIndex, serviceID types.ServiceId, args ...interface{}) {
+func Warn(coreID *types.CoreIndex, serviceID *types.ServiceId, args ...interface{}) {
 	getLogger().log(WARN, coreID, serviceID, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Warnf(coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func Warnf(coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	getLogger().log(WARN, coreID, serviceID, format, args...)
 }
 
-func Error(coreID types.CoreIndex, serviceID types.ServiceId, args ...interface{}) {
+func Error(coreID *types.CoreIndex, serviceID *types.ServiceId, args ...interface{}) {
 	getLogger().log(ERROR, coreID, serviceID, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Errorf(coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func Errorf(coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	getLogger().log(ERROR, coreID, serviceID, format, args...)
 }
 
-func Fatal(coreID types.CoreIndex, serviceID types.ServiceId, args ...interface{}) {
+func Fatal(coreID *types.CoreIndex, serviceID *types.ServiceId, args ...interface{}) {
 	getLogger().log(FATAL, coreID, serviceID, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Fatalf(coreID types.CoreIndex, serviceID types.ServiceId, format string, args ...interface{}) {
+func Fatalf(coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	getLogger().log(FATAL, coreID, serviceID, format, args...)
 }
 

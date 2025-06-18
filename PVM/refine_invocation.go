@@ -118,8 +118,9 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	addition := HostCallArgs{
 		// GeneralArgs is only for historical_lookup op
 		GeneralArgs: GeneralArgs{
-			ServiceId:           workItem.Service,
+			ServiceId:           &workItem.Service,
 			ServiceAccountState: input.ServiceAccounts,
+			CoreID:              nil, // TODO: may need to update coreID if needed
 		},
 		RefineArgs: RefineArgs{
 			WorkItemIndex:       types.Some(input.WorkItemIndex),

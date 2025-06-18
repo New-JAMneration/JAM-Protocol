@@ -81,9 +81,9 @@ type (
 
 type GeneralArgs struct {
 	ServiceAccount      types.ServiceAccount
-	ServiceId           types.ServiceId
+	ServiceId           *types.ServiceId
 	ServiceAccountState types.ServiceAccountState
-	CoreID              types.CoreIndex
+	CoreID              *types.CoreIndex
 }
 
 type AccumulateArgs struct {
@@ -268,7 +268,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(*serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -374,7 +374,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	var a types.ServiceAccount
 	// s* = ?
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = uint64(serviceID)
+		sStar = uint64(*serviceID)
 	} else {
 		sStar = input.Registers[7]
 	}
@@ -391,7 +391,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// a = ?
-	if sStar == uint64(serviceID) {
+	if sStar == uint64(*serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
 		a = value
@@ -566,7 +566,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	var empty bool
 	empty = true
 	if input.Registers[7] == 0xffffffffffffffff {
-		value, exist := delta[types.ServiceId(serviceID)]
+		value, exist := delta[types.ServiceId(*serviceID)]
 		if exist {
 			a = value
 			empty = false
@@ -2569,7 +2569,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	// s* = s or s = omega_7
 	var sStar types.ServiceId
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = input.Addition.ServiceId
+		sStar = *input.Addition.ServiceId
 	} else {
 		sStar = types.ServiceId(input.Registers[7])
 	}
@@ -2646,10 +2646,10 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
 	if input.Registers[8] == 0 && input.Registers[9] == 0 {
-		getLogger().log(level, input.Addition.CoreID, input.Addition.ServiceID, "message : %v\n", message)
+		getLogger().log(level, input.Addition.CoreID, &input.Addition.ServiceID, "message : %v\n", message)
 	} else {
 		target := input.Memory.Read(input.Registers[8], input.Registers[9])
-		getLogger().log(level, input.Addition.CoreID, input.Addition.ServiceID,
+		getLogger().log(level, input.Addition.CoreID, &input.Addition.ServiceID,
 			"taget : %v\n  message : %v\n", target, message)
 	}
 

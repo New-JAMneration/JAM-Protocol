@@ -87,8 +87,9 @@ func Psi_A(
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
-			ServiceId:           serviceId,
+			ServiceId:           &serviceId,
 			ServiceAccountState: partialState.ServiceAccounts,
+			CoreID:              nil, // TODO: may need to update coreID if needed
 		},
 		AccumulateArgs: AccumulateArgs{
 			ResultContextX: I(partialState, serviceId, time, eta),
