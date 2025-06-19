@@ -59,6 +59,7 @@ func SingleStepStateTransition(instructionCode []byte, bitmask Bitmask, jumpTabl
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
 
 	opcodeData := instructionCode[programCounter.isOpocode()]
+	opcode := instructionCode[programCounter.isOpocode()]
 
 	target := execInstructions[opcodeData]
 	if target == nil {

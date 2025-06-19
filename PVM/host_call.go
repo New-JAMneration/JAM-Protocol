@@ -48,7 +48,6 @@ const (
 	ForgetOp     // forget = 24
 	YieldOp      // yield = 25
 	ProvideOp    // provide = 26
-
 	LogOp = OperationType(100)
 )
 
