@@ -526,7 +526,6 @@ func (u U) ToPartialStateSet() types.PartialStateSet {
 		Authorizers: u.Q,
 		// TODO? Not sure if this test is still needed for test, GP 0.6.7 removed Privileges, this test is for GP 0.6.4
 		// Privileges:  u.X,
-
 	}
 }
 
