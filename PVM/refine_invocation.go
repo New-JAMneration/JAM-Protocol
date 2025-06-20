@@ -120,7 +120,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		GeneralArgs: GeneralArgs{
 			ServiceId:           &workItem.Service,
 			ServiceAccountState: input.ServiceAccounts,
-			CoreID:              nil, // TODO: may need to update coreID if needed
+			CoreId:              nil, // TODO: may need to update coreID if needed
 		},
 		RefineArgs: RefineArgs{
 			WorkItemIndex:       types.Some(input.WorkItemIndex),

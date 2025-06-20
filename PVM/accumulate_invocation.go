@@ -89,7 +89,7 @@ func Psi_A(
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
 			ServiceId:           &serviceId,
 			ServiceAccountState: partialState.ServiceAccounts,
-			CoreID:              nil, // TODO: may need to update coreID if needed
+			CoreId:              nil, // TODO: may need to update coreID if needed
 		},
 		AccumulateArgs: AccumulateArgs{
 			ResultContextX: I(partialState, serviceId, time, eta),

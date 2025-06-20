@@ -82,7 +82,7 @@ type GeneralArgs struct {
 	ServiceAccount      types.ServiceAccount
 	ServiceId           *types.ServiceId
 	ServiceAccountState types.ServiceAccountState
-	CoreID              *types.CoreIndex
+	CoreId              *types.CoreIndex
 }
 
 type AccumulateArgs struct {
@@ -2645,10 +2645,10 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
 	if input.Registers[8] == 0 && input.Registers[9] == 0 {
-		getLogger().log(level, input.Addition.CoreID, &input.Addition.ServiceID, "message : %v\n", message)
+		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
 	} else {
 		target := input.Memory.Read(input.Registers[8], input.Registers[9])
-		getLogger().log(level, input.Addition.CoreID, &input.Addition.ServiceID,
+		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
 			"taget : %v\n  message : %v\n", target, message)
 	}
 
