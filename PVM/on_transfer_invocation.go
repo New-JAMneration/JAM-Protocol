@@ -63,12 +63,13 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	F[WriteOp] = HostCallFunctions[WriteOp]
 	F[GasOp] = HostCallFunctions[GasOp]
 	F[InfoOp] = HostCallFunctions[InfoOp]
-	F[OperationType(len(HostCallFunctions)-1)] = onTransferHostCallException
+	F[100] = logHostCall
+
 	// addition, on-transfer only uses GeneralArgs
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceAccount:      input.ServiceAccounts[input.ServiceID],
-			ServiceId:           input.ServiceID,
+			ServiceId:           &input.ServiceID,
 			ServiceAccountState: input.ServiceAccounts,
 		},
 		AccumulateArgs: AccumulateArgs{

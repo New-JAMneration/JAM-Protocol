@@ -105,7 +105,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	F[PagesOp] = HostCallFunctions[PagesOp]
 	F[InvokeOp] = HostCallFunctions[InvokeOp]
 	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
-	F[OperationType(len(HostCallFunctions)-1)] = RefineHostCallException
+	F[100] = logHostCall
 
 	extrinsics := make([][]types.ExtrinsicSpec, len(input.WorkPackage.Items))
 
@@ -118,8 +118,9 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	addition := HostCallArgs{
 		// GeneralArgs is only for historical_lookup op
 		GeneralArgs: GeneralArgs{
-			ServiceId:           workItem.Service,
+			ServiceId:           &workItem.Service,
 			ServiceAccountState: input.ServiceAccounts,
+			CoreId:              nil, // TODO: may need to update coreID if needed
 		},
 		RefineArgs: RefineArgs{
 			WorkItemIndex:       types.Some(input.WorkItemIndex),
@@ -166,16 +167,5 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		RefineOutput:  refineOutput,
 		ExportSegment: result.Addition.ExportSegment,
 		Gas:           types.Gas(result.Gas),
-	}
-}
-
-func RefineHostCallException(input OmegaInput) (output OmegaOutput) {
-	input.Registers[7] = WHAT
-	return OmegaOutput{
-		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas - 10,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
 	}
 }
