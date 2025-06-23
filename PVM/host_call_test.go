@@ -39,8 +39,8 @@ var hostCallMap = map[string]PVM.OperationType{
 	"Pages":             PVM.PagesOp,
 	"Write":             PVM.WriteOp,
 	"Yield":             PVM.YieldOp,
-	//"Zero":              PVM.ZeroOp,
-	"Read": PVM.ReadOp,
+	"Read":              PVM.ReadOp,
+	"Log":               PVM.LogOp,
 }
 
 func TestHostCall(t *testing.T) {
@@ -284,7 +284,7 @@ func (h HostCallArgs) GetHostCallArgs() PVM.HostCallArgs {
 	}
 
 	if h.InitialServiceIndex != nil {
-		result.ServiceId = *h.InitialServiceIndex
+		result.ServiceId = h.InitialServiceIndex
 	}
 
 	result.ServiceAccountState = h.InitialDelta.ToServiceAccountState()
@@ -526,6 +526,23 @@ func (u U) ToPartialStateSet() types.PartialStateSet {
 		Authorizers: u.Q,
 		// TODO? Not sure if this test is still needed for test, GP 0.6.7 removed Privileges, this test is for GP 0.6.4
 		// Privileges:  u.X,
-
 	}
+}
+
+func TestLogHostCall(t *testing.T) {
+	logHostCall := PVM.HostCallFunctions[100]
+
+	page := PVM.Page{
+		Value: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22},
+	}
+	input := PVM.OmegaInput{
+		Gas:       PVM.Gas(99),
+		Registers: PVM.Registers{0, 0, 0, 0, 0, 0, 0, 1, 0, 10, 11, 10, 0},
+		Memory: PVM.Memory{
+			Pages: map[uint32]*PVM.Page{
+				0: &page,
+			},
+		},
+	}
+	logHostCall(input)
 }
