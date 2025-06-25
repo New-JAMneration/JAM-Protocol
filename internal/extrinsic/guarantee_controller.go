@@ -11,7 +11,6 @@ import (
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
@@ -249,11 +248,10 @@ func (g *GuaranteeController) ValidateContexts() error {
 		stateRootMatch := false
 		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
-			m := mmr.NewMMRFromPeaks([]types.MmrPeak{&blockInfo.MmrPeak}, hash.Blake2bHash).SuperPeak([]types.MmrPeak{&blockInfo.MmrPeak})
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
-				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(m)
+				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.MmrPeak)
 				break
 			}
 		}
