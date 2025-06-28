@@ -1703,12 +1703,13 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			types.U16(types.MaxBlocksHistory),                 // H
 			types.U16(types.MaximumWorkItems),                 // I
 			types.U16(types.MaximumDependencyItems),           // J
+			types.U16(types.MaxTicketsPerBlock),               // K
 			types.U32(types.MaxLookupAge),                     // L
+			types.U16(types.TicketsPerValidator),              // N
 			types.U16(types.AuthPoolMaxSize),                  // O
 			types.U16(types.SlotPeriod),                       // P
 			types.U16(types.AuthQueueSize),                    // Q
 			types.U16(types.RotationPeriod),                   // R
-			types.U16(types.AccumulateQueueSize),              // S
 			types.U16(types.MaxExtrinsics),                    // T
 			types.U16(types.WorkReportTimeout),                // U
 			types.U16(types.ValidatorsCount),                  // V
@@ -1716,7 +1717,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			types.U32(types.MaxTotalSize),                     // W_B
 			types.U32(types.MaxServiceCodeSize),               // W_C
 			types.U32(types.ECBasicSize),                      // W_E
-			types.U32(types.SegmentSize),                      // W_G
 			types.U32(types.MaxImportCount),                   // W_M
 			types.U32(types.ECPiecesPerSegment),               // W_P
 			types.U32(types.WorkReportOutputBlobsMaximumSize), // W_R
@@ -1724,23 +1724,20 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			types.U32(types.MaxExportCount),                   // W_X
 			types.U32(types.SlotSubmissionEnd),                // Y
 		)
-		break
 	case 1:
 		if reflect.ValueOf(input.Addition.Eta).IsZero() {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.Eta)
-		break
 	case 2:
 		if input.Addition.AuthOutput == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.AuthOutput)
-		break
 	case 3:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.Extrinsics) == 0 {
 			break
 		}
 
@@ -1755,11 +1752,11 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
-		break
 	case 4:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.Extrinsics) == 0 {
 			break
 		}
+
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
@@ -1768,10 +1765,8 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
-		break
-
 	case 5:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.ImportSegments) == 0 {
 			break
 		}
 
@@ -1786,9 +1781,8 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
-		break
 	case 6:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.ImportSegments) == 0 {
 			break
 		}
 
@@ -1799,14 +1793,12 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[i][w11])
-		break
 	case 7:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(*input.Addition.WorkPackage)
-		break
 	case 8:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1816,21 +1808,18 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			input.Addition.WorkPackage.Authorizer.CodeHash,
 			input.Addition.WorkPackage.Authorizer.Params,
 		)
-		break
 	case 9:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Authorization)
-		break
 	case 10:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Context)
-		break
 	case 11:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1851,7 +1840,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 12:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1863,7 +1851,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = S(encoder, input.Addition.WorkPackage.Items[w11])
-		break
 	case 13:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1875,7 +1862,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Items[w11].Payload)
-		break
 	case 14:
 		if len(input.Addition.Operands) == 0 {
 			break
@@ -1896,7 +1882,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 15:
 		if len(input.Addition.Operands) == 0 {
 			break
@@ -1908,7 +1893,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Operands[w11])
-		break
 	case 16:
 		if len(input.Addition.DeferredTransfer) == 0 {
 			break
@@ -1929,7 +1913,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 17:
 		if len(input.Addition.DeferredTransfer) == 0 {
 			break
@@ -1941,7 +1924,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.DeferredTransfer[w11])
-		break
 	}
 
 	if err != nil {
