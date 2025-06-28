@@ -1794,7 +1794,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 	switch input.Registers[10] {
 	case 0:
-
 		v, err = encoder.EncodeMany(
 			getPtr(types.U64(types.AdditionalMinBalancePerItem)),      // B_I
 			getPtr(types.U64(types.AdditionalMinBalancePerOctet)),     // B_L
@@ -1854,7 +1853,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.AuthOutput)
 	case 3:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.Extrinsics) == 0 {
 			break
 		}
 
@@ -1870,9 +1869,10 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
 	case 4:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.Extrinsics) == 0 {
 			break
 		}
+
 		i := *input.Addition.WorkItemIndex
 
 		w11 := input.Registers[11]
@@ -1882,7 +1882,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
 	case 5:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.ImportSegments) == 0 {
 			break
 		}
 
@@ -1898,7 +1898,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
 	case 6:
-		if input.Addition.WorkItemIndex == nil {
+		if len(input.Addition.ImportSegments) == 0 {
 			break
 		}
 
