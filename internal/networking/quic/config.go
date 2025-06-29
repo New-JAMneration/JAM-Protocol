@@ -68,5 +68,7 @@ func GenerateSelfSignedCert() (tls.Certificate, error) {
 
 // NewQuicConfig
 func NewQuicConfig() *quic.Config {
-	return &quic.Config{}
+	return &quic.Config{
+		MaxIncomingStreams: 100,
+	}
 }
