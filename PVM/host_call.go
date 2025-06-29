@@ -1758,7 +1758,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 		// check i
-		if input.Addition.WorkItemIndex != nil {
+		if input.Addition.WorkItemIndex == nil {
 			break
 		}
 
@@ -1793,7 +1793,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		// check i
-		if input.Addition.WorkItemIndex != nil {
+		if input.Addition.WorkItemIndex == nil {
 			break
 		}
 
