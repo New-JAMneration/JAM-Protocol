@@ -1759,10 +1759,14 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 		// check i
 <<<<<<< HEAD
+<<<<<<< HEAD
 		if input.Addition.WorkItemIndex == nil {
 =======
 		if input.Addition.WorkItemIndex != nil {
 >>>>>>> 353cc079 (check the slice index null)
+=======
+		if input.Addition.WorkItemIndex == nil {
+>>>>>>> 149de9ff (fix check nil)
 			break
 		}
 
