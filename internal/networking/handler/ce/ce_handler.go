@@ -1,4 +1,4 @@
-package handler
+package ce
 
 import (
 	"encoding/binary"
@@ -7,12 +7,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-)
-
-// Protocol IDs for CE requests.
-const (
-	CEBlockRequestID uint8 = 128
-	// Future request types can be defined here, e.g., CEStateRequestID = 129, etc.
 )
 
 // CEHandlerFunc defines the function signature for handling a specific CE request.

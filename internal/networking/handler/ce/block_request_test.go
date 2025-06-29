@@ -60,10 +60,10 @@ func (f *fakeBlockchain) GenesisBlockHash() types.HeaderHash {
 	return f.genesis
 }
 
-// setupFakeBlockchain creates a simple chain:
+// SetupFakeBlockchain creates a simple chain:
 // genesis (slot 0, parent = genesis) → block1 (slot 1, parent = genesis)
 // → block2 (slot 2, parent = block1) → block3 (slot 3, parent = block2)
-func setupFakeBlockchain() *fakeBlockchain {
+func SetupFakeBlockchain() *fakeBlockchain {
 	var genesisHash, block1Hash, block2Hash, block3Hash types.HeaderHash
 	genesisHash[0] = 0
 	block1Hash[0] = 1
@@ -191,7 +191,7 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	t.Logf("Server listening on %s", addr)
 
 	// Setup our fake blockchain.
-	fakeBC := setupFakeBlockchain()
+	fakeBC := SetupFakeBlockchain()
 
 	// Start server goroutine.
 	go func() {
@@ -216,7 +216,7 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	}()
 
 	// Client: dial the server.
-	conn, err := quic.Dial(context.Background(), addr, clientTLS, nil)
+	conn, err := quic.Dial(context.Background(), addr, clientTLS, nil, quic.Validator)
 	if err != nil {
 		t.Fatalf("Client dial error: %v", err)
 	}
@@ -228,9 +228,10 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 		t.Fatalf("Client open stream error: %v", err)
 	}
 
+	// CE 128
 	// Create a block request payload:
 	// 32 bytes header hash (using genesis), 1 byte direction (0 for ascending), 4 bytes max blocks.
-	var req BlockRequest
+	var req CE128Payload
 	req.HeaderHash = fakeBC.GenesisBlockHash() // starting from genesis
 	req.Direction = 0                          // ascending exclusive
 	req.MaxBlocks = 3
