@@ -162,7 +162,7 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting redis backend: %v", err)
 	}
-	genesisBlock, err := redisBackend.GetGenesisBlock(nil)
+	genesisBlock, err := redisBackend.GetGenesisBlock()
 	if err != nil {
 		return nil, fmt.Errorf("error getting genesis block: %v", err)
 	}

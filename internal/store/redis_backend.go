@@ -145,7 +145,7 @@ func (r *RedisBackend) SetGenesisBlock(ctx context.Context, block *types.Block) 
 	return nil
 }
 
-func (r *RedisBackend) GetGenesisBlock(ctx context.Context) (*types.Block, error) {
+func (r *RedisBackend) GetGenesisBlock() (*types.Block, error) {
 	key := "meta:genesisBlock"
 	data, err := r.client.Get(key)
 	if err != nil {
