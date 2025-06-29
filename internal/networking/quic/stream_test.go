@@ -62,7 +62,7 @@ func TestStreamReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client TLS config: %v", err)
 	}
-	clientConn, err := Dial(ctx, addr, tlsCfg, quicCfg)
+	clientConn, err := Dial(ctx, addr, tlsCfg, quicCfg, Validator)
 	if err != nil {
 		t.Fatalf("Client dial failed: %v", err)
 	}
