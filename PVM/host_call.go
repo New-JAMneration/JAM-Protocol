@@ -1869,7 +1869,12 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
 	case 4:
+		// check \bar{x}
 		if len(input.Addition.Extrinsics) == 0 {
+			break
+		}
+		// check i
+		if input.Addition.WorkItemIndex != nil {
 			break
 		}
 
@@ -1898,7 +1903,13 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
 	case 6:
+		// check \bar{i}
 		if len(input.Addition.ImportSegments) == 0 {
+			break
+		}
+
+		// check i
+		if input.Addition.WorkItemIndex != nil {
 			break
 		}
 
