@@ -50,7 +50,7 @@ func TestConnectionDialAndClose(t *testing.T) {
 	// Set up client TLS config to skip verification for testing
 	clientTLS.InsecureSkipVerify = true // Skip certificate verification for testing
 
-	clientConn, err := Dial(ctx, addr, clientTLS, quicCfg)
+	clientConn, err := Dial(ctx, addr, clientTLS, quicCfg, Validator)
 	if err != nil {
 		t.Fatalf("Client dial failed: %v", err)
 	}

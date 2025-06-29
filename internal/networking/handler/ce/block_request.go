@@ -12,44 +12,43 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// BlockRequest represents a block request message.
+// CE128Payload represents a block request message.
 // It consists of a 32-byte header hash, a 1-byte direction, and a 4-byte maximum block count.
-type BlockRequest struct {
+type CE128Payload struct {
 	HeaderHash types.HeaderHash // Reference block hash
 	Direction  byte             // 0: Ascending exclusive, 1: Descending inclusive
 	MaxBlocks  uint32           // Maximum number of blocks requested
 }
 
-func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]types.Block, error) {
+func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]types.Block, error) {
 	count := req.MaxBlocks
 	var blocks []types.Block
 
 	log.Printf("Handling block request for %v, direction %d, count %d\n", req.HeaderHash, req.Direction, count)
 
 	switch req.Direction {
-	case 0: // Ascending exclusive: start with a child of the given block.
-		startNum, err := blockchain.GetBlockNumber(req.HeaderHash)
-		if err != nil {
-			return nil, err
-		}
+	case 0:
 		currentHash := req.HeaderHash
 		for i := uint32(0); i < count; i++ {
-			candidateNum := startNum + i
-			candidateHashes, err := blockchain.GetBlockHashByNumber(candidateNum)
-			if err != nil {
-				break
-			}
 			found := false
-			for _, candidate := range candidateHashes {
-				blk, err := blockchain.GetBlock(candidate)
+			for blockNum := uint32(0); blockNum < 10; blockNum++ {
+				candidateHashes, err := blockchain.GetBlockHashByNumber(blockNum)
 				if err != nil {
 					continue
 				}
-				// Check if the candidate's parent matches the current block.
-				if blk.Header.Parent == currentHash {
-					blocks = append(blocks, blk)
-					currentHash = candidate
-					found = true
+				for _, candidate := range candidateHashes {
+					blk, err := blockchain.GetBlock(candidate)
+					if err != nil {
+						continue
+					}
+					if blk.Header.Parent == currentHash && candidate != currentHash {
+						blocks = append(blocks, blk)
+						currentHash = candidate
+						found = true
+						break
+					}
+				}
+				if found {
 					break
 				}
 			}
@@ -78,25 +77,23 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]t
 }
 
 func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// Ensure the payload length is at least 37 bytes.
+	// The quic.DefaultCEHandler has already read the protocol ID (1 byte).
+	// Now we need to read the remaining payload from the stream.
 	reqPayload, err := io.ReadAll(stream)
 	if err != nil {
 		return err
 	}
-	if reqPayload[0] < 32+1+4 {
+
+	// The payload should be at least 37 bytes (32 + 1 + 4)
+	if len(reqPayload) < 32+1+4 {
 		return errors.New("invalid block request length")
 	}
 
-	reqPayload = reqPayload[4:]
-
-	var req BlockRequest
+	var req CE128Payload
 	copy(req.HeaderHash[:], reqPayload[:32])
 	req.Direction = reqPayload[32]
-
-	fmt.Printf("req: %v\n", reqPayload[33:37])
 	req.MaxBlocks = binary.LittleEndian.Uint32(reqPayload[33:37])
 
-	// Process the block request.
 	blocks, err := HandleBlockRequest(blockchain, req)
 	if err != nil {
 		return err
@@ -104,10 +101,8 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 
 	fmt.Printf("number of blocks: %v\n", len(blocks))
 
-	// Encode and write the response blocks.
 	encoder := types.NewEncoder()
 
-	// Write each block as a framed message using our custom encoding.
 	for _, blk := range blocks {
 
 		blkData, err := encoder.Encode(&blk)
@@ -116,14 +111,12 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 			continue
 		}
 
-		// Write the length prefix.
 		sizeBuf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(sizeBuf, uint32(len(blkData)))
 		if _, err := stream.Write(sizeBuf); err != nil {
 			log.Printf("failed to write length prefix: %v", err)
 			return err
 		}
-		// Write the encoded block data.
 		if _, err := stream.Write(blkData); err != nil {
 			log.Printf("failed to write block data: %v", err)
 			return err
