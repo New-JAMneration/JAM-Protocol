@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -167,14 +168,18 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 		return nil, fmt.Errorf("error getting genesis block: %v", err)
 	}
 
-	genesisBlockHeaderHash := hash.Blake2bHashPartial(utils.HeaderSerialization(genesisBlock.Header), 8)
+	// Get first 4 bytes (8 nibbles) of the genesis header hash
+	genesisBlockHeaderHash := hash.Blake2bHashPartial(utils.HeaderSerialization(genesisBlock.Header), 4)
+	// Convert to lowercase hexadecimal string
+	hashHex := hex.EncodeToString(genesisBlockHeaderHash)
+
 	// Currently Version is set to 0
-	baseALPN := "jamnp-s/0/" + string(genesisBlockHeaderHash)
+	baseALPN := "jamnp-s/0/" + hashHex
 
 	nextProtos := []string{baseALPN}
 	if isBuilder {
 		builderALPN := baseALPN + "/builder"
-		nextProtos = []string{builderALPN, baseALPN}
+		nextProtos = []string{builderALPN}
 	}
 
 	return nextProtos, nil
