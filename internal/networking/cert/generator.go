@@ -185,25 +185,40 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 	return nextProtos, nil
 }
 
-// TLSConfigGen creates a new TLS configuration with a self-signed certificate.
-// isBuilder make sure have a slot reserved for work package builder
-func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, error) {
+// generateTLSCertificate is a helper function that generates Ed25519 key pair and self-signed certificate
+func generateTLSCertificate(seed []byte) (tls.Certificate, error) {
 	sk, pk, err := Ed25519KeyGen(seed)
 	if err != nil {
-		return nil, fmt.Errorf("error generating Ed25519 key pair: %v", err)
+		return tls.Certificate{}, fmt.Errorf("error generating Ed25519 key pair: %v", err)
 	}
 
 	selfSignedCert, err := SelfSignedCertGen(sk, pk)
 	if err != nil {
-		return nil, fmt.Errorf("error generating self-signed certificate: %v", err)
+		return tls.Certificate{}, fmt.Errorf("error generating self-signed certificate: %v", err)
 	}
 
-	clientALPN, err := ALPNGen(false)
+	return selfSignedCert, nil
+}
+
+// ServerTLSConfigGen creates a TLS configuration for servers.
+// Servers always accept both base and builder ALPN protocols.
+func ServerTLSConfigGen(seed []byte) (*tls.Config, error) {
+	selfSignedCert, err := generateTLSCertificate(seed)
 	if err != nil {
-		return nil, fmt.Errorf("error generating ALPN: %v", err)
+		return nil, err
 	}
 
-	// Default TLS config for client
+	// The /builder suffix should always be permitted by the side accepting the connection (server)
+	// https://jam-docs.onrender.com/knowledge/advanced/simple-networking/spec#alpn
+	baseALPN, err := ALPNGen(false)
+	if err != nil {
+		return nil, fmt.Errorf("error generating base ALPN: %v", err)
+	}
+	builderALPN, err := ALPNGen(true)
+	if err != nil {
+		return nil, fmt.Errorf("error generating builder ALPN: %v", err)
+	}
+
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{selfSignedCert},
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -218,18 +233,12 @@ func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, erro
 			log.Printf("peer certificate subject!")
 			return ValidateX509Certificate(cert)
 		},
-		MinVersion: tls.VersionTLS13,
-		MaxVersion: tls.VersionTLS13,
-		// TODO: ask if specific curve is needed in DH key exchange
+		MinVersion:       tls.VersionTLS13,
+		MaxVersion:       tls.VersionTLS13,
 		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
-		NextProtos:       clientALPN,
-	}
-
-	if isServer {
-		serverALPN, _ := ALPNGen(isBuilder)
-		tlsConfig.NextProtos = serverALPN
-		tlsConfig.ClientAuth = tls.RequireAnyClientCert
-		tlsConfig.VerifyConnection = func(state tls.ConnectionState) error {
+		NextProtos:       append(builderALPN, baseALPN...),
+		ClientAuth:       tls.RequireAnyClientCert,
+		VerifyConnection: func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
 				log.Printf("peer did not present any certificates")
 				return errors.New("peer did not present any certificates")
@@ -247,8 +256,53 @@ func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, erro
 
 			log.Printf("TLS connection established with protocol: %s", state.NegotiatedProtocol)
 			return nil
-		}
+		},
 	}
 
 	return tlsConfig, nil
+}
+
+// ClientTLSConfigGen creates a TLS configuration for clients.
+// isBuilder determines whether to use builder ALPN or base ALPN.
+func ClientTLSConfigGen(seed []byte, isBuilder bool) (*tls.Config, error) {
+	selfSignedCert, err := generateTLSCertificate(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	clientALPN, err := ALPNGen(isBuilder) // Use builder ALPN if isBuilder is true
+	if err != nil {
+		return nil, fmt.Errorf("error generating ALPN: %v", err)
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{selfSignedCert},
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			if len(rawCerts) == 0 {
+				return errors.New("no certificate provided")
+			}
+
+			cert, err := x509.ParseCertificate(rawCerts[0])
+			if err != nil {
+				return err
+			}
+			log.Printf("peer certificate subject!")
+			return ValidateX509Certificate(cert)
+		},
+		MinVersion:       tls.VersionTLS13,
+		MaxVersion:       tls.VersionTLS13,
+		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+		NextProtos:       clientALPN,
+	}
+
+	return tlsConfig, nil
+}
+
+// TLSConfigGen creates a new TLS configuration with a self-signed certificate.
+// isBuilder make sure have a slot reserved for work package builder
+func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, error) {
+	if isServer {
+		return ServerTLSConfigGen(seed)
+	}
+	return ClientTLSConfigGen(seed, isBuilder)
 }
