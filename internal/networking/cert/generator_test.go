@@ -299,8 +299,8 @@ func TestTLSConfigGen(t *testing.T) {
 					t.Error("Expected exactly one certificate")
 				}
 
-				if config.ClientAuth != tls.VerifyClientCertIfGiven {
-					t.Error("Expected VerifyClientCertIfGiven for server config")
+				if config.ClientAuth != tls.RequireAnyClientCert {
+					t.Error("Expected RequireAnyClientCert for server config")
 				}
 
 				if config.VerifyConnection == nil {
@@ -342,8 +342,8 @@ func TestTLSConfigGen(t *testing.T) {
 					t.Error("Expected exactly one certificate")
 				}
 
-				if config.ClientAuth != tls.VerifyClientCertIfGiven {
-					t.Error("Expected VerifyClientCertIfGiven for server config")
+				if config.ClientAuth != tls.RequireAnyClientCert {
+					t.Error("Expected RequireAnyClientCert for server config")
 				}
 
 				if config.VerifyConnection == nil {
