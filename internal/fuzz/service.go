@@ -1,6 +1,10 @@
 package fuzz
 
-import "context"
+import (
+	"context"
+	"log"
+	"net"
+)
 
 type FuzzService interface {
 	Handshake(PeerInfo) PeerInfo
@@ -11,6 +15,8 @@ type FuzzService interface {
 
 // TODO
 type FuzzServer struct {
+	Listener net.Listener
+	Service  FuzzService
 }
 
 // TODO
@@ -21,5 +27,22 @@ func NewFuzzServer() *FuzzServer {
 // TODO
 // blocks until terminated
 func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
-	return nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			conn, err := s.Listener.Accept()
+			if err != nil {
+				log.Printf("error while accepting connection: %v", err)
+				continue
+			}
+
+			go func() {
+				defer conn.Close()
+
+				// TODO
+			}()
+		}
+	}
 }
