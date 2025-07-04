@@ -28,6 +28,17 @@ const (
 
 type Event interface{}
 
+// PeerAddedEvent represents a peer being added to the network
+type PeerAddedEvent struct {
+	Peer *Peer
+}
+
+// PeerUpdatedEvent represents a peer being updated with new block information
+type PeerUpdatedEvent struct {
+	Peer           *Peer
+	NewBlockHeader *HeadInfo // Optional new block header announced by the peer
+}
+
 type Handler func(ctx context.Context, event Event) error
 
 type EventBus struct {
@@ -100,4 +111,19 @@ func (eb *EventBus) WaitFor(ctx context.Context, eventType EventType, timeout in
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// PublishPeerAdded publishes a PeerAdded event
+func (eb *EventBus) PublishPeerAdded(ctx context.Context, peer *Peer) error {
+	event := &PeerAddedEvent{Peer: peer}
+	return eb.Publish(ctx, event)
+}
+
+// PublishPeerUpdated publishes a PeerUpdated event
+func (eb *EventBus) PublishPeerUpdated(ctx context.Context, peer *Peer, newBlockHeader *HeadInfo) error {
+	event := &PeerUpdatedEvent{
+		Peer:           peer,
+		NewBlockHeader: newBlockHeader,
+	}
+	return eb.Publish(ctx, event)
 }
