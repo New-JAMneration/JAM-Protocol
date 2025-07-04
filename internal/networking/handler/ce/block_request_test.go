@@ -30,6 +30,7 @@ type fakeBlockchain struct {
 	blockNumberToHash map[uint32][]types.HeaderHash
 	hashToblockNumber map[types.HeaderHash]uint32
 	genesis           types.HeaderHash
+	currentHead       types.HeaderHash
 }
 
 func (f *fakeBlockchain) GetBlockNumber(hash types.HeaderHash) (uint32, error) {
@@ -68,6 +69,14 @@ func (f *fakeBlockchain) StoreBlockByHash(hash types.HeaderHash, block *types.Bl
 func (f *fakeBlockchain) GetLatestBlock() types.Block {
 	// Mock
 	return f.blocks[f.genesis]
+}
+
+func (f *fakeBlockchain) GetCurrentHead() (types.Block, error) {
+	return f.blocks[f.currentHead], nil
+}
+
+func (f *fakeBlockchain) SetCurrentHead(hash types.HeaderHash) {
+	f.currentHead = hash
 }
 
 // SetupFakeBlockchain creates a simple chain:
@@ -116,6 +125,7 @@ func SetupFakeBlockchain() *fakeBlockchain {
 		blockNumberToHash: make(map[uint32][]types.HeaderHash),
 		hashToblockNumber: make(map[types.HeaderHash]uint32),
 		genesis:           genesisHash,
+		currentHead:       genesisHash,
 	}
 
 	fb.blocks[genesisHash] = genesisBlock
@@ -134,6 +144,8 @@ func SetupFakeBlockchain() *fakeBlockchain {
 	fb.hashToblockNumber[block1Hash] = 1
 	fb.hashToblockNumber[block2Hash] = 2
 	fb.hashToblockNumber[block3Hash] = 3
+
+	fb.SetCurrentHead(block3Hash)
 
 	return fb
 }
