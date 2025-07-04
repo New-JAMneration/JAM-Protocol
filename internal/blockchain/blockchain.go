@@ -16,4 +16,8 @@ type Blockchain interface {
 	GetBlock(types.HeaderHash) (types.Block, error)
 	// GenesisBlockHash returns the genesis block hash.
 	GenesisBlockHash() types.HeaderHash
+	// TODO: add a method to get the current head
+	GetCurrentHead() (types.Block, error)
+	// SetCurrentHead sets the current head.
+	SetCurrentHead(types.HeaderHash)
 }
