@@ -11,6 +11,12 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+// HeadInfo represents information about a block header
+type HeadInfo struct {
+	Hash     types.HeaderHash `json:"hash"`     // Data32 -> types.HeaderHash
+	Timeslot types.TimeSlot   `json:"timeslot"` // TimeslotIndex -> types.TimeSlot
+}
+
 type PeerRole string
 
 const (
@@ -35,6 +41,10 @@ type Peer struct {
 	connManager *ConnectionManager
 	CEHandler   CEHandler
 	UPHandler   UPHandler
+	// Sync-related fields
+	Best      *HeadInfo `json:"best"`      // Optional best block header
+	Finalized HeadInfo  `json:"finalized"` // Finalized block header
+	ID        string    `json:"id"`        // Peer identifier
 }
 
 func NewPeer(config PeerConfig) (*Peer, error) {
@@ -63,6 +73,9 @@ func NewPeer(config PeerConfig) (*Peer, error) {
 		connManager: NewConnectionManager(),
 		CEHandler:   config.CEHandler,
 		UPHandler:   config.UPHandler,
+
+		// TODO: use a better ID
+		ID: config.Addr.String() + string(config.PublicKey),
 	}, nil
 }
 
