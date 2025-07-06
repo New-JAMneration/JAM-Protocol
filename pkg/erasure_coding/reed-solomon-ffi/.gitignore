@@ -1,0 +1,24 @@
+# Rust build directory
+/target
+
+# Debug files
+**/*.rs.bk
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dynamic libraries
+*.dll
+*.so
+*.dylib
+
+# Static libraries
+*.lib
+*.a
+
+# Windows specific
+*.exe
+*.pdb
