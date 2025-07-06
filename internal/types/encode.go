@@ -351,11 +351,6 @@ func (h *Header) Encode(e *Encoder) error {
 		}
 	}
 
-	// OffenderMark
-	if err := h.OffendersMark.Encode(e); err != nil {
-		return err
-	}
-
 	// AuthorIndex
 	if err := h.AuthorIndex.Encode(e); err != nil {
 		return err
@@ -363,6 +358,11 @@ func (h *Header) Encode(e *Encoder) error {
 
 	// EntropySource
 	if err := h.EntropySource.Encode(e); err != nil {
+		return err
+	}
+
+	// OffenderMark
+	if err := h.OffendersMark.Encode(e); err != nil {
 		return err
 	}
 
