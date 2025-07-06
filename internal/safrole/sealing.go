@@ -24,7 +24,10 @@ func SealingByTickets() error {
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	i_r := ticket.Attempt
-	message := utilities.HeaderUSerialization(header)
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
 	eta_prime := posterior_state.GetEta()
 
 	var context types.ByteSequence
@@ -59,7 +62,10 @@ func SealingByBandersnatchs() error {
 	header := s.GetProcessingBlockPointer().GetHeader()
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	public_key := GammaSKeys[index]
-	message := utilities.HeaderUSerialization(header)
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
 	eta_prime := posterior_state.GetEta()
 
 	var context types.ByteSequence
@@ -105,7 +111,7 @@ func UpdateEtaPrime0() error {
 	prior_state := s.GetPriorStates()
 	header := s.GetProcessingBlockPointer().GetHeader()
 
-	//public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	// public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	entropy_source := header.EntropySource
 	eta := prior_state.GetEta()
@@ -154,7 +160,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	*/
 	handler, _ := CreateVRFHandler(public_key)
 	var message types.ByteSequence                                        // message: []
-	var context types.ByteSequence                                        //context: XE ⌢ Y(Hs)
+	var context types.ByteSequence                                        // context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
 	vrf, _ := handler.VRFIetfOutput(seal[:])
 	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
@@ -200,7 +206,7 @@ func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex ty
 		newGammaS.Tickets = OutsideInSequencer(&gammaA)
 	} else if ePrime == e { // γs if e′ = e
 		newGammaS = priorState.GetGammaS()
-	} else { //F(η′2, κ′) otherwise
+	} else { // F(η′2, κ′) otherwise
 		newGammaS.Keys = FallbackKeySequence(etaPrime[2], posteriorState.GetKappa())
 	}
 	posteriorState.SetGammaS(newGammaS)
