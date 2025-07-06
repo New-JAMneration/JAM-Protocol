@@ -769,27 +769,27 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 func (r *RefineLoad) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding RefineLoad")
 
-	// GasUsed
+	// GasUsed (u)
 	if err := e.EncodeInteger(uint64(r.GasUsed)); err != nil {
 		return err
 	}
 
-	// Imports
+	// Imports (i)
 	if err := e.EncodeInteger(uint64(r.Imports)); err != nil {
 		return err
 	}
 
-	// ExtrinsicCount
+	// ExtrinsicCount (x)
 	if err := e.EncodeInteger(uint64(r.ExtrinsicCount)); err != nil {
 		return err
 	}
 
-	// ExtrinsicSize
+	// ExtrinsicSize (z)
 	if err := e.EncodeInteger(uint64(r.ExtrinsicSize)); err != nil {
 		return err
 	}
 
-	// Exports
+	// Exports (e)
 	if err := e.EncodeInteger(uint64(r.Exports)); err != nil {
 		return err
 	}
@@ -798,35 +798,36 @@ func (r *RefineLoad) Encode(e *Encoder) error {
 }
 
 // WorkResult
+// TODO: Rename? WorkDigest (C.26)
 func (w *WorkResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkResult")
 
-	// ServiceId
+	// ServiceId (s)
 	if err := w.ServiceId.Encode(e); err != nil {
 		return err
 	}
 
-	// CodeHash
+	// CodeHash (c)
 	if err := w.CodeHash.Encode(e); err != nil {
 		return err
 	}
 
-	// PayloadHash
+	// PayloadHash (y)
 	if err := w.PayloadHash.Encode(e); err != nil {
 		return err
 	}
 
-	// AccumulateGas
+	// AccumulateGas (g)
 	if err := w.AccumulateGas.Encode(e); err != nil {
 		return err
 	}
 
-	// Result
+	// Result (l)
 	if err := w.Result.Encode(e); err != nil {
 		return err
 	}
 
-	// RefineLoad
+	// RefineLoad (u,i,x,z,e)
 	if err := w.RefineLoad.Encode(e); err != nil {
 		return err
 	}
@@ -834,43 +835,49 @@ func (w *WorkResult) Encode(e *Encoder) error {
 	return nil
 }
 
-// WorkReport
+// WorkReport (C.27)
 func (w *WorkReport) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkReport")
 
-	// PackageSpec
+	// PackageSpec (s)
 	if err := w.PackageSpec.Encode(e); err != nil {
 		return err
 	}
 
-	// Context
+	// Context (bold c)
 	if err := w.Context.Encode(e); err != nil {
 		return err
 	}
 
 	// Work report core index is compact
 	// https://github.com/davxy/jam-test-vectors/commit/fed98559dabaa7058d7f9d83cb8c9353bd78d544
-	// CoreIndex
+	// CoreIndex (c)
 	if err := e.EncodeLength(uint64(w.CoreIndex)); err != nil {
 		return err
 	}
 
-	// AuthorizerHash
+	// AuthorizerHash (a)
 	if err := w.AuthorizerHash.Encode(e); err != nil {
 		return err
 	}
 
-	// AuthOutput
+	// AuthGasUsed (g)
+	// INFO: This field is encoded as C.6 integer
+	if err := e.EncodeInteger(uint64(w.AuthGasUsed)); err != nil {
+		return err
+	}
+
+	// AuthOutput (t)
 	if err := w.AuthOutput.Encode(e); err != nil {
 		return err
 	}
 
-	// SegmentRootLookup
+	// SegmentRootLookup (l)
 	if err := w.SegmentRootLookup.Encode(e); err != nil {
 		return err
 	}
 
-	// Results
+	// Results (work-digests d)
 	if err := e.EncodeLength(uint64(len(w.Results))); err != nil {
 		return err
 	}
@@ -879,12 +886,6 @@ func (w *WorkReport) Encode(e *Encoder) error {
 		if err := result.Encode(e); err != nil {
 			return err
 		}
-	}
-
-	// AuthGasUsed
-	// INFO: This field is encoded as C.6 integer
-	if err := e.EncodeInteger(uint64(w.AuthGasUsed)); err != nil {
-		return err
 	}
 
 	return nil
@@ -1230,12 +1231,12 @@ func (b *Block) Encode(e *Encoder) error {
 func (a *Authorizer) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Authorizer")
 
-	// CodeHash
+	// CodeHash (u)
 	if err := a.CodeHash.Encode(e); err != nil {
 		return err
 	}
 
-	// Params
+	// Params (f)
 	if err := a.Params.Encode(e); err != nil {
 		return err
 	}
@@ -1314,7 +1315,7 @@ func (w *WorkItem) Encode(e *Encoder) error {
 		}
 	}
 
-	// Extrinsic
+	// Extrinsic (x)
 	if err := e.EncodeLength(uint64(len(w.Extrinsic))); err != nil {
 		return err
 	}
@@ -1325,39 +1326,39 @@ func (w *WorkItem) Encode(e *Encoder) error {
 		}
 	}
 
-	// ExportCount
-	if err := w.ExportCount.Encode(e); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// WorkPackage
+// WorkPackage (C.28) (14.2)
 func (w *WorkPackage) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkPackage")
 
-	// Authorization
-	if err := w.Authorization.Encode(e); err != nil {
-		return err
-	}
-
-	// AuthCodeHost
+	// AuthCodeHost (h)
 	if err := w.AuthCodeHost.Encode(e); err != nil {
 		return err
 	}
 
-	// Authorizer
-	if err := w.Authorizer.Encode(e); err != nil {
+	// Authorizer.CodeHash (u)
+	if err := w.Authorizer.CodeHash.Encode(e); err != nil {
 		return err
 	}
 
-	// Context
+	// Context (bold c)
 	if err := w.Context.Encode(e); err != nil {
 		return err
 	}
 
-	// Items
+	// Authorization (j)
+	if err := w.Authorization.Encode(e); err != nil {
+		return err
+	}
+
+	// Authorizer.Params (f)
+	if err := w.Authorizer.Params.Encode(e); err != nil {
+		return err
+	}
+
+	// Items (w)
 	if err := e.EncodeLength(uint64(len(w.Items))); err != nil {
 		return err
 	}
