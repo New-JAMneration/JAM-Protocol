@@ -24,7 +24,10 @@ func SealingByTickets() error {
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	i_r := ticket.Attempt
-	message := utilities.HeaderUSerialization(header)
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
 	eta_prime := posterior_state.GetEta()
 
 	var context types.ByteSequence
@@ -59,7 +62,10 @@ func SealingByBandersnatchs() error {
 	header := s.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	public_key := GammaSKeys[index]
-	message := utilities.HeaderUSerialization(header)
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
 	eta_prime := posterior_state.GetEta()
 
 	var context types.ByteSequence
