@@ -315,11 +315,11 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 
 // v0.6.3 (14.2) Work Package
 type WorkPackage struct {
-	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index
-	Authorizer    Authorizer    `json:"authorizer"`
-	Context       RefineContext `json:"context"`
-	Items         []WorkItem    `json:"items,omitempty"`
+	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token j
+	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index h
+	Authorizer    Authorizer    `json:"authorizer"`               // u, f
+	Context       RefineContext `json:"context"`                  // c
+	Items         []WorkItem    `json:"items,omitempty"`          // w
 }
 
 func (w *WorkPackage) ScaleDecode(data []byte) error {
@@ -436,6 +436,7 @@ type RefineLoad struct {
 }
 
 // v0.6.4 (11.6) WorkResult $\mathbb{L}$
+// v0.7.0 (11.6) Work Digest
 type WorkResult struct {
 	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
@@ -470,11 +471,11 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 
 // v0.6.3 (11.5) Availability specifications $\mathbb{S}$
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash,omitempty"`
-	Length       U32             `json:"length,omitempty"`
-	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
-	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-	ExportsCount U16             `json:"exports_count,omitempty"`
+	Hash         WorkPackageHash `json:"hash,omitempty"`          // p
+	Length       U32             `json:"length,omitempty"`        // l
+	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`  // u
+	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`  // e
+	ExportsCount U16             `json:"exports_count,omitempty"` // n
 }
 
 type SegmentRootLookupItem struct {
@@ -486,13 +487,13 @@ type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
 // v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
-	Context           RefineContext     `json:"context"`                       // x
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // \mathbf{s}
+	Context           RefineContext     `json:"context"`                       // \mathbf{c}
 	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
 	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
-	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{t}
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{l}
+	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{d}
 	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
 }
 
