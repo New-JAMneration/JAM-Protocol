@@ -279,7 +279,11 @@ func (g *GuaranteeController) ValidateContexts() error {
 	for _, context := range contexts {
 		foundMatch := false
 		for _, ancestorHeader := range ancestorHeaders {
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
+			serializedHeader, err := utilities.HeaderSerialization(ancestorHeader)
+			if err != nil {
+				return err
+			}
+			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(serializedHeader) == types.OpaqueHash(context.LookupAnchor) {
 				foundMatch = true
 				break
 			}

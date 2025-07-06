@@ -522,7 +522,10 @@ func TestHeaderSerialization(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			serializationResult := HeaderSerialization(tc.header)
+			serializationResult, err := HeaderSerialization(tc.header)
+			if err != nil {
+				t.Errorf("Error encoding Header: %v", err)
+			}
 			if !bytes.Equal(tc.expectedResult, serializationResult) {
 				t.Errorf("\nExpected Serialization result: %v, \nGot: %v", tc.expectedResult, serializationResult)
 			}
