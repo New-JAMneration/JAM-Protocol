@@ -6,13 +6,15 @@ import (
 )
 
 type Encoder struct {
-	buf *bytes.Buffer
+	buf            *bytes.Buffer
+	HashSegmentMap HashSegmentMap
 }
 
 func NewEncoder() *Encoder {
 	cLog(Cyan, "Creating new encoder")
 	return &Encoder{
-		buf: new(bytes.Buffer),
+		buf:            new(bytes.Buffer),
+		HashSegmentMap: nil,
 	}
 }
 
@@ -144,4 +146,8 @@ func (e *Encoder) EncodeLength(length uint64) error {
 func (e *Encoder) WriteByte(b byte) error {
 	cLog(Cyan, "Writing Byte")
 	return e.buf.WriteByte(b)
+}
+
+func (e *Encoder) SetHashSegmentMap(hashSegmentMap HashSegmentMap) {
+	e.HashSegmentMap = hashSegmentMap
 }
