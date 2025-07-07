@@ -322,15 +322,15 @@ func (t *Header) Decode(d *Decoder) error {
 		}
 	}
 
-	if err = t.OffendersMark.Decode(d); err != nil {
-		return err
-	}
-
 	if err = t.AuthorIndex.Decode(d); err != nil {
 		return err
 	}
 
 	if err = t.EntropySource.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.OffendersMark.Decode(d); err != nil {
 		return err
 	}
 
@@ -894,6 +894,13 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 
+	authGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	w.AuthGasUsed = Gas(authGasUsed)
+
 	if err = w.AuthOutput.Decode(d); err != nil {
 		return err
 	}
@@ -920,13 +927,6 @@ func (w *WorkReport) Decode(d *Decoder) error {
 	}
 
 	w.Results = results
-
-	authGasUsed, err := d.DecodeInteger()
-	if err != nil {
-		return err
-	}
-
-	w.AuthGasUsed = Gas(authGasUsed)
 
 	return nil
 }
@@ -1348,18 +1348,35 @@ func (b *Block) Decode(d *Decoder) error {
 	return nil
 }
 
-// ImportSpec
+// (C.34)
+// The function requires HashSegmentMap
+// You need to use decoder.SetHashSegmentMap(hashSegmentMap) to set the value.
 func (i *ImportSpec) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ImportSpec")
 
+	if d.HashSegmentMap == nil {
+		return fmt.Errorf("please set the HashSegmentMap to the decoder")
+	}
+
+	// Check the input is H or H⊞
+	// If the tree root in the dict, this is H⊞
+	// otherwise, it is a segment root
 	var err error
 
+	// Decode the TreeRoot
 	if err = i.TreeRoot.Decode(d); err != nil {
 		return err
 	}
 
-	if err = i.Index.Decode(d); err != nil {
+	// Decode the Index
+	if err := i.Index.Decode(d); err != nil {
 		return err
+	}
+
+	// Decode the Index (Check the tree root)
+	if _, ok := d.HashSegmentMap[i.TreeRoot]; ok {
+		// Update the Index value
+		i.Index -= (1 << 15)
 	}
 
 	return nil
@@ -1396,15 +1413,19 @@ func (w *WorkItem) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = w.Payload.Decode(d); err != nil {
-		return err
-	}
-
 	if err = w.RefineGasLimit.Decode(d); err != nil {
 		return err
 	}
 
 	if err = w.AccumulateGasLimit.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.ExportCount.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Payload.Decode(d); err != nil {
 		return err
 	}
 
@@ -1444,10 +1465,6 @@ func (w *WorkItem) Decode(d *Decoder) error {
 
 	w.Extrinsic = extrinsic
 
-	if err = w.ExportCount.Decode(d); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1474,22 +1491,32 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = w.Authorization.Decode(d); err != nil {
-		return err
-	}
-
+	// AuthCodeHost (h)
 	if err = w.AuthCodeHost.Decode(d); err != nil {
 		return err
 	}
 
-	if err = w.Authorizer.Decode(d); err != nil {
+	// Authorizer.CodeHash (u)
+	if err := w.Authorizer.CodeHash.Decode(d); err != nil {
 		return err
 	}
 
+	// Context (bold c)
 	if err = w.Context.Decode(d); err != nil {
 		return err
 	}
 
+	// Authorization (j)
+	if err = w.Authorization.Decode(d); err != nil {
+		return err
+	}
+
+	// Authorizer.Params (f)
+	if err = w.Authorizer.Params.Decode(d); err != nil {
+		return err
+	}
+
+	// Items (w)
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
