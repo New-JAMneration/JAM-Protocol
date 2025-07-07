@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 
@@ -1091,5 +1093,84 @@ func TestDecodeJamTestVectorsTracesGenesis(t *testing.T) {
 		types.SetTinyMode()
 	} else {
 		types.SetFullMode()
+	}
+}
+
+func TestDecodeImportSpec(t *testing.T) {
+	// Prepare test cases
+	testCases := []struct {
+		input    []byte
+		expected types.ImportSpec
+	}{
+		{
+			[]byte{
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0,
+			},
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+				},
+				Index: 2,
+			},
+		},
+		{
+			[]byte{
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 128, // E_2(1 + 2^15)
+			},
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+				},
+				Index: 1,
+			},
+		},
+	}
+
+	mockHashSegmentMap := map[string]string{
+		"1697123456_0101010101010101010101010101010101010101010101010101010101010101": "0101010101010101010101010101010101010101010101010101010101010101",
+	}
+
+	// If you want to encode the ImportSpec, you have to offer the `HashSegmentMap`.
+	// You can get the `HashSegmentMap` from the redis.
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+
+	// Set the mock hash segment map to the redis
+	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
+
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+
+	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(hashSegmentMap)
+
+	for _, testCase := range testCases {
+		importSpec := types.ImportSpec{}
+		err := decoder.Decode(testCase.input, &importSpec)
+		if err != nil {
+			t.Fatalf("Failed to decode import spec: %v", err)
+		}
+
+		if !reflect.DeepEqual(importSpec, testCase.expected) {
+			t.Fatalf("Decoded data is not equal to the expected data")
+		}
 	}
 }
