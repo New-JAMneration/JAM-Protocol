@@ -590,7 +590,7 @@ func SingleNodeAuditingAndPublish(
 		// Step 13: Broadcast CE144 announcement for aₙ
 		anAnnouncement, err := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
 		if err != nil {
-			return nil
+			return err
 		}
 		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnnouncement)
 
