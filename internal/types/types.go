@@ -1602,3 +1602,5 @@ type StateKeyValDiff struct {
 func Some[T any](v T) *T {
 	return &v
 }
+
+type HashSegmentMap map[OpaqueHash]OpaqueHash

@@ -3,8 +3,13 @@ package store
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -236,4 +241,80 @@ func (r *RedisBackend) RemoveBlock(ctx context.Context, hash types.OpaqueHash) e
 	}
 
 	return nil
+}
+
+func (r *RedisBackend) SetHashSegmentMapWithLimit(ctx context.Context, wpHash, segmentRoot types.OpaqueHash) error {
+	key := "segment_dict"
+	existingBytes, err := r.client.Get(key)
+	dict := make(map[string]string)
+
+	if err == nil && existingBytes != nil {
+		json.Unmarshal(existingBytes, &dict)
+	}
+
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	dict[timestamp+"_"+hex.EncodeToString(wpHash[:])] = hex.EncodeToString(segmentRoot[:])
+
+	if len(dict) > 8 {
+		var keys []string
+		for k := range dict {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		delete(dict, keys[0])
+	}
+
+	encoded, err := json.Marshal(dict)
+	if err != nil {
+		return err
+	}
+	if err := r.client.Put(key, encoded); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *RedisBackend) SetHashSegmentMap(ctx context.Context, hashSegmentMap map[string]string) error {
+	fmt.Println("Set Hash Segment Map")
+	key := "segment_dict"
+	encoded, err := json.Marshal(hashSegmentMap)
+	if err != nil {
+		return err
+	}
+	if err := r.client.Put(key, encoded); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *RedisBackend) GetHashSegmentMap() (map[types.OpaqueHash]types.OpaqueHash, error) {
+	fmt.Println("Get Hash Segment Map")
+	key := "segment_dict"
+	result := make(map[types.OpaqueHash]types.OpaqueHash)
+
+	data, err := r.client.Get(key)
+	if err != nil || data == nil {
+		return result, err
+	}
+
+	var raw map[string]string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	for k, v := range raw {
+		parts := strings.SplitN(k, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		var wpHash, segmentRoot types.OpaqueHash
+		wpBytes, _ := hex.DecodeString(parts[1])
+		rootBytes, _ := hex.DecodeString(v)
+		copy(wpHash[:], wpBytes)
+		copy(segmentRoot[:], rootBytes)
+		result[wpHash] = segmentRoot
+	}
+	return result, nil
 }
