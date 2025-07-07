@@ -287,20 +287,12 @@ func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.Byt
 
 // (C.22)
 func HeaderSerialization(header types.Header) (output types.ByteSequence, err error) {
-	encodedHeaderWithoutSeal, err := HeaderUSerialization(header)
-	if err != nil {
-		return nil, err
-	}
-
-	// Encode the header seal
+	// Encode the header
 	encoder := types.NewEncoder()
-	encodedSeal, err := encoder.Encode(&header.Seal)
+	output, err = encoder.Encode(&header)
 	if err != nil {
 		return nil, err
 	}
-
-	output = append(output, encodedHeaderWithoutSeal...)
-	output = append(output, encodedSeal...)
 
 	return output, nil
 }
