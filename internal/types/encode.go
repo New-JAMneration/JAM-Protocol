@@ -1244,17 +1244,42 @@ func (a *Authorizer) Encode(e *Encoder) error {
 	return nil
 }
 
+// (C.34)
+// The function requires HashSegmentMap
+// You need to use encoder.SetHashSegmentMap(hashSegmentMap) to set the value.
 func (i *ImportSpec) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ImportSpec")
 
-	// TreeRoot
+	if e.HashSegmentMap == nil {
+		return fmt.Errorf("please set the HashSegmentMap to the encoder")
+	}
+
+	// Check the input is H or H⊞
+	// If the tree root in the dict, this is H⊞
+	// otherwise, it is a segment root
+	// Encode the TreeRoot
 	if err := i.TreeRoot.Encode(e); err != nil {
 		return err
 	}
 
-	// Index
-	if err := i.Index.Encode(e); err != nil {
-		return err
+	// Encode the Index (Check the tree root)
+	if _, ok := e.HashSegmentMap[i.TreeRoot]; ok {
+		// If the tree root in the dictionary, this is H⊞
+		inputValue := U16(i.Index + (1 << 15))
+
+		encoded, err := e.EncodeUintWithLength(uint64(inputValue), 2)
+		if err != nil {
+			return err
+		}
+
+		if _, err := e.buf.Write(encoded); err != nil {
+			return err
+		}
+	} else {
+		// Otherwise
+		if err := i.Index.Encode(e); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1276,35 +1301,42 @@ func (e *ExtrinsicSpec) Encode(enc *Encoder) error {
 	return nil
 }
 
+// (C.29) (14.3)
 func (w *WorkItem) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkItem")
 
-	// Service
+	// Service (s)
 	if err := w.Service.Encode(e); err != nil {
 		return err
 	}
 
-	// CodeHash
+	// CodeHash (c)
 	if err := w.CodeHash.Encode(e); err != nil {
 		return err
 	}
 
-	// Payload
-	if err := w.Payload.Encode(e); err != nil {
-		return err
-	}
-
-	// RefineGasLimit
+	// RefineGasLimit (g)
 	if err := w.RefineGasLimit.Encode(e); err != nil {
 		return err
 	}
 
-	// AccumulateGasLimit
+	// AccumulateGasLimit (a)
 	if err := w.AccumulateGasLimit.Encode(e); err != nil {
 		return err
 	}
 
-	// ImportSegments
+	// ExportCount (e)
+	if err := w.ExportCount.Encode(e); err != nil {
+		return err
+	}
+
+	// Payload (y)
+	if err := w.Payload.Encode(e); err != nil {
+		return err
+	}
+
+	// ImportSegments (i)
+	// Encode the length
 	if err := e.EncodeLength(uint64(len(w.ImportSegments))); err != nil {
 		return err
 	}
