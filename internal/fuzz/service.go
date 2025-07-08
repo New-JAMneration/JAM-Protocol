@@ -1,48 +1,40 @@
 package fuzz
 
 import (
-	"context"
-	"log"
-	"net"
+	"errors"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type FuzzService interface {
-	Handshake(PeerInfo) PeerInfo
-	ImportBlock(ImportBlock) StateRoot
-	SetState(SetState) StateRoot
-	GetState(GetState) StateRoot
+	Handshake(PeerInfo) (PeerInfo, error)
+	ImportBlock(types.Block) (StateRoot, error)
+	SetState(types.Header, State) (StateRoot, error)
+	GetState(types.HeaderHash) (State, error)
 }
 
-// TODO
-type FuzzServer struct {
-	Listener net.Listener
-	Service  FuzzService
+var ErrNotImpl = errors.New("not implemented")
+
+type FuzzServiceStub struct {
+	// TODO: fill in whatever dependency you need
 }
 
-// TODO
-func NewFuzzServer() *FuzzServer {
-	return nil
+func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
+	// TODO
+	return PeerInfo{}, ErrNotImpl
 }
 
-// TODO
-// blocks until terminated
-func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			conn, err := s.Listener.Accept()
-			if err != nil {
-				log.Printf("error while accepting connection: %v", err)
-				continue
-			}
+func (s *FuzzServiceStub) ImportBlock(block types.Block) (StateRoot, error) {
+	// TODO
+	return StateRoot{}, ErrNotImpl
+}
 
-			go func() {
-				defer conn.Close()
+func (s *FuzzServiceStub) SetState(header types.Header, state State) (StateRoot, error) {
+	// TODO
+	return StateRoot{}, ErrNotImpl
+}
 
-				// TODO
-			}()
-		}
-	}
+func (s *FuzzServiceStub) GetState(hash types.HeaderHash) (State, error) {
+	// TODO
+	return State{}, ErrNotImpl
 }
