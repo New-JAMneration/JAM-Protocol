@@ -243,7 +243,16 @@ func (r *RedisBackend) RemoveBlock(ctx context.Context, hash types.OpaqueHash) e
 	return nil
 }
 
-func (r *RedisBackend) SetHashSegmentMapWithLimit(ctx context.Context, wpHash, segmentRoot types.OpaqueHash) error {
+/*
+example map:
+{
+	"1697123456_wpHashA": "segmentRootA",
+	"1697123460_wpHashB": "segmentRootB",
+}
+*/
+
+// dict length <= 8
+func (r *RedisBackend) SetHashSegmentMapWithLimit(wpHash, segmentRoot types.OpaqueHash) (map[types.OpaqueHash]types.OpaqueHash, error) {
 	key := "segment_dict"
 	existingBytes, err := r.client.Get(key)
 	dict := make(map[string]string)
@@ -266,13 +275,27 @@ func (r *RedisBackend) SetHashSegmentMapWithLimit(ctx context.Context, wpHash, s
 
 	encoded, err := json.Marshal(dict)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := r.client.Put(key, encoded); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// Convert the map back to the original format
+	final := make(map[types.OpaqueHash]types.OpaqueHash)
+	for k, v := range dict {
+		parts := strings.SplitN(k, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		var wph, sr types.OpaqueHash
+		wpBytes, _ := hex.DecodeString(parts[1])
+		segBytes, _ := hex.DecodeString(v)
+		copy(wph[:], wpBytes)
+		copy(sr[:], segBytes)
+		final[wph] = sr
+	}
+	return final, nil
 }
 
 func (r *RedisBackend) SetHashSegmentMap(ctx context.Context, hashSegmentMap map[string]string) error {
