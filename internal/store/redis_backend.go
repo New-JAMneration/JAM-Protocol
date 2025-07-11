@@ -244,7 +244,7 @@ func (r *RedisBackend) RemoveBlock(ctx context.Context, hash types.OpaqueHash) e
 }
 
 /*
-example map:
+example HashSegmentMap:
 {
 	"1697123456_wpHashA": "segmentRootA",
 	"1697123460_wpHashB": "segmentRootB",
@@ -340,4 +340,34 @@ func (r *RedisBackend) GetHashSegmentMap() (map[types.OpaqueHash]types.OpaqueHas
 		result[wpHash] = segmentRoot
 	}
 	return result, nil
+}
+
+/*
+example SegmentErasureMap:
+
+	{
+		"segment_erasure:segmentRootA": "erasureRootA",
+		"segment_erasure:segmentRootB": "erasureRootB",
+	}
+*/
+func (r *RedisBackend) SetSegmentErasureMap(segmentRoot, erasureRoot types.OpaqueHash) error {
+	key := "segment_erasure:" + hex.EncodeToString(segmentRoot[:])
+	ttl := types.SegmentErasureTTL
+	return r.client.PutWithTTL(key, erasureRoot[:], ttl)
+}
+
+func (r *RedisBackend) GetSegmentErasureMap(segmentRoot types.OpaqueHash) (types.OpaqueHash, error) {
+	key := "segment_erasure:" + hex.EncodeToString(segmentRoot[:])
+	val, err := r.client.Get(key)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	if val == nil {
+		// No value found for the given key
+		return types.OpaqueHash{}, nil
+	}
+
+	var erasureRoot types.OpaqueHash
+	copy(erasureRoot[:], val)
+	return erasureRoot, nil
 }
