@@ -35,6 +35,11 @@ type config struct {
 		Port     int    `json:"port"`
 		Password string `json:"password"`
 	} `json:"redis"`
+	Info struct {
+		Name       string `json:"name"`
+		AppVersion string `json:"app_version"`
+		JamVersion string `json:"jam_version"`
+	} `json:"info"`
 }
 
 func InitConfig() {
