@@ -245,11 +245,7 @@ func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types
 func buildBCloud(bundle []byte) ([]types.OpaqueHash, error) {
 	padded := PadToMultiple(bundle, types.ECBasicSize)
 
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundle)+683)/684)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
-	shards, err := ec.Encode(padded)
+	shards, err := erasurecoding.EncodeDataShards(padded, types.DataShards, types.TotalShards-types.DataShards)
 	if err != nil {
 		return nil, err
 	}
@@ -268,14 +264,10 @@ func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
 		return nil, err
 	}
 	fullSegments := append(exports, pagedProof...)
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, 6)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
 
 	groupShards := make([][][]byte, len(fullSegments))
 	for i := range fullSegments {
-		shards, err := ec.Encode(fullSegments[i][:])
+		shards, err := erasurecoding.EncodeDataShards(fullSegments[i][:], types.DataShards, types.TotalShards-types.DataShards)
 		if err != nil {
 			return nil, err
 		}
