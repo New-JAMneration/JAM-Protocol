@@ -207,7 +207,7 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		if err := validateAndSetTestSize(size); err != nil {
 			return nil, nil, err
 		}
-		reader = testdata.NewTestDataReader(mode, size, format)
+		reader = testdata.NewJamTestVectorsReader(mode, size, format)
 		runner = jamtestvector.NewJamTestVectorsRunner(mode)
 	case "jamtestnet":
 		reader = testdata.NewJamTestNetReader(mode, format)

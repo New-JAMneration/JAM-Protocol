@@ -70,8 +70,8 @@ type TestDataReader struct {
 	basePath string
 }
 
-// NewTestDataReader creates a new TestDataReader
-func NewTestDataReader(mode TestMode, size TestSize, format DataFormat) *TestDataReader {
+// NewJamTestVectorsReader creates a new TestDataReader
+func NewJamTestVectorsReader(mode TestMode, size TestSize, format DataFormat) *TestDataReader {
 	reader := &TestDataReader{
 		dataType: "jam-test-vectors",
 		mode:     mode,
@@ -79,8 +79,8 @@ func NewTestDataReader(mode TestMode, size TestSize, format DataFormat) *TestDat
 		format:   format,
 	}
 
-	// Construct the base path based on the data type and size
-	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", string(mode), string(size))
+	// jam-test-vectors/stf/mode/size
+	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "stf", string(mode), string(size))
 
 	return reader
 }
