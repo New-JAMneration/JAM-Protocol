@@ -12,8 +12,8 @@ type FuzzServer struct {
 	Service  FuzzService
 }
 
-func NewFuzzServer(filename string) (*FuzzServer, error) {
-	listener, err := net.Listen("unix", filename)
+func NewFuzzServer(network, address string) (*FuzzServer, error) {
+	listener, err := net.Listen(network, address)
 	if err != nil {
 		return nil, err
 	}
