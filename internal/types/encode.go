@@ -2958,6 +2958,23 @@ func (s *StateKey) Encode(e *Encoder) error {
 	return nil
 }
 
+// Encode StateKeyVal
+func (s *StateKeyVal) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding StateKeyVal")
+
+	// Encode the Key
+	if err := s.Key.Encode(e); err != nil {
+		return err
+	}
+
+	// Encode the Value
+	if err := s.Value.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Encode StateKeyVals
 func (s *StateKeyVals) Encode(e *Encoder) error {
 	var err error
@@ -2969,11 +2986,7 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 
 	// Encode each element in the array
 	for i := range *s {
-		if err = (*s)[i].Key.Encode(e); err != nil {
-			return err
-		}
-
-		if err = (*s)[i].Value.Encode(e); err != nil {
+		if err = (*s)[i].Encode(e); err != nil {
 			return err
 		}
 	}

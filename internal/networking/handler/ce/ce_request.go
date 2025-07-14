@@ -9,7 +9,7 @@ import (
 type CERequestID uint8
 
 const (
-	BlockRequest CERequestID = iota
+	BlockRequest CERequestID = 128 + iota
 	StateRequest
 	SafroleTicketDistribution
 	WorkPackageSubmission
@@ -52,8 +52,7 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 	case BlockRequest:
 		return h.encodeBlockRequest(message)
 	case StateRequest:
-		// TODO: Implement StateRequest encoding
-		return nil, fmt.Errorf("StateRequest encoding not implemented yet")
+		return h.encodeStateRequest(message)
 	case SafroleTicketDistribution:
 		// TODO: Implement SafroleTicketDistribution encoding
 		return nil, fmt.Errorf("SafroleTicketDistribution encoding not implemented yet")
@@ -99,47 +98,88 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 }
 
 func (h *DefaultCERequestHandler) encodeBlockRequest(message interface{}) ([]byte, error) {
-	if blockReq, ok := message.(*BlockRequestMessage); ok {
-		return h.encodeBlockRequestStruct(blockReq)
+	blockReq, ok := message.(*CE128Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for BlockRequest: %T", message)
 	}
 
-	return nil, fmt.Errorf("unsupported message type for BlockRequest: %T", message)
-}
+	h.encoder = types.NewEncoder()
 
-type BlockRequestMessage struct {
-	HeaderHash types.HeaderHash // Reference block hash
-	Direction  byte             // 0: Ascending exclusive, 1: Descending inclusive
-	MaxBlocks  uint32           // Maximum number of blocks requested
-}
-
-func (br *BlockRequestMessage) Encode(e *types.Encoder) error {
 	// Encode HeaderHash
-	if err := br.HeaderHash.Encode(e); err != nil {
-		return fmt.Errorf("failed to encode HeaderHash: %w", err)
+	if err := blockReq.HeaderHash.Encode(h.encoder); err != nil {
+		return nil, fmt.Errorf("failed to encode HeaderHash: %w", err)
 	}
 
 	// Encode Direction as U8
-	if err := e.WriteByte(br.Direction); err != nil {
-		return fmt.Errorf("failed to encode Direction: %w", err)
+	if err := h.encoder.WriteByte(blockReq.Direction); err != nil {
+		return nil, fmt.Errorf("failed to encode Direction: %w", err)
 	}
 
 	// Encode MaxBlocks as U32
-	maxBlocks := types.U32(br.MaxBlocks)
-	if err := maxBlocks.Encode(e); err != nil {
-		return fmt.Errorf("failed to encode MaxBlocks: %w", err)
+	maxBlocks := types.U32(blockReq.MaxBlocks)
+	if err := maxBlocks.Encode(h.encoder); err != nil {
+		return nil, fmt.Errorf("failed to encode MaxBlocks: %w", err)
 	}
 
-	return nil
+	// Use the encoder's Encode method to get the bytes
+	encoded, err := h.encoder.Encode(blockReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode CE128Payload: %w", err)
+	}
+	return encoded, nil
 }
 
-func (h *DefaultCERequestHandler) encodeBlockRequestStruct(blockReq *BlockRequestMessage) ([]byte, error) {
-	h.encoder = types.NewEncoder()
-
-	if err := blockReq.Encode(h.encoder); err != nil {
-		return nil, fmt.Errorf("failed to encode BlockRequestMessage: %w", err)
+func (h *DefaultCERequestHandler) encodeStateRequest(message interface{}) ([]byte, error) {
+	stateReq, ok := message.(*CE129Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for StateRequest: %T", message)
 	}
 
-	return h.encoder.Encode(blockReq)
+	// Create a new encoder for this request
+	encoder := types.NewEncoder()
+
+	// Helper to write raw bytes to the encoder
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Encode HeaderHash (32 bytes)
+	if err := writeRaw(stateReq.HeaderHash[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode HeaderHash: %w", err)
+	}
+	// Encode KeyStart (31 bytes)
+	if err := writeRaw(stateReq.KeyStart[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode KeyStart: %w", err)
+	}
+	// Encode KeyEnd (31 bytes)
+	if err := writeRaw(stateReq.KeyEnd[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode KeyEnd: %w", err)
+	}
+	// Encode MaxSize (U32, 4 bytes little-endian)
+	maxSize := stateReq.MaxSize
+	maxSizeBytes := []byte{
+		byte(maxSize),
+		byte(maxSize >> 8),
+		byte(maxSize >> 16),
+		byte(maxSize >> 24),
+	}
+	if err := writeRaw(maxSizeBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode MaxSize: %w", err)
+	}
+
+	// Since we can't access the buffer directly, let's just return the manually constructed bytes
+	result := make([]byte, 0, 98)
+	result = append(result, stateReq.HeaderHash[:]...)
+	result = append(result, stateReq.KeyStart[:]...)
+	result = append(result, stateReq.KeyEnd[:]...)
+	result = append(result, maxSizeBytes...)
+
+	return result, nil
 }
 
 func (h *DefaultCERequestHandler) Decode(data []byte) (CERequestID, interface{}, error) {
