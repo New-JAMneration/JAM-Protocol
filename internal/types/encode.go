@@ -3045,6 +3045,23 @@ func (s *StateKey) Encode(e *Encoder) error {
 	return nil
 }
 
+// Encode StateKeyVal
+func (s *StateKeyVal) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding StateKeyVal")
+
+	// Encode the Key
+	if err := s.Key.Encode(e); err != nil {
+		return err
+	}
+
+	// Encode the Value
+	if err := s.Value.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Encode StateKeyVals
 // Optimized version that inlines Key and Value encoding to reduce function call overhead
 func (s *StateKeyVals) Encode(e *Encoder) error {
