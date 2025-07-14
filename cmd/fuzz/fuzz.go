@@ -54,7 +54,7 @@ func serve(args []string) {
 		help([]string{"serve"})
 	}
 
-	server, err := fuzz.NewFuzzServer(args[0])
+	server, err := fuzz.NewFuzzServer("unix", args[0])
 	if err != nil {
 		log.Fatalf("error creating server: %v\n", err)
 	}
@@ -67,7 +67,7 @@ func handshake(args []string) {
 		help([]string{"handshake"})
 	}
 
-	client, err := fuzz.NewFuzzClient(args[0])
+	client, err := fuzz.NewFuzzClient("unix", args[0])
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
