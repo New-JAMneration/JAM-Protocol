@@ -10,14 +10,14 @@ import (
 
 // --- mockStream implements a minimal in-memory quic.Stream.
 type mockStream struct {
-	r      *bytes.Reader // used for reading incoming request bytes
+	r      *bytes.Buffer // used for reading incoming request bytes
 	w      *bytes.Buffer // used for capturing written response bytes
 	closed bool
 }
 
 func newMockStream(initialData []byte) *mockStream {
 	return &mockStream{
-		r: bytes.NewReader(initialData),
+		r: bytes.NewBuffer(initialData),
 		w: new(bytes.Buffer),
 	}
 }

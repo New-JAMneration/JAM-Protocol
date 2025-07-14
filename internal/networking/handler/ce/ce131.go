@@ -49,7 +49,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	// If this node is the proxy, write a response (for testability)
 	if localBandersnatchKey == proxyValidator.Bandersnatch {
 		// For test: write a single byte to indicate success
-		stream.Write([]byte{0xAB})
+		stream.Write([]byte{0x01})
 	}
 
 	return stream.Close()

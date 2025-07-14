@@ -39,7 +39,7 @@ func TestHandleSafroleTicketDistribution_Proxy(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
-	if !bytes.Contains(resp, []byte{0xAB}) {
+	if !bytes.Contains(resp, []byte{0x01}) {
 		t.Errorf("expected proxy to write response, got %x", resp)
 	}
 }
@@ -65,7 +65,7 @@ func TestHandleSafroleTicketDistribution_NotProxy(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
-	if bytes.Contains(resp, []byte{0xAB}) {
+	if bytes.Contains(resp, []byte{0x01}) {
 		t.Errorf("expected no response for non-proxy, got %x", resp)
 	}
 }
