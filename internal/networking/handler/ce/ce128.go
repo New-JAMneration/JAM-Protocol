@@ -41,7 +41,9 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]t
 					if err != nil {
 						continue
 					}
+					log.Printf("[CE128] i=%d, blockNum=%d, currentHash=%x, candidate=%x, blk.Header.Parent=%x", i, blockNum, currentHash, candidate, blk.Header.Parent)
 					if blk.Header.Parent == currentHash && candidate != currentHash {
+						log.Printf("[CE128] MATCH: candidate=%x", candidate)
 						blocks = append(blocks, blk)
 						currentHash = candidate
 						found = true
@@ -53,6 +55,7 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]t
 				}
 			}
 			if !found {
+				log.Printf("[CE128] No match found for currentHash=%x at i=%d", currentHash, i)
 				break
 			}
 		}
@@ -126,4 +129,18 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 	}
 
 	return stream.Close()
+}
+
+func (p *CE128Payload) Encode(e *types.Encoder) error {
+	if err := p.HeaderHash.Encode(e); err != nil {
+		return err
+	}
+	if err := e.WriteByte(p.Direction); err != nil {
+		return err
+	}
+	maxBlocks := types.U32(p.MaxBlocks)
+	if err := maxBlocks.Encode(e); err != nil {
+		return err
+	}
+	return nil
 }
