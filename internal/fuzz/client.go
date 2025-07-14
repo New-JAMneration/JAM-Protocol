@@ -11,8 +11,8 @@ type FuzzClient struct {
 	conn net.Conn
 }
 
-func NewFuzzClient(filename string) (*FuzzClient, error) {
-	conn, err := net.Dial("unix", filename)
+func NewFuzzClient(network, address string) (*FuzzClient, error) {
+	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
 	}
