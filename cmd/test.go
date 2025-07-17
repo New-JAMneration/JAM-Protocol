@@ -175,7 +175,7 @@ func validateTestMode(mode testdata.TestMode) error {
 
 func validateAndSetTestSize(size testdata.TestSize) error {
 	switch size {
-	case testdata.TinySize, testdata.DataSize:
+	case testdata.TinySize:
 		types.SetTinyMode()
 		return nil
 	case testdata.FullSize:
