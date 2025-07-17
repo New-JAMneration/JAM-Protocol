@@ -16,16 +16,24 @@ type FuzzService interface {
 	GetState(types.HeaderHash) (State, error)
 }
 
-var ErrNotImpl = errors.New("not implemented")
-
 type FuzzServiceStub struct {
 	// TODO: fill in whatever dependency you need
 	Blockchain blockchain.Blockchain
 }
 
 func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
-	// TODO
-	return PeerInfo{}, ErrNotImpl
+	log.Println("Received Handshake:")
+	log.Printf("  Name: %s\n", peerInfo.Name)
+	log.Printf("  App Version: %v\n", peerInfo.AppVersion)
+	log.Printf("  JAM Version: %v\n", peerInfo.JamVersion)
+
+	var response PeerInfo
+
+	if err := response.FromConfig(); err != nil {
+		return PeerInfo{}, err
+	}
+
+	return response, nil
 }
 
 func (s *FuzzServiceStub) ImportBlock(block types.Block) (StateRoot, error) {
