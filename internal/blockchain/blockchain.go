@@ -16,4 +16,8 @@ type Blockchain interface {
 	GetBlock(types.HeaderHash) (types.Block, error)
 	// GenesisBlockHash returns the genesis block hash.
 	GenesisBlockHash() types.HeaderHash
+	// StoreBlockByHash stores a block by its hash
+	StoreBlockByHash(types.HeaderHash, *types.Block) error
+	// GetLatestBlock returns the latest block.
+	GetLatestBlock() types.Block
 }
