@@ -60,6 +60,16 @@ func (f *fakeBlockchain) GenesisBlockHash() types.HeaderHash {
 	return f.genesis
 }
 
+func (f *fakeBlockchain) StoreBlockByHash(hash types.HeaderHash, block *types.Block) error {
+	f.blocks[hash] = *block
+	return nil
+}
+
+func (f *fakeBlockchain) GetLatestBlock() types.Block {
+	// Mock
+	return f.blocks[f.genesis]
+}
+
 // setupFakeBlockchain creates a simple chain:
 // genesis (slot 0, parent = genesis) → block1 (slot 1, parent = genesis)
 // → block2 (slot 2, parent = block1) → block3 (slot 3, parent = block2)
