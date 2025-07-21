@@ -116,7 +116,7 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 		}
 		// build work package bundle
-		workPackgeBundle, err := buildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
+		workPackgeBundle, err := BuildWorkPackageBundle(p.WorkPackage, extrinsicMap, importSegments, importProofs)
 		if err != nil {
 			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 		}
