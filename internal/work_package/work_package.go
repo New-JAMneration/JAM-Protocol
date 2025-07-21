@@ -58,7 +58,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 }
 
 // (14.15) second param: E(p,X#(pw),S#(pw),J#(pw))
-func buildWorkPackageBundle(
+func BuildWorkPackageBundle(
 	wp *types.WorkPackage,
 	extrinsicMap PVM.ExtrinsicDataMap,
 	importSegments types.ExportSegmentMatrix,
