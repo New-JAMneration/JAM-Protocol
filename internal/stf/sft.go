@@ -24,6 +24,10 @@ func RunSTF() error {
 	}
 
 	// Update Reports
+	err = UpdateReports()
+	if err != nil {
+		return err
+	}
 
 	// Update Accumlate
 	err = UpdateAccumlate()
