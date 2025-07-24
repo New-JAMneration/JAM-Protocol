@@ -9,7 +9,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -128,7 +127,13 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		}
 
 		message := []byte(jam_types.JamGuarantee)
-		hashed := hash.Blake2bHash(utilities.WorkReportSerialization(guarantee.Report))
+		encoder := types.NewEncoder()
+
+		reportSerial, err := encoder.Encode(&guarantee.Report)
+		if err != nil {
+			return err
+		}
+		hashed := hash.Blake2bHash(reportSerial)
 		message = append(message, hashed[:]...)
 		for _, sig := range guarantee.Signatures {
 			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
@@ -274,12 +279,19 @@ func (g *GuaranteeController) ValidateContexts() error {
 			return &err
 		}
 	}
+
+	encoder := types.NewEncoder()
 	// 11.35
 	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
 	for _, context := range contexts {
 		foundMatch := false
 		for _, ancestorHeader := range ancestorHeaders {
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(utilities.HeaderSerialization(ancestorHeader)) == types.OpaqueHash(context.LookupAnchor) {
+			headerSerial, err := encoder.Encode(&ancestorHeader)
+			if err != nil {
+				return err
+			}
+
+			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(headerSerial) == types.OpaqueHash(context.LookupAnchor) {
 				foundMatch = true
 				break
 			}
