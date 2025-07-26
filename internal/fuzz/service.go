@@ -1,12 +1,13 @@
 package fuzz
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 type FuzzService interface {
@@ -22,11 +23,6 @@ type FuzzServiceStub struct {
 }
 
 func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
-	log.Println("Received Handshake:")
-	log.Printf("  Name: %s\n", peerInfo.Name)
-	log.Printf("  App Version: %v\n", peerInfo.AppVersion)
-	log.Printf("  JAM Version: %v\n", peerInfo.JamVersion)
-
 	var response PeerInfo
 
 	if err := response.FromConfig(); err != nil {
@@ -64,7 +60,81 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (StateRoot, error) {
 	return StateRoot(latestBlock.Header.ParentStateRoot), nil
 }
 
-func (s *FuzzServiceStub) SetState(header types.Header, state State) (StateRoot, error) {
+func (s *FuzzServiceStub) SetState(header types.Header, state types.StateKeyVals) (StateRoot, error) {
+	storeInstance := store.GetInstance()
+
+	for _, value := range state {
+		decoder := types.NewDecoder()
+		switch value.Key {
+		case m.StateWrapper{StateIndex: 1}.StateKeyConstruct():
+			val := types.AuthPools{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetAlpha(val)
+		case m.StateWrapper{StateIndex: 2}.StateKeyConstruct():
+			val := types.AuthQueues{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetVarphi(val)
+		case m.StateWrapper{StateIndex: 3}.StateKeyConstruct():
+			val := types.Beta{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetBeta(val)
+		case m.StateWrapper{StateIndex: 4}.StateKeyConstruct():
+			val := types.Gamma{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetGamma(val)
+		case m.StateWrapper{StateIndex: 5}.StateKeyConstruct():
+			val := types.DisputesRecords{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetPsi(val)
+		case m.StateWrapper{StateIndex: 6}.StateKeyConstruct():
+			val := types.EntropyBuffer{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetEta(val)
+		case m.StateWrapper{StateIndex: 7}.StateKeyConstruct():
+			val := types.ValidatorsData{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetIota(val)
+		case m.StateWrapper{StateIndex: 8}.StateKeyConstruct():
+			val := types.ValidatorsData{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetKappa(val)
+		case m.StateWrapper{StateIndex: 9}.StateKeyConstruct():
+			val := types.ValidatorsData{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetLambda(val)
+		case m.StateWrapper{StateIndex: 10}.StateKeyConstruct():
+			val := types.AvailabilityAssignments{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetRho(val)
+		case m.StateWrapper{StateIndex: 11}.StateKeyConstruct():
+			val := make([]types.TimeSlot, 1)
+			val[0].Decode(decoder)
+			storeInstance.GetPriorStates().SetTau(val[0])
+		case m.StateWrapper{StateIndex: 12}.StateKeyConstruct():
+			val := types.Privileges{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetChi(val)
+		case m.StateWrapper{StateIndex: 13}.StateKeyConstruct():
+			val := types.Statistics{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetPi(val)
+		case m.StateWrapper{StateIndex: 14}.StateKeyConstruct():
+			val := types.ReadyQueue{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetTheta(val)
+		case m.StateWrapper{StateIndex: 15}.StateKeyConstruct():
+			val := types.AccumulatedQueue{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetXi(val)
+		case m.StateWrapper{StateIndex: 16}.StateKeyConstruct():
+			val := types.AccumulatedServiceOutput{}
+			decoder.Decode(value.Value, &val)
+			storeInstance.GetPriorStates().SetLastAccOut(val)
+		}
+
+		// TODO Delta 1 - 4
+
+	}
 	// TODO
 	return StateRoot{}, ErrNotImpl
 }
