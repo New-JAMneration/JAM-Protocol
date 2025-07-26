@@ -99,75 +99,55 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 }
 
 func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {
-	info, err := m.PeerInfo()
-	if err != nil {
-		return Message{}, err
-	}
-
-	resp, err := s.Service.Handshake(*info)
+	peerInfo, err := s.Service.Handshake(*m.PeerInfo)
 	if err != nil {
 		return Message{}, err
 	}
 
 	return Message{
-		Type:    MessageType_PeerInfo,
-		payload: &resp,
+		Type:     MessageType_PeerInfo,
+		PeerInfo: &peerInfo,
 	}, nil
 }
 
 func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
-	block, err := m.ImportBlock()
+	stateRoot, err := s.Service.ImportBlock(types.Block(*m.ImportBlock))
 	if err != nil {
 		return Message{}, err
 	}
 
-	stateRoot, err := s.Service.ImportBlock(types.Block(*block))
-	if err != nil {
-		return Message{}, err
-	}
-
-	resp := StateRoot(stateRoot)
+	payload := StateRoot(stateRoot)
 
 	return Message{
-		Type:    MessageType_StateRoot,
-		payload: &resp,
+		Type:      MessageType_StateRoot,
+		StateRoot: &payload,
 	}, nil
 }
 
 func (s *FuzzServer) handleSetState(m Message) (Message, error) {
-	req, err := m.SetState()
+	stateRoot, err := s.Service.SetState(m.SetState.Header, m.SetState.State)
 	if err != nil {
 		return Message{}, err
 	}
 
-	stateRoot, err := s.Service.SetState(req.Header, req.State)
-	if err != nil {
-		return Message{}, err
-	}
-
-	resp := StateRoot(stateRoot)
+	payload := StateRoot(stateRoot)
 
 	return Message{
-		Type:    MessageType_StateRoot,
-		payload: &resp,
+		Type:      MessageType_StateRoot,
+		StateRoot: &payload,
 	}, nil
 }
 
 func (s *FuzzServer) handleGetState(m Message) (Message, error) {
-	req, err := m.GetState()
+	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*m.GetState))
 	if err != nil {
 		return Message{}, err
 	}
 
-	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*req))
-	if err != nil {
-		return Message{}, err
-	}
-
-	resp := State(stateKeyVals)
+	payload := State(stateKeyVals)
 
 	return Message{
-		Type:    MessageType_GetState,
-		payload: &resp,
+		Type:  MessageType_State,
+		State: &payload,
 	}, nil
 }
