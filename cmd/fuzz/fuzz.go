@@ -51,7 +51,7 @@ func main() {
 
 func serve(args []string) {
 	if len(args) == 0 {
-		help([]string{"serve"})
+		helpImpl("serve")
 	}
 
 	server, err := fuzz.NewFuzzServer("unix", args[0])
@@ -64,7 +64,7 @@ func serve(args []string) {
 
 func handshake(args []string) {
 	if len(args) == 0 {
-		help([]string{"handshake"})
+		helpImpl("handshake")
 	}
 
 	client, err := fuzz.NewFuzzClient("unix", args[0])
@@ -104,6 +104,10 @@ func getState(args []string) {
 }
 
 func help(args []string) {
+	helpImpl(args...)
+}
+
+func helpImpl(args ...string) {
 	if len(args) == 0 {
 		printUsage()
 	}
