@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // TODO
@@ -27,7 +29,6 @@ func NewFuzzServer(network, address string) (*FuzzServer, error) {
 	return &server, nil
 }
 
-// TODO
 // blocks until terminated
 func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
 	defer s.Listener.Close()
@@ -56,53 +57,117 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 		case <-ctx.Done():
 			return
 		default:
-			var m Message
+			var req, resp Message
 
-			_, err := m.ReadFrom(conn)
+			_, err := req.ReadFrom(conn)
 			if err != nil {
 				log.Printf("error while reading requests: %v\n", err)
 				return
 			}
 
-			switch m.Type {
+			switch req.Type {
 			case MessageType_PeerInfo:
-				payload, err := m.PeerInfo()
-				if err != nil {
-					log.Printf("error reading request: %v\n", err)
-					continue
-				}
-
-				info, err := s.Service.Handshake(*payload)
-				if err != nil {
-					log.Printf("error servicing handshake request: %v\n", err)
-					continue
-				}
-
-				resp := Message{
-					Type:    MessageType_PeerInfo,
-					payload: &info,
-				}
-				respBytes, err := resp.MarshalBinary()
-				if err != nil {
-					log.Printf("error marshaling response: %v\n", err)
-					continue
-				}
-
-				_, err = conn.Write(respBytes)
-				if err != nil {
-					log.Printf("error writing response: %v\n", err)
-					continue
-				}
+				resp, err = s.handlePeerInfo(req)
 			case MessageType_ImportBlock:
-				// TODO
-				log.Println("not implemented")
+				resp, err = s.handleImportBlock(req)
 			case MessageType_SetState:
-				// TODO
-				log.Println("not implemented")
+				resp, err = s.handleSetState(req)
 			case MessageType_GetState:
-				// TODO
-				log.Println("not implemented")
+				resp, err = s.handleGetState(req)
+			default:
+				err = ErrInvalidMessageType
+			}
+
+			if err != nil {
+				log.Printf("error processing request: %v\n", err)
+				continue
+			}
+
+			respBytes, err := resp.MarshalBinary()
+			if err != nil {
+				log.Printf("error marshaling response: %v\n", err)
+				continue
+			}
+
+			_, err = conn.Write(respBytes)
+			if err != nil {
+				log.Printf("error writing response: %v\n", err)
+				continue
 			}
 		}
 	}
+}
+
+func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {
+	info, err := m.PeerInfo()
+	if err != nil {
+		return Message{}, err
+	}
+
+	resp, err := s.Service.Handshake(*info)
+	if err != nil {
+		return Message{}, err
+	}
+
+	return Message{
+		Type:    MessageType_PeerInfo,
+		payload: &resp,
+	}, nil
+}
+
+func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
+	block, err := m.ImportBlock()
+	if err != nil {
+		return Message{}, err
+	}
+
+	stateRoot, err := s.Service.ImportBlock(types.Block(*block))
+	if err != nil {
+		return Message{}, err
+	}
+
+	resp := StateRoot(stateRoot)
+
+	return Message{
+		Type:    MessageType_StateRoot,
+		payload: &resp,
+	}, nil
+}
+
+func (s *FuzzServer) handleSetState(m Message) (Message, error) {
+	req, err := m.SetState()
+	if err != nil {
+		return Message{}, err
+	}
+
+	stateRoot, err := s.Service.SetState(req.Header, req.State)
+	if err != nil {
+		return Message{}, err
+	}
+
+	resp := StateRoot(stateRoot)
+
+	return Message{
+		Type:    MessageType_StateRoot,
+		payload: &resp,
+	}, nil
+}
+
+func (s *FuzzServer) handleGetState(m Message) (Message, error) {
+	req, err := m.GetState()
+	if err != nil {
+		return Message{}, err
+	}
+
+	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*req))
+	if err != nil {
+		return Message{}, err
+	}
+
+	resp := State(stateKeyVals)
+
+	return Message{
+		Type:    MessageType_GetState,
+		payload: &resp,
+	}, nil
 }

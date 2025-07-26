@@ -25,8 +25,6 @@ const (
 )
 
 type (
-	TrieKey [31]byte
-
 	Version struct {
 		Major uint8
 		Minor uint8
@@ -39,23 +37,18 @@ type (
 		JamVersion Version
 	}
 
-	KeyValue struct {
-		Key   TrieKey
-		Value []byte
-	}
-
-	State []KeyValue
-
 	ImportBlock types.Block
 
 	SetState struct {
 		Header types.Header
-		State  State
+		State  types.StateKeyVals
 	}
 
 	GetState types.HeaderHash
 
 	StateRoot types.StateRoot
+
+	State types.StateKeyVals
 
 	Message struct {
 		Type    MessageType
@@ -292,7 +285,11 @@ func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 		return totalBytesRead, err
 	}
 
-	unmarshaler := m.payload.(encoding.BinaryUnmarshaler)
+	unmarshaler, valid := m.payload.(encoding.BinaryUnmarshaler)
+	if !valid {
+		return totalBytesRead, ErrInvalidPayloadType
+	}
+
 	err = unmarshaler.UnmarshalBinary(payload)
 
 	return totalBytesRead, err
