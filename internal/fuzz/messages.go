@@ -51,8 +51,14 @@ type (
 	State types.StateKeyVals
 
 	Message struct {
-		Type    MessageType
-		payload any
+		Type MessageType
+
+		PeerInfo    *PeerInfo
+		ImportBlock *ImportBlock
+		SetState    *SetState
+		GetState    *GetState
+		StateRoot   *StateRoot
+		State       *State
 	}
 )
 
@@ -221,27 +227,6 @@ func (m *StateRoot) UnmarshalBinary(data []byte) error {
 	return ErrNotImpl
 }
 
-// returns ErrInvalidPayloadType if the payload type doesn't match the expected type based on message type
-// returns ErrInvalidMessageType if the message type is not one of the supported values
-func (m *Message) Validate() error {
-	switch m.Type {
-	case MessageType_PeerInfo:
-		return checkPayloadType[PeerInfo](m.payload)
-	case MessageType_ImportBlock:
-		return checkPayloadType[ImportBlock](m.payload)
-	case MessageType_SetState:
-		return checkPayloadType[SetState](m.payload)
-	case MessageType_GetState:
-		return checkPayloadType[GetState](m.payload)
-	case MessageType_State:
-		return checkPayloadType[State](m.payload)
-	case MessageType_StateRoot:
-		return checkPayloadType[StateRoot](m.payload)
-	default:
-		return ErrInvalidMessageType
-	}
-}
-
 func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 	var encodedMessageLength uint32
 
@@ -253,30 +238,13 @@ func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 	if err != nil {
 		return totalBytesRead, err
 	}
-	totalBytesRead += 4 // note that bytes read is discarded in binary.Read implementation so we never have that information
+	totalBytesRead += 4
 
 	err = binary.Read(reader, binary.LittleEndian, &m.Type)
 	if err != nil {
 		return totalBytesRead, err
 	}
-	totalBytesRead += 1 // note that bytes read is discarded in binary.Read implementation so we never have that information
-
-	switch m.Type {
-	case MessageType_PeerInfo:
-		m.payload = new(PeerInfo)
-	case MessageType_ImportBlock:
-		m.payload = new(ImportBlock)
-	case MessageType_SetState:
-		m.payload = new(SetState)
-	case MessageType_GetState:
-		m.payload = new(GetState)
-	case MessageType_State:
-		m.payload = new(State)
-	case MessageType_StateRoot:
-		m.payload = new(StateRoot)
-	default:
-		return totalBytesRead, ErrInvalidMessageType
-	}
+	totalBytesRead += 1
 
 	payload := make([]byte, encodedMessageLength-1)
 	bytesRead, err := io.ReadFull(reader, payload)
@@ -285,9 +253,29 @@ func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 		return totalBytesRead, err
 	}
 
-	unmarshaler, valid := m.payload.(encoding.BinaryUnmarshaler)
-	if !valid {
-		return totalBytesRead, ErrInvalidPayloadType
+	var unmarshaler encoding.BinaryUnmarshaler
+
+	switch m.Type {
+	case MessageType_PeerInfo:
+		m.PeerInfo = new(PeerInfo)
+		unmarshaler = m.PeerInfo
+	case MessageType_ImportBlock:
+		m.ImportBlock = new(ImportBlock)
+		unmarshaler = m.ImportBlock
+	case MessageType_SetState:
+		m.SetState = new(SetState)
+		unmarshaler = m.SetState
+	case MessageType_GetState:
+		m.GetState = new(GetState)
+		unmarshaler = m.GetState
+	case MessageType_StateRoot:
+		m.StateRoot = new(StateRoot)
+		unmarshaler = m.StateRoot
+	case MessageType_State:
+		m.State = new(State)
+		unmarshaler = m.State
+	default:
+		return totalBytesRead, ErrInvalidMessageType
 	}
 
 	err = unmarshaler.UnmarshalBinary(payload)
@@ -296,9 +284,23 @@ func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (m *Message) MarshalBinary() ([]byte, error) {
-	marshaler, valid := m.payload.(encoding.BinaryMarshaler)
-	if !valid {
-		return nil, ErrInvalidPayloadType
+	var marshaler encoding.BinaryMarshaler
+
+	switch m.Type {
+	case MessageType_PeerInfo:
+		marshaler = m.PeerInfo
+	case MessageType_ImportBlock:
+		marshaler = m.ImportBlock
+	case MessageType_SetState:
+		marshaler = m.SetState
+	case MessageType_GetState:
+		marshaler = m.GetState
+	case MessageType_StateRoot:
+		marshaler = m.StateRoot
+	case MessageType_State:
+		marshaler = m.State
+	default:
+		return nil, ErrInvalidMessageType
 	}
 
 	payload, err := marshaler.MarshalBinary()
@@ -319,57 +321,4 @@ func (m *Message) MarshalBinary() ([]byte, error) {
 	buffer = append(buffer, payload...)
 
 	return buffer, nil
-}
-
-func (m *Message) PeerInfo() (*PeerInfo, error) {
-	return castMessage[PeerInfo](m, MessageType_PeerInfo)
-}
-
-func (m *Message) ImportBlock() (*ImportBlock, error) {
-	return castMessage[ImportBlock](m, MessageType_ImportBlock)
-}
-
-func (m *Message) GetState() (*GetState, error) {
-	return castMessage[GetState](m, MessageType_GetState)
-}
-
-func (m *Message) SetState() (*SetState, error) {
-	return castMessage[SetState](m, MessageType_SetState)
-}
-
-func (m *Message) State() (*State, error) {
-	return castMessage[State](m, MessageType_State)
-}
-
-func (m *Message) StateRoot() (*StateRoot, error) {
-	return castMessage[StateRoot](m, MessageType_StateRoot)
-}
-
-func Must[T any](val T, err error) T {
-	if err != nil {
-		panic(err.Error())
-	}
-	return val
-}
-
-func castMessage[T any](m *Message, expectedMessageType MessageType) (*T, error) {
-	if m.Type != expectedMessageType {
-		return nil, ErrInvalidMessageType
-	}
-
-	payload, valid := m.payload.(*T)
-	if !valid {
-		return nil, ErrInvalidPayloadType
-	}
-
-	return payload, nil
-}
-
-func checkPayloadType[T any](payload any) error {
-	_, valid := payload.(*T)
-	if !valid {
-		return ErrInvalidPayloadType
-	}
-
-	return nil
 }
