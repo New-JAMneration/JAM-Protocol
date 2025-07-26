@@ -58,17 +58,17 @@ func (c *FuzzClient) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 	return *info, nil
 }
 
-func (c *FuzzClient) ImportBlock(block types.Block) (StateRoot, error) {
+func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, error) {
 	// TODO
-	return StateRoot{}, ErrNotImpl
+	return types.StateRoot{}, ErrNotImpl
 }
 
-func (c *FuzzClient) SetState(header types.Header, state State) (StateRoot, error) {
+func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals) (types.StateRoot, error) {
 	// TODO
-	return StateRoot{}, ErrNotImpl
+	return types.StateRoot{}, ErrNotImpl
 }
 
-func (c *FuzzClient) GetState(hash types.HeaderHash) (State, error) {
+func (c *FuzzClient) GetState(hash types.HeaderHash) (types.StateKeyVals, error) {
 	// TODO
-	return State{}, ErrNotImpl
+	return types.StateKeyVals{}, ErrNotImpl
 }
