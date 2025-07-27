@@ -155,7 +155,6 @@ func TestHandleWorkPackageShare(t *testing.T) {
 
 	stream := newMockStream(input)
 
-	// Generate Ed25519 keypair
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	keypair, _ := keystore.FromEd25519PrivateKey(priv)
 

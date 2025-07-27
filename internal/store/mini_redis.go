@@ -1,6 +1,7 @@
 package store
 
-// CloseMiniRedis is a test helper used by some networking tests.
-// The current mainline implementation does not manage an embedded Redis instance here,
-// so this is intentionally a no-op.
-func CloseMiniRedis() {}
+// CloseMiniRedis closes the embedded in-memory redis (when USE_MINI_REDIS=true).
+// It is safe to call even if the backend was never initialized.
+func CloseMiniRedis() {
+	resetRedisBackend()
+}

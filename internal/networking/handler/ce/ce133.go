@@ -37,7 +37,6 @@ func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.
 	extrinsics := make([]byte, exLen)
 	copy(extrinsics, extra[:exLen])
 
-	// For test: store in struct and write a response
 	_ = CE133WorkPackageSubmission{
 		CoreIndex:   coreIndex,
 		WorkPackage: workPackage,

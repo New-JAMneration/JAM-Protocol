@@ -19,6 +19,7 @@ const (
 	ShardDistribution
 	AuditShardReqeust
 	SegmentShardRequest
+	SegmentShardRequestWithJustification // CE140
 	AssuranceDistribution
 	PreimageAnnouncement
 	PreimageRequest
@@ -72,11 +73,11 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 		// TODO: Implement ShardDistribution encoding
 		return nil, fmt.Errorf("ShardDistribution encoding not implemented yet")
 	case AuditShardReqeust:
-		// TODO: Implement AuditShardReqeust encoding
-		return nil, fmt.Errorf("AuditShardReqeust encoding not implemented yet")
+		return h.encodeAuditShardRequest(message)
 	case SegmentShardRequest:
-		// TODO: Implement SegmentShardRequest encoding
-		return nil, fmt.Errorf("SegmentShardRequest encoding not implemented yet")
+		return h.encodeSegmentShardRequest(message)
+	case SegmentShardRequestWithJustification:
+		return h.encodeSegmentShardRequestWithJustification(message)
 	case AssuranceDistribution:
 		// TODO: Implement AssuranceDistribution encoding
 		return nil, fmt.Errorf("AssuranceDistribution encoding not implemented yet")
@@ -121,7 +122,6 @@ func (h *DefaultCERequestHandler) encodeBlockRequest(message interface{}) ([]byt
 		return nil, fmt.Errorf("failed to encode MaxBlocks: %w", err)
 	}
 
-	// Use the encoder's Encode method to get the bytes
 	encoded, err := h.encoder.Encode(blockReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode CE128Payload: %w", err)
@@ -172,12 +172,190 @@ func (h *DefaultCERequestHandler) encodeStateRequest(message interface{}) ([]byt
 		return nil, fmt.Errorf("failed to encode MaxSize: %w", err)
 	}
 
-	// Since we can't access the buffer directly, let's just return the manually constructed bytes
 	result := make([]byte, 0, 98)
 	result = append(result, stateReq.HeaderHash[:]...)
 	result = append(result, stateReq.KeyStart[:]...)
 	result = append(result, stateReq.KeyEnd[:]...)
 	result = append(result, maxSizeBytes...)
+
+	return result, nil
+}
+
+func (h *DefaultCERequestHandler) encodeAuditShardRequest(message interface{}) ([]byte, error) {
+	auditReq, ok := message.(*CE138Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for AuditShardRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Encode ErasureRoot (32 bytes)
+	if len(auditReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(auditReq.ErasureRoot))
+	}
+	if err := writeRaw(auditReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	// Encode ShardIndex (4 bytes little-endian)
+	shardIndexBytes := []byte{
+		byte(auditReq.ShardIndex),
+		byte(auditReq.ShardIndex >> 8),
+		byte(auditReq.ShardIndex >> 16),
+		byte(auditReq.ShardIndex >> 24),
+	}
+	if err := writeRaw(shardIndexBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	result := make([]byte, 0, 36)
+	result = append(result, auditReq.ErasureRoot...)
+	result = append(result, shardIndexBytes...)
+
+	return result, nil
+}
+
+func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{}) ([]byte, error) {
+	segmentReq, ok := message.(*CE139Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for SegmentShardRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Encode ErasureRoot (32 bytes)
+	if len(segmentReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	}
+	if err := writeRaw(segmentReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	// Encode ShardIndex (4 bytes little-endian)
+	shardIndexBytes := []byte{
+		byte(segmentReq.ShardIndex),
+		byte(segmentReq.ShardIndex >> 8),
+		byte(segmentReq.ShardIndex >> 16),
+		byte(segmentReq.ShardIndex >> 24),
+	}
+	if err := writeRaw(shardIndexBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	// Encode Segment Indices Length (2 bytes little-endian)
+	segmentIndicesLen := uint16(len(segmentReq.SegmentIndices))
+	segmentIndicesLenBytes := []byte{
+		byte(segmentIndicesLen),
+		byte(segmentIndicesLen >> 8),
+	}
+	if err := writeRaw(segmentIndicesLenBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode SegmentIndicesLength: %w", err)
+	}
+
+	// Encode Segment Indices (2 bytes each, little-endian)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		segmentIndexBytes := []byte{
+			byte(segmentIndex),
+			byte(segmentIndex >> 8),
+		}
+		if err := writeRaw(segmentIndexBytes); err != nil {
+			return nil, fmt.Errorf("failed to encode SegmentIndex: %w", err)
+		}
+	}
+
+	result := make([]byte, 0, 38+len(segmentReq.SegmentIndices)*2)
+	result = append(result, segmentReq.ErasureRoot...)
+	result = append(result, shardIndexBytes...)
+	result = append(result, segmentIndicesLenBytes...)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		result = append(result, byte(segmentIndex), byte(segmentIndex>>8))
+	}
+
+	return result, nil
+}
+
+func (h *DefaultCERequestHandler) encodeSegmentShardRequestWithJustification(message interface{}) ([]byte, error) {
+	segmentReq, ok := message.(*CE140Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for SegmentShardRequestWithJustification: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Encode ErasureRoot (32 bytes)
+	if len(segmentReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	}
+	if err := writeRaw(segmentReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	// Encode ShardIndex (4 bytes little-endian)
+	shardIndexBytes := []byte{
+		byte(segmentReq.ShardIndex),
+		byte(segmentReq.ShardIndex >> 8),
+		byte(segmentReq.ShardIndex >> 16),
+		byte(segmentReq.ShardIndex >> 24),
+	}
+	if err := writeRaw(shardIndexBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	// Encode Segment Indices Length (2 bytes little-endian)
+	segmentIndicesLen := uint16(len(segmentReq.SegmentIndices))
+	segmentIndicesLenBytes := []byte{
+		byte(segmentIndicesLen),
+		byte(segmentIndicesLen >> 8),
+	}
+	if err := writeRaw(segmentIndicesLenBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode SegmentIndicesLength: %w", err)
+	}
+
+	// Encode Segment Indices (2 bytes each, little-endian)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		segmentIndexBytes := []byte{
+			byte(segmentIndex),
+			byte(segmentIndex >> 8),
+		}
+		if err := writeRaw(segmentIndexBytes); err != nil {
+			return nil, fmt.Errorf("failed to encode SegmentIndex: %w", err)
+		}
+	}
+
+	result := make([]byte, 0, 38+len(segmentReq.SegmentIndices)*2)
+	result = append(result, segmentReq.ErasureRoot...)
+	result = append(result, shardIndexBytes...)
+	result = append(result, segmentIndicesLenBytes...)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		result = append(result, byte(segmentIndex), byte(segmentIndex>>8))
+	}
 
 	return result, nil
 }
