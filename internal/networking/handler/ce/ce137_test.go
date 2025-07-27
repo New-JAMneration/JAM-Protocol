@@ -20,7 +20,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 	}
 
 	// Prepare a real WorkReportBundle with mock data
-	bundle := &WorkReportBundle{
+	bundle := &CE137Payload{
 		BundleShard: []byte("BUNDLE_SHARD_MOCK"),
 		SegmentShards: [][]byte{
 			[]byte("SEGMENT_SHARD1_MOCK"),
@@ -28,7 +28,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 		},
 		Justification: append([]byte{0x00}, make([]byte, 32)...), // 0 discriminator + 32 zero bytes
 	}
-	lookup := func(root []byte) (*WorkReportBundle, bool) {
+	lookup := func(root []byte) (*CE137Payload, bool) {
 		if bytes.Equal(root, erasureRoot) {
 			return bundle, true
 		}
