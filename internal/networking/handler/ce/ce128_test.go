@@ -340,7 +340,9 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 			t.Fatalf("failed to read block data: %v", err)
 		}
 		block := types.Block{}
-		decoder.Decode(blkData, &block)
+		if err := decoder.Decode(blkData, &block); err != nil {
+			t.Fatalf("failed to decode block: %v", err)
+		}
 		respBlocks = append(respBlocks, block)
 	}
 

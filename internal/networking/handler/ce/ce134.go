@@ -70,14 +70,13 @@ func HandleWorkPackageShare(
 	// (Note: mappings are not used in this minimal handler; add logic as needed)
 
 	// 3. Read work-package bundle (rest of stream until FIN)
-	bundle := make([]byte, 65536) // Arbitrary max size
+	bundle := make([]byte, 65536)
 	n, err := stream.Read(bundle)
 	if err != nil && err != io.EOF {
 		return fmt.Errorf("failed to read bundle: %w", err)
 	}
 	bundle = bundle[:n]
 
-	// 4. Basic verification: decode bundle, check authorization, check mappings
 	controller := work_package.NewSharedController(bundle, erasureMap, segmentRootLookup, coreIndex)
 	if pvmExecutor != nil {
 		controller.PVM = pvmExecutor
@@ -87,17 +86,13 @@ func HandleWorkPackageShare(
 		return fmt.Errorf("work-package verification failed: %w", err)
 	}
 
-	// 5. Compute work-report hash
 	workReportHash := workReport.PackageSpec.Hash
 
-	// 6. Sign the work-report hash with Ed25519
-	// (Assume keypair is Ed25519)
 	sig, err := keypair.Sign(workReportHash[:])
 	if err != nil {
 		return fmt.Errorf("failed to sign work-report hash: %w", err)
 	}
 
-	// 7. Write response: work-report hash (32 bytes) ++ signature (64 bytes)
 	resp := append(workReportHash[:], sig...)
 	if _, err := stream.Write(resp); err != nil {
 		return fmt.Errorf("failed to write response: %w", err)

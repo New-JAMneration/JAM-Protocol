@@ -22,6 +22,7 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	workPackageBundleStore     *WorkPackageBundleStore
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -52,6 +53,7 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
+		workPackageBundleStore:     nil, // Will be initialized when needed
 	}
 	log.Println("🚀 Store reset")
 }
@@ -122,6 +124,14 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+func (s *Store) GetWorkPackageBundleStore() *WorkPackageBundleStore {
+	return s.workPackageBundleStore
+}
+
+func (s *Store) SetWorkPackageBundleStore(store *WorkPackageBundleStore) {
+	s.workPackageBundleStore = store
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

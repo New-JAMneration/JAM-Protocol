@@ -8,7 +8,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 	"github.com/alicebob/miniredis/v2"
 )
 
@@ -57,53 +56,8 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	for i := range extrinsicHash1 {
 		extrinsicHash1[i] = byte(i)
 	}
-	wp := &types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
-		Context: types.RefineContext{
-			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
-			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
-			BeefyRoot:        types.BeefyRoot{0x10, 0x11, 0x12},
-			LookupAnchor:     types.HeaderHash{0x13, 0x14, 0x15},
-			LookupAnchorSlot: types.TimeSlot(12345),
-			Prerequisites:    nil,
-		},
-		Items: []types.WorkItem{
-			{
-				Service:            types.ServiceId(1),
-				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
-				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
-				RefineGasLimit:     types.Gas(1000),
-				AccumulateGasLimit: types.Gas(2000),
-				ExportCount:        types.U16(1),
-				ImportSegments: []types.ImportSpec{
-					{TreeRoot: types.OpaqueHash{0x1C, 0x1D, 0x1E}, Index: types.U16(1)},
-				},
-				Extrinsic: []types.ExtrinsicSpec{
-					{Hash: extrinsicHash1, Len: 5},
-				},
-			},
-		},
-	}
-	extrinsicMap := PVM.ExtrinsicDataMap{}
-	extrinsicMap[types.OpaqueHash(extrinsicHash1)] = []byte("abcde")
-	segment := [4104]byte{}
-	copy(segment[:], []byte("segment1"))
-	importSegments := types.ExportSegmentMatrix{
-		{
-			types.ExportSegment(segment),
-		},
-	}
-	importProofs := types.OpaqueHashMatrix{
-		{
-			[32]byte{1},
-		},
-	}
-	bundle, err := work_package.BuildWorkPackageBundle(wp, extrinsicMap, importSegments, importProofs)
+
+	bundle, err := CreateTestWorkPackageBundleForCE134(types.OpaqueHash(extrinsicHash1), []byte("abcde"))
 	if err != nil {
 		t.Fatalf("failed to build work-package bundle: %v", err)
 	}
@@ -135,7 +89,6 @@ func TestHandleWorkPackageShare(t *testing.T) {
 
 	stream := newMockStream(input)
 
-	// Generate Ed25519 keypair
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	keypair, _ := keystore.FromEd25519PrivateKey(priv)
 
@@ -148,7 +101,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	segmentMap := store.NewHashSegmentMap(client)
 	erasureMap := store.NewSegmentErasureMap(client)
 	fakePVM := &FakePVMExecutor{}
-	err = HandleWorkPackageShare(nil, stream, keypair, fakePVM, erasureMap, segmentMap) // Use mockStream directly for test
+	err = HandleWorkPackageShare(nil, stream, keypair, fakePVM, erasureMap, segmentMap)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
