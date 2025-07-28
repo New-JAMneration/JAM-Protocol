@@ -79,7 +79,7 @@ func NewJamTestVectorsReader(mode TestMode, size TestSize, format DataFormat) *T
 	}
 
 	// jam-test-vectors/stf/mode/size
-	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "stf", string(mode), string(size))
+	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", string(mode), string(size))
 
 	return reader
 }
@@ -177,7 +177,7 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		case AssurancesMode:
 			var assuranceTestCase jamtestsassurances.AssuranceTestCase
 			if err := r.readFile(data, &assuranceTestCase); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal/decode safrole test data: %v", err)
+				return nil, fmt.Errorf("failed to unmarshal/decode assurances test data: %v", err)
 			}
 			result = &assuranceTestCase
 		case PreimagesMode:
