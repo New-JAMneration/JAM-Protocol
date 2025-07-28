@@ -246,7 +246,7 @@ func (g *GuaranteeController) CardinalityCheck() error {
 func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
 	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
-	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
+	headerTimeSlot := store.GetInstance().GetLatestBlock().Header.Slot
 
 	for _, context := range contexts {
 		recentAnchorMatch := false
