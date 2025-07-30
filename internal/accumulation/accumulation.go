@@ -194,7 +194,7 @@ func UpdateAccumulatableWorkReports() {
 }
 
 // (12.16) ∆+ outer accumulation function
-// (NG, ⟦W⟧, U, D⟨NS → NG⟩) → (N, U, ⟦T⟧, B, U )
+// (NG, ⟦R⟧, U, D⟨NS → NG⟩) → (N, U, ⟦X⟧, B, U )
 // (g, w, o, f )↦ (0, o, [], {}, []) if i = 0
 //
 //	(i + j, o′, t∗⌢ t, b∗ ∪ b, u∗⌢ u) o/w
