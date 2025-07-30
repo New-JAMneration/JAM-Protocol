@@ -1433,13 +1433,13 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// (12.14) deferred transfer
+// (12.14) deferred transfer (X)
 type DeferredTransfer struct {
-	SenderID   ServiceId `json:"senderid"`
-	ReceiverID ServiceId `json:"receiverid"`
-	Balance    U64       `json:"balance"`
-	Memo       [128]byte `json:"memo"`
-	GasLimit   Gas       `json:"gas"`
+	SenderID   ServiceId `json:"senderid"`   // s
+	ReceiverID ServiceId `json:"receiverid"` // d
+	Balance    U64       `json:"balance"`    // a
+	Memo       [128]byte `json:"memo"`       // m
+	GasLimit   Gas       `json:"gas"`        // g
 }
 
 type DeferredTransfers []DeferredTransfer
