@@ -49,17 +49,23 @@ func (v *Validator) UnmarshalJSON(data []byte) error {
 
 func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		CodeHash   string `json:"code_hash,omitempty"`
-		Balance    U64    `json:"balance,omitempty"`
-		MinItemGas Gas    `json:"min_item_gas,omitempty"`
-		MinMemoGas Gas    `json:"min_memo_gas,omitempty"`
-		Bytes      U64    `json:"bytes,omitempty"`
-		Items      U32    `json:"items,omitempty"`
+		DepositOffset        U64       `json:"deposit_offset,omitempty"`
+		CodeHash             string    `json:"code_hash,omitempty"`
+		Balance              U64       `json:"balance,omitempty"`
+		MinItemGas           Gas       `json:"min_item_gas,omitempty"`
+		MinMemoGas           Gas       `json:"min_memo_gas,omitempty"`
+		CreationSlot         TimeSlot  `json:"creation_slot,omitempty"`
+		LastAccumulationSlot TimeSlot  `json:"last_accumulation_slot,omitempty"`
+		ParentService        ServiceId `json:"parent_service,omitempty"`
+		Bytes                U64       `json:"bytes,omitempty"`
+		Items                U32       `json:"items,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
+
+	s.DepositOffset = temp.DepositOffset
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -70,6 +76,9 @@ func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 	s.Balance = temp.Balance
 	s.MinItemGas = temp.MinItemGas
 	s.MinMemoGas = temp.MinMemoGas
+	s.CreationSlot = temp.CreationSlot
+	s.LastAccumulationSlot = temp.LastAccumulationSlot
+	s.ParentService = temp.ParentService
 	s.Bytes = temp.Bytes
 	s.Items = temp.Items
 
@@ -496,7 +505,7 @@ func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		HeaderHash string                `json:"header_hash,omitempty"`
-		MmrPeak    string                `json:"mmr_peak,omitempty"`
+		BeefyRoot  string                `json:"beefy_root,omitempty"`
 		StateRoot  string                `json:"state_root,omitempty"`
 		Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 	}
@@ -511,11 +520,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.HeaderHash = HeaderHash(headerHashBytes)
 
-	mmrPeakBytes, err := hex.DecodeString(temp.MmrPeak[2:])
+	beefyRootBytes, err := hex.DecodeString(temp.BeefyRoot[2:])
 	if err != nil {
 		return err
 	}
-	b.MmrPeak = OpaqueHash(mmrPeakBytes)
+	b.BeefyRoot = OpaqueHash(beefyRootBytes)
 
 	stateRootBytes, err := hex.DecodeString(temp.StateRoot[2:])
 	if err != nil {
@@ -1372,16 +1381,18 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 }
 
 // Beta
-func (b *Beta) UnmarshalJSON(data []byte) error {
-	var temp Beta
+func (b *RecentBlocks) UnmarshalJSON(data []byte) error {
+	var temp RecentBlocks
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
 	if temp.History == nil {
 		b.History = nil
+		b.Mmr = Mmr{}
 	} else {
 		b.History = temp.History
+		b.Mmr = temp.Mmr
 	}
 
 	*b = temp

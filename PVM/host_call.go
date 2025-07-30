@@ -605,13 +605,13 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ = encoder.Encode(&derivatives.Items)
 	v = append(v, encoded...)
 	// a_f
-	encoded, _ = encoder.Encode(&a.ServiceInfo.GratisStorageOffset)
+	encoded, _ = encoder.Encode(&a.ServiceInfo.DepositOffset)
 	v = append(v, encoded...)
 	// a_r
-	encoded, _ = encoder.Encode(&a.ServiceInfo.CreateTime)
+	encoded, _ = encoder.Encode(&a.ServiceInfo.CreationSlot)
 	v = append(v, encoded...)
 	// a_a
-	encoded, _ = encoder.Encode(&a.ServiceInfo.RecentAccumulateTime)
+	encoded, _ = encoder.Encode(&a.ServiceInfo.LastAccumulationSlot)
 	v = append(v, encoded...)
 	// a_p
 	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
@@ -990,9 +990,9 @@ func new(input OmegaInput) (output OmegaOutput) {
 			Balance:              0,                                       // b, will be updated later
 			MinItemGas:           types.Gas(g),                            // g
 			MinMemoGas:           types.Gas(m),                            // m
-			CreateTime:           input.Addition.TimeSlot,                 // r
-			GratisStorageOffset:  types.U64(0),                            // f
-			RecentAccumulateTime: types.TimeSlot(0),                       // a
+			CreationSlot:         input.Addition.TimeSlot,                 // r
+			DepositOffset:        types.U64(0),                            // f
+			LastAccumulationSlot: types.TimeSlot(0),                       // a
 			ParentService:        input.Addition.ResultContextX.ServiceId, // p
 		},
 		PreimageLookup: types.PreimagesMapEntry{}, // p
