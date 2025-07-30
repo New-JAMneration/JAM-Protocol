@@ -194,19 +194,8 @@ func UpdateAccumulatableWorkReports() {
 }
 
 // (12.16) ∆+ outer accumulation function
-// (NG, ⟦R⟧, U, D⟨NS → NG⟩) → (N, U, ⟦X⟧, B, U )
-// (g, w, o, f )↦ (0, o, [], {}, []) if i = 0
-//
-//	(i + j, o′, t∗⌢ t, b∗ ∪ b, u∗⌢ u) o/w
-//
-// where i = max(NSwS+1) ∶   ∑   ∑     (rg ) ≤ g
-//
-//							w∈w...i  r∈wr
-//	 and (o∗, t∗, b∗, u∗) = ∆∗(o, w...i, f )
-//
-// and (j, o′, t, b, u) = ∆+(g − ∑u, wi..., o∗, {})
-//
-//	(s,u)∈u∗
+// (NG, , ⟦X⟧, ⟦R⟧, S, D⟨NS → NG⟩) → (N, S, B, U)
+
 func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput, err error) {
 	gas_sum := 0
 	i := 0
@@ -268,29 +257,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 }
 
 // (12.17) ∆∗ parallelized accumulation function
-// (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
-// (o, w, f ) ↦ ((d′, i′, q′, x′),Ìt, b, u, p∗)
-// where:
-// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
-// u = [(s, ∆1(o, w, f , s)u) S s <− s]
-// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
-// t = [∆1(o, w, f, s)t S s <− s]
-// p =  s<−s⋃ ∆1(o, w, f , s)p
-// d′ = P ((d ∪ n) ∖ m, p)
-//
-//	(d, i, q, (m, a, v, z)) = o
-//
-// x′ = (∆1(o, w, f, m)o)x
-// i′ = (∆1(o, w, f, v)o)i
-// q′ = (∆1(o, w, f, a)o)q
-// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
-//
-//	s∈s
-//
-// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-//
-//	s∈s
-//
+// (S, ⟦X⟧, ⟦R⟧, D⟨NS → NG⟩) → (N, S, B, U)
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
 	// Initialize output maps
@@ -440,21 +407,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 }
 
 // (12.20) ∆1 single-service accumulation function
-
-// ∆1∶
-// (U, ⟦W⟧, D⟨NS → NG⟩, NS ) → o ∈ U , t ∈ ⟦T⟧ ,
-//
-//					  b ∈ H? , u ∈ NG p ∈ {NS , Y}
-//	(o, w, f, s) ↦ ΨA(o, τ ′, s, g, i)
-//
-// where:
-//
-//	g = U(fs, 0) + ∑(rg )
-//				w∈w,r∈wr,rs=s
-//
-// i d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
-//
-//	y: ry ,h: (ws)h, a:wa
+// (S, ⟦X⟧, ⟦R⟧, D(NS → NG)) -> (S, ⟦X⟧, B, U)
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
 	var operands []types.Operand // all operand inputs for Ψₐ
 	// U(fs, 0)
