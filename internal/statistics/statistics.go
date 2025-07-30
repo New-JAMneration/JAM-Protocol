@@ -78,7 +78,7 @@ func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	s := store.GetInstance()
 
 	// Get author index
-	authorIndex := s.GetProcessingBlockPointer().GetAuthorIndex()
+	authorIndex := s.GetLatestBlock().Header.AuthorIndex
 
 	// Get statistics
 	statistics := s.GetPosteriorStates().GetPi()
@@ -458,7 +458,7 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 func UpdateValidatorActivityStatistics() {
 	s := store.GetInstance()
 
-	extrinsic := s.GetProcessingBlockPointer().GetExtrinsics()
+	extrinsic := s.GetLatestBlock().Extrinsic
 
 	preTau := s.GetPriorStates().GetTau()
 	postTau := s.GetPosteriorStates().GetTau()
