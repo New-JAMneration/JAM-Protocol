@@ -1930,8 +1930,8 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// MmrPeak
-	if err := bi.MmrPeak.Encode(e); err != nil {
+	// BeefyRoot
+	if err := bi.BeefyRoot.Encode(e); err != nil {
 		return err
 	}
 
@@ -1976,14 +1976,14 @@ func (bh *BlocksHistory) Encode(e *Encoder) error {
 }
 
 // Beta
-func (b *Beta) Encode(e *Encoder) error {
+func (b *RecentBlocks) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Beta")
 
 	if err := b.History.Encode(e); err != nil {
 		return err
 	}
 
-	if err := b.BeefyBelt.Encode(e); err != nil {
+	if err := b.Mmr.Encode(e); err != nil {
 		return err
 	}
 
@@ -2045,8 +2045,8 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
-	// GratisStorageOffset
-	if err := s.GratisStorageOffset.Encode(e); err != nil {
+	// DepositOffset
+	if err := s.DepositOffset.Encode(e); err != nil {
 		return err
 	}
 
@@ -2070,13 +2070,13 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// CreateTime
-	if err := s.CreateTime.Encode(e); err != nil {
+	// CreationSlot
+	if err := s.CreationSlot.Encode(e); err != nil {
 		return err
 	}
 
-	// RecentAccumulateTime
-	if err := s.RecentAccumulateTime.Encode(e); err != nil {
+	// LastAccumulationSlot
+	if err := s.LastAccumulationSlot.Encode(e); err != nil {
 		return err
 	}
 

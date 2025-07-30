@@ -251,7 +251,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
-				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.MmrPeak)
+				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.BeefyRoot)
 				break
 			}
 		}
