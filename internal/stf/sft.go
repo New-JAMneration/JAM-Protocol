@@ -42,6 +42,10 @@ func RunSTF() error {
 	// Update Authorization
 
 	// Update Statistics
+	err = UpdateStatistics()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
