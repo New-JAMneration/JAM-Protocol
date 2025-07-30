@@ -52,7 +52,7 @@ func (s *PriorStates) GetAlpha() types.AuthPools {
 }
 
 // SetBeta sets the beta value
-func (s *PriorStates) SetBeta(beta types.Beta) {
+func (s *PriorStates) SetBeta(beta types.RecentBlocks) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta = beta
@@ -67,11 +67,11 @@ func (s *PriorStates) SetBetaH(betaH types.BlocksHistory) {
 func (s *PriorStates) SetBetaB(betaB types.Mmr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Beta.BeefyBelt = betaB
+	s.state.Beta.Mmr = betaB
 }
 
 // GetBeta returns the beta value
-func (s *PriorStates) GetBeta() types.Beta {
+func (s *PriorStates) GetBeta() types.RecentBlocks {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Beta

@@ -142,7 +142,7 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	var (
 		Items      = CalcKeys(account)
 		Bytes      = CalcOctets(account)
-		Minbalance = CalcThresholdBalance(Items, Bytes, account.ServiceInfo.GratisStorageOffset)
+		Minbalance = CalcThresholdBalance(Items, Bytes, account.ServiceInfo.DepositOffset)
 	)
 	accountDer = types.ServiceAccountDerivatives{
 		Items:      Items,
