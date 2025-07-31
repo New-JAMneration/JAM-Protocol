@@ -145,7 +145,7 @@ func (f *FaultController) CheckUnique() error {
 	uniqueFaults := make([]types.Fault, 0)
 	for _, fault := range f.Faults {
 		if uniqueMap[fault.Key] {
-			return fmt.Errorf("faults_key_not_unique")
+			return fmt.Errorf("faults_not_sorted_unique")
 		}
 		uniqueMap[fault.Key] = true
 		uniqueFaults = append(uniqueFaults, fault)
@@ -157,7 +157,7 @@ func (f *FaultController) CheckUnique() error {
 func (f *FaultController) CheckSorted() error {
 	for i := 1; i < len(f.Faults); i++ {
 		if bytes.Compare(f.Faults[i-1].Key[:], f.Faults[i].Key[:]) > 0 {
-			return fmt.Errorf("faults_not_sorted")
+			return fmt.Errorf("faults_not_sorted_unique")
 		}
 	}
 	return nil

@@ -20,3 +20,22 @@ const (
 	BadGuarantorKey                                  // 14
 	BadAuditorKey                                    // 15
 )
+
+var DisputesErrorMap = map[string]types.ErrorCode{
+	"already_judged":               AlreadyJudged,
+	"bad_vote_split":               BadVoteSplit,
+	"verdicts_not_sorted_unique":   VerdictsNotSortedUnique,
+	"judgements_not_sorted_unique": JudgementsNotSortedUnique,
+	"culprits_not_sorted_unique":   CulpritsNotSortedUnique,
+	"faults_not_sorted_unique":     FaultsNotSortedUnique,
+	"not_enough_culprits":          NotEnoughCulprits,
+	"not_enough_faults":            NotEnoughFaults,
+	"culprits_verdict_not_bad":     CulpritsVerdictNotBad,
+	"fault_verdict_wrong":          FaultVerdictWrong,
+	"offender_already_reported":    OffenderAlreadyReported,
+	"bad_judgement_age":            BadJudgementAge,
+	"bad_validator_index":          BadValidatorIndex,
+	"bad_signature":                BadSignature,
+	"bad_guarantor_key":            BadGuarantorKey,
+	"bad_auditor_key":              BadAuditorKey,
+}
