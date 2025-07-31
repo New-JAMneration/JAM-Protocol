@@ -131,7 +131,7 @@ func (c *CulpritController) CheckUnique() error {
 	result := make([]types.Culprit, 0)
 	for _, culprit := range c.Culprits {
 		if uniqueKeyMap[culprit.Key] {
-			return fmt.Errorf("duplicate_culprit_key")
+			return fmt.Errorf("culprits_not_sorted_unique")
 		}
 		uniqueKeyMap[culprit.Key] = true
 		result = append(result, culprit)
@@ -143,7 +143,7 @@ func (c *CulpritController) CheckUnique() error {
 func (v *CulpritController) CheckSorted() error {
 	for i := 1; i < len(v.Culprits); i++ {
 		if bytes.Compare(v.Culprits[i-1].Key[:], v.Culprits[i].Key[:]) > 0 {
-			return fmt.Errorf("culprits_not_sorted_by_key")
+			return fmt.Errorf("culprits_not_sorted_unique")
 		}
 	}
 
