@@ -39,6 +39,10 @@ func GetInstance() *Store {
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 		}
+		globalStore.unfinalizedBlocks.GenerateGenesisBlock(types.Block{
+			Header:    types.Header{},
+			Extrinsic: types.Extrinsic{},
+		})
 		log.Println("🚀 Store initialized")
 	})
 	return globalStore
@@ -56,6 +60,10 @@ func ResetInstance() {
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
 	}
+	globalStore.unfinalizedBlocks.GenerateGenesisBlock(types.Block{
+		Header:    types.Header{},
+		Extrinsic: types.Extrinsic{},
+	})
 	log.Println("🚀 Store reset")
 }
 
@@ -192,6 +200,14 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+func (s *Store) SetLatestDisputesExtrinsic(d types.DisputesExtrinsic) {
+	s.unfinalizedBlocks.SetLatestDisputesExtrinsic(d)
+}
+
+func (s *Store) GetLatestDisputesExtrinsic() types.DisputesExtrinsic {
+	return s.unfinalizedBlocks.GetLatestDisputesExtrinsic()
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

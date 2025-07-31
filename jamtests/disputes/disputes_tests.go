@@ -385,6 +385,7 @@ func (d *DisputeOutput) IsError() bool {
 	return d.Err != nil
 }
 
+// TODO: Implement the Dump method
 func (d *DisputeTestCase) Dump() error {
 	store.ResetInstance()
 	storeInstance := store.GetInstance()
@@ -395,13 +396,8 @@ func (d *DisputeTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetKappa(d.PreState.Kappa)
 	storeInstance.GetPriorStates().SetLambda(d.PreState.Lambda)
 
-	// Add block with DisputesExtrinsic
-	block := types.Block{
-		Extrinsic: types.Extrinsic{
-			Disputes: d.Input.Disputes,
-		},
-	}
-	storeInstance.AddBlock(block)
+	// Set DisputeInput Extrinsic?
+	storeInstance.SetLatestDisputesExtrinsic(d.Input.Disputes)
 
 	return nil
 }
