@@ -58,3 +58,15 @@ func (b *UnfinalizedBlocks) SetExtrinsic(extrinsic types.Extrinsic) {
 	defer b.mu.Unlock()
 	b.blocks[len(b.blocks)-1].Extrinsic = extrinsic
 }
+
+func (b *UnfinalizedBlocks) GetLatestDisputesExtrinsic() types.DisputesExtrinsic {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.blocks[len(b.blocks)-1].Extrinsic.Disputes
+}
+
+func (b *UnfinalizedBlocks) SetLatestDisputesExtrinsic(disputes types.DisputesExtrinsic) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.blocks[len(b.blocks)-1].Extrinsic.Disputes = disputes
+}
