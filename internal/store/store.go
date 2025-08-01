@@ -16,6 +16,7 @@ var (
 type Store struct {
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
+	finalizedIndex             map[types.HeaderHash]bool
 	processingBlock            *ProcessingBlock
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
@@ -30,6 +31,7 @@ func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
+			finalizedIndex:             make(map[types.HeaderHash]bool),
 			processingBlock:            NewProcessingBlock(),
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
@@ -46,6 +48,7 @@ func ResetInstance() {
 	// reset globalStore
 	globalStore = &Store{
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
+		finalizedIndex:             make(map[types.HeaderHash]bool),
 		processingBlock:            NewProcessingBlock(),
 		priorStates:                NewPriorStates(),
 		intermediateStates:         NewIntermediateStates(),
@@ -79,7 +82,74 @@ func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
 func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
 	s.unfinalizedBlocks.AddBlock(block)
-	log.Println("🚀 Genesis block generated")
+	// Genesis block is always finalized
+	s.finalizedIndex[block.Header.Parent] = true
+}
+
+// Finalized Blocks Management
+
+// FinalizeBlock marks a block as finalized by its hash
+func (s *Store) FinalizeBlock(blockHash types.HeaderHash) {
+	s.finalizedIndex[blockHash] = true
+}
+
+// IsBlockFinalized checks if a block is finalized
+func (s *Store) IsBlockFinalized(blockHash types.HeaderHash) bool {
+	return s.finalizedIndex[blockHash]
+}
+
+// GetFinalizedBlocks returns all finalized blocks
+// TODO: This is not efficient,
+// We’re checking the blocks in reverse order—if we encounter a finalized block,
+// can we assume that all remaining blocks are also finalized?
+func (s *Store) GetFinalizedBlocks() []types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+	var finalizedBlocks []types.Block
+
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			finalizedBlocks = append(finalizedBlocks, block)
+		}
+	}
+
+	return finalizedBlocks
+}
+
+// GetUnfinalizedBlocks returns all unfinalized blocks
+func (s *Store) GetUnfinalizedBlocks() []types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+	var unfinalizedBlocks []types.Block
+
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			break
+		}
+		unfinalizedBlocks = append(unfinalizedBlocks, block)
+	}
+
+	return unfinalizedBlocks
+}
+
+// GetLatestFinalizedBlock returns the most recent finalized block
+func (s *Store) GetLatestFinalizedBlock() types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	// Search from the end to find the latest finalized block
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		if s.IsBlockFinalized(allBlocks[i].Header.Parent) {
+			return allBlocks[i]
+		}
+	}
+
+	return types.Block{}
+}
+
+// CleanupOldFinalizedBlocks removes old finalized blocks from memory
+// This is a simple implementation - you might want to implement more sophisticated cleanup
+func (s *Store) CleanupOldFinalizedBlocks(keepCount int) {
+	// TODO: Implement this
 }
 
 // Set
