@@ -6,7 +6,7 @@ import "fmt"
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
 	Varphi AuthQueues              `json:"varphi"`
-	Beta   Beta                    `json:"beta"`
+	Beta   RecentBlocks            `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
 	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`

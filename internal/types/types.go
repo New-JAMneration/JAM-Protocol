@@ -117,18 +117,17 @@ type (
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 // GP 0.6.7
-// TODO: check json tags
 type ServiceInfo struct {
-	GratisStorageOffset  U64        // a_f
-	CodeHash             OpaqueHash `json:"code_hash,omitempty"`    // a_c
-	Balance              U64        `json:"balance,omitempty"`      // a_b
-	MinItemGas           Gas        `json:"min_item_gas,omitempty"` // a_g
-	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"` // a_m
-	CreateTime           TimeSlot   // a_r
-	RecentAccumulateTime TimeSlot   // a_a
-	ParentService        ServiceId  // a_p
-	Bytes                U64        `json:"bytes,omitempty"` // a_o
-	Items                U32        `json:"items,omitempty"` // a_i
+	DepositOffset        U64        `json:"deposit_offset,omitempty"`         // a_f
+	CodeHash             OpaqueHash `json:"code_hash,omitempty"`              // a_c
+	Balance              U64        `json:"balance,omitempty"`                // a_b
+	MinItemGas           Gas        `json:"min_item_gas,omitempty"`           // a_g
+	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"`           // a_m
+	CreationSlot         TimeSlot   `json:"creation_slot,omitempty"`          // a_r
+	LastAccumulationSlot TimeSlot   `json:"last_accumulation_slot,omitempty"` // a_a
+	ParentService        ServiceId  `json:"parent_service,omitempty"`         // a_p
+	Bytes                U64        `json:"bytes,omitempty"`                  // a_o
+	Items                U32        `json:"items,omitempty"`                  // a_i
 }
 
 type ServiceAccountDerivatives struct {
@@ -559,8 +558,8 @@ type ReportedWorkPackage struct {
 }
 
 type BlockInfo struct {
-	HeaderHash HeaderHash `json:"header_hash,omitempty"`
-	MmrPeak    OpaqueHash
+	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
+	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`
 	StateRoot  StateRoot             `json:"state_root,omitempty"`
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
@@ -575,9 +574,9 @@ func (b BlocksHistory) Validate() error {
 }
 
 // (7.1) GP 0.6.7
-type Beta struct {
-	History   BlocksHistory
-	BeefyBelt Mmr `json:"mmr"`
+type RecentBlocks struct {
+	History BlocksHistory `json:"history,omitempty"`
+	Mmr     Mmr           `json:"mmr,omitempty"`
 }
 
 // Statistics

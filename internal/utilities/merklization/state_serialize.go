@@ -41,7 +41,7 @@ func encodeBetaKey() types.StateKey {
 	return betaWrapper.StateKeyConstruct()
 }
 
-func encodeBeta(beta types.Beta) types.ByteSequence {
+func encodeBeta(beta types.RecentBlocks) types.ByteSequence {
 	encoder := types.NewEncoder()
 	encodedBeta, err := encoder.Encode(&beta)
 	if err != nil {
@@ -286,11 +286,11 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	output = append(output, encodedBytes...)
 
 	// a_f
-	encodedGratisStorageOffset, err := encoder.Encode(&serviceAccount.ServiceInfo.GratisStorageOffset)
+	encodedDepositOffset, err := encoder.Encode(&serviceAccount.ServiceInfo.DepositOffset)
 	if err != nil {
 		return nil
 	}
-	output = append(output, encodedGratisStorageOffset...)
+	output = append(output, encodedDepositOffset...)
 
 	// a_i
 	encodedItems, err := encoder.Encode(&serviceAccount.ServiceInfo.Items)
@@ -300,14 +300,14 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	output = append(output, encodedItems...)
 
 	// a_r
-	encodedCreateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.CreateTime)
+	encodedCreationSlot, err := encoder.Encode(&serviceAccount.ServiceInfo.CreationSlot)
 	if err != nil {
 		return nil
 	}
-	output = append(output, encodedCreateTime...)
+	output = append(output, encodedCreationSlot...)
 
 	// a_a
-	encodedRecentAccumulateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.RecentAccumulateTime)
+	encodedRecentAccumulateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.LastAccumulationSlot)
 	if err != nil {
 		return nil
 	}
