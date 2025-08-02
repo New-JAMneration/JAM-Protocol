@@ -19,7 +19,7 @@ func SealingByTickets() error {
 	s := store.GetInstance()
 	posterior_state := s.GetPosteriorStates()
 	gammaSTickets := posterior_state.GetGammaS().Tickets
-	header := s.GetProcessingBlockPointer().GetHeader()
+	header := s.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
@@ -56,7 +56,7 @@ func SealingByBandersnatchs() error {
 	s := store.GetInstance()
 	posterior_state := s.GetPosteriorStates()
 	GammaSKeys := posterior_state.GetGammaS().Keys
-	header := s.GetProcessingBlockPointer().GetHeader()
+	header := s.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	public_key := GammaSKeys[index]
 	message := utilities.HeaderUSerialization(header)
@@ -103,9 +103,9 @@ func UpdateEtaPrime0() error {
 
 	posterior_state := s.GetPosteriorStates()
 	prior_state := s.GetPriorStates()
-	header := s.GetProcessingBlockPointer().GetHeader()
+	header := s.GetLatestBlock().Header
 
-	//public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	// public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
 	entropy_source := header.EntropySource
 	eta := prior_state.GetEta()
@@ -154,7 +154,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	*/
 	handler, _ := CreateVRFHandler(public_key)
 	var message types.ByteSequence                                        // message: []
-	var context types.ByteSequence                                        //context: XE ⌢ Y(Hs)
+	var context types.ByteSequence                                        // context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
 	vrf, _ := handler.VRFIetfOutput(seal[:])
 	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
@@ -200,7 +200,7 @@ func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex ty
 		newGammaS.Tickets = OutsideInSequencer(&gammaA)
 	} else if ePrime == e { // γs if e′ = e
 		newGammaS = priorState.GetGammaS()
-	} else { //F(η′2, κ′) otherwise
+	} else { // F(η′2, κ′) otherwise
 		newGammaS.Keys = FallbackKeySequence(etaPrime[2], posteriorState.GetKappa())
 	}
 	posteriorState.SetGammaS(newGammaS)
