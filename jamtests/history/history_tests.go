@@ -50,7 +50,7 @@ type HistoryOutput struct { // null
 }
 
 type HistoryState struct {
-	Beta types.BlocksHistory `json:"beta"`
+	Beta types.RecentBlocks `json:"beta"`
 }
 
 type HistoryErrorCode types.ErrorCode
@@ -214,7 +214,7 @@ func (h *HistoryTestCase) Dump() error {
 	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
-	storeInstance.GetPriorStates().SetBetaH(h.PreState.Beta)
+	storeInstance.GetPriorStates().SetBetaH(h.PreState.Beta.History)
 	storeInstance.GetProcessingBlockPointer().SetBlock(types.Block{
 		Header: types.Header{
 			Parent:          h.Input.HeaderHash,
