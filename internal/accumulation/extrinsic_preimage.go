@@ -151,7 +151,7 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 func ProcessPreimageExtrinsics() error {
 	// Get store instance and required states
 	s := store.GetInstance()
-	eps := s.GetProcessingBlockPointer().GetPreimagesExtrinsic()
+	eps := s.GetLatestBlock().Extrinsic.Preimages
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 	tauPrime := s.GetPosteriorStates().GetTau()
 
