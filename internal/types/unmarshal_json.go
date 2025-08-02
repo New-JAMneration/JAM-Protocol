@@ -1382,12 +1382,15 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 
 // Beta
 func (b *RecentBlocks) UnmarshalJSON(data []byte) error {
-	var temp RecentBlocks
+	var temp struct {
+		History BlocksHistory `json:"history,omitempty"`
+		Mmr     Mmr           `json:"mmr,omitempty"`
+	}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	if temp.History == nil {
+	if len(temp.History) == 0 {
 		b.History = nil
 		b.Mmr = Mmr{}
 	} else {
