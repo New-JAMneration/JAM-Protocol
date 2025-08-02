@@ -225,7 +225,7 @@ func CreateNewTicketAccumulator() *types.ErrorCode {
 
 	// Get extrinsic tickets
 	s := store.GetInstance()
-	extrinsicTickets := s.GetProcessingBlockPointer().GetTicketsExtrinsic()
+	extrinsicTickets := s.GetLatestBlock().Extrinsic.Tickets
 
 	// (6.30) Verify the epoch tail
 	err := VerifyEpochTail(extrinsicTickets)
