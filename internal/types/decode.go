@@ -2127,7 +2127,7 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = b.MmrPeak.Decode(d); err != nil {
+	if err = b.BeefyRoot.Decode(d); err != nil {
 		return err
 	}
 
@@ -2183,14 +2183,14 @@ func (b *BlocksHistory) Decode(d *Decoder) error {
 }
 
 // Beta
-func (b *Beta) Decode(d *Decoder) error {
+func (b *RecentBlocks) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding Beta")
 
 	if err := b.History.Decode(d); err != nil {
 		return err
 	}
 
-	if err := b.BeefyBelt.Decode(d); err != nil {
+	if err := b.Mmr.Decode(d); err != nil {
 		return err
 	}
 
@@ -2268,7 +2268,7 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = s.GratisStorageOffset.Decode(d); err != nil {
+	if err = s.DepositOffset.Decode(d); err != nil {
 		return err
 	}
 
@@ -2288,11 +2288,11 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.CreateTime.Decode(d); err != nil {
+	if err = s.CreationSlot.Decode(d); err != nil {
 		return err
 	}
 
-	if err = s.RecentAccumulateTime.Decode(d); err != nil {
+	if err = s.LastAccumulationSlot.Decode(d); err != nil {
 		return err
 	}
 

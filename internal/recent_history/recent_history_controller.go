@@ -11,13 +11,13 @@ import (
 // RecentHistoryController is a controller for the recent history.
 // This controller is used to manage the recent history.
 type RecentHistoryController struct {
-	Betas types.Beta
+	Betas types.RecentBlocks
 }
 
 // NewRecentHistoryController creates a new RecentHistoryController.
 func NewRecentHistoryController() *RecentHistoryController {
 	return &RecentHistoryController{
-		Betas: types.Beta{},
+		Betas: types.RecentBlocks{},
 	}
 }
 
@@ -118,7 +118,7 @@ func s() (output types.ByteSequence) {
 // (7.7) GP 0.6.7
 func (rhc *RecentHistoryController) b() types.OpaqueHash {
 	mmb := s()
-	wrappedMmr := mmr.MmrWrapper(&rhc.Betas.BeefyBelt, hash.KeccakHash)
+	wrappedMmr := mmr.MmrWrapper(&rhc.Betas.Mmr, hash.KeccakHash)
 	accumulationResultTreeRoot := merkle.Mb([]types.ByteSequence{mmb}, hash.KeccakHash)
 	// MMR append func $\mathcal{A}$
 	beefybeltPrime := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
@@ -149,7 +149,7 @@ func (rhc *RecentHistoryController) N(headerHash types.HeaderHash, eg types.Guar
 
 	items = types.BlockInfo{
 		HeaderHash: headerHash,
-		MmrPeak:    accumulationResultMmr,
+		BeefyRoot:  accumulationResultMmr,
 		StateRoot:  zeroHash,
 		Reported:   workReportHash,
 	}
