@@ -420,13 +420,17 @@ func (a *AssuranceTestCase) Dump() error {
 
 	// Add block
 	header := types.Header{Slot: a.Input.Slot, Parent: a.Input.Parent}
-	block := types.Block{Header: header}
-	s.AddBlock(block)
 
 	s.GetPriorStates().SetKappa(a.PreState.CurrValidators)
 	s.GetPriorStates().SetRho(a.PreState.AvailAssignments)
 	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
-	s.GetProcessingBlockPointer().SetAssurancesExtrinsic(a.Input.Assurances)
+	block := types.Block{
+		Header: header,
+		Extrinsic: types.Extrinsic{
+			Assurances: a.Input.Assurances,
+		},
+	}
+	s.AddBlock(block)
 
 	return nil
 }
