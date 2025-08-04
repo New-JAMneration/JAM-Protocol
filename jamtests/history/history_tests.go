@@ -238,6 +238,7 @@ func (h *HistoryTestCase) Dump() error {
 		})
 	}
 
+	// Set extrinsic
 	block := types.Block{
 		Header: types.Header{
 			Parent:          h.Input.HeaderHash,
@@ -247,7 +248,7 @@ func (h *HistoryTestCase) Dump() error {
 			Guarantees: mockGuarantessExtrinsic,
 		},
 	}
-	storeInstance.GetProcessingBlockPointer().SetBlock(block)
+	storeInstance.AddBlock(block)
 
 	return nil
 }
