@@ -699,7 +699,14 @@ func (p *PreimageTestCase) Dump() error {
 		inputDelta[delta.Id] = serviceAccount
 	}
 
-	storeInstance.GetProcessingBlockPointer().SetPreimagesExtrinsic(p.Input.Preimages)
+	// Add block with PreimagesExtrinsic
+	block := types.Block{
+		Extrinsic: types.Extrinsic{
+			Preimages: p.Input.Preimages,
+		},
+	}
+	storeInstance.AddBlock(block)
+
 	storeInstance.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
 	storeInstance.GetPosteriorStates().SetTau(p.Input.Slot)
 
