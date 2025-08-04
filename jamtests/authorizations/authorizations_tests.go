@@ -331,8 +331,18 @@ func (a *AuthorizationTestCase) Dump() error {
 	}
 	// Get store instance and required states
 	storeInstance := store.GetInstance()
-	storeInstance.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
-	storeInstance.GetProcessingBlockPointer().SetGuaranteesExtrinsic(mockEgs)
+
+	// Add block
+	block := types.Block{
+		Header: types.Header{
+			Slot: a.Input.Slot,
+		},
+		Extrinsic: types.Extrinsic{
+			Guarantees: mockEgs,
+		},
+	}
+	storeInstance.AddBlock(block)
+
 	storeInstance.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
 	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	return nil
