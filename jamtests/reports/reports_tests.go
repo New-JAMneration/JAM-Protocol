@@ -98,7 +98,7 @@ type ReportsState struct {
 	Offenders []types.Ed25519Public `json:"offenders,omitempty"` // Offenders (psi_o)
 
 	// [β] Recent blocks.
-	RecentBlocks types.BlocksHistory `json:"recent_blocks"`
+	RecentBlocks types.RecentBlocks `json:"recent_blocks"`
 
 	// [α] Authorization pools.
 	AuthPools types.AuthPools `json:"auth_pools"`
@@ -196,7 +196,7 @@ func (e *ReportsState) UnmarshalJSON(data []byte) error {
 		PrevValidators     types.ValidatorsData          `json:"prev_validators"`
 		Entropy            types.EntropyBuffer           `json:"entropy"`
 		Offenders          []types.Ed25519Public         `json:"offenders,omitempty"`
-		RecentBlocks       types.BlocksHistory           `json:"recent_blocks"`
+		RecentBlocks       types.RecentBlocks            `json:"recent_blocks"`
 		AuthPools          types.AuthPools               `json:"auth_pools"`
 		Accounts           []AccountsMapEntry            `json:"accounts"`
 		CoresStatistics    types.CoresStatistics         `json:"cores_statistics"`
@@ -744,8 +744,8 @@ func (r *ReportsTestCase) Dump() error {
 	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
 
 	// Set RecentBlocks
-	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks)
-	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks)
+	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks.History)
+	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks.History)
 
 	// Set AuthPools
 	s.GetPriorStates().SetAlpha(r.PreState.AuthPools)
