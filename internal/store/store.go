@@ -99,37 +99,38 @@ func (s *Store) IsBlockFinalized(blockHash types.HeaderHash) bool {
 }
 
 // GetFinalizedBlocks returns all finalized blocks
-// TODO: This is not efficient,
-// We’re checking the blocks in reverse order—if we encounter a finalized block,
-// can we assume that all remaining blocks are also finalized?
 func (s *Store) GetFinalizedBlocks() []types.Block {
 	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
-	var finalizedBlocks []types.Block
 
+	finalizedBlocksIdx := -1
 	for i := len(allBlocks) - 1; i >= 0; i-- {
 		block := allBlocks[i]
 		if s.IsBlockFinalized(block.Header.Parent) {
-			finalizedBlocks = append(finalizedBlocks, block)
+			finalizedBlocksIdx = i
+			break
 		}
 	}
 
-	return finalizedBlocks
+	if finalizedBlocksIdx == -1 {
+		return []types.Block{}
+	}
+
+	return allBlocks[:finalizedBlocksIdx+1]
 }
 
 // GetUnfinalizedBlocks returns all unfinalized blocks
 func (s *Store) GetUnfinalizedBlocks() []types.Block {
 	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
-	var unfinalizedBlocks []types.Block
+	finalizedBlockIdx := -1
 
 	for i := len(allBlocks) - 1; i >= 0; i-- {
-		block := allBlocks[i]
-		if s.IsBlockFinalized(block.Header.Parent) {
+		if s.IsBlockFinalized(allBlocks[i].Header.Parent) {
+			finalizedBlockIdx = i
 			break
 		}
-		unfinalizedBlocks = append(unfinalizedBlocks, block)
 	}
 
-	return unfinalizedBlocks
+	return allBlocks[finalizedBlockIdx+1:]
 }
 
 // GetLatestFinalizedBlock returns the most recent finalized block
