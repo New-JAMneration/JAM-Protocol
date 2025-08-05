@@ -7,11 +7,10 @@ import (
 func Guarantee() error {
 	// for test
 	s := store.GetInstance()
-	extrinsic := s.GetProcessingBlockPointer().GetGuaranteesExtrinsic()
 
 	// GP 0.6.6 Eqs
 	guarantees := NewGuaranteeController()
-	guarantees.Guarantees = extrinsic
+	guarantees.Guarantees = s.GetLatestBlock().Extrinsic.Guarantees
 
 	// 11.23
 	err := guarantees.Validate()
