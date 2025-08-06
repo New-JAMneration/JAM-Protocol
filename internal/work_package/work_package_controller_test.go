@@ -8,7 +8,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/test-go/testify/mock"
 )
@@ -37,17 +36,10 @@ func (m *MockFetcher) Fetch(erasureRoot types.OpaqueHash, index types.U16) (type
 }
 
 func TestFetchImportSegments(t *testing.T) {
-	// run miniredis server
-	rdb, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("failed to init miniredis %v:", err)
-	}
-	defer rdb.Close()
-
-	client := store.NewRedisClient(rdb.Addr(), "", 0)
-	erasureMap := store.NewSegmentErasureMap(client)
-	erasureMap.Save(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	erasureMap.Save(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	redisBackend, err := store.GetRedisBackend()
+	require.NoError(t, err)
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
 
 	wp := &types.WorkPackage{
 		Items: []types.WorkItem{
@@ -79,7 +71,6 @@ func TestFetchImportSegments(t *testing.T) {
 	// Initialize controller
 	controller := &WorkPackageController{
 		WorkPackage: wp,
-		ErasureMap:  erasureMap,
 		Fetcher:     mockFetcher,
 	}
 
@@ -101,19 +92,10 @@ func TestFetchImportSegments(t *testing.T) {
 }
 
 func TestWorkPackageController_InitialProcess(t *testing.T) {
-	// run miniredis server
-	rdb, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("failed to init miniredis %v:", err)
-	}
-	defer rdb.Close()
-
-	client := store.NewRedisClient(rdb.Addr(), "", 0)
-
-	segmentMap := store.NewHashSegmentMap(client)
-	erasureMap := store.NewSegmentErasureMap(client)
-	erasureMap.Save(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	erasureMap.Save(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	redisBackend, err := store.GetRedisBackend()
+	require.NoError(t, err)
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
 
 	inputDelta := types.ServiceAccountState{
 		types.ServiceId(1): {
@@ -204,7 +186,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 		Return(fakeSeg, fakeProof, nil)
 
 	// Initialize the controller
-	controller := NewInitialController(wp, extrinsics, erasureMap, segmentMap, coreIndex, mockFetcher)
+	controller := NewInitialController(wp, extrinsics, coreIndex, mockFetcher)
 	controller.PVM = mockPVM
 
 	fmt.Println("Processing work package...")
@@ -216,14 +198,21 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 
 	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
 
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+
 	encode := types.NewEncoder()
+	encode.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encode.Encode(wp)
+
 	require.NoError(t, err)
 	workPackageHash := hash.Blake2bHash(encoded)
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
 
 	// Check the local map with report
-	dict, err := segmentMap.LoadDict()
+	dict, err := redisBackend.GetHashSegmentMap()
 	for _, lookupItem := range report.SegmentRootLookup {
 		key := types.OpaqueHash(lookupItem.WorkPackageHash[:])
 		require.Equal(t, dict[key], lookupItem.SegmentTreeRoot)
@@ -235,19 +224,10 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 }
 
 func TestPrepareInputs_Shared(t *testing.T) {
-	// run miniredis server
-	rdb, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("failed to init miniredis %v:", err)
-	}
-	defer rdb.Close()
-
-	client := store.NewRedisClient(rdb.Addr(), "", 0)
-
-	segmentMap := store.NewHashSegmentMap(client)
-	erasureMap := store.NewSegmentErasureMap(client)
-	erasureMap.Save(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	erasureMap.Save(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	redisBackend, err := store.GetRedisBackend()
+	require.NoError(t, err)
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
+	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
 
 	inputDelta := types.ServiceAccountState{
 		types.ServiceId(1): {
@@ -335,12 +315,18 @@ func TestPrepareInputs_Shared(t *testing.T) {
 		ImportProofs:   types.OpaqueHashMatrix{{types.OpaqueHash{0x01}}},
 	}
 
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+
 	// encode bundle
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(hashSegmentMap)
 	data, err := encoder.Encode(bundle)
 	require.NoError(t, err)
 
-	controller := NewSharedController(data, erasureMap, segmentMap, coreIndex)
+	controller := NewSharedController(data, coreIndex)
 	controller.PVM = mockPVM
 
 	fmt.Println("Processing work package...")
@@ -354,13 +340,15 @@ func TestPrepareInputs_Shared(t *testing.T) {
 	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
 
 	encode := types.NewEncoder()
+	encode.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encode.Encode(wp)
 	require.NoError(t, err)
 	workPackageHash := hash.Blake2bHash(encoded)
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
 
 	// Check the local map with report
-	dict, err := segmentMap.LoadDict()
+	dict, err := redisBackend.GetHashSegmentMap()
+	require.NoError(t, err)
 	for _, lookupItem := range report.SegmentRootLookup {
 		key := types.OpaqueHash(lookupItem.WorkPackageHash[:])
 		require.Equal(t, dict[key], lookupItem.SegmentTreeRoot)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
@@ -78,7 +79,17 @@ func buildWorkPackageBundle(
 		ImportProofs:   importProofs,
 	}
 	output := []byte{}
+
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get hash segment map: %w", err)
+	}
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encoder.Encode(&bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode work package bundle: %w", err)
