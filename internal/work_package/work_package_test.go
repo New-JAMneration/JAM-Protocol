@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -215,8 +216,17 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		t.Errorf("expected non-empty bundle")
 	}
 
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
 	var decoded types.WorkPackageBundle
 	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(hashSegmentMap)
 	err = decoder.Decode(bundle, &decoded)
 	if err != nil {
 		t.Fatalf("failed to decode bundle: %v", err)

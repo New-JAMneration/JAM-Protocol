@@ -27,11 +27,9 @@ type DASegmentFetcher interface {
 }
 
 type WorkPackageController struct {
-	CoreIndex         types.CoreIndex
-	ErasureMap        *store.SegmentErasureMap
-	SegmentRootLookup *store.HashSegmentMap
-	PVM               PVMExecutor
-	Fetcher           DASegmentFetcher
+	CoreIndex types.CoreIndex
+	PVM       PVMExecutor
+	Fetcher   DASegmentFetcher
 
 	// different guarantors behavior
 	Extrinsics  []byte             // Initial
@@ -39,25 +37,21 @@ type WorkPackageController struct {
 	Bundle      []byte             // Shared
 }
 
-func NewInitialController(wp *types.WorkPackage, extrinsics []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
+func NewInitialController(wp *types.WorkPackage, extrinsics []byte, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
 	return &WorkPackageController{
-		WorkPackage:       wp,
-		CoreIndex:         coreIndex,
-		ErasureMap:        erasureMap,
-		SegmentRootLookup: segmentRootLookup,
-		Extrinsics:        extrinsics,
-		PVM:               &RealPVMExecutor{},
-		Fetcher:           fetcher,
+		WorkPackage: wp,
+		CoreIndex:   coreIndex,
+		Extrinsics:  extrinsics,
+		PVM:         &RealPVMExecutor{},
+		Fetcher:     fetcher,
 	}
 }
 
-func NewSharedController(bundle []byte, erasureMap *store.SegmentErasureMap, segmentRootLookup *store.HashSegmentMap, coreIndex types.CoreIndex) *WorkPackageController {
+func NewSharedController(bundle []byte, coreIndex types.CoreIndex) *WorkPackageController {
 	return &WorkPackageController{
-		CoreIndex:         coreIndex,
-		ErasureMap:        erasureMap,
-		SegmentRootLookup: segmentRootLookup,
-		Bundle:            bundle,
-		PVM:               &RealPVMExecutor{},
+		CoreIndex: coreIndex,
+		Bundle:    bundle,
+		PVM:       &RealPVMExecutor{},
 	}
 }
 
@@ -85,8 +79,12 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err != nil {
 		return types.WorkReport{}, err
 	}
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return types.WorkReport{}, err
+	}
 	// (14.13)
-	newDict, err := p.SegmentRootLookup.SaveWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
+	newDict, err := redisBackend.SetHashSegmentMapWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
 	if err != nil {
 		return types.WorkReport{}, err
 	}
@@ -99,15 +97,19 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 }
 
 func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+	}
+
+	dict, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
+	}
 	if p.Bundle == nil {
 		// initial controller
 		specs := FlattenExtrinsicSpecs(p.WorkPackage)
 		extrinsicMap, err := ExtractExtrinsics(p.Extrinsics, specs)
-		if err != nil {
-			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
-		}
-
-		dict, err := p.SegmentRootLookup.LoadDict()
 		if err != nil {
 			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 		}
@@ -123,6 +125,7 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 
 		// Get work package hash
 		encoder := types.NewEncoder()
+		encoder.SetHashSegmentMap(dict)
 		encodedWorkPackage, err := encoder.Encode(p.WorkPackage)
 		if err != nil {
 			return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
@@ -135,7 +138,8 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 	// Decode to get work package bundle
 	var bundle types.WorkPackageBundle
 	decoder := types.NewDecoder()
-	err := decoder.Decode(p.Bundle, &bundle)
+	decoder.SetHashSegmentMap(dict)
+	err = decoder.Decode(p.Bundle, &bundle)
 	if err != nil {
 		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 	}
@@ -145,6 +149,7 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 	}
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(dict)
 	encodedWorkPackage, err := encoder.Encode(&bundle.Package)
 	if err != nil {
 		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
@@ -158,7 +163,10 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
 	var segments types.ExportSegmentMatrix
 	var proofs types.OpaqueHashMatrix
-
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, item := range p.WorkPackage.Items {
 		var rowSegments []types.ExportSegment
 		var rowProofs []types.OpaqueHash
@@ -169,7 +177,7 @@ func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueH
 			if mapped, ok := lookupDict[spec.TreeRoot]; ok {
 				segmentRoot = mapped
 			}
-			erasureRoot, err := p.ErasureMap.Get(segmentRoot)
+			erasureRoot, err := redisBackend.GetSegmentErasureMap(segmentRoot)
 			if err != nil {
 				return nil, nil, err
 			}
