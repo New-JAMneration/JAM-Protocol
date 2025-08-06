@@ -62,10 +62,10 @@ func Authorization() error {
 	s := store.GetInstance()
 	block := s.GetLatestBlock()
 	slot := block.Header.Slot
-	e_g := block.Extrinsic.Guarantees
-	if len(e_g) == 0 {
+	guarantees := block.Extrinsic.Guarantees
+	if len(guarantees) == 0 {
 		fmt.Println("No guarantees found in the block extrinsic, no authorization needed.")
-	} else if err := e_g.Validate(); err != nil {
+	} else if err := guarantees.Validate(); err != nil {
 		fmt.Printf("extrinsic_guarantee validation failed: %v\n", err)
 	}
 	// Validate input EG and φ′
@@ -78,7 +78,7 @@ func Authorization() error {
 		return fmt.Errorf("prior_alpha validation failed: %v", err)
 	}
 	// Apply STF transition: α′ ≺ (H, E_G, φ′, α)
-	postAlpha, err := STFAlpha2AlphaPrime(slot, e_g, priorAlpha, posteriorVarphi)
+	postAlpha, err := STFAlpha2AlphaPrime(slot, guarantees, priorAlpha, posteriorVarphi)
 	if err != nil {
 		return fmt.Errorf("stf_alpha_to_alpha_prime raised Error: %v", err)
 	}
