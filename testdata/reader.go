@@ -79,7 +79,7 @@ func NewJamTestVectorsReader(mode TestMode, size TestSize, format DataFormat) *T
 	}
 
 	// jam-test-vectors/stf/mode/size
-	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", string(mode), string(size))
+	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "stf", string(mode), string(size))
 
 	return reader
 }
@@ -149,7 +149,6 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to read test files: %v", err)
 	}

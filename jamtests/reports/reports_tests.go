@@ -709,10 +709,7 @@ func (r *ReportsTestCase) Dump() error {
 	s := store.GetInstance()
 
 	// Guarantee Input : extrinsics, slot, known_packages
-	// set guarantee extrinsics
-	// s.GetProcessingBlockPointer().SetGuaranteesExtrinsic(r.Input.Guarantees)
-
-	// set slot
+	// set slot, guarantee extrinsics
 	block := types.Block{
 		Header: types.Header{
 			Slot: r.Input.Slot,
