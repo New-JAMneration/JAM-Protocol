@@ -9,13 +9,14 @@ import (
 )
 
 // This is borne out with V = 1, 023 validators and C = 341 cores.
+/*
 var (
 	V = types.ValidatorsCount
 	C = types.CoresCount
 	E = types.EpochLength
 	R = types.RotationPeriod
 )
-
+*/
 // GuranatorAssignments is a struct that contains a slice of CoreIndex and Ed25519Public
 // (11.18) G ∈ (⟦N_C⟧N_V , ⟦H_K ⟧N_V )
 type GuranatorAssignments struct {
@@ -27,22 +28,22 @@ type GuranatorAssignments struct {
 func rotateCores(in []types.U32, n types.U32) []types.U32 {
 	out := make([]types.U32, len(in))
 	for i, x := range in {
-		out[i] = (x + n) % types.U32(C)
+		out[i] = (x + n) % types.U32(types.CoresCount)
 	}
 	return out
 }
 
 // (11.20)
 func permute(e types.Entropy, currentSlot types.TimeSlot) []types.CoreIndex {
-	base := make([]types.U32, V)
-	for i := 0; i < V; i++ {
-		c := (C * i) / V
+	base := make([]types.U32, types.ValidatorsCount)
+	for i := 0; i < types.ValidatorsCount; i++ {
+		c := (types.CoresCount * i) / types.ValidatorsCount
 		base[i] = types.U32(c)
 	}
 
 	shuffled := shuffle.Shuffle(base, types.OpaqueHash(e))
 
-	subEpoch := (int(currentSlot) % E) / R
+	subEpoch := (int(currentSlot) % types.EpochLength) / types.RotationPeriod
 
 	// R(...) call
 	rotatedU32 := rotateCores(shuffled, types.U32(subEpoch))
@@ -62,11 +63,9 @@ func NewGuranatorAssignments(
 ) GuranatorAssignments {
 	// 1. get the core assignments
 	coreAssignments := permute(epochEntropy, currentSlot)
-
 	// 2. get the public keys
 	result := safrole.ReplaceOffenderKeys(validators)
 	pubKeys := make([]types.Ed25519Public, len(result))
-
 	for i, v := range result {
 		pubKeys[i] = v.Ed25519
 	}
@@ -104,7 +103,7 @@ func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments,
 	var validators types.ValidatorsData
 
 	etaPrime := state.GetEta()
-	if (int(state.GetTau())-R)/E == int(state.GetTau())/E {
+	if (int(state.GetTau())-types.RotationPeriod)/types.EpochLength == int(state.GetTau())/types.EpochLength {
 		// (η′2, κ′)
 		e = etaPrime[2]
 		validators = state.GetKappa()
@@ -126,5 +125,5 @@ func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments,
 		}
 	}
 
-	return NewGuranatorAssignments(e, state.GetTau()-types.TimeSlot(R), validators), nil
+	return NewGuranatorAssignments(e, state.GetTau()-types.TimeSlot(types.RotationPeriod), validators), nil
 }
