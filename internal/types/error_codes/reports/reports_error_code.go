@@ -26,6 +26,7 @@ const (
 	SegmentRootLookupInvalid                           // 20
 	BadSignature                                       // 21
 	WorkReportTooBig                                   // 22
+	BannedValidator                                    // 23
 )
 
 var ReportsErrorMap = map[string]types.ErrorCode{
@@ -52,4 +53,5 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"segment_root_lookup_invalid":     SegmentRootLookupInvalid,
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
+	"banned_validator":                BannedValidator,
 }
