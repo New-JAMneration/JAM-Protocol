@@ -49,11 +49,6 @@ func (g *GuaranteeController) Validate() error {
 
 // Sort Guarantee extrinsic | Eq. 11.24-11.25
 func (g *GuaranteeController) Sort() error {
-	/*
-		sort.Slice(g.Guarantees, func(i, j int) bool {
-			return g.Guarantees[i].Report.CoreIndex < g.Guarantees[j].Report.CoreIndex
-		})
-	*/
 	if len(g.Guarantees) == 0 {
 		return nil
 	}
@@ -78,25 +73,12 @@ func (g *GuaranteeController) Sort() error {
 }
 
 func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
-	/*
-		sort.Slice(signatures, func(i, j int) bool {
-			return signatures[i].ValidatorIndex < signatures[j].ValidatorIndex
-		})
-		uniqueSignatures := signatures[:0]
-		for i, sig := range signatures {
-			if i == 0 || sig.ValidatorIndex != signatures[i-1].ValidatorIndex {
-				uniqueSignatures = append(uniqueSignatures, sig)
-			}
-		}
-		copy(signatures, uniqueSignatures)
-	*/
 	if len(signatures) == 0 {
 		return nil
 	}
 
 	for i := 0; i < len(signatures)-1; i++ {
 		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
-			// return errors.New("not_sorted_or_unique_guarantors")
 			err := ReportsErrorCode.NotSortedOrUniqueGuarantors
 			return &err
 		}
@@ -108,14 +90,26 @@ func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
 	tau := store.GetInstance().GetPosteriorStates().GetTau()
+	offenders := store.GetInstance().GetPosteriorStates().GetPsiO()
+	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
+	for _, offender := range offenders {
+		offendersMap[offender] = true
+	}
+
 	var guranatorAssignments GuranatorAssignments
+	var err error
 
 	for _, guarantee := range g.Guarantees {
 		if (int(tau))/R == int(guarantee.Slot)/R {
-			guranatorAssignments = GFunc()
+			guranatorAssignments, err = GFunc(offendersMap)
 		} else {
-			guranatorAssignments = GStarFunc()
+			guranatorAssignments, err = GStarFunc(offendersMap)
 		}
+
+		if err != nil {
+			return err
+		}
+
 		if !((int(tau)/R-1)*R <= int(guarantee.Slot)) {
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
@@ -274,7 +268,6 @@ func (g *GuaranteeController) ValidateContexts() error {
 		}
 
 		if int(context.LookupAnchorSlot) < int(headerTimeSlot)-types.MaxLookupAge {
-			// return errors.New("report_before_last_rotation")
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
@@ -491,33 +484,30 @@ func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 	r.Sort()
 }
 
-func GetGuarantors(guarantee types.ReportGuarantee) []types.Ed25519Public {
+func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, error) {
 	tau := store.GetInstance().GetPosteriorStates().GetTau()
+	offenders := store.GetInstance().GetPriorStates().GetPsiO()
+	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
+	for _, offender := range offenders {
+		offendersMap[offender] = true
+	}
+
 	var guranatorAssignments GuranatorAssignments
+	var err error
 	guarantors := make([]types.Ed25519Public, 0)
 	if (int(tau))/R == int(guarantee.Slot)/R {
-		guranatorAssignments = GFunc()
+		guranatorAssignments, err = GFunc(offendersMap)
 	} else {
-		guranatorAssignments = GStarFunc()
+		guranatorAssignments, err = GStarFunc(offendersMap)
+	}
+
+	if err != nil {
+		return []types.Ed25519Public{}, err
 	}
 
 	for _, sig := range guarantee.Signatures {
 		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex])
 	}
 
-	return guarantors
+	return guarantors, nil
 }
-
-/*
-	for _, sig := range guarantee.Signatures {
-		if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-			err := ReportsErrorCode.WrongAssignment
-			return &err
-		}
-		publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
-		if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
-			err := ReportsErrorCode.BadSignature
-			return &err
-		}
-	}
-*/
