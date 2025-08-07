@@ -100,7 +100,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 	var err error
 
 	for _, guarantee := range g.Guarantees {
-		if (int(tau))/R == int(guarantee.Slot)/R {
+		if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
 			guranatorAssignments, err = GFunc(offendersMap)
 		} else {
 			guranatorAssignments, err = GStarFunc(offendersMap)
@@ -110,7 +110,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 			return err
 		}
 
-		if !((int(tau)/R-1)*R <= int(guarantee.Slot)) {
+		if !((int(tau)/types.RotationPeriod-1)*types.RotationPeriod <= int(guarantee.Slot)) {
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
@@ -495,7 +495,7 @@ func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, erro
 	var guranatorAssignments GuranatorAssignments
 	var err error
 	guarantors := make([]types.Ed25519Public, 0)
-	if (int(tau))/R == int(guarantee.Slot)/R {
+	if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
 		guranatorAssignments, err = GFunc(offendersMap)
 	} else {
 		guranatorAssignments, err = GStarFunc(offendersMap)

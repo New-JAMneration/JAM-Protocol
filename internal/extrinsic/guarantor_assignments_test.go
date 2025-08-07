@@ -36,8 +36,8 @@ func TestPermute(t *testing.T) {
 	// act
 	out := permute(dummyEntropy, dummySlot) // same note about unexported
 
-	if len(out) != int(V) {
-		t.Errorf("permute output length mismatch.\nExpected: %d\nGot:      %d", V, len(out))
+	if len(out) != int(types.ValidatorsCount) {
+		t.Errorf("permute output length mismatch.\nExpected: %d\nGot:      %d", types.ValidatorsCount, len(out))
 	}
 
 	expected := []types.CoreIndex{1, 1, 0, 1, 0, 0}
@@ -71,8 +71,8 @@ func TestNewGuranatorAssignments(t *testing.T) {
 
 	// assert
 	// Check the length of assignments
-	if len(gAssignments.CoreAssignments) != int(V) {
-		t.Errorf("expected %d core assignments, got %d", V, len(gAssignments.CoreAssignments))
+	if len(gAssignments.CoreAssignments) != int(types.ValidatorsCount) {
+		t.Errorf("expected %d core assignments, got %d", types.ValidatorsCount, len(gAssignments.CoreAssignments))
 	}
 
 	// Check the length of public keys
