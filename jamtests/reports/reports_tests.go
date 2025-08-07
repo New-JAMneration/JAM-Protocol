@@ -146,6 +146,7 @@ const (
 	SegmentRootLookupInvalid                            // 20
 	BadSignature                                        // 21
 	WorkReportTooBig                                    // 22
+	BannedValidator                                     // 23
 )
 
 var ReportsErrorMap = map[string]ReportsErrorCode{
@@ -172,6 +173,7 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 	"segment_root_lookup_invalid":     SegmentRootLookupInvalid,
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
+	"banned_validator":                BannedValidator,
 }
 
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
@@ -854,7 +856,7 @@ func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
 			if reportedPackage.WorkPackageHash != guarantee.Report.PackageSpec.Hash {
 				continue
 			}
-			reporters := extrinsic.GetGuarantors(guarantee)
+			reporters, _ := extrinsic.GetGuarantors(guarantee)
 			outputData.Reported = append(outputData.Reported, reportedPackage)
 			outputData.Reporters = append(outputData.Reporters, reporters...)
 			break
