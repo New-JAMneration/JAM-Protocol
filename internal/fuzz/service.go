@@ -140,6 +140,11 @@ func (s *FuzzServiceStub) SetState(header types.Header, state types.StateKeyVals
 }
 
 func (s *FuzzServiceStub) GetState(hash types.HeaderHash) (types.StateKeyVals, error) {
-	// TODO
-	return types.StateKeyVals{}, ErrNotImpl
+	storeInstance := store.GetInstance()
+	state := storeInstance.GetPosteriorStates().GetState()
+	encodedState, err := m.StateEncoder(state)
+	if err != nil {
+		return encodedState, err
+	}
+	return types.StateKeyVals{}, nil
 }
