@@ -141,10 +141,17 @@ func (s *FuzzServiceStub) SetState(header types.Header, state types.StateKeyVals
 
 func (s *FuzzServiceStub) GetState(hash types.HeaderHash) (types.StateKeyVals, error) {
 	storeInstance := store.GetInstance()
+
+	if hash != storeInstance.GetProcessingBlockPointer().GetBlock().Header.Parent {
+		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hash, storeInstance.GetProcessingBlockPointer().Header.Hash)
+	}
+
 	state := storeInstance.GetPosteriorStates().GetState()
+
 	encodedState, err := m.StateEncoder(state)
 	if err != nil {
 		return encodedState, err
 	}
+
 	return types.StateKeyVals{}, nil
 }
