@@ -11,7 +11,7 @@ func UpdateDisputes() error {
 	log.Println("Update Disputes")
 
 	s := store.GetInstance()
-	disputeExtrinsic := s.GetLatestDisputesExtrinsic()
+	disputeExtrinsic := s.GetProcessingBlockPointer().GetDisputesExtrinsic()
 	_, err := extrinsic.Disputes(disputeExtrinsic)
 
 	if err != nil {

@@ -397,7 +397,7 @@ func (d *DisputeTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetLambda(d.PreState.Lambda)
 
 	// Set DisputeInput Extrinsic?
-	storeInstance.SetLatestDisputesExtrinsic(d.Input.Disputes)
+	storeInstance.GetProcessingBlockPointer().SetDisputesExtrinsic(d.Input.Disputes)
 
 	return nil
 }
