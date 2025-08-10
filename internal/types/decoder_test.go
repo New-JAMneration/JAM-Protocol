@@ -959,6 +959,7 @@ func TestDecodeJamTestNetTransitions(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsTraces(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
 		log.Println("⚠️  traces only support tiny mode")
@@ -1017,9 +1018,17 @@ func TestDecodeJamTestVectorsTraces(t *testing.T) {
 			}
 		}
 	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
 }
 
 func TestDecodeJamTestVectorsTracesGenesis(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
 		log.Println("⚠️  traces only support tiny mode")
@@ -1076,5 +1085,12 @@ func TestDecodeJamTestVectorsTracesGenesis(t *testing.T) {
 				log.Printf("✅ [%s] %s", dirName, binTestFiles[i])
 			}
 		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
 	}
 }
