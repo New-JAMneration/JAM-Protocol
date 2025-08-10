@@ -359,7 +359,7 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
 	part_2 := key
 
-	h := types.ByteSequence{}
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
 	copy(h, part_1)
 	copy(h[encodeLength:], part_2[:])
 
@@ -379,7 +379,7 @@ func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value ty
 	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
 	part_2 := key.Hash
 
-	h := types.ByteSequence{}
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
 	copy(h, part_1)
 	copy(h[encodeLength:], part_2[:])
 
