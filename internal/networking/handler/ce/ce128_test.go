@@ -33,6 +33,7 @@ type fakeBlockchain struct {
 	hashToblockNumber map[types.HeaderHash]uint32
 	genesis           types.HeaderHash
 	currentHead       types.HeaderHash
+	stateData         map[types.HeaderHash]types.StateKeyVals
 }
 
 func (f *fakeBlockchain) GetBlockNumber(hash types.HeaderHash) (uint32, error) {
@@ -72,67 +73,49 @@ func (f *fakeBlockchain) SetCurrentHead(hash types.HeaderHash) {
 }
 
 func (f *fakeBlockchain) GetStateAt(hash types.HeaderHash) (types.StateKeyVals, error) {
-	// For testing, return some fake state data
-	// This would normally query the actual state at the given block hash
-	return types.StateKeyVals{
-		{
-			Key:   types.StateKey{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			Value: types.ByteSequence{1, 2, 3, 4, 5},
-		},
-		{
-			Key:   types.StateKey{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			Value: types.ByteSequence{6, 7, 8, 9, 10},
-		},
-	}, nil
+	state, ok := f.stateData[hash]
+	if !ok {
+		return nil, fmt.Errorf("state not found for hash: %x", hash)
+	}
+	return state, nil
 }
 
-func (f *fakeBlockchain) GetStateRange(hash types.HeaderHash, startKey types.StateKey, endKey types.StateKey, maxSize uint32) (types.StateKeyVals, error) {
-	// For testing, return some fake state data in the specified range
-	// This would normally query the actual state range at the given block hash
-	stateVals := types.StateKeyVals{
-		{
-			Key:   types.StateKey{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			Value: types.ByteSequence{1, 2, 3, 4, 5},
-		},
-		{
-			Key:   types.StateKey{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			Value: types.ByteSequence{6, 7, 8, 9, 10},
-		},
-		{
-			Key:   types.StateKey{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			Value: types.ByteSequence{11, 12, 13, 14, 15},
-		},
+func (f *fakeBlockchain) GetStateRange(hash types.HeaderHash, startKey, endKey types.StateKey, maxSize uint32) (types.StateKeyVals, error) {
+	state, err := f.GetStateAt(hash)
+	if err != nil {
+		return nil, fmt.Errorf("GetStateAt failed: %w", err)
 	}
 
-	// Filter by key range if needed (simplified for testing)
-	if startKey[0] > 0 {
-		// Filter out keys less than startKey
-		filtered := types.StateKeyVals{}
-		for _, val := range stateVals {
-			if val.Key[0] >= startKey[0] {
-				filtered = append(filtered, val)
+	var result types.StateKeyVals
+	totalSize := uint32(0)
+
+	fmt.Printf("GetStateRange: Comparing %d state values against range [%x-%x]\n", len(state), startKey, endKey)
+
+	for _, stateVal := range state {
+		// Check if the key is in the requested range
+		compareStart := bytes.Compare(stateVal.Key[:], startKey[:])
+		compareEnd := bytes.Compare(stateVal.Key[:], endKey[:])
+		fmt.Printf("Key %x: compareStart=%d compareEnd=%d\n", stateVal.Key, compareStart, compareEnd)
+
+		if compareStart >= 0 && compareEnd <= 0 {
+			// Estimate size (key + value length + value)
+			estimatedSize := uint32(len(stateVal.Key)) + 4 + uint32(len(stateVal.Value))
+			if totalSize+estimatedSize > maxSize {
+				fmt.Printf("Size limit reached: total=%d this=%d max=%d\n", totalSize, estimatedSize, maxSize)
+				break
 			}
+			fmt.Printf("Adding key %x with value %s\n", stateVal.Key, stateVal.Value)
+			result = append(result, stateVal)
+			totalSize += estimatedSize
 		}
-		stateVals = filtered
 	}
 
-	if endKey[0] > 0 {
-		// Filter out keys greater than endKey
-		filtered := types.StateKeyVals{}
-		for _, val := range stateVals {
-			if val.Key[0] <= endKey[0] {
-				filtered = append(filtered, val)
-			}
-		}
-		stateVals = filtered
-	}
+	fmt.Printf("GetStateRange returning %d values\n", len(result))
+	return result, nil
+}
 
-	// Limit by maxSize
-	if uint32(len(stateVals)) > maxSize {
-		stateVals = stateVals[:maxSize]
-	}
-
-	return stateVals, nil
+func (f *fakeBlockchain) GetBoundaryNodes(headerHash types.HeaderHash, keyStart types.StateKey, keyEnd types.StateKey, maxSize uint32) ([]types.BoundaryNode, error) {
+	return nil, nil
 }
 
 // SetupFakeBlockchain creates a simple chain:
@@ -181,6 +164,7 @@ func SetupFakeBlockchain() *fakeBlockchain {
 		blockNumberToHash: make(map[uint32][]types.HeaderHash),
 		hashToblockNumber: make(map[types.HeaderHash]uint32),
 		genesis:           genesisHash,
+		stateData:         make(map[types.HeaderHash]types.StateKeyVals),
 	}
 
 	fb.blocks[genesisHash] = genesisBlock
@@ -201,6 +185,19 @@ func SetupFakeBlockchain() *fakeBlockchain {
 	fb.hashToblockNumber[block3Hash] = 3
 
 	fb.SetCurrentHead(block3Hash)
+
+	var genesisState types.StateKeyVals
+	for i := 0; i < 3; i++ {
+		key := types.StateKey{}
+		key[0] = byte(i + 1) // Keys will be 1, 2, 3 which matches our test range
+
+		value := types.ByteSequence(fmt.Sprintf("genesis_value_%d", i))
+		genesisState = append(genesisState, types.StateKeyVal{
+			Key:   key,
+			Value: value,
+		})
+	}
+	fb.stateData[genesisHash] = genesisState
 
 	return fb
 }
