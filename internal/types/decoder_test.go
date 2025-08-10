@@ -959,6 +959,11 @@ func TestDecodeJamTestNetTransitions(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsTraces(t *testing.T) {
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  traces only support tiny mode")
+	}
+
 	dirNames := []string{
 		"fallback",
 		"preimages",
@@ -1015,6 +1020,11 @@ func TestDecodeJamTestVectorsTraces(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsTracesGenesis(t *testing.T) {
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  traces only support tiny mode")
+	}
+
 	dirNames := []string{
 		"fallback",
 		"preimages",
