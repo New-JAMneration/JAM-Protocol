@@ -13,24 +13,50 @@ import (
 
 // CE129Payload represents a state key range request message.
 type CE129Payload struct {
-	HeaderHash types.HeaderHash // Reference block hash
-	KeyStart   types.StateKey   // Start key (inclusive)
-	KeyEnd     types.StateKey   // End key (inclusive)
-	MaxSize    uint32           // Maximum total size of values to return
+	HeaderHash types.HeaderHash
+	KeyStart   types.StateKey
+	KeyEnd     types.StateKey
+	MaxSize    uint32
 }
 
 // HandleStateRequest handles a CE129 state key range request.
 func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stream *quic.Stream) error {
-	// Get state values in the specified key range
 	stateValues, err := blockchain.GetStateRange(req.HeaderHash, req.KeyStart, req.KeyEnd, req.MaxSize)
 	if err != nil {
 		return fmt.Errorf("failed to get state range: %w", err)
 	}
 
-	// Encode and write the response
+	// Get boundary nodes for the key range
+	boundaryNodes, err := blockchain.GetBoundaryNodes(req.HeaderHash, req.KeyStart, req.KeyEnd, req.MaxSize)
+	if err != nil {
+		return fmt.Errorf("failed to get boundary nodes: %w", err)
+	}
+
 	encoder := types.NewEncoder()
 
-	// Write the number of state values as a 4-byte little-endian integer
+	numBoundary := uint32(len(boundaryNodes))
+	numBoundaryBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(numBoundaryBytes, numBoundary)
+	if _, err := stream.Write(numBoundaryBytes); err != nil {
+		return fmt.Errorf("failed to write number of boundary nodes: %w", err)
+	}
+
+	// Write each boundary node (length-prefixed encoding)
+	for _, node := range boundaryNodes {
+		encodedNode, err := encoder.Encode(&node)
+		if err != nil {
+			return fmt.Errorf("failed to encode boundary node: %w", err)
+		}
+		lengthBytes := make([]byte, 4)
+		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(encodedNode)))
+		if _, err := stream.Write(lengthBytes); err != nil {
+			return fmt.Errorf("failed to write boundary node length: %w", err)
+		}
+		if _, err := stream.Write(encodedNode); err != nil {
+			return fmt.Errorf("failed to write encoded boundary node: %w", err)
+		}
+	}
+
 	numValues := uint32(len(stateValues))
 	numValuesBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(numValuesBytes, numValues)
@@ -38,22 +64,18 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 		return fmt.Errorf("failed to write number of values: %w", err)
 	}
 
-	// Write each state value
 	for _, stateVal := range stateValues {
-		// Encode the state value
 		encodedVal, err := encoder.Encode(&stateVal)
 		if err != nil {
 			return fmt.Errorf("failed to encode state value: %w", err)
 		}
 
-		// Write the length prefix (4 bytes little-endian)
 		lengthBytes := make([]byte, 4)
 		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(encodedVal)))
 		if _, err := stream.Write(lengthBytes); err != nil {
 			return fmt.Errorf("failed to write value length: %w", err)
 		}
 
-		// Write the encoded value
 		if _, err := stream.Write(encodedVal); err != nil {
 			return fmt.Errorf("failed to write encoded value: %w", err)
 		}

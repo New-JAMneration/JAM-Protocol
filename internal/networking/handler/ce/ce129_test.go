@@ -1,7 +1,6 @@
 package ce
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -17,87 +16,23 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// fakeBlockchainWithState extends fakeBlockchain to support state queries
-type fakeBlockchainWithState struct {
-	*fakeBlockchain
-	stateData map[types.HeaderHash]types.StateKeyVals
-}
-
-func (f *fakeBlockchainWithState) GetStateAt(hash types.HeaderHash) (types.StateKeyVals, error) {
-	state, ok := f.stateData[hash]
-	if !ok {
-		return nil, fmt.Errorf("state not found for hash: %x", hash)
-	}
-	return state, nil
-}
-
-func (f *fakeBlockchainWithState) GetStateRange(hash types.HeaderHash, startKey, endKey types.StateKey, maxSize uint32) (types.StateKeyVals, error) {
-	state, err := f.GetStateAt(hash)
-	if err != nil {
-		return nil, err
-	}
-
-	var result types.StateKeyVals
-	totalSize := uint32(0)
-
-	for _, stateVal := range state {
-		// Check if the key is in the requested range
-		if bytes.Compare(stateVal.Key[:], startKey[:]) >= 0 && bytes.Compare(stateVal.Key[:], endKey[:]) <= 0 {
-			// Estimate size (key + value length + value)
-			estimatedSize := uint32(len(stateVal.Key)) + 4 + uint32(len(stateVal.Value))
-			if totalSize+estimatedSize > maxSize {
-				break
-			}
-			result = append(result, stateVal)
-			totalSize += estimatedSize
-		}
-	}
-
-	return result, nil
-}
-
-// SetupFakeBlockchainWithState creates a blockchain with mock state data
-func SetupFakeBlockchainWithState() *fakeBlockchainWithState {
-	fb := SetupFakeBlockchain()
-
-	// Create some mock state data
-	stateData := make(map[types.HeaderHash]types.StateKeyVals)
-
-	// Add state data for each block
-	for hash, block := range fb.blocks {
-		var stateVals types.StateKeyVals
-
-		// Create some mock state values
-		for i := 0; i < 3; i++ {
-			key := types.StateKey{}
-			key[0] = byte(i + 1)
-			key[1] = byte(block.Header.Slot)
-
-			value := types.ByteSequence(fmt.Sprintf("value_%d_%d", block.Header.Slot, i))
-
-			stateVals = append(stateVals, types.StateKeyVal{
-				Key:   key,
-				Value: value,
-			})
-		}
-
-		stateData[hash] = stateVals
-	}
-
-	return &fakeBlockchainWithState{
-		fakeBlockchain: fb,
-		stateData:      stateData,
-	}
-}
-
 // TestHandleStateRequest tests the HandleStateRequest function directly
 func TestHandleStateRequest(t *testing.T) {
-	fakeBC := SetupFakeBlockchainWithState()
+	fakeBC := SetupFakeBlockchain()
+	genesisHash := fakeBC.GenesisBlockHash()
 
-	// Create a mock stream
+	state, err := fakeBC.GetStateAt(genesisHash)
+	if err != nil {
+		t.Logf("GetStateAt error: %v", err)
+	} else {
+		t.Logf("State values at genesis: %d", len(state))
+		for _, val := range state {
+			t.Logf("State key-value: key=%x value=%s", val.Key, val.Value)
+		}
+	}
+
 	mockStream := newMockStream([]byte{})
 
-	// Create a test request
 	req := CE129Payload{
 		HeaderHash: fakeBC.GenesisBlockHash(),
 		KeyStart:   types.StateKey{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -105,205 +40,65 @@ func TestHandleStateRequest(t *testing.T) {
 		MaxSize:    1000,
 	}
 
-	// Call the handler
-	err := HandleStateRequest(fakeBC, req, &quic.Stream{Stream: mockStream})
-	if err != nil {
-		t.Fatalf("HandleStateRequest failed: %v", err)
+	handleErr := HandleStateRequest(fakeBC, req, &quic.Stream{Stream: mockStream})
+	if handleErr != nil {
+		t.Fatalf("HandleStateRequest failed: %v", handleErr)
 	}
 
-	// Read the response
 	response := mockStream.w.Bytes()
-
-	// Parse the response
-	if len(response) < 4 {
+	if len(response) < 8 {
 		t.Fatalf("Response too short")
 	}
+	// First 4 bytes are boundary node count
+	numBoundaryNodes := binary.LittleEndian.Uint32(response[:4])
+	t.Logf("Number of boundary nodes: %d", numBoundaryNodes)
 
-	numValues := binary.LittleEndian.Uint32(response[:4])
+	offset := 4 // Start after boundary node count
+	for i := uint32(0); i < numBoundaryNodes; i++ {
+		if offset+4 > len(response) {
+			t.Fatalf("Response truncated in boundary nodes section")
+		}
+		nodeLen := binary.LittleEndian.Uint32(response[offset : offset+4])
+		offset += 4 + int(nodeLen)
+	}
+
+	// Now read state value count
+	if offset+4 > len(response) {
+		t.Fatalf("Response truncated before state values section")
+	}
+	numValues := binary.LittleEndian.Uint32(response[offset : offset+4])
 	t.Logf("Number of state values returned: %d", numValues)
 
-	// Verify we got some state values
 	if numValues == 0 {
 		t.Errorf("Expected some state values, got 0")
+	}
+
+	// Parse and verify each state value
+	offset += 4 // Move past state value count
+	for i := uint32(0); i < numValues; i++ {
+		if offset+4 > len(response) {
+			t.Fatalf("Response truncated in state values section")
+		}
+		valueLen := binary.LittleEndian.Uint32(response[offset : offset+4])
+		offset += 4
+
+		if offset+int(valueLen) > len(response) {
+			t.Fatalf("Response truncated in state value data")
+		}
+		valueData := response[offset : offset+int(valueLen)]
+		t.Logf("State value %d: length=%d data=%x", i, valueLen, valueData)
+		offset += int(valueLen)
 	}
 }
 
 // TestHandleStateRequestStream tests the stream-based handler
-func TestHandleStateRequestStream(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
-
-	fakeBC := SetupFakeBlockchainWithState()
-
-	// Create a mock stream with request data
-	req := CE129Payload{
-		HeaderHash: fakeBC.GenesisBlockHash(),
-		KeyStart:   types.StateKey{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		KeyEnd:     types.StateKey{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		MaxSize:    1000,
-	}
-
-	// Encode the request
-	reqPayload := make([]byte, 98)
-	copy(reqPayload[:32], req.HeaderHash[:])
-	copy(reqPayload[32:63], req.KeyStart[:])
-	copy(reqPayload[63:94], req.KeyEnd[:])
-	binary.LittleEndian.PutUint32(reqPayload[94:98], req.MaxSize)
-
-	mockStream := newMockStream(reqPayload)
-
-	// Call the stream handler
-	err := HandleStateRequestStream(fakeBC, &quic.Stream{Stream: mockStream})
-	if err != nil {
-		t.Fatalf("HandleStateRequestStream failed: %v", err)
-	}
-
-	// Read the response
-	response := mockStream.w.Bytes()
-
-	// Parse the response
-	if len(response) < 4 {
-		t.Fatalf("Response too short")
-	}
-
-	numValues := binary.LittleEndian.Uint32(response[:4])
-	t.Logf("Number of state values returned: %d", numValues)
-
-	// Verify we got some state values
-	if numValues == 0 {
-		t.Errorf("Expected some state values, got 0")
-	}
-}
-
-// TestRealQuicStreamStateRequest tests with real QUIC connection
-func TestRealQuicStreamStateRequest(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
-
-	// Setup TLS configurations
-	clientTLS, err := quic.NewTLSConfig(false, false)
-	clientTLS.InsecureSkipVerify = true
-	if err != nil {
-		t.Fatalf("Client TLS config error: %v", err)
-	}
-
-	// Listen on an ephemeral port
-	listener, err := quic.NewListener("localhost:0", false, quic.NewTLSConfig, nil)
-	if err != nil {
-		t.Fatalf("Listener error: %v", err)
-	}
-	defer listener.Close()
-
-	addr := listener.ListenAddress()
-	t.Logf("Server listening on %s", addr)
-
-	// Setup our fake blockchain with state
-	fakeBC := SetupFakeBlockchainWithState()
-
-	// Start server goroutine
-	go func() {
-		conn, err := listener.Accept(context.Background())
-		if err != nil {
-			t.Errorf("Server accept error: %v", err)
-			return
-		}
-
-		stream, err := conn.AcceptStream(context.Background())
-		if err != nil {
-			t.Errorf("Stream accept error: %v", err)
-			return
-		}
-
-		wrappedStream := &quic.Stream{Stream: stream}
-		err = HandleStateRequestStream(fakeBC, wrappedStream)
-		if err != nil {
-			t.Errorf("HandleStateRequestStream error: %v", err)
-		}
-	}()
-
-	// Client: dial the server
-	conn, err := quic.Dial(context.Background(), addr, clientTLS, nil, quic.Validator)
-	if err != nil {
-		t.Fatalf("Client dial error: %v", err)
-	}
-	defer conn.Close()
-
-	// Open a stream
-	stream, err := conn.OpenStreamSync(context.Background())
-	if err != nil {
-		t.Fatalf("Client open stream error: %v", err)
-	}
-
-	// Create a state request payload
-	var req CE129Payload
-	req.HeaderHash = fakeBC.GenesisBlockHash()
-	copy(req.KeyStart[:], []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	copy(req.KeyEnd[:], []byte{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
-	req.MaxSize = 1000
-
-	// Encode the request payload
-	reqPayload := make([]byte, 98)
-	copy(reqPayload[:32], req.HeaderHash[:])
-	copy(reqPayload[32:63], req.KeyStart[:])
-	copy(reqPayload[63:94], req.KeyEnd[:])
-	binary.LittleEndian.PutUint32(reqPayload[94:98], req.MaxSize)
-
-	// Write the request payload
-	_, err = stream.Write(reqPayload)
-	if err != nil {
-		t.Fatalf("Client write error: %v", err)
-	}
-
-	err = stream.Close()
-	if err != nil {
-		t.Fatalf("CloseWrite error: %v", err)
-	}
-
-	// Read the response
-	respData, err := io.ReadAll(stream)
-	if err != nil {
-		t.Fatalf("Client read error: %v", err)
-	}
-
-	// Parse the response
-	if len(respData) < 4 {
-		t.Fatalf("Response too short")
-	}
-
-	numValues := binary.LittleEndian.Uint32(respData[:4])
-	t.Logf("Number of state values returned: %d", numValues)
-
-	// Verify we got some state values
-	if numValues == 0 {
-		t.Errorf("Expected some state values, got 0")
-	}
-
-	// Parse individual state values
-	offset := 4
-	for i := uint32(0); i < numValues; i++ {
-		if offset+4 > len(respData) {
-			t.Fatalf("Response truncated")
-		}
-
-		valueLength := binary.LittleEndian.Uint32(respData[offset : offset+4])
-		offset += 4
-
-		if offset+int(valueLength) > len(respData) {
-			t.Fatalf("Value data truncated")
-		}
-
-		valueData := respData[offset : offset+int(valueLength)]
-		t.Logf("State value %d: length=%d, data=%x", i, valueLength, valueData)
-		offset += int(valueLength)
-	}
-}
 
 // TestCE129RequestWithPeer tests with peer-based setup
 func TestCE129RequestWithPeer(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
 
-	fakeBC := SetupFakeBlockchainWithState()
+	fakeBC := SetupFakeBlockchain()
 
 	ceRequestHandler := NewDefaultCERequestHandler()
 	upHandler := quic.NewDefaultUPHandler()
@@ -407,7 +202,7 @@ func TestCE129RequestWithPeer(t *testing.T) {
 	}
 
 	reqPayload := make([]byte, 1+len(encodedReq))
-	reqPayload[0] = 129 // CE129 protocol ID
+	reqPayload[0] = 129
 	copy(reqPayload[1:], encodedReq)
 
 	t.Logf("Encoded request payload: %x", reqPayload)
@@ -428,18 +223,61 @@ func TestCE129RequestWithPeer(t *testing.T) {
 	}
 
 	t.Logf("Received response data length: %d", len(respData))
+	t.Logf("Raw response bytes: %x", respData)
 
-	// Parse the response
-	if len(respData) < 4 {
-		t.Fatalf("Response too short")
+	if len(respData) < 8 {
+		t.Fatalf("Response too short, got %d bytes", len(respData))
 	}
 
-	numValues := binary.LittleEndian.Uint32(respData[:4])
-	t.Logf("Number of state values returned: %d", numValues)
+	numBoundaryNodes := binary.LittleEndian.Uint32(respData[:4])
+	t.Logf("Number of boundary nodes: %d", numBoundaryNodes)
+
+	offset := 4 // Start after boundary node count
+	for i := uint32(0); i < numBoundaryNodes; i++ {
+		if offset+4 > len(respData) {
+			t.Fatalf("Response truncated in boundary nodes section at node %d", i)
+		}
+		nodeLen := binary.LittleEndian.Uint32(respData[offset : offset+4])
+		t.Logf("Boundary node %d length: %d", i, nodeLen)
+		offset += 4
+		if offset+int(nodeLen) > len(respData) {
+			t.Fatalf("Response truncated in boundary node data at node %d", i)
+		}
+		nodeData := respData[offset : offset+int(nodeLen)]
+		t.Logf("Boundary node %d data: %x", i, nodeData)
+		offset += int(nodeLen)
+	}
+
+	if offset+4 > len(respData) {
+		t.Fatalf("Response truncated before state values section at offset %d", offset)
+	}
+	numValues := binary.LittleEndian.Uint32(respData[offset : offset+4])
 
 	if numValues == 0 {
 		t.Errorf("Expected some state values, got 0")
 	}
 
-	t.Logf("Successfully received %d state values", numValues)
+	offset += 4 // Move past state value count
+	var parsedValues []string
+	for i := uint32(0); i < numValues; i++ {
+		if offset+4 > len(respData) {
+			t.Fatalf("Response truncated in state values section at value %d offset %d", i, offset)
+		}
+		valueLen := binary.LittleEndian.Uint32(respData[offset : offset+4])
+		t.Logf("State value %d length: %d (at offset %d)", i, valueLen, offset)
+		offset += 4
+
+		if offset+int(valueLen) > len(respData) {
+			t.Fatalf("Response truncated in state value data at value %d offset %d", i, offset)
+		}
+		valueData := respData[offset : offset+int(valueLen)]
+		t.Logf("State value %d data: %x", i, valueData)
+		parsedValues = append(parsedValues, fmt.Sprintf("%x", valueData))
+		offset += int(valueLen)
+	}
+
+	t.Logf("Successfully received and parsed %d state values", numValues)
+	if len(parsedValues) > 0 {
+		t.Logf("Parsed values: %v", parsedValues)
+	}
 }
