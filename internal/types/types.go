@@ -1571,6 +1571,14 @@ type ServiceBlobs []ServiceBlob
 // For state serialization, merklization, and reading trace test cases
 type StateKey [31]byte
 
+// BoundaryNode represents a node in the state trie for merklization boundary reporting.
+type BoundaryNode struct {
+	Key    StateKey
+	Hash   [32]byte
+	Parent *StateKey
+	IsLeaf bool
+}
+
 type StateKeyVal struct {
 	Key   StateKey
 	Value ByteSequence
