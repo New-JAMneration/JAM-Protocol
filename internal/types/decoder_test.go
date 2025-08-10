@@ -987,7 +987,6 @@ func TestDecodeJamTestVectorsTraces(t *testing.T) {
 		}
 
 		for i := 0; i < len(jsonTestFiles); i++ {
-			// TODO: if the file is genesis.bin, use the genesis type to decode it
 			if jsonTestFiles[i] == "genesis.json" {
 				continue
 			}
