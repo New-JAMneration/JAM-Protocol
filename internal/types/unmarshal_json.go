@@ -49,16 +49,16 @@ func (v *Validator) UnmarshalJSON(data []byte) error {
 
 func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		DepositOffset        U64       `json:"deposit_offset,omitempty"`
 		CodeHash             string    `json:"code_hash,omitempty"`
 		Balance              U64       `json:"balance,omitempty"`
 		MinItemGas           Gas       `json:"min_item_gas,omitempty"`
 		MinMemoGas           Gas       `json:"min_memo_gas,omitempty"`
+		Bytes                U64       `json:"bytes,omitempty"`
+		DepositOffset        U64       `json:"deposit_offset,omitempty"`
+		Items                U32       `json:"items,omitempty"`
 		CreationSlot         TimeSlot  `json:"creation_slot,omitempty"`
 		LastAccumulationSlot TimeSlot  `json:"last_accumulation_slot,omitempty"`
 		ParentService        ServiceId `json:"parent_service,omitempty"`
-		Bytes                U64       `json:"bytes,omitempty"`
-		Items                U32       `json:"items,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -779,7 +779,12 @@ func (p *Preimage) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	p.Blob = blobBytes
+
+	if len(blobBytes) == 0 {
+		p.Blob = nil
+	} else {
+		p.Blob = blobBytes
+	}
 
 	return nil
 }
@@ -1637,25 +1642,30 @@ func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
 
 // Priviliges
 func (p *Privileges) UnmarshalJSON(data []byte) error {
-	type Alias Privileges
-	aux := &struct {
-		AlwaysAccum *json.RawMessage `json:"chi_g"`
-		*Alias
-	}{
-		Alias: (*Alias)(p),
+	var temp struct {
+		Bless       U32                      `json:"bless"`      // Manager
+		Assign      []U32                    `json:"assign"`     // AlterPhi
+		Designate   U32                      `json:"designate"`  // AlterIota
+		AlwaysAccum []AlwaysAccumulateMapDTO `json:"always_acc"` // AutoAccumulateGasLimits
 	}
 
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	// if AlwaysAccum is nil or "null", set to empty map
-	if aux.AlwaysAccum == nil || string(*aux.AlwaysAccum) == "null" {
+	p.Bless = ServiceId(temp.Bless)
+	p.Assign = make(ServiceIdList, len(temp.Assign))
+	for i, id := range temp.Assign {
+		p.Assign[i] = ServiceId(id)
+	}
+	p.Designate = ServiceId(temp.Designate)
+
+	if len(temp.AlwaysAccum) == 0 {
 		p.AlwaysAccum = make(AlwaysAccumulateMap)
-	} else {
-		if err := json.Unmarshal(*aux.AlwaysAccum, &p.AlwaysAccum); err != nil {
-			return err
-		}
+	}
+
+	for _, entry := range temp.AlwaysAccum {
+		p.AlwaysAccum[entry.ServiceId] = entry.Gas
 	}
 
 	return nil
@@ -1743,6 +1753,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hex string: %w", err)
 		}
+
 		(*s)[i].Key = StateKey(decodedKey)
 
 		// value
@@ -1750,7 +1761,12 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hex string: %w", err)
 		}
-		(*s)[i].Value = decodedValue
+
+		if len(decodedValue) == 0 {
+			(*s)[i].Value = nil
+		} else {
+			(*s)[i].Value = decodedValue
+		}
 	}
 
 	return nil
