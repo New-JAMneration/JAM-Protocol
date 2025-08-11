@@ -3,7 +3,6 @@ package merklization
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -181,45 +180,6 @@ func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, erro
 			ExpectedValue: nil,
 			ActualValue:   valueB,
 		})
-	}
-
-	return diffs, nil
-}
-
-func GetStateKeyValsDiffOld(expectedKeyVals, actualKeyVals types.StateKeyVals) ([]types.StateKeyValDiff, error) {
-	// if the value is different, then return the key and the two values
-	var diffs []types.StateKeyValDiff
-
-	// convert statekeyvals to map for easy lookup
-	expectedMap := make(map[types.StateKey]types.ByteSequence)
-	actualMap := make(map[types.StateKey]types.ByteSequence)
-
-	for _, kv := range expectedKeyVals {
-		expectedMap[kv.Key] = kv.Value
-	}
-
-	for _, kv := range actualKeyVals {
-		actualMap[kv.Key] = kv.Value
-	}
-
-	for expectedKey, expectedValue := range expectedMap {
-		if actualValue, exists := actualMap[expectedKey]; exists {
-			// Key exists in both expected and actual
-			if !reflect.DeepEqual(expectedValue, actualValue) {
-				diffs = append(diffs, types.StateKeyValDiff{
-					Key:           expectedKey,
-					ExpectedValue: expectedValue,
-					ActualValue:   actualValue,
-				})
-			}
-		} else {
-			// Key exists in expected but not in actual
-			diffs = append(diffs, types.StateKeyValDiff{
-				Key:           expectedKey,
-				ExpectedValue: expectedValue,
-				ActualValue:   nil,
-			})
-		}
 	}
 
 	return diffs, nil
