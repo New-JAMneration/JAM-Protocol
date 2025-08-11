@@ -146,7 +146,7 @@ const (
 	SegmentRootLookupInvalid                            // 20
 	BadSignature                                        // 21
 	WorkReportTooBig                                    // 22
-	BannedValiator                                      // 23
+	BannedValidator                                     // 23
 )
 
 var ReportsErrorMap = map[string]ReportsErrorCode{
@@ -173,7 +173,7 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 	"segment_root_lookup_invalid":     SegmentRootLookupInvalid,
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
-	"banned_validator":                BannedValiator,
+	"banned_validator":                BannedValidator,
 }
 
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
