@@ -1583,6 +1583,12 @@ type StateKeyVal struct {
 
 type StateKeyVals []StateKeyVal
 
+type StateKeyValDiff struct {
+	Key           StateKey
+	ExpectedValue ByteSequence
+	ActualValue   ByteSequence
+}
+
 func Some[T any](v T) *T {
 	return &v
 }
