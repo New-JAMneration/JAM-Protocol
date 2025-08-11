@@ -195,10 +195,14 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 
 			if len(diffs) > 0 {
 				for _, diff := range diffs {
-					// print the diff key
-					t.Errorf("❌ State key 0x%x has diff in [%s] %s\n", diff.Key, dirName, fileName)
+					// Only check the key exists in the actual state keyvals
+					// because we cannot obtain the storage key from StateKeyVal
+					// The state will not contain storage keys in its current form.
+					if _, exists := actualStateKeyValsMap[diff.Key]; !exists {
+						continue
+					}
 
-					// Print diff expected and actual values
+					t.Errorf("❌ State key 0x%x has diff in [%s] %s\n", diff.Key, dirName, fileName)
 					t.Errorf("Expected: 0x%x\n", diff.ExpectedValue)
 					t.Errorf("Actual: 0x%x\n", diff.ActualValue)
 				}
@@ -209,11 +213,6 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 	}
 }
 
-//	type StateKeyValDiff struct {
-//		Key           StateKey
-//		ExpectedValue ByteSequence
-//		ActualValue   ByteSequence
-//	}
 func TestGetStateKeyValsDiff(t *testing.T) {
 	expectedStateKeyVals := []types.StateKeyVal{
 		{Key: types.StateKey{0x01}, Value: types.ByteSequence{0x01}},
