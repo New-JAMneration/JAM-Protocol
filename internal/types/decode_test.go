@@ -113,7 +113,7 @@ func TestDecodeServiceId(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsAccumulateFile(t *testing.T) {
-	file := "../../pkg/test_data/jam-test-vectors/accumulate/tiny/accumulate_ready_queued_reports-1.bin"
+	file := "../../pkg/test_data/jam-test-vectors/stf/accumulate/tiny/accumulate_ready_queued_reports-1.bin"
 
 	data, err := GetBytesFromFile(file)
 	if err != nil {

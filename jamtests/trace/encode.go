@@ -35,3 +35,18 @@ func (t *TraceTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+
+// Encode Genesis
+func (g *Genesis) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = g.Header.Encode(e); err != nil {
+		return err
+	}
+
+	if err = g.State.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}

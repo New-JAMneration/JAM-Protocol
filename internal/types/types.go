@@ -1461,11 +1461,17 @@ type (
 
 type AlwaysAccumulateMap map[ServiceId]Gas
 
+// jam-types.asn AlwaysAccumulateMapEntry
+type AlwaysAccumulateMapDTO struct {
+	ServiceId ServiceId `json:"id"`
+	Gas       Gas       `json:"gas"`
+}
+
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
-	Designate   ServiceId           `json:"chi_v"` // AlterIota
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
+	Bless       ServiceId           `json:"bless"`      // Manager
+	Assign      ServiceIdList       `json:"assign"`     // AlterPhi
+	Designate   ServiceId           `json:"designate"`  // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"always_acc"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash
@@ -1576,6 +1582,12 @@ type StateKeyVal struct {
 }
 
 type StateKeyVals []StateKeyVal
+
+type StateKeyValDiff struct {
+	Key           StateKey
+	ExpectedValue ByteSequence
+	ActualValue   ByteSequence
+}
 
 func Some[T any](v T) *T {
 	return &v
