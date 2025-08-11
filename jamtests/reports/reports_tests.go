@@ -746,7 +746,7 @@ func (r *ReportsTestCase) Dump() error {
 	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
 
 	// Set RecentBlocks
-	s.GetPriorStates().SetBeta(r.PostState.RecentBlocks)
+	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks.History)
 	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks.History)
 
 	// Set AuthPools
