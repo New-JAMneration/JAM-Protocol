@@ -27,7 +27,6 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 		dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
 
 		genesisFilePath := filepath.Join(dir, "genesis.bin")
-		firstStateFilePath := filepath.Join(dir, "00000001.bin")
 
 		genesisTestCase := &jamtests_trace.Genesis{}
 		err = utilities.GetTestFromBin(genesisFilePath, genesisTestCase)
@@ -44,26 +43,13 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 		// Create a state root with the genesis state
 		genesisStateRoot := MerklizationState(genesisState)
 
-		firstStateTestCase := &jamtests_trace.TraceTestCase{}
-		err = utilities.GetTestFromBin(firstStateFilePath, firstStateTestCase)
-		if err != nil {
-			t.Errorf("Error reading file %s: %v", firstStateFilePath, err)
-			continue
-		}
+		expectedGenesisStateRoot := genesisTestCase.State.StateRoot
 
-		state, err := StateKeyValsToState(firstStateTestCase.PreState.KeyVals)
-		if err != nil {
-			t.Errorf("Error parsing state keyvals: %v", err)
-		}
-
-		// Create a state root with the first state
-		stateRoot := MerklizationState(state)
-
-		// Compare the state root with the pre-state root
-		if stateRoot != genesisStateRoot {
-			t.Errorf("❌ State root mismatch: expected 0x%x, got 0x%x", genesisStateRoot, stateRoot)
+		// Compare the state root with the expected state root
+		if genesisStateRoot != expectedGenesisStateRoot {
+			t.Errorf("❌ State root mismatch: expected 0x%x, got 0x%x", expectedGenesisStateRoot, genesisStateRoot)
 		} else {
-			t.Logf("✅ State root matches: 0x%x", stateRoot)
+			t.Logf("✅ State root matches: 0x%x", genesisStateRoot)
 		}
 	}
 }
