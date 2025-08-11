@@ -1,86 +1,231 @@
 package merklization
 
 import (
+	"bytes"
 	"fmt"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// (D.1) type 1
-func C(stateIndex types.U8) types.StateKey {
-	stateWrapper := StateWrapper{StateIndex: stateIndex}
-	stateKey := stateWrapper.StateKeyConstruct()
-	return stateKey
-}
+// ANSI color codes
+var (
+	Reset   = "\033[0m"
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	Gray    = "\033[37m"
+	White   = "\033[97m"
+)
 
-func isServiceInfo(stateKey types.StateKey) bool {
-	return stateKey[0] == 0xFF
-}
+var debugMode = false
 
-// (D.1) type 2
-func parseServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) {
-	// Decode the service Id from the state key
-	// service id = [k1, k3, k5, k7]
-	encodedServiceId := types.ByteSequence{stateKey[1], stateKey[3], stateKey[5], stateKey[7]}
-	decoder := types.NewDecoder()
-	var serviceId types.ServiceId
-	err := decoder.Decode(encodedServiceId, &serviceId)
-	if err != nil {
-		return types.ServiceId(0), err
+// var debugMode = true
+
+func cLog(color string, string string) {
+	if debugMode {
+		fmt.Printf("%s%s%s\n", color, string, Reset)
 	}
-
-	return serviceId, nil
 }
 
-// (D.1) type 3
-func parseServiceIdFromType3(stateKey types.StateKey) (types.ServiceId, error) {
-	// Decode the service Id from the state key
-	// service id = [k0, k2, k4, k6]
-	encodedServiceId := types.ByteSequence{stateKey[0], stateKey[2], stateKey[4], stateKey[6]}
-	decoder := types.NewDecoder()
-	var serviceId types.ServiceId
-	err := decoder.Decode(encodedServiceId, &serviceId)
-	if err != nil {
-		return types.ServiceId(0), err
+func printStateKey(color string, stateKey types.StateKey) {
+	cLog(color, fmt.Sprintf("State Key: 0x%x", stateKey))
+}
+
+func printStateValue(stateVal types.ByteSequence) {
+	if len(stateVal) > 32 {
+		cLog(Cyan, fmt.Sprintf("State Val: 0x%x...", stateVal[:32]))
+	} else {
+		cLog(Cyan, fmt.Sprintf("State Val: 0x%x", stateVal))
 	}
-
-	return serviceId, nil
 }
 
-// TODO: Refactor this function
-// return error type
-// We need to serviceId, preimageKey, and preimageValue when we update the state
-func isPreimage(stateKey types.StateKey, stateVal types.ByteSequence) bool {
-	// 1. decode the value with preimage type
-	// 2. get the servcieId
-	// 3. create a state key by myself
-	// 4. compare the statekey with input state key
-	// 5. if the key is matched, them the value is preimage value.
+func isPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, error) {
+	var err error
 
 	// The preimage value is a ByteSequence
 	preimageValue := stateVal
 
 	// Get ServiceId from state key
-	serviceId, err := parseServiceIdFromType3(stateKey)
+	serviceId, err := decodeServiceIdFromType3(stateKey)
 	if err != nil {
-		fmt.Println("Error parsing service ID from state key:", err)
-		// FIXME: return error
-		return false
+		return false, fmt.Errorf("failed to parse service ID from state key: %w", err)
 	}
 
-	// Create preiage key
+	// Create preimage key (hash of the preimage value)
 	preimageKey := hash.Blake2bHash(preimageValue)
 
-	// Create a new state key using the preimage value
+	// Create a new state key using the serviceId, preimageKey, and preimageValue
 	preimageStateKeyVal := encodeDelta3KeyVal(serviceId, preimageKey, preimageValue)
 
-	return preimageStateKeyVal.Key == stateKey
+	isPreimage := preimageStateKeyVal.Key == stateKey
+
+	return isPreimage, nil
+}
+
+func updateServiceInfo(state *types.State, serviceId types.ServiceId, serviceInfo types.ServiceInfo) {
+	// Check if the service account exists
+	serviceAccount, exists := state.Delta[serviceId]
+	if !exists {
+		serviceAccount = types.ServiceAccount{
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+	}
+
+	// Add or update the service info
+	serviceAccount.ServiceInfo = serviceInfo
+
+	// Assign the updated service account back to the state
+	state.Delta[serviceId] = serviceAccount
+}
+
+func updatePreimage(state *types.State, serviceId types.ServiceId, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
+	// Check if the service account exists
+	serviceAccount, exists := state.Delta[serviceId]
+	if !exists {
+		serviceAccount = types.ServiceAccount{
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+	}
+
+	// Add or update the preimage entry
+	serviceAccount.PreimageLookup[preimageKey] = preimageValue
+
+	// Assign the updated service account back to the state
+	state.Delta[serviceId] = serviceAccount
+}
+
+func updateLookup(state *types.State, serviceId types.ServiceId, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
+	// Check if the service account exists
+	serviceAccount, exists := state.Delta[serviceId]
+	if !exists {
+		serviceAccount = types.ServiceAccount{
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+	}
+
+	// Add or update the lookup entry
+	serviceAccount.LookupDict[lookupKey] = lookupValue
+
+	// Assign the updated service account back to the state
+	state.Delta[serviceId] = serviceAccount
+}
+
+func updateStorage(state *types.State, serviceId types.ServiceId, storageKey string, storageValue types.ByteSequence) {
+	// Check if the service account exists
+	serviceAccount, exists := state.Delta[serviceId]
+	if !exists {
+		serviceAccount = types.ServiceAccount{
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+	}
+
+	// Add or update the storage entry
+	serviceAccount.StorageDict[storageKey] = storageValue
+
+	// Assign the updated service account back to the state
+	state.Delta[serviceId] = serviceAccount
+}
+
+func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, error) {
+	var diffs []types.StateKeyValDiff
+
+	aMap := make(map[types.StateKey]types.ByteSequence)
+	bMap := make(map[types.StateKey]types.ByteSequence)
+
+	for _, kv := range a {
+		aMap[kv.Key] = kv.Value
+	}
+
+	for _, kv := range b {
+		bMap[kv.Key] = kv.Value
+	}
+
+	for key, valueA := range aMap {
+		if valueB, exists := bMap[key]; exists {
+			// the a key exists in b
+			if !bytes.Equal(valueA, valueB) {
+				diffs = append(diffs, types.StateKeyValDiff{
+					Key:           key,
+					ExpectedValue: valueA,
+					ActualValue:   valueB,
+				})
+			}
+			delete(bMap, key) // Remove from bMap to avoid false positives later
+		} else {
+			// the a key does not exist in b
+			diffs = append(diffs, types.StateKeyValDiff{
+				Key:           key,
+				ExpectedValue: valueA,
+				ActualValue:   nil,
+			})
+		}
+	}
+
+	// Remainig keys in bMap are those that were not in aMap
+	for key, valueB := range bMap {
+		diffs = append(diffs, types.StateKeyValDiff{
+			Key:           key,
+			ExpectedValue: nil,
+			ActualValue:   valueB,
+		})
+	}
+
+	return diffs, nil
+}
+
+func GetStateKeyValsDiffOld(expectedKeyVals, actualKeyVals types.StateKeyVals) ([]types.StateKeyValDiff, error) {
+	// if the value is different, then return the key and the two values
+	var diffs []types.StateKeyValDiff
+
+	// convert statekeyvals to map for easy lookup
+	expectedMap := make(map[types.StateKey]types.ByteSequence)
+	actualMap := make(map[types.StateKey]types.ByteSequence)
+
+	for _, kv := range expectedKeyVals {
+		expectedMap[kv.Key] = kv.Value
+	}
+
+	for _, kv := range actualKeyVals {
+		actualMap[kv.Key] = kv.Value
+	}
+
+	for expectedKey, expectedValue := range expectedMap {
+		if actualValue, exists := actualMap[expectedKey]; exists {
+			// Key exists in both expected and actual
+			if !reflect.DeepEqual(expectedValue, actualValue) {
+				diffs = append(diffs, types.StateKeyValDiff{
+					Key:           expectedKey,
+					ExpectedValue: expectedValue,
+					ActualValue:   actualValue,
+				})
+			}
+		} else {
+			// Key exists in expected but not in actual
+			diffs = append(diffs, types.StateKeyValDiff{
+				Key:           expectedKey,
+				ExpectedValue: expectedValue,
+				ActualValue:   nil,
+			})
+		}
+	}
+
+	return diffs, nil
 }
 
 func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
-	fmt.Println("Size of stateKeyVals:", len(stateKeyVals))
-
 	var err error
 	state := types.State{
 		Delta: make(types.ServiceAccountState),
@@ -91,14 +236,14 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 	for _, keyVal := range stateKeyVals {
 		stateKey := keyVal.Key
 		stateVal := keyVal.Value
-
 		unmatchedStateKeyVals[stateKey] = stateVal
 
 		switch stateKey {
 		case C(1):
-			fmt.Println("StateKey 1")
-			fmt.Println(stateKey)
 			// Decode the alpha
+			cLog(Yellow, "[C(1)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			alpha, err := decodeAlpha(stateVal)
 			if err != nil {
 				return state, err
@@ -106,9 +251,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Alpha = alpha
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(2):
-			fmt.Println("StateKey 2")
-			fmt.Println(stateKey)
 			// Decode the varphi
+			cLog(Yellow, "[C(2)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			varphi, err := decodeVarphi(stateVal)
 			if err != nil {
 				return state, err
@@ -116,9 +262,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Varphi = varphi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(3):
-			fmt.Println("StateKey 3")
-			fmt.Println(stateKey)
 			// Decode the beta
+			cLog(Yellow, "[C(3)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			beta, err := decodeBeta(stateVal)
 			if err != nil {
 				return state, err
@@ -126,9 +273,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Beta = beta
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(4):
-			fmt.Println("StateKey 4")
-			fmt.Println(stateKey)
 			// Decode the gamma
+			cLog(Yellow, "[C(4)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			gamma, err := decodeGamma(stateVal)
 			if err != nil {
 				return state, err
@@ -136,9 +284,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Gamma = gamma
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(5):
-			fmt.Println("StateKey 5")
-			fmt.Println(stateKey)
 			// Decode the psi
+			cLog(Yellow, "[C(5)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			psi, err := decodePsi(stateVal)
 			if err != nil {
 				return state, err
@@ -146,9 +295,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Psi = psi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(6):
-			fmt.Println("StateKey 6")
-			fmt.Println(stateKey)
 			// Decode the eta
+			cLog(Yellow, "[C(6)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			eta, err := decodeEta(stateVal)
 			if err != nil {
 				return state, err
@@ -156,9 +306,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Eta = eta
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(7):
-			fmt.Println("StateKey 7")
-			fmt.Println(stateKey)
 			// Decode the iota
+			cLog(Yellow, "[C(7)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			iota, err := decodeIota(stateVal)
 			if err != nil {
 				return state, err
@@ -166,9 +317,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Iota = iota
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(8):
-			fmt.Println("StateKey 8")
-			fmt.Println(stateKey)
 			// Decode the kappa
+			cLog(Yellow, "[C(8)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			kappa, err := decodeKappa(stateVal)
 			if err != nil {
 				return state, err
@@ -176,9 +328,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Kappa = kappa
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(9):
-			fmt.Println("StateKey 9")
-			fmt.Println(stateKey)
 			// Decode the lambda
+			cLog(Yellow, "[C(9)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			lambda, err := decodeLambda(stateVal)
 			if err != nil {
 				return state, err
@@ -186,9 +339,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Lambda = lambda
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(10):
-			fmt.Println("StateKey 10")
-			fmt.Println(stateKey)
 			// Decode the rho
+			cLog(Yellow, "[C(10)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			rho, err := decodeRho(stateVal)
 			if err != nil {
 				return state, err
@@ -196,9 +350,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Rho = rho
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(11):
-			fmt.Println("StateKey 11")
-			fmt.Println(stateKey)
 			// Decode the tau
+			cLog(Yellow, "[C(11)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			tau, err := decodeTau(stateVal)
 			if err != nil {
 				return state, err
@@ -206,9 +361,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Tau = tau
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(12):
-			fmt.Println("StateKey 12")
-			fmt.Println(stateKey)
 			// Decode the chi
+			cLog(Yellow, "[C(12)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			chi, err := decodeChi(stateVal)
 			if err != nil {
 				return state, err
@@ -216,9 +372,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Chi = chi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(13):
-			fmt.Println("StateKey 13")
-			fmt.Println(stateKey)
 			// Decode the pi
+			cLog(Yellow, "[C(13)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			pi, err := decodePi(stateVal)
 			if err != nil {
 				return state, err
@@ -226,9 +383,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Pi = pi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(14):
-			fmt.Println("StateKey 14")
-			fmt.Println(stateKey)
 			// Decode the theta
+			cLog(Yellow, "[C(14)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			theta, err := decodeTheta(stateVal)
 			if err != nil {
 				return state, err
@@ -236,9 +394,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Theta = theta
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(15):
-			fmt.Println("StateKey 15")
-			fmt.Println(stateKey)
 			// Decode the xi
+			cLog(Yellow, "[C(15)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			xi, err := decodeXi(stateVal)
 			if err != nil {
 				return state, err
@@ -246,9 +405,10 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.Xi = xi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(16):
-			fmt.Println("StateKey 16")
-			fmt.Println(stateKey)
 			// Decode the theta AccumulatedServiceOutput
+			cLog(Yellow, "[C(16)]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
 			lastAccOut, err := decodeThetaAccOut(stateVal)
 			if err != nil {
 				return state, err
@@ -256,20 +416,18 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 			state.LastAccOut = lastAccOut
 			delete(unmatchedStateKeyVals, stateKey)
 		default:
-			fmt.Println("Unknown StateKey")
-			fmt.Println(stateKey)
-
 			// C(255, s)
-			if isServiceInfo(stateKey) {
-				fmt.Println("StateKey Delta Service Info")
-				fmt.Println(stateKey)
+			isServiceInfo := stateKey[0] == 0xFF
+			if isServiceInfo {
+				cLog(Yellow, "[ServiceInfo]")
+				printStateKey(Cyan, stateKey)
+				printStateValue(stateVal)
 
 				// ServiceId
-				serviceId, err := parseServiceIdFromType2(stateKey)
+				serviceId, err := decodeServiceIdFromType2(stateKey)
 				if err != nil {
 					return state, err
 				}
-				fmt.Println("ServiceId:", serviceId)
 
 				// Decode the value
 				serviceInfo, err := decodeServiceInfo(stateVal)
@@ -277,38 +435,27 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 					return state, err
 				}
 
-				serviceAccount, exists := state.Delta[serviceId]
+				// Update the service info in the state
+				updateServiceInfo(&state, serviceId, serviceInfo)
 
-				if !exists {
-					fmt.Println("Service account does not exist, creating a new one")
-					serviceAccount = types.ServiceAccount{
-						ServiceInfo:    serviceInfo,
-						PreimageLookup: make(types.PreimagesMapEntry),
-						LookupDict:     make(types.LookupMetaMapEntry),
-						StorageDict:    make(types.Storage),
-					}
-				} else {
-					fmt.Println("Service account exists, updating the service info")
-					serviceAccount.ServiceInfo = serviceInfo
-				}
-
-				// Assign the service account back to the state
-				state.Delta[serviceId] = serviceAccount
 				delete(unmatchedStateKeyVals, stateKey)
 			}
 
-			if isPreimage(stateKey, stateVal) {
-				fmt.Println("StateKey Delta Preimage")
-				fmt.Println(stateKey)
+			isPreimage, err := isPreimage(stateKey, stateVal)
+			if err != nil {
+				return state, err
+			}
 
-				// ServiceId, PreimageKey, PreimageValue
+			if isPreimage {
+				cLog(Yellow, "[Preimage]")
+				printStateKey(Cyan, stateKey)
+				printStateValue(stateVal)
 
-				serviceId, err := parseServiceIdFromType3(stateKey)
+				// ServiceId
+				serviceId, err := decodeServiceIdFromType3(stateKey)
 				if err != nil {
 					return state, err
 				}
-
-				fmt.Println("ServiceId:", serviceId)
 
 				// PreimageValue
 				preimageValue := stateVal
@@ -316,60 +463,24 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 				// PreimageKey
 				preimageKey := hash.Blake2bHash(preimageValue)
 
-				// Assign the preimage value to the service account
-				serviceAccount, exists := state.Delta[serviceId]
-
-				// If the service account does not exist, create a new one
-				// and initialize the preimage
-				// Otherwise, update the existing service account
-
-				if !exists {
-					fmt.Println("Service account does not exist, creating a new one")
-					serviceAccount = types.ServiceAccount{
-						PreimageLookup: make(types.PreimagesMapEntry),
-						LookupDict:     make(types.LookupMetaMapEntry),
-						StorageDict:    make(types.Storage),
-					}
-				} else {
-					fmt.Println("Service account exists, updating the preimage")
-				}
-
-				// Add a new preimage entry to the service account
-				serviceAccount.PreimageLookup[preimageKey] = preimageValue
-
-				// Assign the updated service account back to the state
-				state.Delta[serviceId] = serviceAccount
+				// Update the preimage in the state
+				updatePreimage(&state, serviceId, preimageKey, preimageValue)
 
 				delete(unmatchedStateKeyVals, stateKey)
 			}
+		} // End of switch
+	} // End of for loop
 
-			// INFO: Lookup 需要依賴 preimage 的資訊, Lookup 的 key = (preimage hash, preimage length)
-			// 但我們無法確保 state key values 的排序
-			// 有可能先遇到 lookup, 但此時 preimage 資訊還沒被解析
-			// 因此, 需要先將所有的 state value 處理完, 獲得所有的 preimage 資訊,
-			// 才能有效的反推出哪一個 preimage 對應到哪一個 lookup
-		}
-	}
+	// INFO: Lookup depends on preimage information. The key for Lookup is (preimage hash, preimage length).
+	// However, we cannot guarantee the order of state key values.
+	// It's possible to encounter a Lookup entry first, before its corresponding preimage information has been parsed.
+	// Therefore, we need to process all state values first to obtain all preimage information,
+	// so that after obtaining all preimages, we can construct the corresponding Lookup keys.
 
-	fmt.Println("Unmatched State Key Vals Size:", len(unmatchedStateKeyVals))
-
-	// 獲得所有的 preimage 後, 即可製作出 lookup 的 key
-
-	// 求出 lookup 的 key 之後, 再計算 lookup 的 state key
-	// 比對 lookup 的 state key 是否與 input state key 相同
-	// 若相同, decode input state value with LookupMetaMapEntry type
-	// 將數值設定給 state.Delta[serviceId].LookupDict
-
-	// Get all preimages
-	// FIXME: preimage, lookup 應該是對應的, 數量一致？
+	// After updating the preimages, we can now process the Lookup entries.
 	for serviceId, serviceAccount := range state.Delta {
-		fmt.Println("ServiceId:", serviceId)
-
 		for preimageKey, preimageValue := range serviceAccount.PreimageLookup {
-			preimageStateKeyVal := encodeDelta3KeyVal(serviceId, preimageKey, preimageValue)
-
-			// print preimage key with hex string
-			fmt.Printf("Preimage Key: %x\n", preimageStateKeyVal.Key)
+			cLog(Yellow, "[Lookup]")
 
 			// Lookup key = (preimage hash, preimage length)
 			lookupKey := types.LookupMetaMapkey{
@@ -377,75 +488,59 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 				Length: types.U32(len(preimageValue)),
 			}
 
-			lookupStateKey := encodeDelta4KeyVal(serviceId, lookupKey, types.TimeSlotSet{})
+			// Create the lookup state key
+			lookupStateKeyVal := encodeDelta4KeyVal(serviceId, lookupKey, types.TimeSlotSet{})
+			lookupStateKey := lookupStateKeyVal.Key
 
-			// find the lookup state key in unmatched state key vals
-			if lookupStateVal, exists := unmatchedStateKeyVals[lookupStateKey.Key]; exists {
-				fmt.Println("Lookup State Key Found:", lookupStateKey.Key)
-				fmt.Println("Lookup State Value:", lookupStateVal)
-
-				// Decode the lookup value => TimeSlotSet
+			// Find the lookup state key in unmatchedStateKeyVals
+			// If it exists, imply that we have a lookup entry for this preimage
+			if lookupStateVal, exists := unmatchedStateKeyVals[lookupStateKey]; exists {
+				printStateKey(Cyan, lookupStateKey)
+				printStateValue(lookupStateVal)
+				// Decode the lookup state value
 				timeSlotSet := types.TimeSlotSet{}
 				decoder := types.NewDecoder()
 				err := decoder.Decode(lookupStateVal, &timeSlotSet)
 				if err != nil {
-					fmt.Println("Error decoding lookup state value:", err)
+					return state, fmt.Errorf("failed to decode lookup value: %w", err)
 				}
 
-				// Assign the lookup value to the service account
-				serviceAccount.LookupDict[lookupKey] = timeSlotSet
+				updateLookup(&state, serviceId, lookupKey, timeSlotSet)
 
-				// Assign the updated service account back to the state
-				state.Delta[serviceId] = serviceAccount
-
-				delete(unmatchedStateKeyVals, lookupStateKey.Key)
+				delete(unmatchedStateKeyVals, lookupStateKey)
 			}
 		}
 	}
-
-	fmt.Println("Unmatched State Key Vals Size after lookup:", len(unmatchedStateKeyVals))
-
-	// 剩餘的 state key 就是 storage
-	// storage value 可以 decode
-	// 但我們無法有效推回 storage key
-	// 只能知道 ServcieId 的 storage value
 
 	// The remaining state keys are storage
+	// FIXME: We cannot obtain the storage key from StateKeyVal.
 	for stateKey, stateVal := range unmatchedStateKeyVals {
-		serviceId, err := parseServiceIdFromType3(stateKey)
+		cLog(Yellow, "[Storage]")
+		serviceId, err := decodeServiceIdFromType3(stateKey)
 		if err != nil {
-			fmt.Println("Error parsing service ID from state key:", err)
+			return state, fmt.Errorf("failed to parse service ID from state key: %w", err)
 		}
 
-		// We don't know the storage key, but we can assign the storage value to the service account
-		serviceAccount, exists := state.Delta[serviceId]
-		if !exists {
-			fmt.Println("Service account does not exist, creating a new one for storage")
-			serviceAccount = types.ServiceAccount{
-				PreimageLookup: make(types.PreimagesMapEntry),
-				LookupDict:     make(types.LookupMetaMapEntry),
-				StorageDict:    make(types.Storage),
-			}
+		storageKey := fmt.Sprintf("%x", hash.Blake2bHash(stateVal))
+		storageVal := stateVal
+
+		storageStateKeyVal := encodeDelta2KeyVal(serviceId, types.ByteSequence(storageKey), storageVal)
+		storageStateKey := storageStateKeyVal.Key
+
+		if stateKey == storageStateKey {
+			updateStorage(&state, serviceId, storageKey, storageVal)
+			delete(unmatchedStateKeyVals, stateKey)
 		} else {
-			fmt.Println("Service account exists, updating the storage")
+			cLog(Red, fmt.Sprintf("Storage State Key mismatch: expected 0x%x, got 0x%x", stateKey, storageStateKey))
 		}
-
-		// Assign the storage value to the service accoun
-		storageKey := hash.Blake2bHash(stateVal)
-		storageKeyString := fmt.Sprintf("%x", storageKey)
-
-		serviceAccount.StorageDict[storageKeyString] = stateVal
-		state.Delta[serviceId] = serviceAccount
-		delete(unmatchedStateKeyVals, stateKey)
-
-		// print storage key with hex string
-		fmt.Printf("State Key: %x\n", stateKey)
-
-		// print storage value
-		fmt.Printf("Storage Value: %x\n", stateVal)
 	}
 
-	fmt.Println("Unmatched State Key Vals Size after storage:", len(unmatchedStateKeyVals))
+	cLog(Red, "--------------------")
+	cLog(Red, "Unmatched State Keys:")
+	for stateKey := range unmatchedStateKeyVals {
+		printStateKey(Red, stateKey)
+	}
+	cLog(Red, "--------------------")
 
 	return state, err
 }
