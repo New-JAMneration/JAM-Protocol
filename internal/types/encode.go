@@ -2045,11 +2045,6 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
-	// DepositOffset
-	if err := s.DepositOffset.Encode(e); err != nil {
-		return err
-	}
-
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
 		return err
@@ -2070,6 +2065,21 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 		return err
 	}
 
+	// Bytes
+	if err := s.Bytes.Encode(e); err != nil {
+		return err
+	}
+
+	// DepositOffset
+	if err := s.DepositOffset.Encode(e); err != nil {
+		return err
+	}
+
+	// Items
+	if err := s.Items.Encode(e); err != nil {
+		return err
+	}
+
 	// CreationSlot
 	if err := s.CreationSlot.Encode(e); err != nil {
 		return err
@@ -2082,16 +2092,6 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	// ParentService
 	if err := s.ParentService.Encode(e); err != nil {
-		return err
-	}
-
-	// Bytes
-	if err := s.Bytes.Encode(e); err != nil {
-		return err
-	}
-
-	// Items
-	if err := s.Items.Encode(e); err != nil {
 		return err
 	}
 
