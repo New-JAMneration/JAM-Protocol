@@ -47,7 +47,7 @@ func SetFullMode() {
 	CoresCount = 341        // C
 	EpochLength = 600       // E
 	SlotSubmissionEnd = 500 // Y
-	RotationPeriod = 4      // R
+	RotationPeriod = 10     // R
 	MaxTicketsPerBlock = 16 // K
 	TicketsPerValidator = 2 // N
 	ValidatorsSuperMajority = 683

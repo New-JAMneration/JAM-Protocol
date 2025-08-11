@@ -98,7 +98,7 @@ type ReportsState struct {
 	Offenders []types.Ed25519Public `json:"offenders,omitempty"` // Offenders (psi_o)
 
 	// [β] Recent blocks.
-	RecentBlocks types.BlocksHistory `json:"recent_blocks"`
+	RecentBlocks types.RecentBlocks `json:"recent_blocks"`
 
 	// [α] Authorization pools.
 	AuthPools types.AuthPools `json:"auth_pools"`
@@ -146,6 +146,7 @@ const (
 	SegmentRootLookupInvalid                            // 20
 	BadSignature                                        // 21
 	WorkReportTooBig                                    // 22
+	BannedValidator                                     // 23
 )
 
 var ReportsErrorMap = map[string]ReportsErrorCode{
@@ -172,6 +173,7 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 	"segment_root_lookup_invalid":     SegmentRootLookupInvalid,
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
+	"banned_validator":                BannedValidator,
 }
 
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
@@ -196,7 +198,7 @@ func (e *ReportsState) UnmarshalJSON(data []byte) error {
 		PrevValidators     types.ValidatorsData          `json:"prev_validators"`
 		Entropy            types.EntropyBuffer           `json:"entropy"`
 		Offenders          []types.Ed25519Public         `json:"offenders,omitempty"`
-		RecentBlocks       types.BlocksHistory           `json:"recent_blocks"`
+		RecentBlocks       types.RecentBlocks            `json:"recent_blocks"`
 		AuthPools          types.AuthPools               `json:"auth_pools"`
 		Accounts           []AccountsMapEntry            `json:"accounts"`
 		CoresStatistics    types.CoresStatistics         `json:"cores_statistics"`
@@ -709,8 +711,7 @@ func (r *ReportsTestCase) Dump() error {
 	s := store.GetInstance()
 
 	// Guarantee Input : extrinsics, slot, known_packages
-	// set guarantee extrinsics
-	// set slot
+	// set slot, guarantee extrinsics
 	block := types.Block{
 		Header: types.Header{
 			Slot: r.Input.Slot,
@@ -744,8 +745,8 @@ func (r *ReportsTestCase) Dump() error {
 	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
 
 	// Set RecentBlocks
-	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks)
-	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks)
+	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks.History)
+	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks.History)
 
 	// Set AuthPools
 	s.GetPriorStates().SetAlpha(r.PreState.AuthPools)
@@ -855,7 +856,7 @@ func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
 			if reportedPackage.WorkPackageHash != guarantee.Report.PackageSpec.Hash {
 				continue
 			}
-			reporters := extrinsic.GetGuarantors(guarantee)
+			reporters, _ := extrinsic.GetGuarantors(guarantee)
 			outputData.Reported = append(outputData.Reported, reportedPackage)
 			outputData.Reporters = append(outputData.Reporters, reporters...)
 			break
