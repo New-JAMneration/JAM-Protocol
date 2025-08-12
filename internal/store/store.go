@@ -118,6 +118,28 @@ func (s *Store) GetFinalizedBlocks() []types.Block {
 	return allBlocks[:finalizedBlocksIdx+1]
 }
 
+// GetFinalizedBlocks returns all finalized blocks
+func (s *Store) GetFinalizedBlock() types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	finalizedBlocksIdx := -1
+	found := false
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			finalizedBlocksIdx = i
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return types.Block{}
+	}
+
+	return allBlocks[finalizedBlocksIdx]
+}
+
 // GetUnfinalizedBlocks returns all unfinalized blocks
 func (s *Store) GetUnfinalizedBlocks() []types.Block {
 	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
