@@ -1433,6 +1433,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 }
 
 // (12.14) deferred transfer
+// X = deferred-transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
