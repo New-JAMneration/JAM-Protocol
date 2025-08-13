@@ -39,7 +39,10 @@ func RunSTF() error {
 	}
 
 	// Update History (beta^dagger -> beta^prime)
-	// TODO:
+	err = UpdateHistory()
+	if err != nil {
+		return fmt.Errorf("update histroy error: %v", err)
+	}
 
 	// Update Preimages
 	err = UpdatePreimages()
@@ -48,7 +51,10 @@ func RunSTF() error {
 	}
 
 	// Update Authorization
-	// TODO: add authorization in sft
+	err = UpdateAuthorizations()
+	if err != nil {
+		return fmt.Errorf("update authorization error: %v", err)
+	}
 
 	// Update Statistics
 	err = UpdateStatistics()
