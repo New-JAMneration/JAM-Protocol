@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
