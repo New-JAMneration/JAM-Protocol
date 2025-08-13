@@ -23,6 +23,12 @@ func NewPosteriorStates() *PosteriorStates {
 	}
 }
 
+func (s *PosteriorStates) SetState(state types.State) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.state = &state
+}
+
 // GetState returns the current state
 func (s *PosteriorStates) GetState() types.State {
 	s.mu.RLock()

@@ -23,6 +23,12 @@ func NewPriorStates() *PriorStates {
 	}
 }
 
+func (s *PriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
+}
+
 // GetState returns the current state
 func (s *PriorStates) GetState() types.State {
 	s.mu.RLock()

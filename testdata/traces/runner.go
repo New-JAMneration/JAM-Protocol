@@ -3,7 +3,6 @@ package traces
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -12,9 +11,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 )
 
-var (
-	genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")))
-)
+var genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")))
 
 type TraceRunner struct {
 	// Store is the global protocol store. The runner mutates it between traces.
@@ -30,13 +27,6 @@ func NewTraceRunner() *TraceRunner {
 
 func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 	testCase := data.(*jamteststrace.TraceTestCase)
-
-	// Initialize the genesis if the state root is 0
-	if testCase.PreState.StateRoot == genesisStateRoot {
-		if err := tr.InitializeGenesis(testCase); err != nil {
-			return err
-		}
-	}
 
 	if len(tr.Store.GetBlocks()) == 0 {
 		return fmt.Errorf("no blocks in the store")
@@ -56,19 +46,13 @@ func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 		return err
 	}
 
-	return tr.Verify(testCase)
+	return nil
 }
 
 // Verify checks the block header's parent_hash and state_root against the
 // expected values in the Testable instance.
 func (tr *TraceRunner) Verify(data testdata.Testable) error {
 	return data.Validate()
-}
-
-func (tr *TraceRunner) InitializeGenesis(data *jamteststrace.TraceTestCase) error {
-	log.Printf("Initializing genesis block....")
-	// TODO: Initialize the genesis
-	return nil
 }
 
 func hexToBytes(hexStr string) []byte {

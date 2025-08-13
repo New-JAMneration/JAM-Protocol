@@ -36,6 +36,7 @@ const (
 
 	// Trace
 	FallbackMode TestMode = "fallback"
+	StorageMode  TestMode = "storage"
 )
 
 // TestSize represents the size of the test data
@@ -111,7 +112,7 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 		folderName = "reports-l0"
 	}
 	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "traces", string(folderName))
-
+	fmt.Println("path : ", reader.basePath)
 	return reader
 }
 
@@ -169,55 +170,55 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		switch r.mode {
 		case SafroleMode:
 			var safroleTestCase jamtestssafrole.SafroleTestCase
-			if err := r.readFile(data, &safroleTestCase); err != nil {
+			if err := r.ReadFile(data, &safroleTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode safrole test data: %v", err)
 			}
 			result = &safroleTestCase
 		case AssurancesMode:
 			var assuranceTestCase jamtestsassurances.AssuranceTestCase
-			if err := r.readFile(data, &assuranceTestCase); err != nil {
+			if err := r.ReadFile(data, &assuranceTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode assurances test data: %v", err)
 			}
 			result = &assuranceTestCase
 		case PreimagesMode:
 			var preimageTestCase jamtestspreimages.PreimageTestCase
-			if err := r.readFile(data, &preimageTestCase); err != nil {
+			if err := r.ReadFile(data, &preimageTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode preimages test data: %v", err)
 			}
 			result = &preimageTestCase
 		case DisputesMode:
 			var disputeTestCase jamtestsdisputes.DisputeTestCase
-			if err := r.readFile(data, &disputeTestCase); err != nil {
+			if err := r.ReadFile(data, &disputeTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode disputes test data: %v", err)
 			}
 			result = &disputeTestCase
 		case HistoryMode:
 			var historyTestCase jamtestshistory.HistoryTestCase
-			if err := r.readFile(data, &historyTestCase); err != nil {
+			if err := r.ReadFile(data, &historyTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode history test data: %v", err)
 			}
 			result = &historyTestCase
 		case AccumulateMode:
 			var accumulateTestCase jamtestsaccumulate.AccumulateTestCase
-			if err := r.readFile(data, &accumulateTestCase); err != nil {
+			if err := r.ReadFile(data, &accumulateTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode accumulate test data: %v", err)
 			}
 			result = &accumulateTestCase
 		case AuthorizationsMode:
 			var authorizationsTestCase jamtestsauth.AuthorizationTestCase
-			if err := r.readFile(data, &authorizationsTestCase); err != nil {
+			if err := r.ReadFile(data, &authorizationsTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode authorization test data: %v", err)
 			}
 			result = &authorizationsTestCase
 		case StatisticsMode:
 			var statisticsTestCase jamtestsstatistics.StatisticsTestCase
-			if err := r.readFile(data, &statisticsTestCase); err != nil {
+			if err := r.ReadFile(data, &statisticsTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode statistics test data: %v", err)
 			}
 			result = &statisticsTestCase
 		case ReportsMode:
 			var reportsTestCase jamtestsreports.ReportsTestCase
-			if err := r.readFile(data, &reportsTestCase); err != nil {
+			if err := r.ReadFile(data, &reportsTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode reports test data: %v", err)
 			}
 			result = &reportsTestCase
@@ -229,11 +230,12 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		return nil, fmt.Errorf("work in progress: %s", r.dataType)
 	case "trace":
 		switch r.mode {
-		case SafroleMode, FallbackMode, ReportsMode:
+		case SafroleMode, FallbackMode, ReportsMode, PreimagesMode, StorageMode:
 			var traceTestCase jamteststrace.TraceTestCase
-			if err := r.readFile(data, &traceTestCase); err != nil {
+			if err := r.ReadFile(data, &traceTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode trace test data: %v", err)
 			}
+
 			result = &traceTestCase
 		default:
 			return nil, fmt.Errorf("unsupported test mode for trace: %s", r.mode)
@@ -251,7 +253,7 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 	return result, nil
 }
 
-func (r *TestDataReader) readFile(data []byte, result interface{}) error {
+func (r *TestDataReader) ReadFile(data []byte, result interface{}) error {
 	if r.format == JSONFormat {
 		if err := json.Unmarshal(data, result); err != nil {
 			return fmt.Errorf("failed to unmarshal JSON data: %v", err)
@@ -262,5 +264,6 @@ func (r *TestDataReader) readFile(data []byte, result interface{}) error {
 			return fmt.Errorf("failed to decode data: %v", err)
 		}
 	}
+
 	return nil
 }

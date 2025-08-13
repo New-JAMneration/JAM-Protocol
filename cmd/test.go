@@ -5,7 +5,10 @@ import (
 	"log"
 	"os"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -20,6 +23,8 @@ var (
 	testFileFormat string
 	testRunSTF     bool
 )
+
+var genesisFileName = "genesis"
 
 // TestCommand returns the test command
 func TestCommand() *cli.Command {
@@ -41,7 +46,7 @@ For example:
 			},
 			&cli.StringFlag{
 				Name:         "mode",
-				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics, reports, fallback (for trace))",
+				Usage:        "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics, reports, fallback (for trace)), preimages-trace, storage-trace",
 				DefaultValue: "safrole",
 				Destination:  &testMode,
 			},
@@ -108,8 +113,39 @@ For example:
 			passed := 0
 			failed := 0
 
+			if testType == "trace" {
+				// get genesis
+				for _, testFile := range testFiles {
+					if testFile.Name[:7] != "genesis" {
+						continue
+					}
+					// parse genesis to block and state
+					var genesis jamtests.Genesis
+
+					err := reader.ReadFile(testFile.Data, &genesis)
+					if err != nil {
+						log.Panicf("Failed to Read genesis: %v", err)
+					}
+
+					state, err := merklization.StateKeyValsToState(genesis.State.KeyVals)
+					if err != nil {
+						log.Panicf("Failed to parse state key-vals to state: %v", err)
+					}
+					instance := store.GetInstance()
+					block := types.Block{
+						Header: genesis.Header,
+					}
+					instance.GenerateGenesisBlock(block)
+					instance.GenerateGenesisState(state)
+				}
+			}
+
 			for idx, testFile := range testFiles {
-				log.Printf("------------------{%v}--------------------", idx)
+				if testFile.Name[:7] == "genesis" {
+					continue
+				}
+
+				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
 				data, err := reader.ParseTestData(testFile.Data)
 				if err != nil {
 					log.Printf("got error during parsing: %v", err)
@@ -117,32 +153,54 @@ For example:
 					continue
 				}
 
+				if testType == "trace" {
+					// post-state update to pre-state, tau_prime+1
+					store.GetInstance().StateCommit()
+				}
+
 				// Run the test
-
 				outputErr := runner.Run(data, testRunSTF)
-				expectedErr := data.ExpectError()
 
-				if expectedErr != nil {
-					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
-						failed++
-					}
-					if outputErr.Error() != expectedErr.Error() {
-						fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
-						failed++
+				if testType == "stf" {
+					expectedErr := data.ExpectError()
+
+					if expectedErr != nil {
+						if outputErr == nil {
+							fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
+							failed++
+						}
+						if outputErr.Error() != expectedErr.Error() {
+							fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
+							failed++
+						} else {
+							fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
+							passed++
+						}
+						// Check the error message
 					} else {
-						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
+						log.Printf("Test %s passed", testFile.Name)
 						passed++
 					}
-					// Check the error message
+
 				} else {
-					log.Printf("Test %s passed", testFile.Name)
-					passed++
+					// mode = trace
+
+					// stf occurs error
+					if outputErr != nil {
+						failed++
+					} else {
+						err := data.Validate()
+						if err != nil {
+							failed++
+							continue
+						}
+						passed++
+					}
 				}
 			}
 
 			log.Printf("----------------------------------------")
-			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles)-1, passed, failed)
 		},
 	}
 }
