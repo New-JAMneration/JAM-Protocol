@@ -112,7 +112,6 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 		folderName = "reports-l0"
 	}
 	reader.basePath = filepath.Join("pkg", "test_data", "jam-test-vectors", "traces", string(folderName))
-	fmt.Println("path : ", reader.basePath)
 	return reader
 }
 
