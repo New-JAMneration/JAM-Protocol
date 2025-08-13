@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -19,7 +20,7 @@ func (s *TraceTestCase) Dump() error {
 	st.GetPosteriorStates().SetTau(s.Block.Header.Slot)
 
 	// update BetaH, GP 0.6.7 formula 4.6
-	recent_history.STFBeta2BetaDagger()
+	recent_history.STFBetaH2BetaHDagger()
 
 	return nil
 }
