@@ -233,7 +233,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	parallel_input.WorkReports = input.WorkReports[:i]
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
-
+	parallel_input.DeferredTransfers = input.DeferredTransfers
 	parallel_result, err := ParallelizedAccumulation(parallel_input)
 	if err != nil {
 		return output, fmt.Errorf("parallel accumulation failed: %w", err)
@@ -248,7 +248,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	recursive_outer_input.GasLimit = remain_gas
 	recursive_outer_input.WorkReports = input.WorkReports[i:]
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
-
+	recursive_outer_input.DeferredTransfers = parallel_result.DeferredTransfers
 	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
 	if err != nil {
 		return output, fmt.Errorf("recursive accumulation failed: %w", err)
@@ -256,7 +256,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
-	output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
+	// output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
 	output.ServiceGasUsedList = append(parallel_result.ServiceGasUsedList, recursive_outer_output.ServiceGasUsedList...)
 	output.AccumulatedServiceOutput = parallel_result.AccumulatedServiceOutput
 
@@ -268,29 +268,6 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 }
 
 // (12.17) ∆∗ parallelized accumulation function
-// (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
-// (o, w, f ) ↦ ((d′, i′, q′, x′),Ìt, b, u, p∗)
-// where:
-// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
-// u = [(s, ∆1(o, w, f , s)u) S s <− s]
-// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
-// t = [∆1(o, w, f, s)t S s <− s]
-// p =  s<−s⋃ ∆1(o, w, f , s)p
-// d′ = P ((d ∪ n) ∖ m, p)
-//
-//	(d, i, q, (m, a, v, z)) = o
-//
-// x′ = (∆1(o, w, f, m)o)x
-// i′ = (∆1(o, w, f, v)o)i
-// q′ = (∆1(o, w, f, a)o)q
-// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
-//
-//	s∈s
-//
-// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-//
-//	s∈s
-//
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
 	// Initialize output maps
@@ -440,23 +417,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 }
 
 // (12.20) ∆1 single-service accumulation function
-
-// ∆1∶
-// (U, ⟦W⟧, D⟨NS → NG⟩, NS ) → o ∈ U , t ∈ ⟦T⟧ ,
-//
-//					  b ∈ H? , u ∈ NG p ∈ {NS , Y}
-//	(o, w, f, s) ↦ ΨA(o, τ ′, s, g, i)
-//
-// where:
-//
-//	g = U(fs, 0) + ∑(rg )
-//				w∈w,r∈wr,rs=s
-//
-// i d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
-//
-//	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
-	var operands []types.Operand // all operand inputs for Ψₐ
+	var operandOrDeferredTransfers []types.OperandOrDeferredTransfer // all operand inputs for Ψₐ
 	// U(fs, 0)
 	g := types.Gas(0)
 	if preset, ok := input.AlwaysAccumulateMap[input.ServiceId]; ok {
@@ -480,15 +442,26 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 					Result:         item.Result,                    // d: rd
 					GasLimit:       item.AccumulateGas,             // g: rg
 				}
-				operands = append(operands, operand)
+				operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{
+					Operand:          &operand, // U: operand
+					DeferredTransfer: nil,      // X: deferred transfer
+				})
 			}
 		}
 	}
-
+	for _, deferred_transfer := range input.DeferredTransfers {
+		if deferred_transfer.ReceiverID == input.ServiceId {
+			g += deferred_transfer.GasLimit // accumulate gas from deferred transfers
+			operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{
+				Operand:          nil,                // U: operand
+				DeferredTransfer: &deferred_transfer, // X: deferred transfer
+			})
+		}
+	}
 	// τ′: Posterior validator state used by Ψₐ
 	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
-	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands, eta0)
+	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operandOrDeferredTransfers, eta0)
 	output.AccumulationOutput = pvm_result.Result
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
