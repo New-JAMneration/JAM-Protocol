@@ -1,8 +1,23 @@
 package jamtests
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/store"
+import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+)
 
 func (s *TraceTestCase) Dump() error {
+	// Add block, state
+	st := store.GetInstance()
+	st.AddBlock(s.Block)
+	/*
+		state, err := merklization.StateKeyValsToState(s.PreState.KeyVals)
+		if err != nil {
+			return fmt.Errorf("state key-vals to state failed")
+		}
+	*/
 	return nil
 }
 
@@ -19,14 +34,25 @@ func (s *TraceTestCase) ExpectError() error {
 }
 
 func (s *TraceTestCase) Validate() error {
-	instance := store.GetInstance()
-	if instance.GetLatestBlock().Header.ParentStateRoot != s.PostState.StateRoot {
-		return s.CmpKeyVal()
+	stateRoot := merklization.MerklizationState(store.GetInstance().GetPosteriorStates().GetState())
+
+	if stateRoot != s.PostState.StateRoot {
+		return fmt.Errorf("state root different")
 	}
+
 	return nil
 }
 
-func (s *TraceTestCase) CmpKeyVal() error {
-	// TODO: Compare the KeyVal
-	return nil
+func (s *TraceTestCase) CmpKeyVal() ([]types.StateKeyValDiff, error) {
+	keyVals, err := merklization.StateEncoder(store.GetInstance().GetPosteriorStates().GetState())
+	if err != nil {
+		return nil, fmt.Errorf("state encode keyVals failed")
+	}
+
+	keyValDiffs, err := merklization.GetStateKeyValsDiff(keyVals, s.PostState.KeyVals)
+	if err != nil {
+		return nil, fmt.Errorf("get state keyValsDiff failed")
+	}
+
+	return keyValDiffs, nil
 }

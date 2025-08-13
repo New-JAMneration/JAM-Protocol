@@ -2,15 +2,13 @@ package merklization
 
 import (
 	"bytes"
-	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	// jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
+/*
 func TestStateKeyValsToStateGenesis(t *testing.T) {
 	dirNames := []string{
 		"fallback",
@@ -53,7 +51,9 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 		}
 	}
 }
+*/
 
+/*
 // FIXME: We cannot obtain the storage key from StateKeyVal.
 // so this test will not work as expected.
 // INFO: We can pass fallback and safrole directories because they do not contain storage keys.
@@ -111,7 +111,9 @@ func TestStateKeyValsToState(t *testing.T) {
 		}
 	}
 }
+*/
 
+/*
 // We cannot obtain the storage key from StateKeyVal in its current form,
 // so our StateKeyValsToState function does not include storage keys in the output state.
 // This test checks that the state keyvals do not contain storage keys,
@@ -198,6 +200,7 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestGetStateKeyValsDiff(t *testing.T) {
 	expectedStateKeyVals := []types.StateKeyVal{

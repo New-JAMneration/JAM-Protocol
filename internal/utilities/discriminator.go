@@ -15,7 +15,6 @@ type Discriminator struct {
 func (d Discriminator) Serialize() types.ByteSequence {
 	length := types.U64(len(d.Value))
 	return append(WrapU64(length).Serialize(), SerializableSequence(d.Value).Serialize()...)
-
 }
 
 // LensElementPair will return the length of the slice and the input data itself
@@ -64,12 +63,10 @@ func EmptyOrPair(input interface{}) (int, any) {
 		return 0, nil
 	case reflect.Slice:
 		if value.Len() == 0 {
-
 			return 0, nil
 		}
 	case reflect.Pointer:
 		if value.IsNil() {
-			fmt.Println("input is nil")
 			return 0, nil
 		}
 		elem := value.Elem()
