@@ -177,6 +177,19 @@ func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
 }
 
 // // STF β† ≺ (H, β) (4.6)
+// STF β†_H ≺ (H, β_H) (4.6)
+func STFBeta2BetaDagger() {
+	var (
+		s               = store.GetInstance()
+		rhc             = NewRecentHistoryController()
+		betas           = s.GetPriorStates().GetBeta()
+		block           = s.GetLatestBlock()
+		parentStateRoot = block.Header.ParentStateRoot
+	)
+	rhc.Betas = betas
+	rhc.RecentHistory2Dagger(parentStateRoot)
+}
+
 // func STFBeta2BetaDagger() {
 // 	var (
 // 		s               = store.GetInstance()
