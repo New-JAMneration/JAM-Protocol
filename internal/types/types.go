@@ -1435,6 +1435,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 }
 
 // (12.14) deferred transfer
+// X = deferred-transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1485,6 +1486,7 @@ type PartialStateSet struct {
 
 // (12.18 pre-0.6.5)
 // (12.19 0.6.5)
+// U = operand
 type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
@@ -1493,6 +1495,11 @@ type Operand struct {
 	GasLimit       Gas             // g   0.6.5
 	Result         WorkExecResult  // d
 	AuthOutput     ByteSequence    // o
+}
+
+type OperandOrDeferredTransfer struct {
+	Operand          *Operand          // U
+	DeferredTransfer *DeferredTransfer // X
 }
 
 // (12.15) U
