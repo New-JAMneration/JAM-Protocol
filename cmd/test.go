@@ -146,16 +146,16 @@ For example:
 				}
 
 				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
+				if testType == "trace" {
+					// post-state update to pre-state, tau_prime+1
+					store.GetInstance().StateCommit()
+				}
+
 				data, err := reader.ParseTestData(testFile.Data)
 				if err != nil {
 					log.Printf("got error during parsing: %v", err)
 					failed++
 					continue
-				}
-
-				if testType == "trace" {
-					// post-state update to pre-state, tau_prime+1
-					store.GetInstance().StateCommit()
 				}
 
 				// Run the test
