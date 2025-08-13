@@ -197,7 +197,6 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 func (s *Store) StateCommit() {
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
-	s.GetPosteriorStates().SetTau(posterState.Tau + 1)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

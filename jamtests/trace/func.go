@@ -12,12 +12,10 @@ func (s *TraceTestCase) Dump() error {
 	// Add block, state
 	st := store.GetInstance()
 	st.AddBlock(s.Block)
-	/*
-		state, err := merklization.StateKeyValsToState(s.PreState.KeyVals)
-		if err != nil {
-			return fmt.Errorf("state key-vals to state failed")
-		}
-	*/
+
+	// Update timeslot
+	st.GetPosteriorStates().SetTau(s.Block.Header.Slot)
+
 	return nil
 }
 

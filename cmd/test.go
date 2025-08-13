@@ -183,10 +183,11 @@ For example:
 					}
 
 				} else {
-					// mode = trace
+					// type = trace
 
 					// stf occurs error
 					if outputErr != nil {
+						log.Printf(outputErr.Error())
 						failed++
 					} else {
 						err := data.Validate()
