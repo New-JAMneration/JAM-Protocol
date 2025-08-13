@@ -1487,6 +1487,7 @@ type PartialStateSet struct {
 // (12.18 pre-0.6.5)
 // (12.19 0.6.5)
 // (12.13) U
+// U = operand
 type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
