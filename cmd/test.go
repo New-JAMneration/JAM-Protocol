@@ -138,7 +138,7 @@ For example:
 					}
 					instance.GenerateGenesisBlock(block)
 					instance.GenerateGenesisState(state)
-					recent_history.STFBeta2BetaDagger()
+					recent_history.STFBetaH2BetaHDagger()
 				}
 			}
 
@@ -158,6 +158,11 @@ For example:
 					log.Printf("got error during parsing: %v", err)
 					failed++
 					continue
+				}
+
+				if testType == "trace" {
+					// post-state update to pre-state, tau_prime+1
+					store.GetInstance().StateCommit()
 				}
 
 				// Run the test
@@ -208,6 +213,7 @@ For example:
 
 			log.Printf("----------------------------------------")
 			if testType == "trace" {
+				// -1 : genesis file
 				log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles)-1, passed, failed)
 			} else {
 				log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
