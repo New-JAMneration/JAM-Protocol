@@ -98,18 +98,22 @@ func (rhc *RecentHistoryController) RecentHistory2Dagger(parentStateRoot types.S
 // TODO: remove mock theta and read from store(posterior LastAccOut)
 func s() (output types.ByteSequence) {
 	newEncoder := types.NewEncoder()
-	mockTheta := []types.AccumulatedServiceHash{}
-	for _, pair := range mockTheta {
-		encodedServiceId, err := newEncoder.EncodeUintWithLength(uint64(pair.ServiceId), 4)
-		if err != nil {
-			return nil
+	s := store.GetInstance()
+	lastAccOut := s.GetPosteriorStates().GetLastAccOut()
+	// mockTheta := []types.AccumulatedServiceHash{}
+	for pair, exist := range lastAccOut {
+		if exist {
+			encodedServiceId, err := newEncoder.EncodeUintWithLength(uint64(pair.ServiceId), 4)
+			if err != nil {
+				return nil
+			}
+			output = append(output, encodedServiceId...)
+			encodedHash, err := newEncoder.Encode(pair.Hash)
+			if err != nil {
+				return nil
+			}
+			output = append(output, encodedHash...)
 		}
-		output = append(output, encodedServiceId...)
-		encodedHash, err := newEncoder.Encode(pair.Hash)
-		if err != nil {
-			return nil
-		}
-		output = append(output, encodedHash...)
 	}
 	return output
 }
@@ -176,32 +180,32 @@ func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
 	s.GetPosteriorStates().SetBetaH(historyDagger)
 }
 
-// // STF β† ≺ (H, β) (4.6)
-// func STFBeta2BetaDagger() {
-// 	var (
-// 		s               = store.GetInstance()
-// 		rhc             = NewRecentHistoryController()
-// 		betas           = s.GetPriorStates().GetBeta()
-// 		block           = s.GetProcessingBlockPointer().GetBlock()
-// 		parentStateRoot = block.Header.ParentStateRoot
-// 	)
-// 	rhc.Betas = betas
-// 	rhc.AddToBetaDagger(parentStateRoot)
-// }
+// STF β†_H ≺ (H, β_H) (4.6)
+func STFBeta2BetaDagger() {
+	var (
+		s               = store.GetInstance()
+		rhc             = NewRecentHistoryController()
+		betas           = s.GetPriorStates().GetBeta()
+		block           = s.GetLatestBlock()
+		parentStateRoot = block.Header.ParentStateRoot
+	)
+	rhc.Betas = betas
+	rhc.RecentHistory2Dagger(parentStateRoot)
+}
 
-// // STF β′ ≺ (H, EG, β†, C) (4.7)
-// func STFBetaDagger2BetaPrime() {
-// 	var (
-// 		s          = store.GetInstance()
-// 		rhc        = NewRecentHistoryController()
-// 		betas      = s.GetIntermediateStates().GetBetaDagger()
-// 		block      = s.GetProcessingBlockPointer().GetBlock()
-// 		betaB      = s.GetPriorStates().GetLastAccOut()
-// 		headerHash = block.Header.Parent
-// 		eg         = block.Extrinsic.Guarantees
-// 	)
-// 	rhc.Betas = betas
-// 	accumulationResultTreeRoot := r(betaB)
-// 	items := rhc.N(headerHash, eg, accumulationResultTreeRoot)
-// 	rhc.AddToBetaPrime(items)
-// }
+// STF β′_H ≺ (H, EG, β†_H, C) (4.7)
+func STFBetaDagger2BetaPrime() {
+	var (
+		s   = store.GetInstance()
+		rhc = NewRecentHistoryController()
+		// betas      = s.GetIntermediateStates().GetBetaHDagger()
+		block = s.GetLatestBlock()
+		// betaB      = s.GetPriorStates().GetLastAccOut()
+		headerHash = block.Header.Parent
+		eg         = block.Extrinsic.Guarantees
+	)
+	// rhc.Betas = types.RecentBlocks{History: betas}
+	// accumulationResultTreeRoot := r(betaB)
+	items := rhc.N(headerHash, eg)
+	rhc.AddToBetaPrime(items)
+}
