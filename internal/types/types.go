@@ -1465,24 +1465,25 @@ type (
 type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
-	Designate   ServiceId           `json:"chi_v"` // AlterIota
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
+	Bless       ServiceId           `json:"chi_m"` // XM
+	Designate   ServiceId           `json:"chi_v"` // XV
+	CreateAcct  ServiceId           `json:"chi_r"` // XR
+	Assign      ServiceIdList       `json:"chi_a"` // XA
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XA
 }
 
 type AccumulateRoot OpaqueHash
 
 // (12.13)
 type PartialStateSet struct {
-	ServiceAccounts        ServiceAccountState     // d
-	ValidatorKeys          ValidatorsData          // i
-	Authorizers            AuthQueues              // q
-	Bless                  ServiceId               // m
-	Assign                 ServiceIdList           // a
-	Designate              ServiceId               // v
-	AvailabilityAssignment AvailabilityAssignments // r
-	AlwaysAccum            AlwaysAccumulateMap     // z
+	ServiceAccounts ServiceAccountState // d
+	ValidatorKeys   ValidatorsData      // i
+	Authorizers     AuthQueues          // q
+	Bless           ServiceId           // m
+	Assign          ServiceIdList       // a
+	Designate       ServiceId           // v
+	CreateAcct      ServiceId           // r
+	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
 // (12.18 pre-0.6.5)

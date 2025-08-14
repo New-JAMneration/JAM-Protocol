@@ -276,6 +276,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		Bless:           chi.Bless,
 		Assign:          chi.Assign,
 		Designate:       chi.Designate,
+		CreateAcct:      chi.CreateAcct,
 		AlwaysAccum:     chi.AlwaysAccum,
 	}
 
