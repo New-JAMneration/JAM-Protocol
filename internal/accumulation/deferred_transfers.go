@@ -291,7 +291,6 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// Execute outer accumulation
 	outerAccumulationInput := OuterAccumulationInput{
 		GasLimit:                     g,
-		DeferredTransfers:            []types.DeferredTransfer{}, // empty
 		WorkReports:                  accumulatableWorkReports,
 		InitPartialStateSet:          partialStateSet,
 		ServicesWithFreeAccumulation: chi_g,
