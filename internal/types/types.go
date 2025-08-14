@@ -1474,14 +1474,14 @@ type AccumulateRoot OpaqueHash
 
 // (12.16) S
 type PartialStateSet struct {
-	ServiceAccounts        ServiceAccountState     // d
-	ValidatorKeys          ValidatorsData          // i
-	Authorizers            AuthQueues              // q
-	Bless                  ServiceId               // m
-	Assign                 ServiceIdList           // a
-	Designate              ServiceId               // v
-	AvailabilityAssignment AvailabilityAssignments // r
-	AlwaysAccum            AlwaysAccumulateMap     // z
+	ServiceAccounts ServiceAccountState // d
+	ValidatorKeys   ValidatorsData      // i
+	Authorizers     AuthQueues          // q
+	Bless           ServiceId           // m
+	Assign          ServiceIdList       // a
+	Designate       ServiceId           // v
+	CreateAcct      ServiceId           // r
+	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
 // (12.18 pre-0.6.5)
