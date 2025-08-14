@@ -274,7 +274,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// Initialize output maps
 	output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
 
-	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f) ∪ { td S t ∈ t }
+	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
 	s := make(map[types.ServiceId]bool)
 	// {rs S w ∈ w, r ∈ wr}
 	for _, w := range input.WorkReports {
@@ -286,7 +286,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range input.AlwaysAccumulateMap {
 		s[service_id] = true
 	}
-	// td S t ∈ t
+	//  { td S t ∈ t }
 	for _, deferred_transfer := range input.DeferredTransfers {
 		s[deferred_transfer.ReceiverID] = true
 	}
