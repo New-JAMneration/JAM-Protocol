@@ -188,15 +188,17 @@ For example:
 
 					// stf occurs error
 					if outputErr != nil {
-						log.Printf(outputErr.Error())
+						log.Printf("stf output error %v:", outputErr)
 						failed++
 					} else {
 						err := data.Validate()
 						if err != nil {
+							log.Printf("state root validate: %v", err)
 							failed++
 							continue
 						}
 						passed++
+						log.Printf("passed\n")
 					}
 				}
 			}
