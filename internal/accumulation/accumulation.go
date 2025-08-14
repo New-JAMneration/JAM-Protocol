@@ -220,6 +220,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	parallel_input.WorkReports = input.WorkReports[:i]
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
+	parallel_input.DeferredTransfers = input.DeferredTransfers
 
 	parallel_result, err := ParallelizedAccumulation(parallel_input)
 	if err != nil {
@@ -227,14 +228,18 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	}
 
 	// Recurse on the remaining reports with the remaining gas
-	remain_gas := input.GasLimit
+	gas_limit := input.GasLimit
+	for _, DeferredTransfer := range input.DeferredTransfers {
+		gas_limit += DeferredTransfer.GasLimit
+	}
 	for _, gas_use := range parallel_result.ServiceGasUsedList {
-		remain_gas -= gas_use.Gas
+		gas_limit -= gas_use.Gas
 	}
 	var recursive_outer_input OuterAccumulationInput
-	recursive_outer_input.GasLimit = remain_gas
+	recursive_outer_input.GasLimit = gas_limit
 	recursive_outer_input.WorkReports = input.WorkReports[i:]
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
+	recursive_outer_input.DeferredTransfers = parallel_result.DeferredTransfers
 
 	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
 	if err != nil {
