@@ -161,9 +161,8 @@ For example:
 				// Run the test
 				outputErr := runner.Run(data, testRunSTF)
 
-				if testType == "stf" {
+				if testType == "jam-test-vectors" {
 					expectedErr := data.ExpectError()
-
 					if expectedErr != nil {
 						if outputErr == nil {
 							fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
@@ -201,7 +200,11 @@ For example:
 			}
 
 			log.Printf("----------------------------------------")
-			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles)-1, passed, failed)
+			if testType == "trace" {
+				log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles)-1, passed, failed)
+			} else {
+				log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+			}
 		},
 	}
 }
