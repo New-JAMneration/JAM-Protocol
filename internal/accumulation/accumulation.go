@@ -243,7 +243,6 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
-	output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
 	output.ServiceGasUsedList = append(parallel_result.ServiceGasUsedList, recursive_outer_output.ServiceGasUsedList...)
 	output.AccumulatedServiceOutput = parallel_result.AccumulatedServiceOutput
 
