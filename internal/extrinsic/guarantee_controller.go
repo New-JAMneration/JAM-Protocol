@@ -431,16 +431,11 @@ func (g *GuaranteeController) CheckWorkResult() error {
 func (g *GuaranteeController) TransitionWorkReport() {
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	posteriorTau := store.GetInstance().GetPosteriorStates().GetTau()
-	coreIndexMap := make(map[types.CoreIndex]bool)
+
 	for _, guarantee := range g.Guarantees {
-		coreIndexMap[guarantee.Report.CoreIndex] = true
-	}
-	for i := range rhoDoubleDagger {
-		if coreIndexMap[types.CoreIndex(i)] {
-			rhoDoubleDagger[i] = &types.AvailabilityAssignment{
-				Report:  g.Guarantees[i].Report,
-				Timeout: posteriorTau,
-			}
+		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
+			Report:  guarantee.Report,
+			Timeout: posteriorTau,
 		}
 	}
 
