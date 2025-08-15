@@ -348,30 +348,34 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// (m′, a∗, v∗, z′) = (∆1(o, w, f , m)o)(m,a,v,z)
 	store := store.GetInstance()
 	single_output := runSingleReplaceService(input.PartialStateSet.Bless)
-	m_prime := single_output.PartialStateSet.Bless
-	a_star := single_output.PartialStateSet.Assign
-	z_prime := single_output.PartialStateSet.AlwaysAccum
+	e_prime := single_output.PartialStateSet
+	m_prime := e_prime.Bless
+	a_star := e_prime.Assign
+	z_prime := e_prime.AlwaysAccum
 	a_prime := make([]types.ServiceId, len(a_star))
-	// ∀c ∈ NC ∶ a′c = ((∆1(o, w, f , a∗c )o)a)c
+	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
 	for c, ac := range a_star {
-		single_output := runSingleReplaceService(ac)
-		a_prime[c] = single_output.PartialStateSet.Assign[c]
+		if ac == e_prime.Assign[c] {
+			a_prime[c] = runSingleReplaceService(ac).PartialStateSet.Assign[c] // ((∆(ac)e)a)c
+		} else {
+			a_prime[c] = e_prime.Assign[c] // (e∗a)c
+		}
 	}
 
 	var v_prime, r_prime types.ServiceId
 	// v' = R(v, e∗v , (∆(v)e)v )
-	if input.PartialStateSet.Designate == single_output.PartialStateSet.Designate {
+	if input.PartialStateSet.Designate == e_prime.Designate {
 		single_output = runSingleReplaceService(input.PartialStateSet.Designate) // ∆(v)
-		v_prime = single_output.PartialStateSet.Designate                        // (∆(v)e)v
+		v_prime = e_prime.Designate                                              // (∆(v)e)v
 	} else {
-		v_prime = single_output.PartialStateSet.Designate // e∗v
+		v_prime = e_prime.Designate // e∗v
 	}
 	// r′ = R(r, e∗r , (∆(r)e)r)
-	if input.PartialStateSet.CreateAcct == single_output.PartialStateSet.CreateAcct {
+	if input.PartialStateSet.CreateAcct == e_prime.CreateAcct {
 		single_output = runSingleReplaceService(input.PartialStateSet.CreateAcct) // ∆(r)
-		r_prime = single_output.PartialStateSet.CreateAcct                        // (∆(r)e)r
+		r_prime = e_prime.CreateAcct                                              // (∆(r)e)r
 	} else {
-		r_prime = single_output.PartialStateSet.CreateAcct // e∗r
+		r_prime = e_prime.CreateAcct // e∗r
 	}
 	new_partial_state.Bless = m_prime
 	new_partial_state.Assign = a_prime
