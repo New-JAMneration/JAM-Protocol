@@ -179,13 +179,16 @@ For example:
 						}
 						// Check the error message
 					} else {
-						log.Printf("Test %s passed", testFile.Name)
-						passed++
+						if outputErr != nil {
+							fmt.Printf("Test %s failed: expected no error but got %v\n", testFile.Name, outputErr)
+							failed++
+						} else {
+							log.Printf("Test %s passed", testFile.Name)
+							passed++
+						}
 					}
-
 				} else {
 					// type = trace
-
 					// stf occurs error
 					if outputErr != nil {
 						log.Printf("stf output error %v:", outputErr)
