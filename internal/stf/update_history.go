@@ -1,47 +1,21 @@
 package stf
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func UpdateHistory() error {
+	log.Println("Update History")
 
-	s := store.GetInstance()
-	rhc := recent_history.NewRecentHistoryController()
-	if rhc == nil {
-		return fmt.Errorf("controller should be initialized successfully")
-	}
-	if len(rhc.Betas.History) != 0 || len(rhc.Betas.Mmr.Peaks) != 0 {
-		return fmt.Errorf("expected controller to have no states initially, got %+v", rhc.Betas)
-	}
-	rhc.Betas = s.GetPriorStates().GetBeta()
-
-	// Test AddToBetaDagger
 	// Start test STFBeta2BetaDagger (4.6)
-	recent_history.STFBeta2BetaDagger()
+	recent_history.STFBetaH2BetaHDagger()
 
 	// Start test STFBetaDagger2BetaPrime (4.7)
-	recent_history.STFBetaDagger2BetaPrime()
-	// var (
-	// 	betas                  = s.GetIntermediateStates().GetBetaDagger()
-	// 	block                  = s.GetProcessingBlockPointer().GetBlock()
-	// 	headerHash             = block.Header.Parent
-	// 	eg                     = block.Extrinsic.Guarantees
-	// 	inputAccumulateRootMap = s.GetIntermediateStates().GetBeefyCommitmentOutput()
-	// )
-	// var inputAccumulateRoot types.OpaqueHash
-	// for serviceHash, exist := range inputAccumulateRootMap {
-	// 	if exist {
-	// 		inputAccumulateRoot = serviceHash.Hash
-	// 	}
-	// }
-
-	// rhc.Betas = betas
-	// items := rhc.N(headerHash, eg, inputAccumulateRoot)
-	// rhc.AddToBetaPrime(items)
+	if err := recent_history.STFBetaHDagger2BetaHPrime_ForTestVector(); err != nil {
+		return err
+	}
 
 	return nil
 }
