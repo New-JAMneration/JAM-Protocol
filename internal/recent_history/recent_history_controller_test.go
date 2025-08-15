@@ -759,6 +759,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 	}
 
 	for _, binFile := range binFiles {
+		t.Logf("🚀 Processing file: %s", binFile)
 		// if binFile != "progress_blocks_history-4.bin" {
 		// 	continue
 		// }
@@ -819,7 +820,9 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		// Start test STFBetaDagger2BetaPrime (4.7)
 		// For test-vector, we cannot call STFBetaHDagger2BetaHPrime(),
 		// set intermediate value accumulationRoot manually
+		t.Logf("mmr peaks before append: %+v", history.PreState.Beta.Mmr.Peaks)
 		beefyBeltPrime, commitment := appendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
+		t.Logf("mmr peaks after append: %+v", beefyBeltPrime.Peaks)
 		workReportHash := mapWorkReportFromEg(block.Extrinsic.Guarantees)
 		item := newItem(history.Input.HeaderHash, workReportHash, commitment)
 		historyPrime := AddItem2BetaHPrime(HistoryDagger, item)
@@ -841,9 +844,6 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		/*
 			Validate
 		*/
-		t.Logf("length of betaPrime: %d", len(betaPrime.History))
-		t.Logf("length of poststateBeta: %d", len(history.PostState.Beta.History))
-
 		if !reflect.DeepEqual(betaPrime.History, history.PostState.Beta.History) {
 			t.Logf("❌ [data] %s", binFile)
 			t.Logf("BetaPrime: %+#v", betaPrime)
