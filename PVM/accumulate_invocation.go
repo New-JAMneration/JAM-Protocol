@@ -11,7 +11,7 @@ func Psi_A(
 	time types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
-	operands []types.Operand,
+	operandOrDeferTransfers []types.OperandOrDeferredTransfer,
 	eta types.Entropy,
 ) (
 	psi_result Psi_A_ReturnType,
@@ -56,7 +56,7 @@ func Psi_A(
 	serialized = append(serialized, encoded...)
 
 	// Encode |o|
-	encoded, err = encoder.EncodeUint(uint64(len(operands)))
+	encoded, err = encoder.EncodeUint(uint64(len(operandOrDeferTransfers)))
 	if err != nil {
 		panic(err)
 	}
@@ -95,7 +95,7 @@ func Psi_A(
 			ResultContextX: I(partialState, serviceId, time, eta),
 			ResultContextY: I(partialState, serviceId, time, eta),
 			Eta:            eta,
-			Operands:       operands,
+			Operands:       operandOrDeferTransfers, // TODO change on the PVM side to use OperandOrDeferredTransfer
 		},
 	}
 
