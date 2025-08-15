@@ -74,16 +74,14 @@ func lastAccOutRoot(serializedLastAccOut types.ByteSequence) types.OpaqueHash {
 	b: MR(β′_B)
 */
 func appendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types.Mmr, types.OpaqueHash) {
-	var Mmr *mmr.MMR
+	var m *mmr.MMR
 	if len(beefyBelt.Peaks) == 0 {
-		Mmr = mmr.NewMMR(hash.KeccakHash)
+		m = mmr.NewMMR(hash.KeccakHash)
 	} else {
-		Mmr = mmr.NewMMRFromPeaks(beefyBelt.Peaks, hash.KeccakHash)
+		m = mmr.NewMMRFromPeaks(beefyBelt.Peaks, hash.KeccakHash)
 	}
-	log.Printf("mmr struct before append: %+v", Mmr)
-	beefybeltPrime := Mmr.AppendOne(types.MmrPeak(&merkleRoot))
-	log.Printf("mmr struct before superpeak: %+v", Mmr)
-	return types.Mmr{Peaks: beefybeltPrime}, Mmr.SuperPeak(beefybeltPrime)
+	beefybeltPrime := m.AppendOne(types.MmrPeak(&merkleRoot))
+	return types.Mmr{Peaks: beefybeltPrime}, m.SuperPeak(beefybeltPrime)
 }
 
 // The set of work reports $\mathbf{p}$ (7.8) GP 0.6.7
