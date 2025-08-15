@@ -73,7 +73,7 @@ func lastAccOutRoot(serializedLastAccOut types.ByteSequence) types.OpaqueHash {
 
 	b: MR(β′_B)
 */
-func appendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types.Mmr, types.OpaqueHash) {
+func AppendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types.Mmr, types.OpaqueHash) {
 	var m *mmr.MMR
 	if len(beefyBelt.Peaks) == 0 {
 		m = mmr.NewMMR(hash.KeccakHash)
@@ -88,7 +88,7 @@ func appendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types
 /*
 	p = { ((g_w)s)h ↦ ((g_w)s)e | g ∈ EG }
 */
-func mapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
+func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 	var reports []types.ReportedWorkPackage
 	// Create a map from eg.Report.PackageSpec.Hash to eg.Report.PackageSpec.ExportsRoot
 	for _, eg := range eg {
@@ -105,7 +105,7 @@ func mapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPacka
 /*
 	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
 */
-func newItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
+func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
 	zeroHash := types.StateRoot{}
 
 	item = types.BlockInfo{
@@ -151,24 +151,52 @@ func STFBetaH2BetaHDagger() {
 // STF β′_H ≺ (H, EG, β†_H, C) (4.7)
 func STFBetaHDagger2BetaHPrime() error {
 	var (
-		store         = store.GetInstance()
-		historyDagger = store.GetIntermediateStates().GetBetaHDagger()
-		beefyBelt     = store.GetPriorStates().GetBeta().Mmr
-		lastAccOut    = store.GetPosteriorStates().GetLastAccOut()
-		block         = store.GetLatestBlock()
+		s             = store.GetInstance()
+		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
+		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
+		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
+		block         = s.GetLatestBlock()
 	)
 	serializedLastAccOut, err := serLastAccOut(lastAccOut)
 	if err != nil {
 		return err
 	}
 	merkleRoot := lastAccOutRoot(serializedLastAccOut)
-	beefyBeltPrime, commitment := appendAndCommitMmr(beefyBelt, merkleRoot)
-	workReportHash := mapWorkReportFromEg(block.Extrinsic.Guarantees)
-	item := newItem(block.Header.Parent, workReportHash, commitment)
+	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
+	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
+	item := NewItem(block.Header.Parent, workReportHash, commitment)
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store
-	store.GetPosteriorStates().SetBetaB(beefyBeltPrime)
-	store.GetPosteriorStates().SetBetaH(historyPrime)
+	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	s.GetPosteriorStates().SetBetaH(historyPrime)
+	return nil
+}
+
+// STF β′_H ≺ (H, EG, β†_H, C) (4.7)
+func STFBetaHDagger2BetaHPrime_ForTestVector() error {
+	var (
+		s             = store.GetInstance()
+		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
+		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
+		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
+		block         = s.GetLatestBlock()
+	)
+	var merkleRoot types.OpaqueHash
+	for pair, exist := range lastAccOut {
+		if exist {
+			merkleRoot = pair.Hash
+		}
+	}
+	log.Printf("mmr peaks before append: %v", beefyBelt.Peaks)
+	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
+	log.Printf("mmr peaks after append: %v", beefyBeltPrime.Peaks)
+	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
+	item := NewItem(block.Header.Parent, workReportHash, commitment)
+	historyPrime := AddItem2BetaHPrime(historyDagger, item)
+
+	// Set beta_B^prime and beta_H^prime to store
+	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	s.GetPosteriorStates().SetBetaH(historyPrime)
 	return nil
 }
