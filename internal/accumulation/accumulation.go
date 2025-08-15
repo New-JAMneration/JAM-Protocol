@@ -277,7 +277,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range input.AlwaysAccumulateMap {
 		s[service_id] = true
 	}
-	//  { td S t ∈ t }
+	// td S t ∈ t
 	for _, deferred_transfer := range input.DeferredTransfers {
 		s[deferred_transfer.ReceiverID] = true
 	}
@@ -445,7 +445,8 @@ func R[T comparable](o, a, b T) T {
 
 // (12.20) ∆1 single-service accumulation function
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
-	var operands []types.Operand // all operand inputs for Ψₐ
+	var operands []types.Operand                    // all operand inputs for Ψₐ
+	var deferred_transfers []types.DeferredTransfer // all deferred transfers
 	// U(fs, 0)
 	g := types.Gas(0)
 	if preset, ok := input.AlwaysAccumulateMap[input.ServiceId]; ok {
@@ -473,7 +474,20 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			}
 		}
 	}
-
+	for _, deferred_transfer := range input.DeferredTransfers {
+		if deferred_transfer.ReceiverID == input.ServiceId {
+			deferred_transfers = append(deferred_transfers, deferred_transfer)
+			g += deferred_transfer.GasLimit
+		}
+	}
+	var operandOrDeferredTransfers []types.OperandOrDeferredTransfer
+	//  iT ⌢ iU
+	for _, operand := range operands {
+		operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{Operand: &operand})
+	}
+	for _, deferred_transfer := range deferred_transfers {
+		operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{DeferredTransfer: &deferred_transfer})
+	}
 	// τ′: Posterior validator state used by Ψₐ
 	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
