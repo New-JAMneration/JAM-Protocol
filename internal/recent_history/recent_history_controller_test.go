@@ -810,10 +810,10 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		STFBetaH2BetaHDagger()
 
 		// Validate intermediate state betaHDagger
-		betaHDagger := storeInstance.GetIntermediateStates().GetBetaHDagger()
-		if betaHDagger.Validate() != nil {
+		HistoryDagger := storeInstance.GetIntermediateStates().GetBetaHDagger()
+		if HistoryDagger.Validate() != nil {
 			t.Logf("❌ [data] %s", binFile)
-			t.Errorf("betaHDagger validation failed: %v", betaHDagger.Validate())
+			t.Errorf("betaHDagger validation failed: %v", HistoryDagger.Validate())
 		}
 
 		// Start test STFBetaDagger2BetaPrime (4.7)
@@ -822,7 +822,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		beefyBeltPrime, commitment := appendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
 		workReportHash := mapWorkReportFromEg(block.Extrinsic.Guarantees)
 		item := newItem(history.Input.HeaderHash, workReportHash, commitment)
-		historyPrime := AddItem2BetaHPrime(betaHDagger, item)
+		historyPrime := AddItem2BetaHPrime(HistoryDagger, item)
 
 		// Set beta_B^prime and beta_H^prime to store
 		storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
