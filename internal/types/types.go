@@ -548,7 +548,7 @@ func (w *WorkReport) ScaleEncode() ([]byte, error) {
 
 type MmrPeak *OpaqueHash
 
-// (7.3) GP 0.6.7
+// Beefy Belt (7.3) GP 0.6.7
 type Mmr struct {
 	Peaks []MmrPeak `json:"peaks,omitempty"`
 }
