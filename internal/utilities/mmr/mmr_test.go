@@ -2,12 +2,14 @@ package mmr
 
 import (
 	"bytes"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 )
 
 func HelperFromM(mmrPeak types.MmrPeak) types.OpaqueHash {
@@ -393,4 +395,53 @@ func TestMMR_AppendOne_Comprehensive(t *testing.T) {
 		peaks4 := m.AppendOne(&hash4)
 		t.Logf("After hash4: %d peaks", len(peaks4))
 	})
+}
+
+// Use tiny history vectors to verify MMR append and superpeak match post_state
+func TestMMR_TinyVectors_AppendAndRoot(t *testing.T) {
+	// We are under internal/utilities/mmr, go up one level to align with
+	// utilities.JAM_TEST_VECTORS_DIR defined as ../../pkg_test_data...
+	dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
+	binFiles, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+	if err != nil {
+		t.Fatalf("failed to list tiny vector bins: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		binPath := filepath.Join(dir, binFile)
+
+		tv := &jamtests_history.HistoryTestCase{}
+		if err := utilities.GetTestFromBin(binPath, tv); err != nil {
+			t.Fatalf("%s: decode error: %v", binFile, err)
+		}
+
+		// Build or wrap pre_state MMR
+		var m *MMR
+		if len(tv.PreState.Beta.Mmr.Peaks) == 0 {
+			m = NewMMR(hash.KeccakHash)
+		} else {
+			m = NewMMRFromPeaks(tv.PreState.Beta.Mmr.Peaks, hash.KeccakHash)
+		}
+
+		// Append accumulate_root from input
+		newPeaks := m.AppendOne(types.MmrPeak(&tv.Input.AccumulateRoot))
+
+		// Compute super-peak
+		gotRoot := m.SuperPeak(newPeaks)
+
+		// Expect post_state BeefyRoot on the last history item
+		if len(tv.PostState.Beta.History) == 0 {
+			t.Fatalf("%s: post_state.beta.history empty", binFile)
+		}
+		wantRoot := tv.PostState.Beta.History[len(tv.PostState.Beta.History)-1].BeefyRoot
+
+		if !bytes.Equal(gotRoot[:], wantRoot[:]) {
+			t.Errorf("%s: superpeak mismatch\n got=%x\nwant=%x", binFile, gotRoot, wantRoot)
+		}
+
+		// Also expect peaks layout to match post_state MMR
+		if !reflect.DeepEqual(newPeaks, tv.PostState.Beta.Mmr.Peaks) {
+			t.Errorf("%s: peaks mismatch after append", binFile)
+		}
+	}
 }
