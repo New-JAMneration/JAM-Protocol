@@ -780,7 +780,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		store.ResetInstance()
 		storeInstance := store.GetInstance()
 		// Set prior state recent history ( beta_H )
-		storeInstance.GetPriorStates().SetBetaH(history.PreState.Beta.History)
+		storeInstance.GetPriorStates().SetBeta(history.PreState.Beta)
 		// Set extrinsic
 		mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 		for _, workPackage := range history.Input.WorkPackages {
@@ -821,12 +821,11 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		// For test-vector, we cannot call STFBetaHDagger2BetaHPrime(),
 		// set intermediate value accumulationRoot manually
 		t.Logf("mmr peaks before append: %+v", history.PreState.Beta.Mmr.Peaks)
-		beefyBeltPrime, commitment := appendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
+		beefyBeltPrime, commitment := AppendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
 		t.Logf("mmr peaks after append: %+v", beefyBeltPrime.Peaks)
-		workReportHash := mapWorkReportFromEg(block.Extrinsic.Guarantees)
-		item := newItem(history.Input.HeaderHash, workReportHash, commitment)
+		workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
+		item := NewItem(history.Input.HeaderHash, workReportHash, commitment)
 		historyPrime := AddItem2BetaHPrime(HistoryDagger, item)
-
 		// Set beta_B^prime and beta_H^prime to store
 		storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
 		storeInstance.GetPosteriorStates().SetBetaH(historyPrime)
