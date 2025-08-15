@@ -286,7 +286,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range input.AlwaysAccumulateMap {
 		s[service_id] = true
 	}
-	//  { td S t ∈ t }
+	// td S t ∈ t
 	for _, deferred_transfer := range input.DeferredTransfers {
 		s[deferred_transfer.ReceiverID] = true
 	}
