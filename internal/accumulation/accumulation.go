@@ -386,6 +386,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		Designate:   v_prime,
 		AlwaysAccum: z_prime,
 	})
+	// r′ = R(r, e∗r , (∆(r)e)r)
+	{
+		single_output = runSingleReplaceService(input.PartialStateSet.CreateAcct)
+		r_prime := single_output.PartialStateSet.CreateAcct
+		new_partial_state.CreateAcct = r_prime
+		store.GetPosteriorStates().SetCreateAcct(r_prime)
+	}
 	// store.GetPosteriorStates().SetChi(x_prime)
 	// i′ = (∆(v)e)i
 	{
