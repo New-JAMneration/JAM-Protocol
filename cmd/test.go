@@ -122,7 +122,7 @@ For example:
 				outputErr := runner.Run(data, testRunSTF)
 				expectedErr := data.ExpectError()
 
-				if expectedErr != nil {
+				if expectedErr != nil { // check if the error message matches
 					if outputErr == nil {
 						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
 						failed++
@@ -134,10 +134,14 @@ For example:
 						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
 						passed++
 					}
-					// Check the error message
-				} else {
-					log.Printf("Test %s passed", testFile.Name)
-					passed++
+				} else { // not error message expected, check validation
+					if outputErr != nil {
+						fmt.Printf("Test %s failed: expected no error but got %v\n", testFile.Name, outputErr)
+						failed++
+					} else {
+						log.Printf("Test %s passed", testFile.Name)
+						passed++
+					}
 				}
 			}
 
