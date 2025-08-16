@@ -2386,7 +2386,10 @@ func (p *Privileges) Encode(e *Encoder) error {
 	if err := p.Designate.Encode(e); err != nil {
 		return err
 	}
-
+	// CreateAcct
+	if err := p.CreateAcct.Encode(e); err != nil {
+		return err
+	}
 	// AlwaysAccum (dictionary)
 	if err := p.AlwaysAccum.Encode(e); err != nil {
 		return err
