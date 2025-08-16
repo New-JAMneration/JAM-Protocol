@@ -1472,7 +1472,7 @@ type Privileges struct {
 
 type AccumulateRoot OpaqueHash
 
-// (12.13)
+// (12.16) S
 type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
@@ -1485,6 +1485,7 @@ type PartialStateSet struct {
 
 // (12.18 pre-0.6.5)
 // (12.19 0.6.5)
+// (12.13) U
 type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
@@ -1501,7 +1502,7 @@ type OperandOrDeferredTransfer struct {
 	DeferredTransfer *DeferredTransfer // X
 }
 
-// (12.15) U
+// (12.17) U
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
@@ -1514,7 +1515,7 @@ type AccumulatedServiceHash struct {
 	Hash      OpaqueHash // AccumulationOutput
 }
 
-// (12.15) B
+// (12.17) B
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
 // (12.23)
