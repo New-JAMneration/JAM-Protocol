@@ -2859,6 +2859,41 @@ func (o *Operand) Encode(e *Encoder) error {
 	return nil
 }
 
+func (o *OperandOrDeferredTransfer) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding OperandOrDeferredTransfer")
+
+	// if operand is nil, append 0 to the buffer, else append 1
+	if o.Operand == nil && o.DeferredTransfer == nil {
+		return fmt.Errorf("Operand and DeferredTransfer are both nil")
+	}
+
+	if o.Operand != nil && o.DeferredTransfer != nil {
+		return fmt.Errorf("Operand and DeferredTransfer are both not nil")
+	}
+
+	// Operand
+	if o.Operand != nil {
+		// prefix
+		e.buf.Write([]byte{0})
+
+		if err := o.Operand.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// DeferredTransfer
+	if o.DeferredTransfer != nil {
+		// prefix
+		e.buf.Write([]byte{1})
+
+		if err := o.DeferredTransfer.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 type SliceHash struct {
 	A []OpaqueHash
 	B []OpaqueHash
