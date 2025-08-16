@@ -1495,6 +1495,12 @@ type Operand struct {
 	AuthOutput     ByteSequence    // o
 }
 
+// (12.15) I: U or X
+type OperandOrDeferredTransfer struct {
+	Operand          *Operand          // U
+	DeferredTransfer *DeferredTransfer // X
+}
+
 // (12.15) U
 type ServiceGasUsedList []ServiceGasUsed
 
