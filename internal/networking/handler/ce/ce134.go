@@ -12,15 +12,15 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
 
+type CE134Payload struct {
+	CoreIndex   uint32
+	HeaderHash  [32]byte
+	WorkPackage *types.WorkPackage
+}
+
 type SegmentRootMapping struct {
 	WorkPackageHash types.WorkPackageHash
 	SegmentRoot     types.OpaqueHash
-}
-
-type CE134WorkPackageShare struct {
-	CoreIndex           types.CoreIndex
-	SegmentRootMappings []SegmentRootMapping
-	Bundle              []byte
 }
 
 // Helper to decode segment-root mappings from the stream
@@ -83,12 +83,14 @@ func HandleWorkPackageShare(
 	}
 	workReport, err := controller.Process()
 	if err != nil {
-		return fmt.Errorf("work-package verification failed: %w", err)
+		return fmt.Errorf("work-package failed to process into work-report: %w", err)
 	}
 
 	workReportHash := workReport.PackageSpec.Hash
+	message := []byte{}
+	message = append(message, workReportHash[:]...)
 
-	sig, err := keypair.Sign(workReportHash[:])
+	sig, err := keypair.Sign(message)
 	if err != nil {
 		return fmt.Errorf("failed to sign work-report hash: %w", err)
 	}
