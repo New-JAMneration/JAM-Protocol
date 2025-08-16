@@ -11,6 +11,12 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+type CE135Payload struct {
+	CoreIndex uint32
+	Report    types.WorkReport
+	Signature types.Ed25519Signature
+}
+
 // HandleWorkReportDistribution implements CE 135: distribution of a fully guaranteed work-report
 // Accepts any io.ReadWriteCloser for testability, and allows injection of a keypair for signing
 func HandleWorkReportDistribution(

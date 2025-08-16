@@ -12,6 +12,11 @@ import (
 // Returns (workReport, found)
 type WorkReportLookupFunc func(hash types.WorkReportHash) (*types.WorkReport, bool)
 
+// CE136Payload represents the payload for a WorkReportRequest
+type CE136Payload struct {
+	CoreIndex uint32
+}
+
 // HandleWorkReportRequest implements CE 136: Auditor -> Auditor work-report request
 // Reads a 32-byte work-report hash and 'FIN', looks up the work-report, writes the encoded work-report and 'FIN'.
 func HandleWorkReportRequest(
