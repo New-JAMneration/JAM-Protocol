@@ -193,7 +193,7 @@ For example:
 					} else {
 						err := data.Validate()
 						if err != nil {
-							log.Printf("state root validate: %v", err)
+							log.Printf("state root validate error: %v", err)
 							failed++
 							continue
 						}
