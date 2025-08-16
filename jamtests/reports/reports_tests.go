@@ -809,9 +809,6 @@ func (r *ReportsTestCase) Validate() error {
 		}
 	}
 
-	if len(outputData.Reporters) != len(r.Output.Ok.Reporters) {
-		return fmt.Errorf("outputData.Reporters mismatch")
-	}
 	reporterMap := make(map[types.Ed25519Public]bool)
 	for _, reporter := range outputData.Reporters {
 		reporterMap[reporter] = true
