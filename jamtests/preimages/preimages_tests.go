@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -668,8 +669,8 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (p *PreimageTestCase) Dump() error {
+	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
 	inputDelta := make(types.ServiceAccountState)
@@ -732,9 +733,22 @@ func (p *PreimageTestCase) Validate() error {
 	storeInstance := store.GetInstance()
 	inputDelta := storeInstance.GetIntermediateStates().GetDeltaDoubleDagger()
 	outputDelta := storeInstance.GetPosteriorStates().GetDelta()
-	// Validate output state
+
+	// Validate output accounts
 	if !reflect.DeepEqual(outputDelta, inputDelta) {
 		return errors.New("result states are not equal")
 	}
+
+	// Validate output service statistics
+	// After processing the preimages, we need to calculate the statistics and compare it with the expected statistics.
+	extrinsic := storeInstance.GetLatestBlock().Extrinsic
+	statistics.UpdateServiceActivityStatistics(extrinsic)
+
+	expectedServiceStatistics := p.PostState.Statistics
+	actualServiceStatistics := storeInstance.GetPosteriorStates().GetPi().Services
+	if !reflect.DeepEqual(expectedServiceStatistics, actualServiceStatistics) {
+		return fmt.Errorf("expected service statistics %v, got %v", expectedServiceStatistics, actualServiceStatistics)
+	}
+
 	return nil
 }

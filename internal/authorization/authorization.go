@@ -15,6 +15,8 @@ func updatePoolFromQueue(coreIndex types.CoreIndex, eg types.ReportGuarantee, al
 	authHashToRemoved := eg.Report.AuthorizerHash
 	// Removed $authHashToRemoved from $coreIndex
 	pool.RemovePairedValue(authHashToRemoved)
+
+	alpha[coreIndex] = pool
 	return alpha, nil
 }
 
