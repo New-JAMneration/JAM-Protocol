@@ -144,3 +144,31 @@ func (p *CE128Payload) Encode(e *types.Encoder) error {
 	}
 	return nil
 }
+
+func (h *DefaultCERequestHandler) encodeBlockRequest(message interface{}) ([]byte, error) {
+	blockReq, ok := message.(*CE128Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for BlockRequest: %T", message)
+	}
+
+	h.encoder = types.NewEncoder()
+
+	if err := blockReq.HeaderHash.Encode(h.encoder); err != nil {
+		return nil, fmt.Errorf("failed to encode HeaderHash: %w", err)
+	}
+
+	if err := h.encoder.WriteByte(blockReq.Direction); err != nil {
+		return nil, fmt.Errorf("failed to encode Direction: %w", err)
+	}
+
+	maxBlocks := types.U32(blockReq.MaxBlocks)
+	if err := maxBlocks.Encode(h.encoder); err != nil {
+		return nil, fmt.Errorf("failed to encode MaxBlocks: %w", err)
+	}
+
+	encoded, err := h.encoder.Encode(blockReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode CE128Payload: %w", err)
+	}
+	return encoded, nil
+}

@@ -147,102 +147,6 @@ func CreatePreimageAnnouncement(
 	return announcement, nil
 }
 
-// GetPreimageAnnouncement retrieves a preimage announcement from Redis storage
-func GetPreimageAnnouncement(hash types.OpaqueHash) (*CE142Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	hashHex := hex.EncodeToString(hash[:])
-	key := fmt.Sprintf("preimage_announcement:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	encodedAnnouncement, err := client.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get announcement from Redis: %w", err)
-	}
-
-	if encodedAnnouncement == nil {
-		return nil, fmt.Errorf("preimage announcement not found for hash: %x", hash)
-	}
-
-	announcementData := &CE142Payload{}
-	err = announcementData.Decode(encodedAnnouncement)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode announcement data: %w", err)
-	}
-
-	return announcementData, nil
-}
-
-// GetAllPreimageAnnouncementsForService retrieves all preimage announcements for a given service
-func GetAllPreimageAnnouncementsForService(serviceID types.ServiceId) ([]*CE142Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	serviceKey := fmt.Sprintf("service_preimage_announcements:%d", serviceID)
-
-	client := redisBackend.GetClient()
-	encodedAnnouncements, err := client.SMembers(serviceKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get announcements set from Redis: %w", err)
-	}
-
-	var announcements []*CE142Payload
-	for _, encodedAnnouncement := range encodedAnnouncements {
-		announcementData := &CE142Payload{}
-		err := announcementData.Decode(encodedAnnouncement)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode announcement data: %w", err)
-		}
-		announcements = append(announcements, announcementData)
-	}
-
-	return announcements, nil
-}
-
-// DeletePreimageAnnouncement removes a preimage announcement from Redis storage
-func DeletePreimageAnnouncement(hash types.OpaqueHash) error {
-	// Get Redis backend
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	hashHex := hex.EncodeToString(hash[:])
-	key := fmt.Sprintf("preimage_announcement:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	encodedAnnouncement, err := client.Get(key)
-	if err != nil {
-		return fmt.Errorf("failed to get announcement from Redis: %w", err)
-	}
-
-	if encodedAnnouncement != nil {
-		announcementData := &CE142Payload{}
-		err = announcementData.Decode(encodedAnnouncement)
-		if err != nil {
-			return fmt.Errorf("failed to decode announcement data: %w", err)
-		}
-
-		serviceKey := fmt.Sprintf("service_preimage_announcements:%d", announcementData.ServiceID)
-		err = client.SRem(serviceKey, encodedAnnouncement)
-		if err != nil {
-			return fmt.Errorf("failed to remove announcement from service set: %w", err)
-		}
-	}
-
-	err = client.Delete(key)
-	if err != nil {
-		return fmt.Errorf("failed to delete announcement from Redis: %w", err)
-	}
-
-	return nil
-}
-
 type CE142Payload struct {
 	ServiceID      types.ServiceId
 	Hash           types.OpaqueHash
@@ -293,4 +197,31 @@ func (p *CE142Payload) Decode(data []byte) error {
 	p.PreimageLength = types.U32(binary.LittleEndian.Uint32(data[36:40]))
 
 	return p.Validate()
+}
+
+func (h *DefaultCERequestHandler) encodePreimageAnnouncement(message interface{}) ([]byte, error) {
+	announcement, ok := message.(*CE142Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for PreimageAnnouncement: %T", message)
+	}
+
+	if announcement == nil {
+		return nil, fmt.Errorf("nil payload for PreimageAnnouncement")
+	}
+
+	if err := announcement.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid announcement payload: %w", err)
+	}
+
+	announcementBytes, err := announcement.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode announcement data: %w", err)
+	}
+
+	totalLen := len(announcementBytes)
+	result := make([]byte, 0, totalLen)
+
+	result = append(result, announcementBytes...)
+
+	return result, nil
 }
