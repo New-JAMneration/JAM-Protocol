@@ -1,6 +1,8 @@
 package PVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+)
 
 // (A.40) Ψ_M
 func Psi_M(
