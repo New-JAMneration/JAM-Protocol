@@ -8,7 +8,8 @@ import (
 
 // Assurance is a struct that contains a slice of Assurance
 func Assurance() (err error) {
-	assuranceExtrinsic := store.GetInstance().GetProcessingBlockPointer().GetAssurancesExtrinsic()
+	block := store.GetInstance().GetLatestBlock()
+	assuranceExtrinsic := block.Extrinsic.Assurances
 	assurances := AvailAssuranceController{AvailAssurances: assuranceExtrinsic}
 
 	err = assurances.ValidateAnchor()
