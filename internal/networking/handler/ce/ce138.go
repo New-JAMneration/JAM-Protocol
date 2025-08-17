@@ -210,3 +210,44 @@ type CE138Payload struct {
 	ErasureRoot []byte
 	ShardIndex  uint32
 }
+
+func (h *DefaultCERequestHandler) encodeAuditShardRequest(message interface{}) ([]byte, error) {
+	auditReq, ok := message.(*CE138Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for AuditShardRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if len(auditReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(auditReq.ErasureRoot))
+	}
+	if err := writeRaw(auditReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	shardIndexBytes := []byte{
+		byte(auditReq.ShardIndex),
+		byte(auditReq.ShardIndex >> 8),
+		byte(auditReq.ShardIndex >> 16),
+		byte(auditReq.ShardIndex >> 24),
+	}
+	if err := writeRaw(shardIndexBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	result := make([]byte, 0, 36)
+	result = append(result, auditReq.ErasureRoot...)
+	result = append(result, shardIndexBytes...)
+
+	return result, nil
+}

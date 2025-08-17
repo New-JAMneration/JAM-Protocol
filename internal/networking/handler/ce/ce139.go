@@ -171,3 +171,44 @@ type CE139Payload struct {
 	ShardIndex     uint32
 	SegmentIndices []uint16
 }
+
+func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{}) ([]byte, error) {
+	segmentReq, ok := message.(*CE139Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for SegmentShardRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	if len(segmentReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	}
+	if err := h.writeBytes(encoder, segmentReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	if err := h.writeBytes(encoder, encodeLE32(segmentReq.ShardIndex)); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	segmentIndicesLen := uint16(len(segmentReq.SegmentIndices))
+	if err := h.writeBytes(encoder, encodeLE16(segmentIndicesLen)); err != nil {
+		return nil, fmt.Errorf("failed to encode SegmentIndicesLength: %w", err)
+	}
+
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		if err := h.writeBytes(encoder, encodeLE16(segmentIndex)); err != nil {
+			return nil, fmt.Errorf("failed to encode SegmentIndex: %w", err)
+		}
+	}
+
+	result := make([]byte, 0, 38+len(segmentReq.SegmentIndices)*2)
+	result = append(result, segmentReq.ErasureRoot...)
+	result = append(result, encodeLE32(segmentReq.ShardIndex)...)
+	result = append(result, encodeLE16(segmentIndicesLen)...)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		result = append(result, encodeLE16(segmentIndex)...)
+	}
+
+	return result, nil
+}

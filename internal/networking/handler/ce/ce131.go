@@ -1,13 +1,19 @@
 package ce
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"math"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 type CE131Payload struct {
@@ -33,24 +39,148 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	req.Attempt = payload[4]
 	copy(req.Proof[:], payload[5:789])
 
-	// Extract proxy index from last 4 bytes of proof (big-endian)
 	proxyIndexBytes := req.Proof[780:784]
 	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
 
-	// Get next epoch's validator set (GammaK)
 	nextValidators := store.GetInstance().GetPosteriorStates().GetGammaK()
 
-	// Defensive: check bounds
 	if int(proxyIndex) >= len(nextValidators) {
 		return stream.Close()
 	}
 	proxyValidator := nextValidators[proxyIndex]
 
-	// If this node is the proxy, write a response (for testability)
 	if localBandersnatchKey == proxyValidator.Bandersnatch {
-		// For test: write a single byte to indicate success
+		currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
+
+		if err := verifySafroleTicketProof(req, currentValidators); err != nil {
+			return fmt.Errorf("VRF proof verification failed: %w", err)
+		}
+
+		delaySlots := int(math.Max(float64(types.EpochLength)/20.0, 1.0))
+
+		lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
+		halfLotteryPeriod := lotteryPeriod / 2
+
+		forwardingSlots := halfLotteryPeriod - delaySlots
+		if forwardingSlots <= 0 {
+			forwardingSlots = 1
+		}
+		go func() {
+			time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
+
+			for i, validator := range currentValidators {
+				if validator.Bandersnatch == localBandersnatchKey {
+					continue
+				}
+
+				if i > 0 {
+					time.Sleep(time.Duration(forwardingSlots) * time.Duration(types.SlotPeriod) * time.Second)
+				}
+
+				if err := forwardSafroleTicket(validator, payload); err != nil {
+					fmt.Printf("Failed to forward ticket to validator %d: %v\n", i, err)
+				}
+			}
+		}()
+
 		stream.Write([]byte{0x01})
 	}
 
 	return stream.Close()
+}
+
+func forwardSafroleTicket(validator types.Validator, payload []byte) error {
+	addr := string(bytes.TrimRight(validator.Metadata[:32], "\x00"))
+	if addr == "" {
+		return fmt.Errorf("invalid validator network address in metadata")
+	}
+
+	tlsConfig, err := quic.NewTLSConfig(false, false)
+	if err != nil {
+		return fmt.Errorf("failed to create TLS config: %w", err)
+	}
+	tlsConfig.InsecureSkipVerify = true
+
+	ctx := context.Background()
+	conn, err := quic.Dial(ctx, addr, tlsConfig, quic.NewQuicConfig(), quic.Validator)
+	if err != nil {
+		return fmt.Errorf("failed to establish QUIC connection: %w", err)
+	}
+	defer conn.Close()
+
+	stream, err := conn.OpenStreamSync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to open stream: %w", err)
+	}
+	defer stream.Close()
+
+	protocolID := []byte{132}
+	if _, err := stream.Write(protocolID); err != nil {
+		return fmt.Errorf("failed to write protocol ID: %w", err)
+	}
+
+	if _, err := stream.Write(payload); err != nil {
+		return fmt.Errorf("failed to write payload: %w", err)
+	}
+
+	ack := make([]byte, 1)
+	if _, err := stream.Read(ack); err != nil {
+		return fmt.Errorf("failed to read acknowledgment: %w", err)
+	}
+
+	if ack[0] != 0x01 {
+		return fmt.Errorf("received invalid acknowledgment: %x", ack[0])
+	}
+
+	return nil
+}
+
+func verifySafroleTicketProof(req CE131Payload, validators types.ValidatorsData) error {
+	ring := make([]byte, 0)
+	for _, validator := range validators {
+		ring = append(ring, validator.Bandersnatch[:]...)
+	}
+
+	verifier, err := vrf.NewVerifier(ring, uint(len(validators)))
+	if err != nil {
+		return fmt.Errorf("failed to create VRF verifier: %w", err)
+	}
+	defer verifier.Free()
+
+	input := make([]byte, 5)
+	binary.LittleEndian.PutUint32(input[:4], req.EpochIndex)
+	input[4] = req.Attempt
+
+	if _, err := verifier.RingVerify(input, []byte{}, req.Proof[:]); err != nil {
+		return fmt.Errorf("ring VRF proof verification failed: %w", err)
+	}
+
+	return nil
+}
+
+func (h *DefaultCERequestHandler) encodeSafroleTicketDistribution(message interface{}) ([]byte, error) {
+	ticketDist, ok := message.(*CE131Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for SafroleTicketDistribution: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	if err := h.writeBytes(encoder, encodeLE32(ticketDist.EpochIndex)); err != nil {
+		return nil, fmt.Errorf("failed to encode EpochIndex: %w", err)
+	}
+
+	if err := encoder.WriteByte(ticketDist.Attempt); err != nil {
+		return nil, fmt.Errorf("failed to encode Attempt: %w", err)
+	}
+
+	if err := h.writeBytes(encoder, ticketDist.Proof[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode Proof: %w", err)
+	}
+
+	result := make([]byte, 0, 789) // 4 + 1 + 784 bytes
+	result = append(result, encodeLE32(ticketDist.EpochIndex)...)
+	result = append(result, ticketDist.Attempt)
+	result = append(result, ticketDist.Proof[:]...)
+	return result, nil
 }

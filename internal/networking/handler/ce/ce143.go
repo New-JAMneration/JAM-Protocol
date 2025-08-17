@@ -122,28 +122,20 @@ func CreatePreimageRequest(hash types.OpaqueHash) ([]byte, error) {
 	return request, nil
 }
 
-// GetPreimage retrieves a preimage from Redis storage
-func GetPreimage(hash types.OpaqueHash) ([]byte, error) {
-	return getPreimageFromStorage(hash)
-}
-
-// DeletePreimage removes a preimage from Redis storage
-func DeletePreimage(hash types.OpaqueHash) error {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
+func (h *DefaultCERequestHandler) encodePreimageRequest(message interface{}) ([]byte, error) {
+	request, ok := message.(*CE143Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for PreimageRequest: %T", message)
 	}
 
-	hashHex := hex.EncodeToString(hash[:])
-	key := fmt.Sprintf("preimage:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	err = client.Delete(key)
-	if err != nil {
-		return fmt.Errorf("failed to delete preimage from Redis: %w", err)
+	if request == nil {
+		return nil, fmt.Errorf("nil payload for PreimageRequest")
 	}
 
-	return nil
+	result := make([]byte, 32)
+	copy(result, request.Hash[:])
+
+	return result, nil
 }
 
 type CE143Payload struct {

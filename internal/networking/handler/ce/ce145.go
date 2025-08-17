@@ -213,7 +213,6 @@ func GetAllJudgmentsForWorkReport(workReportHash types.WorkReportHash) ([]*CE145
 	return judgments, nil
 }
 
-// GetAllJudgmentsForEpoch retrieves all judgments for a given epoch
 func GetAllJudgmentsForEpoch(epochIndex types.U32) ([]*CE145Payload, error) {
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
@@ -241,48 +240,36 @@ func GetAllJudgmentsForEpoch(epochIndex types.U32) ([]*CE145Payload, error) {
 	return judgments, nil
 }
 
-// DeleteJudgment removes a judgment from Redis storage
-func DeleteJudgment(workReportHash types.WorkReportHash, epochIndex types.U32, validatorIndex types.ValidatorIndex) error {
-	redisBackend, err := store.GetRedisBackend()
+func (h *DefaultCERequestHandler) encodeJudgmentPublication(message interface{}) ([]byte, error) {
+	judgment, ok := message.(*CE145Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for JudgmentPublication: %T", message)
+	}
+
+	if judgment == nil {
+		return nil, fmt.Errorf("nil payload for JudgmentPublication")
+	}
+
+	// Validate the judgment payload
+	if err := judgment.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid judgment payload: %w", err)
+	}
+
+	// Encode the judgment data using the CE145Payload's Encode method
+	judgmentBytes, err := judgment.Encode()
 	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to encode judgment data: %w", err)
 	}
 
-	workReportHashHex := hex.EncodeToString(workReportHash[:])
-	key := fmt.Sprintf("judgment:%s:%d:%d", workReportHashHex, epochIndex, validatorIndex)
+	// Build the final result
+	// The message structure includes: Epoch Index + Validator Index + Validity + Work-Report Hash + Ed25519 Signature
+	totalLen := len(judgmentBytes)
+	result := make([]byte, 0, totalLen)
 
-	client := redisBackend.GetClient()
-	encodedJudgment, err := client.Get(key)
-	if err != nil {
-		return fmt.Errorf("failed to get judgment from Redis: %w", err)
-	}
+	// Append the encoded judgment data
+	result = append(result, judgmentBytes...)
 
-	if encodedJudgment != nil {
-		workReportKey := fmt.Sprintf("work_report_judgments:%s", workReportHashHex)
-		err = client.SRem(workReportKey, encodedJudgment)
-		if err != nil {
-			return fmt.Errorf("failed to remove judgment from work report set: %w", err)
-		}
-
-		epochKey := fmt.Sprintf("epoch_judgments:%d", epochIndex)
-		err = client.SRem(epochKey, encodedJudgment)
-		if err != nil {
-			return fmt.Errorf("failed to remove judgment from epoch set: %w", err)
-		}
-
-		validatorKey := fmt.Sprintf("validator_judgments:%d", validatorIndex)
-		err = client.SRem(validatorKey, encodedJudgment)
-		if err != nil {
-			return fmt.Errorf("failed to remove judgment from validator set: %w", err)
-		}
-	}
-
-	err = client.Delete(key)
-	if err != nil {
-		return fmt.Errorf("failed to delete judgment from Redis: %w", err)
-	}
-
-	return nil
+	return result, nil
 }
 
 // Data structures for CE145

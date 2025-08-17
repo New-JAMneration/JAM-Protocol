@@ -213,3 +213,20 @@ func CreateTestWorkPackageBundleForCE134(extrinsicHash types.OpaqueHash, extrins
 
 	return work_package.BuildWorkPackageBundle(wp, extrinsicMap, importSegments, importProofs)
 }
+
+// encodeLE16 encodes a uint16 as little-endian bytes
+func encodeLE16(value uint16) []byte {
+	return []byte{
+		byte(value),
+		byte(value >> 8),
+	}
+}
+
+func encodeLE32(value uint32) []byte {
+	return []byte{
+		byte(value),
+		byte(value >> 8),
+		byte(value >> 16),
+		byte(value >> 24),
+	}
+}
