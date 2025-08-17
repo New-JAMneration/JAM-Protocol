@@ -741,7 +741,7 @@ func (p *PreimageTestCase) Validate() error {
 
 	// Validate output service statistics
 	// After processing the preimages, we need to calculate the statistics and compare it with the expected statistics.
-	extrinsic := storeInstance.GetBlock().Extrinsic
+	extrinsic := storeInstance.GetLatestBlock().Extrinsic
 	statistics.UpdateServiceActivityStatistics(extrinsic)
 
 	expectedServiceStatistics := p.PostState.Statistics
