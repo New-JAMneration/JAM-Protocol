@@ -19,6 +19,13 @@ func NewPosteriorStates() *PosteriorStates {
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: make(types.AccumulatedServiceOutput),
+			Pi: types.Statistics{
+				ValsCurr: types.ValidatorsStatistics{},
+				ValsLast: types.ValidatorsStatistics{},
+				Cores:    types.CoresStatistics{},
+				Services: types.ServicesStatistics{},
+			},
+			Delta: make(types.ServiceAccountState),
 		},
 	}
 }
