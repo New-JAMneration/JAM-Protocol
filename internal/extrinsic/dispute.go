@@ -1,11 +1,15 @@
 package extrinsic
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	DisputesErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
 )
 
-func Disputes(disputeExtrinsic types.DisputesExtrinsic) (types.OffendersMark, error) {
+func Disputes() (types.OffendersMark, error) {
+	block := store.GetInstance().GetLatestBlock()
+	disputeExtrinsic := block.Extrinsic.Disputes
+
 	// init controllers
 	verdictController := NewVerdictController()
 	for _, verdict := range disputeExtrinsic.Verdicts {
