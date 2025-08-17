@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -97,6 +98,8 @@ func TestPreimageTestVectors(t *testing.T) {
 		// Get output state
 		outputDelta := s.GetPosteriorStates().GetDelta()
 
+		statistics.UpdateServiceActivityStatistics(s.GetLatestBlock().Extrinsic)
+
 		// Validate output state
 		if preimages.Output.Err != nil {
 			if accumulateErr == nil || accumulateErr.Error() != preimages.Output.Err.Error() {
@@ -114,6 +117,9 @@ func TestPreimageTestVectors(t *testing.T) {
 				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 				diff := cmp.Diff(inputDelta, outputDelta)
 				t.Fatalf("Result States are not equal: %v", diff)
+			} else if !reflect.DeepEqual(s.GetPosteriorStates().GetPi().Services, preimages.PostState.Statistics) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("Service statistics do not match expected: %v, but got %v", preimages.PostState.Statistics, s.GetPosteriorStates().GetPi().Services)
 			} else {
 				t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
 			}
