@@ -2,10 +2,12 @@ package ce
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type CE133WorkPackageSubmission struct {
@@ -44,4 +46,36 @@ func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.
 	}
 	stream.Write([]byte{0x01})
 	return stream.Close()
+}
+
+func (h *DefaultCERequestHandler) encodeWorkPackageSubmission(message interface{}) ([]byte, error) {
+
+	workpackage, ok := message.(*CE133WorkPackageSubmission)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for WorkPackageSubmission: %T", message)
+	}
+	if workpackage == nil {
+		return nil, fmt.Errorf("nil payload for WorkPackageSubmission")
+	}
+
+	encoder := types.NewEncoder()
+
+	if err := h.writeBytes(encoder, encodeLE32(workpackage.CoreIndex)); err != nil {
+
+		return nil, fmt.Errorf("failed to encode CoreIndex for WorkPackageSubmission: %w", err)
+	}
+
+	if err := h.writeBytes(encoder, workpackage.WorkPackage); err != nil {
+		return nil, fmt.Errorf("failed to encode WorkPackage for WorkPackageSubmission: %w", err)
+	}
+	if err := h.writeBytes(encoder, workpackage.Extrinsics); err != nil {
+		return nil, fmt.Errorf("failed to encode Extrinsics for WorkPackageSubmission: %w", err)
+	}
+
+	totalLen := 4 + len(workpackage.WorkPackage) + len(workpackage.Extrinsics)
+	result := make([]byte, 0, totalLen)
+	result = append(result, encodeLE32(workpackage.CoreIndex)...)
+	result = append(result, workpackage.WorkPackage...)
+	result = append(result, workpackage.Extrinsics...)
+	return result, nil
 }

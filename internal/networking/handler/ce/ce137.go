@@ -2,6 +2,7 @@ package ce
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -62,4 +63,45 @@ type CE137Payload struct {
 	BundleShard   []byte
 	SegmentShards [][]byte
 	Justification []byte
+}
+
+func (h *DefaultCERequestHandler) encodeShardDistribution(message interface{}) ([]byte, error) {
+	shardDist, ok := message.(*CE137Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for ShardDistribution: %T", message)
+	}
+
+	if shardDist == nil {
+		return nil, fmt.Errorf("nil payload for ShardDistribution")
+	}
+
+	requestType := byte(ShardDistribution)
+
+	segmentShardsLen := 0
+	for _, shard := range shardDist.SegmentShards {
+		segmentShardsLen += len(shard)
+	}
+
+	totalLen := 1 + // request type
+		4 + // length of bundle shard
+		len(shardDist.BundleShard) + // bundle shard data
+		4 + // number of segment shards
+		segmentShardsLen + // segment shards data
+		len(shardDist.Justification) // justification data
+
+	result := make([]byte, 0, totalLen)
+
+	result = append(result, requestType)
+	result = append(result, encodeLE32(uint32(len(shardDist.BundleShard)))...)
+	result = append(result, shardDist.BundleShard...)
+	result = append(result, encodeLE32(uint32(len(shardDist.SegmentShards)))...)
+
+	for _, shard := range shardDist.SegmentShards {
+		result = append(result, encodeLE32(uint32(len(shard)))...)
+		result = append(result, shard...)
+	}
+
+	result = append(result, shardDist.Justification...)
+
+	return result, nil
 }

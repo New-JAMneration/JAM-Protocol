@@ -316,35 +316,31 @@ func GetAllAuditAnnouncementsForHeader(headerHash types.OpaqueHash) ([]*CE144Pay
 	return announcements, nil
 }
 
-func DeleteAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8) error {
-	redisBackend, err := store.GetRedisBackend()
+func (h *DefaultCERequestHandler) encodeAuditAnnouncement(message interface{}) ([]byte, error) {
+	announcement, ok := message.(*CE144Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for AuditAnnouncement: %T", message)
+	}
+
+	if announcement == nil {
+		return nil, fmt.Errorf("nil payload for AuditAnnouncement")
+	}
+
+	if err := announcement.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid announcement payload: %w", err)
+	}
+
+	announcementBytes, err := announcement.Encode()
 	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to encode announcement data: %w", err)
 	}
 
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("audit_announcement:%s:%d", headerHashHex, tranche)
+	totalLen := len(announcementBytes)
+	result := make([]byte, 0, totalLen)
 
-	client := redisBackend.GetClient()
-	encodedAnnouncement, err := client.Get(key)
-	if err != nil {
-		return fmt.Errorf("failed to get announcement from Redis: %w", err)
-	}
+	result = append(result, announcementBytes...)
 
-	if encodedAnnouncement != nil {
-		headerKey := fmt.Sprintf("header_audit_announcements:%s", headerHashHex)
-		err = client.SRem(headerKey, encodedAnnouncement)
-		if err != nil {
-			return fmt.Errorf("failed to remove announcement from header set: %w", err)
-		}
-	}
-
-	err = client.Delete(key)
-	if err != nil {
-		return fmt.Errorf("failed to delete announcement from Redis: %w", err)
-	}
-
-	return nil
+	return result, nil
 }
 
 // Data structures for CE144

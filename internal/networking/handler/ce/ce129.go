@@ -106,3 +106,49 @@ func HandleStateRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 
 	return HandleStateRequest(blockchain, req, stream)
 }
+
+func (h *DefaultCERequestHandler) encodeStateRequest(message interface{}) ([]byte, error) {
+	stateReq, ok := message.(*CE129Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for StateRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	writeRaw := func(b []byte) error {
+		for _, v := range b {
+			if err := encoder.WriteByte(v); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if err := writeRaw(stateReq.HeaderHash[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode HeaderHash: %w", err)
+	}
+	if err := writeRaw(stateReq.KeyStart[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode KeyStart: %w", err)
+	}
+	if err := writeRaw(stateReq.KeyEnd[:]); err != nil {
+		return nil, fmt.Errorf("failed to encode KeyEnd: %w", err)
+	}
+	maxSize := stateReq.MaxSize
+	maxSizeBytes := []byte{
+		byte(maxSize),
+		byte(maxSize >> 8),
+		byte(maxSize >> 16),
+		byte(maxSize >> 24),
+	}
+	if err := writeRaw(maxSizeBytes); err != nil {
+		return nil, fmt.Errorf("failed to encode MaxSize: %w", err)
+	}
+
+	result := make([]byte, 0, 98)
+	result = append(result, stateReq.HeaderHash[:]...)
+	result = append(result, stateReq.KeyStart[:]...)
+	result = append(result, stateReq.KeyEnd[:]...)
+	result = append(result, maxSizeBytes...)
+
+	return result, nil
+}

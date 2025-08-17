@@ -101,3 +101,39 @@ func HandleWorkPackageShare(
 	}
 	return stream.Close()
 }
+
+func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) ([]byte, error) {
+	workPackage, ok := message.(*CE134Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for WorkPackageSharing: %T", message)
+	}
+
+	if workPackage == nil {
+		return nil, fmt.Errorf("nil payload for WorkPackageSharing")
+	}
+
+	if workPackage.WorkPackage == nil {
+		return nil, fmt.Errorf("nil WorkPackage in CE134Payload")
+	}
+
+	requestType := byte(WorkPackageSharing)
+
+	coreIndexBytes := encodeLE32(workPackage.CoreIndex)
+
+	// Get WorkPackage bytes using ScaleEncode
+	wpBytes, err := workPackage.WorkPackage.ScaleEncode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode WorkPackage: %w", err)
+	}
+
+	totalLen := 1 + 4 + 32 + len(wpBytes) // 1 byte for request type + 4 bytes for CoreIndex + 32 bytes for HeaderHash + WorkPackage bytes
+
+	result := make([]byte, 0, totalLen)
+
+	result = append(result, requestType)
+	result = append(result, coreIndexBytes...)
+	result = append(result, workPackage.HeaderHash[:]...)
+	result = append(result, wpBytes...)
+
+	return result, nil
+}

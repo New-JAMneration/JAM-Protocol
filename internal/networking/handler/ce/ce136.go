@@ -59,3 +59,20 @@ func HandleWorkReportRequest(
 
 	return stream.Close()
 }
+
+func (h *DefaultCERequestHandler) encodeWorkReportRequest(message interface{}) ([]byte, error) {
+	workReportReq, ok := message.(*CE136Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for WorkReportRequest: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	if err := h.writeBytes(encoder, encodeLE32(workReportReq.CoreIndex)); err != nil {
+		return nil, fmt.Errorf("failed to encode CoreIndex: %w", err)
+	}
+
+	result := make([]byte, 0, 4) // 4 bytes for CoreIndex
+	result = append(result, encodeLE32(workReportReq.CoreIndex)...)
+	return result, nil
+}

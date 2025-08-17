@@ -185,164 +185,6 @@ func CreateAvailabilityAssurance(
 	return assurance, nil
 }
 
-// VerifyAvailabilityAssurance verifies an availability assurance signature
-func VerifyAvailabilityAssurance(
-	headerHash types.HeaderHash,
-	bitfield []byte,
-	signature types.Ed25519Signature,
-	publicKey types.Ed25519Public,
-) bool {
-	message := make([]byte, 32+len(bitfield))
-	copy(message[:32], headerHash[:])
-	copy(message[32:], bitfield)
-
-	return ed25519.Verify(publicKey[:], message, signature[:])
-}
-
-// CreateBitfieldFromCoreAvailability creates a bitfield from core availability information
-// Each bit represents whether a core is available (1) or not (0)
-func CreateBitfieldFromCoreAvailability(coreAvailability []bool) ([]byte, error) {
-	if len(coreAvailability) != types.CoresCount {
-		return nil, fmt.Errorf("core availability array must have exactly %d elements", types.CoresCount)
-	}
-
-	bitfieldSize := (types.CoresCount + 7) / 8
-	bitfield := make([]byte, bitfieldSize)
-
-	for i, available := range coreAvailability {
-		byteIndex := i / 8
-		bitIndex := i % 8
-
-		if available {
-			bitfield[byteIndex] |= (1 << bitIndex)
-		}
-	}
-
-	return bitfield, nil
-}
-
-// ParseBitfieldToCoreAvailability parses a bitfield back to core availability information
-func ParseBitfieldToCoreAvailability(bitfield []byte) ([]bool, error) {
-	expectedBitfieldSize := (types.CoresCount + 7) / 8
-	if len(bitfield) != expectedBitfieldSize {
-		return nil, fmt.Errorf("invalid bitfield size: expected %d, got %d", expectedBitfieldSize, len(bitfield))
-	}
-
-	coreAvailability := make([]bool, types.CoresCount)
-
-	for i := 0; i < types.CoresCount; i++ {
-		byteIndex := i / 8
-		bitIndex := i % 8
-
-		coreAvailability[i] = (bitfield[byteIndex] & (1 << bitIndex)) != 0
-	}
-
-	return coreAvailability, nil
-}
-
-// GetAvailabilityAssurance retrieves an availability assurance from Redis storage
-func GetAvailabilityAssurance(headerHash types.HeaderHash) (*CE141Payload, error) {
-	// Get Redis backend
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	// Create Redis key for the assurance
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("availability_assurance:%s", headerHashHex)
-
-	// Retrieve the assurance from Redis
-	client := redisBackend.GetClient()
-	encodedAssurance, err := client.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get assurance from Redis: %w", err)
-	}
-
-	if encodedAssurance == nil {
-		return nil, fmt.Errorf("availability assurance not found for header hash: %x", headerHash)
-	}
-
-	// Decode the assurance data
-	assuranceData := &CE141Payload{}
-	err = assuranceData.Decode(encodedAssurance)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode assurance data: %w", err)
-	}
-
-	return assuranceData, nil
-}
-
-// GetAllAvailabilityAssurancesForHeader retrieves all availability assurances for a given header hash
-func GetAllAvailabilityAssurancesForHeader(headerHash types.HeaderHash) ([]*CE141Payload, error) {
-	// Get Redis backend
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	// Create Redis set key
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	setKey := fmt.Sprintf("availability_assurances_set:%s", headerHashHex)
-
-	// Get all members from the set
-	client := redisBackend.GetClient()
-	encodedAssurances, err := client.SMembers(setKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get assurances set from Redis: %w", err)
-	}
-
-	// Decode each assurance
-	var assurances []*CE141Payload
-	for _, encodedAssurance := range encodedAssurances {
-		assuranceData := &CE141Payload{}
-		err := assuranceData.Decode(encodedAssurance)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode assurance data: %w", err)
-		}
-		assurances = append(assurances, assuranceData)
-	}
-
-	return assurances, nil
-}
-
-// DeleteAvailabilityAssurance removes an availability assurance from Redis storage
-func DeleteAvailabilityAssurance(headerHash types.HeaderHash) error {
-	// Get Redis backend
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	// Create Redis keys
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("availability_assurance:%s", headerHashHex)
-	setKey := fmt.Sprintf("availability_assurances_set:%s", headerHashHex)
-
-	// Get the encoded assurance to remove from set
-	client := redisBackend.GetClient()
-	encodedAssurance, err := client.Get(key)
-	if err != nil {
-		return fmt.Errorf("failed to get assurance from Redis: %w", err)
-	}
-
-	if encodedAssurance != nil {
-		// Remove from set
-		err = client.SRem(setKey, encodedAssurance)
-		if err != nil {
-			return fmt.Errorf("failed to remove assurance from set: %w", err)
-		}
-	}
-
-	// Delete the main key
-	err = client.Delete(key)
-	if err != nil {
-		return fmt.Errorf("failed to delete assurance from Redis: %w", err)
-	}
-
-	return nil
-}
-
 // CE141Payload represents an availability assurance message
 type CE141Payload struct {
 	HeaderHash types.HeaderHash
@@ -399,4 +241,31 @@ func (p *CE141Payload) Decode(data []byte) error {
 	copy(p.Signature[:], data[32+expectedBitfieldSize:])
 
 	return p.Validate()
+}
+
+func (h *DefaultCERequestHandler) encodeAssuranceDistribution(message interface{}) ([]byte, error) {
+	assurance, ok := message.(*CE141Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for AssuranceDistribution: %T", message)
+	}
+
+	if assurance == nil {
+		return nil, fmt.Errorf("nil payload for AssuranceDistribution")
+	}
+
+	if err := assurance.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid assurance payload: %w", err)
+	}
+
+	assuranceBytes, err := assurance.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode assurance data: %w", err)
+	}
+
+	totalLen := len(assuranceBytes)
+	result := make([]byte, 0, totalLen)
+
+	result = append(result, assuranceBytes...)
+
+	return result, nil
 }

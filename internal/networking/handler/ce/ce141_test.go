@@ -13,7 +13,6 @@ import (
 )
 
 func TestHandleAvailabilityAssuranceDistribution(t *testing.T) {
-	// Set up miniredis for testing
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
 
