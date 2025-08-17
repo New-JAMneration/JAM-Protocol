@@ -24,8 +24,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPreimageTestVectors(t *testing.T) {
-
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "preimages", "data")
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
@@ -103,7 +102,7 @@ func TestPreimageTestVectors(t *testing.T) {
 }
 
 func TestAccumulateTestVectors(t *testing.T) {
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)

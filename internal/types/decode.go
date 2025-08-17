@@ -2268,10 +2268,6 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = s.DepositOffset.Decode(d); err != nil {
-		return err
-	}
-
 	if err = s.CodeHash.Decode(d); err != nil {
 		return err
 	}
@@ -2288,6 +2284,18 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
+	if err = s.Bytes.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.DepositOffset.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Items.Decode(d); err != nil {
+		return err
+	}
+
 	if err = s.CreationSlot.Decode(d); err != nil {
 		return err
 	}
@@ -2297,14 +2305,6 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	}
 
 	if err = s.ParentService.Decode(d); err != nil {
-		return err
-	}
-
-	if err = s.Bytes.Decode(d); err != nil {
-		return err
-	}
-
-	if err = s.Items.Decode(d); err != nil {
 		return err
 	}
 
