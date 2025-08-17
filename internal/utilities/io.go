@@ -40,6 +40,9 @@ func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
 			targetFiles = append(targetFiles, fileName)
 		}
 	}
+	if len(targetFiles) == 0 {
+		return nil, fmt.Errorf("no files with extension %s found in directory %s", extension, dir)
+	}
 
 	return targetFiles, nil
 }
