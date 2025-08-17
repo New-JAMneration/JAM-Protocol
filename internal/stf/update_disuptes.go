@@ -2,15 +2,12 @@ package stf
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func UpdateDisputes() error {
 	// log.Println("Update Disputes")
 
-	s := store.GetInstance()
-	disputeExtrinsic := s.GetProcessingBlockPointer().GetDisputesExtrinsic()
-	_, err := extrinsic.Disputes(disputeExtrinsic)
+	_, err := extrinsic.Disputes()
 	if err != nil {
 		return err
 	}

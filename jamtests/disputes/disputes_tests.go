@@ -396,8 +396,13 @@ func (d *DisputeTestCase) Dump() error {
 	storeInstance.GetPriorStates().SetKappa(d.PreState.Kappa)
 	storeInstance.GetPriorStates().SetLambda(d.PreState.Lambda)
 
-	// Set DisputeInput Extrinsic?
-	storeInstance.GetProcessingBlockPointer().SetDisputesExtrinsic(d.Input.Disputes)
+	// Add block with DisputesExtrinsic
+	block := types.Block{
+		Extrinsic: types.Extrinsic{
+			Disputes: d.Input.Disputes,
+		},
+	}
+	storeInstance.AddBlock(block)
 
 	return nil
 }
@@ -422,24 +427,24 @@ func (d *DisputeTestCase) Validate() error {
 
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetPsi(), d.PostState.Psi)
-		fmt.Errorf("Psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)
+		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)
 	}
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetRho(), d.PostState.Rho) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetRho(), d.PostState.Rho)
-		fmt.Errorf("Rho does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Rho, s.GetPosteriorStates().GetRho(), diff)
+		return fmt.Errorf("rho does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Rho, s.GetPosteriorStates().GetRho(), diff)
 	}
 	if s.GetPosteriorStates().GetTau() != d.PostState.Tau {
-		fmt.Errorf("Time slot does not match expected: %v, but got %v", d.PostState.Tau, s.GetPosteriorStates().GetTau())
+		return fmt.Errorf("time slot does not match expected: %v, but got %v", d.PostState.Tau, s.GetPosteriorStates().GetTau())
 	}
 
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa)
-		fmt.Errorf("Kappa does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Kappa, s.GetPosteriorStates().GetKappa(), diff)
+		return fmt.Errorf("kappa does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Kappa, s.GetPosteriorStates().GetKappa(), diff)
 	}
 
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda)
-		fmt.Errorf("Lambda does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Lambda, s.GetPosteriorStates().GetLambda(), diff)
+		return fmt.Errorf("lambda does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Lambda, s.GetPosteriorStates().GetLambda(), diff)
 	}
 
 	return nil
