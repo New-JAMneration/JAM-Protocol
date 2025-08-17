@@ -18,7 +18,9 @@ func NewPriorStates() *PriorStates {
 		state: &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
+			Varphi:     make(types.AuthQueues, types.CoresCount),
 			LastAccOut: make(types.AccumulatedServiceOutput),
+			Delta:      make(types.ServiceAccountState),
 		},
 	}
 }
