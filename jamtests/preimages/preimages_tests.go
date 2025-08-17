@@ -669,8 +669,8 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (p *PreimageTestCase) Dump() error {
+	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
 	inputDelta := make(types.ServiceAccountState)
