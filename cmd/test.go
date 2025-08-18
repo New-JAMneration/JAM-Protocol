@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -138,7 +137,6 @@ For example:
 					}
 					instance.GenerateGenesisBlock(block)
 					instance.GenerateGenesisState(state)
-					recent_history.STFBetaH2BetaHDagger()
 				}
 			}
 
@@ -158,11 +156,6 @@ For example:
 					log.Printf("got error during parsing: %v", err)
 					failed++
 					continue
-				}
-
-				if testType == "trace" {
-					// post-state update to pre-state, tau_prime+1
-					store.GetInstance().StateCommit()
 				}
 
 				// Run the test
