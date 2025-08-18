@@ -18,7 +18,7 @@ func NewPosteriorStates() *PosteriorStates {
 		state: &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			LastAccOut: make(types.AccumulatedServiceOutput),
+			LastAccOut: types.LastAccOut{},
 		},
 	}
 }
@@ -516,13 +516,13 @@ func (s *PosteriorStates) GetXi() types.AccumulatedQueue {
 	return s.state.Xi
 }
 
-func (s *PosteriorStates) SetLastAccOut(c types.AccumulatedServiceOutput) {
+func (s *PosteriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.LastAccOut = c
 }
 
-func (s *PosteriorStates) GetLastAccOut() types.AccumulatedServiceOutput {
+func (s *PosteriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.LastAccOut
