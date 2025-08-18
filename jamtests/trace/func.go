@@ -83,12 +83,15 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// a_s,  a_p,  a_l
 
 	}
+	var diff string
 
 	if len(serviceList) > 0 {
 		deltaDiffStr := fmt.Sprintf("delta:%v", serviceList)
 		errorStateSlice = append(errorStateSlice, deltaDiffStr)
+		diff = strings.Join(errorStateSlice, ", ")
+	} else {
+		diff = "check account-storage, account-lookupDict, account-primageLookupDict"
 	}
-	diff := strings.Join(errorStateSlice, ", ")
 
 	return fmt.Errorf("%s", diff), nil
 }

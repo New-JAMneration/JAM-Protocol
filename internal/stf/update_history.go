@@ -13,9 +13,15 @@ func UpdateHistory() error {
 	recent_history.STFBetaH2BetaHDagger()
 
 	// Start test STFBetaDagger2BetaPrime (4.7)
-	if err := recent_history.STFBetaHDagger2BetaHPrime_ForTestVector(); err != nil {
+	/*
+		// for stf test-vector
+		if err := recent_history.STFBetaHDagger2BetaHPrime_ForTestVector(); err != nil {
+			return err
+		}
+	*/
+	// for traces
+	if err := recent_history.STFBetaHDagger2BetaHPrime(); err != nil {
 		return err
 	}
-
 	return nil
 }
