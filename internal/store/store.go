@@ -188,6 +188,10 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 	return s.posteriorStates
 }
 
+func (s *Store) SetPosteriorStatesInstance(posteriorStates *PosteriorStates) {
+	s.posteriorStates = posteriorStates
+}
+
 func (s *Store) GenerateGenesisState(state types.State) {
 	s.priorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
