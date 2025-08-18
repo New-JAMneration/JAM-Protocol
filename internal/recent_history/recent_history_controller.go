@@ -44,18 +44,17 @@ func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.St
 /*
 	s = [ E_4(s) ⌢ E(h) | (s, h) <− θ′ ]
 */
-func serLastAccOut(lastAccOut types.AccumulatedServiceOutput) (types.ByteSequence, error) {
+func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
 	newEncoder := types.NewEncoder()
 	var output types.ByteSequence
-	for pair, exist := range lastAccOut {
-		if exist {
-			data, err := newEncoder.Encode(&pair)
-			if err != nil {
-				return nil, fmt.Errorf("failed to encode pair: %v", err)
-			}
-			output = append(output, data...)
+	for _, accumulatedServiceHash := range lastAccOut {
+		data, err := newEncoder.Encode(&accumulatedServiceHash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode accumulatedServiceHash: %v", err)
 		}
+		output = append(output, data...)
 	}
+
 	return output, nil
 }
 
@@ -182,12 +181,12 @@ func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
 		block         = s.GetLatestBlock()
 	)
+
 	var merkleRoot types.OpaqueHash
-	for pair, exist := range lastAccOut {
-		if exist {
-			merkleRoot = pair.Hash
-		}
+	for _, accumulatedServiceHash := range lastAccOut {
+		merkleRoot = accumulatedServiceHash.Hash
 	}
+
 	log.Printf("mmr peaks before append: %v", beefyBelt.Peaks)
 	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
 	log.Printf("mmr peaks after append: %v", beefyBeltPrime.Peaks)
