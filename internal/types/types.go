@@ -622,20 +622,18 @@ func (c CoresStatistics) Validate() error {
 	return nil
 }
 
-// v0.6.4 (13.7)
+// v0.7.1 (13.7)
 type ServiceActivityRecord struct {
-	ProvidedCount      U16 `json:"provided_count,omitempty"`
-	ProvidedSize       U32 `json:"provided_size,omitempty"`
-	RefinementCount    U32 `json:"refinement_count,omitempty"`
-	RefinementGasUsed  Gas `json:"refinement_gas_used,omitempty"`
-	Imports            U32 `json:"imports,omitempty"`
-	Exports            U32 `json:"exports,omitempty"`
-	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
-	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
-	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
-	AccumulateGasUsed  Gas `json:"accumulate_gas_used,omitempty"`
-	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
-	OnTransfersGasUsed Gas `json:"on_transfers_gas_used,omitempty"`
+	ProvidedCount     U16 `json:"provided_count,omitempty"`
+	ProvidedSize      U32 `json:"provided_size,omitempty"`
+	RefinementCount   U32 `json:"refinement_count,omitempty"`
+	RefinementGasUsed Gas `json:"refinement_gas_used,omitempty"`
+	Imports           U32 `json:"imports,omitempty"`
+	Exports           U32 `json:"exports,omitempty"`
+	ExtrinsicSize     U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount    U32 `json:"extrinsic_count,omitempty"`
+	AccumulateCount   U32 `json:"accumulate_count,omitempty"`
+	AccumulateGasUsed Gas `json:"accumulate_gas_used,omitempty"`
 }
 
 type ServicesStatistics map[ServiceId]ServiceActivityRecord
@@ -1517,8 +1515,8 @@ type GasAndNumAccumulatedReports struct {
 	NumAccumulatedReports U64
 }
 
-// (12.23)
-// I: accumulation statistics
+// (12.26)
+// S: accumulation statistics
 // dictionary<serviceId, (gas used, the number of work-reports accumulated)>
 type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
 

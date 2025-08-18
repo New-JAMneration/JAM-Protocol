@@ -1595,20 +1595,6 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", s.AccumulateGasUsed))
 
-	// OnTransfersCount
-	cLog(Cyan, "Encoding OnTransfersCount")
-	if err := e.EncodeInteger(uint64(s.OnTransfersCount)); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", s.OnTransfersCount))
-
-	// OnTransfersGasUsed
-	cLog(Cyan, "Encoding OnTransfersGasUsed")
-	if err := e.EncodeInteger(uint64(s.OnTransfersGasUsed)); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", s.OnTransfersGasUsed))
-
 	return nil
 }
 
