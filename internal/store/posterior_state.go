@@ -12,10 +12,20 @@ type PosteriorStates struct {
 	state *types.State
 }
 
-// NewPosteriorStates returns a new instance of PosteriorStates
-func NewPosteriorStates() *PosteriorStates {
-	return &PosteriorStates{
-		state: &types.State{
+// PosteriorStatesOption defines a function option for NewPosteriorStates
+type PosteriorStatesOption func(*PosteriorStates)
+
+// WithState sets the initial state
+func WithState(state types.State) PosteriorStatesOption {
+	return func(ps *PosteriorStates) {
+		ps.state = &state
+	}
+}
+
+// WithEmptyState creates an empty state with default values
+func WithEmptyState() PosteriorStatesOption {
+	return func(ps *PosteriorStates) {
+		ps.state = &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: types.LastAccOut{},
