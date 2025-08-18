@@ -185,13 +185,13 @@ func decodeXi(encodedValue types.ByteSequence) (types.AccumulatedQueue, error) {
 }
 
 // C(16)
-// theta AccumulatedServiceOutput
-func decodeThetaAccOut(encodedValue types.ByteSequence) (types.AccumulatedServiceOutput, error) {
-	output := types.AccumulatedServiceOutput{}
+// theta LastAccOut
+func decodeThetaAccOut(encodedValue types.ByteSequence) (types.LastAccOut, error) {
+	output := types.LastAccOut{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(encodedValue, &output)
 	if err != nil {
-		return types.AccumulatedServiceOutput{}, err
+		return types.LastAccOut{}, err
 	}
 
 	return output, nil

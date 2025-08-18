@@ -1514,7 +1514,14 @@ type AccumulatedServiceHash struct {
 	Hash      OpaqueHash // AccumulationOutput
 }
 
+// v0.6.7 (7.4)
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+type LastAccOut []AccumulatedServiceHash
+
 // (12.15) B
+// INFO:
+// - We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
 // (12.23)
