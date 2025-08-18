@@ -2292,11 +2292,13 @@ func (a *AuthPools) Decode(d *Decoder) error {
 // ServiceInfo
 func (s *ServiceInfo) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ServiceInfo")
-
-	var err error
-
-	if err = s.GratisStorageOffset.Decode(d); err != nil {
+	// Get the first byte
+	firstByte, err := d.buf.ReadByte()
+	if err != nil {
 		return err
+	}
+	if firstByte != 0 {
+		return fmt.Errorf("expected first byte to be 0, got %d", firstByte)
 	}
 
 	if err = s.CodeHash.Decode(d); err != nil {
@@ -2315,6 +2317,18 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
+	if err = s.Bytes.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.GratisStorageOffset.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.Items.Decode(d); err != nil {
+		return err
+	}
+
 	if err = s.CreateTime.Decode(d); err != nil {
 		return err
 	}
@@ -2324,14 +2338,6 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	}
 
 	if err = s.ParentService.Decode(d); err != nil {
-		return err
-	}
-
-	if err = s.Bytes.Decode(d); err != nil {
-		return err
-	}
-
-	if err = s.Items.Decode(d); err != nil {
 		return err
 	}
 
@@ -2682,6 +2688,10 @@ func (p *Privileges) Decode(d *Decoder) error {
 	}
 
 	if err = p.Designate.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.CreateAcct.Decode(d); err != nil {
 		return err
 	}
 
