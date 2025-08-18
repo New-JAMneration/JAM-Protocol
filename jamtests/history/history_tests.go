@@ -217,9 +217,10 @@ func (h *HistoryTestCase) Dump() error {
 
 	// we mock lastAccOut here, set the value to posteriorLastAccOut
 	// let internal stf can get value from store
-	mockAccumulatedServiceOutput := make(types.AccumulatedServiceOutput)
-	mockAccumulatedServiceOutput[types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot}] = true
-	storeInstance.GetPosteriorStates().SetLastAccOut(mockAccumulatedServiceOutput)
+	mockLastAccout := types.LastAccOut{
+		types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot},
+	}
+	storeInstance.GetPosteriorStates().SetLastAccOut(mockLastAccout)
 
 	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 	for _, workPackage := range h.Input.WorkPackages {

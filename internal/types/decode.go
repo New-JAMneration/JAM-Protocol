@@ -3342,3 +3342,33 @@ func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
 
 	return nil
 }
+
+// (7.4) LastAccOut
+func (l *LastAccOut) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding LastAccOut")
+
+	var err error
+
+	// Decode the length of the array
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	lastAccOut := make([]AccumulatedServiceHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = lastAccOut[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// Assign the decoded slice to the receiver
+	*l = lastAccOut
+
+	return nil
+}

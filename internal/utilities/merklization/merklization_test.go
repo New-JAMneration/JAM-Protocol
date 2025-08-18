@@ -30,8 +30,11 @@ func CompareByteArray(data1 []byte, data2 []byte) bool {
 func TestMerklizationJamTestVectors(t *testing.T) {
 	dirNames := []string{
 		"fallback",
-		"reports-l0",
+		"preimages",
+		"preimages_light",
 		"safrole",
+		"storage",
+		"storage_light",
 	}
 
 	for _, dirName := range dirNames {

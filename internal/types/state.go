@@ -19,7 +19,7 @@ type State struct {
 	Pi     Statistics              `json:"pi"`
 	Theta  ReadyQueue              `json:"theta"`
 	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
-	LastAccOut AccumulatedServiceOutput
+	LastAccOut LastAccOut
 	Xi         AccumulatedQueue    `json:"xi"`
 	Delta      ServiceAccountState `json:"accounts"`
 }

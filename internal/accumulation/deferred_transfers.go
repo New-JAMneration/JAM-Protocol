@@ -302,7 +302,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// (12.22)
 	// Update the partial state set to posterior state
 	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
-	store.GetPosteriorStates().SetLastAccOut(output.AccumulatedServiceOutput)
+
+	// Convert AccumulatedServiceOutput to LastAccOut and assign it to the store
+	var lastAccOut types.LastAccOut
+	for accumulatedServiceHash := range output.AccumulatedServiceOutput {
+		// append accumulatedServiceHash to lastAccOut
+		lastAccOut = append(lastAccOut, accumulatedServiceHash)
+	}
+	store.GetPosteriorStates().SetLastAccOut(lastAccOut)
 
 	return output, nil
 }
