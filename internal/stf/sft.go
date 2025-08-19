@@ -2,6 +2,9 @@ package stf
 
 import (
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 // TODO: Implement the following functions to handle state transitions
@@ -9,6 +12,13 @@ import (
 // The functions should validate inputs and handle errors appropriately
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
+	st := store.GetInstance()
+	// Update timeslot
+	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
+
+	// update BetaH, GP 0.6.7 formula 4.6
+	recent_history.STFBetaH2BetaHDagger()
+
 	// Update Disputes
 	err := UpdateDisputes()
 	if err != nil {

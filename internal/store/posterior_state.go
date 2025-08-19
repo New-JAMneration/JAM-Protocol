@@ -19,6 +19,8 @@ func NewPosteriorStates() *PosteriorStates {
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: types.LastAccOut{},
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
 		},
 	}
 }
