@@ -68,7 +68,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 		return types.StateRoot{}, err
 	}
 
-	storeInstance.SetPosteriorStatesInstance(store.NewPosteriorStates(store.WithState(state)))
+	storeInstance.GetPosteriorStates().SetState(state)
 
 	stateRoot := m.MerklizationState(state)
 

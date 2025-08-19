@@ -55,6 +55,13 @@ func (s *PosteriorStates) GetState() types.State {
 	return *s.state
 }
 
+// SetState sets the current state
+func (s *PosteriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
+}
+
 // GenerateGenesisState generates a genesis state
 func (s *PosteriorStates) GenerateGenesisState(state types.State) {
 	s.mu.Lock()
