@@ -158,7 +158,7 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 func (g *GuaranteeController) ValidateWorkReports() error {
 	workReports := g.WorkReportSet()
 	alpha := store.GetInstance().GetPriorStates().GetAlpha()
-	delta := store.GetInstance().GetPosteriorStates().GetDelta()
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	for _, workReport := range workReports {
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
@@ -415,7 +415,7 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 // CheckWorkResult | Eq. 11.42
 func (g *GuaranteeController) CheckWorkResult() error {
 	w := g.WorkReportSet()
-	delta := store.GetInstance().GetPosteriorStates().GetDelta()
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
 			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {

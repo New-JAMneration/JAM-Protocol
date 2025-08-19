@@ -221,7 +221,7 @@ func (s *Store) StateCommit() {
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
 
-	// s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

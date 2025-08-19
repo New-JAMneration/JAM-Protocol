@@ -34,8 +34,8 @@ func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
 			BetaHDagger:                 types.BlocksHistory{},
-			RhoDagger:                   types.AvailabilityAssignments{},
-			RhoDoubleDagger:             types.AvailabilityAssignments{},
+			RhoDagger:                   make(types.AvailabilityAssignments, types.CoresCount),
+			RhoDoubleDagger:             make(types.AvailabilityAssignments, types.CoresCount),
 			DeltaDagger:                 types.ServiceAccountState{},
 			DeltaDoubleDagger:           types.ServiceAccountState{},
 			AvailableWorkReports:        []types.WorkReport{},
