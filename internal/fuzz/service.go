@@ -7,6 +7,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
@@ -33,18 +34,31 @@ func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 }
 
 func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error) {
-	// Do some validation on the block here
-	if s.Blockchain.GetLatestBlock().Header.Parent != block.Header.Parent {
+	// Get the latest block
+	latestBlock := s.Blockchain.GetLatestBlock()
+	encoder := types.NewEncoder()
+	encodedLatestHeader, err := encoder.Encode(&latestBlock.Header)
+	if err != nil {
+		return types.StateRoot{}, err
+	}
+	latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
+
+	if latestBlockHash != block.Header.Parent {
 		return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", s.Blockchain.GetLatestBlock().Header.Parent, block.Header.Parent)
 	}
 
-	if s.Blockchain.GetLatestBlock().Header.ParentStateRoot != block.Header.ParentStateRoot {
+	// Get the latest state root
+	storeInstance := store.GetInstance()
+	latestState := storeInstance.GetPosteriorStates().GetState()
+	latestStateRoot := m.MerklizationState(latestState)
+
+	if latestStateRoot != block.Header.ParentStateRoot {
 		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", s.Blockchain.GetLatestBlock().Header.ParentStateRoot, block.Header.ParentStateRoot)
 	}
 
 	// Store the block in the blockchain (into redis)S
 	blockHash := block.Header.Parent
-	err := s.Blockchain.StoreBlockByHash(blockHash, &block)
+	err = s.Blockchain.StoreBlockByHash(blockHash, &block)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
@@ -55,9 +69,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 
-	latestBlock := s.Blockchain.GetLatestBlock()
+	newBlock := s.Blockchain.GetLatestBlock()
 
-	return latestBlock.Header.ParentStateRoot, nil
+	return newBlock.Header.ParentStateRoot, nil
 }
 
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
