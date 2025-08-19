@@ -79,7 +79,7 @@ func (s *FuzzServiceStub) GetState(hash types.HeaderHash) (types.StateKeyVals, e
 	storeInstance := store.GetInstance()
 
 	if hash != storeInstance.GetProcessingBlockPointer().GetBlock().Header.Parent {
-		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hash, storeInstance.GetProcessingBlockPointer().Header.Hash)
+		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hash, storeInstance.GetProcessingBlockPointer().GetBlock().Header.Parent)
 	}
 
 	state := storeInstance.GetPosteriorStates().GetState()
