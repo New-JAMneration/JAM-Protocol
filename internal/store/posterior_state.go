@@ -12,15 +12,43 @@ type PosteriorStates struct {
 	state *types.State
 }
 
-// NewPosteriorStates returns a new instance of PosteriorStates
-func NewPosteriorStates() *PosteriorStates {
-	return &PosteriorStates{
-		state: &types.State{
+// PosteriorStatesOption defines a function option for NewPosteriorStates
+type PosteriorStatesOption func(*PosteriorStates)
+
+// WithState sets the initial state
+func WithState(state types.State) PosteriorStatesOption {
+	return func(ps *PosteriorStates) {
+		ps.state = &state
+	}
+}
+
+// WithEmptyState creates an empty state with default values
+func WithEmptyState() PosteriorStatesOption {
+	return func(ps *PosteriorStates) {
+		ps.state = &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: make(types.AccumulatedServiceOutput),
-		},
+		}
 	}
+}
+
+// NewPosteriorStates returns a new instance of PosteriorStates
+// Options can be provided to customize the initialization
+func NewPosteriorStates(options ...PosteriorStatesOption) *PosteriorStates {
+	ps := &PosteriorStates{}
+
+	// Apply options
+	for _, option := range options {
+		option(ps)
+	}
+
+	// If no state was set, use default empty state
+	if ps.state == nil {
+		WithEmptyState()(ps)
+	}
+
+	return ps
 }
 
 // GetState returns the current state
@@ -28,6 +56,13 @@ func (s *PosteriorStates) GetState() types.State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return *s.state
+}
+
+// SetState sets the current state
+func (s *PosteriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
 }
 
 // GenerateGenesisState generates a genesis state
