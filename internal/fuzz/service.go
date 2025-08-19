@@ -44,7 +44,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
 
 	if latestBlockHash != block.Header.Parent {
-		return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", s.Blockchain.GetLatestBlock().Header.Parent, block.Header.Parent)
+		return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
 	}
 
 	// Get the latest state root
@@ -53,7 +53,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	latestStateRoot := m.MerklizationState(latestState)
 
 	if latestStateRoot != block.Header.ParentStateRoot {
-		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", s.Blockchain.GetLatestBlock().Header.ParentStateRoot, block.Header.ParentStateRoot)
+		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", block.Header.ParentStateRoot, latestStateRoot)
 	}
 
 	// Store the block in the blockchain (into redis)S
@@ -69,9 +69,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 
-	newBlock := s.Blockchain.GetLatestBlock()
+	latestState = storeInstance.GetPosteriorStates().GetState()
+	latestStateRoot = m.MerklizationState(latestState)
 
-	return newBlock.Header.ParentStateRoot, nil
+	return latestStateRoot, nil
 }
 
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
