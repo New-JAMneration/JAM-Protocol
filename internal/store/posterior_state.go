@@ -19,8 +19,16 @@ func NewPosteriorStates() *PosteriorStates {
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: types.LastAccOut{},
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
 		},
 	}
+}
+
+func (s *PosteriorStates) SetState(state types.State) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.state = &state
 }
 
 // GetState returns the current state

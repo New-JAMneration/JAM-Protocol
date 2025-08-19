@@ -19,8 +19,16 @@ func NewPriorStates() *PriorStates {
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			LastAccOut: types.LastAccOut{},
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
 		},
 	}
+}
+
+func (s *PriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
 }
 
 // GetState returns the current state

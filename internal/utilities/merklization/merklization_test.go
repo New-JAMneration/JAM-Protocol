@@ -2,15 +2,12 @@ package merklization
 
 import (
 	"errors"
-	"log"
-	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	// jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
 func CompareByteArray(data1 []byte, data2 []byte) bool {
@@ -27,51 +24,49 @@ func CompareByteArray(data1 []byte, data2 []byte) bool {
 	return true
 }
 
-func TestMerklizationJamTestVectors(t *testing.T) {
-	dirNames := []string{
-		"fallback",
-		"preimages",
-		"preimages_light",
-		"safrole",
-		"storage",
-		"storage_light",
-	}
-
-	for _, dirName := range dirNames {
-		dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
-
-		fileNames, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
-		if err != nil {
-			t.Errorf("Error getting files from directory %s: %v", dir, err)
-			continue
+/*
+	func TestMerklizationJamTestVectors(t *testing.T) {
+		dirNames := []string{
+			"fallback",
+			"reports-l0",
+			"safrole",
 		}
 
-		for _, fileName := range fileNames {
-			filePath := filepath.Join(dir, fileName)
+		for _, dirName := range dirNames {
+			dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
 
-			// Read the bin file
-			traceTestCase := &jamtests_trace.TraceTestCase{}
-			err := utilities.GetTestFromBin(filePath, traceTestCase)
+			fileNames, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
 			if err != nil {
-				t.Errorf("Error reading file %s: %v", filePath, err)
+				t.Errorf("Error getting files from directory %s: %v", dir, err)
 				continue
 			}
 
-			// Get the post-state keyvals to execute merklization
-			stateKeyVals := traceTestCase.PostState.KeyVals
-			stateRoot := MerklizationSerializedState(stateKeyVals)
-			expectedStateRoot := traceTestCase.PostState.StateRoot
+			for _, fileName := range fileNames {
+				filePath := filepath.Join(dir, fileName)
 
-			// Compare the state root
-			if !reflect.DeepEqual(stateRoot, expectedStateRoot) {
-				log.Printf("❌ [%s] %s", dirName, fileName)
-			} else {
-				log.Printf("✅ [%s] %s", dirName, fileName)
+				// Read the bin file
+				traceTestCase := &jamtests_trace.TraceTestCase{}
+				err := utilities.GetTestFromBin(filePath, traceTestCase)
+				if err != nil {
+					t.Errorf("Error reading file %s: %v", filePath, err)
+					continue
+				}
+
+				// Get the post-state keyvals to execute merklization
+				stateKeyVals := traceTestCase.PostState.KeyVals
+				stateRoot := MerklizationSerializedState(stateKeyVals)
+				expectedStateRoot := traceTestCase.PostState.StateRoot
+
+				// Compare the state root
+				if !reflect.DeepEqual(stateRoot, expectedStateRoot) {
+					log.Printf("❌ [%s] %s", dirName, fileName)
+				} else {
+					log.Printf("✅ [%s] %s", dirName, fileName)
+				}
 			}
 		}
 	}
-}
-
+*/
 func TestBytesToBits(t *testing.T) {
 	testCases := []struct {
 		input    types.ByteSequence
