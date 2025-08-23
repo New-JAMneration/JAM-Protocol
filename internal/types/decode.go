@@ -1768,22 +1768,6 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.AccumulateGasUsed = Gas(accumulateGasUsed)
 	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", accumulateGasUsed))
 
-	cLog(Cyan, "Decoding OnTransfersCount")
-	onTransfersCount, err := d.DecodeInteger()
-	if err != nil {
-		return err
-	}
-	s.OnTransfersCount = U32(onTransfersCount)
-	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", onTransfersCount))
-
-	cLog(Cyan, "Decoding OnTransfersGasUsed")
-	onTransfersGasUsed, err := d.DecodeInteger()
-	if err != nil {
-		return err
-	}
-	s.OnTransfersGasUsed = Gas(onTransfersGasUsed)
-	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", onTransfersGasUsed))
-
 	return nil
 }
 
