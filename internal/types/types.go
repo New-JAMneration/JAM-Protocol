@@ -1469,7 +1469,7 @@ type Privileges struct {
 	Designate   ServiceId           `json:"chi_v"` // XV
 	CreateAcct  ServiceId           `json:"chi_r"` // XR
 	Assign      ServiceIdList       `json:"chi_a"` // XA
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XA
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
 }
 
 type AccumulateRoot OpaqueHash
