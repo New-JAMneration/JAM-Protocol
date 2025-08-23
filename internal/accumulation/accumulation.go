@@ -258,6 +258,15 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	return output, nil
 }
 
+// (12.20)
+func R[T comparable](o, a, b T) T {
+	if a == o {
+		return b
+	} else {
+		return a
+	}
+}
+
 // (12.17) ∆∗ parallelized accumulation function
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
@@ -355,28 +364,16 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	a_prime := make([]types.ServiceId, len(a_star))
 	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
 	for c, ac := range a_star {
-		if ac == e_prime.Assign[c] {
-			a_prime[c] = runSingleReplaceService(ac).PartialStateSet.Assign[c] // ((∆(ac)e)a)c
-		} else {
-			a_prime[c] = e_prime.Assign[c] // (e∗a)c
-		}
+		a_prime[c] = R(ac, e_prime.Assign[c], runSingleReplaceService(ac).PartialStateSet.Assign[c])
 	}
 
 	var v_prime, r_prime types.ServiceId
 	// v' = R(v, e∗v , (∆(v)e)v )
-	if input.PartialStateSet.Designate == e_prime.Designate {
-		single_output = runSingleReplaceService(input.PartialStateSet.Designate) // ∆(v)
-		v_prime = e_prime.Designate                                              // (∆(v)e)v
-	} else {
-		v_prime = e_prime.Designate // e∗v
-	}
+	v_prime = R(input.PartialStateSet.Designate, e_prime.Designate, runSingleReplaceService(input.PartialStateSet.Designate).PartialStateSet.Designate)
 	// r′ = R(r, e∗r , (∆(r)e)r)
-	if input.PartialStateSet.CreateAcct == e_prime.CreateAcct {
-		single_output = runSingleReplaceService(input.PartialStateSet.CreateAcct) // ∆(r)
-		r_prime = e_prime.CreateAcct                                              // (∆(r)e)r
-	} else {
-		r_prime = e_prime.CreateAcct // e∗r
-	}
+	r_prime = R(input.PartialStateSet.CreateAcct, e_prime.CreateAcct, runSingleReplaceService(input.PartialStateSet.CreateAcct).PartialStateSet.CreateAcct)
+	new_partial_state.CreateAcct = r_prime
+	store.GetPosteriorStates().SetCreateAcct(r_prime)
 	new_partial_state.Bless = m_prime
 	new_partial_state.Assign = a_prime
 	new_partial_state.Designate = v_prime
@@ -389,15 +386,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		Designate:   v_prime,
 		AlwaysAccum: z_prime,
 	})
-	// r′ = R(r, e∗r , (∆(r)e)r)
-	{
-		single_output = runSingleReplaceService(input.PartialStateSet.CreateAcct)
-		r_prime := single_output.PartialStateSet.CreateAcct
-		new_partial_state.CreateAcct = r_prime
-		store.GetPosteriorStates().SetCreateAcct(r_prime)
-	}
 	// store.GetPosteriorStates().SetChi(x_prime)
-	// i′ = (∆1(o, w, f, v)o)i
+	// i′ = (∆(v)e)i
 	{
 		single_input.ServiceId = input.PartialStateSet.Designate
 		single_output, _ := SingleServiceAccumulation(single_input)
@@ -432,15 +422,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
 	return output, nil
-}
-
-// (12.20)
-func R[T comparable](o, a, b T) T {
-	if a == o {
-		return b
-	} else {
-		return a
-	}
 }
 
 // (12.20) ∆1 single-service accumulation function
