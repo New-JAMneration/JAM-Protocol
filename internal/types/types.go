@@ -1463,11 +1463,11 @@ type (
 type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // Manager X_M
-	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi X_V
-	CreateAcct  ServiceId           // X_R
-	Designate   ServiceId           `json:"chi_v"` // AlterIota  X_A
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits  X_Z
+	Bless       ServiceId           `json:"chi_m"` // XM
+	Designate   ServiceId           `json:"chi_v"` // XV
+	CreateAcct  ServiceId           `json:"chi_r"` // XR
+	Assign      ServiceIdList       `json:"chi_a"` // XA
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
 }
 
 type AccumulateRoot OpaqueHash
@@ -1498,7 +1498,6 @@ type Operand struct {
 	AuthOutput     ByteSequence    // o
 }
 
-// (12.15) I: U or X
 type OperandOrDeferredTransfer struct {
 	Operand          *Operand          // U
 	DeferredTransfer *DeferredTransfer // X
