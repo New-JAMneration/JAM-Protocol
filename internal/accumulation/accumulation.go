@@ -353,18 +353,18 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 
 	var new_partial_state types.PartialStateSet
-	// x′ = (∆1(o, w, f, m)o)x
-	// (m′, a∗, v∗, z′) = (∆1(o, w, f , m)o)(m,a,v,z)
+	// e∗ = ∆(m)e
+	// m′, z′ = e∗(m, z)
 	store := store.GetInstance()
 	single_output := runSingleReplaceService(input.PartialStateSet.Bless)
 	e_prime := single_output.PartialStateSet
 	m_prime := e_prime.Bless
-	a_star := e_prime.Assign
 	z_prime := e_prime.AlwaysAccum
-	a_prime := make([]types.ServiceId, len(a_star))
+	a := input.PartialStateSet.Assign
+	a_prime := make(types.ServiceIdList, len(a))
 	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
-	for c, ac := range a_star {
-		a_prime[c] = R(ac, e_prime.Assign[c], runSingleReplaceService(ac).PartialStateSet.Assign[c])
+	for c := range types.CoresCount {
+		a_prime[c] = R(a[c], e_prime.Assign[c], runSingleReplaceService(a[c]).PartialStateSet.Assign[c])
 	}
 
 	var v_prime, r_prime types.ServiceId
