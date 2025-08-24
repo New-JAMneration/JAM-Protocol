@@ -3110,6 +3110,30 @@ func (o *Operand) Decode(decoder *Decoder) error {
 	return nil
 }
 
+func (o *OperandOrDeferredTransfer) Decode(decoder *Decoder) error {
+	cLog(Cyan, "Decoding OperandOrDeferredTransfer")
+	firstByte, err := decoder.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+	isOperand := firstByte == 0
+	isDeferredTransfer := firstByte == 1
+	if isOperand {
+		cLog(Cyan, "OperandOrDeferredTransfer is Operand")
+		if err = o.Operand.Decode(decoder); err != nil {
+			return err
+		}
+		return nil
+	} else if isDeferredTransfer {
+		cLog(Cyan, "OperandOrDeferredTransfer is DeferredTransfer")
+		if err = o.DeferredTransfer.Decode(decoder); err != nil {
+			return err
+		}
+		return nil
+	}
+	return nil
+}
+
 func (e *ExtrinsicData) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ExtrinsicData")
 	var err error
