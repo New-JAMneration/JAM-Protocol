@@ -20,7 +20,7 @@ type BlockRequest struct {
 	MaxBlocks  uint32           // Maximum number of blocks requested
 }
 
-func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]types.Block, error) {
+func HandleBlockRequest(blockchain blockchain.BlockchainApi, req BlockRequest) ([]types.Block, error) {
 	count := req.MaxBlocks
 	var blocks []types.Block
 
@@ -77,7 +77,7 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]t
 	return blocks, nil
 }
 
-func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+func HandleBlockRequestStream(blockchain blockchain.BlockchainApi, stream *quic.Stream) error {
 	// Ensure the payload length is at least 37 bytes.
 	reqPayload, err := io.ReadAll(stream)
 	if err != nil {
