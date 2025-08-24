@@ -72,6 +72,10 @@ func HandleWorkPackageShare(
 	if err != nil {
 		return fmt.Errorf("failed to read segment-root mappings: %w", err)
 	}
+<<<<<<< HEAD
+=======
+	// (Note: mappings are not used in this minimal handler; add logic as needed)
+>>>>>>> origin/feat/jam-np-ce-handler
 
 	// 3. Read work-package bundle (rest of stream until FIN)
 	bundle := make([]byte, 65536)
