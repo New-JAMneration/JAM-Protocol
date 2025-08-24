@@ -384,6 +384,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		d_prime := single_output.PartialStateSet.ServiceAccounts
 		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
+		// n = union of (d_prime without keys in d except service_id)
 		for key, value := range d_prime {
 			if key == service_id {
 				n[key] = value
@@ -393,6 +394,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 
 		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
+		// m = union of (keys in d but missing in d_prime)
 		for key := range d {
 			if _, exists := d_prime[key]; !exists {
 				m[key] = d[key]
