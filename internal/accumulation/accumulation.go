@@ -282,10 +282,12 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			s[r.ServiceId] = true
 		}
 	}
+
 	// K(f)
 	for service_id := range input.AlwaysAccumulateMap {
 		s[service_id] = true
 	}
+
 	// td S t ∈ t
 	for _, deferred_transfer := range input.DeferredTransfers {
 		s[deferred_transfer.ReceiverID] = true
@@ -352,7 +354,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		return single_output
 	}
 
-	var new_partial_state types.PartialStateSet
 	// e∗ = ∆(m)e
 	// m′, z′ = e∗(m, z)
 	store := store.GetInstance()
@@ -360,18 +361,23 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	e_star := single_output.PartialStateSet
 	m_prime := e_star.Bless
 	z_prime := e_star.AlwaysAccum
+
+	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
 	a := input.PartialStateSet.Assign
 	a_prime := make(types.ServiceIdList, len(a))
-	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
 	for c := range types.CoresCount {
 		a_prime[c] = R(a[c], e_star.Assign[c], runSingleReplaceService(a[c]).PartialStateSet.Assign[c])
 	}
 
-	var v_prime, r_prime types.ServiceId
 	// v' = R(v, e∗v , (∆(v)e)v )
+	var v_prime, r_prime types.ServiceId
 	v_prime = R(input.PartialStateSet.Designate, e_star.Designate, runSingleReplaceService(input.PartialStateSet.Designate).PartialStateSet.Designate)
+
 	// r′ = R(r, e∗r , (∆(r)e)r)
 	r_prime = R(input.PartialStateSet.CreateAcct, e_star.CreateAcct, runSingleReplaceService(input.PartialStateSet.CreateAcct).PartialStateSet.CreateAcct)
+
+	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
+	var new_partial_state types.PartialStateSet
 	new_partial_state.CreateAcct = r_prime
 	store.GetPosteriorStates().SetCreateAcct(r_prime)
 	new_partial_state.Bless = m_prime
@@ -379,6 +385,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	new_partial_state.Designate = v_prime
 	new_partial_state.AlwaysAccum = z_prime
 
+	// New posterior states Privileges
 	store.GetPosteriorStates().SetChi(types.Privileges{
 		Bless:       m_prime,
 		Assign:      a_prime,
@@ -386,7 +393,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		Designate:   v_prime,
 		AlwaysAccum: z_prime,
 	})
-	// store.GetPosteriorStates().SetChi(x_prime)
+
 	// i′ = (∆(v)e)i
 	{
 		single_input.ServiceId = input.PartialStateSet.Designate
@@ -395,6 +402,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		new_partial_state.ValidatorKeys = i_prime
 		store.GetPosteriorStates().SetIota(i_prime)
 	}
+
 	// ∀c ∈ NC ∶ q′c = (∆1(o, w, f , ac)o)q
 	{
 		var q_prime types.AuthQueues
@@ -407,6 +415,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		new_partial_state.Authorizers = q_prime
 		store.GetPosteriorStates().SetVarphi(q_prime)
 	}
+
 	// (d ∪ n) ∖ m
 	for key, value := range n {
 		d[key] = value
