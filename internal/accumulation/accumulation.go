@@ -328,7 +328,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	var t []types.DeferredTransfer
 	n := make(types.ServiceAccountState)
-	m := d
+
+	// copy d to m
+	m := make(types.ServiceAccountState)
+	for k, v := range d {
+		m[k] = v
+	}
+
 	p := types.ServiceBlobs{}
 	var single_input SingleServiceAccumulationInput
 	single_input.PartialStateSet = input.PartialStateSet
@@ -377,7 +383,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 
 		d_prime := single_output.PartialStateSet.ServiceAccounts
-		// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
+		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
 		for key, value := range d_prime {
 			if key == service_id {
 				n[key] = value
@@ -386,10 +392,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 		}
 
-		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-		for key, value := range d {
+		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
+		for key := range d {
 			if _, exists := d_prime[key]; !exists {
-				m[key] = value
+				m[key] = d[key]
 			}
 		}
 		// collect blobs updates
