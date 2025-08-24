@@ -89,8 +89,8 @@ type AccumulateArgs struct {
 	ResultContextX ResultContext
 	ResultContextY ResultContext
 	Timeslot       types.TimeSlot
-	Eta            types.Entropy   // italic n / eta_0, used in fetch
-	Operands       []types.Operand // o, used in fetch
+	Eta            types.Entropy                     // italic n / eta_0, used in fetch
+	Operands       []types.OperandOrDeferredTransfer // o, used in fetch
 }
 
 type RefineArgs struct {

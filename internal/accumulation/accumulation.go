@@ -194,19 +194,6 @@ func UpdateAccumulatableWorkReports() {
 }
 
 // (12.16) ∆+ outer accumulation function
-// (NG, ⟦W⟧, U, D⟨NS → NG⟩) → (N, U, ⟦T⟧, B, U )
-// (g, w, o, f )↦ (0, o, [], {}, []) if i = 0
-//
-//	(i + j, o′, t∗⌢ t, b∗ ∪ b, u∗⌢ u) o/w
-//
-// where i = max(NSwS+1) ∶   ∑   ∑     (rg ) ≤ g
-//
-//							w∈w...i  r∈wr
-//	 and (o∗, t∗, b∗, u∗) = ∆∗(o, w...i, f )
-//
-// and (j, o′, t, b, u) = ∆+(g − ∑u, wi..., o∗, {})
-//
-//	(s,u)∈u∗
 func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput, err error) {
 	gas_sum := 0
 	i := 0
@@ -233,6 +220,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	parallel_input.WorkReports = input.WorkReports[:i]
 	parallel_input.PartialStateSet = input.InitPartialStateSet
 	parallel_input.AlwaysAccumulateMap = input.ServicesWithFreeAccumulation
+	parallel_input.DeferredTransfers = input.DeferredTransfers
 
 	parallel_result, err := ParallelizedAccumulation(parallel_input)
 	if err != nil {
@@ -240,14 +228,18 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	}
 
 	// Recurse on the remaining reports with the remaining gas
-	remain_gas := input.GasLimit
+	gas_limit := input.GasLimit
+	for _, DeferredTransfer := range input.DeferredTransfers {
+		gas_limit += DeferredTransfer.GasLimit
+	}
 	for _, gas_use := range parallel_result.ServiceGasUsedList {
-		remain_gas -= gas_use.Gas
+		gas_limit -= gas_use.Gas
 	}
 	var recursive_outer_input OuterAccumulationInput
-	recursive_outer_input.GasLimit = remain_gas
+	recursive_outer_input.GasLimit = gas_limit
 	recursive_outer_input.WorkReports = input.WorkReports[i:]
 	recursive_outer_input.InitPartialStateSet = parallel_result.PartialStateSet
+	recursive_outer_input.DeferredTransfers = parallel_result.DeferredTransfers
 
 	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
 	if err != nil {
@@ -256,7 +248,6 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	// Combine results from this batch and the recursive tail
 	output.NumberOfWorkResultsAccumulated = types.U64(i) + recursive_outer_output.NumberOfWorkResultsAccumulated
 	output.PartialStateSet = recursive_outer_output.PartialStateSet
-	output.DeferredTransfers = append(parallel_result.DeferredTransfers, recursive_outer_output.DeferredTransfers...)
 	output.ServiceGasUsedList = append(parallel_result.ServiceGasUsedList, recursive_outer_output.ServiceGasUsedList...)
 	output.AccumulatedServiceOutput = parallel_result.AccumulatedServiceOutput
 
@@ -267,142 +258,217 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	return output, nil
 }
 
+// (12.20)
+func R[T comparable](o, a, b T) T {
+	if a == o {
+		return b
+	} else {
+		return a
+	}
+}
+
+// Helper function to compute the set s for(12.17)
+// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
+func set_s(W []types.WorkReport, M types.AlwaysAccumulateMap, D []types.DeferredTransfer) map[types.ServiceId]bool {
+	s := make(map[types.ServiceId]bool)
+	// {rs S w ∈ w, r ∈ wr}
+	for _, w := range W {
+		for _, r := range w.Results {
+			s[r.ServiceId] = true
+		}
+	}
+
+	// K(f)
+	for service_id := range M {
+		s[service_id] = true
+	}
+
+	// td S t ∈ t
+	for _, deferred_transfer := range D {
+		s[deferred_transfer.ReceiverID] = true
+	}
+	return s
+}
+
+// Merge three maps, d, n, m
+func merge(d, n, m types.ServiceAccountState) types.ServiceAccountState {
+	result := make(types.ServiceAccountState)
+
+	// Copy d
+	for key, value := range d {
+		result[key] = value
+	}
+
+	// Merge n, overwriting any keys from d
+	for key, value := range n {
+		result[key] = value
+	}
+
+	// Remove keys present in m
+	for key := range m {
+		delete(result, key)
+	}
+
+	return result
+}
+
 // (12.17) ∆∗ parallelized accumulation function
-// (U, ⟦W⟧, D⟨NS → NG⟩) → (U, ⟦T⟧, B, U )
-// (o, w, f ) ↦ ((d′, i′, q′, x′),Ìt, b, u, p∗)
-// where:
-// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
-// u = [(s, ∆1(o, w, f , s)u) S s <− s]
-// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
-// t = [∆1(o, w, f, s)t S s <− s]
-// p =  s<−s⋃ ∆1(o, w, f , s)p
-// d′ = P ((d ∪ n) ∖ m, p)
-//
-//	(d, i, q, (m, a, v, z)) = o
-//
-// x′ = (∆1(o, w, f, m)o)x
-// i′ = (∆1(o, w, f, v)o)i
-// q′ = (∆1(o, w, f, a)o)q
-// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
-//
-//	s∈s
-//
-// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-//
-//	s∈s
-//
+
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
 	// Initialize output maps
 	output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
 
-	// s = {rs S w ∈ w, r ∈ wr} ∪ K(f)
-	s := make(map[types.ServiceId]bool)
-	// {rs S w ∈ w, r ∈ wr}
-	for _, w := range input.WorkReports {
-		for _, r := range w.Results {
-			s[r.ServiceId] = true
-		}
-	}
-	// K(f)
-	for service_id := range input.AlwaysAccumulateMap {
-		s[service_id] = true
-	}
+	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
+	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
+
+	// Needed notations from partial state set
 	d := input.PartialStateSet.ServiceAccounts
+	a := input.PartialStateSet.Assign
+
 	var t []types.DeferredTransfer
 	n := make(types.ServiceAccountState)
-	m := d
+
+	// copy d to m
+	m := make(types.ServiceAccountState)
+	for k, v := range d {
+		m[k] = v
+	}
+
 	p := types.ServiceBlobs{}
-	for service_id := range s {
-		var single_input SingleServiceAccumulationInput
-		single_input.ServiceId = service_id
-		single_input.PartialStateSet = input.PartialStateSet
-		single_input.WorkReports = input.WorkReports
-		single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
+	var single_input SingleServiceAccumulationInput
+	single_input.PartialStateSet = input.PartialStateSet
+	single_input.WorkReports = input.WorkReports
+	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
+
+	// Helper to run single service accumulation for a given service ID
+	runSingleReplaceService := func(serviceId types.ServiceId) (SingleServiceAccumulationOutput, error) {
+		single_input.ServiceId = serviceId
 		single_output, err := SingleServiceAccumulation(single_input)
+		return single_output, err
+	}
+
+	/*
+		∆(s) ≡ ∆1(e, t, r, f , s)
+			u = [(s, ∆(s)u) S s <− s]
+			b = { (s, b) S s ∈ s, b = ∆(s)y , b ≠ ∅ }
+			t′ = [∆(s)t S s <− s]
+			d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
+			    		         s∈s
+			(d, i, q, m, a, v, r, alwaysaccers) = e
+	*/
+	var blobs types.ServiceBlobs
+	for service_id := range s {
+		single_output, err := runSingleReplaceService(service_id)
 		if err != nil {
 			fmt.Println("SingleServiceAccumulation failed:", err)
 		}
-		// p =  ⋃∆1(o, w, f , s)p
-		p = append(p, single_output.ServiceBlobs...)
-		// u = [(s, ∆1(o, w, f, s)u) S s <− s]
+		// u = [(s, ∆(s)u) S s <− s]
 		var u types.ServiceGasUsed
 		u.ServiceId = service_id
 		u.Gas = single_output.GasUsed
 		output.ServiceGasUsedList = append(output.ServiceGasUsedList, u)
-		// b = {(s, b) S s ∈ s, b = ∆1(o, w, f , s)b, b ≠ ∅}
+
+		// b = {(s, b) S s ∈ s, b = ∆(s)y, b ≠ ∅}
 		if single_output.AccumulationOutput != nil {
 			var b types.AccumulatedServiceHash
 			b.ServiceId = service_id
 			b.Hash = *single_output.AccumulationOutput
 			output.AccumulatedServiceOutput[b] = true
 		}
-		// t = [∆1(o, w, f, s)t S s <− s]
+
+		// t = [∆(s)t S s <− s]
 		for _, deferred_transfer := range single_output.DeferredTransfers {
 			t = append(t, deferred_transfer)
 		}
 
-		output_d := single_output.PartialStateSet.ServiceAccounts
-		// n = ⋃ ({(∆1(o, w, f , s)o)d ∖ K(d ∖ {s})})
-		for key, value := range output_d {
+		d_prime := single_output.PartialStateSet.ServiceAccounts
+		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
+		// n = union of (d_prime without keys in d except service_id)
+		for key, value := range d_prime {
 			if key == service_id {
 				n[key] = value
 			} else if _, exists := d[key]; !exists {
 				n[key] = value
-			} else {
-				// exclude all key in d but not s(service_id)
 			}
 		}
-		// m = ⋃ (K(d) ∖ K((∆1(o, w, f , s)o)d))
-		for key, value := range d {
-			if _, exists := output_d[key]; !exists {
-				m[key] = value
+
+		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
+		// m = union of (keys in d but missing in d_prime)
+		for key := range d {
+			if _, exists := d_prime[key]; !exists {
+				m[key] = d[key]
 			}
+		}
+		// collect blobs updates
+		blobs = append(blobs, single_output.ServiceBlobs...)
+		// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
+		//	    		         s∈s
+		d_prime, err = Provide(merge(d, n, m), blobs)
+		if err != nil {
+			return output, fmt.Errorf("failed to provide service accounts: %w", err)
 		}
 	}
-
-	var single_input SingleServiceAccumulationInput
 	single_input.PartialStateSet = input.PartialStateSet
 	single_input.WorkReports = input.WorkReports
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-	runSingleReplaceService := func(serviceId types.ServiceId) SingleServiceAccumulationOutput {
-		single_input.ServiceId = serviceId
-		single_output, _ := SingleServiceAccumulation(single_input)
-		return single_output
-	}
 
-	var new_partial_state types.PartialStateSet
-	// x′ = (∆1(o, w, f, m)o)x
-	// (m′, a∗, v∗, z′) = (∆1(o, w, f , m)o)(m,a,v,z)
+	// e∗ = ∆(m)e
+	// m′, z′ = e∗(m, z)
 	store := store.GetInstance()
-	single_output := runSingleReplaceService(input.PartialStateSet.Bless)
-	m_prime := single_output.PartialStateSet.Bless
-	a_star := single_output.PartialStateSet.Assign
-	v_star := single_output.PartialStateSet.Designate
-	z_prime := single_output.PartialStateSet.AlwaysAccum
-	a_prime := make([]types.ServiceId, len(a_star))
-	// ∀c ∈ NC ∶ a′c = ((∆1(o, w, f , a∗c )o)a)c
-	for c, ac := range a_star {
-		single_output := runSingleReplaceService(ac)
-		a_prime[c] = single_output.PartialStateSet.Assign[c]
+	single_output, err := runSingleReplaceService(input.PartialStateSet.Bless)
+	if err != nil {
+		return output, fmt.Errorf("single service accumulation for bless failed: %w", err)
 	}
-	// v′ = (∆1(o, w, f , v∗)o)v
-	single_output = runSingleReplaceService(v_star)
-	v_prime := single_output.PartialStateSet.Designate
+	e_star := single_output.PartialStateSet
+	m_prime := e_star.Bless
+	z_prime := e_star.AlwaysAccum
 
+	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
+	a_prime := make(types.ServiceIdList, len(a))
+	for c := range types.CoresCount {
+		single_output, err := runSingleReplaceService(a[c])
+		if err != nil {
+			return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+		}
+		a_prime[c] = R(a[c], e_star.Assign[c], single_output.PartialStateSet.Assign[c])
+	}
+
+	// v' = R(v, e∗v , (∆(v)e)v )
+
+	var v_prime, r_prime types.ServiceId
+	single_output, err = runSingleReplaceService(input.PartialStateSet.Designate)
+	if err != nil {
+		return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
+	}
+	v_prime = R(input.PartialStateSet.Designate, e_star.Designate, single_output.PartialStateSet.Designate)
+
+	// r′ = R(r, e∗r , (∆(r)e)r)
+	single_output, err = runSingleReplaceService(input.PartialStateSet.CreateAcct)
+	if err != nil {
+		return output, fmt.Errorf("single service accumulation for createacct failed: %w", err)
+	}
+	r_prime = R(input.PartialStateSet.CreateAcct, e_star.CreateAcct, single_output.PartialStateSet.CreateAcct)
+
+	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
+	var new_partial_state types.PartialStateSet
+	new_partial_state.CreateAcct = r_prime
+	store.GetPosteriorStates().SetCreateAcct(r_prime)
 	new_partial_state.Bless = m_prime
 	new_partial_state.Assign = a_prime
 	new_partial_state.Designate = v_prime
 	new_partial_state.AlwaysAccum = z_prime
 
+	// New posterior states Privileges
 	store.GetPosteriorStates().SetChi(types.Privileges{
 		Bless:       m_prime,
 		Assign:      a_prime,
+		CreateAcct:  r_prime,
 		Designate:   v_prime,
 		AlwaysAccum: z_prime,
 	})
-	// store.GetPosteriorStates().SetChi(x_prime)
-	// i′ = (∆1(o, w, f, v)o)i
+
+	// i′ = (∆(v)e)i
 	{
 		single_input.ServiceId = input.PartialStateSet.Designate
 		single_output, _ := SingleServiceAccumulation(single_input)
@@ -410,6 +476,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		new_partial_state.ValidatorKeys = i_prime
 		store.GetPosteriorStates().SetIota(i_prime)
 	}
+
 	// ∀c ∈ NC ∶ q′c = (∆1(o, w, f , ac)o)q
 	{
 		var q_prime types.AuthQueues
@@ -422,6 +489,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		new_partial_state.Authorizers = q_prime
 		store.GetPosteriorStates().SetVarphi(q_prime)
 	}
+
 	// (d ∪ n) ∖ m
 	for key, value := range n {
 		d[key] = value
@@ -440,23 +508,9 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 }
 
 // (12.20) ∆1 single-service accumulation function
-
-// ∆1∶
-// (U, ⟦W⟧, D⟨NS → NG⟩, NS ) → o ∈ U , t ∈ ⟦T⟧ ,
-//
-//					  b ∈ H? , u ∈ NG p ∈ {NS , Y}
-//	(o, w, f, s) ↦ ΨA(o, τ ′, s, g, i)
-//
-// where:
-//
-//	g = U(fs, 0) + ∑(rg )
-//				w∈w,r∈wr,rs=s
-//
-// i d: rd, e: (ws)e, o:wo,    w <− w, r <− wr, rs = s
-//
-//	y: ry ,h: (ws)h, a:wa
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
-	var operands []types.Operand // all operand inputs for Ψₐ
+	var operands []types.Operand                    // all operand inputs for Ψₐ
+	var deferred_transfers []types.DeferredTransfer // all deferred transfers
 	// U(fs, 0)
 	g := types.Gas(0)
 	if preset, ok := input.AlwaysAccumulateMap[input.ServiceId]; ok {
@@ -484,11 +538,24 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			}
 		}
 	}
-
+	for _, deferred_transfer := range input.DeferredTransfers {
+		if deferred_transfer.ReceiverID == input.ServiceId {
+			deferred_transfers = append(deferred_transfers, deferred_transfer)
+			g += deferred_transfer.GasLimit
+		}
+	}
+	var operandOrDeferredTransfers []types.OperandOrDeferredTransfer
+	//  iT ⌢ iU
+	for _, operand := range operands {
+		operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{Operand: &operand})
+	}
+	for _, deferred_transfer := range deferred_transfers {
+		operandOrDeferredTransfers = append(operandOrDeferredTransfers, types.OperandOrDeferredTransfer{DeferredTransfer: &deferred_transfer})
+	}
 	// τ′: Posterior validator state used by Ψₐ
 	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
-	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands, eta0)
+	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operandOrDeferredTransfers, eta0)
 	output.AccumulationOutput = pvm_result.Result
 	output.DeferredTransfers = pvm_result.DeferredTransfers
 	output.GasUsed = pvm_result.Gas
