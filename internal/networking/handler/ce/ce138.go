@@ -15,23 +15,6 @@ import (
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
-// HandleAuditShardRequest handles an auditor's request for work-package bundle shards from assurers.
-//
-// Request (from Auditor to Assurer):
-//
-//	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
-//	'FIN' (3 bytes)
-//
-// Response (from Assurer to Auditor):
-//
-//	Bundle Shard ([]byte)
-//	Justification ([]byte, Merkle co-path proof)
-//	'FIN' (3 bytes)
-//
-// The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
-// The assurer should construct this by appending the corresponding segment shard root
-// to the justification received via CE 137.
 func HandleAuditShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
 	buf := make([]byte, 32+4+3)

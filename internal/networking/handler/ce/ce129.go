@@ -20,6 +20,10 @@ type CE129Payload struct {
 }
 
 // HandleStateRequest handles a CE129 state key range request.
+//
+// [TODO-Validation]
+// 1. Ensure [blockchain.GetStateRange] returns a sorted state range.
+// 2. Implement [blockchain.GetBoundaryNodes]. The detail of the function (https://github.com/zdave-parity/jam-np/blob/main/simple.md#ce-129-state-request). This function should checks wheather the given start key is present in the state trie, otherwise it should takes another approach.
 func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stream *quic.Stream) error {
 	stateValues, err := blockchain.GetStateRange(req.HeaderHash, req.KeyStart, req.KeyEnd, req.MaxSize)
 	if err != nil {

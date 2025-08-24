@@ -8,17 +8,16 @@ import (
 )
 
 // WorkReportLookupFunc defines a function to look up a WorkReport by hash
-// This allows injection of a test map or real store
-// Returns (workReport, found)
 type WorkReportLookupFunc func(hash types.WorkReportHash) (*types.WorkReport, bool)
 
-// CE136Payload represents the payload for a WorkReportRequest
 type CE136Payload struct {
 	CoreIndex uint32
 }
 
 // HandleWorkReportRequest implements CE 136: Auditor -> Auditor work-report request
-// Reads a 32-byte work-report hash and 'FIN', looks up the work-report, writes the encoded work-report and 'FIN'.
+//
+// [TODO]
+// 1. Ensure auditors who pushing or forwarding a negative judgment be queried first for missing report.
 func HandleWorkReportRequest(
 	stream io.ReadWriteCloser,
 	lookup WorkReportLookupFunc,

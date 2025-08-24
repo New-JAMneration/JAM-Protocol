@@ -13,22 +13,6 @@ import (
 )
 
 // HandlePreimageAnnouncement handles the announcement of possession of a requested preimage.
-// This should be used by non-validator nodes to introduce preimages, and by validators
-// to gossip these preimages to other validators.
-//
-// Protocol CE142:
-// Node -> Validator
-//
-//	--> Service ID ++ Hash ++ Preimage Length
-//	--> FIN
-//	<-- FIN
-//
-// The announcement structure is:
-// - Service ID: 4 bytes (u32)
-// - Hash: 32 bytes (OpaqueHash)
-// - Preimage Length: 4 bytes (u32)
-//
-// Total message size: 4 + 32 + 4 = 40 bytes
 func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	// Service ID (4 bytes) + Hash (32 bytes) + Preimage Length (4 bytes)
 	announcementSize := 4 + 32 + 4

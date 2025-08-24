@@ -46,7 +46,12 @@ func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
 }
 
 // Handler for CE 134: Guarantor <-> Guarantor work-package sharing
-// Accepts any io.ReadWriteCloser for testability, and allows injection of a PVMExecutor and store maps for unit tests
+//
+// [TODO-Validation]
+// 1. Verify work-report.
+// 2. Ensure all import segments retrieved.
+// 3. Ensure work-package bundle exactly matches erasure-coded bundle.
+// 4. Add basic verification (auth + mappings) after receiving bundle.
 func HandleWorkPackageShare(
 	blockchain blockchain.Blockchain,
 	stream io.ReadWriteCloser,
@@ -67,7 +72,6 @@ func HandleWorkPackageShare(
 	if err != nil {
 		return fmt.Errorf("failed to read segment-root mappings: %w", err)
 	}
-	// (Note: mappings are not used in this minimal handler; add logic as needed)
 
 	// 3. Read work-package bundle (rest of stream until FIN)
 	bundle := make([]byte, 65536)

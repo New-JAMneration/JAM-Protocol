@@ -29,6 +29,9 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 	localBandersnatchKey = key
 }
 
+// [TODO-Validation]
+// 1. Check finality of the block for stopping forwarding.
+// 2. Check finality is running behind the state to reset or stop the stream.
 func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	payload := make([]byte, 789)
 	if _, err := io.ReadFull(stream, payload); err != nil {

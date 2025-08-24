@@ -15,22 +15,8 @@ import (
 // HandleAvailabilityAssuranceDistribution handles the distribution of availability assurances
 // from assurers to validators approximately 2 seconds before each slot.
 //
-// Protocol CE141:
-// Assurer -> Validator
-//
-//	--> Assurance (Header Hash (Anchor) ++ Bitfield ++ Ed25519 Signature)
-//	--> FIN
-//	<-- FIN
-//
-// The bitfield is [u8; ceil(C / 8)] where C is the total number of cores.
-// One bit per core indicates availability.
-//
-// The assurance structure is:
-// - Header Hash (Anchor): 32 bytes
-// - Bitfield: ceil(C / 8) bytes (where C = CoresCount)
-// - Ed25519 Signature: 64 bytes
-//
-// Total message size: 32 + ceil(C/8) + 64 bytes
+// [TODO]
+// 1. Broadcast to all block authors
 func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	bitfieldSize := (types.CoresCount + 7) / 8 // ceil(C / 8)
 

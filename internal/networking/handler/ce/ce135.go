@@ -18,7 +18,11 @@ type CE135Payload struct {
 }
 
 // HandleWorkReportDistribution implements CE 135: distribution of a fully guaranteed work-report
-// Accepts any io.ReadWriteCloser for testability, and allows injection of a keypair for signing
+//
+// [TODO-Validation]
+// 1. Check valid slot (too far in past/future)
+// [TODO]
+// 1. Distributed to validators.
 func HandleWorkReportDistribution(
 	blockchain blockchain.Blockchain,
 	stream io.ReadWriteCloser,

@@ -15,22 +15,6 @@ import (
 )
 
 // HandleSegmentShardRequest handles a guarantor's request for segment shards from assurers.
-// This is protocol variant 139 where no justification is provided for the returned segment shards.
-//
-// Request (from Guarantor to Assurer):
-//
-//	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
-//	Segment Indices Length (uint16)
-//	Segment Indices ([]uint16)
-//	'FIN' (3 bytes)
-//
-// Response (from Assurer to Guarantor):
-//
-//	Segment Shards ([]byte, concatenated)
-//	'FIN' (3 bytes)
-//
-// The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)

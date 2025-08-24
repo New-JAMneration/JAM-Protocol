@@ -8,22 +8,9 @@ import (
 
 // HandleECShardRequest handles an assurer's request for their erasure coded shards from a guarantor.
 //
-// Request (from Assurer to Guarantor):
-//
-//	Erasure-Root (hash, []byte)
-//	Shard Index (uint32 or int)
-//	'FIN' (3 bytes)
-//
-// Response (from Guarantor to Assurer):
-//
-//	Bundle Shard ([]byte)
-//	[Segment Shard] ([]byte, exported and proof segment shards with the given index)
-//	Justification ([]byte, Merkle co-path proof)
-//	'FIN' (3 bytes)
-//
-// The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
-//
-// This function should use AssignShardIndex to determine the correct shard index.
+// [TODO-Validation]
+// 1. Remove mock data and check work-report and erasure-coded bundle.
+// 2. Use data retrieved from (1) then calculate Merkle proof.
 func HandleECShardRequest(stream io.ReadWriter, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
 	buf := make([]byte, 32+4+3)

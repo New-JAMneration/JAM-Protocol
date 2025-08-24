@@ -16,6 +16,9 @@ type CE133WorkPackageSubmission struct {
 	Extrinsics  []byte
 }
 
+// [TODO-Validation]
+// 1. Validate extrinsic data is correctly covering all the extrinsic referenced by work-package.
+// 2. Reject extrinsics which contain the imported segments.
 func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read first message: 4 bytes core index + work-package (rest of message)
 	firstMsg := make([]byte, 4096) // Arbitrary max size for demo; adjust as needed

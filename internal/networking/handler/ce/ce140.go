@@ -16,32 +16,6 @@ import (
 
 // HandleSegmentShardRequestWithJustification handles a guarantor's request for segment shards from assurers.
 // This is protocol variant 140 where justification is provided for each returned segment shard.
-//
-// Request (from Guarantor to Assurer):
-//
-//	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
-//	Segment Indices Length (uint16)
-//	Segment Indices ([]uint16)
-//	'FIN' (3 bytes)
-//
-// Response (from Assurer to Guarantor):
-//
-//	Segment Shards ([]byte, concatenated)
-//	Justifications ([]byte, concatenated justifications for each segment shard)
-//	'FIN' (3 bytes)
-//
-// The justification for a segment shard should be the co-path from the erasure-root to the shard,
-// given by: j ^ [b] ^ T(s, i, H)
-// where:
-// - j is the relevant justification provided to the assurer via CE 137
-// - b is the corresponding work-package bundle shard hash
-// - s is the full sequence of segment shards with the given shard index
-// - i is the segment index
-// - H is the Blake 2b hash function
-// - T is as defined in the General Merklization appendix of the GP
-//
-// The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequestWithJustification(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)
