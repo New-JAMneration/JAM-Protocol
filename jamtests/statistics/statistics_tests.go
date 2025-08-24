@@ -230,15 +230,21 @@ func (s *StatisticsTestCase) Dump() error {
 	storeInstance := store.GetInstance()
 
 	// Input
-	storeInstance.GetProcessingBlockPointer().SetAuthorIndex(s.Input.AuthorIndex)
-	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
+	block := types.Block{
+		Header: types.Header{
+			Slot:        s.Input.Slot,
+			AuthorIndex: s.Input.AuthorIndex,
+		},
+		Extrinsic: s.Input.Extrinsic,
+	}
+	storeInstance.AddBlock(block)
+
 	// w (present work reports) from guarantee extrinsic
 	reports := []types.WorkReport{}
 	for _, guarantee := range s.Input.Extrinsic.Guarantees {
 		reports = append(reports, guarantee.Report)
 	}
 	storeInstance.GetIntermediateStates().SetPresentWorkReports(reports)
-	storeInstance.GetProcessingBlockPointer().SetExtrinsics(s.Input.Extrinsic)
 
 	// PreState
 	storeInstance.GetPriorStates().SetTau(s.PreState.Slot)

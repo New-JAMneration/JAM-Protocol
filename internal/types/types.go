@@ -549,6 +549,7 @@ func (w *WorkReport) ScaleEncode() ([]byte, error) {
 
 type MmrPeak *OpaqueHash
 
+// Beefy Belt (7.3) GP 0.6.7
 type Mmr struct {
 	Peaks []MmrPeak `json:"peaks,omitempty"`
 }
@@ -565,6 +566,7 @@ type BlockInfo struct {
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
 
+// (7.2) GP 0.6.7
 type BlocksHistory []BlockInfo
 
 func (b BlocksHistory) Validate() error {
@@ -1462,11 +1464,17 @@ type (
 
 type AlwaysAccumulateMap map[ServiceId]Gas
 
+// jam-types.asn AlwaysAccumulateMapEntry
+type AlwaysAccumulateMapDTO struct {
+	ServiceId ServiceId `json:"id"`
+	Gas       Gas       `json:"gas"`
+}
+
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
-	Designate   ServiceId           `json:"chi_v"` // AlterIota
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
+	Bless       ServiceId           `json:"bless"`      // Manager
+	Assign      ServiceIdList       `json:"assign"`     // AlterPhi
+	Designate   ServiceId           `json:"designate"`  // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"always_acc"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash
@@ -1507,7 +1515,14 @@ type AccumulatedServiceHash struct {
 	Hash      OpaqueHash // AccumulationOutput
 }
 
+// v0.6.7 (7.4)
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+type LastAccOut []AccumulatedServiceHash
+
 // (12.15) B
+// INFO:
+// - We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
 // (12.23)
@@ -1577,6 +1592,12 @@ type StateKeyVal struct {
 }
 
 type StateKeyVals []StateKeyVal
+
+type StateKeyValDiff struct {
+	Key           StateKey
+	ExpectedValue ByteSequence
+	ActualValue   ByteSequence
+}
 
 func Some[T any](v T) *T {
 	return &v

@@ -18,9 +18,17 @@ func NewPriorStates() *PriorStates {
 		state: &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			LastAccOut: make(types.AccumulatedServiceOutput),
+			LastAccOut: types.LastAccOut{},
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
 		},
 	}
+}
+
+func (s *PriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
 }
 
 // GetState returns the current state
@@ -504,13 +512,13 @@ func (s *PriorStates) GetXi() types.AccumulatedQueue {
 	return s.state.Xi
 }
 
-func (s *PriorStates) SetLastAccOut(c types.AccumulatedServiceOutput) {
+func (s *PriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.LastAccOut = c
 }
 
-func (s *PriorStates) GetLastAccOut() types.AccumulatedServiceOutput {
+func (s *PriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.LastAccOut

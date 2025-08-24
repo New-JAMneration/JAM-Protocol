@@ -38,13 +38,6 @@ func CompareBinaryData(data1 []byte, data2 []byte) bool {
 
 // Codec
 func TestEncodeJamTestVectorsCodec(t *testing.T) {
-	// The Codec test cases only support tiny mode
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  Codec test cases only support tiny mode")
-	}
-
 	testCases := map[reflect.Type][]string{
 		reflect.TypeOf(types.AssurancesExtrinsic{}): {
 			"assurances_extrinsic",
@@ -89,7 +82,7 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 		},
 	}
 
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", "data")
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
 
 	for structType, fileNames := range testCases {
 		for _, filename := range fileNames {
@@ -126,18 +119,11 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 			}
 		}
 	}
-
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
 }
 
 // Statistics
 func TestEncodeJamTestVectorsStatistics(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "statistics", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -185,7 +171,7 @@ func TestEncodeJamTestVectorsStatistics(t *testing.T) {
 
 // Safrole
 func TestEncodeJamTestVectorsSafrole(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -233,7 +219,7 @@ func TestEncodeJamTestVectorsSafrole(t *testing.T) {
 
 // Reports
 func TestEncodeJamTestVectorsReports(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "reports", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "reports", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -281,7 +267,7 @@ func TestEncodeJamTestVectorsReports(t *testing.T) {
 
 // Disputes
 func TestEncodeJamTestVectorsDisputes(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "disputes", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -329,7 +315,7 @@ func TestEncodeJamTestVectorsDisputes(t *testing.T) {
 
 // Assurances
 func TestEncodeJamTestVectorsAssurances(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "assurances", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "assurances", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -378,7 +364,7 @@ func TestEncodeJamTestVectorsAssurances(t *testing.T) {
 
 // Authorizations
 func TestEncodeJamTestVectorsAuthorizations(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "authorizations", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "authorizations", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -426,7 +412,7 @@ func TestEncodeJamTestVectorsAuthorizations(t *testing.T) {
 
 // Accumulate
 func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -474,13 +460,7 @@ func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
 
 // Preimages
 func TestEncodeJamTestVectorsPreimages(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  Preimages test cases only support tiny mode")
-	}
-
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "preimages", "data")
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -524,24 +504,11 @@ func TestEncodeJamTestVectorsPreimages(t *testing.T) {
 			log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
 		}
 	}
-
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
 }
 
 // History
 func TestEncodeJamTestVectorsHistory(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  History test cases only support tiny mode")
-	}
-
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "history", "data")
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
 
 	// Read json files
 	jsonFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
@@ -584,13 +551,6 @@ func TestEncodeJamTestVectorsHistory(t *testing.T) {
 		} else {
 			log.Printf("✅ [%s] %s", types.TEST_MODE, filename)
 		}
-	}
-
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
 	}
 }
 
@@ -938,10 +898,19 @@ func TestEncodeJamTestNetTransitions(t *testing.T) {
 }
 
 func TestEncodeJamTestVectorsTraces(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  traces only support tiny mode")
+	}
+
 	dirNames := []string{
 		"fallback",
-		"reports-l0",
+		"preimages",
+		"preimages_light",
 		"safrole",
+		"storage",
+		"storage_light",
 	}
 
 	for _, dirName := range dirNames {
@@ -957,6 +926,10 @@ func TestEncodeJamTestVectorsTraces(t *testing.T) {
 		}
 
 		for i := 0; i < len(jsonTestFiles); i++ {
+			if jsonTestFiles[i] == "genesis.json" {
+				continue
+			}
+
 			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
 			binTestFile := filepath.Join(dir, binTestFiles[i])
 
@@ -987,6 +960,86 @@ func TestEncodeJamTestVectorsTraces(t *testing.T) {
 				log.Printf("✅ [%s] %s", dirName, jsonTestFiles[i])
 			}
 		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
+	}
+}
+
+func TestEncodeJamTestVectorsTracesGenesis(t *testing.T) {
+	BACKUP_TEST_MODE := types.TEST_MODE
+	if types.TEST_MODE != "tiny" {
+		types.SetTinyMode()
+		log.Println("⚠️  traces only support tiny mode")
+	}
+
+	dirNames := []string{
+		"fallback",
+		"preimages",
+		"preimages_light",
+		"safrole",
+		"storage",
+		"storage_light",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join(JAM_TEST_VECTORS_DIR, "traces", dirName)
+		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get JSON files: %v", err)
+		}
+
+		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+		if err != nil {
+			t.Fatalf("Failed to get BIN files: %v", err)
+		}
+
+		for i := 0; i < len(jsonTestFiles); i++ {
+			if jsonTestFiles[i] != "genesis.json" {
+				continue
+			}
+
+			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
+			binTestFile := filepath.Join(dir, binTestFiles[i])
+
+			// Decode the JSON data
+			jsonData, err := utilities.GetTestFromJson[jamtests_trace.Genesis](jsonTestFile)
+			if err != nil {
+				t.Fatalf("Failed to decode JSON data: %v", err)
+			}
+
+			// Encode the JSON data
+			encoder := types.NewEncoder()
+			encoded, err := encoder.Encode(&jsonData)
+			if err != nil {
+				t.Fatalf("Failed to encode JSON data: %v", err)
+			}
+
+			// Read the binary file
+			binData, err := utilities.GetBytesFromFile(binTestFile)
+			if err != nil {
+				t.Fatalf("Failed to read binary file: %v", err)
+			}
+
+			// Compare the binary data
+			if !CompareBinaryData(encoded, binData) {
+				log.Printf("❌ [%s] %s", dirName, jsonTestFiles[i])
+				t.Fatalf("Binary data is not equal to the expected data")
+			} else {
+				log.Printf("✅ [%s] %s", dirName, jsonTestFiles[i])
+			}
+		}
+	}
+
+	// Reset the test mode
+	if BACKUP_TEST_MODE == "tiny" {
+		types.SetTinyMode()
+	} else {
+		types.SetFullMode()
 	}
 }
 

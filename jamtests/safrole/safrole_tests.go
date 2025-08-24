@@ -545,7 +545,6 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (s *SafroleTestCase) Dump() error {
 	store.ResetInstance()
 	storeInstance := store.GetInstance()
@@ -569,7 +568,13 @@ func (s *SafroleTestCase) Dump() error {
 
 	storeInstance.GetPosteriorStates().SetPsiO(s.PreState.PostOffenders)
 
-	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(s.Input.Extrinsic)
+	// Add block with TicketsExtrinsic
+	block := types.Block{
+		Extrinsic: types.Extrinsic{
+			Tickets: s.Input.Extrinsic,
+		},
+	}
+	storeInstance.AddBlock(block)
 
 	return nil
 }

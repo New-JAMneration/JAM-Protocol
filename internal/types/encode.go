@@ -2078,11 +2078,6 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
-	// DepositOffset
-	if err := s.DepositOffset.Encode(e); err != nil {
-		return err
-	}
-
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
 		return err
@@ -2103,6 +2098,21 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 		return err
 	}
 
+	// Bytes
+	if err := s.Bytes.Encode(e); err != nil {
+		return err
+	}
+
+	// DepositOffset
+	if err := s.DepositOffset.Encode(e); err != nil {
+		return err
+	}
+
+	// Items
+	if err := s.Items.Encode(e); err != nil {
+		return err
+	}
+
 	// CreationSlot
 	if err := s.CreationSlot.Encode(e); err != nil {
 		return err
@@ -2115,16 +2125,6 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 
 	// ParentService
 	if err := s.ParentService.Encode(e); err != nil {
-		return err
-	}
-
-	// Bytes
-	if err := s.Bytes.Encode(e); err != nil {
-		return err
-	}
-
-	// Items
-	if err := s.Items.Encode(e); err != nil {
 		return err
 	}
 
@@ -3031,11 +3031,6 @@ func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulatedServiceOutput
-// TODO: We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
-// We need to follow future updates to the graypaper.
-// Alternatively, we may need to change the implementation of AccumulatedServiceOutput to avoid using a map.
-// In this encode function, I ignore sorting when encoding the dictionary as described in the graypaper. (It's not a map)
 func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AccumulatedServiceHash")
 
@@ -3045,6 +3040,26 @@ func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	}
 
 	for accumulatedServiceHash := range *a {
+		// AccumulatedServiceHash
+		if err := accumulatedServiceHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// (7.4) LastAccOut
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+func (l *LastAccOut) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LastAccOut")
+
+	// Encode the size of the slice
+	if err := e.EncodeLength(uint64(len(*l))); err != nil {
+		return err
+	}
+
+	for _, accumulatedServiceHash := range *l {
 		// AccumulatedServiceHash
 		if err := accumulatedServiceHash.Encode(e); err != nil {
 			return err

@@ -1,12 +1,15 @@
 package extrinsic
 
 import (
-	"fmt"
-
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	DisputesErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
 )
 
-func Disputes(disputeExtrinsic types.DisputesExtrinsic) (types.OffendersMark, error) {
+func Disputes() (types.OffendersMark, error) {
+	block := store.GetInstance().GetLatestBlock()
+	disputeExtrinsic := block.Extrinsic.Disputes
+
 	// init controllers
 	verdictController := NewVerdictController()
 	for _, verdict := range disputeExtrinsic.Verdicts {
@@ -21,46 +24,56 @@ func Disputes(disputeExtrinsic types.DisputesExtrinsic) (types.OffendersMark, er
 		VerdictPtr := &verdictController.Verdicts[i]
 		err := VerdictPtr.VerifySignature()
 		if err != nil {
-			return nil, err
+			errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+			return nil, &errCode
 		}
 	}
 
 	if err := verdictController.CheckSortUnique(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 	if err := verdictController.SetDisjoint(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 
 	verdictController.GenerateVerdictSumSequence()
 	disputeController := NewDisputeController(verdictController, faultController, culpritController)
 
 	if err := disputeController.ValidateCulprits(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 	if err := disputeController.ValidateFaults(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 
 	if err := culpritController.CheckSortUnique(); err != nil {
-		return nil, fmt.Errorf("culprits_not_sorted_unique")
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 	if err := faultController.CheckSortUnique(); err != nil {
-		return nil, fmt.Errorf("faults_not_sorted_unique")
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 
 	// update state
 	verdictController.ClearWorkReports(verdictController.VerdictSumSequence)
 	err := disputeController.UpdatePsiGBW(verdictController.VerdictSumSequence)
 	if err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 
 	if err := culpritController.VerifyCulpritValidity(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 	if err := faultController.VerifyFaultValidity(); err != nil {
-		return nil, err
+		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
+		return nil, &errCode
 	}
 
 	disputeController.UpdatePsiO(culpritController.Culprits, faultController.Faults)
