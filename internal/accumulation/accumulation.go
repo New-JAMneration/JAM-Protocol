@@ -425,7 +425,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	z_prime := e_star.AlwaysAccum
 
 	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
-	a_prime := make(types.ServiceIdList, len(a))
+	a_prime := make(types.ServiceIdList, types.CoresCount)
+	if len(a) != types.CoresCount {
+		fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+	}
 	for c := range types.CoresCount {
 		single_output, err := runSingleReplaceService(a[c])
 		if err != nil {
@@ -464,7 +467,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	var q_prime types.AuthQueues
 	{
 
-		q_prime = make(types.AuthQueues, len(input.PartialStateSet.Assign))
+		q_prime = make(types.AuthQueues, types.CoresCount)
+		if len(input.PartialStateSet.Assign) != types.CoresCount {
+			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+		}
 		for c, service_id := range input.PartialStateSet.Assign {
 			single_output, err := runSingleReplaceService(service_id)
 			if err != nil {
