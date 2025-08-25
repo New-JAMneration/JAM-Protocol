@@ -328,6 +328,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		return single_output, err
 	}
 
+	// collective service blobs output
 	p := types.ServiceBlobs{}
 
 	// ∀s ∈ s ∶ run ∆1(e, w, f, s)
@@ -386,13 +387,12 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			m[key] = value
 		}
 
-		// p =  ⋃∆1(o, w, f , s)p
+		// p =  ⋃∆1(e, w, f, s)p
 		p = append(p, single_output.ServiceBlobs...)
 	}
 
-	// x′ = (∆1(o, w, f, m)o)x
-	// (m′, a∗, v∗, z′) = (∆1(o, w, f , m)o)(m,a,v,z)
-	store := store.GetInstance()
+	// x′ = (∆1(e, w, f, m)o)x
+	// (m′, a∗, v∗, z′) = (∆1(e, w, f, m)o)(m,a,v,z)
 	single_output, err := runSingleReplaceService(input.PartialStateSet.Bless)
 	if err != nil {
 		return output, fmt.Errorf("single replace service failed: %w", err)
@@ -402,10 +402,11 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	v_star := single_output.PartialStateSet.Designate
 	z_prime := single_output.PartialStateSet.AlwaysAccum
 	a_prime := make(types.ServiceIdList, types.CoresCount)
+
+	// ∀c ∈ NC ∶ a′c = ((∆1(o, w, f, a∗c )o)a)c
 	if len(a_star) != types.CoresCount {
 		return output, fmt.Errorf("service assign length mismatch: expected %d, got %d", types.CoresCount, len(a_star))
 	}
-	// ∀c ∈ NC ∶ a′c = ((∆1(o, w, f , a∗c )o)a)c
 	for c := range types.CoresCount {
 		single_output, err := runSingleReplaceService(a_star[c])
 		if err != nil {
@@ -413,6 +414,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		a_prime[c] = single_output.PartialStateSet.Assign[c]
 	}
+
 	// v′ = (∆1(o, w, f , v∗)o)v
 	single_output, err = runSingleReplaceService(v_star)
 	if err != nil {
@@ -420,7 +422,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 	v_prime := single_output.PartialStateSet.Designate
 
-	// store.GetPosteriorStates().SetChi(x_prime)
 	// i′ = (∆1(o, w, f, v)o)i
 	var i_prime types.ValidatorsData
 	{
@@ -434,7 +435,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// ∀c ∈ NC ∶ q′c = (∆1(o, w, f , ac)o)q
 	var q_prime types.AuthQueues
 	{
-		q_prime = make(types.AuthQueues, len(input.PartialStateSet.Assign))
+		q_prime = make(types.AuthQueues, types.CoresCount)
 		for c, service_id := range input.PartialStateSet.Assign {
 			single_output, err := runSingleReplaceService(service_id)
 			if err != nil {
@@ -443,6 +444,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			q_prime[c] = single_output.PartialStateSet.Authorizers[c]
 		}
 	}
+
 	// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
 	//	    		         s∈s
 	// d_prime, err = Provide(merge(d, n, m), p)
@@ -453,6 +455,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// Set posterior state
 	{
+		store := store.GetInstance()
 		store.GetPosteriorStates().SetChi(types.Privileges{
 			Bless:       m_prime,
 			Assign:      a_prime,
@@ -474,8 +477,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		new_partial_state.Designate = v_prime
 		new_partial_state.AlwaysAccum = z_prime
 	}
-
-	new_partial_state.ServiceAccounts = d_prime
 	output.PartialStateSet = new_partial_state
 	output.DeferredTransfers = t
 	return output, nil
