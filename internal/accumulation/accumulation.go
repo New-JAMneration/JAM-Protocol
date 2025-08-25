@@ -463,6 +463,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			q_prime[c] = single_output.PartialStateSet.Authorizers[c]
 		}
 	}
+
 	// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
 	//	    		         s∈s
 	// d_prime, err = Provide(merge(d, n, m), p)
