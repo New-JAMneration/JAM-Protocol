@@ -188,43 +188,86 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 }
 
 func (m *ImportBlock) MarshalBinary() ([]byte, error) {
-	return nil, ErrNotImpl
+	encoder := types.NewEncoder()
+	return encoder.Encode((*types.Block)(m))
 }
 
 func (m *ImportBlock) UnmarshalBinary(data []byte) error {
-	return ErrNotImpl
+	decoder := types.NewDecoder()
+	return decoder.Decode(data, (*types.Block)(m))
+}
+
+func (m *SetState) Encode(e *types.Encoder) error {
+	if err := m.Header.Encode(e); err != nil {
+		return err
+	}
+
+	if err := m.State.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *SetState) Decode(d *types.Decoder) error {
+	if err := m.Header.Decode(d); err != nil {
+		return err
+	}
+
+	if err := m.State.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *SetState) MarshalBinary() ([]byte, error) {
-	return nil, ErrNotImpl
+	encoder := types.NewEncoder()
+	if err := m.Encode(encoder); err != nil {
+		return nil, err
+	}
+	return encoder.Encode(&struct {
+		Header types.Header
+		State  types.StateKeyVals
+	}{
+		Header: m.Header,
+		State:  m.State,
+	})
 }
 
 func (m *SetState) UnmarshalBinary(data []byte) error {
-	return ErrNotImpl
+	decoder := types.NewDecoder()
+	return decoder.Decode(data, m)
 }
 
 func (m *GetState) MarshalBinary() ([]byte, error) {
-	return nil, ErrNotImpl
+	encoder := types.NewEncoder()
+	return encoder.Encode((*types.HeaderHash)(m))
 }
 
 func (m *GetState) UnmarshalBinary(data []byte) error {
-	return ErrNotImpl
+	decoder := types.NewDecoder()
+	return decoder.Decode(data, (*types.HeaderHash)(m))
 }
 
 func (m *State) MarshalBinary() ([]byte, error) {
-	return nil, ErrNotImpl
+	encoder := types.NewEncoder()
+	return encoder.Encode((*types.StateKeyVals)(m))
 }
 
 func (m *State) UnmarshalBinary(data []byte) error {
-	return ErrNotImpl
+	decoder := types.NewDecoder()
+	return decoder.Decode(data, (*types.StateKeyVals)(m))
 }
 
 func (m *StateRoot) MarshalBinary() ([]byte, error) {
-	return nil, ErrNotImpl
+	encoder := types.NewEncoder()
+	return encoder.Encode((*types.StateRoot)(m))
 }
 
 func (m *StateRoot) UnmarshalBinary(data []byte) error {
-	return ErrNotImpl
+	decoder := types.NewDecoder()
+	return decoder.Decode(data, (*types.StateRoot)(m))
 }
 
 func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
