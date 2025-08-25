@@ -2,6 +2,8 @@ package PVM
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"log"
 	"reflect"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // OperationType Enum
@@ -17,12 +20,13 @@ type OperationType int
 
 const (
 	// ----------------- General Functions -----------------
-	GasOp    OperationType = iota // gas = 0
-	FetchOp                       // fetch = 1
-	LookupOp                      // lookup = 2
-	ReadOp                        // read = 3
-	WriteOp                       // write = 4
-	InfoOp                        // info = 5
+	GasOp   OperationType = iota // gas = 0
+	FetchOp                      // fetch = 1
+	LookupOp
+	// lookup = 2
+	ReadOp  // read = 3
+	WriteOp // write = 4
+	InfoOp  // info = 5
 
 	// ----------------- Refine Functions -----------------
 	HistoricalLookupOp // historical_lookup = 6
@@ -129,7 +133,7 @@ type Psi_H_ReturnType struct {
 
 // (A.34) Ψ_H
 func Psi_H(
-	program StandardProgram,
+	program Instructions,
 	counter ProgramCounter, // program counter
 	gas types.Gas, // gas counter
 	reg Registers, // registers
@@ -139,9 +143,8 @@ func Psi_H(
 ) (
 	psi_result Psi_H_ReturnType,
 ) {
-	exitreason_prime, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program.ProgramBlob.InstructionData, counter, Gas(gas), reg, ram)
-
-	reason := exitreason_prime.(*PVMExitReason)
+	exitreason, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program, counter, Gas(gas), reg, ram, 0)
+	reason := exitreason.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
 		psi_result.Counter = uint32(counter_prime)
@@ -161,7 +164,16 @@ func Psi_H(
 			omega = hostCallException
 		}
 		omega_result := omega(input)
+
+		var pvmExit *PVMExitReason
+		if !errors.As(omega_result.ExitReason, &pvmExit) {
+			logger.Errorf("%s host-call error : %v",
+				hostCallName[input.Operation], omega_result.ExitReason)
+			return
+		}
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
+		logger.Debugf("%s host-call return: %s, gas : %d -> %d",
+			hostCallName[input.Operation], omega_reason, gas_prime, omega_result.NewGas)
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(counter_prime)
 			psi_result.Gas = gas_prime
@@ -181,6 +193,37 @@ func Psi_H(
 		}
 	}
 	return
+}
+
+var hostCallName = map[OperationType]string{
+	0:   "gas",
+	1:   "fetch",
+	2:   "lookup",
+	3:   "read",
+	4:   "write",
+	5:   "info",
+	6:   "historicalLookup",
+	7:   "export",
+	8:   "machine",
+	9:   "peek",
+	10:  "poke",
+	11:  "pages",
+	12:  "invoke",
+	13:  "expunge",
+	14:  "bless",
+	15:  "assign",
+	16:  "designate",
+	17:  "checkpoint",
+	18:  "new",
+	19:  "upgrade",
+	20:  "transfer",
+	21:  "eject",
+	22:  "query",
+	23:  "solicit",
+	24:  "forget",
+	25:  "yield",
+	26:  "provide",
+	100: "logHostCall",
 }
 
 var HostCallFunctions = map[OperationType]Omega{
@@ -1666,6 +1709,205 @@ func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 	)
 }
 
+func getConstSequence() (serialized []byte, err error) {
+	encoder := types.NewEncoder()
+	// B_I
+	v, err := encoder.EncodeUintWithLength(types.AdditionalMinBalancePerItem, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// B_L
+	v, err = encoder.EncodeUintWithLength(types.AdditionalMinBalancePerOctet, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// B_S
+	v, err = encoder.EncodeUintWithLength(types.BasicMinBalance, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// C
+	v, err = encoder.EncodeUintWithLength(uint64(types.CoresCount), 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// D
+	v, err = encoder.EncodeUintWithLength(types.UnreferencedPreimageTimeslots, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// E
+	v, err = encoder.EncodeUintWithLength(uint64(types.EpochLength), 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_A
+	v, err = encoder.EncodeUintWithLength(types.MaxAccumulateGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_I
+	v, err = encoder.EncodeUintWithLength(types.IsAuthorizedGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_R
+	v, err = encoder.EncodeUintWithLength(types.MaxRefineGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_T
+	v, err = encoder.EncodeUintWithLength(types.TotalGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// H
+	v, err = encoder.EncodeUintWithLength(types.MaxBlocksHistory, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// I
+	v, err = encoder.EncodeUintWithLength(types.MaximumWorkItems, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// J
+	v, err = encoder.EncodeUintWithLength(types.MaximumDependencyItems, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// L
+	v, err = encoder.EncodeUintWithLength(types.MaxLookupAge, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// O
+	v, err = encoder.EncodeUintWithLength(types.AuthPoolMaxSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// P
+	v, err = encoder.EncodeUintWithLength(types.SlotPeriod, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// Q
+	v, err = encoder.EncodeUintWithLength(types.AuthQueueSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// R
+	v, err = encoder.EncodeUintWithLength(uint64(types.RotationPeriod), 2)
+	if err != nil {
+		return nil, err
+	}
+	// S
+	v, err = encoder.EncodeUintWithLength(types.AccumulateQueueSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	// T
+	v, err = encoder.EncodeUintWithLength(types.MaxExtrinsics, 2)
+	if err != nil {
+		return nil, err
+	}
+	// U
+	v, err = encoder.EncodeUintWithLength(types.WorkReportTimeout, 2)
+	if err != nil {
+		return nil, err
+	}
+	// V
+	v, err = encoder.EncodeUintWithLength(uint64(types.ValidatorsCount), 2)
+	if err != nil {
+		return nil, err
+	}
+	// W_A
+	v, err = encoder.EncodeUintWithLength(types.MaxIsAuthorizedCodeSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_B
+	v, err = encoder.EncodeUintWithLength(types.MaxTotalSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_C
+	v, err = encoder.EncodeUintWithLength(types.MaxServiceCodeSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_E
+	v, err = encoder.EncodeUintWithLength(types.ECBasicSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_G
+	v, err = encoder.EncodeUintWithLength(types.SegmentSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_M
+	v, err = encoder.EncodeUintWithLength(types.MaxImportCount, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_P
+	v, err = encoder.EncodeUintWithLength(types.ECPiecesPerSegment, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_R
+	v, err = encoder.EncodeUintWithLength(types.WorkReportOutputBlobsMaximumSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_T
+	v, err = encoder.EncodeUintWithLength(types.TransferMemoSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_X
+	v, err = encoder.EncodeUintWithLength(types.MaxExportCount, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// Y
+	v, err = encoder.EncodeUintWithLength(uint64(types.SlotSubmissionEnd), 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+
+	return serialized, nil
+}
+
 // fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
@@ -1680,7 +1922,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	// pre-processing
 	var (
 		v   []byte
 		err error
@@ -1689,56 +1930,29 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 	switch input.Registers[10] {
 	case 0:
-		v, err = encoder.EncodeMany(
-			types.U64(types.AdditionalMinBalancePerItem),      // B_I
-			types.U64(types.AdditionalMinBalancePerOctet),     // B_L
-			types.U64(types.BasicMinBalance),                  // B_S
-			types.U16(types.CoresCount),                       // C
-			types.U32(types.UnreferencedPreimageTimeslots),    // D
-			types.U32(types.EpochLength),                      // E
-			types.U64(types.MaxAccumulateGas),                 // G_A
-			types.U64(types.IsAuthorizedGas),                  // G_I
-			types.U64(types.MaxRefineGas),                     // G_R
-			types.U64(types.TotalGas),                         // G_T
-			types.U16(types.MaxBlocksHistory),                 // H
-			types.U16(types.MaximumWorkItems),                 // I
-			types.U16(types.MaximumDependencyItems),           // J
-			types.U32(types.MaxLookupAge),                     // L
-			types.U16(types.AuthPoolMaxSize),                  // O
-			types.U16(types.SlotPeriod),                       // P
-			types.U16(types.AuthQueueSize),                    // Q
-			types.U16(types.RotationPeriod),                   // R
-			types.U16(types.AccumulateQueueSize),              // S
-			types.U16(types.MaxExtrinsics),                    // T
-			types.U16(types.WorkReportTimeout),                // U
-			types.U16(types.ValidatorsCount),                  // V
-			types.U32(types.MaxIsAuthorizedCodeSize),          // W_A
-			types.U32(types.MaxTotalSize),                     // W_B
-			types.U32(types.MaxServiceCodeSize),               // W_C
-			types.U32(types.ECBasicSize),                      // W_E
-			types.U32(types.SegmentSize),                      // W_G
-			types.U32(types.MaxImportCount),                   // W_M
-			types.U32(types.ECPiecesPerSegment),               // W_P
-			types.U32(types.WorkReportOutputBlobsMaximumSize), // W_R
-			types.U32(types.TransferMemoSize),                 // W_T
-			types.U32(types.MaxExportCount),                   // W_X
-			types.U32(types.SlotSubmissionEnd),                // Y
-		)
-		break
+		v, err = getConstSequence()
+		if err != nil {
+			logger.Errorf("fetch host-call case 0 encode error: %v", err)
+			return OmegaOutput{
+				ExitReason:   err,
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
 	case 1:
 		if reflect.ValueOf(input.Addition.Eta).IsZero() {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.Eta)
-		break
 	case 2:
 		if input.Addition.AuthOutput == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.AuthOutput)
-		break
 	case 3:
 		if input.Addition.WorkItemIndex == nil {
 			break
@@ -1755,7 +1969,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
-		break
 	case 4:
 		if input.Addition.WorkItemIndex == nil {
 			break
@@ -1768,8 +1981,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
-		break
-
 	case 5:
 		if input.Addition.WorkItemIndex == nil {
 			break
@@ -1786,7 +1997,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
-		break
 	case 6:
 		if input.Addition.WorkItemIndex == nil {
 			break
@@ -1799,14 +2009,12 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.ImportSegments[i][w11])
-		break
 	case 7:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(*input.Addition.WorkPackage)
-		break
 	case 8:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1816,21 +2024,18 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			input.Addition.WorkPackage.Authorizer.CodeHash,
 			input.Addition.WorkPackage.Authorizer.Params,
 		)
-		break
 	case 9:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Authorization)
-		break
 	case 10:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Context)
-		break
 	case 11:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1851,7 +2056,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 12:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1863,7 +2067,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = S(encoder, input.Addition.WorkPackage.Items[w11])
-		break
 	case 13:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1875,7 +2078,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Items[w11].Payload)
-		break
 	case 14:
 		if len(input.Addition.Operands) == 0 {
 			break
@@ -1896,7 +2098,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 15:
 		if len(input.Addition.Operands) == 0 {
 			break
@@ -1908,7 +2109,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.Operands[w11])
-		break
 	case 16:
 		if len(input.Addition.DeferredTransfer) == 0 {
 			break
@@ -1929,7 +2129,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v = buffer
-		break
 	case 17:
 		if len(input.Addition.DeferredTransfer) == 0 {
 			break
@@ -1941,7 +2140,6 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.Encode(input.Addition.DeferredTransfer[w11])
-		break
 	}
 
 	if err != nil {
@@ -1949,10 +2147,12 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	dataLength := uint64(len(v))
+	fmt.Println("dataLength : ", dataLength)
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
 
+	fmt.Printf("o : %d , l : %d\n", o, l)
 	// need to first check writable
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -2431,7 +2631,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// psi
-	c, pcPrime, gasPrime, wPrime, uPrime := SingleStepInvoke(input.Addition.IntegratedPVMMap[n].ProgramCode, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+	c, pcPrime, gasPrime, wPrime, uPrime := SingleStepInvoke(input.Addition.IntegratedPVMMap[n].ProgramCode, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory, 0)
 
 	// mu* = mu
 	encoder := types.NewEncoder()

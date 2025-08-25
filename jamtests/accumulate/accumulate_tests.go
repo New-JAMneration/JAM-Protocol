@@ -694,6 +694,14 @@ func (a *AccumulateTestCase) Dump() error {
 	s.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
 	s.GetPosteriorStates().SetTau(a.Input.Slot)
 
+	// Add block with header slot
+	block := types.Block{
+		Header: types.Header{
+			Slot: a.Input.Slot,
+		},
+	}
+	s.AddBlock(block)
+
 	// Set entropy
 	s.GetPriorStates().SetEta(types.EntropyBuffer{a.PreState.Entropy})
 	s.GetPosteriorStates().SetEta0(a.PreState.Entropy)

@@ -116,6 +116,7 @@ func TestInstruction(t *testing.T) {
 				testCase.InitialGas,
 				testCase.InitialRegisters,
 				initialMemory,
+				0,
 			)
 
 			if ourStatus.Error() != ErrNotImplemented.Error() {

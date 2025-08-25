@@ -1,6 +1,9 @@
 package PVM
 
 import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -16,6 +19,7 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
+	fmt.Println("---------Psi_A------------")
 	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
 		return Psi_A_ReturnType{
@@ -27,8 +31,19 @@ func Psi_A(
 		}
 	}
 
-	storedCode, ok := s.PreimageLookup[s.ServiceInfo.CodeHash]
-	if !ok || len(storedCode) == 0 || len(storedCode) > types.MaxServiceCodeSize {
+	codeHash := s.ServiceInfo.CodeHash
+	_, code, err := service_account.FetchCodeByHash(s, codeHash)
+	if err != nil {
+		return Psi_A_ReturnType{
+			PartialStateSet:   partialState,
+			DeferredTransfers: []types.DeferredTransfer{},
+			Result:            nil,
+			Gas:               0,
+			ServiceBlobs:      []types.ServiceBlob{},
+		}
+	}
+
+	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
 			DeferredTransfers: []types.DeferredTransfer{},
@@ -42,19 +57,20 @@ func Psi_A(
 	encoder := types.NewEncoder()
 
 	// Encode t
-	encoded, err := encoder.Encode(&time)
+	// encoded, err := encoder.Encode(&time)
+	encoded, err := encoder.EncodeUint(uint64(time))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
 
 	// Encode s
-	encoded, err = encoder.Encode(&serviceId)
+	// encoded, err = encoder.Encode(&serviceId)
+	encoded, err = encoder.EncodeUint(uint64(serviceId))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-
 	// Encode |o|
 	encoded, err = encoder.EncodeUint(uint64(len(operands)))
 	if err != nil {
@@ -89,7 +105,7 @@ func Psi_A(
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
 			ServiceId:           &serviceId,
 			ServiceAccountState: partialState.ServiceAccounts,
-			CoreId:              nil, // TODO: may need to update coreID if needed
+			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
 			ResultContextX: I(partialState, serviceId, time, eta),
@@ -99,7 +115,7 @@ func Psi_A(
 		},
 	}
 
-	resultM := Psi_M(StandardCodeFormat(storedCode), 5, types.Gas(gas), Argument(serialized), F, addition)
+	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), F, addition)
 	partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,

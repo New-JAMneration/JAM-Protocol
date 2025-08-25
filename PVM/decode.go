@@ -152,7 +152,7 @@ func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter
 	lX := min(4, max(0, skipLength-1))
 	decodedVX, err := utils.DeserializeFixedLength(instructionCode[pc+2:pc+2+lX], types.U64(lX))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialization error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 	vX, err := SignExtend(int(lX), uint64(decodedVX))
 	if err != nil {
@@ -271,7 +271,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
-		return 0, PVMExitTuple(PANIC, nil)
+		return 0, err
 	}
 	return uint64(memVal), nil
 }

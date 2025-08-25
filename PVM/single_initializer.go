@@ -2,6 +2,7 @@ package PVM
 
 import (
 	"fmt"
+	"log"
 )
 
 type (
@@ -37,7 +38,7 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	readWritePadding := readWriteStart + P(len(w)) + uint32(z)*ZP
 	stackEnd := uint32(1<<32 - 2*ZZ - ZI)
 	stackStart := stackEnd - P(int(s))
-	argumentStart := stackEnd
+	argumentStart := uint32(1<<32 - ZZ - ZI)
 	argumentEnd := argumentStart + uint32(len(a))
 	argumentPadding := argumentStart + P(len(a))
 
@@ -45,14 +46,18 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 
 	allocateMemorySegment(&mem, readOnlyStart, readOnlyEnd, o, MemoryReadOnly)
 	allocateMemorySegment(&mem, readOnlyEnd, readOnlyPadding, nil, MemoryReadOnly) // Padding
+	log.Printf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x\n", readOnlyStart, readOnlyEnd, readOnlyPadding)
 
 	allocateMemorySegment(&mem, readWriteStart, readWriteEnd, w, MemoryReadWrite)
 	allocateMemorySegment(&mem, readWriteEnd, readWritePadding, nil, MemoryReadWrite) // Padding
+	log.Printf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x\n", readWriteStart, readWriteEnd, readWritePadding)
+
+	allocateStack(&mem, stackStart, stackEnd)
+	log.Printf("Memory Map     stack : 0x%08x  0x%08x\n", stackStart, stackEnd)
 
 	allocateMemorySegment(&mem, argumentStart, argumentEnd, a, MemoryReadOnly)
 	allocateMemorySegment(&mem, argumentEnd, argumentPadding, nil, MemoryReadOnly) // Padding
-
-	allocateStack(&mem, stackStart, stackEnd)
+	log.Printf("Memory Map arguments : 0x%08x  0x%08x  0x%08x\n", argumentStart, argumentEnd, argumentPadding)
 
 	// Registers initialization
 	var regs Registers

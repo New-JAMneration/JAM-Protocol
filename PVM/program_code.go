@@ -201,19 +201,18 @@ func decodeUintFirstByte(firstByte byte) (byte, int, error) {
 }
 
 // GP 0.6.7 , for checking basic block first opcode validity
-func (pc ProgramCounter) isOpcodeValid() bool {
-	if _, opcodeExists := zeta[opcode(pc)]; opcodeExists {
+func (code ProgramCode) isOpcodeValid(pc ProgramCounter) bool {
+	if _, opcodeExists := zeta[opcode(code[pc])]; opcodeExists {
 		return true
 	}
 
 	return false
 }
 
-// GP 0.6.7 ,
-func (pc ProgramCounter) isOpocode() ProgramCounter {
-	if _, opcodeExists := zeta[opcode(pc)]; opcodeExists {
-		return pc
+// GP 0.6.7 formula A.19
+func (code ProgramCode) isOpcode(pc ProgramCounter) opcode {
+	if _, opcodeExists := zeta[opcode(code[pc])]; opcodeExists {
+		return opcode(code[pc])
 	}
-
 	return 0
 }
