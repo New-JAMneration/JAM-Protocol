@@ -387,6 +387,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 				n[key] = value
 			} else if _, exists := d[key]; !exists {
 				n[key] = value
+			} else {
+				// exclude part: ∖ K(d ∖ {s})
 			}
 		}
 
@@ -396,6 +398,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		for key := range d {
 			if _, exists := single_outout_d[key]; !exists {
 				d_exclude_single_output_d[key] = d[key]
+			} else {
+				// exclude part: ∖ K((∆(s)e)d)
 			}
 		}
 		// add to m
