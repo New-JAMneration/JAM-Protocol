@@ -282,14 +282,16 @@ func (s *StatisticsTestCase) Validate() error {
 		return fmt.Errorf("statistics.ValsLast failed: expected %v, got %v", s.PostState.ValsLastStats, statistics.ValsLast)
 	}
 
-	// Don't compare the services statistics
-	// Issue: https://github.com/davxy/jam-test-vectors/issues/39
-	// Temporarily commented out the services statistics comparison
+	expectedCurrentValidators := s.PostState.CurrValidators
+	actualCurrentValidators := storeInstance.GetPosteriorStates().GetKappa()
+	if !reflect.DeepEqual(actualCurrentValidators, expectedCurrentValidators) {
+		return fmt.Errorf("CurrentValidators failed: expected %v, got %v", expectedCurrentValidators, actualCurrentValidators)
+	}
 
-	// // Compare statistics struct
-	// if !reflect.DeepEqual(statistics, expectedStatistics.Statistics) {
-	// 	t.Errorf("Test case %v failed: expected %v, got %v", file, expectedStatistics.Statistics, statistics)
-	// }
+	// https://github.com/davxy/jam-test-vectors/issues/91
+	// Davxy:
+	// Slot should remain unchanged in the state.
+	// Statistics is not supposed to be (at least in our vectors proposal) the STF subsystem that changes the slot in the state.
 
 	return nil
 }
