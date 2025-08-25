@@ -2,7 +2,6 @@ package PVM
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -28,7 +27,6 @@ func Psi_M(
 		}
 	}
 
-	fmt.Println("deblob program code")
 	program, err := DeBlobProgramCode(programCode)
 	var pvmExit *PVMExitReason
 	if !errors.As(err, &pvmExit) {

@@ -66,7 +66,6 @@ func SingleStepStateTransition(instructionCode ProgramCode, bitmask Bitmask, jum
 	if int(programCounter) >= len(instructionCode) {
 		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
 	}
-
 	var exitReason error
 	// (v.6.2 A.19) l = skip(iota)
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))

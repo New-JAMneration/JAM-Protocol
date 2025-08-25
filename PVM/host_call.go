@@ -20,12 +20,13 @@ type OperationType int
 
 const (
 	// ----------------- General Functions -----------------
-	GasOp    OperationType = iota // gas = 0
-	FetchOp                       // fetch = 1
-	LookupOp                      // lookup = 2
-	ReadOp                        // read = 3
-	WriteOp                       // write = 4
-	InfoOp                        // info = 5
+	GasOp   OperationType = iota // gas = 0
+	FetchOp                      // fetch = 1
+	LookupOp
+	// lookup = 2
+	ReadOp  // read = 3
+	WriteOp // write = 4
+	InfoOp  // info = 5
 
 	// ----------------- Refine Functions -----------------
 	HistoricalLookupOp // historical_lookup = 6
@@ -1772,6 +1773,205 @@ func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 	)
 }
 
+func getConstSequence() (serialized []byte, err error) {
+	encoder := types.NewEncoder()
+	// B_I
+	v, err := encoder.EncodeUintWithLength(types.AdditionalMinBalancePerItem, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// B_L
+	v, err = encoder.EncodeUintWithLength(types.AdditionalMinBalancePerOctet, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// B_S
+	v, err = encoder.EncodeUintWithLength(types.BasicMinBalance, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// C
+	v, err = encoder.EncodeUintWithLength(uint64(types.CoresCount), 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// D
+	v, err = encoder.EncodeUintWithLength(types.UnreferencedPreimageTimeslots, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// E
+	v, err = encoder.EncodeUintWithLength(uint64(types.EpochLength), 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_A
+	v, err = encoder.EncodeUintWithLength(types.MaxAccumulateGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_I
+	v, err = encoder.EncodeUintWithLength(types.IsAuthorizedGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_R
+	v, err = encoder.EncodeUintWithLength(types.MaxRefineGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// G_T
+	v, err = encoder.EncodeUintWithLength(types.TotalGas, 8)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// H
+	v, err = encoder.EncodeUintWithLength(types.MaxBlocksHistory, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// I
+	v, err = encoder.EncodeUintWithLength(types.MaximumWorkItems, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// J
+	v, err = encoder.EncodeUintWithLength(types.MaximumDependencyItems, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// L
+	v, err = encoder.EncodeUintWithLength(types.MaxLookupAge, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// O
+	v, err = encoder.EncodeUintWithLength(types.AuthPoolMaxSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// P
+	v, err = encoder.EncodeUintWithLength(types.SlotPeriod, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// Q
+	v, err = encoder.EncodeUintWithLength(types.AuthQueueSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// R
+	v, err = encoder.EncodeUintWithLength(uint64(types.RotationPeriod), 2)
+	if err != nil {
+		return nil, err
+	}
+	// S
+	v, err = encoder.EncodeUintWithLength(types.AccumulateQueueSize, 2)
+	if err != nil {
+		return nil, err
+	}
+	// T
+	v, err = encoder.EncodeUintWithLength(types.MaxExtrinsics, 2)
+	if err != nil {
+		return nil, err
+	}
+	// U
+	v, err = encoder.EncodeUintWithLength(types.WorkReportTimeout, 2)
+	if err != nil {
+		return nil, err
+	}
+	// V
+	v, err = encoder.EncodeUintWithLength(uint64(types.ValidatorsCount), 2)
+	if err != nil {
+		return nil, err
+	}
+	// W_A
+	v, err = encoder.EncodeUintWithLength(types.MaxIsAuthorizedCodeSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_B
+	v, err = encoder.EncodeUintWithLength(types.MaxTotalSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_C
+	v, err = encoder.EncodeUintWithLength(types.MaxServiceCodeSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_E
+	v, err = encoder.EncodeUintWithLength(types.ECBasicSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_G
+	v, err = encoder.EncodeUintWithLength(types.SegmentSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_M
+	v, err = encoder.EncodeUintWithLength(types.MaxImportCount, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_P
+	v, err = encoder.EncodeUintWithLength(types.ECPiecesPerSegment, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_R
+	v, err = encoder.EncodeUintWithLength(types.WorkReportOutputBlobsMaximumSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_T
+	v, err = encoder.EncodeUintWithLength(types.TransferMemoSize, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// W_X
+	v, err = encoder.EncodeUintWithLength(types.MaxExportCount, 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+	// Y
+	v, err = encoder.EncodeUintWithLength(uint64(types.SlotSubmissionEnd), 4)
+	if err != nil {
+		return nil, err
+	}
+	serialized = append(serialized, v...)
+
+	return serialized, nil
+}
+
 // fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
@@ -2059,6 +2259,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	dataLength := uint64(len(v))
+	fmt.Println("dataLength : ", dataLength)
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
