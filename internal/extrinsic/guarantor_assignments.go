@@ -16,7 +16,7 @@ var (
 )
 
 // GuranatorAssignments is a struct that contains a slice of CoreIndex and Ed25519Public
-// (11.18) M ∈ (⟦N_C⟧V , ⟦K⟧V )
+// (11.18) G ∈ (⟦N_C⟧N_V , ⟦H_K ⟧N_V )
 type GuranatorAssignments struct {
 	CoreAssignments []types.CoreIndex
 	PublicKeys      []types.Ed25519Public
