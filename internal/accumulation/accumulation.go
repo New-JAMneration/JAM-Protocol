@@ -327,33 +327,26 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	a := input.PartialStateSet.Assign
 
 	var t_prime []types.DeferredTransfer
-	n := make(types.ServiceAccountState)
 
-	// copy d to m
+	// maps for collecting service account state changes and update d_prime
+	n := make(types.ServiceAccountState)
 	m := make(types.ServiceAccountState)
 
 	var single_input SingleServiceAccumulationInput
-	single_input.PartialStateSet = input.PartialStateSet
-	single_input.WorkReports = input.WorkReports
-	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
-	single_input.DeferredTransfers = input.DeferredTransfers
+	single_input.PartialStateSet = input.PartialStateSet         // e
+	single_input.DeferredTransfers = input.DeferredTransfers     // t
+	single_input.WorkReports = input.WorkReports                 // r
+	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap // f
 
 	// Helper to run single service accumulation for a given service ID
+	// ∆(s) ≡ ∆1(e, t, r, f, s)
 	runSingleReplaceService := func(serviceId types.ServiceId) (SingleServiceAccumulationOutput, error) {
 		single_input.ServiceId = serviceId
 		single_output, err := SingleServiceAccumulation(single_input)
 		return single_output, err
 	}
 
-	/*
-		∆(s) ≡ ∆1(e, t, r, f , s)
-			u = [(s, ∆(s)u) S s <− s]
-			b = { (s, b) S s ∈ s, b = ∆(s)y , b ≠ ∅ }
-			t′ = [∆(s)t S s <− s]
-			d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
-			    		         s∈s
-			(d, i, q, m, a, v, r, alwaysaccers) = e
-	*/
+	// p: output service blobs collection
 	var p types.ServiceBlobs
 	for service_id := range s {
 		single_output, err := runSingleReplaceService(service_id)
@@ -408,14 +401,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		// collect blobs updates
 		p = append(p, single_output.ServiceBlobs...)
-		if err != nil {
-			return output, fmt.Errorf("failed to provide service accounts: %w", err)
-		}
 	}
 
 	// e∗ = ∆(m)e
 	// m′, z′ = e∗(m, z)
-	store := store.GetInstance()
 	single_output, err := runSingleReplaceService(input.PartialStateSet.Bless)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for bless failed: %w", err)
@@ -492,6 +481,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// Set posterior state
 	{
+		store := store.GetInstance()
 		store.GetPosteriorStates().SetCreateAcct(r_prime)
 		store.GetPosteriorStates().SetChi(types.Privileges{
 			Bless:       m_prime,
