@@ -215,7 +215,9 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 			break
 		}
 	}
-	if i == 0 {
+	// n = |t| + i + |f|
+	n := len(t) + i + len(f)
+	if n == 0 {
 		output.NumberOfWorkResultsAccumulated = 0
 		output.PartialStateSet = e
 		output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
@@ -241,21 +243,22 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	}
 
 	// Recurse on the remaining reports with the remaining gas
-	// j, e′, b, u = ∆+(g∗ − ∑(s,u)∈u∗(u), t∗, ri..., e∗, {})
+	// (j, e′, b, u) = ∆+(g∗ − ∑(s,u)∈u∗(u), t∗, ri..., e∗, {})
 	g_star := input.GasLimit
 	for _, DeferredTransfer := range t {
 		g_star += DeferredTransfer.GasLimit
 	}
 
 	gas_limit_for_recursion := g_star
-	for _, gas_use := range u_star {
-		gas_limit_for_recursion -= gas_use.Gas
+	for _, u := range u_star {
+		gas_limit_for_recursion -= u.Gas
 	}
 	var recursive_outer_input OuterAccumulationInput
 	recursive_outer_input.GasLimit = gas_limit_for_recursion
+	recursive_outer_input.DeferredTransfers = t_star
 	recursive_outer_input.WorkReports = r[i:]
 	recursive_outer_input.InitPartialStateSet = e_star
-	recursive_outer_input.DeferredTransfers = t_star
+	recursive_outer_input.ServicesWithFreeAccumulation = make(map[types.ServiceId]types.Gas) // {}
 
 	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
 	if err != nil {
@@ -269,7 +272,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	// (i + j, e′, b∗ ∪ b, u∗⌢ u)
 	{
 		output.NumberOfWorkResultsAccumulated = types.U64(i) + j
-		output.PartialStateSet = e_prime
+		output.PartialStateSet = e_prime // need to set post state?
 		// merge b_star and b
 		mergedAccumulatedServiceOutput := make(map[types.AccumulatedServiceHash]bool)
 		for key, value := range b_star {
@@ -561,23 +564,21 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	}
 
 	// iT: all accumulate work result operands for service s
-	for _, report := range input.WorkReports {
-		for _, item := range report.Results {
-			if item.ServiceId == input.ServiceId {
+	for _, r := range input.WorkReports {
+		for _, d := range r.Results {
+			if d.ServiceId == input.ServiceId {
 				//    ∑(rg )
 				// w∈w,r∈wr,rs=s
-				g += item.AccumulateGas
-
-				// p d: rd, e: (ws)e, o:wo
-				//	y: ry ,h: (ws)h, a:wa
+				g += d.AccumulateGas
+				// Construct operand
 				operand := types.Operand{
-					Hash:           report.PackageSpec.Hash,        // h: (ws)h — work package hash，
-					ExportsRoot:    report.PackageSpec.ExportsRoot, // e: (ws)e — exports root
-					AuthorizerHash: report.AuthorizerHash,          // a: wa — authorizer hash
-					PayloadHash:    item.PayloadHash,               // y: ry — result payload hash
-					AuthOutput:     report.AuthOutput,              // o: wo
-					Result:         item.Result,                    // d: rd
-					GasLimit:       item.AccumulateGas,             // g: rg
+					PayloadHash:    d.PayloadHash,             // l: dl
+					GasLimit:       d.AccumulateGas,           // g: dg
+					Result:         d.Result,                  // y: dy
+					AuthOutput:     r.AuthOutput,              // t: rt
+					Hash:           r.PackageSpec.Hash,        // h: (rs)p — work package hash，
+					ExportsRoot:    r.PackageSpec.ExportsRoot, // e: (rs)e — exports root
+					AuthorizerHash: r.AuthorizerHash,          // a: ra — authorizer hash
 				}
 				i_T = append(i_T, operand)
 			}
