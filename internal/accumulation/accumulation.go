@@ -268,24 +268,24 @@ func R[T comparable](o, a, b T) T {
 }
 
 // Helper function to compute the set s for(12.17)
-// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
-func set_s(W []types.WorkReport, M types.AlwaysAccumulateMap, D []types.DeferredTransfer) map[types.ServiceId]bool {
+// s = {s S s ∈ (rs S r ∈ r, d ∈ rd)} ∪ K(f) ∪ {td S t ∈ t}
+func set_s(r []types.WorkReport, f types.AlwaysAccumulateMap, t []types.DeferredTransfer) map[types.ServiceId]bool {
 	s := make(map[types.ServiceId]bool)
-	// {rs S w ∈ w, r ∈ wr}
-	for _, w := range W {
+	// {rs S r ∈ r, d ∈ rd}
+	for _, w := range r {
 		for _, r := range w.Results {
-			s[r.ServiceId] = true
+			s[r.ServiceId] = true // rd
 		}
 	}
 
 	// K(f)
-	for service_id := range M {
+	for service_id := range f {
 		s[service_id] = true
 	}
 
 	// td S t ∈ t
-	for _, deferred_transfer := range D {
-		s[deferred_transfer.ReceiverID] = true
+	for _, deferred_transfer := range t {
+		s[deferred_transfer.ReceiverID] = true // td
 	}
 	return s
 }
@@ -316,116 +316,114 @@ func merge(d, n, m types.ServiceAccountState) types.ServiceAccountState {
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
-	// Initialize output maps
-	output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
 
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
+	b := make(map[types.AccumulatedServiceHash]bool)
+	u := make(types.ServiceGasUsedList, 0)
 
 	// Needed notations from partial state set
+	e := input.PartialStateSet
+	t := input.DeferredTransfers
+	r := input.WorkReports
+	f := input.AlwaysAccumulateMap
+	// d, a from input partial state set
 	d := input.PartialStateSet.ServiceAccounts
 	a := input.PartialStateSet.Assign
 
-	var t []types.DeferredTransfer
+	var t_prime []types.DeferredTransfer
+
+	// maps for collecting service account state changes and update d_prime
 	n := make(types.ServiceAccountState)
-
-	// copy d to m
 	m := make(types.ServiceAccountState)
-	for k, v := range d {
-		m[k] = v
-	}
 
-	p := types.ServiceBlobs{}
 	var single_input SingleServiceAccumulationInput
-	single_input.PartialStateSet = input.PartialStateSet
-	single_input.WorkReports = input.WorkReports
-	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
+	single_input.PartialStateSet = e
+	single_input.DeferredTransfers = t
+	single_input.WorkReports = r
+	single_input.AlwaysAccumulateMap = f
 
 	// Helper to run single service accumulation for a given service ID
-	runSingleReplaceService := func(serviceId types.ServiceId) (SingleServiceAccumulationOutput, error) {
-		single_input.ServiceId = serviceId
+	// ∆(s) ≡ ∆1(e, t, r, f, s)
+	runSingleReplaceService := func(s types.ServiceId) (SingleServiceAccumulationOutput, error) {
+		single_input.ServiceId = s
 		single_output, err := SingleServiceAccumulation(single_input)
 		return single_output, err
 	}
 
-	/*
-		∆(s) ≡ ∆1(e, t, r, f , s)
-			u = [(s, ∆(s)u) S s <− s]
-			b = { (s, b) S s ∈ s, b = ∆(s)y , b ≠ ∅ }
-			t′ = [∆(s)t S s <− s]
-			d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
-			    		         s∈s
-			(d, i, q, m, a, v, r, alwaysaccers) = e
-	*/
-	var blobs types.ServiceBlobs
+	// p: output service blobs collection
+	var p types.ServiceBlobs
 	for service_id := range s {
 		single_output, err := runSingleReplaceService(service_id)
 		if err != nil {
 			fmt.Println("SingleServiceAccumulation failed:", err)
 		}
 		// u = [(s, ∆(s)u) S s <− s]
-		var u types.ServiceGasUsed
-		u.ServiceId = service_id
-		u.Gas = single_output.GasUsed
-		output.ServiceGasUsedList = append(output.ServiceGasUsedList, u)
+		var gas_use types.ServiceGasUsed
+		gas_use.ServiceId = service_id
+		gas_use.Gas = single_output.GasUsed
+		u = append(u, gas_use)
 
 		// b = {(s, b) S s ∈ s, b = ∆(s)y, b ≠ ∅}
 		if single_output.AccumulationOutput != nil {
-			var b types.AccumulatedServiceHash
-			b.ServiceId = service_id
-			b.Hash = *single_output.AccumulationOutput
-			output.AccumulatedServiceOutput[b] = true
+			var service_hash types.AccumulatedServiceHash
+			service_hash.ServiceId = service_id
+			service_hash.Hash = *single_output.AccumulationOutput
+			b[service_hash] = true
 		}
 
 		// t = [∆(s)t S s <− s]
 		for _, deferred_transfer := range single_output.DeferredTransfers {
-			t = append(t, deferred_transfer)
+			t_prime = append(t_prime, deferred_transfer)
 		}
 
-		d_prime := single_output.PartialStateSet.ServiceAccounts
+		single_outout_d := single_output.PartialStateSet.ServiceAccounts
+
 		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
 		// n = union of (d_prime without keys in d except service_id)
-		for key, value := range d_prime {
+		for key, value := range single_outout_d {
 			if key == service_id {
 				n[key] = value
 			} else if _, exists := d[key]; !exists {
 				n[key] = value
+			} else {
+				// exclude part: ∖ K(d ∖ {s})
 			}
 		}
 
 		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
 		// m = union of (keys in d but missing in d_prime)
+		d_exclude_single_output_d := make(types.ServiceAccountState)
 		for key := range d {
-			if _, exists := d_prime[key]; !exists {
-				m[key] = d[key]
+			if _, exists := single_outout_d[key]; !exists {
+				d_exclude_single_output_d[key] = d[key]
+			} else {
+				// exclude part: ∖ K((∆(s)e)d)
 			}
 		}
-		// collect blobs updates
-		blobs = append(blobs, single_output.ServiceBlobs...)
-		// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
-		//	    		         s∈s
-		d_prime, err = Provide(merge(d, n, m), blobs)
-		if err != nil {
-			return output, fmt.Errorf("failed to provide service accounts: %w", err)
+		// add to m
+		for key, value := range d_exclude_single_output_d {
+			m[key] = value
 		}
+		// collect blobs updates
+		p = append(p, single_output.ServiceBlobs...)
 	}
-	single_input.PartialStateSet = input.PartialStateSet
-	single_input.WorkReports = input.WorkReports
-	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap
 
-	// e∗ = ∆(m)e
-	// m′, z′ = e∗(m, z)
-	store := store.GetInstance()
 	single_output, err := runSingleReplaceService(input.PartialStateSet.Bless)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for bless failed: %w", err)
 	}
+	// e∗ = ∆(m)e
 	e_star := single_output.PartialStateSet
+	// m′, z′ = e∗(m, z)
 	m_prime := e_star.Bless
 	z_prime := e_star.AlwaysAccum
 
 	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
-	a_prime := make(types.ServiceIdList, len(a))
+	a_prime := make(types.ServiceIdList, types.CoresCount)
+	if len(a) != types.CoresCount {
+		return output, fmt.Errorf("input.PartialStateSet.Assign length does not match types.CoresCount")
+	}
 	for c := range types.CoresCount {
 		single_output, err := runSingleReplaceService(a[c])
 		if err != nil {
@@ -435,7 +433,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 
 	// v' = R(v, e∗v , (∆(v)e)v )
-
 	var v_prime, r_prime types.ServiceId
 	single_output, err = runSingleReplaceService(input.PartialStateSet.Designate)
 	if err != nil {
@@ -450,60 +447,76 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 	r_prime = R(input.PartialStateSet.CreateAcct, e_star.CreateAcct, single_output.PartialStateSet.CreateAcct)
 
-	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
-	var new_partial_state types.PartialStateSet
-	new_partial_state.CreateAcct = r_prime
-	store.GetPosteriorStates().SetCreateAcct(r_prime)
-	new_partial_state.Bless = m_prime
-	new_partial_state.Assign = a_prime
-	new_partial_state.Designate = v_prime
-	new_partial_state.AlwaysAccum = z_prime
-
-	// New posterior states Privileges
-	store.GetPosteriorStates().SetChi(types.Privileges{
-		Bless:       m_prime,
-		Assign:      a_prime,
-		CreateAcct:  r_prime,
-		Designate:   v_prime,
-		AlwaysAccum: z_prime,
-	})
-
 	// i′ = (∆(v)e)i
+	var i_prime types.ValidatorsData
 	{
-		single_input.ServiceId = input.PartialStateSet.Designate
-		single_output, _ := SingleServiceAccumulation(single_input)
-		i_prime := single_output.PartialStateSet.ValidatorKeys
-		new_partial_state.ValidatorKeys = i_prime
-		store.GetPosteriorStates().SetIota(i_prime)
+		single_output, err := runSingleReplaceService(input.PartialStateSet.Designate)
+		if err != nil {
+			return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
+
+		}
+		i_prime = single_output.PartialStateSet.ValidatorKeys
 	}
 
-	// ∀c ∈ NC ∶ q′c = (∆1(o, w, f , ac)o)q
+	// ∀c ∈ NC ∶ q′c = ((∆(ac)e)q)c
+	var q_prime types.AuthQueues
 	{
-		var q_prime types.AuthQueues
-		q_prime = make(types.AuthQueues, len(input.PartialStateSet.Assign))
+
+		q_prime = make(types.AuthQueues, types.CoresCount)
+		if len(input.PartialStateSet.Assign) != types.CoresCount {
+			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+		}
 		for c, service_id := range input.PartialStateSet.Assign {
-			single_input.ServiceId = service_id
-			single_output, _ := SingleServiceAccumulation(single_input)
+			single_output, err := runSingleReplaceService(service_id)
+			if err != nil {
+				return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+			}
 			q_prime[c] = single_output.PartialStateSet.Authorizers[c]
 		}
-		new_partial_state.Authorizers = q_prime
-		store.GetPosteriorStates().SetVarphi(q_prime)
+
 	}
 
 	// (d ∪ n) ∖ m
-	for key, value := range n {
-		d[key] = value
-	}
-	for key := range m {
-		delete(d, key)
-	}
-	d_prime, err := Provide(d, p)
+	// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
+	//	    		         s∈s
+	// d_prime, err = Provide(merge(d, n, m), p)
+	d_prime, err := Provide(merge(d, n, m), p)
 	if err != nil {
 		return output, fmt.Errorf("failed to provide service accounts: %w", err)
 	}
-	new_partial_state.ServiceAccounts = d_prime
+
+	// Set posterior state
+	{
+		store := store.GetInstance()
+		store.GetPosteriorStates().SetChi(types.Privileges{
+			Bless:       m_prime,
+			Assign:      a_prime,
+			Designate:   v_prime,
+			CreateAcct:  r_prime,
+			AlwaysAccum: z_prime,
+		})
+		store.GetPosteriorStates().SetVarphi(q_prime)
+		store.GetPosteriorStates().SetIota(i_prime)
+		store.GetPosteriorStates().SetDelta(d_prime)
+		// Do we need t_prime in posterior state?
+	}
+	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
+	// Set output ((d′, i′, q′, m′, a′, v′, r′, z′), t′, b, u)
+	var new_partial_state types.PartialStateSet
+	{
+		new_partial_state.ServiceAccounts = d_prime
+		new_partial_state.ValidatorKeys = i_prime
+		new_partial_state.Authorizers = q_prime
+		new_partial_state.Bless = m_prime
+		new_partial_state.Assign = a_prime
+		new_partial_state.Designate = v_prime
+		new_partial_state.CreateAcct = r_prime
+		new_partial_state.AlwaysAccum = z_prime
+	}
 	output.PartialStateSet = new_partial_state
-	output.DeferredTransfers = t
+	output.DeferredTransfers = t_prime
+	output.AccumulatedServiceOutput = b
+	output.ServiceGasUsedList = u
 	return output, nil
 }
 
