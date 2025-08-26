@@ -335,7 +335,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range s {
 		single_output, err := runSingleReplaceService(service_id)
 		if err != nil {
-			fmt.Println("SingleServiceAccumulation failed:", err)
+			fmt.Errorf("single replace service failed: %w", err)
 		}
 
 		// u = [(s, ∆1(e, w, f, s)u) S s <− s]
