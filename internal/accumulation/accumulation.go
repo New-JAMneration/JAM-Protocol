@@ -416,7 +416,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// ∀c ∈ NC ∶ a′c = R(ac, (e∗a)c, ((∆(ac)e)a)c)
 	a_prime := make(types.ServiceIdList, types.CoresCount)
 	if len(a) != types.CoresCount {
-		fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+		return output, fmt.Errorf("input.PartialStateSet.Assign length does not match types.CoresCount")
 	}
 	for c := range types.CoresCount {
 		single_output, err := runSingleReplaceService(a[c])
