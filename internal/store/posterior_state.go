@@ -279,13 +279,6 @@ func (s *PosteriorStates) SetChi(chi types.Privileges) {
 	s.state.Chi = chi
 }
 
-// SetChi sets the chi value
-func (s *PosteriorStates) SetCreateAcct(createAcct types.ServiceId) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.Chi.CreateAcct = createAcct
-}
-
 // GetChi returns the chi value
 func (s *PosteriorStates) GetChi() types.Privileges {
 	s.mu.RLock()
