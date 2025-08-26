@@ -1483,26 +1483,26 @@ func (c *CoreActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
 
-	// Exports
-	cLog(Cyan, "Encoding Exports")
-	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
+	// ExtrinsicCount (x)
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
 
-	// ExtrinsicSize
+	// ExtrinsicSize (z)
 	cLog(Cyan, "Encoding ExtrinsicSize")
 	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
 		return err
 	}
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
 
-	// ExtrinsicCount
-	cLog(Cyan, "Encoding ExtrinsicCount")
-	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
 
 	// BundleSize
 	cLog(Cyan, "Encoding BundleSize")
@@ -1560,12 +1560,12 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("Imports: %v", s.Imports))
 
-	// Exports
-	cLog(Cyan, "Encoding Exports")
-	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
 
 	// ExtrinsicSize
 	cLog(Cyan, "Encoding ExtrinsicSize")
@@ -1574,12 +1574,12 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", s.ExtrinsicSize))
 
-	// ExtrinsicCount
-	cLog(Cyan, "Encoding ExtrinsicCount")
-	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
+	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
 
 	// AccumulateCount
 	cLog(Cyan, "Encoding AccumulateCount")
