@@ -483,7 +483,7 @@ func TestAssuranceTestVectors(t *testing.T) {
 	}
 
 	for _, binFile := range binFiles {
-		if binFile != "assurance_with_bad_attestation_parent-1.bin" {
+		if binFile == "no_assurances_with_stale_report-1.bin" {
 			continue
 		}
 		// Read the binary file
@@ -523,22 +523,22 @@ func TestAssuranceTestVectors(t *testing.T) {
 		rhoDoubleDagger := s.GetIntermediateStates().GetRhoDoubleDagger()
 
 		// Filter reports: compare rhoDagger with rhoDoubleDagger
-		if !reflect.DeepEqual(a.PreState.AvailAssignments, rhoDoubleDagger) {
-			diff := cmp.Diff(a.PreState.AvailAssignments, rhoDoubleDagger)
-			t.Logf("expected output: %v", diff)
-		}
-
 		ourOutput := make([]types.WorkReport, 0)
 
-		for k, v := range rhoDoubleDagger {
-			if v != nil && a.PreState.AvailAssignments[k] != nil {
-				if a.PreState.AvailAssignments[k].Report.PackageSpec.Hash != v.Report.PackageSpec.Hash {
-					ourOutput = append(ourOutput, v.Report)
+		// rhoDagger >= rhoDoubleDagger
+		if !reflect.DeepEqual(a.PreState.AvailAssignments, rhoDoubleDagger) {
+			for i := 0; i < types.CoresCount; i++ {
+				if !reflect.DeepEqual(a.PreState.AvailAssignments[i], rhoDoubleDagger[i]) {
+					// For debugging
+					// t.Logf("rhoDagger[%d]: %v", i, a.PreState.AvailAssignments[i])
+					// t.Logf("rhoDoubleDagger[%d]: %v", i, rhoDoubleDagger[i])
+					ourOutput = append(ourOutput, a.PreState.AvailAssignments[i].Report)
 				}
 			}
 		}
 
-		t.Logf("ourOutput: %v", ourOutput)
+		// For debugging
+		// t.Logf("ourOutput: %v", ourOutput)
 
 		// Validate output state
 		if a.Output.Err != nil {

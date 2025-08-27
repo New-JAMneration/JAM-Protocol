@@ -192,10 +192,12 @@ func (a *AvailAssuranceController) FilterAvailableReports() error {
 	store := store.GetInstance()
 
 	rhoDagger := store.GetIntermediateStates().GetRhoDagger()
+	rhoDoubleDagger := store.GetIntermediateStates().GetRhoDoubleDagger()
 	rho := store.GetPriorStates().GetRho()
 
 	// 11.17 Set available reports or timeout reports to nil
-	rhoDoubleDagger := rhoDagger
+	// Make a copy to avoid aliasing with rhoDagger
+	copy(rhoDoubleDagger, rhoDagger)
 	headerTimeSlot := store.GetBlock().Header.Slot
 
 	// (11.16) Filter newly available work reports
