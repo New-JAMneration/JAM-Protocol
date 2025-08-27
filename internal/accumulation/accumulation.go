@@ -321,10 +321,18 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	single_input.WorkReports = input.WorkReports                 // w
 	single_input.AlwaysAccumulateMap = input.AlwaysAccumulateMap // f
 
+	serviceResultCache := make(map[types.ServiceId]SingleServiceAccumulationOutput)
 	// Helper to run single service accumulation for a given service ID
 	runSingleReplaceService := func(serviceId types.ServiceId) (SingleServiceAccumulationOutput, error) {
+		if result, exists := serviceResultCache[serviceId]; exists {
+			return result, nil
+		}
+		// Replace service ID in input
 		single_input.ServiceId = serviceId
 		single_output, err := SingleServiceAccumulation(single_input)
+		if err != nil {
+			serviceResultCache[serviceId] = single_output
+		}
 		return single_output, err
 	}
 
@@ -335,7 +343,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range s {
 		single_output, err := runSingleReplaceService(service_id)
 		if err != nil {
-			fmt.Errorf("single replace service failed: %w", err)
+			return output, fmt.Errorf("single replace service failed: %w", err)
 		}
 
 		// u = [(s, ∆1(e, w, f, s)u) S s <− s]
@@ -353,9 +361,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 
 		// t = [∆1(e, w, f, s)t S s <− s]
-		for _, deferred_transfer := range single_output.DeferredTransfers {
-			t = append(t, deferred_transfer)
-		}
+		t = append(t, single_output.DeferredTransfers...)
 
 		single_outout_d := single_output.PartialStateSet.ServiceAccounts
 
