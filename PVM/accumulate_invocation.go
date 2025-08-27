@@ -1,8 +1,6 @@
 package PVM
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -19,8 +17,6 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
-	newLogger(1)
-	fmt.Println("---------Psi_A------------")
 	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
 		return Psi_A_ReturnType{
@@ -32,6 +28,8 @@ func Psi_A(
 		}
 	}
 
+	// (9.4) E(↕m, c) = ap[ac]
+	// Get actual code (c)
 	codeHash := s.ServiceInfo.CodeHash
 	_, code, err := service_account.FetchCodeByHash(s, codeHash)
 	if err != nil {
