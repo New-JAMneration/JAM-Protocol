@@ -21,6 +21,13 @@ func NewPosteriorStates() *PosteriorStates {
 			LastAccOut: types.LastAccOut{},
 			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
 			Alpha:      make(types.AuthPools, types.CoresCount),
+			Pi: types.Statistics{
+				ValsCurr: types.ValidatorsStatistics{},
+				ValsLast: types.ValidatorsStatistics{},
+				Cores:    types.CoresStatistics{},
+				Services: types.ServicesStatistics{},
+			},
+			Delta: make(types.ServiceAccountState),
 		},
 	}
 }
