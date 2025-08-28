@@ -723,8 +723,8 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
 	v = append(v, encoded...)
 
-	f := min(input.Registers[11], uint64(len(v)))
-	l := min(input.Registers[12], uint64(len(v))-f)
+	f := min(input.Registers[9], uint64(len(v)))
+	l := min(input.Registers[10], uint64(len(v))-f)
 
 	o := input.Registers[8]
 
