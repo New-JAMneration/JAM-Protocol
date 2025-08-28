@@ -727,6 +727,17 @@ func info(input OmegaInput) (output OmegaOutput) {
 	l := min(input.Registers[12], uint64(len(v))-f)
 
 	o := input.Registers[8]
+
+	if l == 0 {
+		input.Registers[7] = uint64(len(v))
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
 	// if mathbf{N}_{o..._l} \not in mathbf{V}^*_mu
 	if !isWriteable(o, l, input.Memory) { // v = ∇ not defined
 		return OmegaOutput{
@@ -740,17 +751,17 @@ func info(input OmegaInput) (output OmegaOutput) {
 
 	// if a is nil => v = nil
 	if empty {
-		new_registers := input.Registers
-		new_registers[7] = NONE
+		input.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
-			NewRegisters: new_registers,
+			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
 
+	input.Registers[7] = uint64(len(v))
 	input.Memory.Write(o, l, v)
 
 	return OmegaOutput{
@@ -1731,6 +1742,16 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	f := min(input.Registers[10], uint64(len(v)))
 	l := min(input.Registers[11], uint64(len(v))-f)
 
+	if l == 0 {
+		input.Registers[7] = uint64(len(v))
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
 	if !isWriteable(o, l, input.Memory) { // not writeable, return panic
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -2247,6 +2268,17 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - gasFee
 
 	n, o, s, z := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+
+	if z == 0 {
+		input.Registers[7] = OK
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
 
 	// z = offset
 	if !isWriteable(o, z, input.Memory) { // not writeable, return
