@@ -46,8 +46,6 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	vX = uint64(uint32(vX))
-
 	lY := min(4, max(0, skipLength-lX-1))
 	decodedVy, err := utils.DeserializeFixedLength(instructionCode[pc+2+lX:pc+2+lX+lY], types.U64(lY))
 	if err != nil {
@@ -57,8 +55,6 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-
-	vY = uint64(uint32(vY))
 
 	return vX, vY, nil
 }
@@ -89,8 +85,6 @@ func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter,
 		return 0, 0, err
 	}
 
-	immediate = uint64(uint32(immediate))
-
 	return rA, immediate, nil
 }
 
@@ -108,9 +102,6 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	// vX : min(4, ?) --> max 4 bytes
-	vX = uint64(uint32(vX))
-
 	lY := min(4, max(0, skipLength-lX-1))
 	decodedVY, err := utils.DeserializeFixedLength(instructionCode[pcMargin:pcMargin+lY], types.U64(lY))
 	if err != nil {
@@ -120,8 +111,6 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	// vY : min(4, ?) --> max 4 bytes
-	vY = uint64(uint32(vY))
 
 	return rA, vX, vY, nil
 }
@@ -205,14 +194,12 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
-	vX = uint64(uint32(vX))
 
 	vYData := instructionCode[pc+3+lX : pc+3+lX+lY]
 	vY, _, err := ReadUintFixed(vYData, len(vYData))
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
-	vY = uint64(uint32(vY))
 
 	return rA, rB, vX, vY, nil
 }
@@ -226,14 +213,6 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	rB = getRegFloorIndex(instructionCode, pc)
 	rD = min(12, instructionCode[pc+2])
 	return rA, rB, rD, nil
-}
-
-func trimZeros(b types.ByteSequence) types.ByteSequence {
-	last := len(b) - 1
-	for last > 0 && b[last] == 0 {
-		last--
-	}
-	return b[:last+1]
 }
 
 func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {

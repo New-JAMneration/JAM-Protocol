@@ -522,7 +522,7 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, reg, mem
 	}
 	offset := uint32(1)
-	memVal, exitReason := loadFromMemory(mem, offset, uint32(vX))
+	memVal, exitReason := loadFromMemory(mem, offset, uint32(uint8(vX)))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -548,7 +548,7 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int8(vX)))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -579,7 +579,7 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(uint16(vX)))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -604,7 +604,7 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int16(vX)))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -864,28 +864,28 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 
 	switch instructionCode[pc] {
 	case 80:
-		reg[rA] = vX
+		reg[rA] = uint64(uint32(vX))
 		branchCondition = true
 		logMsg = fmt.Sprintf("branch(%d, T), %s = %d, %s = 0x%x", vY, RegName[rA], reg[rA], RegName[rA], reg[rA])
 	case 81:
-		branchCondition = reg[rA] == vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x == 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		branchCondition = reg[rA] == uint64(uint32(vX))
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x == 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 82:
-		branchCondition = reg[rA] != vX
+		branchCondition = reg[rA] != uint64(uint32(vX))
 
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x != 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x != 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 83:
-		branchCondition = reg[rA] < vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		branchCondition = reg[rA] < uint64(uint32(vX))
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 84:
-		branchCondition = reg[rA] <= vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		branchCondition = reg[rA] <= uint64(uint32(vX))
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 85:
-		branchCondition = reg[rA] >= vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		branchCondition = reg[rA] >= uint64(uint32(vX))
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 86:
-		branchCondition = reg[rA] > vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		branchCondition = reg[rA] > uint64(uint32(vX))
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
 	case 87:
 		branchCondition = int64(reg[rA]) < int64(vX)
 		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
