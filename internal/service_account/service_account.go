@@ -186,5 +186,10 @@ func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
-	return max(0, types.U64(types.BasicMinBalance)+types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI)+types.U64(types.AdditionalMinBalancePerOctet)*aO-aF)
+	storage := types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
+	if storage < aF {
+		// result < 0
+		return 0
+	}
+	return aF
 }
