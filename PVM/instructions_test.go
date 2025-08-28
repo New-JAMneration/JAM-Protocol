@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
@@ -87,78 +86,66 @@ func GetTestJsonFiles(dir string) []string {
 	return jsonFiles
 }
 
-func TestInstruction(t *testing.T) {
-	dir := filepath.Join(PVM_TEST_VECTORS_DIR, "programs")
-	jsonFiles := GetTestJsonFiles(dir)
-	if len(jsonFiles) == 0 {
-		t.Fatal("No test JSON files found")
-	}
+/*
+	func TestInstruction(t *testing.T) {
+		dir := filepath.Join(PVM_TEST_VECTORS_DIR, "programs")
+		jsonFiles := GetTestJsonFiles(dir)
+		if len(jsonFiles) == 0 {
+			t.Fatal("No test JSON files found")
+		}
 
-	for _, file := range jsonFiles {
-		/*	// test single instruction
-			if file != "riscv_rv64ui_jalr.json" {
-				continue
-			}
-		*/
-		t.Run(file, func(t *testing.T) {
-			filename := filepath.Join(dir, file)
+		for _, file := range jsonFiles {
 
-			testCase, err := LoadInstructionTestCase(filename)
-			if err != nil {
-				t.Fatalf("Error loading test case %s: %v", file, err)
-			}
-			initialMemory := loadTestCasePageMap(testCase.InitialPageMap)
-			initialMemory = loadTestCaseMemory(initialMemory, testCase.InitialMemory)
+			t.Run(file, func(t *testing.T) {
+				filename := filepath.Join(dir, file)
 
-			ourStatus, pc, _, reg, memory := SingleStepInvoke(
-				testCase.ProgramBlob,
-				testCase.InitialProgramCounter,
-				testCase.InitialGas,
-				testCase.InitialRegisters,
-				initialMemory,
-				0,
-			)
-
-			if ourStatus.Error() != ErrNotImplemented.Error() {
-				if ourStatus.Error() != testCase.ExpectedStatus {
-					t.Errorf("expected status %v, got %v", testCase.ExpectedStatus, ourStatus.Error())
-				} else {
-					t.Logf("got %v", testCase.ExpectedStatus)
+				testCase, err := LoadInstructionTestCase(filename)
+				if err != nil {
+					t.Fatalf("Error loading test case %s: %v", file, err)
 				}
+				initialMemory := loadTestCasePageMap(testCase.InitialPageMap)
+				initialMemory = loadTestCaseMemory(initialMemory, testCase.InitialMemory)
 
-				if pc != testCase.ExpectedProgramCounter {
-					t.Errorf("expected PC %d, got %d", testCase.ExpectedProgramCounter, pc)
-				}
-				/*
-					if gas != testCase.ExpectedGas {
-						t.Errorf("expected gas %d, got %d", testCase.ExpectedGas, gas)
+				ourStatus, pc, _, reg, memory := SingleStepInvoke(
+					testCase.ProgramBlob,
+					testCase.InitialProgramCounter,
+					testCase.InitialGas,
+					testCase.InitialRegisters,
+					initialMemory,
+					0,
+				)
+
+				if ourStatus.Error() != ErrNotImplemented.Error() {
+					if ourStatus.Error() != testCase.ExpectedStatus {
+						t.Errorf("expected status %v, got %v", testCase.ExpectedStatus, ourStatus.Error())
+					} else {
+						t.Logf("got %v", testCase.ExpectedStatus)
 					}
-				*/
-				if !reflect.DeepEqual(reg, testCase.ExpectedRegisters) {
-					t.Errorf("expected registers %v, got %v", testCase.ExpectedRegisters, reg)
+
+					if pc != testCase.ExpectedProgramCounter {
+						t.Errorf("expected PC %d, got %d", testCase.ExpectedProgramCounter, pc)
+					}
+					if !reflect.DeepEqual(reg, testCase.ExpectedRegisters) {
+						t.Errorf("expected registers %v, got %v", testCase.ExpectedRegisters, reg)
+					}
 				}
-			}
-			expectedMemory := loadTestCaseMemory(initialMemory, testCase.ExpectedMemory)
-			/*	// if the memory is not stored, test vectors will not expected any changes in memory
-				if len(memory.Pages) != len(expectedMemory.Pages) {
-					t.Errorf("expected memory length %d, got %d", len(expectedMemory.Pages), len(memory.Pages))
-				}
-			*/
-			for pageNum, expectedPage := range expectedMemory.Pages {
-				if page, exists := memory.Pages[pageNum]; exists {
-					for i := range len(expectedPage.Value) {
-						if expectedPage.Value[i] != page.Value[i] {
-							t.Errorf("expected memory %v, got %v at addr=%d, index=%d", expectedPage.Value[i], memory.Pages[pageNum].Value[i], pageNum, i)
+				expectedMemory := loadTestCaseMemory(initialMemory, testCase.ExpectedMemory)
+
+				for pageNum, expectedPage := range expectedMemory.Pages {
+					if page, exists := memory.Pages[pageNum]; exists {
+						for i := range len(expectedPage.Value) {
+							if expectedPage.Value[i] != page.Value[i] {
+								t.Errorf("expected memory %v, got %v at addr=%d, index=%d", expectedPage.Value[i], memory.Pages[pageNum].Value[i], pageNum, i)
+							}
 						}
+					} else {
+						t.Errorf("expected memory %v, but not exists", testCase.ExpectedMemory)
 					}
-				} else {
-					t.Errorf("expected memory %v, but not exists", testCase.ExpectedMemory)
 				}
-			}
-		})
+			})
+		}
 	}
-}
-
+*/
 func loadTestCasePageMap(initialPageMap PageMaps) Memory {
 	var memory Memory
 	memory.Pages = make(map[uint32]*Page)

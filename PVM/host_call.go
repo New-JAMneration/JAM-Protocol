@@ -20,13 +20,12 @@ type OperationType int
 
 const (
 	// ----------------- General Functions -----------------
-	GasOp   OperationType = iota // gas = 0
-	FetchOp                      // fetch = 1
-	LookupOp
-	// lookup = 2
-	ReadOp  // read = 3
-	WriteOp // write = 4
-	InfoOp  // info = 5
+	GasOp    OperationType = iota // gas = 0
+	FetchOp                       // fetch = 1
+	LookupOp                      // lookup = 2
+	ReadOp                        // read = 3
+	WriteOp                       // write = 4
+	InfoOp                        // info = 5
 
 	// ----------------- Refine Functions -----------------
 	HistoricalLookupOp // historical_lookup = 6
@@ -120,6 +119,7 @@ type HostCallArgs struct {
 	AccumulateArgs
 	RefineArgs
 	OnTransferArgs
+	Program
 }
 
 type Psi_H_ReturnType struct {
@@ -131,40 +131,32 @@ type Psi_H_ReturnType struct {
 	Addition   HostCallArgs // addition host-call context
 }
 
-// (A.34) Ψ_H
-func Psi_H(
-	program Instructions,
-	counter ProgramCounter, // program counter
-	gas types.Gas, // gas counter
-	reg Registers, // registers
-	ram Memory, // memory
-	omegas Omegas, // jump table
-	addition HostCallArgs, // host-call context
-) (
-	psi_result Psi_H_ReturnType,
-) {
-	exitreason, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program, counter, Gas(gas), reg, ram, 0)
-	reason := exitreason.(*PVMExitReason)
+// JIT version of (A.34) Ψ_H
+func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
+) (psi_result Psi_H_ReturnType) {
+	exitReason, pcPrime, gasPrime, regPrime, memPrime := SingleInvoke(program, pc, Gas(gas), reg, ram)
+
+	reason := exitReason.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
-		psi_result.Counter = uint32(counter_prime)
-		psi_result.Gas = gas_prime
-		psi_result.Reg = reg_prime
-		psi_result.Ram = memory_prime
+		psi_result.Counter = uint32(pcPrime)
+		psi_result.Gas = gasPrime
+		psi_result.Reg = regPrime
+		psi_result.Ram = memPrime
 		psi_result.Addition = addition
 	} else if reason.Reason == HOST_CALL {
 		var input OmegaInput
 		input.Operation = OperationType(*reason.HostCall)
-		input.Gas = gas_prime
-		input.Registers = reg_prime
+		input.Gas = gasPrime
+		input.Registers = regPrime
 		input.Memory = ram
 		input.Addition = addition
+
 		omega := omegas[input.Operation]
 		if omega == nil {
 			omega = hostCallException
 		}
 		omega_result := omega(input)
-
 		var pvmExit *PVMExitReason
 		if !errors.As(omega_result.ExitReason, &pvmExit) {
 			logger.Errorf("%s host-call error : %v",
@@ -173,19 +165,19 @@ func Psi_H(
 		}
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		logger.Debugf("%s host-call return: %s, gas : %d -> %d",
-			hostCallName[input.Operation], omega_reason, gas_prime, omega_result.NewGas)
+			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas)
 		if omega_reason.Reason == PAGE_FAULT {
-			psi_result.Counter = uint32(counter_prime)
-			psi_result.Gas = gas_prime
-			psi_result.Reg = reg_prime
-			psi_result.Ram = memory_prime
+			psi_result.Counter = uint32(pcPrime)
+			psi_result.Gas = gasPrime
+			psi_result.Reg = regPrime
+			psi_result.Ram = memPrime
 			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
 			psi_result.Addition = addition
 		} else if omega_reason.Reason == CONTINUE {
-			return Psi_H(program, counter_prime, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+			return HostCall(program, pcPrime, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
 		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
 			psi_result.ExitReason = omega_result.ExitReason
-			psi_result.Counter = uint32(counter_prime)
+			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = omega_result.NewGas
 			psi_result.Reg = omega_result.NewRegisters
 			psi_result.Ram = omega_result.NewMemory
@@ -195,6 +187,78 @@ func Psi_H(
 	return
 }
 
+func getPtr[T any](v T) *T { return &v }
+
+/*
+// (A.34) Ψ_H
+func Psi_H(
+
+	program Instructions,
+	counter ProgramCounter, // program counter
+	gas types.Gas, // gas counter
+	reg Registers, // registers
+	ram Memory, // memory
+	omegas Omegas, // jump table
+	addition HostCallArgs, // host-call context
+
+) (
+
+	psi_result Psi_H_ReturnType,
+
+	) {
+		exitreason, counter_prime, gas_prime, reg_prime, memory_prime := SingleStepInvoke(program, counter, Gas(gas), reg, ram, 0)
+		reason := exitreason.(*PVMExitReason)
+		if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
+			psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
+			psi_result.Counter = uint32(counter_prime)
+			psi_result.Gas = gas_prime
+			psi_result.Reg = reg_prime
+			psi_result.Ram = memory_prime
+			psi_result.Addition = addition
+		} else if reason.Reason == HOST_CALL {
+			var input OmegaInput
+			input.Operation = OperationType(*reason.HostCall)
+			input.Gas = gas_prime
+			input.Registers = reg_prime
+			input.Memory = ram
+			input.Addition = addition
+			omega := omegas[input.Operation]
+			if omega == nil {
+				omega = hostCallException
+			}
+			omega_result := omega(input)
+
+			var pvmExit *PVMExitReason
+			if !errors.As(omega_result.ExitReason, &pvmExit) {
+				logger.Errorf("%s host-call error : %v",
+					hostCallName[input.Operation], omega_result.ExitReason)
+				return
+			}
+			omega_reason := omega_result.ExitReason.(*PVMExitReason)
+			logger.Debugf("%s host-call return: %s, gas : %d -> %d",
+				hostCallName[input.Operation], omega_reason, gas_prime, omega_result.NewGas)
+			if omega_reason.Reason == PAGE_FAULT {
+				psi_result.Counter = uint32(counter_prime)
+				psi_result.Gas = gas_prime
+				psi_result.Reg = reg_prime
+				psi_result.Ram = memory_prime
+				psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
+				psi_result.Addition = addition
+			} else if omega_reason.Reason == CONTINUE {
+				≠.Println("omega_result.NewGas : ", omega_result.NewGas)
+				return Psi_H(program, counter_prime, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+			} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
+				psi_result.ExitReason = omega_result.ExitReason
+				psi_result.Counter = uint32(counter_prime)
+				psi_result.Gas = omega_result.NewGas
+				psi_result.Reg = omega_result.NewRegisters
+				psi_result.Ram = omega_result.NewMemory
+				psi_result.Addition = omega_result.Addition
+			}
+		}
+		return
+	}
+*/
 var hostCallName = map[OperationType]string{
 	0:   "gas",
 	1:   "fetch",
@@ -688,7 +752,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Memory.Write(f, l, v)
+	input.Memory.Write(o, l, v)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -1641,8 +1705,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var codeHash types.OpaqueHash
-	codeHash = types.OpaqueHash(input.Memory.Read(h, offset))
+	codeHash := types.OpaqueHash(input.Memory.Read(h, offset))
 
 	// assign a
 	var a types.ServiceAccount
@@ -1682,7 +1745,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	input.Registers[7] = uint64(len(v))
 
 	offset = l
-	input.Memory.Write(f, offset, v)
+	input.Memory.Write(o, offset, v)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -1698,214 +1761,15 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 // is a little different from the default encoding
 func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 	return encoder.EncodeMany(
-		types.U32(item.Service),             // w_s
-		item.CodeHash,                       // w_h
-		types.U64(item.RefineGasLimit),      // w_g
-		types.U64(item.AccumulateGasLimit),  // w_a
-		types.U16(item.ExportCount),         // w_e
-		types.U16(len(item.ImportSegments)), // |w_i|
-		types.U16(len(item.Extrinsic)),      // |w_x|
-		types.U32(len(item.Payload)),        // |w_y|
+		getPtr(types.U32(item.Service)),             // w_s
+		&item.CodeHash,                              // w_h
+		getPtr(types.U64(item.RefineGasLimit)),      // w_g
+		getPtr(types.U64(item.AccumulateGasLimit)),  // w_a
+		getPtr(types.U16(item.ExportCount)),         // w_e
+		getPtr(types.U16(len(item.ImportSegments))), // |w_i|
+		getPtr(types.U16(len(item.Extrinsic))),      // |w_x|
+		getPtr(types.U32(len(item.Payload))),        // |w_y|
 	)
-}
-
-func getConstSequence() (serialized []byte, err error) {
-	encoder := types.NewEncoder()
-	// B_I
-	v, err := encoder.EncodeUintWithLength(types.AdditionalMinBalancePerItem, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// B_L
-	v, err = encoder.EncodeUintWithLength(types.AdditionalMinBalancePerOctet, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// B_S
-	v, err = encoder.EncodeUintWithLength(types.BasicMinBalance, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// C
-	v, err = encoder.EncodeUintWithLength(uint64(types.CoresCount), 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// D
-	v, err = encoder.EncodeUintWithLength(types.UnreferencedPreimageTimeslots, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// E
-	v, err = encoder.EncodeUintWithLength(uint64(types.EpochLength), 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// G_A
-	v, err = encoder.EncodeUintWithLength(types.MaxAccumulateGas, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// G_I
-	v, err = encoder.EncodeUintWithLength(types.IsAuthorizedGas, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// G_R
-	v, err = encoder.EncodeUintWithLength(types.MaxRefineGas, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// G_T
-	v, err = encoder.EncodeUintWithLength(types.TotalGas, 8)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// H
-	v, err = encoder.EncodeUintWithLength(types.MaxBlocksHistory, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// I
-	v, err = encoder.EncodeUintWithLength(types.MaximumWorkItems, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// J
-	v, err = encoder.EncodeUintWithLength(types.MaximumDependencyItems, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// L
-	v, err = encoder.EncodeUintWithLength(types.MaxLookupAge, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// O
-	v, err = encoder.EncodeUintWithLength(types.AuthPoolMaxSize, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// P
-	v, err = encoder.EncodeUintWithLength(types.SlotPeriod, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// Q
-	v, err = encoder.EncodeUintWithLength(types.AuthQueueSize, 2)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// R
-	v, err = encoder.EncodeUintWithLength(uint64(types.RotationPeriod), 2)
-	if err != nil {
-		return nil, err
-	}
-	// S
-	v, err = encoder.EncodeUintWithLength(types.AccumulateQueueSize, 2)
-	if err != nil {
-		return nil, err
-	}
-	// T
-	v, err = encoder.EncodeUintWithLength(types.MaxExtrinsics, 2)
-	if err != nil {
-		return nil, err
-	}
-	// U
-	v, err = encoder.EncodeUintWithLength(types.WorkReportTimeout, 2)
-	if err != nil {
-		return nil, err
-	}
-	// V
-	v, err = encoder.EncodeUintWithLength(uint64(types.ValidatorsCount), 2)
-	if err != nil {
-		return nil, err
-	}
-	// W_A
-	v, err = encoder.EncodeUintWithLength(types.MaxIsAuthorizedCodeSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_B
-	v, err = encoder.EncodeUintWithLength(types.MaxTotalSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_C
-	v, err = encoder.EncodeUintWithLength(types.MaxServiceCodeSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_E
-	v, err = encoder.EncodeUintWithLength(types.ECBasicSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_G
-	v, err = encoder.EncodeUintWithLength(types.SegmentSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_M
-	v, err = encoder.EncodeUintWithLength(types.MaxImportCount, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_P
-	v, err = encoder.EncodeUintWithLength(types.ECPiecesPerSegment, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_R
-	v, err = encoder.EncodeUintWithLength(types.WorkReportOutputBlobsMaximumSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_T
-	v, err = encoder.EncodeUintWithLength(types.TransferMemoSize, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// W_X
-	v, err = encoder.EncodeUintWithLength(types.MaxExportCount, 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-	// Y
-	v, err = encoder.EncodeUintWithLength(uint64(types.SlotSubmissionEnd), 4)
-	if err != nil {
-		return nil, err
-	}
-	serialized = append(serialized, v...)
-
-	return serialized, nil
 }
 
 // fetch = 1
@@ -1930,7 +1794,43 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 	switch input.Registers[10] {
 	case 0:
-		v, err = getConstSequence()
+
+		v, err = encoder.EncodeMany(
+			getPtr(types.U64(types.AdditionalMinBalancePerItem)),      // B_I
+			getPtr(types.U64(types.AdditionalMinBalancePerOctet)),     // B_L
+			getPtr(types.U64(types.BasicMinBalance)),                  // B_S
+			getPtr(types.U16(types.CoresCount)),                       // C
+			getPtr(types.U32(types.UnreferencedPreimageTimeslots)),    // D
+			getPtr(types.U32(types.EpochLength)),                      // E
+			getPtr(types.U64(types.MaxAccumulateGas)),                 // G_A
+			getPtr(types.U64(types.IsAuthorizedGas)),                  // G_I
+			getPtr(types.U64(types.MaxRefineGas)),                     // G_R
+			getPtr(types.U64(types.TotalGas)),                         // G_T
+			getPtr(types.U16(types.MaxBlocksHistory)),                 // H
+			getPtr(types.U16(types.MaximumWorkItems)),                 // I
+			getPtr(types.U16(types.MaximumDependencyItems)),           // J
+			getPtr(types.U16(types.MaxTicketsPerBlock)),               // K
+			getPtr(types.U32(types.MaxLookupAge)),                     // L
+			getPtr(types.U16(types.TicketsPerValidator)),              // N
+			getPtr(types.U16(types.AuthPoolMaxSize)),                  // O
+			getPtr(types.U16(types.SlotPeriod)),                       // P
+			getPtr(types.U16(types.AuthQueueSize)),                    // Q
+			getPtr(types.U16(types.RotationPeriod)),                   // R
+			getPtr(types.U16(types.MaxExtrinsics)),                    // T
+			getPtr(types.U16(types.WorkReportTimeout)),                // U
+			getPtr(types.U16(types.ValidatorsCount)),                  // V
+			getPtr(types.U32(types.MaxIsAuthorizedCodeSize)),          // W_A
+			getPtr(types.U32(types.MaxTotalSize)),                     // W_B
+			getPtr(types.U32(types.MaxServiceCodeSize)),               // W_C
+			getPtr(types.U32(types.ECBasicSize)),                      // W_E
+			getPtr(types.U32(types.MaxImportCount)),                   // W_M
+			getPtr(types.U32(types.ECPiecesPerSegment)),               // W_P
+			getPtr(types.U32(types.WorkReportOutputBlobsMaximumSize)), // W_R
+			getPtr(types.U32(types.TransferMemoSize)),                 // W_T
+			getPtr(types.U32(types.MaxExportCount)),                   // W_X
+			getPtr(types.U32(types.SlotSubmissionEnd)),                // Y
+		)
+		fmt.Println("SlotSubmissionEnd : ", types.SlotSubmissionEnd)
 		if err != nil {
 			logger.Errorf("fetch host-call case 0 encode error: %v", err)
 			return OmegaOutput{
@@ -2021,8 +1921,8 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.EncodeMany(
-			input.Addition.WorkPackage.Authorizer.CodeHash,
-			input.Addition.WorkPackage.Authorizer.Params,
+			&input.Addition.WorkPackage.Authorizer.CodeHash,
+			&input.Addition.WorkPackage.Authorizer.Params,
 		)
 	case 9:
 		if input.Addition.WorkPackage == nil {
@@ -2147,12 +2047,20 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	dataLength := uint64(len(v))
-	fmt.Println("dataLength : ", dataLength)
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
 
-	fmt.Printf("o : %d , l : %d\n", o, l)
+	if l == 0 {
+		input.Registers[7] = dataLength
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
 	// need to first check writable
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -2177,7 +2085,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Memory.Write(f, l, v[f:])
+	input.Memory.Write(o, l, v[f:])
 	input.Registers[7] = dataLength
 
 	return OmegaOutput{
@@ -2631,7 +2539,8 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// psi
-	c, pcPrime, gasPrime, wPrime, uPrime := SingleStepInvoke(input.Addition.IntegratedPVMMap[n].ProgramCode, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory, 0)
+	input.Addition.Program.InstructionData = input.Addition.IntegratedPVMMap[n].ProgramCode
+	c, pcPrime, gasPrime, wPrime, uPrime := SingleInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
 
 	// mu* = mu
 	encoder := types.NewEncoder()

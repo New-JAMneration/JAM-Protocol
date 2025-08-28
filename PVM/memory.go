@@ -1,6 +1,11 @@
 package PVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+)
 
 type MemoryAccess int
 
@@ -10,7 +15,8 @@ type Page struct {
 }
 
 type Memory struct {
-	Pages map[uint32]*Page // Key: Page Number, Value: Page Data
+	Pages       map[uint32]*Page // Key: Page Number, Value: Page Data
+	heapPointer uint64
 }
 
 const (
@@ -47,6 +53,15 @@ func (m *Memory) Read(start uint64, offset uint64) types.ByteSequence {
 func (m *Memory) Write(start uint64, offset uint64, data types.ByteSequence) {
 	pageNumber := uint32(start / ZP)
 	pageIndex := start % ZP
+
+	fmt.Printf("start: %d = %x\n", start, start)
+	fmt.Printf("offset: %d\n", offset)
+	fmt.Printf("end: %d = %x\n", offset+start, offset+start)
+	fmt.Println("data: ", data)
+	fmt.Println("data[107:]: ", data[102:])
+
+	a := utilities.SerializeFixedLength(types.U64(684), 4)
+	fmt.Println("a : ", a)
 
 	for copied := uint64(0); copied < offset; {
 		copied += uint64(copy(m.Pages[pageNumber].Value[pageIndex:], data[copied:]))

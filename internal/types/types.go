@@ -387,7 +387,7 @@ func (wp *WorkPackage) Validate() error {
 		totalAccumulateGas += item.AccumulateGasLimit
 	}
 
-	if totalRefineGas > MaxRefineGas {
+	if totalRefineGas > Gas(MaxRefineGas) {
 		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
 	}
 	if totalAccumulateGas > MaxAccumulateGas {

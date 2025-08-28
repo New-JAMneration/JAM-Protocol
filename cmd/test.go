@@ -318,6 +318,9 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
+		if err := validateAndSetTestSize(size); err != nil {
+			return nil, nil, err
+		}
 		reader = testdata.NewTracesReader(mode, format)
 		runner = traces.NewTraceRunner()
 	}

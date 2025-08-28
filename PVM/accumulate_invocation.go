@@ -19,6 +19,7 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
+	newLogger(1)
 	fmt.Println("---------Psi_A------------")
 	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
@@ -113,6 +114,7 @@ func Psi_A(
 			Eta:            eta,
 			Operands:       operands,
 		},
+		Program: Program{},
 	}
 
 	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), F, addition)

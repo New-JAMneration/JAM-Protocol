@@ -77,39 +77,44 @@ func isBasicBlockTerminationInstruction(opcode byte) bool {
 }
 
 // type BasicBlock [][]byte // each sequence is a instruction
-type ProgramBlob struct {
+type Program struct {
 	InstructionData []byte    // c , includes opcodes & instruction variables
 	Bitmasks        Bitmask   // k
 	JumpTable       JumpTable // j, z, |j|
 }
 
+func (p *Program) RunHostCallFunc(operationType OperationType) Omega {
+	return HostCallFunctions[operationType]
+}
+
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
-func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
+func DeBlobProgramCode(data []byte) (_ Program, exitReason error) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return
+		return Program{}, fmt.Errorf("jumpTableSize ReadUintVariable error: %v", err)
 	}
 
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
-		return
+		return Program{}, fmt.Errorf("jumpTableLength ReadUintFixed error: %v", err)
 	}
 	// E_(|c|) : size of instructions
 	instSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return
+		return Program{}, fmt.Errorf("instSize ReadUintVariable error: %v", err)
 	}
 
 	if jumpTableLength*jumpTableSize >= 1<<32 {
-		panic("the jump table's size is supposed to be at most 32 bits")
+		return Program{}, fmt.Errorf("jump table size %d bits exceed litmit", jumpTableLength*jumpTableSize)
+		// panic("the jump table's size is supposed to be at most 32 bits")
 	}
 
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
 	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
 	if err != nil {
-		return
+		return Program{}, fmt.Errorf("jumpTableData ReadBytes error: %v", err)
 	}
 
 	instructions := data[:instSize]
@@ -117,10 +122,10 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 	bitmask, err := MakeBitMasks(instructions, bitmaskData)
 	if err != nil {
 		// A.2 if bitmasks cannot fit instructions, return panic
-		return ProgramBlob{}, PVMExitTuple(PANIC, nil)
+		return Program{}, PVMExitTuple(PANIC, nil)
 	}
 
-	return ProgramBlob{
+	return Program{
 		JumpTable: JumpTable{
 			Data:   jumpTableData,           // j
 			Length: uint32(jumpTableLength), // z
@@ -132,10 +137,10 @@ func DeBlobProgramCode(data []byte) (_ ProgramBlob, exitReason error) {
 }
 
 // skip computes the distance to the next opcode  A.3
-func skip(i int, bitmask Bitmask) uint32 {
+func skip(pc int, bitmask Bitmask) uint32 {
 	j := 1
-	for ; i+j < len(bitmask); j++ {
-		if bitmask.IsStartOfInstruction(j + i) {
+	for ; pc+j < len(bitmask); j++ {
+		if bitmask.IsStartOfInstruction(j + pc) {
 			break
 		}
 	}

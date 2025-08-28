@@ -2,6 +2,7 @@ package PVM
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -27,7 +28,24 @@ func Psi_M(
 		}
 	}
 
-	g, v, a := R(gas, Psi_H(programCode, counter, gas, registers, memory, omegas, addition))
+	fmt.Println("deblob program code")
+	program, err := DeBlobProgramCode(programCode)
+	var pvmExit *PVMExitReason
+	if !errors.As(err, &pvmExit) {
+		return
+	}
+	reason := err.(*PVMExitReason).Reason
+	if reason == PANIC {
+		return Psi_M_ReturnType{
+			Gas:           0,
+			ReasonOrBytes: PVMExitTuple(PANIC, nil),
+			Addition:      addition,
+		}
+	}
+
+	addition.Program = program
+
+	g, v, a := R(gas, HostCall(program, counter, gas, registers, memory, omegas, addition))
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,

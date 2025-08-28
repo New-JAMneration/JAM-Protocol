@@ -2,7 +2,8 @@ package PVM
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type (
@@ -36,28 +37,35 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	readWriteStart := 2*ZZ + Z(len(o))
 	readWriteEnd := readWriteStart + uint32(len(w))
 	readWritePadding := readWriteStart + P(len(w)) + uint32(z)*ZP
+	heapStart := readWritePadding
+	heapEnd := readWritePadding + ZP // ZP is according to davxy, traces-on-sbrk
+
 	stackEnd := uint32(1<<32 - 2*ZZ - ZI)
 	stackStart := stackEnd - P(int(s))
 	argumentStart := uint32(1<<32 - ZZ - ZI)
-	argumentEnd := argumentStart + uint32(len(a))
+	// argumentEnd := argumentStart + uint32(len(a))
+	argumentEnd := argumentStart + ZI
 	argumentPadding := argumentStart + P(len(a))
 
-	mem := Memory{Pages: make(map[uint32]*Page)}
+	mem := Memory{Pages: make(map[uint32]*Page), heapPointer: uint64(heapStart)}
 
 	allocateMemorySegment(&mem, readOnlyStart, readOnlyEnd, o, MemoryReadOnly)
 	allocateMemorySegment(&mem, readOnlyEnd, readOnlyPadding, nil, MemoryReadOnly) // Padding
-	log.Printf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x\n", readOnlyStart, readOnlyEnd, readOnlyPadding)
+	logger.Debugf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x", readOnlyStart, readOnlyEnd, readOnlyPadding)
 
 	allocateMemorySegment(&mem, readWriteStart, readWriteEnd, w, MemoryReadWrite)
 	allocateMemorySegment(&mem, readWriteEnd, readWritePadding, nil, MemoryReadWrite) // Padding
-	log.Printf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x\n", readWriteStart, readWriteEnd, readWritePadding)
+	logger.Debugf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x", readWriteStart, readWriteEnd, readWritePadding)
 
 	allocateStack(&mem, stackStart, stackEnd)
-	log.Printf("Memory Map     stack : 0x%08x  0x%08x\n", stackStart, stackEnd)
+	logger.Debugf("Memory Map     stack : 0x%08x  0x%08x", stackStart, stackEnd)
 
 	allocateMemorySegment(&mem, argumentStart, argumentEnd, a, MemoryReadOnly)
 	allocateMemorySegment(&mem, argumentEnd, argumentPadding, nil, MemoryReadOnly) // Padding
-	log.Printf("Memory Map arguments : 0x%08x  0x%08x  0x%08x\n", argumentStart, argumentEnd, argumentPadding)
+	logger.Debugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
+
+	allocateMemorySegment(&mem, heapStart, heapEnd, nil, MemoryReadWrite)
+	logger.Debugf("Heap pointer : 0x%08x", heapStart)
 
 	// Registers initialization
 	var regs Registers
@@ -203,11 +211,4 @@ func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	}
 
 	return data[:numBytes], data[numBytes:], nil
-}
-
-type StandardProgram struct {
-	Memory      Memory
-	Registers   Registers
-	ProgramBlob ProgramBlob
-	ExitReason  error
 }
