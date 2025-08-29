@@ -96,13 +96,13 @@ func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (ne
 	}
 	for _, item := range r {
 		// If the report itself is already accumulated, skip it, remove from queue
-		if exist, _ := finished_report_hashes[item.Report.PackageSpec.Hash]; exist {
+		if _, exist := finished_report_hashes[item.Report.PackageSpec.Hash]; exist {
 			continue
 		}
 		// Otherwise, filter its dependencies: keep only those NOT in the finished set
 		var remainingDeps []types.WorkPackageHash
 		for _, dep := range item.Dependencies {
-			if exist, _ := finished_report_hashes[dep]; !exist {
+			if _, exist := finished_report_hashes[dep]; !exist {
 				remainingDeps = append(remainingDeps, dep)
 			}
 		}
@@ -323,17 +323,15 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	serviceResultCache := make(map[types.ServiceId]SingleServiceAccumulationOutput)
 	// Helper to run single service accumulation for a given service ID
-	runSingleReplaceService := func(serviceId types.ServiceId) (SingleServiceAccumulationOutput, error) {
+	runSingleReplaceService := func(serviceId types.ServiceId) SingleServiceAccumulationOutput {
 		if result, exists := serviceResultCache[serviceId]; exists {
-			return result, nil
+			return result
 		}
 		// Replace service ID in input
 		single_input.ServiceId = serviceId
-		single_output, err := SingleServiceAccumulation(single_input)
-		if err != nil {
-			serviceResultCache[serviceId] = single_output
-		}
-		return single_output, err
+		single_output, _ := SingleServiceAccumulation(single_input)
+		serviceResultCache[serviceId] = single_output
+		return single_output
 	}
 
 	// collective service blobs output
@@ -341,10 +339,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// ∀s ∈ s ∶ run ∆1(e, w, f, s)
 	for service_id := range s {
-		single_output, err := runSingleReplaceService(service_id)
-		if err != nil {
-			return output, fmt.Errorf("single replace service failed: %w", err)
-		}
+		single_output := runSingleReplaceService(service_id)
 
 		// u = [(s, ∆1(e, w, f, s)u) S s <− s]
 		var u types.ServiceGasUsed
@@ -363,11 +358,11 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		// t = [∆1(e, w, f, s)t S s <− s]
 		t = append(t, single_output.DeferredTransfers...)
 
-		single_outout_d := single_output.PartialStateSet.ServiceAccounts
+		single_output_d := single_output.PartialStateSet.ServiceAccounts
 
 		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
 		// n = union of (d_prime without keys in d except service_id)
-		for key, value := range single_outout_d {
+		for key, value := range single_output_d {
 			if key == service_id {
 				n[key] = value
 			} else if _, exists := d[key]; !exists {
@@ -381,7 +376,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		// m = union of (keys in d but missing in d_prime)
 		d_exclude_single_output_d := make(types.ServiceAccountState)
 		for key := range d {
-			if _, exists := single_outout_d[key]; !exists {
+			if _, exists := single_output_d[key]; !exists {
 				d_exclude_single_output_d[key] = d[key]
 			} else {
 				// exclude part: ∖ K((∆(s)e)d)
@@ -399,10 +394,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// x′ = (∆1(e, w, f, m)o)x
 	// (m′, a∗, v∗, z′) = (∆1(e, w, f, m)o)(m,a,v,z)
-	single_output, err := runSingleReplaceService(input.PartialStateSet.Bless)
-	if err != nil {
-		return output, fmt.Errorf("single replace service failed: %w", err)
-	}
+	single_output := runSingleReplaceService(input.PartialStateSet.Bless)
 	m_prime := single_output.PartialStateSet.Bless
 	a_star := single_output.PartialStateSet.Assign
 	v_star := single_output.PartialStateSet.Designate
@@ -414,27 +406,18 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		return output, fmt.Errorf("service assign length mismatch: expected %d, got %d", types.CoresCount, len(a_star))
 	}
 	for c := range types.CoresCount {
-		single_output, err := runSingleReplaceService(a_star[c])
-		if err != nil {
-			return output, fmt.Errorf("single replace service failed: %w", err)
-		}
+		single_output := runSingleReplaceService(a_star[c])
 		a_prime[c] = single_output.PartialStateSet.Assign[c]
 	}
 
 	// v′ = (∆1(o, w, f , v∗)o)v
-	single_output, err = runSingleReplaceService(v_star)
-	if err != nil {
-		return output, fmt.Errorf("single replace service failed: %w", err)
-	}
+	single_output = runSingleReplaceService(v_star)
 	v_prime := single_output.PartialStateSet.Designate
 
 	// i′ = (∆1(o, w, f, v)o)i
 	var i_prime types.ValidatorsData
 	{
-		single_output, err := runSingleReplaceService(input.PartialStateSet.Designate)
-		if err != nil {
-			return output, fmt.Errorf("single replace service failed: %w", err)
-		}
+		single_output := runSingleReplaceService(input.PartialStateSet.Designate)
 		i_prime = single_output.PartialStateSet.ValidatorKeys
 	}
 
@@ -443,10 +426,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	{
 		q_prime = make(types.AuthQueues, types.CoresCount)
 		for c, service_id := range input.PartialStateSet.Assign {
-			single_output, err := runSingleReplaceService(service_id)
-			if err != nil {
-				return output, fmt.Errorf("single replace service failed: %w", err)
-			}
+			single_output := runSingleReplaceService(service_id)
 			q_prime[c] = single_output.PartialStateSet.Authorizers[c]
 		}
 	}
