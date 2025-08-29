@@ -269,7 +269,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 
 // Helper function to compute the set s for(12.17)
 // s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f)
-func set_s(W []types.WorkReport, M types.AlwaysAccumulateMap) map[types.ServiceId]bool {
+func setS(W []types.WorkReport, M types.AlwaysAccumulateMap) map[types.ServiceId]bool {
 	s := make(map[types.ServiceId]bool)
 	// {rs S w ∈ w, r ∈ wr}
 	for _, w := range W {
@@ -308,7 +308,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
 
 	// s = {rs S w ∈ w, r ∈ wd} ∪ K(f)
-	s := set_s(input.WorkReports, input.AlwaysAccumulateMap)
+	s := setS(input.WorkReports, input.AlwaysAccumulateMap)
 
 	// Needed notations from partial state set
 	d := input.PartialStateSet.ServiceAccounts
@@ -452,17 +452,17 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 
 	// new partial state set: (d′, i′, q′, m′, a′, v′, z′)
-	var new_partial_state types.PartialStateSet
+	var newPartialState types.PartialStateSet
 	{
-		new_partial_state.ServiceAccounts = dPrime
-		new_partial_state.ValidatorKeys = iPrime
-		new_partial_state.Authorizers = qPrime
-		new_partial_state.Bless = mPrime
-		new_partial_state.Assign = aPrime
-		new_partial_state.Designate = vPrime
-		new_partial_state.AlwaysAccum = zPrime
+		newPartialState.ServiceAccounts = dPrime
+		newPartialState.ValidatorKeys = iPrime
+		newPartialState.Authorizers = qPrime
+		newPartialState.Bless = mPrime
+		newPartialState.Assign = aPrime
+		newPartialState.Designate = vPrime
+		newPartialState.AlwaysAccum = zPrime
 	}
-	output.PartialStateSet = new_partial_state
+	output.PartialStateSet = newPartialState
 	output.DeferredTransfers = t
 	return output, nil
 }
@@ -514,14 +514,14 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	}
 
 	// τ′: Posterior validator state used by Ψₐ
-	tau_prime := store.GetInstance().GetPosteriorStates().GetTau()
+	tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
-	pvm_result := PVM.Psi_A(input.PartialStateSet, tau_prime, input.ServiceId, g, operands, eta0)
-	output.AccumulationOutput = pvm_result.Result
-	output.DeferredTransfers = pvm_result.DeferredTransfers
-	output.GasUsed = pvm_result.Gas
-	output.PartialStateSet = pvm_result.PartialStateSet
-	output.ServiceBlobs = pvm_result.ServiceBlobs
+	pvmResult := PVM.Psi_A(input.PartialStateSet, tauPrime, input.ServiceId, g, operands, eta0)
+	output.AccumulationOutput = pvmResult.Result
+	output.DeferredTransfers = pvmResult.DeferredTransfers
+	output.GasUsed = pvmResult.Gas
+	output.PartialStateSet = pvmResult.PartialStateSet
+	output.ServiceBlobs = pvmResult.ServiceBlobs
 	return output, nil
 }
 
