@@ -1648,14 +1648,16 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.Imports = U16(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	// x
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.Exports = U16(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	c.ExtrinsicCount = U16(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
 
+	// z
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
@@ -1664,13 +1666,13 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.ExtrinsicCount = U16(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	c.Exports = U16(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	bundleSize, err := d.DecodeInteger()
@@ -1756,13 +1758,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.Imports = U32(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.Exports = U32(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
+	s.ExtrinsicCount = U32(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
 
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
@@ -1772,13 +1774,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", extrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.ExtrinsicCount = U32(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
+	s.Exports = U32(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	accumulateCount, err := d.DecodeInteger()
