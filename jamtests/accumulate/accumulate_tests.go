@@ -701,6 +701,11 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 
+		// Fill Storage
+		for _, storageEntry := range delta.Data.Storage {
+			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
+		}
+
 		// Store ServiceAccount into inputDelta
 		serviceId := types.ServiceId(delta.Id)
 		output[serviceId] = serviceAccount
