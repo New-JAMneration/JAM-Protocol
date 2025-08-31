@@ -863,20 +863,23 @@ func (a *AccumulateTestCase) Validate() error {
 	// The type of state.Delta is ServiceAccountState
 	// The type of a.PostState.Accounts is []AccountsMapEntry
 
-	// Validate the length of accounts
-	if len(s.GetIntermediateStates().GetDeltaDoubleDagger()) != len(a.PostState.Accounts) {
-		log.Printf(Red+"Accounts length does not match expected: %d, but got %d"+Reset, len(a.PostState.Accounts), len(s.GetPosteriorStates().GetDelta()))
-		return fmt.Errorf("accounts length does not match expected: %d, but got %d", len(a.PostState.Accounts), len(s.GetPosteriorStates().GetDelta()))
-	}
-
 	// Validate Delta
 	// FIXME: Review after PVM stable
-	/*
-		postDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
-		if !reflect.DeepEqual(s.GetPosteriorStates().GetDelta(), postDelta) {
-			log.Printf("Delta do not match expected:\n%v,\nbut got %v", a.PostState.Accounts, s.GetPosteriorStates().GetDelta())
-			return fmt.Errorf("delta do not match expected:\n%v,\nbut got %v", a.PostState.Accounts, s.GetPosteriorStates().GetDelta())
-		}
-	*/
+	postDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
+	delta := s.GetIntermediateStates().GetDeltaDoubleDagger()
+
+	var postKeys, deltaKeys []types.ServiceId
+	for key := range postDelta {
+		postKeys = append(postKeys, key)
+	}
+	for key := range delta {
+		deltaKeys = append(deltaKeys, key)
+	}
+
+	// Check key set equal
+	if !reflect.DeepEqual(postKeys, deltaKeys) {
+		log.Printf(Red+"Key sets do not match\nPost keys: %v\nDelta keys: %v"+Reset, postKeys, deltaKeys)
+		return fmt.Errorf("key sets do not match: postKeys=%v, deltaKeys=%v", postKeys, deltaKeys)
+	}
 	return nil
 }
