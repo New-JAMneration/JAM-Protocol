@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -30,7 +31,7 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandleJudgmentAnnouncement(fakeBlockchain, stream)
+	err = HandleJudgmentAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleJudgmentAnnouncement failed: %v", err)
 	}

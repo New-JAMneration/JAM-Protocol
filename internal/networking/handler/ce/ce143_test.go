@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -34,7 +35,7 @@ func TestHandlePreimageRequest(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandlePreimageRequest(fakeBlockchain, stream)
+	err = HandlePreimageRequest(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandlePreimageRequest failed: %v", err)
 	}

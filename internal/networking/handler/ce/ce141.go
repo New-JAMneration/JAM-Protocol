@@ -17,14 +17,17 @@ import (
 //
 // [TODO]
 // 1. Broadcast to all block authors
-func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandleAvailabilityAssuranceDistribution(
+	blockchain blockchain.Blockchain,
+	stream io.ReadWriteCloser,
+) error {
 	bitfieldSize := (types.CoresCount + 7) / 8 // ceil(C / 8)
 
 	// Header Hash (32 bytes) + Bitfield (ceil(C/8) bytes) + Ed25519 Signature (64 bytes)
 	assuranceSize := 32 + bitfieldSize + 64
 	assuranceData := make([]byte, assuranceSize)
 
-	if _, err := io.ReadFull(stream, assuranceData); err != nil {
+	if _, err := stream.Read(assuranceData); err != nil {
 		return fmt.Errorf("failed to read assurance data: %w", err)
 	}
 
@@ -39,7 +42,7 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 	copy(signature[:], assuranceData[32+bitfieldSize:])
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if _, err := stream.Read(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {

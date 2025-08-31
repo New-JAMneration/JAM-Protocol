@@ -3,6 +3,8 @@ package ce
 import (
 	"bytes"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 )
 
 func TestHandleECShardRequest_Basic(t *testing.T) {
@@ -20,7 +22,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 	}
 
 	// Prepare a real WorkReportBundle with mock data
-	bundle := &CE137Payload{
+	bundle := &CE137GuarantorPayload{
 		BundleShard: []byte("BUNDLE_SHARD_MOCK"),
 		SegmentShards: [][]byte{
 			[]byte("SEGMENT_SHARD1_MOCK"),
@@ -28,7 +30,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 		},
 		Justification: append([]byte{0x00}, make([]byte, 32)...), // 0 discriminator + 32 zero bytes
 	}
-	lookup := func(root []byte) (*CE137Payload, bool) {
+	lookup := func(root []byte) (*CE137GuarantorPayload, bool) {
 		if bytes.Equal(root, erasureRoot) {
 			return bundle, true
 		}
@@ -42,7 +44,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
-	err := HandleECShardRequest(stream, lookup)
+	err := HandleECShardRequest(&quic.Stream{Stream: stream}, lookup)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

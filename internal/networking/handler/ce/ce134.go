@@ -1,11 +1,13 @@
 package ce
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -13,7 +15,7 @@ import (
 )
 
 type CE134Payload struct {
-	CoreIndex   uint32
+	CoreIndex   uint16
 	HeaderHash  [32]byte
 	WorkPackage *types.WorkPackage
 }
@@ -24,20 +26,20 @@ type SegmentRootMapping struct {
 }
 
 // Helper to decode segment-root mappings from the stream
-func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
+func readSegmentRootMappings(stream *quic.Stream) ([]SegmentRootMapping, error) {
 	var mappings []SegmentRootMapping
 	var countBuf [1]byte
-	if _, err := io.ReadFull(r, countBuf[:]); err != nil {
+	if _, err := io.ReadFull(stream, countBuf[:]); err != nil {
 		return nil, err
 	}
 	count := int(countBuf[0])
 	for i := 0; i < count; i++ {
 		var wpHash types.WorkPackageHash
 		var segRoot types.OpaqueHash
-		if _, err := io.ReadFull(r, wpHash[:]); err != nil {
+		if _, err := io.ReadFull(stream, wpHash[:]); err != nil {
 			return nil, err
 		}
-		if _, err := io.ReadFull(r, segRoot[:]); err != nil {
+		if _, err := io.ReadFull(stream, segRoot[:]); err != nil {
 			return nil, err
 		}
 		mappings = append(mappings, SegmentRootMapping{wpHash, segRoot})
@@ -54,7 +56,7 @@ func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
 // 4. Add basic verification (auth + mappings) after receiving bundle.
 func HandleWorkPackageShare(
 	blockchain blockchain.Blockchain,
-	stream io.ReadWriteCloser,
+	stream *quic.Stream,
 	keypair keystore.KeyPair,
 	pvmExecutor work_package.PVMExecutor,
 	erasureMap *store.SegmentErasureMap,
@@ -62,7 +64,7 @@ func HandleWorkPackageShare(
 ) error {
 	// 1. Read core index (2 bytes, little endian)
 	coreIndexBuf := make([]byte, 2)
-	if _, err := io.ReadFull(stream, coreIndexBuf); err != nil {
+	if _, err := stream.Read(coreIndexBuf); err != nil {
 		return err
 	}
 	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(coreIndexBuf))
@@ -94,11 +96,7 @@ func HandleWorkPackageShare(
 	message := []byte{}
 	message = append(message, workReportHash[:]...)
 
-	sig, err := keypair.Sign(message)
-	if err != nil {
-		return fmt.Errorf("failed to sign work-report hash: %w", err)
-	}
-
+	sig := ed25519.Sign(keypair.PrivateKey(), message)
 	resp := append(workReportHash[:], sig...)
 	if _, err := stream.Write(resp); err != nil {
 		return fmt.Errorf("failed to write response: %w", err)
@@ -122,7 +120,7 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) 
 
 	requestType := byte(WorkPackageSharing)
 
-	coreIndexBytes := encodeLE32(workPackage.CoreIndex)
+	coreIndexBytes := encodeLE16(workPackage.CoreIndex)
 
 	// Get WorkPackage bytes using ScaleEncode
 	wpBytes, err := workPackage.WorkPackage.ScaleEncode()

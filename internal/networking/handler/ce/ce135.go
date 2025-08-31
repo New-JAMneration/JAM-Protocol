@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -25,17 +26,17 @@ type CE135Payload struct {
 // 1. Distributed to validators.
 func HandleWorkReportDistribution(
 	blockchain blockchain.Blockchain,
-	stream io.ReadWriteCloser,
+	stream *quic.Stream,
 	keypair keystore.KeyPair,
 ) error {
 	lenBuf := make([]byte, 4)
-	if _, err := io.ReadFull(stream, lenBuf); err != nil {
+	if _, err := stream.Read(lenBuf); err != nil {
 		return fmt.Errorf("failed to read length prefix: %w", err)
 	}
 	guaranteeLen := binary.LittleEndian.Uint32(lenBuf)
 
 	data := make([]byte, guaranteeLen)
-	if _, err := io.ReadFull(stream, data); err != nil {
+	if _, err := stream.Read(data); err != nil {
 		return fmt.Errorf("failed to read guarantee: %w", err)
 	}
 

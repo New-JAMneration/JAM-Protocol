@@ -8,12 +8,13 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // HandlePreimageAnnouncement handles the announcement of possession of a requested preimage.
-func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Service ID (4 bytes) + Hash (32 bytes) + Preimage Length (4 bytes)
 	announcementSize := 4 + 32 + 4
 	announcementData := make([]byte, announcementSize)

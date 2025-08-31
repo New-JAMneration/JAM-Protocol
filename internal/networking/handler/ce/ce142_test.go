@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -31,7 +32,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandlePreimageAnnouncement(fakeBlockchain, stream)
+	err = HandlePreimageAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandlePreimageAnnouncement failed: %v", err)
 	}

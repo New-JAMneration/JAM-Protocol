@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -16,10 +15,13 @@ import (
 
 // HandleSegmentShardRequestWithJustification handles a guarantor's request for segment shards from assurers.
 // This is protocol variant 140 where justification is provided for each returned segment shard.
-func HandleSegmentShardRequestWithJustification(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+func HandleSegmentShardRequestWithJustification(
+	blockchain blockchain.Blockchain,
+	stream *quic.Stream,
+) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	if _, err := stream.Read(buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
@@ -34,7 +36,7 @@ func HandleSegmentShardRequestWithJustification(blockchain blockchain.Blockchain
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	if segmentIndicesLen > 0 {
 		indicesBuf := make([]byte, segmentIndicesLen*2)
-		if _, err := io.ReadFull(stream, indicesBuf); err != nil {
+		if _, err := stream.Read(indicesBuf); err != nil {
 			return err
 		}
 		for i := uint16(0); i < segmentIndicesLen; i++ {
@@ -43,7 +45,7 @@ func HandleSegmentShardRequestWithJustification(blockchain blockchain.Blockchain
 	}
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if _, err := stream.Read(finBuf); err != nil {
 		return err
 	}
 	if string(finBuf) != "FIN" {

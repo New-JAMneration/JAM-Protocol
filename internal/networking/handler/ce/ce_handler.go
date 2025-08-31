@@ -9,6 +9,16 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 )
 
+type Role uint8
+
+const (
+	Assurer Role = iota + 1
+	Guarantor
+	Auditor
+	Validator
+	Builder
+)
+
 // CEHandlerFunc defines the function signature for handling a specific CE request.
 // The provided stream's payload (after the protocol ID) is available for further processing.
 type CEHandlerFunc func(blockchain blockchain.Blockchain, stream *quic.Stream) error

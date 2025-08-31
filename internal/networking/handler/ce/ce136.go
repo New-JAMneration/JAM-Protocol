@@ -2,8 +2,8 @@ package ce
 
 import (
 	"fmt"
-	"io"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -19,18 +19,18 @@ type CE136Payload struct {
 // [TODO]
 // 1. Ensure auditors who pushing or forwarding a negative judgment be queried first for missing report.
 func HandleWorkReportRequest(
-	stream io.ReadWriteCloser,
+	stream *quic.Stream,
 	lookup WorkReportLookupFunc,
 ) error {
 	hashBuf := make([]byte, 32)
-	if _, err := io.ReadFull(stream, hashBuf); err != nil {
+	if _, err := stream.Read(hashBuf); err != nil {
 		return fmt.Errorf("failed to read work-report hash: %w", err)
 	}
 	var hash types.WorkReportHash
 	copy(hash[:], hashBuf)
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if _, err := stream.Read(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {

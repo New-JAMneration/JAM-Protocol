@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -26,11 +26,11 @@ import (
 // - Hash: 32 bytes (OpaqueHash)
 //
 // Total request message size: 32 bytes
-func HandlePreimageRequest(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandlePreimageRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	hashSize := 32
 	hashData := make([]byte, hashSize)
 
-	if _, err := io.ReadFull(stream, hashData); err != nil {
+	if _, err := stream.Read(hashData); err != nil {
 		return fmt.Errorf("failed to read hash data: %w", err)
 	}
 
@@ -38,7 +38,7 @@ func HandlePreimageRequest(blockchain blockchain.Blockchain, stream io.ReadWrite
 	copy(hash[:], hashData)
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if _, err := stream.Read(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {

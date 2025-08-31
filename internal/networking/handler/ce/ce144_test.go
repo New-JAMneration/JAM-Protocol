@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -14,7 +15,7 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
 
-	headerHash := types.OpaqueHash{}
+	headerHash := types.HeaderHash{}
 	for i := range headerHash {
 		headerHash[i] = byte(i + 1)
 	}
@@ -52,7 +53,7 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandleAuditAnnouncement(fakeBlockchain, stream)
+	err = HandleAuditAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleAuditAnnouncement failed: %v", err)
 	}
@@ -88,7 +89,7 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
 
-	headerHash := types.OpaqueHash{}
+	headerHash := types.HeaderHash{}
 	for i := range headerHash {
 		headerHash[i] = byte(i + 10)
 	}
@@ -135,7 +136,7 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 	stream := newMockStream(fullMessage)
 
 	fakeBlockchain := SetupFakeBlockchain()
-	err = HandleAuditAnnouncement(fakeBlockchain, stream)
+	err = HandleAuditAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleAuditAnnouncement failed: %v", err)
 	}
@@ -167,7 +168,7 @@ func TestGetAllAuditAnnouncementsForHeader(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
 
-	headerHash := types.OpaqueHash{}
+	headerHash := types.HeaderHash{}
 	for i := range headerHash {
 		headerHash[i] = byte(i + 20)
 	}

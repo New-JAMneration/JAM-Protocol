@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -101,7 +102,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	segmentMap := store.NewHashSegmentMap(client)
 	erasureMap := store.NewSegmentErasureMap(client)
 	fakePVM := &FakePVMExecutor{}
-	err = HandleWorkPackageShare(nil, stream, keypair, fakePVM, erasureMap, segmentMap)
+	err = HandleWorkPackageShare(nil, &quic.Stream{Stream: stream}, keypair, fakePVM, erasureMap, segmentMap)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

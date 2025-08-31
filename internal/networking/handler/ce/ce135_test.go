@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -39,7 +40,7 @@ func TestHandleWorkReportDistribution_Basic(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	keypair, _ := keystore.FromEd25519PrivateKey(priv)
 
-	err = HandleWorkReportDistribution(nil, stream, keypair)
+	err = HandleWorkReportDistribution(nil, &quic.Stream{Stream: stream}, keypair)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

@@ -3,6 +3,7 @@ package ce
 import (
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -24,7 +25,7 @@ func TestHandleWorkReportRequest_Basic(t *testing.T) {
 	input := append(hash[:], []byte("FIN")...)
 	stream := newMockStream(input)
 
-	err := HandleWorkReportRequest(stream, lookup)
+	err := HandleWorkReportRequest(&quic.Stream{Stream: stream}, lookup)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

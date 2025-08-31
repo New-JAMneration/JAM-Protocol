@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -30,14 +31,14 @@ import (
 // - Tranche: 1 byte (u8)
 // - Announcement: len++[Core Index ++ Work-Report Hash] ++ Ed25519 Signature
 // - Evidence: depends on tranche (Bandersnatch signature for tranche 0, more complex for others)
-func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
-	headerHash := types.OpaqueHash{}
-	if _, err := io.ReadFull(stream, headerHash[:]); err != nil {
+func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+	headerHash := types.HeaderHash{}
+	if _, err := stream.Read(headerHash[:]); err != nil {
 		return fmt.Errorf("failed to read header hash: %w", err)
 	}
 
 	trancheBuf := make([]byte, 1)
-	if _, err := io.ReadFull(stream, trancheBuf); err != nil {
+	if _, err := stream.Read(trancheBuf); err != nil {
 		return fmt.Errorf("failed to read tranche: %w", err)
 	}
 	tranche := uint8(trancheBuf[0])
@@ -74,9 +75,9 @@ func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWri
 }
 
 // readAnnouncement reads the announcement part of the message
-func readAnnouncement(stream io.ReadWriteCloser) (*CE144Announcement, error) {
+func readAnnouncement(stream *quic.Stream) (*CE144Announcement, error) {
 	lengthBuf := make([]byte, 4)
-	if _, err := io.ReadFull(stream, lengthBuf); err != nil {
+	if _, err := stream.Read(lengthBuf); err != nil {
 		return nil, fmt.Errorf("failed to read work reports length: %w", err)
 	}
 	workReportsLength := binary.LittleEndian.Uint32(lengthBuf)
@@ -102,7 +103,7 @@ func readAnnouncement(stream io.ReadWriteCloser) (*CE144Announcement, error) {
 	}
 
 	signature := types.Ed25519Signature{}
-	if _, err := io.ReadFull(stream, signature[:]); err != nil {
+	if _, err := stream.Read(signature[:]); err != nil {
 		return nil, fmt.Errorf("failed to read Ed25519 signature: %w", err)
 	}
 
@@ -113,11 +114,11 @@ func readAnnouncement(stream io.ReadWriteCloser) (*CE144Announcement, error) {
 }
 
 // readEvidence reads the evidence part based on tranche
-func readEvidence(stream io.ReadWriteCloser, tranche uint8, workReportsCount int) (*CE144Evidence, error) {
+func readEvidence(stream *quic.Stream, tranche uint8, workReportsCount int) (*CE144Evidence, error) {
 	if tranche == 0 {
 		// First Tranche Evidence = Bandersnatch Signature (96 bytes)
 		bandersnatchSig := types.BandersnatchVrfSignature{}
-		if _, err := io.ReadFull(stream, bandersnatchSig[:]); err != nil {
+		if _, err := stream.Read(bandersnatchSig[:]); err != nil {
 			return nil, fmt.Errorf("failed to read Bandersnatch signature: %w", err)
 		}
 
@@ -186,7 +187,7 @@ func readEvidence(stream io.ReadWriteCloser, tranche uint8, workReportsCount int
 	}
 }
 
-func validateAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
+func validateAuditAnnouncement(headerHash types.HeaderHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
 	if len(announcement.WorkReports) == 0 {
 		return errors.New("announcement must contain at least one work report")
 	}
@@ -208,7 +209,7 @@ func validateAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, annou
 	return nil
 }
 
-func storeAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
+func storeAuditAnnouncement(headerHash types.HeaderHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
 		return fmt.Errorf("failed to get Redis backend: %w", err)
@@ -245,7 +246,7 @@ func storeAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announce
 }
 
 func CreateAuditAnnouncement(
-	headerHash types.OpaqueHash,
+	headerHash types.HeaderHash,
 	tranche uint8,
 	announcement *CE144Announcement,
 	evidence *CE144Evidence,
@@ -260,7 +261,7 @@ func CreateAuditAnnouncement(
 	return payload.Encode()
 }
 
-func GetAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8) (*CE144Payload, error) {
+func GetAuditAnnouncement(headerHash types.HeaderHash, tranche uint8) (*CE144Payload, error) {
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
@@ -288,7 +289,7 @@ func GetAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8) (*CE144Pay
 	return announcementData, nil
 }
 
-func GetAllAuditAnnouncementsForHeader(headerHash types.OpaqueHash) ([]*CE144Payload, error) {
+func GetAllAuditAnnouncementsForHeader(headerHash types.HeaderHash) ([]*CE144Payload, error) {
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
@@ -372,7 +373,7 @@ type CE144Evidence struct {
 }
 
 type CE144Payload struct {
-	HeaderHash   types.OpaqueHash
+	HeaderHash   types.HeaderHash
 	Tranche      uint8
 	Announcement CE144Announcement
 	Evidence     CE144Evidence

@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -32,36 +32,36 @@ import (
 // - Validity: 1 byte (0 = Invalid, 1 = Valid)
 // - Work-Report Hash: 32 bytes (WorkReportHash)
 // - Ed25519 Signature: 64 bytes
-func HandleJudgmentAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandleJudgmentAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	epochIndexBuf := make([]byte, 4)
-	if _, err := io.ReadFull(stream, epochIndexBuf); err != nil {
+	if _, err := stream.Read(epochIndexBuf); err != nil {
 		return fmt.Errorf("failed to read epoch index: %w", err)
 	}
 	epochIndex := types.U32(binary.LittleEndian.Uint32(epochIndexBuf))
 
 	validatorIndexBuf := make([]byte, 2)
-	if _, err := io.ReadFull(stream, validatorIndexBuf); err != nil {
+	if _, err := stream.Read(validatorIndexBuf); err != nil {
 		return fmt.Errorf("failed to read validator index: %w", err)
 	}
 	validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(validatorIndexBuf))
 
 	validityBuf := make([]byte, 1)
-	if _, err := io.ReadFull(stream, validityBuf); err != nil {
+	if _, err := stream.Read(validityBuf); err != nil {
 		return fmt.Errorf("failed to read validity: %w", err)
 	}
 	validity := validityBuf[0]
 
 	workReportHash := types.WorkReportHash{}
-	if _, err := io.ReadFull(stream, workReportHash[:]); err != nil {
+	if _, err := stream.Read(workReportHash[:]); err != nil {
 		return fmt.Errorf("failed to read work report hash: %w", err)
 	}
 
 	signature := types.Ed25519Signature{}
-	if _, err := io.ReadFull(stream, signature[:]); err != nil {
+	if _, err := stream.Read(signature[:]); err != nil {
 		return fmt.Errorf("failed to read Ed25519 signature: %w", err)
 	}
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if _, err := stream.Read(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {
