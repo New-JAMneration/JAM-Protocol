@@ -9,7 +9,7 @@ import (
 // (B.8) Ψ_A
 func Psi_A(
 	partialState types.PartialStateSet,
-	time types.TimeSlot,
+	timeslot types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
 	operands []types.Operand,
@@ -57,7 +57,7 @@ func Psi_A(
 
 	// Encode t
 	// encoded, err := encoder.Encode(&time)
-	encoded, err := encoder.EncodeUint(uint64(time))
+	encoded, err := encoder.EncodeUint(uint64(timeslot))
 	if err != nil {
 		panic(err)
 	}
@@ -107,8 +107,8 @@ func Psi_A(
 			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(partialState, serviceId, time, eta),
-			ResultContextY: I(partialState, serviceId, time, eta),
+			ResultContextX: I(partialState, serviceId, timeslot, eta),
+			ResultContextY: I(partialState, serviceId, timeslot, eta),
 			Eta:            eta,
 			Operands:       operands,
 		},
