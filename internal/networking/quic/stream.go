@@ -2,12 +2,11 @@ package quic
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	quicgo "github.com/quic-go/quic-go"
 )
 
 // Can be changed to other values if needed.
@@ -16,7 +15,7 @@ const MaxMsgSize = 256 * 1024 * 1024
 // Stream encapsulates a quic.Stream to provide a higher-level abstraction
 // for reading from and writing to QUIC streams.
 type Stream struct {
-	Stream quic.Stream
+	Stream quicgo.Stream
 }
 
 func (s *Stream) Read(p []byte) (int, error) {
@@ -57,6 +56,9 @@ func (s *Stream) writeFull(p []byte) error {
 		if err != nil {
 			return err
 		}
+		if n == 0 {
+			break
+		}
 	}
 	return nil
 }
@@ -69,7 +71,7 @@ func (s *Stream) SetReadDeadline(t time.Time) error {
 	return s.Stream.SetReadDeadline(t)
 }
 
-func Copy(dest quic.Stream, src quic.Stream) error {
+func Copy(dest quicgo.Stream, src quicgo.Stream) error {
 	_, err := io.Copy(dest, src)
 	return err
 }
@@ -89,9 +91,10 @@ func (s *Stream) ReadStreamKind() (byte, error) {
 
 // Message format: [len][payload...]
 func (s *Stream) WriteMessage(payload []byte) error {
-	if uint64(len(payload)) > uint64(^uint32(0)) {
-		return errors.New("payload too large for 32-bit length")
+	if uint64(len(payload)) > MaxMsgSize {
+		return fmt.Errorf("payload too large: %d > %d", len(payload), MaxMsgSize)
 	}
+
 	var hdr [4]byte
 	binary.LittleEndian.PutUint32(hdr[:], uint32(len(payload)))
 	if err := s.writeFull(hdr[:]); err != nil {
