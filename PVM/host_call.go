@@ -692,9 +692,9 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 // ΩL(ϱ, ω, μ, s, s, d) , lookup = 2
 func lookup(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
-	serviceAccount := input.Addition.ServiceAccount
-	delta := input.Addition.ServiceAccountState
+	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceAccount := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	delta := input.Addition.ResultContextX.PartialState.ServiceAccounts
 
 	newGas := input.Gas - 10
 	if newGas < 0 {
@@ -708,7 +708,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(*serviceID) {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -807,9 +807,9 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
-	serviceAccount := input.Addition.ServiceAccount
-	delta := input.Addition.ServiceAccountState
+	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceAccount := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	delta := input.Addition.ResultContextX.PartialState.ServiceAccounts
 
 	newGas := input.Gas - 10
 	if newGas < 0 {
@@ -826,7 +826,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	var a types.ServiceAccount
 	// assign s*
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = uint64(*serviceID)
+		sStar = uint64(serviceID)
 	} else {
 		sStar = input.Registers[7]
 	}
@@ -843,7 +843,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// assign a
-	if sStar == uint64(*serviceID) {
+	if sStar == uint64(serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
 		a = value
@@ -925,9 +925,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 // ΩW (ϱ, ω, μ, s, s) , write = 4
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceAccount := input.Addition.ServiceAccount
-
 	newGas := input.Gas - 10
+
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
@@ -948,17 +947,24 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
 	// compute \mathbb{k}
 	storageKey := input.Memory.Read(ko, kz)
 
-	var a types.ServiceAccount
+	serviceID := input.Addition.ResultContextX.ServiceId
+	// computation of l & a is independent, first compute l is easier to implement
+	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
+	var l uint64
+	if storageKeyExists {
+		l = uint64(len(value))
+	} else {
+		l = NONE
+	}
+
+	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if vz == 0 {
-		a = serviceAccount
 		delete(a.StorageDict, string(storageKey))
 	} else if isReadable(vo, vz, input.Memory) {
 		storageValue := input.Memory.Read(vo, vz)
-		a = serviceAccount
 		a.StorageDict[string(storageKey)] = storageValue
 
 		// need extra storage space :
@@ -982,14 +988,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
-	}
-
-	value, storageKeyExists := serviceAccount.StorageDict[string(storageKey)]
-	var l uint64
-	if storageKeyExists {
-		l = uint64(len(value))
-	} else {
-		l = NONE
 	}
 	new_registers := input.Registers
 	new_registers[7] = l
@@ -1024,14 +1022,14 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	serviceID := input.Addition.ServiceId
-	delta := input.Addition.ServiceAccountState
+	serviceID := input.Addition.ResultContextX.ServiceId
+	delta := input.Addition.ResultContextX.PartialState.ServiceAccounts
 
 	var a types.ServiceAccount
 	var empty bool
 	empty = true
 	if input.Registers[7] == 0xffffffffffffffff {
-		value, exist := delta[types.ServiceId(*serviceID)]
+		value, exist := delta[types.ServiceId(serviceID)]
 		if exist {
 			a = value
 			empty = false
