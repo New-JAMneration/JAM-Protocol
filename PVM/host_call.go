@@ -1834,9 +1834,9 @@ func assign(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if x_s ≠ (x_u)_a[c]
-	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
-		input.Registers[7] = HUH
+	// otherwise if c >= C
+	if c >= uint64(types.CoresCount) {
+		input.Registers[7] = CORE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -1846,9 +1846,9 @@ func assign(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if c >= C
-	if c >= uint64(types.CoresCount) {
-		input.Registers[7] = CORE
+	// otherwise if x_s ≠ (x_u)_a[c]
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
+		input.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -2455,7 +2455,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
-			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
+			a.LookupDict = make(types.LookupMetaMapEntry, 0)
 		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			lookupData = append(lookupData, timeslot)
