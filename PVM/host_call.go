@@ -343,12 +343,12 @@ func gas(input OmegaInput) OmegaOutput {
 			Addition:     input.Addition,
 		}
 	}
-	register := input.Registers
-	register[7] = uint64(newGas)
+
+	input.Registers[7] = uint64(newGas)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
-		NewRegisters: register,
+		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
 	}
@@ -643,7 +643,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
-
+	// nothing to write, don't need to check memory access
 	if l == 0 {
 		input.Registers[7] = dataLength
 		return OmegaOutput{
@@ -756,6 +756,18 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	f := min(input.Registers[10], uint64(len(v)))
 	l := min(input.Registers[11], uint64(len(v))-f)
 
+	// nothing to write, don't need to check memory access
+	if l == 0 {
+		input.Registers[7] = uint64(len(v))
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -812,7 +824,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 	var sStar uint64
 	var a types.ServiceAccount
-	// s* = ?
+	// assign s*
 	if input.Registers[7] == 0xffffffffffffffff {
 		sStar = uint64(*serviceID)
 	} else {
@@ -830,7 +842,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	// a = ?
+	// assign a
 	if sStar == uint64(*serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
@@ -855,6 +867,19 @@ func read(input OmegaInput) (output OmegaOutput) {
 	v, exists := a.StorageDict[string(storageKey)]
 	f := min(input.Registers[11], uint64(len(v)))
 	l := min(input.Registers[12], uint64(len(v))-f)
+
+	// nothing to write, don't need to check memory access
+	if l == 0 {
+		input.Registers[7] = uint64(len(v))
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	// first check not writable, then check v = nil (not exists)
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -1173,6 +1198,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
 	if !isWriteable(o, l, input.Memory) { // not writeable, return panic
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
