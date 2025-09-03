@@ -143,6 +143,8 @@ For example:
 			for idx, testFile := range testFiles {
 				if testFile.Name[:7] == "genesis" {
 					continue
+					// } else if testFile.Name != "00000001.bin" { // Specify test file name
+					// 	continue
 				}
 
 				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)

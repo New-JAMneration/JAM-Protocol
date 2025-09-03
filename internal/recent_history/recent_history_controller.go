@@ -139,6 +139,7 @@ func STFBetaH2BetaHDagger() {
 		beta  = s.GetPriorStates().GetBeta()
 		block = s.GetLatestBlock()
 	)
+	log.Printf("Latest block got by (4.6): %+v", block)
 	if beta.History.Validate() != nil {
 		log.Fatalf("beta.History.Validate() failed: %v", beta.History.Validate())
 	}
@@ -156,6 +157,7 @@ func STFBetaHDagger2BetaHPrime() error {
 		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
 		block         = s.GetLatestBlock()
 	)
+	log.Printf("Latest block got by (4.7): %+v", block)
 	serializedLastAccOut, err := serLastAccOut(lastAccOut)
 	if err != nil {
 		return err
@@ -167,6 +169,7 @@ func STFBetaHDagger2BetaHPrime() error {
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store
+	log.Printf("We set beta_H^prime to store\n: %+v", historyPrime)
 	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
 	s.GetPosteriorStates().SetBetaH(historyPrime)
 	return nil
