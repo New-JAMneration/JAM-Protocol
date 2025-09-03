@@ -864,28 +864,28 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 
 	switch instructionCode[pc] {
 	case 80:
-		reg[rA] = uint64(uint32(vX))
+		reg[rA] = vX
 		branchCondition = true
 		logMsg = fmt.Sprintf("branch(%d, T), %s = %d, %s = 0x%x", vY, RegName[rA], reg[rA], RegName[rA], reg[rA])
 	case 81:
-		branchCondition = reg[rA] == uint64(uint32(vX))
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x == 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		branchCondition = reg[rA] == vX
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x == 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 82:
-		branchCondition = reg[rA] != uint64(uint32(vX))
+		branchCondition = reg[rA] != vX
 
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x != 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x != 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 83:
-		branchCondition = reg[rA] < uint64(uint32(vX))
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		branchCondition = reg[rA] < vX
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 84:
-		branchCondition = reg[rA] <= uint64(uint32(vX))
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		branchCondition = reg[rA] <= vX
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 85:
-		branchCondition = reg[rA] >= uint64(uint32(vX))
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		branchCondition = reg[rA] >= vX
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 86:
-		branchCondition = reg[rA] > uint64(uint32(vX))
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], reg[rA], uint64(uint32(vX)), branchCondition)
+		branchCondition = reg[rA] > vX
+		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
 	case 87:
 		branchCondition = int64(reg[rA]) < int64(vX)
 		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
