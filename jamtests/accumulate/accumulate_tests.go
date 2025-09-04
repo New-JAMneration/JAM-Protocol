@@ -1,6 +1,7 @@
 package jamtests
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -866,13 +867,54 @@ func (a *AccumulateTestCase) Validate() error {
 
 	// Validate Delta
 	// FIXME: Review after PVM stable
-	postDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
-	posteriorDelta := s.GetPosteriorStates().GetDelta()
+	expectedDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
+	actualDelta := s.GetIntermediateStates().GetDeltaDoubleDagger()
 
-	if !reflect.DeepEqual(postDelta, posteriorDelta) {
-		diff := cmp.Diff(postDelta, posteriorDelta)
-		log.Printf(Red+"Delta mismatch:\n%s"+Reset, diff)
-		return fmt.Errorf("posterior delta mismatch")
+	for key, expectedAcc := range expectedDelta {
+		actualAcc, ok := actualDelta[key]
+		if !ok {
+			return fmt.Errorf("serviceId %v missing in actualDelta", key)
+		}
+
+		// ServiceInfo
+		if !reflect.DeepEqual(expectedAcc.ServiceInfo, actualAcc.ServiceInfo) {
+			return fmt.Errorf("mismatch in ServiceInfo for serviceId %v:\n expected=%+v\n actual=%+v",
+				key, expectedAcc.ServiceInfo, actualAcc.ServiceInfo)
+		}
+
+		// PreimageLookup
+		for h, expectedBlob := range expectedAcc.PreimageLookup {
+			actualBlob, ok := actualAcc.PreimageLookup[h]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Preimage hash %x in actualDelta", key, h)
+			}
+			if !bytes.Equal(expectedBlob, actualBlob) {
+				return fmt.Errorf("mismatch for serviceId %v, Preimage hash %x:\n expected=%x\n actual=%x",
+					key, h, expectedBlob, actualBlob)
+			}
+		}
+		for h := range actualAcc.PreimageLookup {
+			if _, ok := expectedAcc.PreimageLookup[h]; !ok {
+				return fmt.Errorf("serviceId %v has extra Preimage hash %x in actualDelta", key, h)
+			}
+		}
+
+		// StorageDict
+		for storageKey, expectedValue := range expectedAcc.StorageDict {
+			actualValue, ok := actualAcc.StorageDict[storageKey]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Storage key %q in actualDelta", key, storageKey)
+			}
+			if !bytes.Equal(expectedValue, actualValue) {
+				return fmt.Errorf("mismatch for serviceId %v, Storage key %q:\n expected=%x\n actual=%x",
+					key, storageKey, expectedValue, actualValue)
+			}
+		}
+		for storageKey := range actualAcc.StorageDict {
+			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
+				return fmt.Errorf("serviceId %v has extra Storage key %q in actualDelta", key, storageKey)
+			}
+		}
 	}
 	return nil
 }
