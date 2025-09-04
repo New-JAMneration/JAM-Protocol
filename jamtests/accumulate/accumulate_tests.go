@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
@@ -817,47 +818,47 @@ func (a *AccumulateTestCase) Validate() error {
 		return fmt.Errorf("privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
 	}
 
-	// FIXME: Before validating statistics, we need to execute the update_preimage and update statistics functions, Review after PVM stable
-	/*
-		// Validate Statistics (types.Statistics.Services, PI_S)
-		// Calculate the actual statistics
-		// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-		serviceIds := make([]types.ServiceId, len(a.PostState.Accounts))
-		for i, account := range a.PostState.Accounts {
-			serviceIds[i] = account.Id
-		}
+	// FIXME: Before validating statistics, we need to execute the update_preimage and update statistics functions
 
-		ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
-		accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
-		for _, serviceId := range serviceIds {
-			accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+	// Validate Statistics (types.Statistics.Services, PI_S)
+	// Calculate the actual statistics
+	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
+	serviceIds := make([]types.ServiceId, len(a.PostState.Accounts))
+	for i, account := range a.PostState.Accounts {
+		serviceIds[i] = account.Id
+	}
 
-			// Update the statistics for the service
-			thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
-			if ok {
-				thisServiceActivityRecord.AccumulateCount = accumulateCount
-				thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
-				ourStatisticsServices[serviceId] = thisServiceActivityRecord
-			} else {
-				newServiceActivityRecord := types.ServiceActivityRecord{
-					AccumulateCount:   accumulateCount,
-					AccumulateGasUsed: accumulateGasUsed,
-				}
-				ourStatisticsServices[serviceId] = newServiceActivityRecord
+	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
+	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
+	for _, serviceId := range serviceIds {
+		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+
+		// Update the statistics for the service
+		thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
+		if ok {
+			thisServiceActivityRecord.AccumulateCount = accumulateCount
+			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
+			ourStatisticsServices[serviceId] = thisServiceActivityRecord
+		} else {
+			newServiceActivityRecord := types.ServiceActivityRecord{
+				AccumulateCount:   accumulateCount,
+				AccumulateGasUsed: accumulateGasUsed,
 			}
+			ourStatisticsServices[serviceId] = newServiceActivityRecord
 		}
+	}
 
-		// Update the statistics in the PosteriorStates
-		// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
+	// Update the statistics in the PosteriorStates
+	// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
 
-		// Validate statistics
-		if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
-			log.Printf(Red+"Statistics do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
-			diff := cmp.Diff(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics)
-			log.Printf("Diff:\n%v", diff)
-			return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", a.PostState.Statistics, s.GetPosteriorStates().GetPi())
-		}
-	*/
+	// Validate statistics
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
+		log.Printf(Red+"Statistics do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
+		diff := cmp.Diff(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics)
+		log.Printf("Diff:\n%v", diff)
+		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", a.PostState.Statistics, s.GetPosteriorStates().GetPi())
+	}
+
 	// Validate Accounts (AccountsMapEntry)
 	// INFO:
 	// The type of state.Delta is ServiceAccountState
@@ -866,20 +867,12 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Delta
 	// FIXME: Review after PVM stable
 	postDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
-	delta := s.GetIntermediateStates().GetDeltaDoubleDagger()
+	posteriorDelta := s.GetPosteriorStates().GetDelta()
 
-	var postKeys, deltaKeys []types.ServiceId
-	for key := range postDelta {
-		postKeys = append(postKeys, key)
-	}
-	for key := range delta {
-		deltaKeys = append(deltaKeys, key)
-	}
-
-	// Check key set equal
-	if !reflect.DeepEqual(postKeys, deltaKeys) {
-		log.Printf(Red+"Key sets do not match\nPost keys: %v\nDelta keys: %v"+Reset, postKeys, deltaKeys)
-		return fmt.Errorf("key sets do not match: postKeys=%v, deltaKeys=%v", postKeys, deltaKeys)
+	if !reflect.DeepEqual(postDelta, posteriorDelta) {
+		diff := cmp.Diff(postDelta, posteriorDelta)
+		log.Printf(Red+"Delta mismatch:\n%s"+Reset, diff)
+		return fmt.Errorf("posterior delta mismatch")
 	}
 	return nil
 }
