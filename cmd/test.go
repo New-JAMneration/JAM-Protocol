@@ -143,8 +143,6 @@ For example:
 			for idx, testFile := range testFiles {
 				if testFile.Name[:7] == "genesis" {
 					continue
-					// } else if testFile.Name != "00000001.bin" { // Specify test file name
-					// 	continue
 				}
 
 				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
@@ -193,6 +191,8 @@ For example:
 					if outputErr != nil {
 						log.Printf("stf output error %v:", outputErr)
 						failed++
+						// trace expect no output error
+						break
 					} else {
 						err := data.Validate()
 						if err != nil {

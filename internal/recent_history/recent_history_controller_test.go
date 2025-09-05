@@ -749,7 +749,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestRecentHistoryTestVectors(t *testing.T) {
-
 	dir := filepath.Join(utilities.JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
 
 	// Read binary files
@@ -824,7 +823,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		beefyBeltPrime, commitment := AppendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
 		t.Logf("mmr peaks after append: %+v", beefyBeltPrime.Peaks)
 		workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-		item := NewItem(history.Input.HeaderHash, workReportHash, commitment)
+		item := NewItem(workReportHash, commitment)
 		historyPrime := AddItem2BetaHPrime(HistoryDagger, item)
 		// Set beta_B^prime and beta_H^prime to store
 		storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
@@ -858,5 +857,4 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 			t.Logf("🟢 [data] %s", binFile)
 		}
 	}
-
 }

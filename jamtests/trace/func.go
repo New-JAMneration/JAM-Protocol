@@ -8,7 +8,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	"github.com/google/go-cmp/cmp"
 )
 
 func (s *TraceTestCase) Dump() error {
@@ -52,7 +51,7 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		return nil, fmt.Errorf("state encode keyVals failed")
 	}
 
-	keyValDiffs, err := merklization.GetStateKeyValsDiff(keyVals, s.PostState.KeyVals)
+	keyValDiffs, err := merklization.GetStateKeyValsDiff(s.PostState.KeyVals, keyVals)
 	if err != nil {
 		return nil, fmt.Errorf("get state keyValsDiff failed")
 	}
@@ -64,6 +63,8 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
+			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
 			continue
 		}
 		// C(255)
@@ -99,18 +100,15 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		if err != nil {
 			return nil, fmt.Errorf("decode actualValue failed: %v", err)
 		}
-
-		fmt.Println("key:", v.Key)
-		// fmt.Printf("actualValue:%+v\n", actualValue)
-		// fmt.Printf("expectedValue:%+v\n", expectedValue)
-		fmt.Printf("diff:%s\n", cmp.Diff(actualValue, expectedValue))
-
 	}
 
 	var diff string
 
 	if len(serviceList) > 0 || len(errorStateSlice) > 0 {
-		deltaDiffStr := fmt.Sprintf("delta:%v", serviceList)
+		var deltaDiffStr string
+		if len(serviceList) > 0 {
+			deltaDiffStr = fmt.Sprintf("delta:%v", serviceList)
+		}
 		errorStateSlice = append(errorStateSlice, deltaDiffStr)
 		diff = strings.Join(errorStateSlice, ", ")
 	} else {

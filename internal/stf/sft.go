@@ -2,7 +2,6 @@ package stf
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -19,7 +18,6 @@ func RunSTF() error {
 
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
-	log.Printf("Update BetaH: %+v", st.GetIntermediateStates().GetBetaHDagger())
 
 	// Update Disputes
 	err := UpdateDisputes()
