@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -53,7 +52,7 @@ func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stre
 	}
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {
@@ -86,13 +85,13 @@ func readAnnouncement(stream *quic.Stream) (*CE144Announcement, error) {
 	workReports := make([]WorkReportEntry, workReportsLength)
 	for i := range workReportsLength {
 		coreIndexBuf := make([]byte, 2)
-		if _, err := io.ReadFull(stream, coreIndexBuf); err != nil {
+		if err := stream.ReadFull(coreIndexBuf); err != nil {
 			return nil, fmt.Errorf("failed to read core index %d: %w", i, err)
 		}
 		coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(coreIndexBuf))
 
 		workReportHash := types.WorkReportHash{}
-		if _, err := io.ReadFull(stream, workReportHash[:]); err != nil {
+		if err := stream.ReadFull(workReportHash[:]); err != nil {
 			return nil, fmt.Errorf("failed to read work report hash %d: %w", i, err)
 		}
 
@@ -133,13 +132,13 @@ func readEvidence(stream *quic.Stream, tranche uint8, workReportsCount int) (*CE
 
 		for i := 0; i < workReportsCount; i++ {
 			bandersnatchSig := types.BandersnatchVrfSignature{}
-			if _, err := io.ReadFull(stream, bandersnatchSig[:]); err != nil {
+			if err := stream.ReadFull(bandersnatchSig[:]); err != nil {
 				return nil, fmt.Errorf("failed to read Bandersnatch signature for work-report %d: %w", i, err)
 			}
 
 			// Read no-shows length
 			lengthBuf := make([]byte, 4)
-			if _, err := io.ReadFull(stream, lengthBuf); err != nil {
+			if err := stream.ReadFull(lengthBuf); err != nil {
 				return nil, fmt.Errorf("failed to read no-shows length for work-report %d: %w", i, err)
 			}
 			noShowsLength := binary.LittleEndian.Uint32(lengthBuf)
@@ -149,21 +148,21 @@ func readEvidence(stream *quic.Stream, tranche uint8, workReportsCount int) (*CE
 			for j := uint32(0); j < noShowsLength; j++ {
 				// Validator Index (2 bytes)
 				validatorIndexBuf := make([]byte, 2)
-				if _, err := io.ReadFull(stream, validatorIndexBuf); err != nil {
+				if err := stream.ReadFull(validatorIndexBuf); err != nil {
 					return nil, fmt.Errorf("failed to read validator index for no-show %d of work-report %d: %w", j, i, err)
 				}
 				validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(validatorIndexBuf))
 
 				// Previous Announcement - read its length first
 				prevAnnouncementLengthBuf := make([]byte, 4)
-				if _, err := io.ReadFull(stream, prevAnnouncementLengthBuf); err != nil {
+				if err := stream.ReadFull(prevAnnouncementLengthBuf); err != nil {
 					return nil, fmt.Errorf("failed to read previous announcement length for no-show %d of work-report %d: %w", j, i, err)
 				}
 				prevAnnouncementLength := binary.LittleEndian.Uint32(prevAnnouncementLengthBuf)
 
 				// Read previous announcement data
 				prevAnnouncementData := make([]byte, prevAnnouncementLength)
-				if _, err := io.ReadFull(stream, prevAnnouncementData); err != nil {
+				if err := stream.ReadFull(prevAnnouncementData); err != nil {
 					return nil, fmt.Errorf("failed to read previous announcement data for no-show %d of work-report %d: %w", j, i, err)
 				}
 

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -18,7 +17,7 @@ import (
 func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	if err := stream.ReadFull(buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
@@ -32,7 +31,7 @@ func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.St
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	if segmentIndicesLen > 0 {
 		indicesBuf := make([]byte, segmentIndicesLen*2)
-		if _, err := io.ReadFull(stream, indicesBuf); err != nil {
+		if err := stream.ReadFull(indicesBuf); err != nil {
 			return err
 		}
 		for i := uint16(0); i < segmentIndicesLen; i++ {
@@ -41,7 +40,7 @@ func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.St
 	}
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return err
 	}
 	if string(finBuf) != "FIN" {

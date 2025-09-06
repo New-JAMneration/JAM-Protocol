@@ -21,11 +21,12 @@ type CE133WorkPackageSubmission struct {
 // 2. Reject extrinsics which contain the imported segments.
 func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read first message: 4 bytes core index + work-package (rest of message)
-	firstMsg := make([]byte, 4096) // Arbitrary max size for demo; adjust as needed
-	n, err := io.ReadFull(stream, firstMsg)
-	if err != nil && err != io.EOF {
+	firstMsg := make([]byte, 4096)
+
+	if err := stream.ReadFull(firstMsg); err != nil {
 		return err
 	}
+	n := len(firstMsg)
 	if n < 4 {
 		return io.ErrUnexpectedEOF
 	}

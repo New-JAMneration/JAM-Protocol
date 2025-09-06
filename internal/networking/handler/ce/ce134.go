@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -31,17 +30,17 @@ type SegmentRootMapping struct {
 func readSegmentRootMappings(stream *quic.Stream) ([]SegmentRootMapping, error) {
 	var mappings []SegmentRootMapping
 	var countBuf [1]byte
-	if _, err := io.ReadFull(stream, countBuf[:]); err != nil {
+	if err := stream.ReadFull(countBuf[:]); err != nil {
 		return nil, err
 	}
 	count := int(countBuf[0])
 	for i := 0; i < count; i++ {
 		var wpHash types.WorkPackageHash
 		var segRoot types.OpaqueHash
-		if _, err := io.ReadFull(stream, wpHash[:]); err != nil {
+		if err := stream.ReadFull(wpHash[:]); err != nil {
 			return nil, err
 		}
-		if _, err := io.ReadFull(stream, segRoot[:]); err != nil {
+		if err := stream.ReadFull(segRoot[:]); err != nil {
 			return nil, err
 		}
 		mappings = append(mappings, SegmentRootMapping{wpHash, segRoot})
@@ -79,11 +78,10 @@ func HandleWorkPackageShare(
 
 	// 3. Read work-package bundle (rest of stream until FIN)
 	bundle := make([]byte, 65536)
-	n, err := stream.Read(bundle)
-	if err != nil && err != io.EOF {
+
+	if err := stream.ReadFull(bundle); err != nil {
 		return fmt.Errorf("failed to read bundle: %w", err)
 	}
-	bundle = bundle[:n]
 
 	controller := work_package.NewSharedController(bundle, erasureMap, segmentRootLookup, coreIndex)
 	if pvmExecutor != nil {

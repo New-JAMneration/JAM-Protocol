@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -19,7 +18,7 @@ func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.S
 	announcementSize := 4 + 32 + 4
 	announcementData := make([]byte, announcementSize)
 
-	if _, err := io.ReadFull(stream, announcementData); err != nil {
+	if err := stream.ReadFull(announcementData); err != nil {
 		return fmt.Errorf("failed to read announcement data: %w", err)
 	}
 
@@ -32,7 +31,7 @@ func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.S
 	preimageLength := types.U32(binary.LittleEndian.Uint32(announcementData[36:40]))
 
 	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
 	}
 	if string(finBuf) != "FIN" {

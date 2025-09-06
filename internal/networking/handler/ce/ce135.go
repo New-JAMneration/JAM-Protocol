@@ -3,7 +3,6 @@ package ce
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -56,7 +55,7 @@ func HandleWorkReportDistribution(
 	}
 
 	finResp := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finResp); err != nil {
+	if err := stream.ReadFull(finResp); err != nil {
 		return fmt.Errorf("failed to read FIN response: %w", err)
 	}
 	if string(finResp) != "FIN" {

@@ -2,9 +2,7 @@ package ce
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -51,13 +49,8 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 		if err != nil {
 			return fmt.Errorf("failed to encode boundary node: %w", err)
 		}
-		lengthBytes := make([]byte, 4)
-		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(encodedNode)))
-		if _, err := stream.Write(lengthBytes); err != nil {
+		if err := stream.WriteMessage(encodedNode); err != nil {
 			return fmt.Errorf("failed to write boundary node length: %w", err)
-		}
-		if _, err := stream.Write(encodedNode); err != nil {
-			return fmt.Errorf("failed to write encoded boundary node: %w", err)
 		}
 	}
 
@@ -73,15 +66,8 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 		if err != nil {
 			return fmt.Errorf("failed to encode state value: %w", err)
 		}
-
-		lengthBytes := make([]byte, 4)
-		binary.LittleEndian.PutUint32(lengthBytes, uint32(len(encodedVal)))
-		if _, err := stream.Write(lengthBytes); err != nil {
+		if err := stream.WriteMessage(encodedVal); err != nil {
 			return fmt.Errorf("failed to write value length: %w", err)
-		}
-
-		if _, err := stream.Write(encodedVal); err != nil {
-			return fmt.Errorf("failed to write encoded value: %w", err)
 		}
 	}
 
@@ -90,23 +76,19 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 
 // HandleStateRequestStream reads the CE129 request from the stream and invokes the handler.
 func HandleStateRequestStream(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// The quic.DefaultCEHandler has already read the protocol ID (1 byte).
-	// Now we need to read the remaining payload from the stream.
-	reqPayload, err := io.ReadAll(stream)
+	payload := make([]byte, 98)
+	err := stream.ReadFull(payload)
 	if err != nil {
 		return err
 	}
 
 	// The payload should be 32 (header hash) + 31 (key start) + 31 (key end) + 4 (max size) = 98 bytes
-	if len(reqPayload) < 98 {
-		return errors.New("invalid state request length")
-	}
 
 	var req CE129Payload
-	copy(req.HeaderHash[:], reqPayload[:32])
-	copy(req.KeyStart[:], reqPayload[32:63])
-	copy(req.KeyEnd[:], reqPayload[63:94])
-	req.MaxSize = binary.LittleEndian.Uint32(reqPayload[94:98])
+	copy(req.HeaderHash[:], payload[:32])
+	copy(req.KeyStart[:], payload[32:63])
+	copy(req.KeyEnd[:], payload[63:94])
+	req.MaxSize = binary.LittleEndian.Uint32(payload[94:98])
 
 	return HandleStateRequest(blockchain, req, stream)
 }

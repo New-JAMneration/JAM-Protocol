@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -18,7 +17,7 @@ import (
 func HandleAuditShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
 	buf := make([]byte, 32+4+3)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	if err := stream.ReadFull(buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]

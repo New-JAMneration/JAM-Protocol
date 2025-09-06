@@ -114,14 +114,8 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 			continue
 		}
 
-		sizeBuf := make([]byte, 4)
-		binary.LittleEndian.PutUint32(sizeBuf, uint32(len(blkData)))
-		if _, err := stream.Write(sizeBuf); err != nil {
+		if err := stream.WriteMessage(blkData); err != nil {
 			log.Printf("failed to write length prefix: %v", err)
-			return err
-		}
-		if _, err := stream.Write(blkData); err != nil {
-			log.Printf("failed to write block data: %v", err)
 			return err
 		}
 

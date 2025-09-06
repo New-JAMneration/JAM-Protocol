@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 )
@@ -17,7 +16,7 @@ import (
 func HandleECShardRequest(stream *quic.Stream, lookup func(erasureRoot []byte) (*CE137GuarantorPayload, bool)) error {
 	// From Assurer: 32 bytes erasure-root + 4 bytes shard index + 'FIN'
 	buf := make([]byte, 32+4+3)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	if err := stream.ReadFull(buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]

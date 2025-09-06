@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"time"
 
@@ -34,7 +33,7 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 // 2. Check finality is running behind the state to reset or stop the stream.
 func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	payload := make([]byte, 789)
-	if _, err := io.ReadFull(stream, payload); err != nil {
+	if err := stream.ReadFull(payload); err != nil {
 		return err
 	}
 	var req CE131Payload
