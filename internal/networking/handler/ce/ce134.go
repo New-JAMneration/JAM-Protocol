@@ -11,6 +11,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
 
@@ -92,8 +94,11 @@ func HandleWorkPackageShare(
 		return fmt.Errorf("work-package failed to process into work-report: %w", err)
 	}
 
-	workReportHash := workReport.PackageSpec.Hash
-	message := []byte{}
+	workReportSerialization := utilities.WorkReportSerialization(workReport)
+	workReportHash := hash.Blake2bHash(workReportSerialization)
+
+	// message: JamGuarantee context + work report hash
+	message := []byte(types.JamGuarantee)
 	message = append(message, workReportHash[:]...)
 
 	sig := ed25519.Sign(keypair.PrivateKey(), message)
