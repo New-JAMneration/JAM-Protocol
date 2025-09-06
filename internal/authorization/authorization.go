@@ -29,8 +29,8 @@ func updatePoolFromGuarantees(coreIndex types.CoreIndex, guarantees types.Guaran
 
 func STFAlpha2AlphaPrime(slot types.TimeSlot, guarantees types.GuaranteesExtrinsic, alpha types.AuthPools, varphi types.AuthQueues) (types.AuthPools, error) {
 	// (8.3) Remove used authorizer from E_G
-	for _, guarantee := range guarantees {
-		updatedAlpha, err := updatePoolFromGuarantees(guarantee.Report.CoreIndex, guarantees, alpha)
+	for coreIndex := range types.CoresCount {
+		updatedAlpha, err := updatePoolFromGuarantees(types.CoreIndex(coreIndex), guarantees, alpha)
 		if err != nil || updatedAlpha == nil {
 			return alpha, err
 		}
