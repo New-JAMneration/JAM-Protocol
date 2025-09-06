@@ -11,9 +11,9 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 type CE131Payload struct {
@@ -52,10 +52,9 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	}
 	proxyValidator := nextValidators[proxyIndex]
 
+	// CE132: proxy validator to all current validators
 	if localBandersnatchKey == proxyValidator.Bandersnatch {
-		currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
-
-		if err := verifySafroleTicketProof(req, currentValidators); err != nil {
+		if err := verifySafroleTicketProof(req); err != nil {
 			return fmt.Errorf("VRF proof verification failed: %w", err)
 		}
 
@@ -71,6 +70,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 		go func() {
 			time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
 
+			currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
 			for i, validator := range currentValidators {
 				if validator.Bandersnatch == localBandersnatchKey {
 					continue
@@ -138,24 +138,17 @@ func forwardSafroleTicket(validator types.Validator, payload []byte) error {
 	return nil
 }
 
-func verifySafroleTicketProof(req CE131Payload, validators types.ValidatorsData) error {
-	ring := make([]byte, 0)
-	for _, validator := range validators {
-		ring = append(ring, validator.Bandersnatch[:]...)
+func verifySafroleTicketProof(req CE131Payload) error {
+	ticketEnvelope := types.TicketEnvelope{
+		Attempt:   types.TicketAttempt(req.Attempt),
+		Signature: types.BandersnatchRingVrfSignature(req.Proof),
 	}
 
-	verifier, err := vrf.NewVerifier(ring, uint(len(validators)))
+	ticketsExtrinsic := types.TicketsExtrinsic{ticketEnvelope}
+
+	_, err := safrole.VerifyTicketsProof(ticketsExtrinsic)
 	if err != nil {
-		return fmt.Errorf("failed to create VRF verifier: %w", err)
-	}
-	defer verifier.Free()
-
-	input := make([]byte, 5)
-	binary.LittleEndian.PutUint32(input[:4], req.EpochIndex)
-	input[4] = req.Attempt
-
-	if _, err := verifier.RingVerify(input, []byte{}, req.Proof[:]); err != nil {
-		return fmt.Errorf("ring VRF proof verification failed: %w", err)
+		return fmt.Errorf("ticket proof verification failed: %w", err)
 	}
 
 	return nil
