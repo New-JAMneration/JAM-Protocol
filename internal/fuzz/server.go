@@ -58,7 +58,6 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 			return
 		default:
 			var req, resp Message
-
 			_, err := req.ReadFrom(conn)
 			if err != nil {
 				log.Printf("error while reading requests: %v\n", err)
