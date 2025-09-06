@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // HandlePreimageRequest handles the request for a preimage of the given hash.
@@ -85,7 +86,7 @@ func getPreimageFromStorage(hash types.OpaqueHash) ([]byte, error) {
 }
 
 // StorePreimage stores a preimage in the preimage database
-func StorePreimage(hash types.OpaqueHash, preimage []byte) error {
+func StorePreimage(hashValue types.OpaqueHash, preimage []byte) error {
 	if len(preimage) == 0 {
 		return errors.New("preimage cannot be empty")
 	}
@@ -95,12 +96,17 @@ func StorePreimage(hash types.OpaqueHash, preimage []byte) error {
 		return fmt.Errorf("preimage too large: %d bytes (max: %d)", len(preimage), maxPreimageSize)
 	}
 
+	preimageHash := hash.Blake2bHash(types.ByteSequence(preimage))
+	if preimageHash != hashValue {
+		return fmt.Errorf("preimage hash mismatch: expected %x, got %x", hashValue, preimageHash)
+	}
+
 	redisBackend, err := store.GetRedisBackend()
 	if err != nil {
 		return fmt.Errorf("failed to get Redis backend: %w", err)
 	}
 
-	hashHex := hex.EncodeToString(hash[:])
+	hashHex := hex.EncodeToString(hashValue[:])
 	key := fmt.Sprintf("preimage:%s", hashHex)
 
 	client := redisBackend.GetClient()
@@ -151,6 +157,11 @@ func (p *CE143Payload) Validate() error {
 	const maxPreimageSize = 100 * 1024 * 1024
 	if len(p.Preimage) > maxPreimageSize {
 		return fmt.Errorf("preimage too large: %d bytes (max: %d)", len(p.Preimage), maxPreimageSize)
+	}
+
+	preimageHash := hash.Blake2bHash(types.ByteSequence(p.Preimage))
+	if preimageHash != p.Hash {
+		return fmt.Errorf("preimage hash mismatch: expected %x, got %x", p.Hash, preimageHash)
 	}
 
 	return nil
