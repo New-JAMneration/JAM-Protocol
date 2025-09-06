@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,8 @@ func HandleECShardRequest(stream *quic.Stream, lookup func(erasureRoot []byte) (
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
+	erasureRoot := buf[:32]
+	shardIndex := binary.LittleEndian.Uint32(buf[32:36])
 	fin := buf[36:]
 	if string(fin) != "FIN" {
 		return errors.New("request does not end with FIN")
@@ -40,9 +43,10 @@ func HandleECShardRequest(stream *quic.Stream, lookup func(erasureRoot []byte) (
 		return err
 	}
 
-	// [TODO] Construct real justification (32 bytes)
-	// _T_ function constructs Merkle co-path
-	justification := append([]byte{0x00}, make([]byte, 32)...) // 0 discriminator + 32 zero bytes
+	justification, err := construct137Justification(erasureRoot, shardIndex)
+	if err != nil {
+		return fmt.Errorf("failed to construct justification: %w", err)
+	}
 	if _, err := stream.Write(justification); err != nil {
 		return err
 	}
@@ -102,4 +106,28 @@ func (h *DefaultCERequestHandler) encodeShardDistribution(message interface{}) (
 	result = append(result, shardDist.Justification...)
 
 	return result, nil
+}
+
+// construct137Justification constructs justification using only T(s, i, H) function
+func construct137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	// Get work package bundle from erasure root
+	bundle, err := lookupWorkPackageBundle(erasureRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup work package bundle: %w", err)
+	}
+
+	// Get segment shard sequence (s) for the given shard index
+	segmentShardSequence, err := getSegmentShardSequence(bundle, shardIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get segment shard sequence: %w", err)
+	}
+
+	segmentIndex := uint16(0)
+	// Construct T(s, i, H) - the Merkle tree co-path for the segment
+	merkleCoPath, err := constructMerkleCoPath(segmentShardSequence, segmentIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct Merkle co-path: %w", err)
+	}
+
+	return merkleCoPath, nil
 }

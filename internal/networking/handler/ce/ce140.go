@@ -67,7 +67,7 @@ func HandleSegmentShardRequestWithJustification(
 	}
 
 	for _, segmentIndex := range segmentIndices {
-		justification, err := constructJustification(bundle, erasureRoot, shardIndex, segmentIndex)
+		justification, err := construct140Justification(bundle, erasureRoot, shardIndex, segmentIndex)
 		if err != nil {
 			return fmt.Errorf("failed to construct justification for segment %d: %w", segmentIndex, err)
 		}
@@ -83,9 +83,9 @@ func HandleSegmentShardRequestWithJustification(
 	return stream.Close()
 }
 
-// constructJustification constructs the justification for a segment shard using the formula:
+// construct140Justification constructs the justification for a segment shard using the formula:
 // j ^ [b] ^ T(s, i, H)
-func constructJustification(bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
+func construct140Justification(bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
 	// Get the CE137 justification (j) - this would come from the assurer's CE137 response
 	ce137Justification, err := getCE137Justification(erasureRoot, shardIndex)
 	if err != nil {
