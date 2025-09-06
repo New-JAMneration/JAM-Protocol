@@ -191,6 +191,8 @@ For example:
 					if outputErr != nil {
 						log.Printf("stf output error %v:", outputErr)
 						failed++
+						// trace expect no output error
+						break
 					} else {
 						err := data.Validate()
 						if err != nil {
@@ -281,6 +283,9 @@ func createReaderAndRunner(testType string, mode testdata.TestMode, size testdat
 		reader = testdata.NewJamTestNetReader(mode, format)
 		runner = jamtestnet.NewJamTestNetRunner(mode)
 	case "trace":
+		if err := validateAndSetTestSize(size); err != nil {
+			return nil, nil, err
+		}
 		reader = testdata.NewTracesReader(mode, format)
 		runner = traces.NewTraceRunner()
 	}

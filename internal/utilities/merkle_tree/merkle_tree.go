@@ -18,7 +18,8 @@ func GetDataFromHashOrByteSequence(input HashOrByteSequence) types.ByteSequence 
 
 // N: Calculates the Merkle root from integers.
 func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output HashOrByteSequence) {
-	if len(v) == 0 {
+	// [[]] should result zero hash
+	if len(v) == 0 || v[0] == nil {
 		// H0
 		output.Hash = types.OpaqueHash{} // zero hash
 		return output
@@ -42,7 +43,8 @@ func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 
 // Mb: Well-balanced binary Merkle function
 func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output types.OpaqueHash) {
-	if len(v) == 1 {
+	// [[]] should go to N
+	if len(v) == 1 && v[0] != nil {
 		output = hashFunc(v[0][:])
 		return output
 	} else {
