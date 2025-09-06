@@ -8,6 +8,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
 
@@ -84,9 +86,14 @@ func HandleWorkPackageShare(
 		return fmt.Errorf("work-package verification failed: %w", err)
 	}
 
-	workReportHash := workReport.PackageSpec.Hash
+	workReportSerialization := utilities.WorkReportSerialization(workReport)
+	workReportHash := hash.Blake2bHash(workReportSerialization)
 
-	sig, err := keypair.Sign(workReportHash[:])
+	// message: JamGuarantee context + work report hash
+	message := []byte(types.JamGuarantee)
+	message = append(message, workReportHash[:]...)
+
+	sig, err := keypair.Sign(message)
 	if err != nil {
 		return fmt.Errorf("failed to sign work-report hash: %w", err)
 	}
