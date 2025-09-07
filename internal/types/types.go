@@ -214,7 +214,7 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
-func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
+func (a *AuthPool) RemoveLeftMostPairedValue(h OpaqueHash) {
 	result := (*a)[:0]
 	removed := false
 	for _, v := range *a {
