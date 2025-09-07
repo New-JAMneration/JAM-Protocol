@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
@@ -16,12 +17,24 @@ func printUsage() {
 	usage := `Usage: go run cmd/fuzz/fuzz.go COMMAND [ARGS...]
 
 Valid commands are:
-  serve FILE
-  handshake FILE
-  import_block SOCKET JSON_FILE
-  set_state SOCKET JSON_FILE
-  get_state SOCKET JSON_FILE
-  help [COMMAND]`
+  serve ADDRESS
+  handshake ADDRESS
+  import_block ADDRESS JSON_FILE
+  set_state ADDRESS JSON_FILE
+  get_state ADDRESS JSON_FILE
+  help [COMMAND]
+
+Where:
+  ADDRESS - can be a "host:port" address (must contains a ':' separator) 
+    or a UNIX domain socket (must not contain a ':' character).
+
+	examples:
+	  - :8080
+	  - localhost:8080
+	  - 4.2.2.2:8080
+	  - /tmp/socket
+  JSON_FILE - path to a JSON file containing block, header, and/or state data.
+`
 
 	log.Fatalln(usage)
 }
@@ -57,12 +70,12 @@ func serve(args []string) {
 		helpImpl("serve")
 	}
 
-	server, err := fuzz.NewFuzzServer("unix", args[0])
+	server := fuzz.NewFuzzServer()
+	network, address := splitAddress(args[0])
+	err := server.ListenAndServe(context.Background(), network, address)
 	if err != nil {
-		log.Fatalf("error creating server: %v\n", err)
+		log.Fatalf("error while serving: %v", err)
 	}
-
-	server.ListenAndServe(context.Background())
 }
 
 func handshake(args []string) {
@@ -70,7 +83,8 @@ func handshake(args []string) {
 		helpImpl("handshake")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	network, address := splitAddress(args[0])
+	client, err := fuzz.NewFuzzClient(network, address)
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
@@ -95,11 +109,12 @@ func handshake(args []string) {
 }
 
 func importBlock(args []string) {
-	if len(args) == 0 {
+	if len(args) < 2 {
 		helpImpl("import_block")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	network, address := splitAddress(args[0])
+	client, err := fuzz.NewFuzzClient(network, address)
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
@@ -107,10 +122,6 @@ func importBlock(args []string) {
 	defer client.Close()
 
 	// Read JSON file containing block data
-	if len(args) < 2 {
-		log.Fatalln("import_block requires a JSON file path as second argument")
-	}
-
 	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
@@ -133,11 +144,12 @@ func importBlock(args []string) {
 }
 
 func setState(args []string) {
-	if len(args) == 0 {
+	if len(args) < 2 {
 		helpImpl("set_state")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	network, address := splitAddress(args[0])
+	client, err := fuzz.NewFuzzClient(network, address)
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
@@ -145,10 +157,6 @@ func setState(args []string) {
 	defer client.Close()
 
 	// Read JSON file containing header and state data
-	if len(args) < 2 {
-		log.Fatalln("set_state requires a JSON file path as second argument")
-	}
-
 	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
@@ -175,11 +183,12 @@ func setState(args []string) {
 }
 
 func getState(args []string) {
-	if len(args) == 0 {
+	if len(args) < 2 {
 		helpImpl("get_state")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	network, address := splitAddress(args[0])
+	client, err := fuzz.NewFuzzClient(network, address)
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
@@ -187,10 +196,6 @@ func getState(args []string) {
 	defer client.Close()
 
 	// Read JSON file containing header hash
-	if len(args) < 2 {
-		log.Fatalln("get_state requires a JSON file path as second argument")
-	}
-
 	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
@@ -244,18 +249,38 @@ func helpImpl(args ...string) {
 		printUsage()
 	}
 
+	var message string
+
 	switch args[0] {
 	case "serve":
-		log.Fatalln("serve FILE - starts a server listening on FILE via named Unix socket")
+		message = `serve ADDRESS - starts a server listening on an address
+  where ADDRESS can be a network address like ":port", "localhost:port", "host:port", or a UNIX domain socket`
 	case "handshake":
-		log.Fatalln("handshake FILE - connects to a server listening on FILE and sends a handshake")
+		message = `handshake ADDRESS - connects to a server listening on ADDRESS and sends a handshake
+  where ADDRESS can be a network address like ":port", "localhost:port", "host:port", or a UNIX domain socket`
 	case "import_block":
-		log.Fatalln("import_block SOCKET JSON_FILE - connects to a server listening on SOCKET and sends an import_block request with block data from JSON_FILE")
+		message = `import_block ADDRESS JSON_FILE - connects to a server listening on ADDRESS and sends an import_block request with block data from JSON_FILE
+  where ADDRESS can be a network address like ":port", "localhost:port", "host:port", or a UNIX domain socket
+    and JSON_FILE is the path to a JSON file containing block data`
 	case "set_state":
-		log.Fatalln("set_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a set_state request with header and state data from JSON_FILE")
+		message = `set_state ADDRESS JSON_FILE - connects to a server listening on ADDRESS and sends a set_state request with header and state data from JSON_FILE
+  where ADDRESS can be a network address like ":port", "localhost:port", "host:port", or a UNIX domain socket
+    and JSON_FILE is the path to a JSON file containing header and state data`
 	case "get_state":
-		log.Fatalln("get_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a get_state request with header hash from JSON_FILE")
+		message = `get_state ADDRESS JSON_FILE - connects to a server listening on ADDRESS and sends a get_state request with header hash from JSON_FILE
+  where ADDRESS can be a network address like ":port", "localhost:port", "host:port", or a UNIX domain socket
+    AND JSON_FILE is the path to a JSON file containing a header hash`
 	default:
 		printUsage()
 	}
+
+	log.Fatalln(message)
+}
+
+func splitAddress(address string) (string, string) {
+	if strings.ContainsRune(address, ':') {
+		return "tcp", address
+	}
+
+	return "unix", address
 }

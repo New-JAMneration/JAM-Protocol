@@ -8,48 +8,44 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// TODO
 type FuzzServer struct {
-	Listener net.Listener
-	Service  FuzzService
+	Service FuzzService
 }
 
-func NewFuzzServer(network, address string) (*FuzzServer, error) {
-	listener, err := net.Listen(network, address)
-	if err != nil {
-		return nil, err
-	}
-
-	stub := new(FuzzServiceStub)
+func NewFuzzServer() *FuzzServer {
 	server := FuzzServer{
-		Listener: listener,
-		Service:  stub,
+		Service: new(FuzzServiceStub),
 	}
 
-	return &server, nil
+	return &server
 }
 
 // blocks until terminated
-func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
-	defer s.Listener.Close()
+func (s *FuzzServer) ListenAndServe(ctx context.Context, network string, address string) error {
+	listener, err := net.Listen(network, address)
+	if err != nil {
+		return err
+	}
+
+	defer listener.Close()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
-			conn, err := s.Listener.Accept()
+			conn, err := listener.Accept()
 			if err != nil {
 				log.Printf("error while accepting connection: %v", err)
 				continue
 			}
 
-			go s.serve(ctx, conn)
+			go s.Serve(ctx, conn)
 		}
 	}
 }
 
-func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
+func (s *FuzzServer) Serve(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
 	for {
