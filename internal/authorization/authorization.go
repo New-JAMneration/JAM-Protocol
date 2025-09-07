@@ -7,21 +7,15 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-func updatePoolFromGuarantees(coreIndex types.CoreIndex, guarantees types.GuaranteesExtrinsic, alpha types.AuthPools) (types.AuthPools, error) {
+func updatePoolFromQueue(coreIndex types.CoreIndex, eg types.ReportGuarantee, alpha types.AuthPools) (types.AuthPools, error) {
 	pool := alpha[coreIndex]
 	if pool == nil {
 		return nil, fmt.Errorf("alpha[%d] is nil", coreIndex)
 	}
 
-	// Enumerate E_G
-	for _, g := range guarantees {
-		// (g_r)_a = c
-		if g.Report.CoreIndex == coreIndex {
-			// Remove authorizer hash (g_r)_a
-			authHashToRemove := g.Report.AuthorizerHash
-			pool.RemovePairedValue(authHashToRemove)
-		}
-	}
+	// (8.3)   remove (gᵣ) from α[c]（leftmost match）
+	authHashToRemoved := eg.Report.AuthorizerHash
+	pool.RemoveLeftMostPairedValue(authHashToRemoved)
 
 	alpha[coreIndex] = pool
 	return alpha, nil
@@ -29,8 +23,8 @@ func updatePoolFromGuarantees(coreIndex types.CoreIndex, guarantees types.Guaran
 
 func STFAlpha2AlphaPrime(slot types.TimeSlot, guarantees types.GuaranteesExtrinsic, alpha types.AuthPools, varphi types.AuthQueues) (types.AuthPools, error) {
 	// (8.3) Remove used authorizer from E_G
-	for coreIndex := range types.CoresCount {
-		updatedAlpha, err := updatePoolFromGuarantees(types.CoreIndex(coreIndex), guarantees, alpha)
+	for _, guarantee := range guarantees {
+		updatedAlpha, err := updatePoolFromQueue(guarantee.Report.CoreIndex, guarantee, alpha)
 		if err != nil || updatedAlpha == nil {
 			return alpha, err
 		}
