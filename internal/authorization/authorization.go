@@ -13,7 +13,7 @@ func updatePoolFromQueue(coreIndex types.CoreIndex, eg types.ReportGuarantee, al
 		return nil, fmt.Errorf("alpha[%d] is nil", coreIndex)
 	}
 
-	// (8.3)   remove (gᵣ) from α[c]（leftmost match）
+	// (8.3)   remove (g_r)a from α[c]（leftmost match）
 	authHashToRemoved := eg.Report.AuthorizerHash
 	pool.RemoveLeftMostPairedValue(authHashToRemoved)
 
