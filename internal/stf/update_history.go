@@ -10,7 +10,8 @@ func UpdateHistory() error {
 	log.Println("Update History")
 
 	// Start test STFBeta2BetaDagger (4.6)
-	recent_history.STFBetaH2BetaHDagger()
+	// We update (4.6) at the beginning of STF
+	// recent_history.STFBetaH2BetaHDagger()
 
 	// Start test STFBetaDagger2BetaPrime (4.7)
 	/*

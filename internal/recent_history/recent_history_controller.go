@@ -104,11 +104,14 @@ func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPacka
 /*
 	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
 */
-func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
+func NewItem(workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
 	zeroHash := types.StateRoot{}
-
+	encoder := types.NewEncoder()
+	head := store.GetInstance().GetLatestBlock().Header
+	headser, _ := encoder.Encode(&head)
+	hashed := hash.Blake2bHash(headser)
 	item = types.BlockInfo{
-		HeaderHash: headerHash,
+		HeaderHash: types.HeaderHash(hashed),
 		BeefyRoot:  accumulationResultMmr,
 		StateRoot:  zeroHash,
 		Reported:   workReportHash,
@@ -139,6 +142,7 @@ func STFBetaH2BetaHDagger() {
 		beta  = s.GetPriorStates().GetBeta()
 		block = s.GetLatestBlock()
 	)
+	// log.Printf("Latest block got by (4.6): %+v", block)
 	if beta.History.Validate() != nil {
 		log.Fatalf("beta.History.Validate() failed: %v", beta.History.Validate())
 	}
@@ -163,7 +167,7 @@ func STFBetaHDagger2BetaHPrime() error {
 	merkleRoot := lastAccOutRoot(serializedLastAccOut)
 	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
 	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-	item := NewItem(block.Header.Parent, workReportHash, commitment)
+	item := NewItem(workReportHash, commitment)
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store
@@ -191,7 +195,7 @@ func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
 	log.Printf("mmr peaks after append: %v", beefyBeltPrime.Peaks)
 	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-	item := NewItem(block.Header.Parent, workReportHash, commitment)
+	item := NewItem(workReportHash, commitment)
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store

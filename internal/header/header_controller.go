@@ -154,6 +154,13 @@ func (h *HeaderController) CreateStateRootHash(parentState types.State) {
 	h.Store.GetProcessingBlockPointer().SetParentStateRoot(types.StateRoot(parentStateRoot))
 }
 
+/*
+func CreateStateRootHash(parentState types.State) {
+	parentStateRoot := merklization.MerklizationState(parentState)
+	h.Store.GetProcessingBlockPointer().SetParentStateRoot(types.StateRoot(parentStateRoot))
+}
+*/
+
 // H_i: a Bandersnatch block author index
 func (h *HeaderController) CreateBlockAuthorIndex(authorIndex types.ValidatorIndex) {
 	h.Store.GetProcessingBlockPointer().SetAuthorIndex(authorIndex)

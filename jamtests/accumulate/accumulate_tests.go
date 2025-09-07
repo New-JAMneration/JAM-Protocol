@@ -1,6 +1,7 @@
 package jamtests
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -686,6 +687,33 @@ func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.ServiceAccountState) {
+	output = make(types.ServiceAccountState)
+	for _, delta := range input {
+		// Create or get ServiceAccount, ensure its internal maps are initialized
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo:    delta.Data.Service,
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+
+		// Fill PreimageLookup
+		for _, preimage := range delta.Data.Preimages {
+			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+		}
+
+		// Fill Storage
+		for _, storageEntry := range delta.Data.Storage {
+			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
+		}
+
+		// Store ServiceAccount into inputDelta
+		serviceId := types.ServiceId(delta.Id)
+		output[serviceId] = serviceAccount
+	}
+	return output
+}
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
@@ -719,25 +747,7 @@ func (a *AccumulateTestCase) Dump() error {
 	s.GetPriorStates().SetChi(a.PreState.Privileges)
 
 	// Set accounts
-	inputDelta := make(types.ServiceAccountState)
-	for _, delta := range a.PreState.Accounts {
-		// Create or get ServiceAccount, ensure its internal maps are initialized
-		serviceAccount := types.ServiceAccount{
-			ServiceInfo:    delta.Data.Service,
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
-
-		// Fill PreimageLookup
-		for _, preimage := range delta.Data.Preimages {
-			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
-		}
-
-		// Store ServiceAccount into inputDelta
-		serviceId := types.ServiceId(delta.Id)
-		inputDelta[serviceId] = serviceAccount
-	}
+	inputDelta := ParseAccountToServiceAccountState(a.PreState.Accounts)
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	sort.Slice(a.Input.Reports, func(i, j int) bool {
@@ -840,7 +850,7 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Update the statistics in the PosteriorStates
-	s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
+	// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
 
 	// Validate statistics
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
@@ -855,11 +865,56 @@ func (a *AccumulateTestCase) Validate() error {
 	// The type of state.Delta is ServiceAccountState
 	// The type of a.PostState.Accounts is []AccountsMapEntry
 
-	// Validate the length of accounts
-	if len(s.GetPosteriorStates().GetDelta()) != len(a.PostState.Accounts) {
-		log.Printf(Red+"Accounts length does not match expected: %d, but got %d"+Reset, len(a.PostState.Accounts), len(s.GetPosteriorStates().GetDelta()))
-		return fmt.Errorf("accounts length does not match expected: %d, but got %d", len(a.PostState.Accounts), len(s.GetPosteriorStates().GetDelta()))
-	}
+	// Validate Delta
+	// FIXME: Review after PVM stable
+	expectedDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
+	actualDelta := s.GetIntermediateStates().GetDeltaDoubleDagger()
 
+	for key, expectedAcc := range expectedDelta {
+		actualAcc, ok := actualDelta[key]
+		if !ok {
+			return fmt.Errorf("serviceId %v missing in actualDelta", key)
+		}
+
+		// ServiceInfo
+		if !reflect.DeepEqual(expectedAcc.ServiceInfo, actualAcc.ServiceInfo) {
+			return fmt.Errorf("mismatch in ServiceInfo for serviceId %v:\n expected=%+v\n actual=%+v",
+				key, expectedAcc.ServiceInfo, actualAcc.ServiceInfo)
+		}
+
+		// PreimageLookup
+		for h, expectedBlob := range expectedAcc.PreimageLookup {
+			actualBlob, ok := actualAcc.PreimageLookup[h]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Preimage hash %x in actualDelta", key, h)
+			}
+			if !bytes.Equal(expectedBlob, actualBlob) {
+				return fmt.Errorf("mismatch for serviceId %v, Preimage hash %x:\n expected=%x\n actual=%x",
+					key, h, expectedBlob, actualBlob)
+			}
+		}
+		for h := range actualAcc.PreimageLookup {
+			if _, ok := expectedAcc.PreimageLookup[h]; !ok {
+				return fmt.Errorf("serviceId %v has extra Preimage hash %x in actualDelta", key, h)
+			}
+		}
+
+		// StorageDict
+		for storageKey, expectedValue := range expectedAcc.StorageDict {
+			actualValue, ok := actualAcc.StorageDict[storageKey]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Storage key %q in actualDelta", key, storageKey)
+			}
+			if !bytes.Equal(expectedValue, actualValue) {
+				return fmt.Errorf("mismatch for serviceId %v, Storage key %q:\n expected=%x\n actual=%x",
+					key, storageKey, expectedValue, actualValue)
+			}
+		}
+		for storageKey := range actualAcc.StorageDict {
+			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
+				return fmt.Errorf("serviceId %v has extra Storage key %q in actualDelta", key, storageKey)
+			}
+		}
+	}
 	return nil
 }

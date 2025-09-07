@@ -760,7 +760,7 @@ func (r *ReportsTestCase) Dump() error {
 		accounts[v.Id] = serviceAccount
 	}
 
-	s.GetPosteriorStates().SetDelta(accounts)
+	s.GetPriorStates().SetDelta(accounts)
 
 	var statistics types.Statistics
 	// Set CoresStatisitics
