@@ -216,9 +216,12 @@ func (a AuthPool) Validate() error {
 
 func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
 	result := (*a)[:0]
+	removed := false
 	for _, v := range *a {
-		if !bytes.Equal(v[:], h[:]) {
+		if removed || !bytes.Equal(v[:], h[:]) {
 			result = append(result, v)
+		} else {
+			removed = true
 		}
 	}
 	*a = result
