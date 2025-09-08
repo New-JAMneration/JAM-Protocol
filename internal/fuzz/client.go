@@ -16,11 +16,15 @@ func NewFuzzClient(network, address string) (*FuzzClient, error) {
 		return nil, err
 	}
 
+	return NewFuzzClientInternal(conn), nil
+}
+
+func NewFuzzClientInternal(conn net.Conn) *FuzzClient {
 	client := FuzzClient{
 		conn: conn,
 	}
 
-	return &client, nil
+	return &client
 }
 
 func (c *FuzzClient) Close() error {
