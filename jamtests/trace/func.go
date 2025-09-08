@@ -2,6 +2,7 @@ package jamtests
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -50,7 +51,7 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		return nil, fmt.Errorf("state encode keyVals failed")
 	}
 
-	keyValDiffs, err := merklization.GetStateKeyValsDiff(keyVals, s.PostState.KeyVals)
+	keyValDiffs, err := merklization.GetStateKeyValsDiff(s.PostState.KeyVals, keyVals)
 	if err != nil {
 		return nil, fmt.Errorf("get state keyValsDiff failed")
 	}
@@ -62,6 +63,8 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
+			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
 			continue
 		}
 		// C(255)
@@ -76,10 +79,36 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// a_s,  a_p,  a_l
 
 	}
+
+	for _, v := range keyValDiffs {
+		newDecoder := types.NewDecoder()
+		state := types.State{}
+		keyType := keyValMap[v.Key]
+		stateType, err := getStateField(state, keyType)
+		if err != nil {
+			return nil, err
+		}
+
+		expectedValue := reflect.New(reflect.TypeOf(stateType)).Interface()
+		err = newDecoder.Decode(v.ExpectedValue, expectedValue)
+		if err != nil {
+			return nil, fmt.Errorf("decode expectedValue failed: %v", err)
+		}
+
+		actualValue := reflect.New(reflect.TypeOf(stateType)).Interface()
+		err = newDecoder.Decode(v.ActualValue, actualValue)
+		if err != nil {
+			return nil, fmt.Errorf("decode actualValue failed: %v", err)
+		}
+	}
+
 	var diff string
 
-	if len(serviceList) > 0 {
-		deltaDiffStr := fmt.Sprintf("delta:%v", serviceList)
+	if len(serviceList) > 0 || len(errorStateSlice) > 0 {
+		var deltaDiffStr string
+		if len(serviceList) > 0 {
+			deltaDiffStr = fmt.Sprintf("delta:%v", serviceList)
+		}
 		errorStateSlice = append(errorStateSlice, deltaDiffStr)
 		diff = strings.Join(errorStateSlice, ", ")
 	} else {
@@ -106,4 +135,18 @@ var keyValMap = map[types.StateKey]string{
 	{14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "theta",
 	{15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "xi",
 	{16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "vartheta",
+}
+
+func getStateField(state types.State, keyType string) (interface{}, error) {
+	switch keyType {
+	case "alpha":
+		return state.Alpha, nil
+	case "beta":
+		return state.Beta, nil
+	case "gamma":
+		return state.Gamma, nil
+	// Add other cases for all fields in State struct
+	default:
+		return nil, fmt.Errorf("unknown key type: %s", keyType)
+	}
 }

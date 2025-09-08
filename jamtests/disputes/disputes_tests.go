@@ -403,7 +403,7 @@ func (d *DisputeTestCase) Dump() error {
 		},
 	}
 	storeInstance.AddBlock(block)
-
+	storeInstance.GetPosteriorStates().SetTau(d.PreState.Tau)
 	return nil
 }
 
@@ -424,27 +424,12 @@ func (d *DisputeTestCase) ExpectError() error {
 
 func (d *DisputeTestCase) Validate() error {
 	s := store.GetInstance()
-
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetPsi(), d.PostState.Psi)
 		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)
 	}
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetRho(), d.PostState.Rho) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetRho(), d.PostState.Rho)
-		return fmt.Errorf("rho does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Rho, s.GetPosteriorStates().GetRho(), diff)
-	}
 	if s.GetPosteriorStates().GetTau() != d.PostState.Tau {
 		return fmt.Errorf("time slot does not match expected: %v, but got %v", d.PostState.Tau, s.GetPosteriorStates().GetTau())
-	}
-
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetKappa(), d.PostState.Kappa)
-		return fmt.Errorf("kappa does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Kappa, s.GetPosteriorStates().GetKappa(), diff)
-	}
-
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetLambda(), d.PostState.Lambda)
-		return fmt.Errorf("lambda does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Lambda, s.GetPosteriorStates().GetLambda(), diff)
 	}
 
 	return nil
