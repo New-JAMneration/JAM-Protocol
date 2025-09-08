@@ -9,7 +9,7 @@ import (
 // (B.8) Ψ_A
 func Psi_A(
 	partialState types.PartialStateSet,
-	time types.TimeSlot,
+	timeslot types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
 	operands []types.Operand,
@@ -56,19 +56,20 @@ func Psi_A(
 	encoder := types.NewEncoder()
 
 	// Encode t
-	encoded, err := encoder.Encode(&time)
+	// encoded, err := encoder.Encode(&time)
+	encoded, err := encoder.EncodeUint(uint64(timeslot))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
 
 	// Encode s
-	encoded, err = encoder.Encode(&serviceId)
+	// encoded, err = encoder.Encode(&serviceId)
+	encoded, err = encoder.EncodeUint(uint64(serviceId))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-
 	// Encode |o|
 	encoded, err = encoder.EncodeUint(uint64(len(operands)))
 	if err != nil {
@@ -103,14 +104,15 @@ func Psi_A(
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
 			ServiceId:           &serviceId,
 			ServiceAccountState: partialState.ServiceAccounts,
-			CoreId:              nil, // TODO: may need to update coreID if needed
+			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(partialState, serviceId, time, eta),
-			ResultContextY: I(partialState, serviceId, time, eta),
+			ResultContextX: I(partialState, serviceId, timeslot, eta),
+			ResultContextY: I(partialState, serviceId, timeslot, eta),
 			Eta:            eta,
 			Operands:       operands,
 		},
+		Program: Program{},
 	}
 
 	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), F, addition)

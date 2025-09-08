@@ -729,8 +729,6 @@ func (a *AccumulateTestCase) Dump() error {
 		},
 	}
 	s.AddBlock(block)
-
-	s.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
 	s.GetPosteriorStates().SetTau(a.Input.Slot)
 
 	// Set entropy

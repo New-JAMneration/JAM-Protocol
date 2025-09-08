@@ -73,9 +73,9 @@ func (a *AvailAssuranceController) Unique() error {
 
 	uniqueMap := make(map[types.ValidatorIndex]bool)
 	result := make([]types.AvailAssurance, 0)
-
-	for i, availAssurance := range a.AvailAssurances {
-		if !uniqueMap[availAssurance.ValidatorIndex] && int(availAssurance.ValidatorIndex) == i {
+	last := -1
+	for _, availAssurance := range a.AvailAssurances {
+		if !uniqueMap[availAssurance.ValidatorIndex] || availAssurance.ValidatorIndex <= types.ValidatorIndex(last) {
 			uniqueMap[availAssurance.ValidatorIndex] = true
 			result = append(result, availAssurance)
 		} else {

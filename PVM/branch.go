@@ -1,10 +1,10 @@
 package PVM
 
-func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask) (ExitReasonTypes, ProgramCounter) {
+func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask, instruction ProgramCode) (ExitReasonTypes, ProgramCounter) {
 	switch {
 	case !C:
 		return CONTINUE, pc
-	case !bitmask.IsStartOfBasicBlock(b) && b.isOpcodeValid():
+	case !bitmask.IsStartOfBasicBlock(b) && instruction.isOpcodeValid(b):
 		return PANIC, pc
 	default:
 		return CONTINUE, b
