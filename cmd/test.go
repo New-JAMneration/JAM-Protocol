@@ -178,10 +178,11 @@ For example:
 			}
 
 			for idx, testFile := range testFiles {
-				if testFile.Name[:7] == "genesis" || testFile.Name[:8] != "00000003" {
-					continue
-				}
-
+				/*
+					if testFile.Name[:7] == "genesis" || testFile.Name[:8] != "00000003" {
+						continue
+					}
+				*/
 				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
 				if testType == "trace" {
 					// post-state update to pre-state, tau_prime+1
@@ -228,12 +229,13 @@ For example:
 					if outputErr != nil {
 						log.Printf("stf output error %v:", outputErr)
 						failed++
+						break
 					} else {
 						err := data.Validate()
 						if err != nil {
 							log.Printf("state root validate error: %v", err)
 							failed++
-							continue
+							break
 						}
 						passed++
 						log.Printf("passed\n")
