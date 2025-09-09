@@ -73,8 +73,10 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	state, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
+		fmt.Printf("error converting state key vals to state: %v\n", err)
 		return types.StateRoot{}, err
 	}
+	fmt.Println(state)
 
 	storeInstance.GetPosteriorStates().SetState(state)
 

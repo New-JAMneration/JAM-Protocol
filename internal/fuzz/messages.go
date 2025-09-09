@@ -223,16 +223,7 @@ func (m *SetState) Decode(d *types.Decoder) error {
 
 func (m *SetState) MarshalBinary() ([]byte, error) {
 	encoder := types.NewEncoder()
-	if err := m.Encode(encoder); err != nil {
-		return nil, err
-	}
-	return encoder.Encode(&struct {
-		Header types.Header
-		State  types.StateKeyVals
-	}{
-		Header: m.Header,
-		State:  m.State,
-	})
+	return encoder.Encode(m)
 }
 
 func (m *SetState) UnmarshalBinary(data []byte) error {
