@@ -38,10 +38,12 @@ func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code
 		log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
 		return nil, nil, err
 	}
-	if metaCode.Metadata != nil {
-		// print metadata
-		log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
-	}
+	/*
+		if metaCode.Metadata != nil {
+			// print metadata
+			log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
+		}
+	*/
 	return metaCode.Metadata, metaCode.Code, nil
 }
 
@@ -49,7 +51,6 @@ func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code
 // but I implement this for debugging/validation
 // ∀a ∈ A, (h ↦ p) ∈ a_p ⇒ h = H(p) ∧ (h, |p|) ∈ K(a_l)
 func ValidatePreimageLookupDict(account types.ServiceAccount) error {
-
 	for codeHash, preimage := range account.PreimageLookup {
 		// // h = H(p)
 		preimageHash := hash.Blake2bHash(utils.ByteSequenceWrapper{Value: preimage}.Serialize())
@@ -185,5 +186,10 @@ func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 	/*
 		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 	*/
-	return max(0, types.U64(types.BasicMinBalance)+types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI)+types.U64(types.AdditionalMinBalancePerOctet)*aO-aF)
+	storage := types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
+	if storage < aF {
+		// result < 0
+		return 0
+	}
+	return aF
 }

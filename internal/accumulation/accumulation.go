@@ -525,7 +525,6 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			}
 		}
 	}
-
 	// τ′: Posterior validator state used by Ψₐ
 	tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
 

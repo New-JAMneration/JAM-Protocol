@@ -35,8 +35,10 @@ const (
 	ReportsMode        TestMode = "reports"
 
 	// Trace
-	FallbackMode TestMode = "fallback"
-	StorageMode  TestMode = "storage"
+	FallbackMode      TestMode = "fallback"
+	StorageMode       TestMode = "storage"
+	StorageLightMode  TestMode = "storage_light"
+	PreimageLightMode TestMode = "preimages_light"
 )
 
 // TestSize represents the size of the test data
@@ -229,7 +231,7 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		return nil, fmt.Errorf("work in progress: %s", r.dataType)
 	case "trace":
 		switch r.mode {
-		case SafroleMode, FallbackMode, ReportsMode, PreimagesMode, StorageMode:
+		case SafroleMode, FallbackMode, ReportsMode, PreimagesMode, PreimageLightMode, StorageMode, StorageLightMode:
 			var traceTestCase jamteststrace.TraceTestCase
 			if err := r.ReadFile(data, &traceTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode trace test data: %v", err)

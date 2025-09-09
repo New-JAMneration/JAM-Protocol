@@ -3,8 +3,10 @@ package PVM
 import (
 	"log"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type OnTransferInput struct {
@@ -21,10 +23,17 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
 		return account, 0
 	}
-
-	codeHash := account.ServiceInfo.CodeHash
-	programCode, programCodeExists := account.PreimageLookup[codeHash]
-	if !programCodeExists || len(programCode) == 0 || len(programCode) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
+	/*
+	   codeHash := s.ServiceInfo.CodeHash
+	   	_, code, err := service_account.FetchCodeByHash(s, codeHash)
+	*/
+	_, code, err := service_account.FetchCodeByHash(account, account.ServiceInfo.CodeHash)
+	if err != nil {
+		logger.Errorf("on-transfer FetchCodeByHash failed")
+		return account, 0
+	}
+	// programCode, programCodeExists := account.PreimageLookup[codeHash]
+	if len(code) == 0 || len(code) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
 		return account, 0
 	}
 
@@ -80,7 +89,7 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		},
 	}
 
-	result := Psi_M(StandardCodeFormat(programCode), 10, gasLimits, serialized, F, addition)
+	result := Psi_M(StandardCodeFormat(code), 10, gasLimits, serialized, F, addition)
 	account = result.Addition.ServiceAccount
 
 	return account, types.Gas(result.Gas)

@@ -41,7 +41,7 @@ func Init(level LogLevel) error {
 func newLogger(level LogLevel) (*Logger, error) {
 	return &Logger{
 		level:      level,
-		showLine:   true,
+		showLine:   false,
 		timeFormat: time.RFC3339,
 	}, nil
 }
@@ -54,7 +54,7 @@ func getLogger() *Logger {
 }
 
 func (l *Logger) log(level LogLevel, format string, args ...interface{}) {
-	if level < l.level {
+	if level < l.level || !l.showLine {
 		return
 	}
 

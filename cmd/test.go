@@ -9,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/cli"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -22,6 +23,7 @@ var (
 	testType       string
 	testFileFormat string
 	testRunSTF     bool
+	testGenesis    string
 )
 
 var genesisFileName = "genesis"
@@ -67,6 +69,12 @@ For example:
 				Usage:        "Run the whole STF (State Transition Function) instead of partial test",
 				DefaultValue: false,
 				Destination:  &testRunSTF,
+			},
+			&cli.StringFlag{
+				Name:         "genesis",
+				Usage:        "Trace specify genesis file",
+				DefaultValue: "genesis",
+				Destination:  &testGenesis,
 			},
 		},
 		Run: func(args []string) {
@@ -114,37 +122,67 @@ For example:
 			failed := 0
 
 			if testType == "trace" {
+
+				genesisFileFound := false
+				var ext string
+				if dataFormat == "json" {
+					ext = ".json"
+				} else {
+					ext = ".bin"
+				}
+
 				// get genesis
 				for _, testFile := range testFiles {
-					if testFile.Name[:7] != "genesis" {
+					if testFile.Name != testGenesis+ext {
 						continue
 					}
-					// parse genesis to block and state
-					var genesis jamtests.Genesis
 
-					err := reader.ReadFile(testFile.Data, &genesis)
-					if err != nil {
-						log.Panicf("Failed to Read genesis: %v", err)
+					genesisFileFound = true
+					var state types.State
+					var block types.Block
+
+					if testFile.Name[:7] == "genesis" {
+						var genesis jamtests.Genesis
+						err := reader.ReadFile(testFile.Data, &genesis)
+						if err != nil {
+							log.Panicf("Failed to Read genesis: %v", err)
+						}
+						state, err = merklization.StateKeyValsToState(genesis.State.KeyVals)
+						if err != nil {
+							log.Panicf("Failed to parse state key-vals to state: %v", err)
+						}
+						block.Header = genesis.Header
+					} else {
+						var genesis jamteststrace.TraceTestCase
+						err := reader.ReadFile(testFile.Data, &genesis)
+						if err != nil {
+							log.Panicf("Failed to Read genesis: %v", err)
+						}
+						state, err = merklization.StateKeyValsToState(genesis.PostState.KeyVals)
+						if err != nil {
+							log.Panicf("Failed to parse state key-vals to state: %v", err)
+						}
+						block.Header = genesis.Block.Header
+						log.Println("genesis : ", testFile.Name)
 					}
 
-					state, err := merklization.StateKeyValsToState(genesis.State.KeyVals)
-					if err != nil {
-						log.Panicf("Failed to parse state key-vals to state: %v", err)
-					}
 					instance := store.GetInstance()
-					block := types.Block{
-						Header: genesis.Header,
-					}
 					instance.GenerateGenesisBlock(block)
 					instance.GenerateGenesisState(state)
+
+				}
+
+				if !genesisFileFound {
+					log.Panicf("genesis file not found")
 				}
 			}
 
 			for idx, testFile := range testFiles {
-				if testFile.Name[:7] == "genesis" {
-					continue
-				}
-
+				/*
+					if testFile.Name[:7] == "genesis" || testFile.Name[:8] != "00000003" {
+						continue
+					}
+				*/
 				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
 				if testType == "trace" {
 					// post-state update to pre-state, tau_prime+1
@@ -191,14 +229,13 @@ For example:
 					if outputErr != nil {
 						log.Printf("stf output error %v:", outputErr)
 						failed++
-						// trace expect no output error
 						break
 					} else {
 						err := data.Validate()
 						if err != nil {
 							log.Printf("state root validate error: %v", err)
 							failed++
-							continue
+							break
 						}
 						passed++
 						log.Printf("passed\n")
@@ -236,7 +273,7 @@ func validateTestMode(mode testdata.TestMode) error {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
 		testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode,
-		testdata.FallbackMode:
+		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode:
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)
