@@ -2,8 +2,10 @@ package fuzz
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -15,6 +17,13 @@ type FuzzServer struct {
 }
 
 func NewFuzzServer(network, address string) (*FuzzServer, error) {
+	// For Unix sockets, remove the socket file if it exists
+	if network == "unix" {
+		if err := os.Remove(address); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to remove existing socket file: %v", err)
+		}
+	}
+
 	listener, err := net.Listen(network, address)
 	if err != nil {
 		return nil, err
@@ -31,7 +40,15 @@ func NewFuzzServer(network, address string) (*FuzzServer, error) {
 
 // blocks until terminated
 func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
-	defer s.Listener.Close()
+	defer func() {
+		s.Listener.Close()
+		// Clean up Unix socket file when server stops
+		if unixAddr, ok := s.Listener.Addr().(*net.UnixAddr); ok {
+			if err := os.Remove(unixAddr.Name); err != nil && !os.IsNotExist(err) {
+				log.Printf("warning: failed to remove socket file %s: %v", unixAddr.Name, err)
+			}
+		}
+	}()
 
 	for {
 		select {
@@ -124,6 +141,7 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 }
 
 func (s *FuzzServer) handleSetState(m Message) (Message, error) {
+	fmt.Printf("Header: %v\n", m.SetState.Header)
 	stateRoot, err := s.Service.SetState(m.SetState.Header, m.SetState.State)
 	if err != nil {
 		return Message{}, err
