@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
@@ -21,6 +25,7 @@ Valid commands are:
   import_block SOCKET JSON_FILE
   set_state SOCKET JSON_FILE
   get_state SOCKET JSON_FILE
+  test_folder SOCKET FOLDER_PATH
   help [COMMAND]`
 
 	log.Fatalln(usage)
@@ -34,6 +39,7 @@ var handlers = map[string]Handler{
 	"import_block": importBlock,
 	"set_state":    setState,
 	"get_state":    getState,
+	"test_folder":  testFolder,
 	"help":         help,
 }
 
@@ -235,6 +241,146 @@ func getState(args []string) {
 	log.Printf("get_state successful, retrieved %d key-value pairs\n", len(state))
 }
 
+// TestData represents the structure of test JSON files
+type TestData struct {
+	PreState struct {
+		StateRoot string             `json:"state_root"`
+		KeyVals   types.StateKeyVals `json:"keyvals"`
+	} `json:"pre_state"`
+	PostState struct {
+		StateRoot string             `json:"state_root"`
+		KeyVals   types.StateKeyVals `json:"keyvals"`
+	} `json:"post_state"`
+	Block types.Block `json:"block"`
+}
+
+func testFolder(args []string) {
+	if len(args) < 2 {
+		helpImpl("test_folder")
+	}
+
+	socketPath := args[0]
+	folderPath := args[1]
+
+	// Connect to server
+	client, err := fuzz.NewFuzzClient("unix", socketPath)
+	if err != nil {
+		log.Fatalf("error creating client: %v\n", err)
+	}
+	defer client.Close()
+
+	// Read all JSON files in the folder
+	var jsonFiles []string
+	err = filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(strings.ToLower(path), ".json") {
+			jsonFiles = append(jsonFiles, path)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("error walking directory: %v\n", err)
+	}
+
+	if len(jsonFiles) == 0 {
+		log.Fatalln("no JSON files found in the specified folder")
+	}
+
+	log.Printf("Found %d JSON files to test\n", len(jsonFiles))
+
+	successCount := 0
+	failureCount := 0
+
+	// Process each JSON file
+	for _, jsonFile := range jsonFiles {
+		log.Printf("Testing file: %s\n", jsonFile)
+
+		if err := testSingleFile(client, jsonFile); err != nil {
+			log.Printf("FAILED!!: %s - %v\n", jsonFile, err)
+			failureCount++
+		} else {
+			log.Printf("PASSED: %s\n", jsonFile)
+			successCount++
+		}
+	}
+
+	if failureCount > 0 {
+		log.Fatalf("Some tests failed\n")
+	} else {
+		log.Printf("All tests passed!\n")
+	}
+}
+
+func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
+	// Read and parse JSON file
+	data, err := os.ReadFile(jsonFile)
+	if err != nil {
+		return fmt.Errorf("error reading JSON file: %v", err)
+	}
+
+	var testData TestData
+	if err := json.Unmarshal(data, &testData); err != nil {
+		return fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Step 1: SetState with pre_state data
+	expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing pre_state state_root: %v", err)
+	}
+
+	fmt.Printf("Header: %v\n", testData.Block.Header)
+	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
+	if err != nil {
+		return fmt.Errorf("SetState failed: %v", err)
+	}
+
+	if actualPreStateRoot != expectedPreStateRoot {
+		return fmt.Errorf("SetState state_root mismatch: expected %x, got %x",
+			expectedPreStateRoot, actualPreStateRoot)
+	}
+
+	// Step 2: ImportBlock
+	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing post_state state_root: %v", err)
+	}
+
+	actualPostStateRoot, err := client.ImportBlock(testData.Block)
+	if err != nil {
+		return fmt.Errorf("ImportBlock failed: %v", err)
+	}
+
+	if actualPostStateRoot != expectedPostStateRoot {
+		return fmt.Errorf("ImportBlock state_root mismatch: expected %x, got %x",
+			expectedPostStateRoot, actualPostStateRoot)
+	}
+
+	return nil
+}
+
+func parseStateRoot(stateRootStr string) (types.StateRoot, error) {
+	// Remove 0x prefix if present
+	if len(stateRootStr) > 2 && stateRootStr[:2] == "0x" {
+		stateRootStr = stateRootStr[2:]
+	}
+
+	var stateRoot types.StateRoot
+	hashBytes, err := hex.DecodeString(stateRootStr)
+	if err != nil {
+		return types.StateRoot{}, err
+	}
+
+	if len(hashBytes) != 32 {
+		return types.StateRoot{}, fmt.Errorf("state root must be 32 bytes, got %d bytes", len(hashBytes))
+	}
+
+	copy(stateRoot[:], hashBytes)
+	return stateRoot, nil
+}
+
 func help(args []string) {
 	helpImpl(args...)
 }
@@ -255,6 +401,8 @@ func helpImpl(args ...string) {
 		log.Fatalln("set_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a set_state request with header and state data from JSON_FILE")
 	case "get_state":
 		log.Fatalln("get_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a get_state request with header hash from JSON_FILE")
+	case "test_folder":
+		log.Fatalln("test_folder SOCKET FOLDER_PATH - tests all JSON files in FOLDER_PATH by running SetState and ImportBlock operations")
 	default:
 		printUsage()
 	}
