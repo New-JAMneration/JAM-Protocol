@@ -3,7 +3,6 @@ package ce
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -20,35 +19,61 @@ type CE133WorkPackageSubmission struct {
 // 1. Validate extrinsic data is correctly covering all the extrinsic referenced by work-package.
 // 2. Reject extrinsics which contain the imported segments.
 func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// Read first message: 4 bytes core index + work-package (rest of message)
-	firstMsg := make([]byte, 4096)
+	// Read first message: Core Index (2 bytes) + Work-Package
+	lenBuf := make([]byte, 4)
+	if err := stream.ReadFull(lenBuf); err != nil {
+		return fmt.Errorf("failed to read first message length: %w", err)
+	}
+	firstMsgLen := binary.LittleEndian.Uint32(lenBuf)
 
+	firstMsg := make([]byte, firstMsgLen)
 	if err := stream.ReadFull(firstMsg); err != nil {
-		return err
+		return fmt.Errorf("failed to read first message content: %w", err)
 	}
-	n := len(firstMsg)
-	if n < 4 {
-		return io.ErrUnexpectedEOF
-	}
-	coreIndex := binary.LittleEndian.Uint16(firstMsg[:4])
-	workPackage := make([]byte, n-4)
-	copy(workPackage, firstMsg[4:n])
 
-	// Read second message: all extrinsic data (until FIN)
-	extra := make([]byte, 65536)
-	exLen, err := io.ReadFull(stream, extra)
-	if err != nil && err != io.EOF {
-		return err
+	if firstMsgLen < 2 {
+		return fmt.Errorf("first message too short, expected at least 2 bytes for core index")
 	}
-	extrinsics := make([]byte, exLen)
-	copy(extrinsics, extra[:exLen])
 
-	_ = CE133WorkPackageSubmission{
-		CoreIndex:   coreIndex,
-		WorkPackage: workPackage,
-		Extrinsics:  extrinsics,
+	// Extract Core Index (2 bytes) and Work-Package
+	coreIndex := binary.LittleEndian.Uint16(firstMsg[:2])
+	workPackage := firstMsg[2:]
+	_ = coreIndex // reserved for validation/routing
+
+	// Decode and validate Work-Package
+	var wp types.WorkPackage
+	decoder := types.NewDecoder()
+	if err := decoder.Decode(workPackage, &wp); err != nil {
+		return fmt.Errorf("failed to decode work package: %w", err)
 	}
-	stream.Write([]byte{0x01})
+	if err := wp.Validate(); err != nil {
+		return fmt.Errorf("invalid work package: %w", err)
+	}
+
+	// Read second message: Extrinsic data array
+	if err := stream.ReadFull(lenBuf); err != nil {
+		return fmt.Errorf("failed to read extrinsics length: %w", err)
+	}
+	extrinsicsLen := binary.LittleEndian.Uint32(lenBuf)
+
+	// Validate extrinsics message size matches expected length
+	extrinsics := make([]byte, extrinsicsLen)
+	if err := stream.ReadFull(extrinsics); err != nil {
+		return fmt.Errorf("failed to read extrinsics data: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN marker: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("expected FIN marker, got %q", string(finBuf))
+	}
+
+	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
+	}
+
 	return stream.Close()
 }
 
@@ -62,21 +87,8 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSubmission(message interface{
 		return nil, fmt.Errorf("nil payload for WorkPackageSubmission")
 	}
 
-	encoder := types.NewEncoder()
-
-	if err := h.writeBytes(encoder, encodeLE16(workpackage.CoreIndex)); err != nil {
-
-		return nil, fmt.Errorf("failed to encode CoreIndex for WorkPackageSubmission: %w", err)
-	}
-
-	if err := h.writeBytes(encoder, workpackage.WorkPackage); err != nil {
-		return nil, fmt.Errorf("failed to encode WorkPackage for WorkPackageSubmission: %w", err)
-	}
-	if err := h.writeBytes(encoder, workpackage.Extrinsics); err != nil {
-		return nil, fmt.Errorf("failed to encode Extrinsics for WorkPackageSubmission: %w", err)
-	}
-
-	totalLen := 4 + len(workpackage.WorkPackage) + len(workpackage.Extrinsics)
+	// Build payload once: CoreIndex (2 bytes) ++ WorkPackage ++ Extrinsics
+	totalLen := 2 + len(workpackage.WorkPackage) + len(workpackage.Extrinsics)
 	result := make([]byte, 0, totalLen)
 	result = append(result, encodeLE16(workpackage.CoreIndex)...)
 	result = append(result, workpackage.WorkPackage...)
