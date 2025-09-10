@@ -10,6 +10,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // HandleAvailabilityAssuranceDistribution handles the distribution of availability assurances
@@ -159,10 +161,14 @@ func CreateAvailabilityAssurance(
 		return nil, fmt.Errorf("invalid bitfield format: %w", err)
 	}
 
-	// Create the message to sign: Header Hash ++ Bitfield
-	message := make([]byte, 32+len(bitfield))
-	copy(message[:32], headerHash[:])
-	copy(message[32:], bitfield)
+	// Create the message to sign following JAM Protocol signature validation rules
+	var opaqueHash types.OpaqueHash
+	copy(opaqueHash[:], headerHash[:])
+	anchor := utilities.OpaqueHashWrapper{Value: opaqueHash}.Serialize()
+	bitfieldBytes := utilities.ByteSequenceWrapper{Value: types.ByteSequence(bitfield)}.Serialize()
+	hashed := hash.Blake2bHash(append(anchor, bitfieldBytes...))
+	message := []byte(types.JamAvailable)
+	message = append(message, hashed[:]...)
 
 	signature := ed25519.Sign(privateKey, message)
 
