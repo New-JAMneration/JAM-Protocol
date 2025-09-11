@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -265,12 +266,10 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 
 	bundle := types.WorkPackageBundle{
 		Package: types.WorkPackage{
-			Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-			AuthCodeHost:  types.ServiceId(1),
-			Authorizer: types.Authorizer{
-				CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-				Params:   types.ByteSequence{0x07, 0x08, 0x09},
-			},
+			Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+			AuthCodeHost:     types.ServiceId(1),
+			AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+			AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 			Context: types.RefineContext{
 				Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 				StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -307,14 +306,20 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 			{h1},
 		},
 	}
-
+	redisBackend, _ := store.GetRedisBackend()
 	encoder := types.NewEncoder()
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+	encoder.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encoder.Encode(&bundle)
 	if err != nil {
 		t.Fatalf("failed to encode WorkPackageBundle: %v", err)
 	}
 	var decoded types.WorkPackageBundle
 	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(hashSegmentMap)
 	err = decoder.Decode(encoded, &decoded)
 	if err != nil {
 		t.Fatalf("failed to decode WorkPackageBundle: %v", err)
@@ -327,12 +332,10 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 
 func TestWorkPackage_EncodeDecode(t *testing.T) {
 	wp := types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
+		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
 			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -359,8 +362,13 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 			},
 		},
 	}
-
+	redisBackend, _ := store.GetRedisBackend()
 	e := types.NewEncoder()
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+	e.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := e.Encode(&wp)
 	if err != nil {
 		t.Fatalf("failed to encode WorkPackage: %v", err)
@@ -368,6 +376,7 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 
 	var decoded types.WorkPackage
 	d := types.NewDecoder()
+	d.SetHashSegmentMap(hashSegmentMap)
 	err = d.Decode(encoded, &decoded)
 	if err != nil {
 		t.Fatalf("failed to decode WorkPackage: %v", err)
