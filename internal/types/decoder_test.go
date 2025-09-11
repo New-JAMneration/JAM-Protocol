@@ -164,7 +164,11 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 	}
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
-
+	redisBackend, _ := store.GetRedisBackend()
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
 	for structType, fileNames := range testCases {
 		for _, filename := range fileNames {
 			// Read the binary file
@@ -176,6 +180,7 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 
 			// Decode the binary data
 			decoder := types.NewDecoder()
+			decoder.SetHashSegmentMap(hashSegmentMap)
 			structValue := reflect.New(structType).Elem()
 			err = decoder.Decode(binData, structValue.Addr().Interface())
 			if err != nil {

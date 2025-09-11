@@ -83,7 +83,17 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 	}
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+	mockHashSegmentMap := map[string]string{}
+	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
 
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
 	for structType, fileNames := range testCases {
 		for _, filename := range fileNames {
 			// Read json file
@@ -98,6 +108,7 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 
 			// Encode the JSON data
 			encoder := types.NewEncoder()
+			encoder.SetHashSegmentMap(hashSegmentMap)
 			encoded, err := encoder.Encode(structValue.Addr().Interface())
 			if err != nil {
 				t.Fatalf("Failed to encode JSON data: %v", err)
