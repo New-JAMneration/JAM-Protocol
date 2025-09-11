@@ -116,12 +116,10 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	wp := &types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
+		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
 			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -248,12 +246,10 @@ func TestPrepareInputs_Shared(t *testing.T) {
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	wp := &types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
+		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
 			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},

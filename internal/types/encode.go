@@ -1370,8 +1370,8 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Authorizer.CodeHash (u)
-	if err := w.Authorizer.CodeHash.Encode(e); err != nil {
+	// AuthCodeHash (u)
+	if err := w.AuthCodeHash.Encode(e); err != nil {
 		return err
 	}
 
@@ -1384,9 +1384,8 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 	if err := w.Authorization.Encode(e); err != nil {
 		return err
 	}
-
-	// Authorizer.Params (f)
-	if err := w.Authorizer.Params.Encode(e); err != nil {
+	// AuthorizerConfig (f)
+	if err := w.AuthorizerConfig.Encode(e); err != nil {
 		return err
 	}
 

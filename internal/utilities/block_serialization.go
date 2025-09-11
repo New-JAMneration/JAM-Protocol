@@ -464,9 +464,9 @@ func SerializeWorkPackage(work_package types.WorkPackage) (output types.ByteSequ
 	output = append(output, SerializeU64(types.U64(len(work_package.Authorization)))...)
 	output = append(output, SerializeByteSequence(work_package.Authorization)...)
 	output = append(output, SerializeFixedLength(types.U64(work_package.AuthCodeHost), 4)...)
-	output = append(output, SerializeOpaqueHash(work_package.Authorizer.CodeHash)...)
-	output = append(output, SerializeU64(types.U64(len(work_package.Authorizer.Params)))...)
-	output = append(output, SerializeByteSequence(work_package.Authorizer.Params)...)
+	output = append(output, SerializeOpaqueHash(work_package.AuthCodeHash)...)
+	output = append(output, SerializeU64(types.U64(len(work_package.AuthorizerConfig)))...)
+	output = append(output, SerializeByteSequence(work_package.AuthorizerConfig)...)
 	output = append(output, RefineContextSerialization(work_package.Context)...)
 	output = append(output, SerializeU64(types.U64(len(work_package.Items)))...)
 	for _, work_item := range work_package.Items {
