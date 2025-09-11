@@ -214,11 +214,14 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
-func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
+func (a *AuthPool) RemoveLeftMostPairedValue(h OpaqueHash) {
 	result := (*a)[:0]
+	removed := false
 	for _, v := range *a {
-		if !bytes.Equal(v[:], h[:]) {
+		if removed || !bytes.Equal(v[:], h[:]) {
 			result = append(result, v)
+		} else {
+			removed = true
 		}
 	}
 	*a = result
@@ -388,7 +391,7 @@ func (wp *WorkPackage) Validate() error {
 		totalAccumulateGas += item.AccumulateGasLimit
 	}
 
-	if totalRefineGas > MaxRefineGas {
+	if totalRefineGas > Gas(MaxRefineGas) {
 		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
 	}
 	if totalAccumulateGas > MaxAccumulateGas {

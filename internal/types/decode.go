@@ -3141,6 +3141,12 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
+	gasLimit, err := decoder.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	o.GasLimit = Gas(gasLimit)
+
 	if err = o.GasLimit.Decode(decoder); err != nil {
 		return err
 	}
