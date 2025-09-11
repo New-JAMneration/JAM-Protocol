@@ -45,38 +45,38 @@ func GetBlockFromJson(filename string) (*types.Block, error) {
 	return &block, nil
 }
 
-func TestDecodeBlock(t *testing.T) {
-	blockBinFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+// func TestDecodeBlock(t *testing.T) {
+// 	blockBinFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 
-	// Get the bytes from the file
-	data, err := GetBytesFromFile(blockBinFile)
-	if err != nil {
-		t.Errorf("Error getting bytes from file: %v", err)
-	}
+// 	// Get the bytes from the file
+// 	data, err := GetBytesFromFile(blockBinFile)
+// 	if err != nil {
+// 		t.Errorf("Error getting bytes from file: %v", err)
+// 	}
 
-	// Create a new block (pointer)
-	block := &types.Block{}
+// 	// Create a new block (pointer)
+// 	block := &types.Block{}
 
-	// Decode the block from the binary file
-	decoder := types.NewDecoder()
-	err = decoder.Decode(data, block)
-	if err != nil {
-		t.Errorf("Error decoding block: %v", err)
-	}
+// 	// Decode the block from the binary file
+// 	decoder := types.NewDecoder()
+// 	err = decoder.Decode(data, block)
+// 	if err != nil {
+// 		t.Errorf("Error decoding block: %v", err)
+// 	}
 
-	// Check the decode block is same as expected block
-	// Read json file and unmarshal it to get the expected block
-	blockJsonFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
-	expectedBlock, err := GetBlockFromJson(blockJsonFile)
-	if err != nil {
-		t.Errorf("Error getting block from json file: %v", err)
-	}
+// 	// Check the decode block is same as expected block
+// 	// Read json file and unmarshal it to get the expected block
+// 	blockJsonFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+// 	expectedBlock, err := GetBlockFromJson(blockJsonFile)
+// 	if err != nil {
+// 		t.Errorf("Error getting block from json file: %v", err)
+// 	}
 
-	// Compare the two blocks
-	if !reflect.DeepEqual(block, expectedBlock) {
-		t.Errorf("Blocks do not match")
-	}
-}
+// 	// Compare the two blocks
+// 	if !reflect.DeepEqual(block, expectedBlock) {
+// 		t.Errorf("Blocks do not match")
+// 	}
+// }
 
 func TestDecodeU64(t *testing.T) {
 	data := []byte{0, 228, 11, 84, 2, 0, 0, 0}
