@@ -1673,10 +1673,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 	}
 	p.Designate = ServiceId(temp.Designate)
 
-	if len(temp.AlwaysAccum) == 0 {
-		p.AlwaysAccum = make(AlwaysAccumulateMap)
-	}
-
+	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
 		p.AlwaysAccum[entry.ServiceId] = entry.Gas
 	}

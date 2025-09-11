@@ -881,37 +881,34 @@ func TestUnmarshalPrivileges(t *testing.T) {
 		expected types.AlwaysAccumulateMap
 	}{
 		{
-			name:     "chi_g is null",
-			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": null}`,
+			name:     "always_acc is null",
+			jsonData: `{"bless":0,"assign":[],"designate":0,"always_acc":null}`,
 			expected: types.AlwaysAccumulateMap{},
 		},
 		{
-			name:     "chi_g is empty object",
-			jsonData: `{"chi_m": 0, "chi_a": 0, "chi_v": 0, "chi_g": {}}`,
+			name:     "always_acc is empty object",
+			jsonData: `{"bless":0,"assign":[],"designate":0,"always_acc":[]}`,
 			expected: types.AlwaysAccumulateMap{},
 		},
 		{
-			name:     "chi_g has values",
-			jsonData: `{"chi_m": 1, "chi_a": 2, "chi_v": 3, "chi_g": {"4": 100, "5": 200}}`,
-			expected: types.AlwaysAccumulateMap{4: 100, 5: 200},
+			name:     "always_acc has values",
+			jsonData: `{"bless":0,"assign":[1,2],"designate":0,"always_acc":[{"id": 4, "gas": 100},{"id": 5, "gas": 200}]}`,
+			expected: types.AlwaysAccumulateMap{types.ServiceId(4): types.Gas(100), types.ServiceId(5): types.Gas(200)},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var privileges types.Privileges
-			err := json.Unmarshal([]byte(tt.jsonData), &privileges)
-			if err != nil {
-				t.Errorf("Unmarshal error: %v", err)
+			var p types.Privileges
+			if err := json.Unmarshal([]byte(tt.jsonData), &p); err != nil {
+				t.Fatalf("Unmarshal error: %v", err)
 			}
-
-			if len(privileges.AlwaysAccum) != len(tt.expected) {
-				t.Errorf("Unmarshal error: expected %d, got %d", len(tt.expected), len(privileges.AlwaysAccum))
+			if len(p.AlwaysAccum) != len(tt.expected) {
+				t.Fatalf("expected len=%d, got %d", len(tt.expected), len(p.AlwaysAccum))
 			}
-
 			for k, v := range tt.expected {
-				if privileges.AlwaysAccum[k] != v {
-					t.Errorf("Unmarshal error: expected %d, got %d", v, privileges.AlwaysAccum[k])
+				if got := p.AlwaysAccum[k]; got != v {
+					t.Fatalf("key %v: expected %v, got %v", k, v, got)
 				}
 			}
 		})
