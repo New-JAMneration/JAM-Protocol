@@ -315,13 +315,14 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workitem", w)
 }
 
-// v0.6.3 (14.2) Work Package
+// v0.7.0 (14.2) Work Package
 type WorkPackage struct {
-	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token j
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index h
-	Authorizer    Authorizer    `json:"authorizer"`               // u, f
-	Context       RefineContext `json:"context"`                  // c
-	Items         []WorkItem    `json:"items,omitempty"`          // w
+	AuthCodeHost     ServiceId     `json:"auth_code_host,omitempty"`    // host service index h
+	AuthCodeHash     OpaqueHash    `json:"auth_code_hash,omitempty"`    // u
+	Context          RefineContext `json:"context"`                     // c
+	Authorization    ByteSequence  `json:"authorization,omitempty"`     // authorization token j
+	AuthorizerConfig ByteSequence  `json:"authorizer_config,omitempty"` // f
+	Items            []WorkItem    `json:"items,omitempty"`             // w
 }
 
 func (w *WorkPackage) ScaleDecode(data []byte) error {
@@ -343,7 +344,7 @@ func (wp *WorkPackage) Validate() error {
 		return fmt.Errorf("WorkPackage must have items between 1 and %v, but got %v", MaximumWorkItems, len(wp.Items))
 	}
 
-	totalSize := len(wp.Authorization) + len(wp.Authorizer.Params)
+	totalSize := len(wp.Authorization) + len(wp.AuthorizerConfig)
 	totalImportSegments := 0
 	totalExportSegments := 0
 	totalExtrinsics := 0

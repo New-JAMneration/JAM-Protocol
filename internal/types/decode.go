@@ -1524,8 +1524,8 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 		return err
 	}
 
-	// Authorizer.CodeHash (u)
-	if err := w.Authorizer.CodeHash.Decode(d); err != nil {
+	// AuthCodeHash (u)
+	if err := w.AuthCodeHash.Decode(d); err != nil {
 		return err
 	}
 
@@ -1539,8 +1539,8 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 		return err
 	}
 
-	// Authorizer.Params (f)
-	if err = w.Authorizer.Params.Decode(d); err != nil {
+	// AuthorizerConfig (f)
+	if err = w.AuthorizerConfig.Decode(d); err != nil {
 		return err
 	}
 
