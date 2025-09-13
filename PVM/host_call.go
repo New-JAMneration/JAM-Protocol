@@ -514,8 +514,8 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 
 		v, err = encoder.EncodeMany(
-			&input.Addition.WorkPackage.Authorizer.CodeHash,
-			&input.Addition.WorkPackage.Authorizer.Params,
+			&input.Addition.WorkPackage.AuthCodeHash,
+			&input.Addition.WorkPackage.AuthorizerConfig,
 		)
 	case 9:
 		if input.Addition.WorkPackage == nil {

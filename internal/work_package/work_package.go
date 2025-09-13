@@ -14,8 +14,8 @@ import (
 
 // (14.9)
 func VerifyAuthorization(wp *types.WorkPackage, delta types.ServiceAccountState) (types.OpaqueHash, types.ByteSequence, types.ByteSequence, error) {
-	pa := hash.Blake2bHash(append(wp.Authorizer.CodeHash[:], wp.Authorizer.Params[:]...))
-	bytes := service_account.HistoricalLookup(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.Authorizer.CodeHash)
+	pa := hash.Blake2bHash(append(wp.AuthCodeHash[:], wp.AuthorizerConfig[:]...))
+	bytes := service_account.HistoricalLookup(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.AuthCodeHash)
 	pm, pc, err := service_account.DecodeMetaCode(bytes)
 	if err != nil {
 		return types.OpaqueHash{}, types.ByteSequence{}, types.ByteSequence{}, err
