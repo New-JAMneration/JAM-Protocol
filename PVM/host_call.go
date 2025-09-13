@@ -165,7 +165,6 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
 			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
-		logger.SetShowLine(false)
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = gasPrime
