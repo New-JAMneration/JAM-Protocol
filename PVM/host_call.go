@@ -162,8 +162,9 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 			return
 		}
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
-		logger.Debugf("%s host-call return: %s, gas : %d -> %d",
-			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas)
+		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
+			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = gasPrime
@@ -576,13 +577,13 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		buffer, err := encoder.Encode(types.U64(len(input.Addition.Operands)))
+		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.Operands))))
 		if err != nil {
 			break
 		}
 
 		for _, o := range input.Addition.Operands {
-			bytes, err := encoder.Encode(o)
+			bytes, err := encoder.Encode(&o)
 			if err != nil {
 				break
 			}

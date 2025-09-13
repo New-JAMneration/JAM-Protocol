@@ -2,7 +2,6 @@ package jamtests
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -79,29 +78,29 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// a_s,  a_p,  a_l
 
 	}
+	/*
+		for _, v := range keyValDiffs {
+			newDecoder := types.NewDecoder()
+			state := types.State{}
+			keyType := keyValMap[v.Key]
+			stateType, err := getStateField(state, keyType)
+			if err != nil {
+				return nil, err
+			}
 
-	for _, v := range keyValDiffs {
-		newDecoder := types.NewDecoder()
-		state := types.State{}
-		keyType := keyValMap[v.Key]
-		stateType, err := getStateField(state, keyType)
-		if err != nil {
-			return nil, err
+			expectedValue := reflect.New(reflect.TypeOf(stateType)).Interface()
+			err = newDecoder.Decode(v.ExpectedValue, expectedValue)
+			if err != nil {
+				return nil, fmt.Errorf("decode expectedValue failed: %v", err)
+			}
+
+			actualValue := reflect.New(reflect.TypeOf(stateType)).Interface()
+			err = newDecoder.Decode(v.ActualValue, actualValue)
+			if err != nil {
+				return nil, fmt.Errorf("decode actualValue failed: %v", err)
+			}
 		}
-
-		expectedValue := reflect.New(reflect.TypeOf(stateType)).Interface()
-		err = newDecoder.Decode(v.ExpectedValue, expectedValue)
-		if err != nil {
-			return nil, fmt.Errorf("decode expectedValue failed: %v", err)
-		}
-
-		actualValue := reflect.New(reflect.TypeOf(stateType)).Interface()
-		err = newDecoder.Decode(v.ActualValue, actualValue)
-		if err != nil {
-			return nil, fmt.Errorf("decode actualValue failed: %v", err)
-		}
-	}
-
+	*/
 	var diff string
 
 	if len(serviceList) > 0 || len(errorStateSlice) > 0 {
@@ -135,18 +134,4 @@ var keyValMap = map[types.StateKey]string{
 	{14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "theta",
 	{15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "xi",
 	{16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}: "vartheta",
-}
-
-func getStateField(state types.State, keyType string) (interface{}, error) {
-	switch keyType {
-	case "alpha":
-		return state.Alpha, nil
-	case "beta":
-		return state.Beta, nil
-	case "gamma":
-		return state.Gamma, nil
-	// Add other cases for all fields in State struct
-	default:
-		return nil, fmt.Errorf("unknown key type: %s", keyType)
-	}
 }
