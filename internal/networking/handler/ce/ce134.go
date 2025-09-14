@@ -34,7 +34,7 @@ func readSegmentRootMappings(stream *quic.Stream) ([]SegmentRootMapping, error) 
 		return nil, err
 	}
 	count := int(countBuf[0])
-	for i := 0; i < count; i++ {
+	for range count {
 		var wpHash types.WorkPackageHash
 		var segRoot types.OpaqueHash
 		if err := stream.ReadFull(wpHash[:]); err != nil {
@@ -48,7 +48,7 @@ func readSegmentRootMappings(stream *quic.Stream) ([]SegmentRootMapping, error) 
 	return mappings, nil
 }
 
-// Handler for CE 134: Guarantor <-> Guarantor work-package sharing
+// Role: [Guarantor -> Guarantor]
 //
 // [TODO-Validation]
 // 1. Verify work-report.

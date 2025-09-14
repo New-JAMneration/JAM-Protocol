@@ -17,13 +17,15 @@ type CE135Payload struct {
 	Signature types.Ed25519Signature
 }
 
-// HandleWorkReportDistribution implements CE 135: distribution of a fully guaranteed work-report
+// HandleWorkReportDistribution_Validator implements distribution of a fully guaranteed work-report
+// Role: Guarantor -> Validator
 //
 // [TODO-Validation]
 // 1. Check valid slot (too far in past/future)
 // [TODO]
-// 1. Distributed to validators.
-func HandleWorkReportDistribution(
+// 1. Get all current validators.
+// 2. Distributed to them.
+func HandleWorkReportDistribution_Validator(
 	blockchain blockchain.Blockchain,
 	stream *quic.Stream,
 	keypair keystore.KeyPair,
@@ -51,6 +53,48 @@ func HandleWorkReportDistribution(
 	_ = nextVals
 
 	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	finResp := make([]byte, 3)
+	if err := stream.ReadFull(finResp); err != nil {
+		return fmt.Errorf("failed to read FIN response: %w", err)
+	}
+	if string(finResp) != "FIN" {
+		return fmt.Errorf("expected FIN response, got %q", finResp)
+	}
+
+	return stream.Close()
+}
+
+func HandleWorkReportDistribution_Guarantor(
+	blockchain blockchain.Blockchain,
+	stream *quic.Stream,
+	keypair keystore.KeyPair,
+) error {
+	lenBuf := make([]byte, 4)
+	if err := stream.WriteMessage(lenBuf); err != nil {
+		return fmt.Errorf("failed to read length prefix: %w", err)
+	}
+	guaranteeLen := binary.LittleEndian.Uint32(lenBuf)
+
+	data := make([]byte, guaranteeLen)
+	if err := stream.WriteMessage(data); err != nil {
+		return fmt.Errorf("failed to read guarantee: %w", err)
+	}
+
+	var guarantee types.ReportGuarantee
+	decoder := types.NewDecoder()
+	if err := decoder.Decode(data, &guarantee); err != nil {
+		return fmt.Errorf("failed to decode ReportGuarantee: %w", err)
+	}
+
+	currentVals := store.GetInstance().GetPosteriorStates().GetKappa()
+	nextVals := store.GetInstance().GetPosteriorStates().GetGammaK()
+	_ = currentVals
+	_ = nextVals
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
 		return fmt.Errorf("failed to write FIN: %w", err)
 	}
 

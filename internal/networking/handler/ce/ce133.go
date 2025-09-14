@@ -15,10 +15,68 @@ type CE133WorkPackageSubmission struct {
 	Extrinsics  []byte
 }
 
+// HandleWorkPackageSubmission_Builder handles work package submission from Builder role
+func HandleWorkPackageSubmission_Builder(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+	lenBuf := make([]byte, 4)
+	if err := stream.WriteMessage(lenBuf); err != nil {
+		return fmt.Errorf("failed to read first message length: %w", err)
+	}
+	firstMsgLen := binary.LittleEndian.Uint32(lenBuf)
+
+	firstMsg := make([]byte, firstMsgLen)
+	if err := stream.WriteMessage(firstMsg); err != nil {
+		return fmt.Errorf("failed to read first message content: %w", err)
+	}
+
+	if firstMsgLen < 2 {
+		return fmt.Errorf("first message too short, expected at least 2 bytes for core index")
+	}
+
+	// Extract Core Index (2 bytes) and Work-Package
+	coreIndex := binary.LittleEndian.Uint16(firstMsg[:2])
+	workPackage := firstMsg[2:]
+	_ = coreIndex // reserved for validation/routing
+
+	var wp types.WorkPackage
+	decoder := types.NewDecoder()
+	if err := decoder.Decode(workPackage, &wp); err != nil {
+		return fmt.Errorf("failed to decode work package: %w", err)
+	}
+	if err := wp.Validate(); err != nil {
+		return fmt.Errorf("invalid work package: %w", err)
+	}
+
+	if err := stream.WriteMessage(lenBuf); err != nil {
+		return fmt.Errorf("failed to read extrinsics length: %w", err)
+	}
+	extrinsicsLen := binary.LittleEndian.Uint32(lenBuf)
+
+	extrinsics := make([]byte, extrinsicsLen)
+	if err := stream.ReadFull(extrinsics); err != nil {
+		return fmt.Errorf("failed to read extrinsics data: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.WriteMessage(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN marker: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("expected FIN marker, got %q", string(finBuf))
+	}
+
+	if err := stream.ReadFull([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
+	}
+
+	return stream.Close()
+}
+
+// HandleWorkPackageSubmission_Guarantor handles work package submission from Guarantor role
+//
 // [TODO-Validation]
 // 1. Validate extrinsic data is correctly covering all the extrinsic referenced by work-package.
 // 2. Reject extrinsics which contain the imported segments.
-func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+func HandleWorkPackageSubmission_Guarantor(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read first message: Core Index (2 bytes) + Work-Package
 	lenBuf := make([]byte, 4)
 	if err := stream.ReadFull(lenBuf); err != nil {

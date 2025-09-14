@@ -30,12 +30,6 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 		},
 		Justification: append([]byte{0x00}, make([]byte, 32)...), // 0 discriminator + 32 zero bytes
 	}
-	lookup := func(root []byte) (*CE137GuarantorPayload, bool) {
-		if bytes.Equal(root, erasureRoot) {
-			return bundle, true
-		}
-		return nil, false
-	}
 
 	// Prepare request: erasureRoot (32 bytes) + shardIndex (4 bytes LE) + 'FIN'
 	req := make([]byte, 0, 32+4+3)
@@ -44,7 +38,7 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
-	err := HandleECShardRequest(&quic.Stream{Stream: stream}, lookup)
+	err := HandleECShardRequest_Guarantor(&quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

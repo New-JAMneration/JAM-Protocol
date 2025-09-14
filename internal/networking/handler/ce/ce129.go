@@ -18,6 +18,7 @@ type CE129Payload struct {
 }
 
 // HandleStateRequest handles a CE129 state key range request.
+// [Node -> Node]
 //
 // [TODO-Validation]
 // 1. Ensure [blockchain.GetStateRange] returns a sorted state range.

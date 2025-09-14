@@ -28,6 +28,8 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 	localBandersnatchKey = key
 }
 
+// Role: [Validator -> Validator]
+//
 // [TODO-Validation]
 // 1. Check finality of the block for stopping forwarding.
 // 2. Check finality is running behind the state to reset or stop the stream.

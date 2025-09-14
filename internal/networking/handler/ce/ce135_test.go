@@ -40,7 +40,7 @@ func TestHandleWorkReportDistribution_Basic(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	keypair, _ := keystore.FromEd25519PrivateKey(priv)
 
-	err = HandleWorkReportDistribution(nil, &quic.Stream{Stream: stream}, keypair)
+	err = HandleWorkReportDistribution_Guarantor(nil, &quic.Stream{Stream: stream}, keypair)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

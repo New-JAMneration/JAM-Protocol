@@ -24,7 +24,7 @@ func TestHandleWorkPackageSubmission_Basic(t *testing.T) {
 	stream := newMockStream(firstMsg)
 	stream.r.Write(extrinsics)
 
-	err := HandleWorkPackageSubmission(nil, &quic.Stream{Stream: stream})
+	err := HandleWorkPackageSubmission_Builder(nil, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestHandleWorkPackageSubmission_Minimal(t *testing.T) {
 	stream := newMockStream(firstMsg)
 	stream.r.Write(extrinsics)
 
-	err := HandleWorkPackageSubmission(nil, &quic.Stream{Stream: stream})
+	err := HandleWorkPackageSubmission_Builder(nil, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}

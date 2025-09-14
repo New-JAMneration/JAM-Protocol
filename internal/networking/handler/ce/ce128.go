@@ -20,6 +20,7 @@ type CE128Payload struct {
 	MaxBlocks  uint32           // Maximum number of blocks requested
 }
 
+// Role: [Node -> Node]
 func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]types.Block, error) {
 	count := req.MaxBlocks
 	var blocks []types.Block
@@ -27,11 +28,11 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]t
 	log.Printf("Handling block request for %v, direction %d, count %d\n", req.HeaderHash, req.Direction, count)
 
 	switch req.Direction {
-	case 0:
+	case 0: // Ascending exclusive: start with a child of given block and traverse to descendant.
 		currentHash := req.HeaderHash
-		for i := uint32(0); i < count; i++ {
+		for i := range count {
 			found := false
-			for blockNum := uint32(0); blockNum < 10; blockNum++ {
+			for blockNum := range uint32(10) {
 				candidateHashes, err := blockchain.GetBlockHashByNumber(blockNum)
 				if err != nil {
 					continue
@@ -61,7 +62,7 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]t
 		}
 	case 1: // Descending inclusive: start with the given block and traverse to ancestors.
 		currentHash := req.HeaderHash
-		for i := uint32(0); i < count; i++ {
+		for range count {
 			blk, err := blockchain.GetBlock(currentHash)
 			if err != nil {
 				break
