@@ -151,7 +151,7 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, &resultContext.ResultContextY.Exception, gas, serviceBlobs
+		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
 	case types.ByteSequence:
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
@@ -162,7 +162,7 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, &resultContext.ResultContextX.Exception, gas, serviceBlobs
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs
 	}
 }
 
@@ -205,7 +205,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		PartialState:      partialState,
 		ImportServiceId:   check(serviceId, partialState.ServiceAccounts),
 		DeferredTransfers: []types.DeferredTransfer{},
-		Exception:         types.OpaqueHash{},
+		Exception:         nil,
 	}
 }
 
@@ -223,6 +223,6 @@ type ResultContext struct {
 	PartialState      types.PartialStateSet                  // u
 	ImportServiceId   types.ServiceId                        // i
 	DeferredTransfers []types.DeferredTransfer               // t
-	Exception         types.OpaqueHash                       // y
+	Exception         *types.OpaqueHash                      // y
 	ServiceBlobs      map[types.OpaqueHash]types.ServiceBlob // p   v0.6.5
 }

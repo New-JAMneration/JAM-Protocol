@@ -2609,10 +2609,9 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Memory.Read(o, offset)
-
-	input.Registers[7] = OK
-
-	copy(input.Addition.ResultContextX.Exception[:], h)
+	opaqueHash := types.OpaqueHash(h)
+	input.Addition.ResultContextX.Exception = &opaqueHash
+	// copy(input.Addition.ResultContextX.Exception[:], h)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),

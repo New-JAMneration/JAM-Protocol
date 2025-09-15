@@ -2,6 +2,7 @@ package jamtests
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -62,8 +63,12 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
-			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
-			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+			log.Println("key: ", keyVal.Key)
+			if len(keyVal.ActualValue) < 64 {
+				log.Println("actual key-val-diff : ", keyVal.ActualValue)
+				log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+			}
+
 			continue
 		}
 		// C(255)
