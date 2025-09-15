@@ -90,7 +90,7 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 
 	// calcualte the number of work reports accumulated
 	accumulationStatistics := types.AccumulationStatistics{}
-	serviceSet := []types.ServiceId{}
+	accumulationServiceList := []types.ServiceId{}
 	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
 		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
 
@@ -98,10 +98,10 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 			Gas:                   sumOfGasUsed,
 			NumAccumulatedReports: numOfWorkReportsAccumulated,
 		}
-		serviceSet = append(serviceSet, serviceId)
+		accumulationServiceList = append(accumulationServiceList, serviceId)
 	}
 
-	return accumulationStatistics, serviceSet
+	return accumulationStatistics, accumulationServiceList
 }
 
 // (12.26)
@@ -133,16 +133,16 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []
 	tauPrime := store.GetPosteriorStates().GetTau()
 
 	deltaDoubleDagger := types.ServiceAccountState{}
-	deferredTransfersStats := types.DeferredTransfersStatistics{}
+	deferredTransfersStatisics := types.DeferredTransfersStatistics{}
 
 	for _, serviceId := range s {
-		selectionOutput := selectionFunction(t, serviceId)
+		selectionFunctionOutput := selectionFunction(t, serviceId)
 
 		onTransferInput := PVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
-			DeferredTransfers: selectionOutput,
+			DeferredTransfers: selectionFunctionOutput,
 		}
 
 		updatedAcc, gas := PVM.OnTransferInvoke(onTransferInput)
@@ -152,16 +152,16 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []
 
 		deltaDoubleDagger[serviceId] = updatedAcc
 
-		if len(selectionOutput) > 0 {
-			deferredTransfersStats[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
-				NumDeferredTransfers: types.U64(len(selectionOutput)),
+		if len(selectionFunctionOutput) > 0 {
+			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
+				NumDeferredTransfers: types.U64(len(selectionFunctionOutput)),
 				TotalGasUsed:         gas,
 			}
 		}
 	}
 
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
-	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStats)
+	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
 // (12.31) (12.32)
@@ -319,11 +319,11 @@ func DeferredTransfers() error {
 	}
 
 	// (12.23) (12.24) (12.25)
-	accumulationStatistics, accumulatedServices := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
+	accumulationStatistics, accumulationServiceList := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	updateDeltaDoubleDagger(store, output.DeferredTransfers, accumulatedServices)
+	updateDeltaDoubleDagger(store, output.DeferredTransfers, accumulationServiceList)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
