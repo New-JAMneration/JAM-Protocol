@@ -80,7 +80,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 // u from outer accuulation function
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
 // We save the accumulation statistics in the store
-func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) (types.AccumulationStatistics, []types.ServiceId) {
+func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) types.AccumulationStatistics {
 	// Sum of gas used of the service
 	// service id map to sum of gas used
 	sumOfGasUsedMap := map[types.ServiceId]types.Gas{}
@@ -93,11 +93,9 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	accumulatedServices := []types.ServiceId{}
 	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
 		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
-
 		if numOfWorkReportsAccumulated == 0 {
 			continue // skip, N(S) = []
 		}
-
 		accumulationStatistics[serviceId] = types.GasAndNumAccumulatedReports{
 			Gas:                   sumOfGasUsed,
 			NumAccumulatedReports: numOfWorkReportsAccumulated,
@@ -170,10 +168,10 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accu
 	}
 
 	// === (12.32) apply a'_a = τ′ for s ∈ K(S) ===
-	for _, serviceId := range s {
-		if acc, ok := deltaDoubleDagger[serviceId]; ok {
+	for serviceID := range accumulationStatistics {
+		if acc, ok := deltaDoubleDagger[serviceID]; ok {
 			acc.ServiceInfo.LastAccumulationSlot = tauPrime
-			deltaDoubleDagger[serviceId] = acc
+			deltaDoubleDagger[serviceID] = acc
 		}
 	}
 
@@ -339,7 +337,7 @@ func DeferredTransfers() error {
 	}
 
 	// (12.23) (12.24) (12.25)
-	accumulationStatistics, accumulatedServices := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
+	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
