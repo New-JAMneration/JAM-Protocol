@@ -145,6 +145,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []
 			DeferredTransfers: selectionFunctionOutput,
 		}
 
+		// Call OnTransferInvoke
 		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
 		// (12.32) apply a'_a = τ'
@@ -160,7 +161,10 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []
 		}
 	}
 
+	// Update delta double dagger
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
+
+	// Save the deferred transfers statistics
 	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
