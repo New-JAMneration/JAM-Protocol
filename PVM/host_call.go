@@ -968,6 +968,10 @@ func write(input OmegaInput) (output OmegaOutput) {
 		storageValue := input.Memory.Read(vo, vz)
 		a.StorageDict[string(storageKey)] = storageValue
 
+		// storageDict is updated, service items and service Bytes should be updated
+		a.ServiceInfo.Items = service_account.CalcKeys(a)
+		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
@@ -2454,11 +2458,16 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
-			a.LookupDict = make(types.LookupMetaMapEntry, 0)
+			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
 		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			lookupData = append(lookupData, timeslot)
 			a.LookupDict[lookupKey] = lookupData
+
+			// storageDict is updated, service items and service Bytes should be updated
+			a.ServiceInfo.Items = service_account.CalcKeys(a)
+			a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		} else {
 			// a = panic
 			input.Registers[7] = HUH
@@ -2471,6 +2480,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
+
 		// a_b < a_t
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
 			// rollback the changes made to the lookup dict
@@ -2483,7 +2493,9 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			input.Registers[7] = FULL
 		} else {
 			input.Registers[7] = OK
+
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
 		}
 	} else {
 		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)

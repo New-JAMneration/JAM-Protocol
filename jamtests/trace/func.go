@@ -63,7 +63,7 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
-			log.Println("key: ", keyVal.Key)
+			log.Println("key: ", keyValMap[keyVal.Key])
 			if len(keyVal.ActualValue) < 64 {
 				log.Println("actual key-val-diff : ", keyVal.ActualValue)
 				log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
@@ -77,6 +77,9 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 			if err != nil {
 				return nil, err
 			}
+			log.Println("serviceID: ", serviceId)
+			log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
 			serviceList = append(serviceList, types.U32(serviceId))
 			continue
 		}
