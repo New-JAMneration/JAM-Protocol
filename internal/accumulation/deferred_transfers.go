@@ -129,6 +129,8 @@ func selectionFunction(transfers types.DeferredTransfers, destinationServiceId t
 // On-Transfer service-account invocation function as ΨT
 // INFO: t from the outer accumulation function
 func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []types.ServiceId) {
+
+	// Get delta dagger and tau prime
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
 
