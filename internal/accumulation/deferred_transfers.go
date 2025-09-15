@@ -145,12 +145,12 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, s []
 			DeferredTransfers: selectionFunctionOutput,
 		}
 
-		updatedAcc, gas := PVM.OnTransferInvoke(onTransferInput)
+		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
 		// (12.32) apply a'_a = τ'
-		updatedAcc.ServiceInfo.LastAccumulationSlot = tauPrime
+		serviceAccount.ServiceInfo.LastAccumulationSlot = tauPrime
 
-		deltaDoubleDagger[serviceId] = updatedAcc
+		deltaDoubleDagger[serviceId] = serviceAccount
 
 		if len(selectionFunctionOutput) > 0 {
 			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
