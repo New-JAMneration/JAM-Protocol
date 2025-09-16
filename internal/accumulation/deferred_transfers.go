@@ -126,7 +126,7 @@ func selectionFunction(transfers types.DeferredTransfers, destinationServiceId t
 // delta double dagger: Second intermediate state
 // On-Transfer service-account invocation function as ΨT
 // INFO: t from the outer accumulation function
-func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
+func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accumulationStatistics types.AccumulationStatistics) {
 	// Get delta dagger
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
@@ -134,6 +134,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 	// Call OnTransferInvoke
 	deltaDoubleDagger := types.ServiceAccountState{}
 	deferredTransfersStatisics := types.DeferredTransfersStatistics{}
+	newDeferredTransfers := []types.DeferredTransfer{}
 
 	for serviceId := range deltaDagger {
 		selectionFunctionOutput := selectionFunction(t, serviceId)
@@ -147,10 +148,9 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		// (12.27) x
 		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
-		// (12.28)
-		if _, exists := deltaDagger[serviceId]; exists {
-			// TODO : apply the changes to the service account
-			// This is a placeholder for the actual changes to the service account
+		// === (12.32) apply a'_a = τ′ for s ∈ K(S) ===
+		if _, ok := accumulationStatistics[serviceId]; ok {
+			serviceAccount.ServiceInfo.RecentAccumulateTime = tauPrime
 		}
 		deltaDoubleDagger[serviceId] = serviceAccount
 
@@ -161,7 +161,9 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 				NumDeferredTransfers: types.U64(len(selectionFunctionOutput)),
 				TotalGasUsed:         gas,
 			}
+			newDeferredTransfers = append(newDeferredTransfers, selectionFunctionOutput...)
 		}
+
 	}
 
 	// Update delta double dagger
@@ -169,6 +171,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 
 	// Save the deferred transfers statistics
 	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStatisics)
+	store.GetIntermediateStates().SetDeferredTransfers(newDeferredTransfers)
 }
 
 // (12.31) (12.32)
@@ -325,7 +328,8 @@ func DeferredTransfers() error {
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	// updateDeltaDoubleDagger(store, output.DeferredTransfers)
+	var t types.DeferredTransfers
+	updateDeltaDoubleDagger(store, t, accumulationStatistics)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)

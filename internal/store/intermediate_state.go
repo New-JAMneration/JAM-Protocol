@@ -28,6 +28,7 @@ type IntermediateState struct {
 	AccumulatableWorkReports    []types.WorkReport
 	AccumulationStatistics      types.AccumulationStatistics
 	DeferredTransfersStatistics types.DeferredTransfersStatistics
+	DeferredTransfers           []types.DeferredTransfer
 }
 
 func NewIntermediateStates() *IntermediateStates {
@@ -193,4 +194,16 @@ func (s *IntermediateStates) GetDeferredTransfersStatistics() types.DeferredTran
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.DeferredTransfersStatistics
+}
+
+func (s *IntermediateStates) SetDeferredTransfers(w []types.DeferredTransfer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.DeferredTransfers = w
+}
+
+func (s *IntermediateStates) GetDeferredTransfers() []types.DeferredTransfer {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.DeferredTransfers
 }
