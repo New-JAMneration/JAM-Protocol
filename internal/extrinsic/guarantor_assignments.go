@@ -19,7 +19,7 @@ var (
 // (11.18) G ∈ (⟦N_C⟧N_V , ⟦H_K ⟧N_V )
 type GuranatorAssignments struct {
 	CoreAssignments []types.CoreIndex
-	PublicKeys      []types.Ed25519Public
+	PublicKeys      []types.Validator
 }
 
 // (11.19) R(c, n) = [(x + n) mod C | x ∈ c]
@@ -65,10 +65,13 @@ func NewGuranatorAssignments(
 
 	// 2. get the public keys
 	result := safrole.ReplaceOffenderKeys(validators)
-	pubKeys := make([]types.Ed25519Public, len(result))
+	pubKeys := make([]types.Validator, len(result))
 
 	for i, v := range result {
-		pubKeys[i] = v.Ed25519
+		pubKeys[i].Ed25519 = v.Ed25519
+		pubKeys[i].Bandersnatch = v.Bandersnatch
+		pubKeys[i].Bls = v.Bls
+		pubKeys[i].Metadata = v.Metadata
 	}
 
 	return GuranatorAssignments{

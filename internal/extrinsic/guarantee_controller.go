@@ -59,17 +59,17 @@ func (g *GuaranteeController) Sort() error {
 		return nil
 	}
 
-	err := SortUniqueSignatures(g.Guarantees[0].Signatures)
+	err := CheckSignaturesAreSorted(g.Guarantees[0].Signatures)
 	if err != nil {
 		// not_sorted_guarantors
 		return err
 	}
 	for i := 1; i < len(g.Guarantees); i++ {
-		if g.Guarantees[i-1].Report.CoreIndex >= g.Guarantees[i].Report.CoreIndex {
+		if g.Guarantees[i-1].Report.CoreIndex > g.Guarantees[i].Report.CoreIndex {
 			err := ReportsErrorCode.OutOfOrderGuarantee
 			return &err
 		}
-		err := SortUniqueSignatures(g.Guarantees[i].Signatures)
+		err := CheckSignaturesAreSorted(g.Guarantees[i].Signatures)
 		if err != nil {
 			// "not_sorted_guarantors"
 			return err
@@ -78,25 +78,14 @@ func (g *GuaranteeController) Sort() error {
 	return nil
 }
 
-func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
-	/*
-		sort.Slice(signatures, func(i, j int) bool {
-			return signatures[i].ValidatorIndex < signatures[j].ValidatorIndex
-		})
-		uniqueSignatures := signatures[:0]
-		for i, sig := range signatures {
-			if i == 0 || sig.ValidatorIndex != signatures[i-1].ValidatorIndex {
-				uniqueSignatures = append(uniqueSignatures, sig)
-			}
-		}
-		copy(signatures, uniqueSignatures)
-	*/
+// SortSignatures sorts the signatures in ascending order of ValidatorIndex
+func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 	if len(signatures) == 0 {
 		return nil
 	}
 
 	for i := 0; i < len(signatures)-1; i++ {
-		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
+		if signatures[i].ValidatorIndex > signatures[i+1].ValidatorIndex {
 			// return errors.New("not_sorted_or_unique_guarantors")
 			err := ReportsErrorCode.NotSortedOrUniqueGuarantors
 			return &err
@@ -135,7 +124,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 				err := ReportsErrorCode.WrongAssignment
 				return &err
 			}
-			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
+			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
 			if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
 				err := ReportsErrorCode.BadSignature
 				return &err
@@ -494,7 +483,7 @@ func GetGuarantors(guarantee types.ReportGuarantee) []types.Ed25519Public {
 	}
 
 	for _, sig := range guarantee.Signatures {
-		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex])
+		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519)
 	}
 
 	return guarantors
