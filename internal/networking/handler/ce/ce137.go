@@ -85,14 +85,6 @@ func HandleECShardRequest_Guarantor(stream *quic.Stream) error {
 
 // HandleECShardRequest_Assurer handles an assurer's request for erasure coded shards from a guarantor.
 // Role: [Assurer -> Guarantor]
-//
-// Protocol:
-// --> Erasure-Root ++ Shard Index
-// --> FIN
-// <-- Bundle Shard
-// <-- [Segment Shard] (Should include all exported and proof segment shards with the given index)
-// <-- Justification
-// <-- FIN
 func HandleECShardRequest_Assurer(stream *quic.Stream, erasureRoot []byte, shardIndex uint32) error {
 	// Send request: Erasure-Root (32 bytes) + Shard Index (4 bytes) + 'FIN' (3 bytes)
 	request := make([]byte, 32+4+3)

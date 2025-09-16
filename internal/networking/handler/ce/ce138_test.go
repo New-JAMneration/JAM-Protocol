@@ -22,7 +22,7 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
-	err := HandleAuditShardRequest(nil, &quic.Stream{Stream: stream})
+	err := HandleAuditShardRequest_Assurer(nil, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

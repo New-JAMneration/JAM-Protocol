@@ -14,7 +14,8 @@ import (
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
-func HandleAuditShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+// Role: [Auditor -> Assurer]
+func HandleAuditShardRequest_Assurer(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
 	buf := make([]byte, 32+4+3)
 	if err := stream.ReadFull(buf); err != nil {
@@ -33,24 +34,67 @@ func HandleAuditShardRequest(blockchain blockchain.Blockchain, stream *quic.Stre
 		return fmt.Errorf("failed to lookup work package bundle shard: %w", err)
 	}
 
-	// Write the bundle shard
-	if _, err := stream.Write(bundleShard); err != nil {
-		return err
+	if err := stream.WriteMessage(bundleShard); err != nil {
+		return fmt.Errorf("failed to write bundle shard: %w", err)
 	}
 
-	// Construct the justification by appending segment shard roots to the CE137 justification
 	justification, err := constructAuditJustification(erasureRoot, shardIndex, bundleShard)
 	if err != nil {
 		return fmt.Errorf("failed to construct justification: %w", err)
 	}
 
-	if _, err := stream.Write(justification); err != nil {
-		return err
+	if err := stream.WriteMessage(justification); err != nil {
+		return fmt.Errorf("failed to write justification: %w", err)
 	}
 
 	if _, err := stream.Write([]byte("FIN")); err != nil {
 		return err
 	}
+
+	return stream.Close()
+}
+
+func HandleAuditShardRequest_Auditor(blockchain blockchain.Blockchain, stream *quic.Stream, erasureRoot []byte, shardIndex uint32) error {
+	// Send request: Erasure-Root (32 bytes) + Shard Index (4 bytes) + 'FIN' (3 bytes)
+	if len(erasureRoot) != 32 {
+		return fmt.Errorf("erasure root must be 32 bytes, got %d", len(erasureRoot))
+	}
+
+	request := make([]byte, 32+4+3)
+	copy(request[:32], erasureRoot)
+	binary.LittleEndian.PutUint32(request[32:36], shardIndex)
+	copy(request[36:39], []byte("FIN"))
+
+	if _, err := stream.Write(request); err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
+	// Read response: length-prefixed bundle shard, justification (ReadMessage), then FIN
+	lenBuf := make([]byte, 4)
+	if err := stream.ReadFull(lenBuf); err != nil {
+		return fmt.Errorf("failed to read bundle shard length: %w", err)
+	}
+	bundleShardLen := binary.LittleEndian.Uint32(lenBuf)
+	bundleShard := make([]byte, bundleShardLen)
+	if err := stream.ReadFull(bundleShard); err != nil {
+		return fmt.Errorf("failed to read bundle shard: %w", err)
+	}
+
+	justification, err := stream.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("failed to read justification: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN marker: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("expected FIN marker, got %q", string(finBuf))
+	}
+
+	_ = bundleShard
+	_ = justification
 
 	return stream.Close()
 }
