@@ -5,7 +5,6 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -122,53 +121,24 @@ func selectionFunction(transfers types.DeferredTransfers, destinationServiceId t
 	return outputTransfers
 }
 
-// (12.27) (12.28) (12.29) (12.30)
-// delta double dagger: Second intermediate state
-// On-Transfer service-account invocation function as ΨT
-// INFO: t from the outer accumulation function
-func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
-	// Get delta dagger
+// (12.28) (12.29) (12.30) (12.31) (12.32)
+// Build delta double dagger (second intermediate state)
+// NOTE: v0.7.1 has removed deferred transfers & Ψ_T
+func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.AccumulationStatistics) {
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
 
-	// Call OnTransferInvoke
 	deltaDoubleDagger := types.ServiceAccountState{}
-	deferredTransfersStatisics := types.DeferredTransfersStatistics{}
 
-	for serviceId := range deltaDagger {
-		selectionFunctionOutput := selectionFunction(t, serviceId)
-		onTransferInput := PVM.OnTransferInput{
-			ServiceAccounts:   deltaDagger,
-			Timeslot:          tauPrime,
-			ServiceID:         serviceId,
-			DeferredTransfers: selectionFunctionOutput,
+	for serviceId, acc := range deltaDagger {
+		// If this service was actually accumulated this round
+		if _, ok := accumulationStatistics[serviceId]; ok {
+			acc.ServiceInfo.RecentAccumulateTime = tauPrime
 		}
-
-		// (12.27) x
-		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
-
-		// (12.28)
-		if _, exists := deltaDagger[serviceId]; exists {
-			// TODO : apply the changes to the service account
-			// This is a placeholder for the actual changes to the service account
-		}
-		deltaDoubleDagger[serviceId] = serviceAccount
-
-		// Calculate transfers statistics (X)
-		// (12.29) (12.30) Calculate the deferred transfers statistics
-		if len(selectionFunctionOutput) != 0 {
-			deferredTransfersStatisics[serviceId] = types.NumDeferredTransfersAndTotalGasUsed{
-				NumDeferredTransfers: types.U64(len(selectionFunctionOutput)),
-				TotalGasUsed:         gas,
-			}
-		}
+		deltaDoubleDagger[serviceId] = acc
 	}
 
-	// Update delta double dagger
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
-
-	// Save the deferred transfers statistics
-	store.GetIntermediateStates().SetDeferredTransfersStatistics(deferredTransfersStatisics)
 }
 
 // (12.31) (12.32)
@@ -325,7 +295,7 @@ func DeferredTransfers() error {
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	// updateDeltaDoubleDagger(store, output.DeferredTransfers)
+	updateDeltaDoubleDagger(store, accumulationStatistics)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
