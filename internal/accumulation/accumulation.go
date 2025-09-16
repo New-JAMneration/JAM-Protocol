@@ -203,15 +203,10 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 
 	gasSum := 0
 	i := 0
-
-	g := input.GasLimit
 	t := input.DeferredTransfers
-	r := input.WorkReports
-	e := input.InitPartialStateSet
-	f := input.ServicesWithFreeAccumulation
 
 	// Determine the maximal prefix of reports that fits within the gas limit
-	for idx, report := range r {
+	for idx, report := range w {
 		for _, result := range report.Results {
 			gasSum += int(result.AccumulateGas)
 		}
@@ -236,7 +231,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	var parallel_input ParallelizedAccumulationInput
 	parallel_input.PartialStateSet = e
 	parallel_input.DeferredTransfers = t
-	parallel_input.WorkReports = r[:i]
+	parallel_input.WorkReports = w[:i]
 	parallel_input.AlwaysAccumulateMap = f
 
 	parallel_result, err := ParallelizedAccumulation(parallel_input)
@@ -262,10 +257,10 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	var recursive_outer_input OuterAccumulationInput
 	recursive_outer_input.GasLimit = gas_limit_for_recursion
 	recursive_outer_input.DeferredTransfers = t_star
-	recursive_outer_input.WorkReports = r[i:]
+	recursive_outer_input.WorkReports = w[i:]
 	recursive_outer_input.InitPartialStateSet = e_star
 	recursive_outer_input.ServicesWithFreeAccumulation = make(map[types.ServiceId]types.Gas) // {}
-
+	recursive_outer_output, err := OuterAccumulation(recursive_outer_input)
 	if err != nil {
 		return output, fmt.Errorf("recursive accumulation failed: %w", err)
 	}
@@ -553,8 +548,11 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 // (12.20) ∆1 single-service accumulation function
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
-	e := input.PartialStateSet
-	s := input.ServiceId
+	e := input.PartialStateSet       // e: PartialStateSet
+	t := input.DeferredTransfers     // t: DeferredTransfers
+	r := input.WorkReports           // r: WorkReports
+	f := input.AlwaysAccumulateMap   // f: AlwaysAccumulateMap
+	s := input.ServiceId             // s: ServiceId
 	var i_T []types.Operand          // all operand inputs for Ψₐ
 	var i_U []types.DeferredTransfer // all deferred transfers for Ψₐ
 
@@ -565,9 +563,9 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	}
 
 	// iT: all accumulate work result operands for service s
-	for _, r := range input.WorkReports {
+	for _, r := range r {
 		for _, d := range r.Results {
-			if d.ServiceId == input.ServiceId {
+			if d.ServiceId == s {
 				//    ∑(rg )
 				// w∈w,r∈wr,rs=s
 				g += d.AccumulateGas
@@ -587,7 +585,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	}
 
 	// iU: all deferred transfers for service s
-	for _, deferred_transfer := range input.DeferredTransfers {
+	for _, deferred_transfer := range t {
 		if deferred_transfer.ReceiverID == input.ServiceId {
 			i_U = append(i_U, deferred_transfer)
 			g += deferred_transfer.GasLimit
