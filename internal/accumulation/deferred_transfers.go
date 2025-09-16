@@ -328,7 +328,7 @@ func DeferredTransfers() error {
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	var t types.DeferredTransfers
+	t := store.GetIntermediateStates().GetDeferredTransfers()
 	updateDeltaDoubleDagger(store, t, accumulationStatistics)
 
 	// (12.31) (12.32)
