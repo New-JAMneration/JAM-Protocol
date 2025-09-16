@@ -165,14 +165,6 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accu
 
 	}
 
-	// === (12.32) apply a'_a = τ′ for s ∈ K(S) ===
-	for serviceID := range accumulationStatistics {
-		if acc, ok := deltaDoubleDagger[serviceID]; ok {
-			acc.ServiceInfo.LastAccumulationSlot = tauPrime
-			deltaDoubleDagger[serviceID] = acc
-		}
-	}
-
 	// Update delta double dagger
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 
