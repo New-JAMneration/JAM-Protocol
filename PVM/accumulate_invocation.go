@@ -111,6 +111,7 @@ func Psi_A(
 			ResultContextY: I(partialState, serviceId, timeslot, eta),
 			Eta:            eta,
 			Operands:       operands,
+			Timeslot:       timeslot,
 		},
 		Program: Program{},
 	}
