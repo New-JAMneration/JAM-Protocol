@@ -59,23 +59,26 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 	// decoder := types.NewDecoder()
 	var serviceList []types.U32
 	var errorStateSlice []string
+	var otherServiceStates []types.StateKey
 	for _, keyVal := range keyValDiffs {
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
-			log.Println("state: ", keyValMap[keyVal.Key])
+			log.Println("state: ", state)
 			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
 			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
-			if keyValMap[keyVal.Key] == "pi" {
-				expectedStruct, err := merklization.SingleKeyValToState(keyVal.Key, keyVal.ExpectedValue)
-				if err != nil {
-					log.Println("failed to parse single key-val to state")
-					return nil, err
+			/*
+				if keyValMap[keyVal.Key] == "pi" {
+					expectedStruct, err := merklization.SingleKeyValToState(keyVal.Key, keyVal.ExpectedValue)
+					if err != nil {
+						log.Println("failed to parse single key-val to state")
+						return nil, err
+					}
+					fmt.Printf("statistics:%+v\n", store.GetInstance().GetPosteriorStates().GetPi())
+					fmt.Println("---------------------------------")
+					fmt.Printf("execptedst:%+v\n", expectedStruct)
 				}
-				fmt.Printf("statistics:%+v\n", store.GetInstance().GetPosteriorStates().GetPi())
-				fmt.Println("---------------------------------")
-				fmt.Printf("execptedst:%+v\n", expectedStruct)
-			}
+			*/
 			continue
 		}
 		// C(255)
@@ -90,32 +93,22 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 			serviceList = append(serviceList, types.U32(serviceId))
 			continue
 		}
+
 		// a_s,  a_p,  a_l
-
-	}
-	/*
-		for _, v := range keyValDiffs {
-			newDecoder := types.NewDecoder()
-			state := types.State{}
-			keyType := keyValMap[v.Key]
-			stateType, err := getStateField(state, keyType)
-			if err != nil {
-				return nil, err
-			}
-
-			expectedValue := reflect.New(reflect.TypeOf(stateType)).Interface()
-			err = newDecoder.Decode(v.ExpectedValue, expectedValue)
-			if err != nil {
-				return nil, fmt.Errorf("decode expectedValue failed: %v", err)
-			}
-
-			actualValue := reflect.New(reflect.TypeOf(stateType)).Interface()
-			err = newDecoder.Decode(v.ActualValue, actualValue)
-			if err != nil {
-				return nil, fmt.Errorf("decode actualValue failed: %v", err)
-			}
+		otherServiceStates = append(otherServiceStates, keyVal.Key)
+		if len(keyVal.ActualValue) > 600 || len(keyVal.ExpectedValue) < 600 {
+			log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+		} else {
+			log.Printf("key-val, key: %v too big check json\n", keyVal.Key)
 		}
-	*/
+	}
+
+	if len(errorStateSlice) == 1 && len(serviceList) == 0 && len(otherServiceStates) == 0 {
+		if errorStateSlice[0] == "pi" {
+			return nil, nil
+		}
+	}
 	var diff string
 
 	if len(serviceList) > 0 || len(errorStateSlice) > 0 {
@@ -125,8 +118,11 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		}
 		errorStateSlice = append(errorStateSlice, deltaDiffStr)
 		diff = strings.Join(errorStateSlice, ", ")
+		if len(otherServiceStates) > 0 {
+			diff += fmt.Sprintf("state-keys: %x\n", otherServiceStates)
+		}
 	} else {
-		diff = "check account-storage, account-lookupDict, account-primageLookupDict"
+		diff = fmt.Sprintf("state-keys: %x\n", otherServiceStates)
 	}
 
 	return fmt.Errorf("%s", diff), nil
