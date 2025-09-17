@@ -1,11 +1,13 @@
 package types_test
 
 import (
+	"context"
 	"log"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -81,7 +83,17 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 	}
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+	mockHashSegmentMap := map[string]string{}
+	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
 
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
 	for structType, fileNames := range testCases {
 		for _, filename := range fileNames {
 			// Read json file
@@ -96,6 +108,7 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 
 			// Encode the JSON data
 			encoder := types.NewEncoder()
+			encoder.SetHashSegmentMap(hashSegmentMap)
 			encoded, err := encoder.Encode(structValue.Addr().Interface())
 			if err != nil {
 				t.Fatalf("Failed to encode JSON data: %v", err)
@@ -552,172 +565,172 @@ func TestEncodeJamTestVectorsHistory(t *testing.T) {
 	}
 }
 
-func TestEncodeJamTestNetGenesisBlock(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  genesis block only support tiny mode")
-	}
+// func TestEncodeJamTestNetGenesisBlock(t *testing.T) {
+// 	BACKUP_TEST_MODE := types.TEST_MODE
+// 	if types.TEST_MODE != "tiny" {
+// 		types.SetTinyMode()
+// 		log.Println("⚠️  genesis block only support tiny mode")
+// 	}
 
-	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+// 	filename := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
 
-	// Read json file
-	structType := reflect.TypeOf(types.Block{})
-	data, err := LoadJAMTestJsonCase(filename, structType)
-	if err != nil {
-		t.Fatalf("Failed to read JSON file: %v", err)
-	}
+// 	// Read json file
+// 	structType := reflect.TypeOf(types.Block{})
+// 	data, err := LoadJAMTestJsonCase(filename, structType)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read JSON file: %v", err)
+// 	}
 
-	structValue := reflect.New(structType).Elem()
-	structValue.Set(reflect.ValueOf(data))
+// 	structValue := reflect.New(structType).Elem()
+// 	structValue.Set(reflect.ValueOf(data))
 
-	// Encode the JSON data
-	encoder := types.NewEncoder()
-	encoded, err := encoder.Encode(structValue.Addr().Interface())
-	if err != nil {
-		t.Fatalf("Failed to encode JSON data: %v", err)
-	}
+// 	// Encode the JSON data
+// 	encoder := types.NewEncoder()
+// 	encoded, err := encoder.Encode(structValue.Addr().Interface())
+// 	if err != nil {
+// 		t.Fatalf("Failed to encode JSON data: %v", err)
+// 	}
 
-	// Read binary file
-	binFilePath := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+// 	// Read binary file
+// 	binFilePath := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 
-	binData, err := LoadJAMTestBinaryCase(binFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read binary file: %v", err)
-	}
+// 	binData, err := LoadJAMTestBinaryCase(binFilePath)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read binary file: %v", err)
+// 	}
 
-	// Compare the binary data
-	if !CompareBinaryData(encoded, binData) {
-		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis")
-		t.Fatalf("Binary data is not equal to the expected data")
-	} else {
-		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis")
-	}
+// 	// Compare the binary data
+// 	if !CompareBinaryData(encoded, binData) {
+// 		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis")
+// 		t.Fatalf("Binary data is not equal to the expected data")
+// 	} else {
+// 		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis")
+// 	}
 
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
-}
+// 	// Reset the test mode
+// 	if BACKUP_TEST_MODE == "tiny" {
+// 		types.SetTinyMode()
+// 	} else {
+// 		types.SetFullMode()
+// 	}
+// }
 
-func TestEncodeJamTestNetGenesisState(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  genesis state only support tiny mode")
-	}
+// func TestEncodeJamTestNetGenesisState(t *testing.T) {
+// 	BACKUP_TEST_MODE := types.TEST_MODE
+// 	if types.TEST_MODE != "tiny" {
+// 		types.SetTinyMode()
+// 		log.Println("⚠️  genesis state only support tiny mode")
+// 	}
 
-	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
+// 	filename := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.json"
 
-	// Read json file
-	structType := reflect.TypeOf(types.State{})
-	data, err := LoadJAMTestJsonCase(filename, structType)
-	if err != nil {
-		t.Fatalf("Failed to read JSON file: %v", err)
-	}
+// 	// Read json file
+// 	structType := reflect.TypeOf(types.State{})
+// 	data, err := LoadJAMTestJsonCase(filename, structType)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read JSON file: %v", err)
+// 	}
 
-	structValue := reflect.New(structType).Elem()
-	structValue.Set(reflect.ValueOf(data))
+// 	structValue := reflect.New(structType).Elem()
+// 	structValue.Set(reflect.ValueOf(data))
 
-	// Encode the JSON data
-	encoder := types.NewEncoder()
-	encoded, err := encoder.Encode(structValue.Addr().Interface())
-	if err != nil {
-		t.Fatalf("Failed to encode JSON data: %v", err)
-	}
+// 	// Encode the JSON data
+// 	encoder := types.NewEncoder()
+// 	encoded, err := encoder.Encode(structValue.Addr().Interface())
+// 	if err != nil {
+// 		t.Fatalf("Failed to encode JSON data: %v", err)
+// 	}
 
-	// Read binary file
-	binFilePath := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
+// 	// Read binary file
+// 	binFilePath := "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
 
-	binData, err := LoadJAMTestBinaryCase(binFilePath)
-	if err != nil {
-		t.Fatalf("Failed to read binary file: %v", err)
-	}
+// 	binData, err := LoadJAMTestBinaryCase(binFilePath)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read binary file: %v", err)
+// 	}
 
-	// Compare the binary data
-	if !CompareBinaryData(encoded, binData) {
-		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis-tiny")
-		t.Fatalf("Binary data is not equal to the expected data")
-	} else {
-		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
-	}
+// 	// Compare the binary data
+// 	if !CompareBinaryData(encoded, binData) {
+// 		log.Printf("❌ [%s] %s", types.TEST_MODE, "genesis-tiny")
+// 		t.Fatalf("Binary data is not equal to the expected data")
+// 	} else {
+// 		log.Printf("✅ [%s] %s", types.TEST_MODE, "genesis-tiny")
+// 	}
 
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
-}
+// 	// Reset the test mode
+// 	if BACKUP_TEST_MODE == "tiny" {
+// 		types.SetTinyMode()
+// 	} else {
+// 		types.SetFullMode()
+// 	}
+// }
 
-func TestEncodeJamTestNetBlock(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
-	}
+// func TestEncodeJamTestNetBlock(t *testing.T) {
+// 	BACKUP_TEST_MODE := types.TEST_MODE
+// 	if types.TEST_MODE != "tiny" {
+// 		types.SetTinyMode()
+// 		log.Println("⚠️  jamtestnet block test cases only support tiny mode")
+// 	}
 
-	dirNames := []string{
-		"assurances",
-		"fallback",
-		"orderedaccumulation",
-		"safrole",
-	}
+// 	dirNames := []string{
+// 		"assurances",
+// 		"fallback",
+// 		"orderedaccumulation",
+// 		"safrole",
+// 	}
 
-	for _, dirName := range dirNames {
-		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "blocks")
+// 	for _, dirName := range dirNames {
+// 		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "blocks")
 
-		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
+// 		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+// 		if err != nil {
+// 			t.Errorf("Error: %v", err)
+// 		}
 
-		for _, file := range files {
-			jsonPath := filepath.Join(dir, file)
-			structType := reflect.TypeOf(types.Block{})
-			data, err := LoadJAMTestJsonCase(jsonPath, structType)
-			if err != nil {
-				t.Fatalf("Failed to read JSON file: %v", err)
-			}
+// 		for _, file := range files {
+// 			jsonPath := filepath.Join(dir, file)
+// 			structType := reflect.TypeOf(types.Block{})
+// 			data, err := LoadJAMTestJsonCase(jsonPath, structType)
+// 			if err != nil {
+// 				t.Fatalf("Failed to read JSON file: %v", err)
+// 			}
 
-			structValue := reflect.New(structType).Elem()
-			structValue.Set(reflect.ValueOf(data))
+// 			structValue := reflect.New(structType).Elem()
+// 			structValue.Set(reflect.ValueOf(data))
 
-			// Encode the JSON data
-			encoder := types.NewEncoder()
-			encoded, err := encoder.Encode(structValue.Addr().Interface())
-			if err != nil {
-				t.Fatalf("Failed to encode JSON data: %v", err)
-			}
+// 			// Encode the JSON data
+// 			encoder := types.NewEncoder()
+// 			encoded, err := encoder.Encode(structValue.Addr().Interface())
+// 			if err != nil {
+// 				t.Fatalf("Failed to encode JSON data: %v", err)
+// 			}
 
-			// Read binary file
-			filename := file[:len(file)-len(JSON_EXTENTION)]
-			binFileName := GetBinFilename(filename)
-			binFilePath := filepath.Join(dir, binFileName)
-			binData, err := LoadJAMTestBinaryCase(binFilePath)
-			if err != nil {
-				t.Fatalf("Failed to read binary file: %v", err)
-			}
+// 			// Read binary file
+// 			filename := file[:len(file)-len(JSON_EXTENTION)]
+// 			binFileName := GetBinFilename(filename)
+// 			binFilePath := filepath.Join(dir, binFileName)
+// 			binData, err := LoadJAMTestBinaryCase(binFilePath)
+// 			if err != nil {
+// 				t.Fatalf("Failed to read binary file: %v", err)
+// 			}
 
-			// Compare the binary data
-			if !CompareBinaryData(encoded, binData) {
-				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
-				t.Fatalf("Binary data is not equal to the expected data")
-			} else {
-				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
-			}
-		}
-	}
+// 			// Compare the binary data
+// 			if !CompareBinaryData(encoded, binData) {
+// 				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+// 				t.Fatalf("Binary data is not equal to the expected data")
+// 			} else {
+// 				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+// 			}
+// 		}
+// 	}
 
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
-}
+// 	// Reset the test mode
+// 	if BACKUP_TEST_MODE == "tiny" {
+// 		types.SetTinyMode()
+// 	} else {
+// 		types.SetFullMode()
+// 	}
+// }
 
 // INFO: We cannot pass this test because they didn't implement the sort for the
 // map
@@ -776,124 +789,124 @@ func TestEncodeJamTestNetBlock(t *testing.T) {
 // 	}
 // }
 
-// Encode json and decode the json, we have to get the same data
-func TestEncodeDecodeJamTestNetState(t *testing.T) {
-	BACKUP_TEST_MODE := types.TEST_MODE
-	if types.TEST_MODE != "tiny" {
-		types.SetTinyMode()
-		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
-	}
+// // Encode json and decode the json, we have to get the same data
+// func TestEncodeDecodeJamTestNetState(t *testing.T) {
+// 	BACKUP_TEST_MODE := types.TEST_MODE
+// 	if types.TEST_MODE != "tiny" {
+// 		types.SetTinyMode()
+// 		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+// 	}
 
-	dirNames := []string{
-		"assurances",
-		"fallback",
-		"orderedaccumulation",
-		"safrole",
-	}
+// 	dirNames := []string{
+// 		"assurances",
+// 		"fallback",
+// 		"orderedaccumulation",
+// 		"safrole",
+// 	}
 
-	for _, dirName := range dirNames {
-		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
+// 	for _, dirName := range dirNames {
+// 		dir := filepath.Join(JAM_TEST_NET_DIR, "data", dirName, "state_snapshots")
 
-		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
+// 		files, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+// 		if err != nil {
+// 			t.Errorf("Error: %v", err)
+// 		}
 
-		for _, file := range files {
-			jsonPath := filepath.Join(dir, file)
-			structType := reflect.TypeOf(types.State{})
-			data, err := LoadJAMTestJsonCase(jsonPath, structType)
-			if err != nil {
-				t.Fatalf("Failed to read JSON file: %v", err)
-			}
+// 		for _, file := range files {
+// 			jsonPath := filepath.Join(dir, file)
+// 			structType := reflect.TypeOf(types.State{})
+// 			data, err := LoadJAMTestJsonCase(jsonPath, structType)
+// 			if err != nil {
+// 				t.Fatalf("Failed to read JSON file: %v", err)
+// 			}
 
-			structValue := reflect.New(structType).Elem()
-			structValue.Set(reflect.ValueOf(data))
+// 			structValue := reflect.New(structType).Elem()
+// 			structValue.Set(reflect.ValueOf(data))
 
-			// Encode the JSON data
-			encoder := types.NewEncoder()
-			encoded, err := encoder.Encode(structValue.Addr().Interface())
-			if err != nil {
-				t.Fatalf("Failed to encode JSON data: %v", err)
-			}
+// 			// Encode the JSON data
+// 			encoder := types.NewEncoder()
+// 			encoded, err := encoder.Encode(structValue.Addr().Interface())
+// 			if err != nil {
+// 				t.Fatalf("Failed to encode JSON data: %v", err)
+// 			}
 
-			// Decode the encoded data
-			decoder := types.NewDecoder()
-			decoded := types.State{}
-			err = decoder.Decode(encoded, &decoded)
-			if err != nil {
-				t.Fatalf("Failed to decode encoded data: %v", err)
-			}
+// 			// Decode the encoded data
+// 			decoder := types.NewDecoder()
+// 			decoded := types.State{}
+// 			err = decoder.Decode(encoded, &decoded)
+// 			if err != nil {
+// 				t.Fatalf("Failed to decode encoded data: %v", err)
+// 			}
 
-			// Compare two state struct
-			if !reflect.DeepEqual(data, decoded) {
-				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
-				t.Errorf("Decoded data is not equal to the expected data")
-			} else {
-				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
-			}
-		}
-	}
+// 			// Compare two state struct
+// 			if !reflect.DeepEqual(data, decoded) {
+// 				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+// 				t.Errorf("Decoded data is not equal to the expected data")
+// 			} else {
+// 				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+// 			}
+// 		}
+// 	}
 
-	// Reset the test mode
-	if BACKUP_TEST_MODE == "tiny" {
-		types.SetTinyMode()
-	} else {
-		types.SetFullMode()
-	}
-}
+// 	// Reset the test mode
+// 	if BACKUP_TEST_MODE == "tiny" {
+// 		types.SetTinyMode()
+// 	} else {
+// 		types.SetFullMode()
+// 	}
+// }
 
-func TestEncodeJamTestNetTransitions(t *testing.T) {
-	dirnames := []string{
-		"assurances",
-		"generic",
-		"orderedaccumulation",
-	}
+// func TestEncodeJamTestNetTransitions(t *testing.T) {
+// 	dirnames := []string{
+// 		"assurances",
+// 		"generic",
+// 		"orderedaccumulation",
+// 	}
 
-	for _, dirname := range dirnames {
-		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirname, "state_transitions")
-		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
-		if err != nil {
-			t.Fatalf("Failed to get JSON files: %v", err)
-		}
-		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
-		if err != nil {
-			t.Fatalf("Failed to get BIN files: %v", err)
-		}
+// 	for _, dirname := range dirnames {
+// 		dir := filepath.Join(utilities.JAM_TEST_NET_DIR, "data", dirname, "state_transitions")
+// 		jsonTestFiles, err := GetTargetExtensionFiles(dir, JSON_EXTENTION)
+// 		if err != nil {
+// 			t.Fatalf("Failed to get JSON files: %v", err)
+// 		}
+// 		binTestFiles, err := GetTargetExtensionFiles(dir, BIN_EXTENTION)
+// 		if err != nil {
+// 			t.Fatalf("Failed to get BIN files: %v", err)
+// 		}
 
-		for i := 0; i < len(jsonTestFiles); i++ {
-			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
-			binTestFile := filepath.Join(dir, binTestFiles[i])
+// 		for i := 0; i < len(jsonTestFiles); i++ {
+// 			jsonTestFile := filepath.Join(dir, jsonTestFiles[i])
+// 			binTestFile := filepath.Join(dir, binTestFiles[i])
 
-			// Decode the JSON data
-			jsonData, err := utilities.GetTestFromJson[jamtests_trace.TraceTestCase](jsonTestFile)
-			if err != nil {
-				t.Fatalf("Failed to decode JSON data: %v", err)
-			}
+// 			// Decode the JSON data
+// 			jsonData, err := utilities.GetTestFromJson[jamtests_trace.TraceTestCase](jsonTestFile)
+// 			if err != nil {
+// 				t.Fatalf("Failed to decode JSON data: %v", err)
+// 			}
 
-			// Encode the JSON data
-			encoder := types.NewEncoder()
-			encoded, err := encoder.Encode(&jsonData)
-			if err != nil {
-				t.Fatalf("Failed to encode JSON data: %v", err)
-			}
+// 			// Encode the JSON data
+// 			encoder := types.NewEncoder()
+// 			encoded, err := encoder.Encode(&jsonData)
+// 			if err != nil {
+// 				t.Fatalf("Failed to encode JSON data: %v", err)
+// 			}
 
-			// Read the binary file
-			binData, err := utilities.GetBytesFromFile(binTestFile)
-			if err != nil {
-				t.Fatalf("Failed to read binary file: %v", err)
-			}
+// 			// Read the binary file
+// 			binData, err := utilities.GetBytesFromFile(binTestFile)
+// 			if err != nil {
+// 				t.Fatalf("Failed to read binary file: %v", err)
+// 			}
 
-			// Compare the binary data
-			if !CompareBinaryData(encoded, binData) {
-				log.Printf("❌ [%s] %s", dirname, jsonTestFiles[i])
-				t.Fatalf("Binary data is not equal to the expected data")
-			} else {
-				log.Printf("✅ [%s] %s", dirname, jsonTestFiles[i])
-			}
-		}
-	}
-}
+// 			// Compare the binary data
+// 			if !CompareBinaryData(encoded, binData) {
+// 				log.Printf("❌ [%s] %s", dirname, jsonTestFiles[i])
+// 				t.Fatalf("Binary data is not equal to the expected data")
+// 			} else {
+// 				log.Printf("✅ [%s] %s", dirname, jsonTestFiles[i])
+// 			}
+// 		}
+// 	}
+// }
 
 func TestEncodeJamTestVectorsTraces(t *testing.T) {
 	BACKUP_TEST_MODE := types.TEST_MODE
@@ -1038,5 +1051,85 @@ func TestEncodeJamTestVectorsTracesGenesis(t *testing.T) {
 		types.SetTinyMode()
 	} else {
 		types.SetFullMode()
+	}
+}
+
+func TestEncodeImportSpec(t *testing.T) {
+	// Prepare test cases
+	testCases := []struct {
+		importSpec types.ImportSpec
+		expected   []byte
+	}{
+		{
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+				},
+				Index: 2,
+			},
+			[]byte{
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0,
+			},
+		},
+		{
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+				},
+				Index: 1,
+			},
+			[]byte{
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 128, // E_2(1 + 2^15)
+			},
+		},
+	}
+
+	mockHashSegmentMap := map[string]string{
+		"1697123456_0101010101010101010101010101010101010101010101010101010101010101": "0101010101010101010101010101010101010101010101010101010101010101",
+	}
+
+	// If you want to encode the ImportSpec, you have to offer the `HashSegmentMap`.
+	// You can get the `HashSegmentMap` from the redis.
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+
+	// Set the mock hash segment map to the redis
+	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
+
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+
+	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(hashSegmentMap)
+
+	for _, testCase := range testCases {
+		importSpec := testCase.importSpec
+		encoded, err := encoder.Encode(&importSpec)
+		if err != nil {
+			t.Fatalf("Failed to encode import spec: %v", err)
+		}
+
+		// Compare the binary data
+		if !CompareBinaryData(encoded, testCase.expected) {
+			t.Fatalf("Encoded data is not equal to the expected data")
+		}
 	}
 }

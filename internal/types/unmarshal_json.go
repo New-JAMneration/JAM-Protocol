@@ -244,11 +244,12 @@ func (w *WorkItem) UnmarshalJSON(data []byte) error {
 
 func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Authorization string        `json:"authorization,omitempty"`
-		AuthCodeHost  U32           `json:"auth_code_host,omitempty"`
-		Authorizer    Authorizer    `json:"authorizer"`
-		Context       RefineContext `json:"context"`
-		Items         []WorkItem    `json:"items,omitempty"`
+		Authorization    string        `json:"authorization,omitempty"`
+		AuthCodeHost     U32           `json:"auth_code_host,omitempty"`
+		AuthCodeHash     string        `json:"auth_code_hash,omitempty"`
+		AuthorizerConfig string        `json:"authorizer_config,omitempty"`
+		Context          RefineContext `json:"context"`
+		Items            []WorkItem    `json:"items,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -262,7 +263,19 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	w.Authorization = ByteSequence(authorizationBytes)
 
 	w.AuthCodeHost = ServiceId(temp.AuthCodeHost)
-	w.Authorizer = temp.Authorizer
+
+	codeHashBytes, err := hex.DecodeString(temp.AuthCodeHash[2:])
+	if err != nil {
+		return err
+	}
+
+	paramsBytes, err := hex.DecodeString(temp.AuthorizerConfig[2:])
+	if err != nil {
+		return err
+	}
+
+	w.AuthCodeHash = OpaqueHash(codeHashBytes)
+	w.AuthorizerConfig = ByteSequence(paramsBytes)
 	w.Context = temp.Context
 	w.Items = temp.Items
 
@@ -1660,10 +1673,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 	}
 	p.Designate = ServiceId(temp.Designate)
 
-	if len(temp.AlwaysAccum) == 0 {
-		p.AlwaysAccum = make(AlwaysAccumulateMap)
-	}
-
+	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
 		p.AlwaysAccum[entry.ServiceId] = entry.Gas
 	}

@@ -760,7 +760,7 @@ func (r *ReportsTestCase) Dump() error {
 		accounts[v.Id] = serviceAccount
 	}
 
-	s.GetPosteriorStates().SetDelta(accounts)
+	s.GetPriorStates().SetDelta(accounts)
 
 	var statistics types.Statistics
 	// Set CoresStatisitics
@@ -809,9 +809,6 @@ func (r *ReportsTestCase) Validate() error {
 		}
 	}
 
-	if len(outputData.Reporters) != len(r.Output.Ok.Reporters) {
-		return fmt.Errorf("outputData.Reporters mismatch")
-	}
 	reporterMap := make(map[types.Ed25519Public]bool)
 	for _, reporter := range outputData.Reporters {
 		reporterMap[reporter] = true

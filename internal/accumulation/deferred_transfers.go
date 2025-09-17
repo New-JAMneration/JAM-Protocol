@@ -92,13 +92,14 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	accumulationStatistics := types.AccumulationStatistics{}
 	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
 		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
-
+		if numOfWorkReportsAccumulated == 0 {
+			continue // skip, N(S) = []
+		}
 		accumulationStatistics[serviceId] = types.GasAndNumAccumulatedReports{
 			Gas:                   sumOfGasUsed,
 			NumAccumulatedReports: numOfWorkReportsAccumulated,
 		}
 	}
-
 	return accumulationStatistics
 }
 
@@ -126,7 +127,7 @@ func selectionFunction(transfers types.DeferredTransfers, destinationServiceId t
 // delta double dagger: Second intermediate state
 // On-Transfer service-account invocation function as ΨT
 // INFO: t from the outer accumulation function
-func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
+func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accumulationStatistics types.AccumulationStatistics) {
 	// Get delta dagger
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
@@ -147,10 +148,9 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 		// (12.27) x
 		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
 
-		// (12.28)
-		if _, exists := deltaDagger[serviceId]; exists {
-			// TODO : apply the changes to the service account
-			// This is a placeholder for the actual changes to the service account
+		// === (12.32) apply a'_a = τ′ for s ∈ K(S) ===
+		if _, ok := accumulationStatistics[serviceId]; ok {
+			serviceAccount.ServiceInfo.LastAccumulationSlot = tauPrime
 		}
 		deltaDoubleDagger[serviceId] = serviceAccount
 
@@ -162,6 +162,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers) {
 				TotalGasUsed:         gas,
 			}
 		}
+
 	}
 
 	// Update delta double dagger
@@ -302,7 +303,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// (12.22)
 	// Update the partial state set to posterior state
 	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
-	store.GetPosteriorStates().SetLastAccOut(output.AccumulatedServiceOutput)
+
+	// Convert AccumulatedServiceOutput to LastAccOut and assign it to the store
+	var lastAccOut types.LastAccOut
+	for accumulatedServiceHash := range output.AccumulatedServiceOutput {
+		// append accumulatedServiceHash to lastAccOut
+		lastAccOut = append(lastAccOut, accumulatedServiceHash)
+	}
+	store.GetPosteriorStates().SetLastAccOut(lastAccOut)
 
 	return output, nil
 }
@@ -323,7 +331,7 @@ func DeferredTransfers() error {
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	updateDeltaDoubleDagger(store, output.DeferredTransfers)
+	updateDeltaDoubleDagger(store, output.DeferredTransfers, accumulationStatistics)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)

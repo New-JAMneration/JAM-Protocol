@@ -350,15 +350,15 @@ func (t *Header) Decode(d *Decoder) error {
 		}
 	}
 
-	if err = t.OffendersMark.Decode(d); err != nil {
-		return err
-	}
-
 	if err = t.AuthorIndex.Decode(d); err != nil {
 		return err
 	}
 
 	if err = t.EntropySource.Decode(d); err != nil {
+		return err
+	}
+
+	if err = t.OffendersMark.Decode(d); err != nil {
 		return err
 	}
 
@@ -922,6 +922,13 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 
+	authGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+
+	w.AuthGasUsed = Gas(authGasUsed)
+
 	if err = w.AuthOutput.Decode(d); err != nil {
 		return err
 	}
@@ -948,13 +955,6 @@ func (w *WorkReport) Decode(d *Decoder) error {
 	}
 
 	w.Results = results
-
-	authGasUsed, err := d.DecodeInteger()
-	if err != nil {
-		return err
-	}
-
-	w.AuthGasUsed = Gas(authGasUsed)
 
 	return nil
 }
@@ -1376,18 +1376,35 @@ func (b *Block) Decode(d *Decoder) error {
 	return nil
 }
 
-// ImportSpec
+// (C.34)
+// The function requires HashSegmentMap
+// You need to use decoder.SetHashSegmentMap(hashSegmentMap) to set the value.
 func (i *ImportSpec) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ImportSpec")
 
+	if d.HashSegmentMap == nil {
+		return fmt.Errorf("please set the HashSegmentMap to the decoder")
+	}
+
+	// Check the input is H or H⊞
+	// If the tree root in the dict, this is H⊞
+	// otherwise, it is a segment root
 	var err error
 
+	// Decode the TreeRoot
 	if err = i.TreeRoot.Decode(d); err != nil {
 		return err
 	}
 
-	if err = i.Index.Decode(d); err != nil {
+	// Decode the Index
+	if err := i.Index.Decode(d); err != nil {
 		return err
+	}
+
+	// Decode the Index (Check the tree root)
+	if _, ok := d.HashSegmentMap[i.TreeRoot]; ok {
+		// Update the Index value
+		i.Index -= (1 << 15)
 	}
 
 	return nil
@@ -1424,15 +1441,19 @@ func (w *WorkItem) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = w.Payload.Decode(d); err != nil {
-		return err
-	}
-
 	if err = w.RefineGasLimit.Decode(d); err != nil {
 		return err
 	}
 
 	if err = w.AccumulateGasLimit.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.ExportCount.Decode(d); err != nil {
+		return err
+	}
+
+	if err = w.Payload.Decode(d); err != nil {
 		return err
 	}
 
@@ -1472,10 +1493,6 @@ func (w *WorkItem) Decode(d *Decoder) error {
 
 	w.Extrinsic = extrinsic
 
-	if err = w.ExportCount.Decode(d); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -1502,22 +1519,32 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = w.Authorization.Decode(d); err != nil {
-		return err
-	}
-
+	// AuthCodeHost (h)
 	if err = w.AuthCodeHost.Decode(d); err != nil {
 		return err
 	}
 
-	if err = w.Authorizer.Decode(d); err != nil {
+	// AuthCodeHash (u)
+	if err := w.AuthCodeHash.Decode(d); err != nil {
 		return err
 	}
 
+	// Context (bold c)
 	if err = w.Context.Decode(d); err != nil {
 		return err
 	}
 
+	// Authorization (j)
+	if err = w.Authorization.Decode(d); err != nil {
+		return err
+	}
+
+	// AuthorizerConfig (f)
+	if err = w.AuthorizerConfig.Decode(d); err != nil {
+		return err
+	}
+
+	// Items (w)
 	length, err := d.DecodeLength()
 	if err != nil {
 		return err
@@ -1621,14 +1648,16 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.Imports = U16(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	// x
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.Exports = U16(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	c.ExtrinsicCount = U16(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
 
+	// z
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
@@ -1637,13 +1666,13 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.ExtrinsicCount = U16(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	c.Exports = U16(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	bundleSize, err := d.DecodeInteger()
@@ -1729,13 +1758,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.Imports = U32(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.Exports = U32(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
+	s.ExtrinsicCount = U32(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
 
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
@@ -1745,13 +1774,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", extrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.ExtrinsicCount = U32(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
+	s.Exports = U32(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	accumulateCount, err := d.DecodeInteger()
@@ -3112,6 +3141,12 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
+	gasLimit, err := decoder.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	o.GasLimit = Gas(gasLimit)
+
 	if err = o.GasLimit.Decode(decoder); err != nil {
 		return err
 	}
@@ -3339,6 +3374,36 @@ func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
 	}
 
 	cLog(Yellow, fmt.Sprintf("AccumulatedServiceOutput: %v", *a))
+
+	return nil
+}
+
+// (7.4) LastAccOut
+func (l *LastAccOut) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding LastAccOut")
+
+	var err error
+
+	// Decode the length of the array
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	lastAccOut := make([]AccumulatedServiceHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = lastAccOut[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// Assign the decoded slice to the receiver
+	*l = lastAccOut
 
 	return nil
 }

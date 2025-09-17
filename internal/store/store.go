@@ -81,7 +81,6 @@ func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
-	s.unfinalizedBlocks.AddBlock(block)
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
 }
@@ -189,7 +188,7 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
-	s.priorStates.GenerateGenesisState(state)
+	s.posteriorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
 }
 
@@ -215,6 +214,14 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+// post-state update to pre-state
+func (s *Store) StateCommit() {
+	posterState := s.GetPosteriorStates().GetState()
+	s.GetPriorStates().SetState(posterState)
+
+	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

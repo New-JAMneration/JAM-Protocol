@@ -1,12 +1,15 @@
 package jamtests
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
@@ -684,6 +687,33 @@ func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
 
 	return nil
 }
+func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.ServiceAccountState) {
+	output = make(types.ServiceAccountState)
+	for _, delta := range input {
+		// Create or get ServiceAccount, ensure its internal maps are initialized
+		serviceAccount := types.ServiceAccount{
+			ServiceInfo:    delta.Data.Service,
+			PreimageLookup: make(types.PreimagesMapEntry),
+			LookupDict:     make(types.LookupMetaMapEntry),
+			StorageDict:    make(types.Storage),
+		}
+
+		// Fill PreimageLookup
+		for _, preimage := range delta.Data.Preimages {
+			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+		}
+
+		// Fill Storage
+		for _, storageEntry := range delta.Data.Storage {
+			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
+		}
+
+		// Store ServiceAccount into inputDelta
+		serviceId := types.ServiceId(delta.Id)
+		output[serviceId] = serviceAccount
+	}
+	return output
+}
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
@@ -691,7 +721,14 @@ func (a *AccumulateTestCase) Dump() error {
 
 	// Set time slot
 	s.GetPriorStates().SetTau(a.PreState.Slot)
-	s.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
+
+	// Add block with header slot
+	block := types.Block{
+		Header: types.Header{
+			Slot: a.Input.Slot,
+		},
+	}
+	s.AddBlock(block)
 	s.GetPosteriorStates().SetTau(a.Input.Slot)
 
 	// Set entropy
@@ -708,24 +745,7 @@ func (a *AccumulateTestCase) Dump() error {
 	s.GetPriorStates().SetChi(a.PreState.Privileges)
 
 	// Set accounts
-	inputDelta := make(types.ServiceAccountState)
-	for serviceId, delta := range a.PreState.Accounts {
-		// Create or get ServiceAccount, ensure its internal maps are initialized
-		serviceAccount := types.ServiceAccount{
-			ServiceInfo:    delta.Data.Service,
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
-
-		// Fill PreimageLookup
-		for _, preimage := range delta.Data.Preimages {
-			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
-		}
-
-		// Store ServiceAccount into inputDelta
-		inputDelta[types.ServiceId(serviceId)] = serviceAccount
-	}
+	inputDelta := ParseAccountToServiceAccountState(a.PreState.Accounts)
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	sort.Slice(a.Input.Reports, func(i, j int) bool {
@@ -753,11 +773,15 @@ func (a *AccumulateTestCase) ExpectError() error {
 func (a *AccumulateTestCase) Validate() error {
 	s := store.GetInstance()
 
+	// Validate time slot
 	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
+		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, s.GetPosteriorStates().GetTau())
 		return fmt.Errorf("time slot does not match expected: %v, but got %v", a.PostState.Slot, s.GetPosteriorStates().GetTau())
 	}
 
+	// Validate entropy
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetEta(), types.EntropyBuffer{a.PostState.Entropy}) {
+		log.Printf(Red+"Entropy does not match expected: %v, but got %v"+Reset, a.PostState.Entropy, s.GetPosteriorStates().GetEta())
 		return fmt.Errorf("entropy does not match expected: %v, but got %v", a.PostState.Entropy, s.GetPosteriorStates().GetEta())
 	}
 
@@ -774,6 +798,7 @@ func (a *AccumulateTestCase) Validate() error {
 			}
 			diff := cmp.Diff(ourTheta[i], a.PostState.ReadyQueue[i])
 			if len(diff) != 0 {
+				log.Printf(Red+"Ready queue reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.ReadyQueue[i], ourTheta[i], diff)
 				return fmt.Errorf("theta[%d] diff:\n%v", i, diff)
 			}
 		}
@@ -782,12 +807,112 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate accumulated reports (passed by implementing sort)
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated)
+		log.Printf(Red+"Accumulated reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
 		return fmt.Errorf("accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
 	}
 
 	// Validate privileges (passed)
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), a.PostState.Privileges) {
+		log.Printf(Red+"Privileges do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Privileges, s.GetPosteriorStates().GetChi())
 		return fmt.Errorf("privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
+	}
+
+	// FIXME: Before validating statistics, we need to execute the update_preimage and update statistics functions
+
+	// Validate Statistics (types.Statistics.Services, PI_S)
+	// Calculate the actual statistics
+	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
+	serviceIds := make([]types.ServiceId, len(a.PostState.Accounts))
+	for i, account := range a.PostState.Accounts {
+		serviceIds[i] = account.Id
+	}
+
+	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
+	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
+	for _, serviceId := range serviceIds {
+		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+
+		// Update the statistics for the service
+		thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
+		if ok {
+			thisServiceActivityRecord.AccumulateCount = accumulateCount
+			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
+			ourStatisticsServices[serviceId] = thisServiceActivityRecord
+		} else {
+			newServiceActivityRecord := types.ServiceActivityRecord{
+				AccumulateCount:   accumulateCount,
+				AccumulateGasUsed: accumulateGasUsed,
+			}
+			ourStatisticsServices[serviceId] = newServiceActivityRecord
+		}
+	}
+
+	// Update the statistics in the PosteriorStates
+	// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
+
+	// Validate statistics
+	if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
+		log.Printf(Red+"Statistics do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
+		diff := cmp.Diff(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics)
+		log.Printf("Diff:\n%v", diff)
+		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", a.PostState.Statistics, s.GetPosteriorStates().GetPi())
+	}
+
+	// Validate Accounts (AccountsMapEntry)
+	// INFO:
+	// The type of state.Delta is ServiceAccountState
+	// The type of a.PostState.Accounts is []AccountsMapEntry
+
+	// Validate Delta
+	// FIXME: Review after PVM stable
+	expectedDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
+	actualDelta := s.GetIntermediateStates().GetDeltaDoubleDagger()
+
+	for key, expectedAcc := range expectedDelta {
+		actualAcc, ok := actualDelta[key]
+		if !ok {
+			return fmt.Errorf("serviceId %v missing in actualDelta", key)
+		}
+
+		// ServiceInfo
+		if !reflect.DeepEqual(expectedAcc.ServiceInfo, actualAcc.ServiceInfo) {
+			return fmt.Errorf("mismatch in ServiceInfo for serviceId %v:\n expected=%+v\n actual=%+v",
+				key, expectedAcc.ServiceInfo, actualAcc.ServiceInfo)
+		}
+
+		// PreimageLookup
+		for h, expectedBlob := range expectedAcc.PreimageLookup {
+			actualBlob, ok := actualAcc.PreimageLookup[h]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Preimage hash %x in actualDelta", key, h)
+			}
+			if !bytes.Equal(expectedBlob, actualBlob) {
+				return fmt.Errorf("mismatch for serviceId %v, Preimage hash %x:\n expected=%x\n actual=%x",
+					key, h, expectedBlob, actualBlob)
+			}
+		}
+		for h := range actualAcc.PreimageLookup {
+			if _, ok := expectedAcc.PreimageLookup[h]; !ok {
+				return fmt.Errorf("serviceId %v has extra Preimage hash %x in actualDelta", key, h)
+			}
+		}
+
+		// StorageDict
+		for storageKey, expectedValue := range expectedAcc.StorageDict {
+			actualValue, ok := actualAcc.StorageDict[storageKey]
+			if !ok {
+				return fmt.Errorf("serviceId %v missing Storage key %q in actualDelta", key, storageKey)
+			}
+			if !bytes.Equal(expectedValue, actualValue) {
+				return fmt.Errorf("mismatch for serviceId %v, Storage key %q:\n expected=%x\n actual=%x",
+					key, storageKey, expectedValue, actualValue)
+			}
+		}
+		for storageKey := range actualAcc.StorageDict {
+			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
+				return fmt.Errorf("serviceId %v has extra Storage key %q in actualDelta", key, storageKey)
+			}
+		}
 	}
 	return nil
 }

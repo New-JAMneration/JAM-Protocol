@@ -260,7 +260,7 @@ func TestValidateSignature(t *testing.T) {
 		},
 	}
 
-	store.GetInstance().GetPosteriorStates().SetKappa(kappa)
+	store.GetInstance().GetPriorStates().SetKappa(kappa)
 
 	err = assuranceExtrinsic.ValidateSignature()
 	if err == nil {

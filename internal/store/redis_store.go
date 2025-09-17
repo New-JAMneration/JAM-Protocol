@@ -47,6 +47,13 @@ func GetRedisBackend() (*RedisBackend, error) {
 			log.Printf("failed to set genesis block in Redis: %v", err)
 			return
 		}
+
+		hashSegmentMap := genInitHashSegmentMap()
+		err = globalRedisBackend.SetHashSegmentMap(context.Background(), hashSegmentMap)
+		if err != nil {
+			log.Printf("failed to set hash segment map in Redis: %v", err)
+			return
+		}
 	})
 	if globalRedisBackend == nil {
 		return nil, errors.New("redis backend is not initialized")
@@ -82,6 +89,11 @@ func genGenesisBlock() *types.Block {
 
 	return &genesisBlock
 }
+
+func genInitHashSegmentMap() map[string]string {
+	return make(map[string]string)
+}
+
 func CloseMiniRedis() {
 	if globalMiniRedis != nil {
 		globalMiniRedis.Close()

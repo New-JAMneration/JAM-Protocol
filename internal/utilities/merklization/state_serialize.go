@@ -241,7 +241,7 @@ func encodeLastAccKey() types.StateKey {
 }
 
 // value 16: lastaccount (theta)
-func encodeLastAccOut(lastAccOut types.AccumulatedServiceOutput) (output types.ByteSequence) {
+func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
 	encodedLastAccount, err := encoder.Encode(&lastAccOut)
 	if err != nil {

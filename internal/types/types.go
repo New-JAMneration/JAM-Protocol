@@ -214,11 +214,14 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
-func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
+func (a *AuthPool) RemoveLeftMostPairedValue(h OpaqueHash) {
 	result := (*a)[:0]
+	removed := false
 	for _, v := range *a {
-		if !bytes.Equal(v[:], h[:]) {
+		if removed || !bytes.Equal(v[:], h[:]) {
 			result = append(result, v)
+		} else {
+			removed = true
 		}
 	}
 	*a = result
@@ -312,13 +315,14 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workitem", w)
 }
 
-// v0.6.3 (14.2) Work Package
+// v0.7.0 (14.2) Work Package
 type WorkPackage struct {
-	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index
-	Authorizer    Authorizer    `json:"authorizer"`
-	Context       RefineContext `json:"context"`
-	Items         []WorkItem    `json:"items,omitempty"`
+	AuthCodeHost     ServiceId     `json:"auth_code_host,omitempty"`    // host service index h
+	AuthCodeHash     OpaqueHash    `json:"auth_code_hash,omitempty"`    // u
+	Context          RefineContext `json:"context"`                     // c
+	Authorization    ByteSequence  `json:"authorization,omitempty"`     // authorization token j
+	AuthorizerConfig ByteSequence  `json:"authorizer_config,omitempty"` // f
+	Items            []WorkItem    `json:"items,omitempty"`             // w
 }
 
 func (w *WorkPackage) ScaleDecode(data []byte) error {
@@ -340,7 +344,7 @@ func (wp *WorkPackage) Validate() error {
 		return fmt.Errorf("WorkPackage must have items between 1 and %v, but got %v", MaximumWorkItems, len(wp.Items))
 	}
 
-	totalSize := len(wp.Authorization) + len(wp.Authorizer.Params)
+	totalSize := len(wp.Authorization) + len(wp.AuthorizerConfig)
 	totalImportSegments := 0
 	totalExportSegments := 0
 	totalExtrinsics := 0
@@ -387,7 +391,7 @@ func (wp *WorkPackage) Validate() error {
 		totalAccumulateGas += item.AccumulateGasLimit
 	}
 
-	if totalRefineGas > MaxRefineGas {
+	if totalRefineGas > Gas(MaxRefineGas) {
 		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
 	}
 	if totalAccumulateGas > MaxAccumulateGas {
@@ -435,6 +439,7 @@ type RefineLoad struct {
 }
 
 // v0.6.4 (11.6) WorkResult $\mathbb{L}$
+// v0.7.0 (11.6) Work Digest
 type WorkResult struct {
 	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
@@ -469,11 +474,11 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 
 // v0.6.3 (11.5) Availability specifications $\mathbb{S}$
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash,omitempty"`
-	Length       U32             `json:"length,omitempty"`
-	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
-	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-	ExportsCount U16             `json:"exports_count,omitempty"`
+	Hash         WorkPackageHash `json:"hash,omitempty"`          // p
+	Length       U32             `json:"length,omitempty"`        // l
+	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`  // u
+	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`  // e
+	ExportsCount U16             `json:"exports_count,omitempty"` // n
 }
 
 type SegmentRootLookupItem struct {
@@ -485,13 +490,13 @@ type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
 // v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
-	Context           RefineContext     `json:"context"`                       // x
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // \mathbf{s}
+	Context           RefineContext     `json:"context"`                       // \mathbf{c}
 	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
 	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
-	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{t}
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{l}
+	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{d}
 	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
 }
 
@@ -1514,7 +1519,14 @@ type AccumulatedServiceHash struct {
 	Hash      OpaqueHash // AccumulationOutput
 }
 
+// v0.6.7 (7.4)
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+type LastAccOut []AccumulatedServiceHash
+
 // (12.15) B
+// INFO:
+// - We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
 // (12.23)
@@ -1594,3 +1606,5 @@ type StateKeyValDiff struct {
 func Some[T any](v T) *T {
 	return &v
 }
+
+type HashSegmentMap map[OpaqueHash]OpaqueHash

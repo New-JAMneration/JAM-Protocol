@@ -15,7 +15,7 @@ func C(stateIndex types.U8) types.StateKey {
 }
 
 // (D.1) type 2
-func decodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) {
+func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) {
 	// Decode the service Id from the state key
 	// service id = [k1, k3, k5, k7]
 	encodedServiceId := types.ByteSequence{stateKey[1], stateKey[3], stateKey[5], stateKey[7]}

@@ -384,7 +384,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 				printStateValue(stateVal)
 
 				// ServiceId
-				serviceId, err := decodeServiceIdFromType2(stateKey)
+				serviceId, err := DecodeServiceIdFromType2(stateKey)
 				if err != nil {
 					return state, err
 				}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
@@ -13,8 +14,8 @@ import (
 
 // (14.9)
 func VerifyAuthorization(wp *types.WorkPackage, delta types.ServiceAccountState) (types.OpaqueHash, types.ByteSequence, types.ByteSequence, error) {
-	pa := hash.Blake2bHash(append(wp.Authorizer.CodeHash[:], wp.Authorizer.Params[:]...))
-	bytes := service_account.HistoricalLookup(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.Authorizer.CodeHash)
+	pa := hash.Blake2bHash(append(wp.AuthCodeHash[:], wp.AuthorizerConfig[:]...))
+	bytes := service_account.HistoricalLookup(delta[wp.AuthCodeHost], wp.Context.LookupAnchorSlot, wp.AuthCodeHash)
 	pm, pc, err := service_account.DecodeMetaCode(bytes)
 	if err != nil {
 		return types.OpaqueHash{}, types.ByteSequence{}, types.ByteSequence{}, err
@@ -78,7 +79,17 @@ func buildWorkPackageBundle(
 		ImportProofs:   importProofs,
 	}
 	output := []byte{}
+
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get hash segment map: %w", err)
+	}
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encoder.Encode(&bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode work package bundle: %w", err)
@@ -245,11 +256,7 @@ func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types
 func buildBCloud(bundle []byte) ([]types.OpaqueHash, error) {
 	padded := PadToMultiple(bundle, types.ECBasicSize)
 
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundle)+683)/684)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
-	shards, err := ec.Encode(padded)
+	shards, err := erasurecoding.EncodeDataShards(padded, types.DataShards, types.TotalShards-types.DataShards)
 	if err != nil {
 		return nil, err
 	}
@@ -268,14 +275,10 @@ func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
 		return nil, err
 	}
 	fullSegments := append(exports, pagedProof...)
-	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, 6)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
-	}
 
 	groupShards := make([][][]byte, len(fullSegments))
 	for i := range fullSegments {
-		shards, err := ec.Encode(fullSegments[i][:])
+		shards, err := erasurecoding.EncodeDataShards(fullSegments[i][:], types.DataShards, types.TotalShards-types.DataShards)
 		if err != nil {
 			return nil, err
 		}

@@ -1,6 +1,10 @@
 package PVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"errors"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+)
 
 // (A.40) Ψ_M
 func Psi_M(
@@ -23,16 +27,23 @@ func Psi_M(
 		}
 	}
 
-	// addition
-	programBlob, exitReason := DeBlobProgramCode(programCode)
-	standardProgram := StandardProgram{
-		Memory:      memory,
-		Registers:   registers,
-		ProgramBlob: programBlob,
-		ExitReason:  exitReason,
+	program, err := DeBlobProgramCode(programCode)
+	var pvmExit *PVMExitReason
+	if !errors.As(err, &pvmExit) {
+		return
+	}
+	reason := err.(*PVMExitReason).Reason
+	if reason == PANIC {
+		return Psi_M_ReturnType{
+			Gas:           0,
+			ReasonOrBytes: PVMExitTuple(PANIC, nil),
+			Addition:      addition,
+		}
 	}
 
-	g, v, a := R(gas, Psi_H(standardProgram, counter, gas, standardProgram.Registers, standardProgram.Memory, omegas, addition))
+	addition.Program = program
+
+	g, v, a := R(gas, HostCall(program, counter, gas, registers, memory, omegas, addition))
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,
@@ -43,6 +54,11 @@ func Psi_M(
 // (A.41) R
 func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
 	u := priorGas - types.Gas(max(Psi_H_Return.Gas, 0))
+
+	var pvmExit *PVMExitReason
+	if !errors.As(Psi_H_Return.ExitReason, &pvmExit) {
+		return Gas(u), Psi_H_Return.ExitReason, Psi_H_Return.Addition
+	}
 	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
 	case OUT_OF_GAS:
 		return Gas(u), OUT_OF_GAS, Psi_H_Return.Addition

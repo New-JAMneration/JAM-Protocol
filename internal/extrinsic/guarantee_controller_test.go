@@ -192,101 +192,35 @@ func TestGuaranteeSet(t *testing.T) {
 	}
 }
 
-func TestGuaranteeSort(t *testing.T) {
+func TestGuaranteeSort_ShouldFailWhenUnsorted(t *testing.T) {
 	controller := NewGuaranteeController()
 
-	// Add guarantees in unsorted order
+	// Add guarantees in unsorted order: 3, 1, 2
 	guarantees := []types.ReportGuarantee{
 		{
-			Report: types.WorkReport{
-				PackageSpec: types.WorkPackageSpec{
-					Hash:         types.WorkPackageHash{0x03},
-					Length:       43,
-					ErasureRoot:  types.ErasureRoot{0x03},
-					ExportsRoot:  types.ExportsRoot{0x03},
-					ExportsCount: 70,
-				},
-				Context: types.RefineContext{
-					Anchor:           types.HeaderHash{0x03},
-					StateRoot:        types.StateRoot{0x03},
-					BeefyRoot:        types.BeefyRoot{0x03},
-					LookupAnchor:     types.HeaderHash{0x03},
-					LookupAnchorSlot: 3,
-				},
-				CoreIndex: 3,
-			},
-			Slot: 103,
+			Report: types.WorkReport{CoreIndex: 3},
 			Signatures: []types.ValidatorSignature{
-				{
-					ValidatorIndex: 3,
-					Signature:      types.Ed25519Signature{0x03},
-				},
+				{ValidatorIndex: 3},
 			},
 		},
 		{
-			Report: types.WorkReport{
-				PackageSpec: types.WorkPackageSpec{
-					Hash:         types.WorkPackageHash{0x01},
-					Length:       41,
-					ErasureRoot:  types.ErasureRoot{0x01},
-					ExportsRoot:  types.ExportsRoot{0x01},
-					ExportsCount: 68,
-				},
-				Context: types.RefineContext{
-					Anchor:           types.HeaderHash{0x01},
-					StateRoot:        types.StateRoot{0x01},
-					BeefyRoot:        types.BeefyRoot{0x01},
-					LookupAnchor:     types.HeaderHash{0x01},
-					LookupAnchorSlot: 1,
-				},
-				CoreIndex: 1,
-			},
-			Slot: 101,
+			Report: types.WorkReport{CoreIndex: 1},
 			Signatures: []types.ValidatorSignature{
-				{
-					ValidatorIndex: 1,
-					Signature:      types.Ed25519Signature{0x01},
-				},
+				{ValidatorIndex: 1},
 			},
 		},
 		{
-			Report: types.WorkReport{
-				PackageSpec: types.WorkPackageSpec{
-					Hash:         types.WorkPackageHash{0x02},
-					Length:       42,
-					ErasureRoot:  types.ErasureRoot{0x02},
-					ExportsRoot:  types.ExportsRoot{0x02},
-					ExportsCount: 69,
-				},
-				Context: types.RefineContext{
-					Anchor:           types.HeaderHash{0x02},
-					StateRoot:        types.StateRoot{0x02},
-					BeefyRoot:        types.BeefyRoot{0x02},
-					LookupAnchor:     types.HeaderHash{0x02},
-					LookupAnchorSlot: 2,
-				},
-				CoreIndex: 2,
-			},
-			Slot: 102,
+			Report: types.WorkReport{CoreIndex: 2},
 			Signatures: []types.ValidatorSignature{
-				{
-					ValidatorIndex: 2,
-					Signature:      types.Ed25519Signature{0x02},
-				},
+				{ValidatorIndex: 2},
 			},
 		},
 	}
+	controller.Guarantees = guarantees
 
-	for _, g := range guarantees {
-		controller.Add(g)
-	}
-
-	// Verify the order after sorting
-	expectedCoreIndices := []types.CoreIndex{1, 2, 3}
-	for i, expected := range expectedCoreIndices {
-		if controller.Guarantees[i].Report.CoreIndex != expected {
-			t.Errorf("Guarantee at index %d has CoreIndex %d, expected %d",
-				i, controller.Guarantees[i].Report.CoreIndex, expected)
-		}
+	// Sort Validate should fails
+	err := controller.Sort()
+	if err == nil {
+		t.Fatal("expected Sort() to fail due to unsorted CoreIndex, but got no error")
 	}
 }
