@@ -314,7 +314,7 @@ func testFolder(args []string) {
 }
 
 func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
-	// Read and parse JSON file
+	mismatchCount := 0
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return fmt.Errorf("error reading JSON file: %v", err)
@@ -331,15 +331,18 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		return fmt.Errorf("error parsing pre_state state_root: %v", err)
 	}
 
-	fmt.Printf("Header: %v\n", testData.Block.Header)
+	// Print Sending SetState
+	log.Printf("[SetState][Request] block_header_hash=0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
 	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
+	log.Printf("[SetState][Response] state_root=0x%v", hex.EncodeToString(actualPreStateRoot[:]))
 	if err != nil {
 		return fmt.Errorf("SetState failed: %v", err)
 	}
 
 	if actualPreStateRoot != expectedPreStateRoot {
-		return fmt.Errorf("SetState state_root mismatch: expected %x, got %x",
+		log.Printf("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
 			expectedPreStateRoot, actualPreStateRoot)
+		mismatchCount++
 	}
 
 	// Step 2: ImportBlock
@@ -348,14 +351,21 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		return fmt.Errorf("error parsing post_state state_root: %v", err)
 	}
 
+	log.Printf("[ImportBlock][Request] block_header_hash=0x%x", hex.EncodeToString(testData.Block.Header.Parent[:]))
 	actualPostStateRoot, err := client.ImportBlock(testData.Block)
+	log.Printf("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	if err != nil {
 		return fmt.Errorf("ImportBlock failed: %v", err)
 	}
 
 	if actualPostStateRoot != expectedPostStateRoot {
-		return fmt.Errorf("ImportBlock state_root mismatch: expected %x, got %x",
+		log.Printf("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
 			expectedPostStateRoot, actualPostStateRoot)
+		mismatchCount++
+	}
+
+	if mismatchCount > 0 {
+		return fmt.Errorf("mismatch count: %d", mismatchCount)
 	}
 
 	return nil

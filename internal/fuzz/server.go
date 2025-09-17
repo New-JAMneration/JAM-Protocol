@@ -129,7 +129,7 @@ func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {
 func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 	stateRoot, err := s.Service.ImportBlock(types.Block(*m.ImportBlock))
 	if err != nil {
-		return Message{}, err
+		log.Printf("error importing block: %v\n", err)
 	}
 
 	payload := StateRoot(stateRoot)
@@ -141,7 +141,6 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 }
 
 func (s *FuzzServer) handleSetState(m Message) (Message, error) {
-	fmt.Printf("Header: %v\n", m.SetState.Header)
 	stateRoot, err := s.Service.SetState(m.SetState.Header, m.SetState.State)
 	if err != nil {
 		return Message{}, err

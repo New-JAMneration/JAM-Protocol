@@ -34,16 +34,19 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest block
 	storeInstance := store.GetInstance()
 
-	latestBlock := storeInstance.GetLatestBlock()
-	encoder := types.NewEncoder()
-	encodedLatestHeader, err := encoder.Encode(&latestBlock.Header)
-	if err != nil {
-		return types.StateRoot{}, err
-	}
-	latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
+	blocks := storeInstance.GetBlocks()
+	if len(blocks) > 0 {
+		latestBlock := storeInstance.GetLatestBlock()
+		encoder := types.NewEncoder()
+		encodedLatestHeader, err := encoder.Encode(&latestBlock.Header)
+		if err != nil {
+			return types.StateRoot{}, err
+		}
+		latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
 
-	if latestBlockHash != block.Header.Parent {
-		return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
+		if latestBlockHash != block.Header.Parent {
+			return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
+		}
 	}
 
 	// Get the latest state root
@@ -57,7 +60,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	storeInstance.AddBlock(block)
 
 	// Run the STF and get the state root
-	err = stf.RunSTF()
+	err := stf.RunSTF()
 	if err != nil {
 		return types.StateRoot{}, err
 	}
@@ -73,10 +76,8 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	state, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
-		fmt.Printf("error converting state key vals to state: %v\n", err)
 		return types.StateRoot{}, err
 	}
-	fmt.Println(state)
 
 	storeInstance.GetPosteriorStates().SetState(state)
 
