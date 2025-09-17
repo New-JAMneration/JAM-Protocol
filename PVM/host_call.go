@@ -2489,13 +2489,10 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			} else {
 				delete(a.LookupDict, lookupKey)
 			}
-
 			input.Registers[7] = FULL
 		} else {
 			input.Registers[7] = OK
-
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-
 		}
 	} else {
 		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)

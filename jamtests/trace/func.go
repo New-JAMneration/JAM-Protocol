@@ -63,12 +63,19 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
-			log.Println("key: ", keyValMap[keyVal.Key])
-			if len(keyVal.ActualValue) < 64 {
-				log.Println("actual key-val-diff : ", keyVal.ActualValue)
-				log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+			log.Println("state: ", keyValMap[keyVal.Key])
+			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+			if keyValMap[keyVal.Key] == "pi" {
+				expectedStruct, err := merklization.SingleKeyValToState(keyVal.Key, keyVal.ExpectedValue)
+				if err != nil {
+					log.Println("failed to parse single key-val to state")
+					return nil, err
+				}
+				fmt.Printf("statistics:%+v\n", store.GetInstance().GetPosteriorStates().GetPi())
+				fmt.Println("---------------------------------")
+				fmt.Printf("execptedst:%+v\n", expectedStruct)
 			}
-
 			continue
 		}
 		// C(255)
