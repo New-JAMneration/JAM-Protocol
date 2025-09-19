@@ -58,8 +58,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	// Reset State
-	storeInstance.GetPriorStates().SetState(latestState)
-	storeInstance.GetPosteriorStates().SetState(types.State{})
+	storeInstance.StateCommit()
 
 	storeInstance.AddBlock(block)
 
