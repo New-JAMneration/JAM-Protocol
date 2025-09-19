@@ -57,6 +57,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", block.Header.ParentStateRoot, latestStateRoot)
 	}
 
+	// Reset State
+	storeInstance.GetPriorStates().SetState(latestState)
+	storeInstance.GetPosteriorStates().SetState(types.State{})
+
 	storeInstance.AddBlock(block)
 
 	// Run the STF and get the state root
