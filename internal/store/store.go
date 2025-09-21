@@ -23,6 +23,7 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	storageKeyVals             types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -38,6 +39,7 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
+			storageKeyVals:             types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -55,6 +57,7 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
+		storageKeyVals:             types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -222,6 +225,15 @@ func (s *Store) StateCommit() {
 	s.GetPriorStates().SetState(posterState)
 
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+}
+
+// StorageKeyVals
+func (s *Store) GetStorageKeyVals() types.StateKeyVals {
+	return s.storageKeyVals
+}
+
+func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
+	s.storageKeyVals = storageKeyVals
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)
