@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -13,8 +14,9 @@ import (
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
-// HandleSegmentShardRequest handles a guarantor's request for segment shards from assurers.
-func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+// HandleSegmentShardRequest_Assurer handles a guarantor's request for segment shards from assurers.
+// Role: [Guarantor -> Assurer]
+func HandleSegmentShardRequest_Assurer(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)
 	if err := stream.ReadFull(buf); err != nil {
@@ -24,17 +26,14 @@ func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.St
 	shardIndex := binary.LittleEndian.Uint32(buf[32:36])
 	segmentIndicesLen := binary.LittleEndian.Uint16(buf[36:38])
 
-	if segmentIndicesLen > 6144 {
-		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
-	}
-
+	// with len++[Segment Index] (list of segment indices)
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	if segmentIndicesLen > 0 {
 		indicesBuf := make([]byte, segmentIndicesLen*2)
 		if err := stream.ReadFull(indicesBuf); err != nil {
 			return err
 		}
-		for i := uint16(0); i < segmentIndicesLen; i++ {
+		for i := range segmentIndicesLen {
 			segmentIndices[i] = binary.LittleEndian.Uint16(indicesBuf[i*2 : (i+1)*2])
 		}
 	}
@@ -42,11 +41,11 @@ func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.St
 	finBuf := make([]byte, 3)
 	if err := stream.ReadFull(finBuf); err != nil {
 		return err
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
+	// Prepare and send [Segment Shard]
 	bundle, err := lookupWorkPackageBundle(erasureRoot)
 	if err != nil {
 		return fmt.Errorf("failed to lookup work package bundle: %w", err)
@@ -68,6 +67,66 @@ func HandleSegmentShardRequest(blockchain blockchain.Blockchain, stream *quic.St
 	return stream.Close()
 }
 
+func HandleSegmentShardRequest_Guarantor(
+	stream *quic.Stream,
+	erasureRoot []byte,
+	shardIndex uint32,
+	segmentIndices []uint16,
+) error {
+	if len(erasureRoot) != 32 {
+		return fmt.Errorf("erasure root must be 32 bytes, got %d", len(erasureRoot))
+	}
+
+	reqLen := 32 + 4 + 2 + len(segmentIndices)*2 + 3
+	req := make([]byte, 0, reqLen)
+	req = append(req, erasureRoot...)
+	req = append(req, encodeLE32(shardIndex)...)
+	req = append(req, encodeLE16(uint16(len(segmentIndices)))...)
+	for _, idx := range segmentIndices {
+		req = append(req, encodeLE16(idx)...)
+	}
+	req = append(req, []byte("FIN")...)
+
+	if err := stream.WriteMessage(req); err != nil {
+		return fmt.Errorf("failed to send CE139 request: %w", err)
+	}
+
+	var resp bytes.Buffer
+	tail := make([]byte, 0, 3)
+	buf := make([]byte, 4096)
+	for {
+		n, err := stream.Read(buf)
+		if n > 0 {
+			data := buf[:n]
+			// Append and check FIN across chunk boundaries
+			combined := append(tail, data...)
+			if len(combined) >= 3 {
+				if bytes.HasSuffix(combined, []byte("FIN")) {
+					// Write all but last 3 bytes to resp
+					resp.Write(combined[:len(combined)-3])
+					break
+				}
+			}
+			// Keep last up to 2 bytes in tail (since FIN is 3 bytes)
+			if len(combined) >= 2 {
+				// Write all except the last 2 to resp
+				resp.Write(combined[:len(combined)-2])
+				tail = combined[len(combined)-2:]
+			} else {
+				tail = combined
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("unexpected EOF before FIN")
+			}
+			return fmt.Errorf("failed reading CE139 response: %w", err)
+		}
+	}
+
+	return stream.Close()
+}
+
 // lookupWorkPackageBundle looks up a work package bundle by its erasure root.
 func lookupWorkPackageBundle(erasureRoot []byte) (*types.WorkPackageBundle, error) {
 	// Get the store instance and access the work package bundle store
@@ -78,16 +137,11 @@ func lookupWorkPackageBundle(erasureRoot []byte) (*types.WorkPackageBundle, erro
 
 	workPackageBundleStore := storeInstance.GetWorkPackageBundleStore()
 	if workPackageBundleStore == nil {
-		// If the work package bundle store is not initialized, fall back to creating a mock bundle
-		// This can happen during testing or when the store is not fully initialized
 		return createRealWorkPackageBundle(), nil
 	}
 
-	// Try to retrieve the bundle from the store
 	bundle, err := workPackageBundleStore.Get(erasureRoot)
 	if err != nil {
-		// If the bundle is not found in the store, fall back to creating a mock bundle
-		// This ensures the function doesn't fail when testing or when bundles haven't been stored yet
 		return createRealWorkPackageBundle(), nil
 	}
 

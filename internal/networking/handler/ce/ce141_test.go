@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -39,7 +40,7 @@ func TestHandleAvailabilityAssuranceDistribution(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandleAvailabilityAssuranceDistribution(fakeBlockchain, stream)
+	err = HandleAvailabilityAssuranceDistribution_Validator(fakeBlockchain, quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleAvailabilityAssuranceDistribution failed: %v", err)
 	}

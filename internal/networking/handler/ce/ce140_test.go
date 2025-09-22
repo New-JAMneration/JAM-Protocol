@@ -40,7 +40,7 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 
 	mockStream := newMockStream(buf.Bytes())
 
-	err := HandleSegmentShardRequestWithJustification(nil, &quic.Stream{Stream: mockStream})
+	err := HandleSegmentShardRequestWithJustification_Assurer(nil, &quic.Stream{Stream: mockStream})
 	if err != nil {
 		t.Fatalf("HandleSegmentShardRequestWithJustification failed: %v", err)
 	}

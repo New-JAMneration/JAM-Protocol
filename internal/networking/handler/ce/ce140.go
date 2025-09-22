@@ -13,15 +13,13 @@ import (
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
-// HandleSegmentShardRequestWithJustification handles a guarantor's request for segment shards from assurers.
-// This is protocol variant 140 where justification is provided for each returned segment shard.
-func HandleSegmentShardRequestWithJustification(
+func HandleSegmentShardRequestWithJustification_Assurer(
 	blockchain blockchain.Blockchain,
 	stream *quic.Stream,
 ) error {
 	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
 	buf := make([]byte, 32+4+2)
-	if _, err := stream.Read(buf); err != nil {
+	if err := stream.ReadFull(buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
@@ -36,7 +34,7 @@ func HandleSegmentShardRequestWithJustification(
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	if segmentIndicesLen > 0 {
 		indicesBuf := make([]byte, segmentIndicesLen*2)
-		if _, err := stream.Read(indicesBuf); err != nil {
+		if err := stream.ReadFull(indicesBuf); err != nil {
 			return err
 		}
 		for i := uint16(0); i < segmentIndicesLen; i++ {
@@ -45,10 +43,9 @@ func HandleSegmentShardRequestWithJustification(
 	}
 
 	finBuf := make([]byte, 3)
-	if _, err := stream.Read(finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return err
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
@@ -62,7 +59,7 @@ func HandleSegmentShardRequestWithJustification(
 		return fmt.Errorf("failed to extract segment shards: %w", err)
 	}
 
-	if _, err := stream.Write(segmentShards); err != nil {
+	if err := stream.WriteMessage(segmentShards); err != nil {
 		return err
 	}
 
@@ -71,13 +68,57 @@ func HandleSegmentShardRequestWithJustification(
 		if err != nil {
 			return fmt.Errorf("failed to construct justification for segment %d: %w", segmentIndex, err)
 		}
-		if _, err := stream.Write(justification); err != nil {
+		if err := stream.WriteMessage(justification); err != nil {
 			return err
 		}
 	}
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
 		return err
+	}
+
+	return stream.Close()
+}
+
+func HandleSegmentShardRequestWithJustification_Guarantor(
+	stream *quic.Stream,
+	erasureRoot []byte,
+	shardIndex uint32,
+	segmentIndices []uint16,
+) error {
+	if len(erasureRoot) != 32 {
+		return fmt.Errorf("erasure root must be 32 bytes, got %d", len(erasureRoot))
+	}
+
+	// Build request payload (fields) + raw FIN terminator
+	reqLen := 32 + 4 + 2 + len(segmentIndices)*2 + 3
+	req := make([]byte, 0, reqLen)
+	req = append(req, erasureRoot...)
+	req = append(req, encodeLE32(shardIndex)...)
+	req = append(req, encodeLE16(uint16(len(segmentIndices)))...)
+	for _, idx := range segmentIndices {
+		req = append(req, encodeLE16(idx)...)
+	}
+	req = append(req, []byte("FIN")...)
+
+	if err := stream.WriteMessage(req); err != nil {
+		return fmt.Errorf("failed to send CE140 request: %w", err)
+	}
+
+	// Read one justification per requested segment
+	for i := range segmentIndices {
+		if _, err := stream.ReadMessage(); err != nil {
+			return fmt.Errorf("failed to read justification %d/%d: %w", i+1, len(segmentIndices), err)
+		} else {
+			// [TODO] Verify justification
+		}
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN message: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return fmt.Errorf("expected FIN message, got %q", string(finBuf))
 	}
 
 	return stream.Close()

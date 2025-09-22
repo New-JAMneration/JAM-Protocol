@@ -5,23 +5,22 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// HandleAvailabilityAssuranceDistribution handles the distribution of availability assurances
-// from assurers to validators approximately 2 seconds before each slot.
+// Role: [Assurer -> Validator]
 //
 // [TODO]
 // 1. Broadcast to all block authors
-func HandleAvailabilityAssuranceDistribution(
+func HandleAvailabilityAssuranceDistribution_Validator(
 	blockchain blockchain.Blockchain,
-	stream io.ReadWriteCloser,
+	stream quic.Stream,
 ) error {
 	bitfieldSize := (types.CoresCount + 7) / 8 // ceil(C / 8)
 
@@ -29,7 +28,7 @@ func HandleAvailabilityAssuranceDistribution(
 	assuranceSize := 32 + bitfieldSize + 64
 	assuranceData := make([]byte, assuranceSize)
 
-	if _, err := stream.Read(assuranceData); err != nil {
+	if err := stream.ReadFull(assuranceData); err != nil {
 		return fmt.Errorf("failed to read assurance data: %w", err)
 	}
 
@@ -44,23 +43,47 @@ func HandleAvailabilityAssuranceDistribution(
 	copy(signature[:], assuranceData[32+bitfieldSize:])
 
 	finBuf := make([]byte, 3)
-	if _, err := stream.Read(finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
 	if err := validateAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
 		return fmt.Errorf("invalid availability assurance: %w", err)
-	}
-
-	if err := storeAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
+	} else if err := storeAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
 		return fmt.Errorf("failed to store availability assurance: %w", err)
+	} else if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
+	return stream.Close()
+}
+
+func HandleAvailabilityAssuranceDistribution_Assurer(
+	stream *quic.Stream,
+	headerHash types.HeaderHash,
+	bitfield []byte,
+	privateKey ed25519.PrivateKey,
+) error {
+	assurance, err := CreateAvailabilityAssurance(headerHash, bitfield, privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to create availability assurance: %w", err)
+	}
+
+	if err := stream.WriteMessage(assurance); err != nil {
+		return fmt.Errorf("failed to send assurance: %w", err)
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to send FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return errors.New("request does not end with FIN")
 	}
 
 	return stream.Close()
@@ -144,7 +167,6 @@ func storeAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte, si
 	return nil
 }
 
-// CreateAvailabilityAssurance creates an availability assurance message for distribution
 func CreateAvailabilityAssurance(
 	headerHash types.HeaderHash,
 	bitfield []byte,

@@ -43,7 +43,7 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 
 	mockStream := newMockStream(buf.Bytes())
 
-	err := HandleSegmentShardRequest(nil, &quic.Stream{Stream: mockStream})
+	err := HandleSegmentShardRequest_Assurer(nil, &quic.Stream{Stream: mockStream})
 	if err != nil {
 		t.Fatalf("HandleSegmentShardRequest failed: %v", err)
 	}
@@ -110,14 +110,11 @@ func TestLookupWorkPackageBundleWithRedis(t *testing.T) {
 		t.Fatalf("Failed to get Redis backend: %v", err)
 	}
 
-	// Create a work package bundle store
 	workPackageBundleStore = store.NewWorkPackageBundleStore(redisBackend.GetClient())
 	storeInstance.SetWorkPackageBundleStore(workPackageBundleStore)
 
-	// Create a test bundle to store using the shared test utility
 	testBundle := CreateTestWorkPackageBundle()
 
-	// Store the test bundle
 	err = workPackageBundleStore.Save(testBundle)
 	if err != nil {
 		t.Fatalf("Failed to save test bundle: %v", err)
