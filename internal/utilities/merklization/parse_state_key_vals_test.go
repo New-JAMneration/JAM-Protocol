@@ -1,14 +1,17 @@
-package merklization
+package merklization_test
 
 import (
 	"bytes"
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	// jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
-/*
 func TestStateKeyValsToStateGenesis(t *testing.T) {
 	dirNames := []string{
 		"fallback",
@@ -33,13 +36,13 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 			continue
 		}
 
-		genesisState, err := StateKeyValsToState(genesisTestCase.State.KeyVals)
+		genesisState, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 		if err != nil {
 			t.Errorf("Error parsing state keyvals: %v", err)
 		}
 
 		// Create a state root with the genesis state
-		genesisStateRoot := MerklizationState(genesisState)
+		genesisStateRoot := merklization.MerklizationState(genesisState)
 
 		expectedGenesisStateRoot := genesisTestCase.State.StateRoot
 
@@ -51,9 +54,7 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 		}
 	}
 }
-*/
 
-/*
 // FIXME: We cannot obtain the storage key from StateKeyVal.
 // so this test will not work as expected.
 // INFO: We can pass fallback and safrole directories because they do not contain storage keys.
@@ -92,13 +93,13 @@ func TestStateKeyValsToState(t *testing.T) {
 			}
 
 			// Parse the state keyvals
-			state, err := StateKeyValsToState(traceTestCase.PostState.KeyVals)
+			state, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 			if err != nil {
 				t.Errorf("Error parsing state keyvals: %v", err)
 			}
 
 			// Create a state root with the parsed state
-			stateRoot := MerklizationState(state)
+			stateRoot := merklization.MerklizationState(state)
 
 			expectedStateRoot := traceTestCase.PostState.StateRoot
 
@@ -111,9 +112,7 @@ func TestStateKeyValsToState(t *testing.T) {
 		}
 	}
 }
-*/
 
-/*
 // We cannot obtain the storage key from StateKeyVal in its current form,
 // so our StateKeyValsToState function does not include storage keys in the output state.
 // This test checks that the state keyvals do not contain storage keys,
@@ -153,13 +152,13 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 			}
 
 			// Parse the state keyvals
-			state, err := StateKeyValsToState(traceTestCase.PostState.KeyVals)
+			state, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 			if err != nil {
 				t.Errorf("Error parsing state keyvals: %v", err)
 			}
 
 			// serialize the state
-			actualStateKeyVals, err := StateEncoder(state)
+			actualStateKeyVals, err := merklization.StateEncoder(state)
 			if err != nil {
 				t.Errorf("Error serializing state: %v", err)
 			}
@@ -176,7 +175,7 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 				expectedStateKeyValsMap[stateKeyVal.Key] = stateKeyVal.Value
 			}
 
-			diffs, err := GetStateKeyValsDiff(expectedStateKeyVals, actualStateKeyVals)
+			diffs, err := merklization.GetStateKeyValsDiff(expectedStateKeyVals, actualStateKeyVals)
 			if err != nil {
 				t.Errorf("Error getting state keyvals diff: %v", err)
 			}
@@ -200,7 +199,6 @@ func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
 		}
 	}
 }
-*/
 
 func TestGetStateKeyValsDiff(t *testing.T) {
 	expectedStateKeyVals := []types.StateKeyVal{
@@ -215,7 +213,7 @@ func TestGetStateKeyValsDiff(t *testing.T) {
 		{Key: types.StateKey{0x04}, Value: types.ByteSequence{0x04}}, // extra key
 	}
 
-	diffs, err := GetStateKeyValsDiff(expectedStateKeyVals, actualStateKeyVals)
+	diffs, err := merklization.GetStateKeyValsDiff(expectedStateKeyVals, actualStateKeyVals)
 	if err != nil {
 		t.Errorf("Error getting state keyvals diff: %v", err)
 	}
