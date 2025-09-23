@@ -2535,7 +2535,6 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Memory.Read(o, offset)
-
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
@@ -2543,8 +2542,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
-
-			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && !(lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots))) {
 				// delete (h,z) from a_l
 				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
 				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
@@ -2554,7 +2552,8 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
-			} else if lookupDataLength == 3 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && !(lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
 				// a_l[h,z] = [w,t]
 				lookupData[0] = lookupData[2]
 				lookupData[1] = timeslot
