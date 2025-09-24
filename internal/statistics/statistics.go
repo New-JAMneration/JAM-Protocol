@@ -93,9 +93,13 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 			validatorSet[validator.Ed25519] = true
 		}
 	*/
+	ValidatorSetFromG := make(map[types.ValidatorIndex]struct{})
 	for _, guarantee := range guarantees {
 		for _, signature := range guarantee.Signatures {
-			statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
+			if _, exists := ValidatorSetFromG[signature.ValidatorIndex]; !exists {
+				ValidatorSetFromG[signature.ValidatorIndex] = struct{}{}
+				statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
+			}
 		}
 	}
 }
