@@ -93,6 +93,16 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 			validatorSet[validator.Ed25519] = true
 		}
 	*/
+
+	// (13.5) π′V [v]g ≡ a[v]g + (κ′v ∈ G)
+	// Formula: update validator g-count if κ′v (guarantor for slot v) is in Reporters set G.
+	// Current implementation: increment Guarantees once per unique validatorIndex present in signatures.
+	//
+	// Discussion Note:
+	// There was debate whether multiple guarantees in the same slot should increment more than once.
+	// suggests just follow the formula "add +1 if κ′v ∈ G", not per report.
+	// Revisit if JAM spec or test vectors update the definition.
+
 	ValidatorSetFromG := make(map[types.ValidatorIndex]struct{})
 	for _, guarantee := range guarantees {
 		for _, signature := range guarantee.Signatures {
