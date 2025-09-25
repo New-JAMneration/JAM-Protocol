@@ -953,14 +953,22 @@ func write(input OmegaInput) (output OmegaOutput) {
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 
+	// computation of l & a is independent, first compute l is easier to implement
+	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
+	var l uint64
+	if storageKeyExists {
+		l = uint64(len(value))
+	} else {
+		l = NONE
+	}
+
 	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if vz == 0 {
 		delete(a.StorageDict, string(storageKey))
 	} else if isReadable(vo, vz, input.Memory) {
 		storageValue := input.Memory.Read(vo, vz)
 		a.StorageDict[string(storageKey)] = storageValue
-		// need extra storage space :
-		// check a_t > a_b : storage need gas, balance is not enough for storage
+		// check a_b < a_t : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
@@ -986,15 +994,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 	a.ServiceInfo.Items = service_account.CalcKeys(a)
 	a.ServiceInfo.Bytes = service_account.CalcOctets(a)
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-
-	// computation of l & a is independent, first compute l is easier to implement
-	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
-	var l uint64
-	if storageKeyExists {
-		l = uint64(len(value))
-	} else {
-		l = NONE
-	}
 
 	new_registers := input.Registers
 	new_registers[7] = l
@@ -2490,7 +2489,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		}
 		//
 		input.Registers[7] = OK
-		// storageDict is updated, service items and service Bytes should be updated
+		// LookupDict is updated, service items and service Bytes should be updated
 		a.ServiceInfo.Items = service_account.CalcKeys(a)
 		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a

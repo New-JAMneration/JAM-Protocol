@@ -104,11 +104,6 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		}
 	}
 
-	if len(errorStateSlice) == 1 && len(serviceList) == 0 && len(otherServiceStates) == 0 {
-		if errorStateSlice[0] == "pi" {
-			return nil, nil
-		}
-	}
 	var diff string
 
 	if len(serviceList) > 0 || len(errorStateSlice) > 0 {
