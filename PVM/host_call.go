@@ -824,7 +824,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var sStar uint64
-	var a types.ServiceAccount
 	// assign s*
 	if input.Registers[7] == 0xffffffffffffffff {
 		sStar = uint64(serviceID)
@@ -843,6 +842,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
+	var a types.ServiceAccount
 	// assign a
 	if sStar == uint64(serviceID) {
 		a = serviceAccount
@@ -866,6 +867,19 @@ func read(input OmegaInput) (output OmegaOutput) {
 	storageKey := input.Memory.Read(ko, kz)
 
 	v, exists := a.StorageDict[string(storageKey)]
+	// v = nil
+	if !exists {
+		new_registers := input.Registers
+		new_registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	f := min(input.Registers[11], uint64(len(v)))
 	l := min(input.Registers[12], uint64(len(v))-f)
 
@@ -887,19 +901,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 			ExitReason:   PVMExitTuple(PANIC, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// v = nil
-	if !exists {
-		new_registers := input.Registers
-		new_registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
