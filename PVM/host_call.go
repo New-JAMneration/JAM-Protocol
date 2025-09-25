@@ -952,14 +952,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 	storageKey := input.Memory.Read(ko, kz)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	// computation of l & a is independent, first compute l is easier to implement
-	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
-	var l uint64
-	if storageKeyExists {
-		l = uint64(len(value))
-	} else {
-		l = NONE
-	}
 
 	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if vz == 0 {
@@ -967,11 +959,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 	} else if isReadable(vo, vz, input.Memory) {
 		storageValue := input.Memory.Read(vo, vz)
 		a.StorageDict[string(storageKey)] = storageValue
-
-		// storageDict is updated, service items and service Bytes should be updated
-		a.ServiceInfo.Items = service_account.CalcKeys(a)
-		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
@@ -994,6 +981,21 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
+	// storageDict is updated, service items and service Bytes should be updated
+	a.ServiceInfo.Items = service_account.CalcKeys(a)
+	a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
+	// computation of l & a is independent, first compute l is easier to implement
+	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
+	var l uint64
+	if storageKeyExists {
+		l = uint64(len(value))
+	} else {
+		l = NONE
+	}
+
 	new_registers := input.Registers
 	new_registers[7] = l
 
@@ -2463,11 +2465,6 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			lookupData = append(lookupData, timeslot)
 			a.LookupDict[lookupKey] = lookupData
-
-			// storageDict is updated, service items and service Bytes should be updated
-			a.ServiceInfo.Items = service_account.CalcKeys(a)
-			a.ServiceInfo.Bytes = service_account.CalcOctets(a)
-			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		} else {
 			// a = panic
 			input.Registers[7] = HUH
@@ -2490,10 +2487,14 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 				delete(a.LookupDict, lookupKey)
 			}
 			input.Registers[7] = FULL
-		} else {
-			input.Registers[7] = OK
-			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		}
+		//
+		input.Registers[7] = OK
+		// storageDict is updated, service items and service Bytes should be updated
+		a.ServiceInfo.Items = service_account.CalcKeys(a)
+		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
 	} else {
 		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
@@ -2542,7 +2543,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
-			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && !(lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots))) {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
 				// delete (h,z) from a_l
 				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
 				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
@@ -2552,8 +2553,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
-
-			} else if lookupDataLength == 3 && lookupDataLength > 1 && !(lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 				// a_l[h,z] = [w,t]
 				lookupData[0] = lookupData[2]
 				lookupData[1] = timeslot

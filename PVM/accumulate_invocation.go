@@ -1,6 +1,8 @@
 package PVM
 
 import (
+	"fmt"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -107,7 +109,7 @@ func Psi_A(
 			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(partialState, serviceId, timeslot, eta),
+			ResultContextX: I(partialState.DeepCopy(), serviceId, timeslot, eta),
 			ResultContextY: I(partialState, serviceId, timeslot, eta),
 			Eta:            eta,
 			Operands:       operands,
@@ -148,18 +150,26 @@ func wrapWithG(original Omega) Omega {
 func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs) {
 	serviceBlobs := make(types.ServiceBlobs, 0)
 	switch reasonOrBytes.(type) {
-	case error:
+	case error: // system error
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
 		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
 	case types.ByteSequence:
+		fmt.Println("accumulate invocation case ByteSequence")
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
 		opaqueHash := reasonOrBytes.(*types.OpaqueHash)
 		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs
 	default:
+		if reasonOrBytes == OUT_OF_GAS || reasonOrBytes == PANIC {
+			for _, v := range resultContext.ResultContextY.ServiceBlobs {
+				serviceBlobs = append(serviceBlobs, v)
+			}
+
+			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
+		}
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
