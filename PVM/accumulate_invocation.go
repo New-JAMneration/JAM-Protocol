@@ -162,6 +162,7 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 		}
 		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, resultContext.ResultContextY.StorageKeyVal
 	case types.ByteSequence:
+		fmt.Println("accumulate invocation case ByteSequence")
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
