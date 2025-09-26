@@ -931,16 +931,29 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 		return err, pc, reg, mem
 	}
 
-	// rA := getRegFloorIndex(instructionCode, pc)
-	// minAddr := slices.Min(reg[:]) // x >= h (heap) defined in A.7 --> writable memory
-
-	if !isWriteable(mem.heapPointer, reg[rA], mem) {
-		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], mem.heapPointer)
-		return PVMExitTuple(PAGE_FAULT, mem.heapPointer), pc, reg, mem
+	// this reivision is according to jam-test-vector traces: Note on SBRK
+	if reg[rA] == 0 {
+		reg[rD] = mem.heapPointer
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], formatInt(reg[rD]))
+		return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 	}
-	reg[rD] = mem.heapPointer + reg[rA]
-	logger.Debugf("[%d]: pc: %d, %s, %s = 0x%x, %s = 0x%x", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA])
+
+	nextPageBoundary := P(int(mem.heapPointer))
+	newHeapPointer := mem.heapPointer + reg[rA]
+
+	if newHeapPointer > uint64(nextPageBoundary) {
+		finalBoundary := P(int(newHeapPointer))
+
+		// allocated memeory access
+		allocateMemorySegment(&mem, uint32(mem.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
+	}
+
+	mem.heapPointer = newHeapPointer
+	reg[rD] = newHeapPointer
+
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s + %s = %s + %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rD], RegName[rA], formatInt(reg[rD]), formatInt(reg[rA]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1191,10 +1204,10 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint16(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
 		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), formatInt(uint32(reg[rB]+vX)), formatInt(int64(uint16(reg[rA]))))
+			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(reg[rB]+vX)), formatInt(int64(uint16(reg[rA]))))
 	} else { // page fault error
 		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), formatInt(uint32(reg[rB]+vX)))
+			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(reg[rB]+vX)))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -1211,7 +1224,7 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint32(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
 		logger.Debugf("[%d]: pc: %d, %s , mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX), uint64(uint32(reg[rA])))
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX), formatInt(uint64(uint32(reg[rA]))))
 	} else { // page fault error
 		logger.Debugf("[%d]: pc: %d, %s , page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
 			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX))
@@ -1799,8 +1812,8 @@ func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("[%d]: pc: %d, %s, %s = (%s / 2^(0x%x) = (0x%x / 2^(0x%x)) = 0x%x", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX&63, reg[rB], vX&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(reg[rB]), formatInt(vX&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2034,7 +2047,7 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = u32(%s + %s)  = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rA]))
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 

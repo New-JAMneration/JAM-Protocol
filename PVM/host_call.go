@@ -2735,17 +2735,18 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	level := LogLevel(input.Registers[7])
-	message := input.Memory.Read(input.Registers[10], input.Registers[11])
+	/*
+		level := LogLevel(input.Registers[7])
+		message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
-	if input.Registers[8] == 0 && input.Registers[9] == 0 {
-		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
-	} else {
-		target := input.Memory.Read(input.Registers[8], input.Registers[9])
-		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
-			"taget : %v\n  message : %v\n", target, message)
-	}
-
+		if input.Registers[8] == 0 && input.Registers[9] == 0 {
+			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
+		} else {
+			target := input.Memory.Read(input.Registers[8], input.Registers[9])
+			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
+				"taget : %v\n  message : %v\n", target, message)
+		}
+	*/
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,

@@ -64,20 +64,16 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 		// C(1)-C(16)
 		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
+
 			log.Println("state: ", state)
-			// log.Println("actual key-val-diff : ", keyVal.ActualValue)
-			// log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+			log.Println("actual key-val-diff : ", keyVal.ActualValue)
+			log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
 			/*
-				if keyValMap[keyVal.Key] == "pi" {
-					expectedStruct, err := merklization.SingleKeyValToState(keyVal.Key, keyVal.ExpectedValue)
-					if err != nil {
-						log.Println("failed to parse single key-val to state")
-						return nil, err
-					}
-					fmt.Printf("statistics:%+v\n", store.GetInstance().GetPosteriorStates().GetPi())
-					fmt.Println("---------------------------------")
-					fmt.Printf("execptedst:%+v\n", expectedStruct)
-				}
+				// detailed state log
+				actualStruct, _ := merklization.SingleKeyValToState(keyVal.Key, keyVal.ActualValue)
+				expectedStruct, _ := merklization.SingleKeyValToState(keyVal.Key, keyVal.ExpectedValue)
+				log.Printf("actual: %+v\n", actualStruct)
+				log.Printf("expect: %+v\n", expectedStruct)
 			*/
 			continue
 		}
@@ -87,9 +83,11 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 			if err != nil {
 				return nil, err
 			}
+
 			log.Println("serviceID: ", serviceId)
 			log.Println("actual key-val-diff : ", keyVal.ActualValue)
 			log.Println("expect key-val-diff : ", keyVal.ExpectedValue)
+
 			serviceList = append(serviceList, types.U32(serviceId))
 			continue
 		}
