@@ -51,14 +51,13 @@ func newLogger(level LogLevel) (*Logger, error) {
 
 func getLogger() *Logger {
 	if PVMLogger == nil {
-		_ = Init(DEBUG)
+		_ = Init(ERROR)
 	}
 	return PVMLogger
 }
 
 func (l *Logger) log(level LogLevel, coreID *types.CoreIndex, serviceID *types.ServiceId, format string, args ...interface{}) {
 	if level > l.level {
-		fmt.Println(l.level)
 		return
 	}
 

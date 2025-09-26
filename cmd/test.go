@@ -273,7 +273,7 @@ func validateTestMode(mode testdata.TestMode) error {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
 		testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode,
-		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode:
+		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode, testdata.StorageMode:
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)

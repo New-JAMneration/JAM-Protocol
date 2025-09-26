@@ -162,8 +162,9 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 			return
 		}
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
-		logger.Debugf("%s host-call return: %s, gas : %d -> %d",
-			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas)
+		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
+			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = gasPrime
@@ -576,13 +577,13 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		buffer, err := encoder.Encode(types.U64(len(input.Addition.Operands)))
+		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.Operands))))
 		if err != nil {
 			break
 		}
 
 		for _, o := range input.Addition.Operands {
-			bytes, err := encoder.Encode(o)
+			bytes, err := encoder.Encode(&o)
 			if err != nil {
 				break
 			}
@@ -823,7 +824,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var sStar uint64
-	var a types.ServiceAccount
 	// assign s*
 	if input.Registers[7] == 0xffffffffffffffff {
 		sStar = uint64(serviceID)
@@ -842,6 +842,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
+	var a types.ServiceAccount
 	// assign a
 	if sStar == uint64(serviceID) {
 		a = serviceAccount
@@ -865,6 +867,19 @@ func read(input OmegaInput) (output OmegaOutput) {
 	storageKey := input.Memory.Read(ko, kz)
 
 	v, exists := a.StorageDict[string(storageKey)]
+	// v = nil
+	if !exists {
+		new_registers := input.Registers
+		new_registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	f := min(input.Registers[11], uint64(len(v)))
 	l := min(input.Registers[12], uint64(len(v))-f)
 
@@ -886,19 +901,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 			ExitReason:   PVMExitTuple(PANIC, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// v = nil
-	if !exists {
-		new_registers := input.Registers
-		new_registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
@@ -951,6 +953,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	storageKey := input.Memory.Read(ko, kz)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
+
 	// computation of l & a is independent, first compute l is easier to implement
 	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
 	var l uint64
@@ -966,9 +969,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	} else if isReadable(vo, vz, input.Memory) {
 		storageValue := input.Memory.Read(vo, vz)
 		a.StorageDict[string(storageKey)] = storageValue
-
-		// need extra storage space :
-		// check a_t > a_b : storage need gas, balance is not enough for storage
+		// check a_b < a_t : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
 			new_registers := input.Registers
 			new_registers[7] = FULL
@@ -989,6 +990,12 @@ func write(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
+	// storageDict is updated, service items and service Bytes should be updated
+	a.ServiceInfo.Items = service_account.CalcKeys(a)
+	a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
 	new_registers := input.Registers
 	new_registers[7] = l
 
@@ -2453,7 +2460,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
-			a.LookupDict = make(types.LookupMetaMapEntry, 0)
+			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
 		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			lookupData = append(lookupData, timeslot)
@@ -2470,6 +2477,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
+
 		// a_b < a_t
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
 			// rollback the changes made to the lookup dict
@@ -2478,12 +2486,15 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			} else {
 				delete(a.LookupDict, lookupKey)
 			}
-
 			input.Registers[7] = FULL
-		} else {
-			input.Registers[7] = OK
-			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		}
+		//
+		input.Registers[7] = OK
+		// LookupDict is updated, service items and service Bytes should be updated
+		a.ServiceInfo.Items = service_account.CalcKeys(a)
+		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
 	} else {
 		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
@@ -2525,7 +2536,6 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Memory.Read(o, offset)
-
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
@@ -2533,8 +2543,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
-
-			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
 				// delete (h,z) from a_l
 				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
 				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
@@ -2544,7 +2553,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
-			} else if lookupDataLength == 3 && lookupDataLength > 1 && lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 				// a_l[h,z] = [w,t]
 				lookupData[0] = lookupData[2]
 				lookupData[1] = timeslot
@@ -2608,10 +2617,9 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Memory.Read(o, offset)
-
-	input.Registers[7] = OK
-
-	copy(input.Addition.ResultContextX.Exception[:], h)
+	opaqueHash := types.OpaqueHash(h)
+	input.Addition.ResultContextX.Exception = &opaqueHash
+	// copy(input.Addition.ResultContextX.Exception[:], h)
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -2727,17 +2735,18 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	level := LogLevel(input.Registers[7])
-	message := input.Memory.Read(input.Registers[10], input.Registers[11])
+	/*
+		level := LogLevel(input.Registers[7])
+		message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
-	if input.Registers[8] == 0 && input.Registers[9] == 0 {
-		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
-	} else {
-		target := input.Memory.Read(input.Registers[8], input.Registers[9])
-		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
-			"taget : %v\n  message : %v\n", target, message)
-	}
-
+		if input.Registers[8] == 0 && input.Registers[9] == 0 {
+			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
+		} else {
+			target := input.Memory.Read(input.Registers[8], input.Registers[9])
+			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
+				"taget : %v\n  message : %v\n", target, message)
+		}
+	*/
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,

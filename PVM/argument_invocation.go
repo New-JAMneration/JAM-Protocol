@@ -17,6 +17,7 @@ func Psi_M(
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
+	instrCount = 0
 	programCode, registers, memory, err := SingleInitializer(code, argument)
 	// Y(p) = nil
 	if err != nil {

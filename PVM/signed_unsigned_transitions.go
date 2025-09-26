@@ -160,36 +160,35 @@ func SignExtend(n int, x uint64) (uint64, error) {
 		return 0, fmt.Errorf("invalid byte count")
 	}
 	// mask immediate
-	mask := uint64(1)<<(n*8) - 1
+	mask := ^uint64(0)
 	x = x & mask
 
 	shift := 64 - n*8
 	return uint64(int64(x<<shift) >> shift), nil
+
 	/*
-	   if n == 8 { // special case since (1<<64) is overflow
+		if n == 8 { // special case since (1<<64) is overflow
+			return x, nil
+		}
 
-	   		return x, nil
-	   	}
+		if x >= (1 << (8 * n)) {
+			return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
+		}
 
-	   	if x >= (1 << (8 * n)) {
-	   		return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
-	   	}
+		if n == 8 || n == 0 {
+			return x, nil
+		}
 
-	   	if n == 8 || n == 0 {
-	   		return x, nil
-	   	}
+		var mul, add uint64
+		add = x >> (8*n - 1)
+		mul = 0
 
-	   var mul, add uint64
-	   add = x >> (8*n - 1)
-	   mul = 0
+		for i := 8 * n; i < 64; i++ { // use for loop since (1<<64) is overflow
+			mul |= (1 << i)
+		}
 
-	   for i := 8 * n; i < 64; i++ { // use for loop since (1<<64) is overflow
-
-	   		mul |= (1 << i)
-	   	}
-
-	   add *= mul
-	   x += add
-	   return x, nil
+		add *= mul
+		x += add
+		return x, nil
 	*/
 }

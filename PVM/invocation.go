@@ -2,8 +2,16 @@ package PVM
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/logger"
+)
+
+var (
+	instrCount = 0
+
+	// hex, dec
+	instrLogFormat = "dec"
 )
 
 /*
@@ -142,6 +150,7 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	count := int64(1)
 
 	for {
+
 		// check pc is not out of range and avoid infinit-loop
 		if pc > ProgramCounter(len(instructionData)) {
 			logger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
@@ -170,10 +179,12 @@ func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable
 	for pc <= pcPrime {
 		opcodeData := instructionData[pc]
 		skipLength := ProgramCounter(skip(int(pc), bitmask))
+
 		exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](instructionData, pc, skipLength, registers, memory, jumpTable, bitmask)
 
 		registers = registersPrime
 		memory = memoryPrime
+		instrCount++
 
 		var pvmExit *PVMExitReason
 		if !errors.As(exitReason, &pvmExit) && exitReason != nil {
@@ -199,6 +210,13 @@ func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable
 	return pc, registers, memory, PVMExitTuple(CONTINUE, nil)
 }
 
-// print each instructions from pc to pcPrime
-func PrintInstructions(instructionData ProgramCode, pc ProgramCounter, pcPrime ProgramCounter) {
+type Int interface {
+	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~int | ~uint
+}
+
+func formatInt[T Int](num T) string {
+	if instrLogFormat == "hex" {
+		return fmt.Sprintf("0x%x", num)
+	}
+	return fmt.Sprintf("%d", num)
 }
