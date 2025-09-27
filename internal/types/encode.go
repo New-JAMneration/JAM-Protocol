@@ -1370,8 +1370,8 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Authorizer.CodeHash (u)
-	if err := w.Authorizer.CodeHash.Encode(e); err != nil {
+	// AuthCodeHash (u)
+	if err := w.AuthCodeHash.Encode(e); err != nil {
 		return err
 	}
 
@@ -1384,9 +1384,8 @@ func (w *WorkPackage) Encode(e *Encoder) error {
 	if err := w.Authorization.Encode(e); err != nil {
 		return err
 	}
-
-	// Authorizer.Params (f)
-	if err := w.Authorizer.Params.Encode(e); err != nil {
+	// AuthorizerConfig (f)
+	if err := w.AuthorizerConfig.Encode(e); err != nil {
 		return err
 	}
 
@@ -1483,26 +1482,26 @@ func (c *CoreActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
 
-	// Exports
-	cLog(Cyan, "Encoding Exports")
-	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
+	// ExtrinsicCount (x)
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
 
-	// ExtrinsicSize
+	// ExtrinsicSize (z)
 	cLog(Cyan, "Encoding ExtrinsicSize")
 	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
 		return err
 	}
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
 
-	// ExtrinsicCount
-	cLog(Cyan, "Encoding ExtrinsicCount")
-	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
 
 	// BundleSize
 	cLog(Cyan, "Encoding BundleSize")
@@ -1560,12 +1559,12 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("Imports: %v", s.Imports))
 
-	// Exports
-	cLog(Cyan, "Encoding Exports")
-	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
+	// ExtrinsicCount
+	cLog(Cyan, "Encoding ExtrinsicCount")
+	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
 
 	// ExtrinsicSize
 	cLog(Cyan, "Encoding ExtrinsicSize")
@@ -1574,12 +1573,12 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", s.ExtrinsicSize))
 
-	// ExtrinsicCount
-	cLog(Cyan, "Encoding ExtrinsicCount")
-	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
+	// Exports
+	cLog(Cyan, "Encoding Exports")
+	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
+	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
 
 	// AccumulateCount
 	cLog(Cyan, "Encoding AccumulateCount")
@@ -1949,8 +1948,8 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// MmrPeak
-	if err := bi.MmrPeak.Encode(e); err != nil {
+	// BeefyRoot
+	if err := bi.BeefyRoot.Encode(e); err != nil {
 		return err
 	}
 
@@ -1995,14 +1994,14 @@ func (bh *BlocksHistory) Encode(e *Encoder) error {
 }
 
 // Beta
-func (b *Beta) Encode(e *Encoder) error {
+func (b *RecentBlocks) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding Beta")
 
 	if err := b.History.Encode(e); err != nil {
 		return err
 	}
 
-	if err := b.BeefyBelt.Encode(e); err != nil {
+	if err := b.Mmr.Encode(e); err != nil {
 		return err
 	}
 
@@ -2102,13 +2101,13 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// CreateTime
-	if err := s.CreateTime.Encode(e); err != nil {
+	// CreationSlot
+	if err := s.CreationSlot.Encode(e); err != nil {
 		return err
 	}
 
-	// RecentAccumulateTime
-	if err := s.RecentAccumulateTime.Encode(e); err != nil {
+	// LastAccumulationSlot
+	if err := s.LastAccumulationSlot.Encode(e); err != nil {
 		return err
 	}
 
@@ -2834,7 +2833,7 @@ func (o *Operand) Encode(e *Encoder) error {
 	}
 
 	// GasLimit 0.6.5
-	if err := o.GasLimit.Encode(e); err != nil {
+	if err := e.EncodeInteger(uint64(o.GasLimit)); err != nil {
 		return err
 	}
 
@@ -3058,11 +3057,6 @@ func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulatedServiceOutput
-// TODO: We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
-// We need to follow future updates to the graypaper.
-// Alternatively, we may need to change the implementation of AccumulatedServiceOutput to avoid using a map.
-// In this encode function, I ignore sorting when encoding the dictionary as described in the graypaper. (It's not a map)
 func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AccumulatedServiceHash")
 
@@ -3072,6 +3066,26 @@ func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	}
 
 	for accumulatedServiceHash := range *a {
+		// AccumulatedServiceHash
+		if err := accumulatedServiceHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// (7.4) LastAccOut
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+func (l *LastAccOut) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding LastAccOut")
+
+	// Encode the size of the slice
+	if err := e.EncodeLength(uint64(len(*l))); err != nil {
+		return err
+	}
+
+	for _, accumulatedServiceHash := range *l {
 		// AccumulatedServiceHash
 		if err := accumulatedServiceHash.Encode(e); err != nil {
 			return err

@@ -1,6 +1,11 @@
 package recent_history
 
 import (
+	"bytes"
+	"fmt"
+	"log"
+	"sort"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -8,200 +13,199 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
 )
 
-// RecentHistoryController is a controller for the recent history.
-// This controller is used to manage the recent history.
-type RecentHistoryController struct {
-	Betas types.Beta
-}
-
-// NewRecentHistoryController creates a new RecentHistoryController.
-func NewRecentHistoryController() *RecentHistoryController {
-	return &RecentHistoryController{
-		Betas: types.Beta{},
-	}
-}
-
 var maxBlocksHistory = types.MaxBlocksHistory
 
 // Remove duplicated blocks by BlockHash
-func (rhc *RecentHistoryController) CheckDuplicate(headerhash types.HeaderHash) bool {
+func CheckDuplicate(blocksHistory types.BlocksHistory, headerhash types.HeaderHash) bool {
 	// Check if headerhash is already in Recent History Controller
-	for _, beta := range rhc.Betas.History {
-		if beta.HeaderHash == headerhash {
+	for _, blockInfo := range blocksHistory {
+		if blockInfo.HeaderHash == headerhash {
 			return true
 		}
 	}
 	return false
 }
 
-// Beta_RecentHistory^dagger (7.5) GP 0.6.7
-func (rhc *RecentHistoryController) RecentHistory2Dagger(parentStateRoot types.StateRoot) {
-	s := store.GetInstance()
-	// Get recent beta_H^dagger from store
-	betaDagger := s.GetIntermediateStates().GetBetaHDagger()
+// Beta_H^dagger (7.5) GP 0.6.7
+/*
+	β†_H ≡ β_H except β†_H [|β_H| − 1]s = H_r
+*/
+func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.StateRoot) types.BlocksHistory {
+	// Duplicate beta_H into beta_H^dagger
+	historyDagger := history
 
-	if len(rhc.Betas.History) > 0 {
-		// Append first avoid empty slice
-		// Duplicate beta_H into beta_H^dagger
-		betaDagger = append(betaDagger, rhc.Betas.History...)
+	if len(history) != 0 {
 		// Except for the stateroot need to be updated
-		betaDagger[len(rhc.Betas.History)-1].StateRoot = parentStateRoot
+		historyDagger[len(history)-1].StateRoot = parentStateRoot
 	}
 
-	// Check beta_H^dagger is not longer than maxBlocksHistory
-	if len(betaDagger) > maxBlocksHistory {
-		// Remove old elements to retain maxBlocksHistory
-		betaDagger = betaDagger[len(betaDagger)-maxBlocksHistory:]
-	}
-
-	// Set beta_H^dagger to intermediate state in store
-	s.GetIntermediateStates().SetBetaHDagger(betaDagger)
+	return historyDagger
 }
 
-// -----(7.3)-----
-
-// // Accumulation-result tree root $r$
-// func r(c types.AccumulatedServiceOutput) (accumulationResultTreeRoot types.OpaqueHash) {
-// 	// Empty struct
-// 	pairs := make([]types.AccumulatedServiceHash, len(c))
-
-// 	for commitment, exist := range c {
-// 		if exist {
-// 			pairs = append(pairs, types.AccumulatedServiceHash{
-// 				ServiceId: commitment.ServiceId,
-// 				Hash:      commitment.Hash,
-// 			})
-// 		}
-// 	}
-
-// 	// Sort by serviceid $s$
-// 	sort.Slice(pairs, func(i, j int) bool {
-// 		return pairs[i].ServiceId < pairs[j].ServiceId
-// 	})
-
-// 	// Serialization
-// 	var dataSerialized types.ByteSequence
-// 	for _, pair := range pairs {
-// 		serviceidSerialized := utils.SerializeFixedLength(types.U32(pair.ServiceId), 4)
-// 		dataSerialized = append(dataSerialized, serviceidSerialized...)
-
-// 		hashSerialized := utils.OpaqueHashWrapper{Value: pair.Hash}.Serialize()
-// 		dataSerialized = append(dataSerialized, hashSerialized...)
-// 	}
-
-// 	// Merklization
-// 	accumulationResultTreeRoot = merkle.Mb([]types.ByteSequence{dataSerialized}, hash.KeccakHash)
-// 	return accumulationResultTreeRoot
-// }
-
-// (7.6) \mathbf{s} GP 0.6.7
-// TODO: remove mock theta and read from store(posterior LastAccOut)
-func s() (output types.ByteSequence) {
+// \mathbf{s} (7.6) GP 0.6.7
+/*
+	s = [ E_4(s) ⌢ E(h) | (s, h) <− θ′ ]
+*/
+func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
 	newEncoder := types.NewEncoder()
-	mockTheta := []types.AccumulatedServiceHash{}
-	for _, pair := range mockTheta {
-		encodedServiceId, err := newEncoder.EncodeUintWithLength(uint64(pair.ServiceId), 4)
+	var output types.ByteSequence
+	for _, accumulatedServiceHash := range lastAccOut {
+		data, err := newEncoder.Encode(&accumulatedServiceHash)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("failed to encode accumulatedServiceHash: %v", err)
 		}
-		output = append(output, encodedServiceId...)
-		encodedHash, err := newEncoder.Encode(pair.Hash)
-		if err != nil {
-			return nil
-		}
-		output = append(output, encodedHash...)
+		output = append(output, data...)
 	}
-	return output
+
+	return output, nil
 }
 
-// Merkle Mountain Range $b$
-// (7.7) GP 0.6.7
-func (rhc *RecentHistoryController) b() types.OpaqueHash {
-	mmb := s()
-	wrappedMmr := mmr.MmrWrapper(&rhc.Betas.BeefyBelt, hash.KeccakHash)
-	accumulationResultTreeRoot := merkle.Mb([]types.ByteSequence{mmb}, hash.KeccakHash)
-	// MMR append func $\mathcal{A}$
-	beefybeltPrime := wrappedMmr.AppendOne(types.MmrPeak(&accumulationResultTreeRoot))
-	return wrappedMmr.SuperPeak(beefybeltPrime)
+// Merkle root from serializedLastAccOut (s) part of (7.7) GP 0.6.7
+/*
+	MB ( s, HK )
+*/
+func lastAccOutRoot(serializedLastAccOut types.ByteSequence) types.OpaqueHash {
+	return merkle.Mb([]types.ByteSequence{serializedLastAccOut}, hash.KeccakHash)
 }
 
-// Work Report map $\mathbf{p}$
-func p(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
+// Append lastAccOutRoot to mmr and form commitment (7.7) GP 0.6.7
+/*
+	β′_B ≡ A( β_B , MB ( s, HK ), HK )
+
+	b: MR(β′_B)
+*/
+func AppendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types.Mmr, types.OpaqueHash) {
+	var m *mmr.MMR
+	if len(beefyBelt.Peaks) == 0 {
+		m = mmr.NewMMR(hash.KeccakHash)
+	} else {
+		m = mmr.NewMMRFromPeaks(beefyBelt.Peaks, hash.KeccakHash)
+	}
+	beefybeltPrime := m.AppendOne(types.MmrPeak(&merkleRoot))
+	return types.Mmr{Peaks: beefybeltPrime}, m.SuperPeak(beefybeltPrime)
+}
+
+// The set of work reports $\mathbf{p}$ (7.8) GP 0.6.7
+/*
+	p = { ((g_w)s)h ↦ ((g_w)s)e | g ∈ EG }
+*/
+func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
 	var reports []types.ReportedWorkPackage
 	// Create a map from eg.Report.PackageSpec.Hash to eg.Report.PackageSpec.ExportsRoot
 	for _, eg := range eg {
 		report := types.ReportedWorkPackage{
-			// Golang cannot compare different struct, so transfer first
 			Hash:        types.WorkReportHash(eg.Report.PackageSpec.Hash),
 			ExportsRoot: eg.Report.PackageSpec.ExportsRoot,
 		}
 		reports = append(reports, report)
 	}
+
+	sort.Slice(reports, func(i, j int) bool {
+		return bytes.Compare(reports[i].Hash[:], reports[j].Hash[:]) < 0
+	})
 	return reports
 }
 
-// item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
-// (7.8) GP 0.6.7
-func (rhc *RecentHistoryController) N(headerHash types.HeaderHash, eg types.GuaranteesExtrinsic) (items types.BlockInfo) {
-	accumulationResultMmr := rhc.b()
-	workReportHash := p(eg)
+// pack item $n$ (7.8) GP 0.6.7
+/*
+	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
+*/
+func NewItem(workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
 	zeroHash := types.StateRoot{}
-
-	items = types.BlockInfo{
-		HeaderHash: headerHash,
-		MmrPeak:    accumulationResultMmr,
+	encoder := types.NewEncoder()
+	head := store.GetInstance().GetLatestBlock().Header
+	headser, _ := encoder.Encode(&head)
+	hashed := hash.Blake2bHash(headser)
+	item = types.BlockInfo{
+		HeaderHash: types.HeaderHash(hashed),
+		BeefyRoot:  accumulationResultMmr,
 		StateRoot:  zeroHash,
 		Reported:   workReportHash,
 	}
-	return items
+	return item
 }
 
-// -----(7.3)-----
-
-// Update beta^dagger to beta^prime (7.4)
-func (rhc *RecentHistoryController) AddToBetaPrime(items types.BlockInfo) {
-	s := store.GetInstance()
-	// Get recent beta^dagger from store
-	historyDagger := s.GetIntermediateStates().GetBetaHDagger()
-
-	historyDagger = append(historyDagger, items)
+// Update beta^dagger to beta^prime (7.8) GP 0.6.7
+/*
+	β′_H ≡ β†_H cat. ( p, h = H(H), b = MR(β′_B ), s = H^0 )
+*/
+func AddItem2BetaHPrime(historyDagger types.BlocksHistory, item types.BlockInfo) types.BlocksHistory {
+	historyPrime := append(historyDagger, item)
 
 	// Ensure beta^prime's length not exceed maxBlocksHistory
-	if len(historyDagger) >= maxBlocksHistory {
+	if historyPrime.Validate() != nil {
 		// Remove old states, with length is maxBlocksHistory
-		historyDagger = historyDagger[(len(historyDagger) - maxBlocksHistory):]
+		historyPrime = historyPrime[(len(historyPrime) - maxBlocksHistory):]
 	}
 
-	// Set beta^dagger to beta^prime in store
-	s.GetPosteriorStates().SetBetaH(historyDagger)
+	return historyPrime
 }
 
-// // STF β† ≺ (H, β) (4.6)
-// func STFBeta2BetaDagger() {
-// 	var (
-// 		s               = store.GetInstance()
-// 		rhc             = NewRecentHistoryController()
-// 		betas           = s.GetPriorStates().GetBeta()
-// 		block           = s.GetProcessingBlockPointer().GetBlock()
-// 		parentStateRoot = block.Header.ParentStateRoot
-// 	)
-// 	rhc.Betas = betas
-// 	rhc.AddToBetaDagger(parentStateRoot)
-// }
+// STF β†_H ≺ (H, β_H) (4.6)
+func STFBetaH2BetaHDagger() {
+	var (
+		s     = store.GetInstance()
+		beta  = s.GetPriorStates().GetBeta()
+		block = s.GetLatestBlock()
+	)
+	// log.Printf("Latest block got by (4.6): %+v", block)
+	if beta.History.Validate() != nil {
+		log.Fatalf("beta.History.Validate() failed: %v", beta.History.Validate())
+	}
+	betaDagger := History2HistoryDagger(beta.History, block.Header.ParentStateRoot)
 
-// // STF β′ ≺ (H, EG, β†, C) (4.7)
-// func STFBetaDagger2BetaPrime() {
-// 	var (
-// 		s          = store.GetInstance()
-// 		rhc        = NewRecentHistoryController()
-// 		betas      = s.GetIntermediateStates().GetBetaDagger()
-// 		block      = s.GetProcessingBlockPointer().GetBlock()
-// 		betaB      = s.GetPriorStates().GetLastAccOut()
-// 		headerHash = block.Header.Parent
-// 		eg         = block.Extrinsic.Guarantees
-// 	)
-// 	rhc.Betas = betas
-// 	accumulationResultTreeRoot := r(betaB)
-// 	items := rhc.N(headerHash, eg, accumulationResultTreeRoot)
-// 	rhc.AddToBetaPrime(items)
-// }
+	s.GetIntermediateStates().SetBetaHDagger(betaDagger)
+}
+
+// STF β′_H ≺ (H, EG, β†_H, C) (4.7)
+func STFBetaHDagger2BetaHPrime() error {
+	var (
+		s             = store.GetInstance()
+		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
+		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
+		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
+		block         = s.GetLatestBlock()
+	)
+	serializedLastAccOut, err := serLastAccOut(lastAccOut)
+	if err != nil {
+		return err
+	}
+	merkleRoot := lastAccOutRoot(serializedLastAccOut)
+	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
+	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
+	item := NewItem(workReportHash, commitment)
+	historyPrime := AddItem2BetaHPrime(historyDagger, item)
+
+	// Set beta_B^prime and beta_H^prime to store
+	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	s.GetPosteriorStates().SetBetaH(historyPrime)
+	return nil
+}
+
+// STF β′_H ≺ (H, EG, β†_H, C) (4.7)
+func STFBetaHDagger2BetaHPrime_ForTestVector() error {
+	var (
+		s             = store.GetInstance()
+		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
+		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
+		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
+		block         = s.GetLatestBlock()
+	)
+
+	var merkleRoot types.OpaqueHash
+	for _, accumulatedServiceHash := range lastAccOut {
+		merkleRoot = accumulatedServiceHash.Hash
+	}
+
+	log.Printf("mmr peaks before append: %v", beefyBelt.Peaks)
+	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
+	log.Printf("mmr peaks after append: %v", beefyBeltPrime.Peaks)
+	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
+	item := NewItem(workReportHash, commitment)
+	historyPrime := AddItem2BetaHPrime(historyDagger, item)
+
+	// Set beta_B^prime and beta_H^prime to store
+	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	s.GetPosteriorStates().SetBetaH(historyPrime)
+	return nil
+}

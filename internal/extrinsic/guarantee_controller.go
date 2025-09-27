@@ -9,7 +9,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -50,11 +49,6 @@ func (g *GuaranteeController) Validate() error {
 
 // Sort Guarantee extrinsic | Eq. 11.24-11.25
 func (g *GuaranteeController) Sort() error {
-	/*
-		sort.Slice(g.Guarantees, func(i, j int) bool {
-			return g.Guarantees[i].Report.CoreIndex < g.Guarantees[j].Report.CoreIndex
-		})
-	*/
 	if len(g.Guarantees) == 0 {
 		return nil
 	}
@@ -98,15 +92,27 @@ func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
 	tau := store.GetInstance().GetPosteriorStates().GetTau()
+	offenders := store.GetInstance().GetPosteriorStates().GetPsiO()
+	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
+	for _, offender := range offenders {
+		offendersMap[offender] = true
+	}
+
 	var guranatorAssignments GuranatorAssignments
+	var err error
 
 	for _, guarantee := range g.Guarantees {
-		if (int(tau))/R == int(guarantee.Slot)/R {
-			guranatorAssignments = GFunc()
+		if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
+			guranatorAssignments, err = GFunc(offendersMap)
 		} else {
-			guranatorAssignments = GStarFunc()
+			guranatorAssignments, err = GStarFunc(offendersMap)
 		}
-		if !((int(tau)/R-1)*R <= int(guarantee.Slot)) {
+
+		if err != nil {
+			return err
+		}
+
+		if !((int(tau)/types.RotationPeriod-1)*types.RotationPeriod <= int(guarantee.Slot)) {
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
@@ -117,7 +123,13 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		}
 
 		message := []byte(jam_types.JamGuarantee)
-		hashed := hash.Blake2bHash(utilities.WorkReportSerialization(guarantee.Report))
+		encoder := types.NewEncoder()
+
+		reportSerial, err := encoder.Encode(&guarantee.Report)
+		if err != nil {
+			return err
+		}
+		hashed := hash.Blake2bHash(reportSerial)
 		message = append(message, hashed[:]...)
 		for _, sig := range guarantee.Signatures {
 			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
@@ -148,7 +160,7 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 func (g *GuaranteeController) ValidateWorkReports() error {
 	workReports := g.WorkReportSet()
 	alpha := store.GetInstance().GetPriorStates().GetAlpha()
-	delta := store.GetInstance().GetPosteriorStates().GetDelta()
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	for _, workReport := range workReports {
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
@@ -230,7 +242,7 @@ func (g *GuaranteeController) CardinalityCheck() error {
 func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
 	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
-	headerTimeSlot := store.GetInstance().GetBlock().Header.Slot
+	headerTimeSlot := store.GetInstance().GetLatestBlock().Header.Slot
 
 	for _, context := range contexts {
 		recentAnchorMatch := false
@@ -240,7 +252,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
-				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.MmrPeak)
+				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.BeefyRoot)
 				break
 			}
 		}
@@ -258,21 +270,23 @@ func (g *GuaranteeController) ValidateContexts() error {
 		}
 
 		if int(context.LookupAnchorSlot) < int(headerTimeSlot)-types.MaxLookupAge {
-			// return errors.New("report_before_last_rotation")
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
 	}
+
+	encoder := types.NewEncoder()
 	// 11.35
 	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
 	for _, context := range contexts {
 		foundMatch := false
 		for _, ancestorHeader := range ancestorHeaders {
-			serializedHeader, err := utilities.HeaderSerialization(ancestorHeader)
+			headerSerial, err := encoder.Encode(&ancestorHeader)
 			if err != nil {
 				return err
 			}
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(serializedHeader) == types.OpaqueHash(context.LookupAnchor) {
+
+			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(headerSerial) == types.OpaqueHash(context.LookupAnchor) {
 				foundMatch = true
 				break
 			}
@@ -403,7 +417,7 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 // CheckWorkResult | Eq. 11.42
 func (g *GuaranteeController) CheckWorkResult() error {
 	w := g.WorkReportSet()
-	delta := store.GetInstance().GetPosteriorStates().GetDelta()
+	delta := store.GetInstance().GetPriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
 			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
@@ -419,16 +433,11 @@ func (g *GuaranteeController) CheckWorkResult() error {
 func (g *GuaranteeController) TransitionWorkReport() {
 	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	posteriorTau := store.GetInstance().GetPosteriorStates().GetTau()
-	coreIndexMap := make(map[types.CoreIndex]bool)
+
 	for _, guarantee := range g.Guarantees {
-		coreIndexMap[guarantee.Report.CoreIndex] = true
-	}
-	for i := range rhoDoubleDagger {
-		if coreIndexMap[types.CoreIndex(i)] {
-			rhoDoubleDagger[i] = &types.AvailabilityAssignment{
-				Report:  g.Guarantees[i].Report,
-				Timeout: posteriorTau,
-			}
+		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
+			Report:  guarantee.Report,
+			Timeout: posteriorTau,
 		}
 	}
 
@@ -472,33 +481,30 @@ func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 	r.Sort()
 }
 
-func GetGuarantors(guarantee types.ReportGuarantee) []types.Ed25519Public {
+func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, error) {
 	tau := store.GetInstance().GetPosteriorStates().GetTau()
+	offenders := store.GetInstance().GetPriorStates().GetPsiO()
+	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
+	for _, offender := range offenders {
+		offendersMap[offender] = true
+	}
+
 	var guranatorAssignments GuranatorAssignments
+	var err error
 	guarantors := make([]types.Ed25519Public, 0)
-	if (int(tau))/R == int(guarantee.Slot)/R {
-		guranatorAssignments = GFunc()
+	if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
+		guranatorAssignments, err = GFunc(offendersMap)
 	} else {
-		guranatorAssignments = GStarFunc()
+		guranatorAssignments, err = GStarFunc(offendersMap)
+	}
+
+	if err != nil {
+		return []types.Ed25519Public{}, err
 	}
 
 	for _, sig := range guarantee.Signatures {
 		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519)
 	}
 
-	return guarantors
+	return guarantors, nil
 }
-
-/*
-	for _, sig := range guarantee.Signatures {
-		if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-			err := ReportsErrorCode.WrongAssignment
-			return &err
-		}
-		publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
-		if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
-			err := ReportsErrorCode.BadSignature
-			return &err
-		}
-	}
-*/

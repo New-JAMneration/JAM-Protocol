@@ -35,3 +35,18 @@ func (t *TraceTestCase) Decode(d *types.Decoder) error {
 
 	return nil
 }
+
+// Decode Genesis
+func (g *Genesis) Decode(d *types.Decoder) error {
+	var err error
+
+	if err = g.Header.Decode(d); err != nil {
+		return err
+	}
+
+	if err = g.State.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}

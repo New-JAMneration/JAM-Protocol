@@ -49,17 +49,23 @@ func (v *Validator) UnmarshalJSON(data []byte) error {
 
 func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		CodeHash   string `json:"code_hash,omitempty"`
-		Balance    U64    `json:"balance,omitempty"`
-		MinItemGas Gas    `json:"min_item_gas,omitempty"`
-		MinMemoGas Gas    `json:"min_memo_gas,omitempty"`
-		Bytes      U64    `json:"bytes,omitempty"`
-		Items      U32    `json:"items,omitempty"`
+		CodeHash             string    `json:"code_hash,omitempty"`
+		Balance              U64       `json:"balance,omitempty"`
+		MinItemGas           Gas       `json:"min_item_gas,omitempty"`
+		MinMemoGas           Gas       `json:"min_memo_gas,omitempty"`
+		Bytes                U64       `json:"bytes,omitempty"`
+		DepositOffset        U64       `json:"deposit_offset,omitempty"`
+		Items                U32       `json:"items,omitempty"`
+		CreationSlot         TimeSlot  `json:"creation_slot,omitempty"`
+		LastAccumulationSlot TimeSlot  `json:"last_accumulation_slot,omitempty"`
+		ParentService        ServiceId `json:"parent_service,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
+
+	s.DepositOffset = temp.DepositOffset
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -70,6 +76,9 @@ func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 	s.Balance = temp.Balance
 	s.MinItemGas = temp.MinItemGas
 	s.MinMemoGas = temp.MinMemoGas
+	s.CreationSlot = temp.CreationSlot
+	s.LastAccumulationSlot = temp.LastAccumulationSlot
+	s.ParentService = temp.ParentService
 	s.Bytes = temp.Bytes
 	s.Items = temp.Items
 
@@ -235,11 +244,12 @@ func (w *WorkItem) UnmarshalJSON(data []byte) error {
 
 func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Authorization string        `json:"authorization,omitempty"`
-		AuthCodeHost  U32           `json:"auth_code_host,omitempty"`
-		Authorizer    Authorizer    `json:"authorizer"`
-		Context       RefineContext `json:"context"`
-		Items         []WorkItem    `json:"items,omitempty"`
+		Authorization    string        `json:"authorization,omitempty"`
+		AuthCodeHost     U32           `json:"auth_code_host,omitempty"`
+		AuthCodeHash     string        `json:"auth_code_hash,omitempty"`
+		AuthorizerConfig string        `json:"authorizer_config,omitempty"`
+		Context          RefineContext `json:"context"`
+		Items            []WorkItem    `json:"items,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -253,7 +263,19 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	w.Authorization = ByteSequence(authorizationBytes)
 
 	w.AuthCodeHost = ServiceId(temp.AuthCodeHost)
-	w.Authorizer = temp.Authorizer
+
+	codeHashBytes, err := hex.DecodeString(temp.AuthCodeHash[2:])
+	if err != nil {
+		return err
+	}
+
+	paramsBytes, err := hex.DecodeString(temp.AuthorizerConfig[2:])
+	if err != nil {
+		return err
+	}
+
+	w.AuthCodeHash = OpaqueHash(codeHashBytes)
+	w.AuthorizerConfig = ByteSequence(paramsBytes)
 	w.Context = temp.Context
 	w.Items = temp.Items
 
@@ -496,7 +518,7 @@ func (r *ReportedWorkPackage) UnmarshalJSON(data []byte) error {
 func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		HeaderHash string                `json:"header_hash,omitempty"`
-		MmrPeak    string                `json:"mmr_peak,omitempty"`
+		BeefyRoot  string                `json:"beefy_root,omitempty"`
 		StateRoot  string                `json:"state_root,omitempty"`
 		Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 	}
@@ -511,11 +533,11 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 	}
 	b.HeaderHash = HeaderHash(headerHashBytes)
 
-	mmrPeakBytes, err := hex.DecodeString(temp.MmrPeak[2:])
+	beefyRootBytes, err := hex.DecodeString(temp.BeefyRoot[2:])
 	if err != nil {
 		return err
 	}
-	b.MmrPeak = OpaqueHash(mmrPeakBytes)
+	b.BeefyRoot = OpaqueHash(beefyRootBytes)
 
 	stateRootBytes, err := hex.DecodeString(temp.StateRoot[2:])
 	if err != nil {
@@ -770,7 +792,12 @@ func (p *Preimage) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	p.Blob = blobBytes
+
+	if len(blobBytes) == 0 {
+		p.Blob = nil
+	} else {
+		p.Blob = blobBytes
+	}
 
 	return nil
 }
@@ -1372,16 +1399,21 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 }
 
 // Beta
-func (b *Beta) UnmarshalJSON(data []byte) error {
-	var temp Beta
+func (b *RecentBlocks) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		History BlocksHistory `json:"history,omitempty"`
+		Mmr     Mmr           `json:"mmr,omitempty"`
+	}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	if temp.History == nil {
+	if len(temp.History) == 0 {
 		b.History = nil
+		b.Mmr = Mmr{}
 	} else {
 		b.History = temp.History
+		b.Mmr = temp.Mmr
 	}
 
 	*b = temp
@@ -1623,25 +1655,27 @@ func (p *PreimagesMapEntryDTO) UnmarshalJSON(data []byte) error {
 
 // Priviliges
 func (p *Privileges) UnmarshalJSON(data []byte) error {
-	type Alias Privileges
-	aux := &struct {
-		AlwaysAccum *json.RawMessage `json:"chi_g"`
-		*Alias
-	}{
-		Alias: (*Alias)(p),
+	var temp struct {
+		Bless       U32                      `json:"bless"`      // Manager
+		Assign      []U32                    `json:"assign"`     // AlterPhi
+		Designate   U32                      `json:"designate"`  // AlterIota
+		AlwaysAccum []AlwaysAccumulateMapDTO `json:"always_acc"` // AutoAccumulateGasLimits
 	}
 
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	// if AlwaysAccum is nil or "null", set to empty map
-	if aux.AlwaysAccum == nil || string(*aux.AlwaysAccum) == "null" {
-		p.AlwaysAccum = make(AlwaysAccumulateMap)
-	} else {
-		if err := json.Unmarshal(*aux.AlwaysAccum, &p.AlwaysAccum); err != nil {
-			return err
-		}
+	p.Bless = ServiceId(temp.Bless)
+	p.Assign = make(ServiceIdList, len(temp.Assign))
+	for i, id := range temp.Assign {
+		p.Assign[i] = ServiceId(id)
+	}
+	p.Designate = ServiceId(temp.Designate)
+
+	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
+	for _, entry := range temp.AlwaysAccum {
+		p.AlwaysAccum[entry.ServiceId] = entry.Gas
 	}
 
 	return nil
@@ -1729,6 +1763,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hex string: %w", err)
 		}
+
 		(*s)[i].Key = StateKey(decodedKey)
 
 		// value
@@ -1736,7 +1771,12 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hex string: %w", err)
 		}
-		(*s)[i].Value = decodedValue
+
+		if len(decodedValue) == 0 {
+			(*s)[i].Value = nil
+		} else {
+			(*s)[i].Value = decodedValue
+		}
 	}
 
 	return nil

@@ -16,6 +16,7 @@ var (
 type Store struct {
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
+	finalizedIndex             map[types.HeaderHash]bool
 	processingBlock            *ProcessingBlock
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
@@ -30,6 +31,7 @@ func GetInstance() *Store {
 	initOnce.Do(func() {
 		globalStore = &Store{
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
+			finalizedIndex:             make(map[types.HeaderHash]bool),
 			processingBlock:            NewProcessingBlock(),
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
@@ -46,6 +48,7 @@ func ResetInstance() {
 	// reset globalStore
 	globalStore = &Store{
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
+		finalizedIndex:             make(map[types.HeaderHash]bool),
 		processingBlock:            NewProcessingBlock(),
 		priorStates:                NewPriorStates(),
 		intermediateStates:         NewIntermediateStates(),
@@ -78,8 +81,97 @@ func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
-	s.unfinalizedBlocks.AddBlock(block)
-	log.Println("🚀 Genesis block generated")
+	// Genesis block is always finalized
+	s.finalizedIndex[block.Header.Parent] = true
+}
+
+// Finalized Blocks Management
+
+// FinalizeBlock marks a block as finalized by its hash
+func (s *Store) FinalizeBlock(blockHash types.HeaderHash) {
+	s.finalizedIndex[blockHash] = true
+}
+
+// IsBlockFinalized checks if a block is finalized
+func (s *Store) IsBlockFinalized(blockHash types.HeaderHash) bool {
+	return s.finalizedIndex[blockHash]
+}
+
+// GetFinalizedBlocks returns all finalized blocks
+func (s *Store) GetFinalizedBlocks() []types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	finalizedBlocksIdx := -1
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			finalizedBlocksIdx = i
+			break
+		}
+	}
+
+	if finalizedBlocksIdx == -1 {
+		return []types.Block{}
+	}
+
+	return allBlocks[:finalizedBlocksIdx+1]
+}
+
+// GetFinalizedBlocks returns all finalized blocks
+func (s *Store) GetFinalizedBlock() types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	finalizedBlocksIdx := -1
+	found := false
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			finalizedBlocksIdx = i
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return types.Block{}
+	}
+
+	return allBlocks[finalizedBlocksIdx]
+}
+
+// GetUnfinalizedBlocks returns all unfinalized blocks
+func (s *Store) GetUnfinalizedBlocks() []types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+	finalizedBlockIdx := -1
+
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		if s.IsBlockFinalized(allBlocks[i].Header.Parent) {
+			finalizedBlockIdx = i
+			break
+		}
+	}
+
+	return allBlocks[finalizedBlockIdx+1:]
+}
+
+// GetLatestFinalizedBlock returns the most recent finalized block
+func (s *Store) GetLatestFinalizedBlock() types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	// Search from the end to find the latest finalized block
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		if s.IsBlockFinalized(allBlocks[i].Header.Parent) {
+			return allBlocks[i]
+		}
+	}
+
+	return types.Block{}
+}
+
+// CleanupOldFinalizedBlocks removes old finalized blocks from memory
+// This is a simple implementation - you might want to implement more sophisticated cleanup
+func (s *Store) CleanupOldFinalizedBlocks(keepCount int) {
+	// TODO: Implement this
 }
 
 // Set
@@ -96,7 +188,7 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
-	s.priorStates.GenerateGenesisState(state)
+	s.posteriorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
 }
 
@@ -122,6 +214,14 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+// post-state update to pre-state
+func (s *Store) StateCommit() {
+	posterState := s.GetPosteriorStates().GetState()
+	s.GetPriorStates().SetState(posterState)
+
+	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

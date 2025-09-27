@@ -1,6 +1,9 @@
 package merklization
 
 import (
+	"bytes"
+	"sort"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
@@ -41,7 +44,7 @@ func encodeBetaKey() types.StateKey {
 	return betaWrapper.StateKeyConstruct()
 }
 
-func encodeBeta(beta types.Beta) types.ByteSequence {
+func encodeBeta(beta types.RecentBlocks) types.ByteSequence {
 	encoder := types.NewEncoder()
 	encodedBeta, err := encoder.Encode(&beta)
 	if err != nil {
@@ -238,7 +241,7 @@ func encodeLastAccKey() types.StateKey {
 }
 
 // value 16: lastaccount (theta)
-func encodeLastAccOut(lastAccOut types.AccumulatedServiceOutput) (output types.ByteSequence) {
+func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
 	encodedLastAccount, err := encoder.Encode(&lastAccOut)
 	if err != nil {
@@ -286,11 +289,11 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	output = append(output, encodedBytes...)
 
 	// a_f
-	encodedGratisStorageOffset, err := encoder.Encode(&serviceAccount.ServiceInfo.GratisStorageOffset)
+	encodedDepositOffset, err := encoder.Encode(&serviceAccount.ServiceInfo.DepositOffset)
 	if err != nil {
 		return nil
 	}
-	output = append(output, encodedGratisStorageOffset...)
+	output = append(output, encodedDepositOffset...)
 
 	// a_i
 	encodedItems, err := encoder.Encode(&serviceAccount.ServiceInfo.Items)
@@ -300,14 +303,14 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	output = append(output, encodedItems...)
 
 	// a_r
-	encodedCreateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.CreateTime)
+	encodedCreationSlot, err := encoder.Encode(&serviceAccount.ServiceInfo.CreationSlot)
 	if err != nil {
 		return nil
 	}
-	output = append(output, encodedCreateTime...)
+	output = append(output, encodedCreationSlot...)
 
 	// a_a
-	encodedRecentAccumulateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.RecentAccumulateTime)
+	encodedRecentAccumulateTime, err := encoder.Encode(&serviceAccount.ServiceInfo.LastAccumulationSlot)
 	if err != nil {
 		return nil
 	}
@@ -339,7 +342,7 @@ func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.
 	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 1), encodeLength)
 	part_2 := key
 
-	h := types.ByteSequence{}
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
 	copy(h, part_1)
 	copy(h[encodeLength:], part_2[:])
 
@@ -359,7 +362,7 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
 	part_2 := key
 
-	h := types.ByteSequence{}
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
 	copy(h, part_1)
 	copy(h[encodeLength:], part_2[:])
 
@@ -379,7 +382,7 @@ func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value ty
 	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
 	part_2 := key.Hash
 
-	h := types.ByteSequence{}
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
 	copy(h, part_1)
 	copy(h[encodeLength:], part_2[:])
 
@@ -545,6 +548,11 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 			encoded = append(encoded, stateKeyVal)
 		}
 	}
+
+	// Order by key
+	sort.Slice(encoded, func(i, j int) bool {
+		return bytes.Compare(encoded[i].Key[:], encoded[j].Key[:]) < 0
+	})
 
 	return encoded, nil
 }

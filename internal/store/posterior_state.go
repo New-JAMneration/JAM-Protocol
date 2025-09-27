@@ -18,9 +18,24 @@ func NewPosteriorStates() *PosteriorStates {
 		state: &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			LastAccOut: make(types.AccumulatedServiceOutput),
+			LastAccOut: types.LastAccOut{},
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
+			Pi: types.Statistics{
+				ValsCurr: types.ValidatorsStatistics{},
+				ValsLast: types.ValidatorsStatistics{},
+				Cores:    types.CoresStatistics{},
+				Services: types.ServicesStatistics{},
+			},
+			Delta: make(types.ServiceAccountState),
 		},
 	}
+}
+
+func (s *PosteriorStates) SetState(state types.State) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.state = &state
 }
 
 // GetState returns the current state
@@ -51,7 +66,7 @@ func (s *PosteriorStates) GetAlpha() types.AuthPools {
 	return s.state.Alpha
 }
 
-func (s *PosteriorStates) SetBeta(beta types.Beta) {
+func (s *PosteriorStates) SetBeta(beta types.RecentBlocks) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta = beta
@@ -66,11 +81,11 @@ func (s *PosteriorStates) SetBetaH(betaH types.BlocksHistory) {
 func (s *PosteriorStates) SetBetaB(betaB types.Mmr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Beta.BeefyBelt = betaB
+	s.state.Beta.Mmr = betaB
 }
 
 // GetBeta returns the beta value
-func (s *PosteriorStates) GetBeta() types.Beta {
+func (s *PosteriorStates) GetBeta() types.RecentBlocks {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Beta
@@ -510,13 +525,13 @@ func (s *PosteriorStates) GetXi() types.AccumulatedQueue {
 	return s.state.Xi
 }
 
-func (s *PosteriorStates) SetLastAccOut(c types.AccumulatedServiceOutput) {
+func (s *PosteriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.LastAccOut = c
 }
 
-func (s *PosteriorStates) GetLastAccOut() types.AccumulatedServiceOutput {
+func (s *PosteriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.LastAccOut

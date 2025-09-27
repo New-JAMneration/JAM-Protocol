@@ -98,8 +98,9 @@ func TestDisputes(t *testing.T) {
 		s.GetPriorStates().SetPsi(disputesTestCase.PreState.Psi)
 		s.GetPriorStates().SetTau(disputesTestCase.PreState.Tau)
 		s.GetPosteriorStates().SetPsi(types.DisputesRecords{})
-		disputeExtrinsic := disputesTestCase.Input.Disputes
-		output, disputeErr := Disputes(disputeExtrinsic)
+		// disputeExtrinsic := disputesTestCase.Input.Disputes
+		// output, disputeErr := Disputes(disputeExtrinsic)
+		output, disputeErr := Disputes()
 		if disputeErr != nil {
 			copyPriorToPosterior()
 		}

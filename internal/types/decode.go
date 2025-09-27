@@ -61,6 +61,34 @@ func (t *TimeSlot) Decode(d *Decoder) error {
 	return nil
 }
 
+// TimeSlotSet
+func (t *TimeSlotSet) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TimeSlotSet")
+
+	var err error
+
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	timeSlots := make([]TimeSlot, length)
+	for i := uint64(0); i < length; i++ {
+		if err = timeSlots[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	*t = timeSlots
+
+	return nil
+}
+
 func (e *EpochMarkValidatorKeys) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding EpochMarkValidatorKeys")
 
@@ -1496,8 +1524,8 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 		return err
 	}
 
-	// Authorizer.CodeHash (u)
-	if err := w.Authorizer.CodeHash.Decode(d); err != nil {
+	// AuthCodeHash (u)
+	if err := w.AuthCodeHash.Decode(d); err != nil {
 		return err
 	}
 
@@ -1511,8 +1539,8 @@ func (w *WorkPackage) Decode(d *Decoder) error {
 		return err
 	}
 
-	// Authorizer.Params (f)
-	if err = w.Authorizer.Params.Decode(d); err != nil {
+	// AuthorizerConfig (f)
+	if err = w.AuthorizerConfig.Decode(d); err != nil {
 		return err
 	}
 
@@ -1620,14 +1648,16 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.Imports = U16(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	// x
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.Exports = U16(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	c.ExtrinsicCount = U16(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
 
+	// z
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
 	if err != nil {
@@ -1636,13 +1666,13 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 	c.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	c.ExtrinsicCount = U16(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	c.Exports = U16(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	bundleSize, err := d.DecodeInteger()
@@ -1728,13 +1758,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.Imports = U32(imports)
 	cLog(Yellow, fmt.Sprintf("Imports: %v", imports))
 
-	cLog(Cyan, "Decoding Exports")
-	exports, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding ExtrinsicCount")
+	extrinsicCount, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.Exports = U32(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
+	s.ExtrinsicCount = U32(extrinsicCount)
+	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
 
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
@@ -1744,13 +1774,13 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.ExtrinsicSize = U32(extrinsicSize)
 	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", extrinsicSize))
 
-	cLog(Cyan, "Decoding ExtrinsicCount")
-	extrinsicCount, err := d.DecodeInteger()
+	cLog(Cyan, "Decoding Exports")
+	exports, err := d.DecodeInteger()
 	if err != nil {
 		return err
 	}
-	s.ExtrinsicCount = U32(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
+	s.Exports = U32(exports)
+	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	accumulateCount, err := d.DecodeInteger()
@@ -2138,7 +2168,7 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = b.MmrPeak.Decode(d); err != nil {
+	if err = b.BeefyRoot.Decode(d); err != nil {
 		return err
 	}
 
@@ -2194,14 +2224,14 @@ func (b *BlocksHistory) Decode(d *Decoder) error {
 }
 
 // Beta
-func (b *Beta) Decode(d *Decoder) error {
+func (b *RecentBlocks) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding Beta")
 
 	if err := b.History.Decode(d); err != nil {
 		return err
 	}
 
-	if err := b.BeefyBelt.Decode(d); err != nil {
+	if err := b.Mmr.Decode(d); err != nil {
 		return err
 	}
 
@@ -2317,7 +2347,7 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.RecentAccumulateTime.Decode(d); err != nil {
+	if err = s.LastAccumulationSlot.Decode(d); err != nil {
 		return err
 	}
 
@@ -3105,6 +3135,12 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
+	gasLimit, err := decoder.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	o.GasLimit = Gas(gasLimit)
+
 	if err = o.GasLimit.Decode(decoder); err != nil {
 		return err
 	}
@@ -3356,6 +3392,36 @@ func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
 	}
 
 	cLog(Yellow, fmt.Sprintf("AccumulatedServiceOutput: %v", *a))
+
+	return nil
+}
+
+// (7.4) LastAccOut
+func (l *LastAccOut) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding LastAccOut")
+
+	var err error
+
+	// Decode the length of the array
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// make the slice with length
+	lastAccOut := make([]AccumulatedServiceHash, length)
+	for i := uint64(0); i < length; i++ {
+		if err = lastAccOut[i].Decode(d); err != nil {
+			return err
+		}
+	}
+
+	// Assign the decoded slice to the receiver
+	*l = lastAccOut
 
 	return nil
 }

@@ -18,9 +18,19 @@ func NewPriorStates() *PriorStates {
 		state: &types.State{
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			LastAccOut: make(types.AccumulatedServiceOutput),
+			Varphi:     make(types.AuthQueues, types.CoresCount),
+			LastAccOut: make(types.LastAccOut, 0),
+			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:      make(types.AuthPools, types.CoresCount),
+			Delta:      make(types.ServiceAccountState),
 		},
 	}
+}
+
+func (s *PriorStates) SetState(state types.State) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state = &state
 }
 
 // GetState returns the current state
@@ -52,7 +62,7 @@ func (s *PriorStates) GetAlpha() types.AuthPools {
 }
 
 // SetBeta sets the beta value
-func (s *PriorStates) SetBeta(beta types.Beta) {
+func (s *PriorStates) SetBeta(beta types.RecentBlocks) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Beta = beta
@@ -67,11 +77,11 @@ func (s *PriorStates) SetBetaH(betaH types.BlocksHistory) {
 func (s *PriorStates) SetBetaB(betaB types.Mmr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Beta.BeefyBelt = betaB
+	s.state.Beta.Mmr = betaB
 }
 
 // GetBeta returns the beta value
-func (s *PriorStates) GetBeta() types.Beta {
+func (s *PriorStates) GetBeta() types.RecentBlocks {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Beta
@@ -504,13 +514,13 @@ func (s *PriorStates) GetXi() types.AccumulatedQueue {
 	return s.state.Xi
 }
 
-func (s *PriorStates) SetLastAccOut(c types.AccumulatedServiceOutput) {
+func (s *PriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.LastAccOut = c
 }
 
-func (s *PriorStates) GetLastAccOut() types.AccumulatedServiceOutput {
+func (s *PriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.LastAccOut

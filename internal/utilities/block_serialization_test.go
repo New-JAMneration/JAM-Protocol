@@ -143,14 +143,12 @@ type workItem struct {
 }
 
 type workPackage struct {
-	Authorization string `json:"authorization,omitempty"`
-	AuthCodeHost  int    `json:"auth_code_host,omitempty"`
-	Authorizer    struct {
-		CodeHash string `json:"code_hash,omitempty"`
-		Params   string `json:"params,omitempty"`
-	} `json:"authorizer"`
-	Context refineContext `json:"context"`
-	Items   []workItem    `json:"items,omitempty"`
+	Authorization    string        `json:"authorization,omitempty"`
+	AuthCodeHost     int           `json:"auth_code_host,omitempty"`
+	AuthCodeHash     [32]byte      `json:"auth_code_hash,omitempty"`
+	AuthorizerConfig []byte        `json:"authorizer_config,omitempty"`
+	Context          refineContext `json:"context"`
+	Items            []workItem    `json:"items,omitempty"`
 }
 
 func readDataFromFile(filename string) []byte {
@@ -479,12 +477,10 @@ func readWorkPackageFromJson(filename string, data workPackage) (outputData type
 	unmarshalDataFromJson(filename, &data)
 
 	outputData = types.WorkPackage{
-		Authorization: types.ByteSequence(stringToHex(data.Authorization)),
-		AuthCodeHost:  types.ServiceId(data.AuthCodeHost),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash(stringToHex(data.Authorizer.CodeHash)),
-			Params:   types.ByteSequence(stringToHex(data.Authorizer.Params)),
-		},
+		Authorization:    types.ByteSequence(stringToHex(data.Authorization)),
+		AuthCodeHost:     types.ServiceId(data.AuthCodeHost),
+		AuthCodeHash:     types.OpaqueHash(data.AuthCodeHash),
+		AuthorizerConfig: types.ByteSequence(data.AuthorizerConfig),
 	}
 	outputData.Context = readExtrinsicRefineContextFromJson(filename, data.Context)
 	for _, data := range data.Items {

@@ -1,7 +1,9 @@
 package extrinsic
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -130,29 +132,35 @@ func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHa
 
 // UpdatePsiO updates the PsiO | Eq. 10.19
 func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.Fault) {
-	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
-	offenderMap := make(map[types.Ed25519Public]bool)
-	for _, offender := range priorPsi.Offenders {
-		offenderMap[offender] = true
+	s := store.GetInstance()
+	priorPsi := s.GetPriorStates().GetPsi()
+
+	offenderMap := make(map[types.Ed25519Public]bool, len(priorPsi.Offenders))
+	for _, k := range priorPsi.Offenders {
+		offenderMap[k] = true
 	}
 
-	offenders := make([]types.Ed25519Public, 0)
-	for _, culprit := range culprits {
-		offenders = append(offenders, culprit.Key)
+	posteriorPsiO := make([]types.Ed25519Public, 0, len(culprits)+len(faults))
+	for _, c := range culprits {
+		if !offenderMap[c.Key] {
+			posteriorPsiO = append(posteriorPsiO, c.Key)
+			offenderMap[c.Key] = true
+		}
 	}
-
-	for _, fault := range faults {
-		offenders = append(offenders, fault.Key)
-	}
-
-	posteriorPsiO := make([]types.Ed25519Public, 0)
-	for _, culpritAndFault := range offenders {
-		if !offenderMap[culpritAndFault] {
-			posteriorPsiO = append(posteriorPsiO, culpritAndFault)
+	for _, f := range faults {
+		if !offenderMap[f.Key] {
+			posteriorPsiO = append(posteriorPsiO, f.Key)
+			offenderMap[f.Key] = true
 		}
 	}
 
-	store.GetInstance().GetPosteriorStates().SetPsiO(append(priorPsi.Offenders, posteriorPsiO...))
+	psiO := append([]types.Ed25519Public(nil), priorPsi.Offenders...)
+	psiO = append(psiO, posteriorPsiO...)
+	sort.Slice(psiO, func(i, j int) bool {
+		return bytes.Compare(psiO[i][:], psiO[j][:]) < 0
+	})
+
+	s.GetPosteriorStates().SetPsiO(psiO)
 }
 
 // HeaderOffenders returns the offenders markers | Eq. 10.20

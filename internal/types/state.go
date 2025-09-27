@@ -6,7 +6,7 @@ import "fmt"
 type State struct {
 	Alpha  AuthPools               `json:"alpha"`
 	Varphi AuthQueues              `json:"varphi"`
-	Beta   Beta                    `json:"beta"`
+	Beta   RecentBlocks            `json:"beta"`
 	Gamma  Gamma                   `json:"gamma"`
 	Psi    DisputesRecords         `json:"psi"`
 	Eta    EntropyBuffer           `json:"eta"`
@@ -19,7 +19,7 @@ type State struct {
 	Pi     Statistics              `json:"pi"`
 	Theta  ReadyQueue              `json:"theta"`
 	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
-	LastAccOut AccumulatedServiceOutput
+	LastAccOut LastAccOut
 	Xi         AccumulatedQueue    `json:"xi"`
 	Delta      ServiceAccountState `json:"accounts"`
 }

@@ -299,8 +299,8 @@ func TestTLSConfigGen(t *testing.T) {
 					t.Error("Expected exactly one certificate")
 				}
 
-				if config.ClientAuth != tls.VerifyClientCertIfGiven {
-					t.Error("Expected VerifyClientCertIfGiven for server config")
+				if config.ClientAuth != tls.RequireAnyClientCert {
+					t.Error("Expected RequireAnyClientCert for server config")
 				}
 
 				if config.VerifyConnection == nil {
@@ -318,10 +318,41 @@ func TestTLSConfigGen(t *testing.T) {
 				if len(config.NextProtos) == 0 {
 					t.Error("Expected at least one ALPN protocol")
 				}
+			},
+		},
+		{
+			name:      "Client is Builder",
+			seed:      strToHex("0x0200000002000000020000000200000002000000020000000200000002000000"),
+			isServer:  false,
+			isBuilder: true,
+			wantErr:   false,
+			checkFunc: func(t *testing.T, config *tls.Config) {
+				if config == nil {
+					t.Error("Expected non-nil TLS config")
+					return
+				}
 
-				// Check no builder-specific protocol in NextProtos
-				if strings.HasSuffix(config.NextProtos[0], "/builder") {
-					t.Error("Found builder-specific protocol when isBuilder is false")
+				if len(config.Certificates) != 1 {
+					t.Error("Expected exactly one certificate")
+				}
+
+				if config.ClientAuth != 0 {
+					t.Error("Expected no client auth for client config")
+				}
+
+				if config.VerifyConnection != nil {
+					t.Error("VerifyConnection should be nil for client config")
+				}
+
+				builderProtoFound := false
+				for _, proto := range config.NextProtos {
+					if strings.HasSuffix(proto, "/builder") {
+						builderProtoFound = true
+						break
+					}
+				}
+				if !builderProtoFound {
+					t.Error("Expected to find builder-specific protocol")
 				}
 			},
 		},
@@ -342,8 +373,8 @@ func TestTLSConfigGen(t *testing.T) {
 					t.Error("Expected exactly one certificate")
 				}
 
-				if config.ClientAuth != tls.VerifyClientCertIfGiven {
-					t.Error("Expected VerifyClientCertIfGiven for server config")
+				if config.ClientAuth != tls.RequireAnyClientCert {
+					t.Error("Expected RequireAnyClientCert for server config")
 				}
 
 				if config.VerifyConnection == nil {
