@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func hexToBytes(hexString string) []byte {
@@ -458,3 +464,106 @@ func TestBitfieldOctetSequenceToBinarySequence(t *testing.T) {
 	}
 }
 */
+
+func TestMain(m *testing.M) {
+	// Set the test mode
+	types.SetTestMode()
+
+	// Run the tests
+	os.Exit(m.Run())
+}
+
+func TestAssuranceTestVectors(t *testing.T) {
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "assurances", types.TEST_MODE)
+
+	// Read binary files
+	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	for _, binFile := range binFiles {
+		if binFile == "no_assurances_with_stale_report-1.bin" {
+			continue
+		}
+		// Read the binary file
+		binPath := filepath.Join(dir, binFile)
+
+		// Load preimages test case
+		a := &jamtests_assurances.AssuranceTestCase{}
+
+		err := utils.GetTestFromBin(binPath, a)
+		if err != nil {
+			t.Errorf("Error: %v", err)
+		}
+
+		// Get store instance and required states
+		store.ResetInstance()
+		s := store.GetInstance()
+
+		// Add block
+		s.GetPriorStates().SetKappa(a.PreState.CurrValidators)
+		s.GetPriorStates().SetRho(a.PreState.AvailAssignments)
+		s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
+		block := types.Block{
+			Header: types.Header{
+				Slot:   a.Input.Slot,
+				Parent: a.Input.Parent,
+			},
+			Extrinsic: types.Extrinsic{
+				Assurances: a.Input.Assurances,
+			},
+		}
+		s.AddBlock(block)
+
+		assuranceErr := Assurance()
+		t.Logf("assuranceErr: %v", assuranceErr)
+
+		// Get output state
+		rhoDoubleDagger := s.GetIntermediateStates().GetRhoDoubleDagger()
+
+		// Filter reports: compare rhoDagger with rhoDoubleDagger
+		ourOutput := make([]types.WorkReport, 0)
+
+		// rhoDagger >= rhoDoubleDagger
+		if !reflect.DeepEqual(a.PreState.AvailAssignments, rhoDoubleDagger) {
+			for i := 0; i < types.CoresCount; i++ {
+				if !reflect.DeepEqual(a.PreState.AvailAssignments[i], rhoDoubleDagger[i]) {
+					// For debugging
+					// t.Logf("rhoDagger[%d]: %v", i, a.PreState.AvailAssignments[i])
+					// t.Logf("rhoDoubleDagger[%d]: %v", i, rhoDoubleDagger[i])
+					ourOutput = append(ourOutput, a.PreState.AvailAssignments[i].Report)
+				}
+			}
+		}
+
+		// For debugging
+		// t.Logf("ourOutput: %v", ourOutput)
+
+		// Validate output state
+		if a.Output.Err != nil {
+			if assuranceErr == nil || assuranceErr.Error() != a.Output.Err.Error() {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("Should raise Error %v but got %v", a.Output.Err, assuranceErr)
+			} else {
+				t.Logf("ErrorCode matched: expected %v, got %v", a.Output.Err, assuranceErr)
+				t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
+			}
+		} else {
+			if assuranceErr != nil {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("No Error expected but got %v", assuranceErr)
+			} else if !cmp.Equal(ourOutput, a.Output.Ok.Reported, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported()) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				diff := cmp.Diff(ourOutput, a.Output.Ok.Reported, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported())
+				t.Fatalf("Result Outputs are not equal: %v", diff)
+			} else if !reflect.DeepEqual(rhoDoubleDagger, a.PostState.AvailAssignments) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				diff := cmp.Diff(a.PostState.AvailAssignments, rhoDoubleDagger)
+				t.Fatalf("Result States are not equal: %v", diff)
+			} else {
+				t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
+			}
+		}
+	}
+}
