@@ -163,7 +163,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 		e, m           = R(tau)
 		ePrime, mPrime = R(tauPrime)
 	)
-	log.Println(e, ePrime, m, mPrime)
+
 	// prior time slot must be less than posterior time slot
 	if tau >= tauPrime {
 		errCode := SafroleErrorCode.BadSlot

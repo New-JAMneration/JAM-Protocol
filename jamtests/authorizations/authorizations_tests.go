@@ -319,6 +319,9 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
+	store.ResetInstance()
+	storeInstance := store.GetInstance()
+
 	// Set up test input state
 	mockEgs := make(types.GuaranteesExtrinsic, 0, len(a.Input.Auths))
 	for _, eg := range a.Input.Auths {
@@ -329,10 +332,17 @@ func (a *AuthorizationTestCase) Dump() error {
 			},
 		})
 	}
-	// Get store instance and required states
-	storeInstance := store.GetInstance()
-	storeInstance.GetProcessingBlockPointer().SetSlot(a.Input.Slot)
-	storeInstance.GetProcessingBlockPointer().SetGuaranteesExtrinsic(mockEgs)
+	// Add block
+	block := types.Block{
+		Header: types.Header{
+			Slot: a.Input.Slot,
+		},
+		Extrinsic: types.Extrinsic{
+			Guarantees: mockEgs,
+		},
+	}
+	storeInstance.AddBlock(block)
+
 	storeInstance.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
 	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	return nil
@@ -347,24 +357,16 @@ func (a *AuthorizationTestCase) GetOutput() interface{} {
 }
 
 func (a *AuthorizationTestCase) ExpectError() error {
-	// TODO: Implement error handling
-	// Should be implemented in the future once the testcase has an error
+	// Currently no error expected GP 0.6.7
 	return nil
 }
 
 func (a *AuthorizationTestCase) Validate() error {
 	storeInstance := store.GetInstance()
 
-	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetAlpha(), a.PostState.Alpha) {
-		return fmt.Errorf("alpha state mismatch: expected %v, got %v", a.PostState.Alpha, storeInstance.GetPosteriorStates().GetAlpha())
-	}
-
-	if !reflect.DeepEqual(storeInstance.GetPosteriorStates().GetVarphi(), a.PostState.Varphi) {
-		return fmt.Errorf("varphi state mismatch: expected %v, got %v", a.PostState.Varphi, storeInstance.GetPosteriorStates().GetVarphi())
-	}
-
 	// Get output state
 	outputAlpha := storeInstance.GetPosteriorStates().GetAlpha()
+
 	// Validate output state
 	if !reflect.DeepEqual(a.PreState.Varphi, a.PostState.Varphi) {
 		diff := cmp.Diff(a.PreState.Varphi, a.PostState.Varphi)

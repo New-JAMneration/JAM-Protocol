@@ -36,8 +36,8 @@ func TestPermute(t *testing.T) {
 	// act
 	out := permute(dummyEntropy, dummySlot) // same note about unexported
 
-	if len(out) != int(V) {
-		t.Errorf("permute output length mismatch.\nExpected: %d\nGot:      %d", V, len(out))
+	if len(out) != int(types.ValidatorsCount) {
+		t.Errorf("permute output length mismatch.\nExpected: %d\nGot:      %d", types.ValidatorsCount, len(out))
 	}
 
 	expected := []types.CoreIndex{1, 1, 0, 1, 0, 0}
@@ -71,8 +71,8 @@ func TestNewGuranatorAssignments(t *testing.T) {
 
 	// assert
 	// Check the length of assignments
-	if len(gAssignments.CoreAssignments) != int(V) {
-		t.Errorf("expected %d core assignments, got %d", V, len(gAssignments.CoreAssignments))
+	if len(gAssignments.CoreAssignments) != int(types.ValidatorsCount) {
+		t.Errorf("expected %d core assignments, got %d", types.ValidatorsCount, len(gAssignments.CoreAssignments))
 	}
 
 	// Check the length of public keys
@@ -116,7 +116,7 @@ func TestGStarLambda(t *testing.T) {
 	store.GetInstance().GetPosteriorStates().SetTau(120)
 
 	// act
-	gStarVal := GStarFunc()
+	gStarVal, _ := GStarFunc(nil)
 
 	// assert
 	// Because Tau=120, E=12, and R=10, we check which epoch segment it falls into:
@@ -137,7 +137,6 @@ func TestGStarLambda(t *testing.T) {
 	if !reflect.DeepEqual(gStarVal.CoreAssignments, expected) {
 		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gStarVal.CoreAssignments)
 	}
-
 }
 
 // TestGStar checks GStar logic by verifying that the correct epoch entropy and
@@ -164,7 +163,7 @@ func TestGStarKappa(t *testing.T) {
 	store.GetInstance().GetPosteriorStates().SetTau(130)
 
 	// act
-	gStarVal := GStarFunc()
+	gStarVal, _ := GStarFunc(nil)
 
 	if len(gStarVal.PublicKeys) != 2 {
 		t.Fatalf("got error in publickeys size")
@@ -216,7 +215,7 @@ func TestGFunc(t *testing.T) {
 	store.GetInstance().GetPosteriorStates().SetTau(120)
 
 	// act
-	gVal := GFunc()
+	gVal, _ := GFunc(nil)
 
 	if gVal.PublicKeys[0] != dummyKappa[0].Ed25519 {
 		t.Errorf("expected G to use kappa's public key[0], got something else")
@@ -230,5 +229,4 @@ func TestGFunc(t *testing.T) {
 	if !reflect.DeepEqual(gVal.CoreAssignments, expected) {
 		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gVal.CoreAssignments)
 	}
-
 }

@@ -37,7 +37,7 @@ func NewMMR(hashFn HashFunction) *MMR {
 	}
 }
 
-// NewMMR creates a new empty Merkle Mountain Range
+// NewMMR creates a new Merkle Mountain Range with given peaks
 func NewMMRFromPeaks(peaks []types.MmrPeak, hashFn HashFunction) *MMR {
 	if hashFn == nil {
 		return nil
@@ -136,43 +136,48 @@ func (m *MMR) Serialize() types.ByteSequence {
 }
 
 // SuperPeak implements the MMR "super-peak" function described in E.10
-// M_R: [H?] -> H
-//
-//	b -> {
-//	    if |h| = 0 => H^0
-//	    if |h| = 1 => h0
-//	    otherwise => hash( SuperPeak(h[..|h|-1]), h[|h|-1] )
-//	}
+/*
+	M_R: [H?] -> H
+
+	b -> {
+		if |h| = 0 => H^0
+		if |h| = 1 => h0
+		otherwise => H_K( $peak ⌢ M_R(h_[...|h|-1]) ⌢ h_[|h|-1] )
+		where h = [h | h <− b, h ≠ ∅]
+	}
+*/
 func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.OpaqueHash {
-	switch len(peaks) {
+	// Filter out nil peaks to form h = [h | h <- b, h != ∅]
+	h := make([]types.MmrPeak, 0)
+	for _, peak := range peaks {
+		if peak != nil {
+			h = append(h, peak)
+		}
+	}
+
+	switch len(h) {
 	case 0:
-		// No peaks => return h^0
+		// No peaks => return H^0 (zero hash)
 		empty := types.OpaqueHash{}
 		return empty
 	case 1:
 		// Single peak => return it directly
-		return *peaks[0]
+		return *h[0]
 	default:
-		// "Fold" the first (n-1) peaks by recursively computing SuperPeak,
-		// then combine the result with the final peak.
-		partial := m.SuperPeak(peaks[:len(peaks)-1])
-
-		if peaks[len(peaks)-1] == nil {
-			return partial
-		}
-
-		// HK ($peak ⌢ MR(h...ShS−1) ⌢ hShS−1) otherwise
+		// H_K ( $peak ⌢ M_R( h_[...|h|-1] ) ⌢ h_[|h|-1] ) otherwise
 		seq := types.ByteSequence{}
 
 		// Append the "peak" prefix
 		seq = append(seq, []byte("peak")...)
 
+		// "Fold" the first (n-1) peaks by recursively computing SuperPeak,
+		// then combine the result with the final peak.
+		partial := m.SuperPeak(h[:len(h)-1])
 		// Append the partial hash
-		partialBytes := partial[:]
-		seq = append(seq, partialBytes...)
+		seq = append(seq, partial[:]...)
 
 		// Append the final peak
-		finalPeak := peaks[len(peaks)-1][:]
+		finalPeak := h[len(h)-1][:]
 		seq = append(seq, finalPeak...)
 
 		result := hash.KeccakHash(seq)

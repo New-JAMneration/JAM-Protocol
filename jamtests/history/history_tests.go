@@ -2,7 +2,7 @@ package jamtests
 
 import (
 	"fmt"
-	"reflect"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -209,22 +209,18 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// TODO: Implement Dump method
 func (h *HistoryTestCase) Dump() error {
 	store.ResetInstance()
 	storeInstance := store.GetInstance()
 
-	storeInstance.GetPriorStates().SetBetaH(h.PreState.Beta.History)
-	storeInstance.GetProcessingBlockPointer().SetBlock(types.Block{
-		Header: types.Header{
-			Parent:          h.Input.HeaderHash,
-			ParentStateRoot: h.Input.ParentStateRoot,
-		},
-	})
+	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
 
-	mockAccumulatedServiceOutput := make(types.AccumulatedServiceOutput)
-	mockAccumulatedServiceOutput[types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot}] = true
-	storeInstance.GetPosteriorStates().SetLastAccOut(mockAccumulatedServiceOutput)
+	// we mock lastAccOut here, set the value to posteriorLastAccOut
+	// let internal stf can get value from store
+	mockLastAccout := types.LastAccOut{
+		types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot},
+	}
+	storeInstance.GetPosteriorStates().SetLastAccOut(mockLastAccout)
 
 	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 	for _, workPackage := range h.Input.WorkPackages {
@@ -238,6 +234,7 @@ func (h *HistoryTestCase) Dump() error {
 		})
 	}
 
+	// Set extrinsic
 	block := types.Block{
 		Header: types.Header{
 			Parent:          h.Input.HeaderHash,
@@ -247,7 +244,7 @@ func (h *HistoryTestCase) Dump() error {
 			Guarantees: mockGuarantessExtrinsic,
 		},
 	}
-	storeInstance.GetProcessingBlockPointer().SetBlock(block)
+	storeInstance.AddBlock(block)
 
 	return nil
 }
@@ -261,8 +258,7 @@ func (h *HistoryTestCase) GetOutput() interface{} {
 }
 
 func (h *HistoryTestCase) ExpectError() error {
-	// TODO: Implement error handling
-	// Should be implemented in the future once the testcase has an error
+	// HistoryTestCase does not expect error
 	return nil
 }
 
@@ -270,27 +266,31 @@ func (h *HistoryTestCase) Validate() error {
 	s := store.GetInstance()
 	// === (4.6) ===
 	// Get result of BetaDagger from store
-	betaDagger := s.GetIntermediateStates().GetBetaHDagger()
+	HistoryDagger := s.GetIntermediateStates().GetBetaHDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
-	if len(betaDagger) > types.MaxBlocksHistory {
-		return fmt.Errorf("expected BetaDagger length not to greater than %d, got %d", types.MaxBlocksHistory, len(betaDagger))
+	if err := HistoryDagger.Validate(); err != nil {
+		return err
 	}
 
 	// === (4.7) ===
 	// Get result of (7.4), beta^prime, from store
 	betaPrime := s.GetPosteriorStates().GetBeta()
-	// Validate output state
-	// log.Printf("length of betaPrime: %d", len(betaPrime))
-	// log.Printf("length of poststateBeta: %d", len(h.PostState.Beta))
-
-	if len(betaPrime.History) < 1 {
+	if err := betaPrime.History.Validate(); err != nil {
+		return err
+	} else if len(betaPrime.History) < 1 {
 		return fmt.Errorf("BetaPrime should not be nil, got %d", len(betaPrime.History))
-	} else if !reflect.DeepEqual(betaPrime.History, h.PostState.Beta) {
-		diff := cmp.Diff(h.PostState.Beta, betaPrime.History)
-		// log.Printf("BetaPrime: %+#v", betaPrime.History[len(betaPrime.History)-1].Mmr)
-		// log.Printf("PostState.Beta: %+#v", h.PostState.Beta[len(h.PostState.Beta.History)-1].Mmr)
-		return fmt.Errorf("BetaPrime should equal to PostState.Beta\n%s", diff)
+	}
+
+	// Validate output state
+	if !cmp.Equal(betaPrime.History, h.PostState.Beta.History) {
+		diff := cmp.Diff(h.PostState.Beta.History, betaPrime.History)
+		log.Printf("BetaPrime.History: %+#v", betaPrime.History[len(betaPrime.History)-1].BeefyRoot)
+		log.Printf("PostState.Beta.History: %+#v", h.PostState.Beta.History[len(h.PostState.Beta.History)-1].BeefyRoot)
+		return fmt.Errorf("BetaPrime.History should equal to PostState.Beta.History\n%s", diff)
+	} else if !cmp.Equal(betaPrime.Mmr.Peaks, h.PostState.Beta.Mmr.Peaks) {
+		diff := cmp.Diff(h.PostState.Beta.Mmr.Peaks, betaPrime.Mmr.Peaks)
+		return fmt.Errorf("BetaPrime.Mmr.Peaks should equal to PostState.Beta.Mmr.Peaks\n%s", diff)
 	}
 	return nil
 }

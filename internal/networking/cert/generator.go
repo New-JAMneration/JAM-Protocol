@@ -12,11 +12,10 @@ import (
 	"log"
 	"math/big"
 	"net"
-
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -37,7 +36,6 @@ func Ed25519KeyGen(seed []byte) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 // AlternativeName returns a string with prefix "e" and followed by
 // the result of import Ed25519 public key base function
 func AlternativeName(pk ed25519.PublicKey) string {
-
 	// E^{-1}_{32} deserialize function for 256-bit unsigned integers (serialization codec appendix)
 	deserialize := func(pk ed25519.PublicKey) *big.Int {
 		x := big.NewInt(0)

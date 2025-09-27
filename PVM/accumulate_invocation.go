@@ -1,6 +1,9 @@
 package PVM
 
 import (
+	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -8,7 +11,7 @@ import (
 // (B.8) Ψ_A
 func Psi_A(
 	partialState types.PartialStateSet,
-	time types.TimeSlot,
+	timeslot types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
 	operands []types.Operand,
@@ -27,8 +30,21 @@ func Psi_A(
 		}
 	}
 
-	storedCode, ok := s.PreimageLookup[s.ServiceInfo.CodeHash]
-	if !ok || len(storedCode) == 0 || len(storedCode) > types.MaxServiceCodeSize {
+	// (9.4) E(↕m, c) = ap[ac]
+	// Get actual code (c)
+	codeHash := s.ServiceInfo.CodeHash
+	_, code, err := service_account.FetchCodeByHash(s, codeHash)
+	if err != nil {
+		return Psi_A_ReturnType{
+			PartialStateSet:   partialState,
+			DeferredTransfers: []types.DeferredTransfer{},
+			Result:            nil,
+			Gas:               0,
+			ServiceBlobs:      []types.ServiceBlob{},
+		}
+	}
+
+	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
 			DeferredTransfers: []types.DeferredTransfer{},
@@ -42,19 +58,20 @@ func Psi_A(
 	encoder := types.NewEncoder()
 
 	// Encode t
-	encoded, err := encoder.Encode(&time)
+	// encoded, err := encoder.Encode(&time)
+	encoded, err := encoder.EncodeUint(uint64(timeslot))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
 
 	// Encode s
-	encoded, err = encoder.Encode(&serviceId)
+	// encoded, err = encoder.Encode(&serviceId)
+	encoded, err = encoder.EncodeUint(uint64(serviceId))
 	if err != nil {
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-
 	// Encode |o|
 	encoded, err = encoder.EncodeUint(uint64(len(operands)))
 	if err != nil {
@@ -89,17 +106,19 @@ func Psi_A(
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
 			ServiceId:           &serviceId,
 			ServiceAccountState: partialState.ServiceAccounts,
-			CoreId:              nil, // TODO: may need to update coreID if needed
+			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(partialState, serviceId, time, eta),
-			ResultContextY: I(partialState, serviceId, time, eta),
+			ResultContextX: I(partialState.DeepCopy(), serviceId, timeslot, eta),
+			ResultContextY: I(partialState, serviceId, timeslot, eta),
 			Eta:            eta,
 			Operands:       operands,
+			Timeslot:       timeslot,
 		},
+		Program: Program{},
 	}
 
-	resultM := Psi_M(StandardCodeFormat(storedCode), 5, types.Gas(gas), Argument(serialized), F, addition)
+	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), F, addition)
 	partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
@@ -131,22 +150,30 @@ func wrapWithG(original Omega) Omega {
 func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs) {
 	serviceBlobs := make(types.ServiceBlobs, 0)
 	switch reasonOrBytes.(type) {
-	case error:
+	case error: // system error
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, &resultContext.ResultContextY.Exception, gas, serviceBlobs
+		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
 	case types.ByteSequence:
+		fmt.Println("accumulate invocation case ByteSequence")
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
 		opaqueHash := reasonOrBytes.(*types.OpaqueHash)
 		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs
 	default:
+		if reasonOrBytes == OUT_OF_GAS || reasonOrBytes == PANIC {
+			for _, v := range resultContext.ResultContextY.ServiceBlobs {
+				serviceBlobs = append(serviceBlobs, v)
+			}
+
+			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
+		}
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, &resultContext.ResultContextX.Exception, gas, serviceBlobs
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs
 	}
 }
 
@@ -189,7 +216,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		PartialState:      partialState,
 		ImportServiceId:   check(serviceId, partialState.ServiceAccounts),
 		DeferredTransfers: []types.DeferredTransfer{},
-		Exception:         types.OpaqueHash{},
+		Exception:         nil,
 	}
 }
 
@@ -207,6 +234,6 @@ type ResultContext struct {
 	PartialState      types.PartialStateSet                  // u
 	ImportServiceId   types.ServiceId                        // i
 	DeferredTransfers []types.DeferredTransfer               // t
-	Exception         types.OpaqueHash                       // y
+	Exception         *types.OpaqueHash                      // y
 	ServiceBlobs      map[types.OpaqueHash]types.ServiceBlob // p   v0.6.5
 }

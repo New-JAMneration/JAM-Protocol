@@ -1,6 +1,8 @@
 package PVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
+import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+)
 
 type MemoryAccess int
 
@@ -10,7 +12,8 @@ type Page struct {
 }
 
 type Memory struct {
-	Pages map[uint32]*Page // Key: Page Number, Value: Page Data
+	Pages       map[uint32]*Page // Key: Page Number, Value: Page Data
+	heapPointer uint64
 }
 
 const (

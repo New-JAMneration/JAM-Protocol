@@ -8,6 +8,16 @@ type (
 	ProgramCounter uint32 // "ı" in GP
 )
 
+/*
+registers name and index
+RA = 0, SP = 1, T0 = 2, T1 = 3, T2 = 4, S0 = 5, S1 = 6,
+A0 = 7, A1 = 8, A2 = 9, A3 = 10, A4 = 11, A5 = 12
+*/
+
+var RegName = [13]string{
+	"ra", "sp", "t0", "t1", "t2", "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+}
+
 type MemoryChunk struct {
 	Address  uint32 `json:"address"`
 	Contents []byte `json:"contents"`

@@ -32,12 +32,17 @@ func SetTinyMode() {
 	ValidatorsCount = 6     // V
 	CoresCount = 2          // C
 	EpochLength = 12        // E
-	SlotSubmissionEnd = 10  // Y
+	SlotSubmissionEnd = 10  // y, contest_duration
 	RotationPeriod = 4      // R
 	MaxTicketsPerBlock = 3  // K
 	TicketsPerValidator = 3 // N
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes = 1
+	UnreferencedPreimageTimeslots = 32 // D
+	TotalGas = 20_000_000              // G_T
+	MaxRefineGas = 1_000_000_000       // G_R
+	ECPiecesPerSegment = 1026
+	ECBasicSize = 4
 }
 
 func SetFullMode() {
@@ -47,11 +52,16 @@ func SetFullMode() {
 	CoresCount = 341        // C
 	EpochLength = 600       // E
 	SlotSubmissionEnd = 500 // Y
-	RotationPeriod = 4      // R
+	RotationPeriod = 10     // R
 	MaxTicketsPerBlock = 16 // K
 	TicketsPerValidator = 2 // N
 	ValidatorsSuperMajority = 683
 	AvailBitfieldBytes = 43
+	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
+	TotalGas = 3_500_000_000                                  // G_T
+	MaxRefineGas = 5_000_000_000                              // G_R
+	ECPiecesPerSegment = 6
+	ECBasicSize = 684
 }
 
 // changeable constants depends on chainspec
@@ -76,7 +86,12 @@ var (
 	// ValidatorsSuperMajority represents the required majority of validators.
 	ValidatorsSuperMajority = 5
 	// AvailBitfieldBytes represents the number of bytes in the availability bitfield.
-	AvailBitfieldBytes = 1
+	AvailBitfieldBytes            = 1
+	UnreferencedPreimageTimeslots = 32
+	TotalGas                      = 20_000_000    // G_T  , davxy-spec : max_block_gas
+	MaxRefineGas                  = 1_000_000_000 // G_R v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
+	ECPiecesPerSegment            = 1026          // W_P: The number of erasure-coded pieces in a segment
+	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
 )
 
 var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -120,20 +135,18 @@ const (
 
 // work package constants
 const (
-	MaxTotalSize            = 13_794_305                       // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
-	MaxRefineGas            = 5_000_000_000                    // G_R v0.6.4
-	MaxAccumulateGas        = 10_000_000                       // G_A v0.6.4
-	IsAuthorizedGas         = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
-	TotalGas                = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
-	MaxImportCount          = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
-	MaxExportCount          = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
-	ECPiecesPerSegment      = 6                                // W_P: The number of erasure-coded pieces in a segment
-	ECBasicSize             = 684                              // W_E: The basic size of erasure-coded pieces in octets
-	SegmentSize             = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
-	MaxExtrinsics           = 128                              // T (14.4). graypaper 0.6.3
-	MaxServiceCodeSize      = 4_000_000                        // W_C v0.6.4
-	MaxIsAuthorizedCodeSize = 64_000                           // W_A v0.6.6 The maximum size of is-authorized code in octets
-	AccumulateQueueSize     = 1024                             // S v0.6.6 The maxixum number of entries in the accumulation queue
+	MaxTotalSize = 13_794_305 // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
+	// MaxRefineGas            = 5_000_000_000 // G_R v0.6.4
+	MaxAccumulateGas = 10_000_000 // G_A v0.6.4
+	IsAuthorizedGas  = 50_000_000 // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	// TotalGas                = 3_500_000_000 // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
+	MaxImportCount          = 3072      // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
+	MaxExportCount          = 3072      // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
+	SegmentSize             = 4104      // W_G = 4104: The size of a segment in octets
+	MaxExtrinsics           = 128       // T (14.4). graypaper 0.6.3
+	MaxServiceCodeSize      = 4_000_000 // W_C v0.6.4
+	MaxIsAuthorizedCodeSize = 64_000    // W_A v0.6.6 The maximum size of is-authorized code in octets
+	AccumulateQueueSize     = 1024      // S v0.6.6 The maxixum number of entries in the accumulation queue
 )
 
 // erasure coding constants
@@ -151,9 +164,8 @@ const (
 
 // PVM constants
 const (
-	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
-	TransferMemoSize              = 128                       // W_T
-	LookupAnchorMaxAge            = 14400                     // L
+	TransferMemoSize   = 128   // W_T
+	LookupAnchorMaxAge = 14400 // L
 )
 
 // Auditing (17.16)
