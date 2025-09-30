@@ -2092,7 +2092,7 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 	}
 
 	// GratisStorageOffset
-	if err := s.GratisStorageOffset.Encode(e); err != nil {
+	if err := s.DepositOffset.Encode(e); err != nil {
 		return err
 	}
 
