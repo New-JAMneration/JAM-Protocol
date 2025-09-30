@@ -282,24 +282,26 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	return serviceWorkResultsMap
 }
 
-// (13.13) r
-// Get services from the coming work reports
+// v0.7.1
+// (13.14) s^R -> Get services from the coming work reports
+// (11.28) I to be the set of work-reports in the present extrinsic E:
 func GetServicesFromPresentWorkReport() []types.ServiceId {
 	store := store.GetInstance()
-	w := store.GetIntermediateStates().GetPresentWorkReports()
+	I := store.GetIntermediateStates().GetPresentWorkReports()
 
 	services := []types.ServiceId{}
 
-	for _, workReport := range w {
-		for _, result := range workReport.Results {
-			services = append(services, result.ServiceId)
+	for _, workReport := range I {
+		for _, workResult := range workReport.Results {
+			services = append(services, workResult.ServiceId)
 		}
 	}
 
 	return services
 }
 
-// (13.14) p
+// v0.7.1
+// (13.15) s^P
 func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
 	servicesMap := make(map[types.ServiceId]bool)
 
@@ -321,7 +323,7 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 func GetServicesFromAccumulationStatistics() []types.ServiceId {
 	store := store.GetInstance()
 
-	// Get the accumulation statistics (I)
+	// Get the accumulation statistics (S)
 	accumulationStatistics := store.GetIntermediateStates().GetAccumulationStatistics()
 
 	services := make([]types.ServiceId, 0, len(accumulationStatistics))
@@ -346,32 +348,27 @@ func GetServicesFromDeferredTransfersStatistics() []types.ServiceId {
 	return services
 }
 
-// s (13.12)
+// v0.7.1
+// s (13.13)
 func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
-	// r: services from the incoming work-reports (13.13)
-	r := GetServicesFromPresentWorkReport()
-	// p: services from the preimages extrinsic (13.14)
-	p := GetServicesFromPreimagesExtrinsic(preimagesExtrinsic)
-	// I: services from the accumulation statistics (12.23)
-	I := GetServicesFromAccumulationStatistics()
-	// X: services from the deferred transfers statistics (12.29)
-	X := GetServicesFromDeferredTransfersStatistics()
+	// sR: services from the incoming work-reports (13.14)
+	sR := GetServicesFromPresentWorkReport()
+	// sP: services from the preimages extrinsic (13.15)
+	sP := GetServicesFromPreimagesExtrinsic(preimagesExtrinsic)
+	// keyOfS: services from the accumulation statistics (12.26)
+	keyOfS := GetServicesFromAccumulationStatistics()
 
 	// Merge all services (without duplicates)
 	servicesMap := make(map[types.ServiceId]bool)
-	for _, serviceId := range r {
+	for _, serviceId := range sR {
 		servicesMap[serviceId] = true
 	}
 
-	for _, serviceId := range p {
+	for _, serviceId := range sP {
 		servicesMap[serviceId] = true
 	}
 
-	for _, serviceId := range I {
-		servicesMap[serviceId] = true
-	}
-
-	for _, serviceId := range X {
+	for _, serviceId := range keyOfS {
 		servicesMap[serviceId] = true
 	}
 
@@ -383,7 +380,8 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 	return services
 }
 
-// (13.15)
+// v0.7.1
+// (13.16)
 func CalculateServiceResults(serviceId types.ServiceId, serviceWorkResultsMap ServiceWorkResultsMap) Pi_S_R_Output {
 	workResults, ok := serviceWorkResultsMap[serviceId]
 	if !ok {
@@ -392,19 +390,21 @@ func CalculateServiceResults(serviceId types.ServiceId, serviceWorkResultsMap Se
 
 	output := Pi_S_R_Output{}
 
+	// d: workResult
 	for _, workResult := range workResults {
-		output.n += 1
-		output.GasUsed += workResult.RefineLoad.GasUsed
-		output.Imports += types.U32(workResult.RefineLoad.Imports)
-		output.ExtrinsicCount += types.U32(workResult.RefineLoad.ExtrinsicCount)
-		output.ExtrinsicSize += workResult.RefineLoad.ExtrinsicSize
-		output.Exports += types.U32(workResult.RefineLoad.Exports)
+		output.n += 1                                                            // n
+		output.GasUsed += workResult.RefineLoad.GasUsed                          // u
+		output.Imports += types.U32(workResult.RefineLoad.Imports)               // i
+		output.ExtrinsicCount += types.U32(workResult.RefineLoad.ExtrinsicCount) // x
+		output.ExtrinsicSize += workResult.RefineLoad.ExtrinsicSize              // z
+		output.Exports += types.U32(workResult.RefineLoad.Exports)               // e
 	}
 
 	return output
 }
 
-// p
+// v0.7.1
+// (13.12) p
 func CalculateProvidedStatistics(serviceId types.ServiceId, preimagesExtrinsic types.PreimagesExtrinsic) (providedCount types.U16, providedSize types.U32) {
 	providedCount = 0
 	providedSize = 0
@@ -420,7 +420,8 @@ func CalculateProvidedStatistics(serviceId types.ServiceId, preimagesExtrinsic t
 	return providedCount, providedSize
 }
 
-// a
+// v0.7.1
+// (13.12) a
 // AccumulateCount, AccumulateGasUsed
 func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
 	accumulateCount = 0
@@ -458,19 +459,20 @@ func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersSt
 	return onTransfersCount, onTransfersGasUsed
 }
 
-// (13.11)
+// v0.7.1
+// (13.12)
 func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	store := store.GetInstance()
 	accumulationStatisitcs := store.GetIntermediateStates().GetAccumulationStatistics()
-	transfersStatistics := store.GetIntermediateStates().GetDeferredTransfersStatistics()
 
-	services := GetAllServices(extrinsic.Preimages)
+	// (13.13)
+	s := GetAllServices(extrinsic.Preimages)
 	serviceWorkResultsMap := CreateServiceWorkResultsMap()
 
 	// Initialize the services statistics (13.7)
 	servicesStatistics := make(types.ServicesStatistics)
 
-	for _, serviceId := range services {
+	for _, serviceId := range s {
 		// Calculate the service results (R)
 		R := CalculateServiceResults(serviceId, serviceWorkResultsMap)
 
@@ -480,22 +482,17 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 		// a
 		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
 
-		// t
-		onTransfersCount, onTransfersGasUsed := CalculateTransfersStatistics(serviceId, transfersStatistics)
-
 		servicesStatistics[serviceId] = types.ServiceActivityRecord{
-			ProvidedCount:      providedCount,
-			ProvidedSize:       providedSize,
-			RefinementCount:    R.n,
-			RefinementGasUsed:  R.GasUsed,
-			Imports:            R.Imports,
-			Exports:            R.Exports,
-			ExtrinsicSize:      R.ExtrinsicSize,
-			ExtrinsicCount:     R.ExtrinsicCount,
-			AccumulateCount:    accumulateCount,
-			AccumulateGasUsed:  accumulateGasUsed,
-			OnTransfersCount:   onTransfersCount,
-			OnTransfersGasUsed: onTransfersGasUsed,
+			ProvidedCount:     providedCount,
+			ProvidedSize:      providedSize,
+			RefinementCount:   R.n,
+			RefinementGasUsed: R.GasUsed,
+			Imports:           R.Imports,
+			Exports:           R.Exports,
+			ExtrinsicSize:     R.ExtrinsicSize,
+			ExtrinsicCount:    R.ExtrinsicCount,
+			AccumulateCount:   accumulateCount,
+			AccumulateGasUsed: accumulateGasUsed,
 		}
 	}
 

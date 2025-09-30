@@ -209,8 +209,6 @@ func (w ServiceRecordWrapper) Serialize() types.ByteSequence {
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.ExtrinsicCount))...)
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.AccumulateCount))...)
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.AccumulateGasUsed))...)
-	bytes = append(bytes, SerializeU64(types.U64(w.Value.OnTransfersCount))...)
-	bytes = append(bytes, SerializeU64(types.U64(w.Value.OnTransfersGasUsed))...)
 	return bytes
 }
 
@@ -274,7 +272,6 @@ type ServiceRecordWrapper struct {
 // }
 
 func WrapStatisticsServiceRecord(v types.ServiceActivityRecord) Serializable {
-
 	return ServiceRecordWrapper{Value: v}
 }
 

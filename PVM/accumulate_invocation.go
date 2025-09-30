@@ -14,7 +14,7 @@ func Psi_A(
 	timeslot types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
-	operands []types.Operand,
+	operandOrDeferTransfers []types.OperandOrDeferredTransfer,
 	eta types.Entropy,
 ) (
 	psi_result Psi_A_ReturnType,
@@ -44,6 +44,16 @@ func Psi_A(
 		}
 	}
 
+	// s = e
+	var balances uint64
+	for _, v := range operandOrDeferTransfers {
+		if v.DeferredTransfer != nil {
+			balances += uint64(v.DeferredTransfer.Balance)
+		}
+	}
+	s.ServiceInfo.Balance += types.U64(balances)
+
+	// if c = ∅ or |c| > W_C
 	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
@@ -73,7 +83,7 @@ func Psi_A(
 	}
 	serialized = append(serialized, encoded...)
 	// Encode |o|
-	encoded, err = encoder.EncodeUint(uint64(len(operands)))
+	encoded, err = encoder.EncodeUint(uint64(len(operandOrDeferTransfers)))
 	if err != nil {
 		panic(err)
 	}
@@ -109,11 +119,11 @@ func Psi_A(
 			CoreId:              nil,
 		},
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(partialState.DeepCopy(), serviceId, timeslot, eta),
-			ResultContextY: I(partialState, serviceId, timeslot, eta),
-			Eta:            eta,
-			Operands:       operands,
-			Timeslot:       timeslot,
+			ResultContextX:            I(partialState.DeepCopy(), serviceId, timeslot, eta),
+			ResultContextY:            I(partialState, serviceId, timeslot, eta),
+			Eta:                       eta,
+			OperandOrDeferredTransfer: operandOrDeferTransfers,
+			Timeslot:                  timeslot,
 		},
 		Program: Program{},
 	}
@@ -123,6 +133,7 @@ func Psi_A(
 		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
 	})
+
 	return Psi_A_ReturnType{
 		PartialStateSet:   partialState,
 		DeferredTransfers: deferredTransfer,
@@ -207,8 +218,8 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		panic(err)
 	}
 
-	var modValue types.U32 = (1 << 32) - (1 << 9) // 2^32 - 2^9
-	var addValue types.U32 = 1 << 8               // 2^8
+	var modValue types.U32 = (1 << 32) - types.MinimumServiceIndex - (1 << 8) // 2^32 - S - 2^8
+	var addValue types.U32 = types.MinimumServiceIndex
 	result = (result % modValue) + addValue
 
 	return ResultContext{
