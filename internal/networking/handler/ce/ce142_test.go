@@ -32,7 +32,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandlePreimageAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
+	err = HandlePreimageAnnouncement_Validator(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandlePreimageAnnouncement failed: %v", err)
 	}

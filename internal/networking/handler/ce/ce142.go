@@ -12,8 +12,9 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// HandlePreimageAnnouncement handles the announcement of possession of a requested preimage.
-func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+// HandlePreimageAnnouncement_Validator handles the announcement of possession of a requested preimage.
+// Role: [Node -> Validator]
+func HandlePreimageAnnouncement_Validator(blockchain blockchain.Blockchain, stream *quic.Stream) error {
 	// Service ID (4 bytes) + Hash (32 bytes) + Preimage Length (4 bytes)
 	announcementSize := 4 + 32 + 4
 	announcementData := make([]byte, announcementSize)
@@ -22,7 +23,6 @@ func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.S
 		return fmt.Errorf("failed to read announcement data: %w", err)
 	}
 
-	// Parse the announcement components
 	serviceID := types.ServiceId(binary.LittleEndian.Uint32(announcementData[:4]))
 
 	hash := types.OpaqueHash{}
@@ -33,21 +33,45 @@ func HandlePreimageAnnouncement(blockchain blockchain.Blockchain, stream *quic.S
 	finBuf := make([]byte, 3)
 	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
 	if err := validatePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
 		return fmt.Errorf("invalid preimage announcement: %w", err)
-	}
-
-	if err := storePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
+	} else if err := storePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
 		return fmt.Errorf("failed to store preimage announcement: %w", err)
+	} else if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
+	return stream.Close()
+}
+
+func HandlePreimageAnnouncement_Node(
+	stream *quic.Stream,
+	serviceID types.ServiceId,
+	hash types.OpaqueHash,
+	preimageLength types.U32,
+) error {
+	announcement, err := CreatePreimageAnnouncement(serviceID, hash, preimageLength)
+	if err != nil {
+		return fmt.Errorf("failed to create preimage announcement: %w", err)
+	}
+
+	if err := stream.WriteMessage(announcement); err != nil {
+		return fmt.Errorf("failed to send preimage announcement: %w", err)
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to send FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return errors.New("request does not end with FIN")
 	}
 
 	return stream.Close()
@@ -104,13 +128,11 @@ func storePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHash,
 	return nil
 }
 
-// CreatePreimageAnnouncement creates a preimage announcement message
 func CreatePreimageAnnouncement(
 	serviceID types.ServiceId,
 	hash types.OpaqueHash,
 	preimageLength types.U32,
 ) ([]byte, error) {
-	// Validate preimage length
 	if preimageLength == 0 {
 		return nil, errors.New("preimage length cannot be zero")
 	}

@@ -31,7 +31,7 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandleJudgmentAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
+	err = HandleJudgmentAnnouncement_Validator(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleJudgmentAnnouncement failed: %v", err)
 	}

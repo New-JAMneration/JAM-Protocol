@@ -12,71 +12,70 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// HandleJudgmentAnnouncement handles the announcement of a judgment, ready for inclusion
-// in a block and as a signal for potential further auditing.
-//
-// An announcement declaring intention to audit a particular work-report must be followed
-// by a judgment, declaring the work-report to either be valid or invalid, as soon as
-// this has been determined.
-//
-// Protocol CE145:
-// Auditor -> Validator
-//
-//	--> Epoch Index ++ Validator Index ++ Validity ++ Work-Report Hash ++ Ed25519 Signature
-//	--> FIN
-//	<-- FIN
-//
-// The transmission format includes:
-// - Epoch Index: 4 bytes (u32)
-// - Validator Index: 2 bytes (u16)
-// - Validity: 1 byte (0 = Invalid, 1 = Valid)
-// - Work-Report Hash: 32 bytes (WorkReportHash)
-// - Ed25519 Signature: 64 bytes
-func HandleJudgmentAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	epochIndexBuf := make([]byte, 4)
-	if _, err := stream.Read(epochIndexBuf); err != nil {
-		return fmt.Errorf("failed to read epoch index: %w", err)
+// Role: [Auditor -> Validator]
+func HandleJudgmentAnnouncement_Validator(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+	// Epoch Index ++ Validator Index ++ Validity ++ Work-Report Hash ++ Ed25519 Signature
+	// =  4 + 2 + 1 + 32 + 64 = 103 bytes
+	payloadSize := 4 + 2 + 1 + 32 + 64
+	payload := make([]byte, payloadSize)
+	if err := stream.ReadFull(payload); err != nil {
+		return fmt.Errorf("failed to read judgment payload: %w", err)
 	}
-	epochIndex := types.U32(binary.LittleEndian.Uint32(epochIndexBuf))
 
-	validatorIndexBuf := make([]byte, 2)
-	if _, err := stream.Read(validatorIndexBuf); err != nil {
-		return fmt.Errorf("failed to read validator index: %w", err)
-	}
-	validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(validatorIndexBuf))
-
-	validityBuf := make([]byte, 1)
-	if _, err := stream.Read(validityBuf); err != nil {
-		return fmt.Errorf("failed to read validity: %w", err)
-	}
-	validity := validityBuf[0]
-
+	epochIndex := types.U32(binary.LittleEndian.Uint32(payload[:4]))
+	validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(payload[4:6]))
+	validity := payload[6]
 	workReportHash := types.WorkReportHash{}
-	if _, err := stream.Read(workReportHash[:]); err != nil {
-		return fmt.Errorf("failed to read work report hash: %w", err)
-	}
-
+	copy(workReportHash[:], payload[7:39])
 	signature := types.Ed25519Signature{}
-	if _, err := stream.Read(signature[:]); err != nil {
-		return fmt.Errorf("failed to read Ed25519 signature: %w", err)
-	}
+	copy(signature[:], payload[39:103])
+
 	finBuf := make([]byte, 3)
-	if _, err := stream.Read(finBuf); err != nil {
+	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
 	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("invalid judgment announcement: %w", err)
-	}
-	if err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
+	} else if err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
+	} else if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
+	return stream.Close()
+}
+
+// Role: [Auditor -> Validator]
+func HandleJudgmentAnnouncement_Auditor(
+	stream *quic.Stream,
+	epochIndex types.U32,
+	validatorIndex types.ValidatorIndex,
+	validity uint8,
+	workReportHash types.WorkReportHash,
+	signature types.Ed25519Signature,
+) error {
+	// TODO: create (or mock) data for constructing judgment announcement
+	payload, err := CreateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature)
+	if err != nil {
+		return fmt.Errorf("failed to create judgment announcement: %w", err)
+	}
+
+	if err := stream.WriteMessage(payload); err != nil {
+		return fmt.Errorf("failed to send judgment announcement: %w", err)
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to send FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return errors.New("request does not end with FIN")
 	}
 
 	return stream.Close()
