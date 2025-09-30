@@ -628,18 +628,20 @@ func (c CoresStatistics) Validate() error {
 	return nil
 }
 
-// v0.7.1 (13.7)
+// v0.6.4 (13.7)
 type ServiceActivityRecord struct {
-	ProvidedCount     U16 `json:"provided_count,omitempty"`
-	ProvidedSize      U32 `json:"provided_size,omitempty"`
-	RefinementCount   U32 `json:"refinement_count,omitempty"`
-	RefinementGasUsed Gas `json:"refinement_gas_used,omitempty"`
-	Imports           U32 `json:"imports,omitempty"`
-	Exports           U32 `json:"exports,omitempty"`
-	ExtrinsicSize     U32 `json:"extrinsic_size,omitempty"`
-	ExtrinsicCount    U32 `json:"extrinsic_count,omitempty"`
-	AccumulateCount   U32 `json:"accumulate_count,omitempty"`
-	AccumulateGasUsed Gas `json:"accumulate_gas_used,omitempty"`
+	ProvidedCount      U16 `json:"provided_count,omitempty"`
+	ProvidedSize       U32 `json:"provided_size,omitempty"`
+	RefinementCount    U32 `json:"refinement_count,omitempty"`
+	RefinementGasUsed  Gas `json:"refinement_gas_used,omitempty"`
+	Imports            U32 `json:"imports,omitempty"`
+	Exports            U32 `json:"exports,omitempty"`
+	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
+	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
+	AccumulateGasUsed  Gas `json:"accumulate_gas_used,omitempty"`
+	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
+	OnTransfersGasUsed Gas `json:"on_transfers_gas_used,omitempty"`
 }
 
 type ServicesStatistics map[ServiceId]ServiceActivityRecord
@@ -1439,7 +1441,6 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 }
 
 // (12.14) deferred transfer
-// X = deferred-transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1475,16 +1476,15 @@ type AlwaysAccumulateMapDTO struct {
 }
 
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // XM
-	Designate   ServiceId           `json:"chi_v"` // XV
-	CreateAcct  ServiceId           `json:"chi_r"` // XR
-	Assign      ServiceIdList       `json:"chi_a"` // XA
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
+	Bless       ServiceId           `json:"bless"`      // Manager
+	Assign      ServiceIdList       `json:"assign"`     // AlterPhi
+	Designate   ServiceId           `json:"designate"`  // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"always_acc"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash
 
-// (12.16) S
+// (12.13)
 type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
@@ -1492,7 +1492,6 @@ type PartialStateSet struct {
 	Bless           ServiceId           // m
 	Assign          ServiceIdList       // a
 	Designate       ServiceId           // v
-	CreateAcct      ServiceId           // r
 	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
@@ -1569,8 +1568,6 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 
 // (12.18 pre-0.6.5)
 // (12.19 0.6.5)
-// (12.13) U
-// U = operand
 type Operand struct {
 	Hash           WorkPackageHash // h
 	ExportsRoot    ExportsRoot     // e
@@ -1581,12 +1578,7 @@ type Operand struct {
 	AuthOutput     ByteSequence    // o
 }
 
-type OperandOrDeferredTransfer struct {
-	Operand          *Operand          // U
-	DeferredTransfer *DeferredTransfer // X
-}
-
-// (12.17) U
+// (12.15) U
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
@@ -1615,8 +1607,8 @@ type GasAndNumAccumulatedReports struct {
 	NumAccumulatedReports U64
 }
 
-// (12.26)
-// S: accumulation statistics
+// (12.23)
+// I: accumulation statistics
 // dictionary<serviceId, (gas used, the number of work-reports accumulated)>
 type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
 

@@ -1798,6 +1798,22 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	s.AccumulateGasUsed = Gas(accumulateGasUsed)
 	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", accumulateGasUsed))
 
+	cLog(Cyan, "Decoding OnTransfersCount")
+	onTransfersCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.OnTransfersCount = U32(onTransfersCount)
+	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", onTransfersCount))
+
+	cLog(Cyan, "Decoding OnTransfersGasUsed")
+	onTransfersGasUsed, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.OnTransfersGasUsed = Gas(onTransfersGasUsed)
+	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", onTransfersGasUsed))
+
 	return nil
 }
 
@@ -2306,14 +2322,8 @@ func (a *AuthPools) Decode(d *Decoder) error {
 // ServiceInfo
 func (s *ServiceInfo) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ServiceInfo")
-	// Get the first byte
-	firstByte, err := d.buf.ReadByte()
-	if err != nil {
-		return err
-	}
-	if firstByte != 0 {
-		return fmt.Errorf("expected first byte to be 0, got %d", firstByte)
-	}
+
+	var err error
 
 	if err = s.CodeHash.Decode(d); err != nil {
 		return err
@@ -2702,10 +2712,6 @@ func (p *Privileges) Decode(d *Decoder) error {
 	}
 
 	if err = p.Designate.Decode(d); err != nil {
-		return err
-	}
-
-	if err = p.CreateAcct.Decode(d); err != nil {
 		return err
 	}
 
@@ -3153,30 +3159,6 @@ func (o *Operand) Decode(decoder *Decoder) error {
 		return err
 	}
 
-	return nil
-}
-
-func (o *OperandOrDeferredTransfer) Decode(decoder *Decoder) error {
-	cLog(Cyan, "Decoding OperandOrDeferredTransfer")
-	firstByte, err := decoder.ReadPointerFlag()
-	if err != nil {
-		return err
-	}
-	isOperand := firstByte == 0
-	isDeferredTransfer := firstByte == 1
-	if isOperand {
-		cLog(Cyan, "OperandOrDeferredTransfer is Operand")
-		if err = o.Operand.Decode(decoder); err != nil {
-			return err
-		}
-		return nil
-	} else if isDeferredTransfer {
-		cLog(Cyan, "OperandOrDeferredTransfer is DeferredTransfer")
-		if err = o.DeferredTransfer.Decode(decoder); err != nil {
-			return err
-		}
-		return nil
-	}
 	return nil
 }
 

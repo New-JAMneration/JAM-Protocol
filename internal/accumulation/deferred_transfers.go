@@ -279,7 +279,6 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		Bless:           chi.Bless,
 		Assign:          chi.Assign,
 		Designate:       chi.Designate,
-		CreateAcct:      chi.CreateAcct,
 		AlwaysAccum:     chi.AlwaysAccum,
 	}
 
@@ -294,7 +293,6 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	// Execute outer accumulation
 	outerAccumulationInput := OuterAccumulationInput{
 		GasLimit:                     g,
-		DeferredTransfers:            []types.DeferredTransfer{}, // empty
 		WorkReports:                  accumulatableWorkReports,
 		InitPartialStateSet:          partialStateSet,
 		ServicesWithFreeAccumulation: chi_g,
@@ -335,7 +333,7 @@ func DeferredTransfers() error {
 	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	// updateDeltaDoubleDagger(store, output.DeferredTransfers)
+	updateDeltaDoubleDagger(store, output.DeferredTransfers, accumulationStatistics)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
