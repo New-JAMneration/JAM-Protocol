@@ -87,11 +87,11 @@ type GeneralArgs struct {
 }
 
 type AccumulateArgs struct {
-	ResultContextX ResultContext
-	ResultContextY ResultContext
-	Timeslot       types.TimeSlot
-	Eta            types.Entropy                     // italic n / eta_0, used in fetch
-	Operands       []types.OperandOrDeferredTransfer // o, used in fetch
+	ResultContextX            ResultContext
+	ResultContextY            ResultContext
+	Timeslot                  types.TimeSlot
+	Eta                       types.Entropy                     // italic n / eta_0, used in fetch
+	OperandOrDeferredTransfer []types.OperandOrDeferredTransfer // o, used in fetch
 }
 
 type RefineArgs struct {
@@ -573,16 +573,17 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v, err = encoder.Encode(input.Addition.WorkPackage.Items[w11].Payload)
 	case 14:
-		if len(input.Addition.Operands) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
 			break
 		}
 
-		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.Operands))))
+		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfer))))
 		if err != nil {
 			break
 		}
 
-		for _, o := range input.Addition.Operands {
+		for _, o := range input.Addition.OperandOrDeferredTransfer {
+
 			bytes, err := encoder.Encode(&o)
 			if err != nil {
 				break
@@ -593,47 +594,16 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v = buffer
 	case 15:
-		if len(input.Addition.Operands) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
 			break
 		}
 
 		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.Operands)) {
+		if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfer)) {
 			break
 		}
 
-		v, err = encoder.Encode(input.Addition.Operands[w11])
-	case 16:
-		if len(input.Addition.DeferredTransfer) == 0 {
-			break
-		}
-
-		buffer, err := encoder.Encode(types.U64(len(input.Addition.DeferredTransfer)))
-		if err != nil {
-			break
-		}
-
-		for _, t := range input.Addition.DeferredTransfer {
-			bytes, err := encoder.Encode(t)
-			if err != nil {
-				break
-			}
-
-			buffer = append(buffer, bytes...)
-		}
-
-		v = buffer
-	case 17:
-		if len(input.Addition.DeferredTransfer) == 0 {
-			break
-		}
-
-		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.DeferredTransfer)) {
-			break
-		}
-
-		v, err = encoder.Encode(input.Addition.DeferredTransfer[w11])
+		v, err = encoder.Encode(input.Addition.OperandOrDeferredTransfer[w11])
 	}
 
 	if err != nil {
@@ -1729,7 +1699,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
+	m, a, v, r, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
 
 	// if N_{a...+4C} not readable
 	offset := uint64(4 * types.CoresCount)
@@ -1762,21 +1732,9 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if x_s ≠ (x_u)_m
-	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Bless {
-		input.Registers[7] = HUH
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// (m, a, v) \not in N_s
+	// (m, v, r) \not in N_s
 	limit := uint64(1 << 32)
-	if m >= limit || a >= limit || v >= limit {
+	if m >= limit || v >= limit || r >= limit {
 		input.Registers[7] = WHO
 
 		return OmegaOutput{
@@ -1987,7 +1945,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	o, l, g, m, f := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
+	o, l, g, m, f, i := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
 
 	offset := uint64(32)
 	// if c = ∇
@@ -2035,6 +1993,20 @@ func new(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)]
+	// otherwise if x_s = (x_e)r and i < S and i \in K((x_e)_d)
+	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex && exists {
+		input.Registers[7] = FULL
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	var cDecoded types.U32
 	decoder := types.NewDecoder()
 	err := decoder.Decode(c, &cDecoded)
@@ -2070,11 +2042,30 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// s_b = (x_s)_b - at
 	s.ServiceInfo.Balance -= at
 
+	// x_s = (x_e)_r and i < S
+	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
+		// reg[7] = i
+		input.Registers[7] = i
+		// d = { (i -> a)}
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)] = a
+
+		serviceID := input.Addition.ResultContextX.ServiceId
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 	// reg[7] = x_i
 	input.Registers[7] = uint64(importServiceID)
 	// i* = check(i)
-	iStar := check((1<<8)+(importServiceID-(1<<8)+42)%(1<<32-1<<9), input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	input.Addition.ResultContextX.ImportServiceId = iStar
 	// mathbb{d} : x_i -> a
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
@@ -2659,16 +2650,16 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	// i = mu_o...+z
 	i := input.Memory.Read(o, z)
 
-	// s* = s or s = omega_7
-	var sStar types.ServiceId
+	// s = x_s or s = omega_7
+	var s types.ServiceId
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = *input.Addition.ServiceId
+		s = input.Addition.ResultContextX.ServiceId
 	} else {
-		sStar = types.ServiceId(input.Registers[7])
+		s = types.ServiceId(input.Registers[7])
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d
-	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(sStar)]
+	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(s)]
 	if !accountExists {
 		// otherwise if a = nil
 		input.Registers[7] = WHO
@@ -2699,12 +2690,12 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceBlob := types.ServiceBlob{
-		ServiceID: sStar,
+		ServiceID: s,
 		Blob:      i,
 	}
 
 	encoder := types.NewEncoder()
-	serialized, _ := encoder.Encode(sStar)
+	serialized, _ := encoder.Encode(s)
 	encoded, _ := encoder.Encode(i)
 	serialized = append(serialized, encoded...)
 	hashKey := hash.Blake2bHash(serialized)
@@ -2772,67 +2763,6 @@ func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 	)
 }
 
-// zero is removed in GP 0.6.7
-/*
-func zero(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       input.Gas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-	newGas := input.Gas - gasFee
-
-	n, p, c := input.Registers[7], input.Registers[8], input.Registers[9]
-
-	if p < 16 || (p+c) >= (1<<32)/ZP {
-		input.Registers[7] = HUH
-		return OmegaOutput{
-			// exitReason is ncessary to keep PVM running, according previous setting, HUH, WHO is also CONTINUE
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
-		// u = panic
-		input.Registers[7] = WHO
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// u = m[n]u
-	for i := uint32(p); i < uint32(c); i++ {
-		input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
-			Value:  make([]byte, ZP),
-			Access: MemoryReadWrite,
-		}
-	}
-
-	input.Registers[7] = OK
-
-	return OmegaOutput{
-		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
-	}
-}
-*/
-
 // B.14
 func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
 	for {
@@ -2840,6 +2770,6 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 			return serviceID
 		}
 
-		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+		serviceID = (serviceID-types.MinimumServiceIndex+1)%(1<<32-(1<<8)-types.MinimumServiceIndex) + types.MinimumServiceIndex
 	}
 }

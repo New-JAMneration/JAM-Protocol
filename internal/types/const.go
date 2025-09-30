@@ -164,8 +164,9 @@ const (
 
 // PVM constants
 const (
-	TransferMemoSize   = 128   // W_T
-	LookupAnchorMaxAge = 14400 // L
+	TransferMemoSize    = 128   // W_T
+	LookupAnchorMaxAge  = 14400 // L
+	MinimumServiceIndex = 65536 // S (GP 0.7.1)
 )
 
 // Auditing (17.16)
