@@ -1731,21 +1731,8 @@ func bless(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	/*
-		// otherwise if x_s ≠ (x_u)_m
-		if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Bless {
-			input.Registers[7] = HUH
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
-		}
-	*/
 
-	// (m, a, v) \not in N_s
+	// (m, v, r) \not in N_s
 	limit := uint64(1 << 32)
 	if m >= limit || v >= limit || r >= limit {
 		input.Registers[7] = WHO
