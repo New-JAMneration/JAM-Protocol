@@ -2335,7 +2335,7 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.DepositOffset.Decode(d); err != nil {
+	if err = s.GratisStorageOffset.Decode(d); err != nil {
 		return err
 	}
 
@@ -2343,7 +2343,7 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.CreationSlot.Decode(d); err != nil {
+	if err = s.CreateTime.Decode(d); err != nil {
 		return err
 	}
 

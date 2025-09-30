@@ -1133,3 +1133,83 @@ func TestEncodeImportSpec(t *testing.T) {
 		}
 	}
 }
+
+func TestEncodeImportSpec(t *testing.T) {
+	// Prepare test cases
+	testCases := []struct {
+		importSpec types.ImportSpec
+		expected   []byte
+	}{
+		{
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0,
+				},
+				Index: 2,
+			},
+			[]byte{
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0,
+			},
+		},
+		{
+			types.ImportSpec{
+				TreeRoot: types.OpaqueHash{
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1,
+				},
+				Index: 1,
+			},
+			[]byte{
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1,
+				1, 128, // E_2(1 + 2^15)
+			},
+		},
+	}
+
+	mockHashSegmentMap := map[string]string{
+		"1697123456_0101010101010101010101010101010101010101010101010101010101010101": "0101010101010101010101010101010101010101010101010101010101010101",
+	}
+
+	// If you want to encode the ImportSpec, you have to offer the `HashSegmentMap`.
+	// You can get the `HashSegmentMap` from the redis.
+	redisBackend, err := store.GetRedisBackend()
+	if err != nil {
+		t.Fatalf("Failed to get redis backend: %v", err)
+	}
+
+	// Set the mock hash segment map to the redis
+	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
+
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+
+	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(hashSegmentMap)
+
+	for _, testCase := range testCases {
+		importSpec := testCase.importSpec
+		encoded, err := encoder.Encode(&importSpec)
+		if err != nil {
+			t.Fatalf("Failed to encode import spec: %v", err)
+		}
+
+		// Compare the binary data
+		if !CompareBinaryData(encoded, testCase.expected) {
+			t.Fatalf("Encoded data is not equal to the expected data")
+		}
+	}
+}

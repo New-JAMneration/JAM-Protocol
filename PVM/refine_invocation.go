@@ -9,7 +9,6 @@ import (
 )
 
 type RefineInput struct {
-	CoreIndex           types.CoreIndex         // c (GP 0.7.1)
 	WorkItemIndex       uint                    // i
 	WorkPackage         types.WorkPackage       // p
 	AuthOutput          types.ByteSequence      // o
@@ -75,11 +74,8 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// otherwise
 	var a []byte
 	encoder := types.NewEncoder()
-	// c
-	encoded, _ := encoder.EncodeUint(uint64(input.CoreIndex))
-	a = append(a, encoded...)
 	// i
-	encoded, _ = encoder.EncodeUint(uint64(input.WorkItemIndex))
+	encoded, _ := encoder.EncodeUint(uint64(input.WorkItemIndex))
 	a = append(a, encoded...)
 	// w_s
 	encoded, _ = encoder.Encode(workItem.CodeHash)
