@@ -130,6 +130,13 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 	stateRoot, err := s.Service.ImportBlock(types.Block(*m.ImportBlock))
 	if err != nil {
 		log.Printf("error importing block: %v\n", err)
+		log.Printf("size of error: %d", len(err.Error()))
+		return Message{
+			Type: MessageType_ErrorMessage,
+			Error: &ErrorMessage{
+				Error: err.Error(),
+			},
+		}, nil
 	}
 
 	payload := StateRoot(stateRoot)

@@ -77,7 +77,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
 	storeInstance := store.GetInstance()
 
-	state, err := m.StateKeyValsToState(stateKeyVals)
+	state, _, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}

@@ -130,9 +130,11 @@ func importBlock(args []string) {
 	}
 
 	// Send import_block request
-	stateRoot, err := client.ImportBlock(block)
+	stateRoot, errorMessage, err := client.ImportBlock(block)
 	if err != nil {
 		log.Fatalf("error sending import_block request: %v\n", err)
+	} else if errorMessage != nil {
+		log.Fatalf("error sending import_block request: %v\n", errorMessage.Error)
 	}
 
 	log.Printf("import_block successful, state root: %x\n", stateRoot)
@@ -352,10 +354,13 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 	}
 
 	log.Printf("[ImportBlock][Request] block_header_hash=0x%x", hex.EncodeToString(testData.Block.Header.Parent[:]))
-	actualPostStateRoot, err := client.ImportBlock(testData.Block)
-	log.Printf("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
+	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
 	if err != nil {
-		return fmt.Errorf("ImportBlock failed: %v", err)
+		log.Printf("[ImportBlock][Response] error=%v", err)
+	} else if errorMessage != nil {
+		log.Printf("[ImportBlock][Response] error message=%v", errorMessage.Error)
+	} else {
+		log.Printf("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
 
 	if actualPostStateRoot != expectedPostStateRoot {
