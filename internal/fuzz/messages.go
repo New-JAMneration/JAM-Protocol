@@ -16,12 +16,13 @@ import (
 type MessageType uint8
 
 const (
-	MessageType_PeerInfo    MessageType = 0
-	MessageType_ImportBlock MessageType = 1
-	MessageType_SetState    MessageType = 2
-	MessageType_GetState    MessageType = 3
-	MessageType_State       MessageType = 4
-	MessageType_StateRoot   MessageType = 5
+	MessageType_PeerInfo     MessageType = 0
+	MessageType_ImportBlock  MessageType = 1
+	MessageType_SetState     MessageType = 2
+	MessageType_GetState     MessageType = 3
+	MessageType_State        MessageType = 4
+	MessageType_StateRoot    MessageType = 5
+	MessageType_ErrorMessage MessageType = 6
 )
 
 type (
@@ -38,6 +39,10 @@ type (
 	}
 
 	ImportBlock types.Block
+
+	ErrorMessage struct {
+		Error string
+	}
 
 	SetState struct {
 		Header types.Header
@@ -59,6 +64,9 @@ type (
 		GetState    *GetState
 		StateRoot   *StateRoot
 		State       *State
+
+		// For ImportBlock
+		Error *ErrorMessage
 	}
 )
 
@@ -132,6 +140,31 @@ func (m *PeerInfo) FromValues(name, strAppVersion, strJamVersion string) error {
 	m.Name = name
 	m.AppVersion = appVersion
 	m.JamVersion = jamVersion
+
+	return nil
+}
+
+func (m *ErrorMessage) MarshalBinary() ([]byte, error) {
+	var buffer []byte
+	buffer = append(buffer, uint8(len(m.Error)))
+	buffer = append(buffer, []byte(m.Error)...)
+	return buffer, nil
+}
+
+func (m *ErrorMessage) UnmarshalBinary(data []byte) error {
+	buffer := bytes.NewBuffer(data)
+	l, err := buffer.ReadByte()
+	if err != nil {
+		return err
+	}
+
+	errorBuffer := make([]byte, uint8(l))
+	_, err = io.ReadFull(buffer, errorBuffer)
+	if err != nil {
+		return err
+	}
+
+	m.Error = string(errorBuffer)
 
 	return nil
 }
@@ -305,6 +338,9 @@ func (m *Message) ReadFrom(reader io.Reader) (int64, error) {
 	case MessageType_StateRoot:
 		m.StateRoot = new(StateRoot)
 		unmarshaler = m.StateRoot
+	case MessageType_ErrorMessage:
+		m.Error = new(ErrorMessage)
+		unmarshaler = m.Error
 	case MessageType_State:
 		m.State = new(State)
 		unmarshaler = m.State
@@ -333,6 +369,8 @@ func (m *Message) MarshalBinary() ([]byte, error) {
 		marshaler = m.StateRoot
 	case MessageType_State:
 		marshaler = m.State
+	case MessageType_ErrorMessage:
+		marshaler = m.Error
 	default:
 		return nil, ErrInvalidMessageType
 	}
