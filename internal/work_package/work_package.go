@@ -124,7 +124,7 @@ func WorkReportCompute(
 
 	rSum := 0
 	for j, item := range workPackage.Items {
-		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum)
+		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum, coreIndex)
 		rSum += len(r)
 		result := C(item, r, u)
 		results = append(results, result)
@@ -150,7 +150,7 @@ func WorkReportCompute(
 	}, nil
 }
 
-func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor, rSum int) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
+func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor, rSum int, coreIndex types.CoreIndex) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
 	workItem := workPackage.Items[j]
 	expectedCount := workItem.ExportCount
 	lSum := 0
@@ -159,6 +159,7 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 	}
 
 	refineInput := PVM.RefineInput{
+		CoreIndex:           coreIndex,
 		WorkItemIndex:       uint(j),
 		WorkPackage:         workPackage,
 		AuthOutput:          o,
