@@ -43,6 +43,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	req.Attempt = payload[4]
 	copy(req.Proof[:], payload[5:789])
 
+	// calculate proxy validator index
 	proxyIndexBytes := req.Proof[780:784]
 	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
 
@@ -51,43 +52,44 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	if int(proxyIndex) >= len(nextValidators) {
 		return stream.Close()
 	}
+	// the proxy validator is selected from next epoch validators
 	proxyValidator := nextValidators[proxyIndex]
 
+	// CE131
+	delaySlots := 0
+	if localBandersnatchKey != proxyValidator.Bandersnatch {
+		// max(|E/60|, 1) slots, E is the number of slots in an epoch
+		delaySlots := int(math.Max(float64(types.SlotSubmissionEnd)/60.0, 1.0))
+		time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
+	}
+
 	// CE132: proxy validator to all current validators
-	if localBandersnatchKey == proxyValidator.Bandersnatch {
-		if err := verifySafroleTicketProof(req); err != nil {
-			return fmt.Errorf("VRF proof verification failed: %w", err)
-		}
+	// if so, the validator is proxy validator, we should skip first step (generate proxy validator)
+	// and do second step.
+	if err := verifySafroleTicketProof(req); err != nil {
+		return fmt.Errorf("VRF proof verification failed: %w", err)
+	}
 
-		delaySlots := int(math.Max(float64(types.EpochLength)/20.0, 1.0))
+	lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
+	halfLotteryPeriod := lotteryPeriod / 2
 
-		lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
-		halfLotteryPeriod := lotteryPeriod / 2
-
-		forwardingSlots := halfLotteryPeriod - delaySlots
-		if forwardingSlots <= 0 {
-			forwardingSlots = 1
-		}
-		go func() {
-			time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
-
-			currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
-			for i, validator := range currentValidators {
-				if validator.Bandersnatch == localBandersnatchKey {
-					continue
-				}
-
-				if i > 0 {
-					time.Sleep(time.Duration(forwardingSlots) * time.Duration(types.SlotPeriod) * time.Second)
-				}
-
-				if err := forwardSafroleTicket(validator, payload); err != nil {
-					fmt.Printf("Failed to forward ticket to validator %d: %v\n", i, err)
-				}
+	// start forwarding after half-way through the Safrole lottery period.
+	forwardingSlots := halfLotteryPeriod - delaySlots
+	if forwardingSlots <= 0 {
+		forwardingSlots = 1
+	}
+	time.Sleep(time.Duration(forwardingSlots) * time.Duration(types.SlotPeriod) * time.Second)
+	go func() {
+		currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
+		for _, validator := range currentValidators {
+			if err := forwardSafroleTicket(validator, payload); err != nil {
+				fmt.Printf("Failed to forward ticket to validator %d: %v\n", validator, err)
 			}
-		}()
+		}
+	}()
 
-		stream.Write([]byte{0x01})
+	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
 	return stream.Close()
