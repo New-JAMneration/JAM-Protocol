@@ -3,7 +3,6 @@ package accumulation
 import (
 	"bytes"
 	"slices"
-	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -102,26 +101,6 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 		}
 	}
 	return accumulationStatistics
-}
-
-// (12.26)
-// R: Selection function
-// ordered primarily according to the source service index and secondarily their order within t.
-func selectionFunction(transfers types.DeferredTransfers, destinationServiceId types.ServiceId) types.DeferredTransfers {
-	// Filter the destination service id
-	outputTransfers := []types.DeferredTransfer{}
-	for _, transfer := range transfers {
-		if transfer.ReceiverID == destinationServiceId {
-			outputTransfers = append(outputTransfers, transfer)
-		}
-	}
-
-	// https://pkg.go.dev/sort#SliceStable
-	sort.SliceStable(outputTransfers, func(i, j int) bool {
-		return outputTransfers[i].SenderID < outputTransfers[j].SenderID
-	})
-
-	return outputTransfers
 }
 
 // (12.28) (12.29) (12.30) (12.31) (12.32)
