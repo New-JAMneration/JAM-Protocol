@@ -45,49 +45,62 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 
 	// calculate proxy validator index
 	proxyIndexBytes := req.Proof[780:784]
-	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
 	nextValidators := store.GetInstance().GetPosteriorStates().GetGammaK()
+	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(len(nextValidators))
 
 	if int(proxyIndex) >= len(nextValidators) {
 		return stream.Close()
 	}
-	// the proxy validator is selected from next epoch validators
 	proxyValidator := nextValidators[proxyIndex]
 
-	// CE131
-	delaySlots := 0
-	if localBandersnatchKey != proxyValidator.Bandersnatch {
-		// max(|E/60|, 1) slots, E is the number of slots in an epoch
-		delaySlots = int(math.Max(float64(types.SlotSubmissionEnd)/60.0, 1.0))
-		time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
-	}
-
-	// CE132: proxy validator to all current validators
-	// if so, the validator is proxy validator, we should skip first step (generate proxy validator)
-	// and do second step.
+	// Proxy validator must verify the ticket proof
 	if err := verifySafroleTicketProof(req); err != nil {
 		return fmt.Errorf("VRF proof verification failed: %w", err)
 	}
 
+	if localBandersnatchKey != proxyValidator.Bandersnatch {
+		return stream.Close()
+	}
+
+	// As proxy (CE132): forward to all current validators
+	// Forwarding should be delayed until max(floor(E/20), 1) slots after connectivity changes,
+	// and evenly spaced out until half-way through the Safrole lottery period.
+	delaySlots := int(math.Max(float64(types.EpochLength)/20.0, 1.0))
+
 	lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
 	halfLotteryPeriod := lotteryPeriod / 2
 
-	// start forwarding after half-way through the Safrole lottery period.
-	forwardingSlots := halfLotteryPeriod - delaySlots
-	if forwardingSlots <= 0 {
-		forwardingSlots = 1
+	remainingSlots := halfLotteryPeriod - delaySlots
+	if remainingSlots < 1 {
+		remainingSlots = 1
 	}
-	time.Sleep(time.Duration(forwardingSlots) * time.Duration(types.SlotPeriod) * time.Second)
-	go func() {
-		currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
-		for _, validator := range currentValidators {
+
+	currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
+	if len(currentValidators) == 0 {
+		if err := stream.WriteMessage([]byte("FIN")); err != nil {
+			return fmt.Errorf("failed to write FIN response: %w", err)
+		}
+		return stream.Close()
+	}
+
+	// Sleep until the initial delay threshold
+	time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
+
+	// Compute per-recipient spacing in slots
+	spacingSlots := int(math.Max(1.0, math.Floor(float64(remainingSlots)/float64(len(currentValidators)))))
+
+	go func(validators types.ValidatorsData) {
+		for i, validator := range validators {
 			if err := forwardSafroleTicket(validator, payload); err != nil {
 				fmt.Printf("Failed to forward ticket to validator %d: %v\n", validator, err)
 			}
+			if i != len(validators)-1 {
+				time.Sleep(time.Duration(spacingSlots) * time.Duration(types.SlotPeriod) * time.Second)
+			}
 		}
-	}()
+	}(currentValidators)
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
 		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
