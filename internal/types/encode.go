@@ -23,6 +23,12 @@ func (u *U16) Encode(e *Encoder) error {
 	return nil
 }
 
+func (u *TimeSlotSet) Encode(e *Encoder) error {
+	// TODO
+
+	return nil
+}
+
 // U32
 func (u *U32) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding U32")
