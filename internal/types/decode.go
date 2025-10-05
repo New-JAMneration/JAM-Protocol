@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 )
 
 // HeaderHash
@@ -63,37 +62,28 @@ func (t *TimeSlot) Decode(d *Decoder) error {
 }
 
 // TimeSlotSet
-// TimeSlotSet
 func (t *TimeSlotSet) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding TimeSlotSet")
 
+	var err error
+
 	length, err := d.DecodeLength()
 	if err != nil {
-		if err == io.EOF {
-			*t = nil
-			return nil
-		}
 		return err
 	}
-
-	// sanity check
-	if length > 3 {
-		return fmt.Errorf("invalid TimeSlotSet length %d (must be <=3)", length)
-	}
-
 	if length == 0 {
-		*t = nil
 		return nil
 	}
-
+	// make the slice with length
 	timeSlots := make([]TimeSlot, length)
 	for i := uint64(0); i < length; i++ {
 		if err = timeSlots[i].Decode(d); err != nil {
-			return fmt.Errorf("failed to decode TimeSlot[%d]: %v", i, err)
+			return err
 		}
 	}
 
 	*t = timeSlots
+
 	return nil
 }
 
