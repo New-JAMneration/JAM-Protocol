@@ -119,6 +119,7 @@ type (
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 // GP 0.6.7
 type ServiceInfo struct {
+	Version              U8         `json:"version,omitempty"`                // new in v0.7.1
 	DepositOffset        U64        `json:"deposit_offset,omitempty"`         // a_f
 	CodeHash             OpaqueHash `json:"code_hash,omitempty"`              // a_c
 	Balance              U64        `json:"balance,omitempty"`                // a_b

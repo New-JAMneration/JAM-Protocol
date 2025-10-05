@@ -6,6 +6,19 @@ import (
 	"sort"
 )
 
+// U8
+func (u *U8) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding U8")
+	encoded, err := e.EncodeUintWithLength(uint64(*u), 1)
+	if err != nil {
+		return err
+	}
+	if _, err := e.buf.Write(encoded); err != nil {
+		return err
+	}
+	return nil
+}
+
 // U16
 func (u *U16) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding U16")
@@ -23,9 +36,15 @@ func (u *U16) Encode(e *Encoder) error {
 	return nil
 }
 
-func (u *TimeSlotSet) Encode(e *Encoder) error {
-	// TODO
-
+func (t *TimeSlotSet) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(*t))); err != nil {
+		return err
+	}
+	for _, ts := range *t {
+		if err := ts.Encode(e); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -2069,8 +2088,10 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
-	// prefix
-	e.buf.Write([]byte{0})
+	// Version (new in GP 0.7.1)
+	if err := s.Version.Encode(e); err != nil {
+		return err
+	}
 
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
