@@ -51,6 +51,14 @@ func HandleWorkPackageSubmission_Builder(blockchain blockchain.Blockchain, strea
 	}
 	extrinsicsLen := binary.LittleEndian.Uint32(lenBuf)
 
+	// Validate extrinsic message size equals the sum of declared extrinsic lengths in the WorkPackage
+	expectedSize, err := expectedExtrinsicsSize(&wp)
+	if err != nil {
+		return err
+	} else if extrinsicsLen != expectedSize {
+		return fmt.Errorf("bad_extrinsics_message_size: got %d, want %d", extrinsicsLen, expectedSize)
+	}
+
 	extrinsics := make([]byte, extrinsicsLen)
 	if err := stream.ReadFull(extrinsics); err != nil {
 		return fmt.Errorf("failed to read extrinsics data: %w", err)
@@ -87,9 +95,7 @@ func HandleWorkPackageSubmission_Guarantor(blockchain blockchain.Blockchain, str
 	firstMsg := make([]byte, firstMsgLen)
 	if err := stream.ReadFull(firstMsg); err != nil {
 		return fmt.Errorf("failed to read first message content: %w", err)
-	}
-
-	if firstMsgLen < 2 {
+	} else if firstMsgLen < 2 {
 		return fmt.Errorf("first message too short, expected at least 2 bytes for core index")
 	}
 
@@ -114,7 +120,15 @@ func HandleWorkPackageSubmission_Guarantor(blockchain blockchain.Blockchain, str
 	}
 	extrinsicsLen := binary.LittleEndian.Uint32(lenBuf)
 
-	// Validate extrinsics message size matches expected length
+	// Validate extrinsic message size equals the sum of declared extrinsic lengths in the WorkPackage
+	expectedSize, err := expectedExtrinsicsSize(&wp)
+	if err != nil {
+		return err
+	} else if extrinsicsLen != expectedSize {
+		return fmt.Errorf("bad_extrinsics_message_size: got %d, want %d", extrinsicsLen, expectedSize)
+	}
+
+	// Read extrinsic data payload
 	extrinsics := make([]byte, extrinsicsLen)
 	if err := stream.ReadFull(extrinsics); err != nil {
 		return fmt.Errorf("failed to read extrinsics data: %w", err)
@@ -152,4 +166,17 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSubmission(message interface{
 	result = append(result, workpackage.WorkPackage...)
 	result = append(result, workpackage.Extrinsics...)
 	return result, nil
+}
+
+func expectedExtrinsicsSize(wp *types.WorkPackage) (uint32, error) {
+	var sum uint64
+	for _, item := range wp.Items {
+		for _, ex := range item.Extrinsic {
+			sum += uint64(ex.Len)
+		}
+	}
+	if sum > uint64(^uint32(0)) {
+		return 0, fmt.Errorf("extrinsics_size_overflow: %d", sum)
+	}
+	return uint32(sum), nil
 }

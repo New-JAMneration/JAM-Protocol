@@ -46,7 +46,6 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	// calculate proxy validator index
 	proxyIndexBytes := req.Proof[780:784]
 	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
-
 	nextValidators := store.GetInstance().GetPosteriorStates().GetGammaK()
 
 	if int(proxyIndex) >= len(nextValidators) {
@@ -59,7 +58,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	delaySlots := 0
 	if localBandersnatchKey != proxyValidator.Bandersnatch {
 		// max(|E/60|, 1) slots, E is the number of slots in an epoch
-		delaySlots := int(math.Max(float64(types.SlotSubmissionEnd)/60.0, 1.0))
+		delaySlots = int(math.Max(float64(types.SlotSubmissionEnd)/60.0, 1.0))
 		time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
 	}
 
@@ -132,9 +131,7 @@ func forwardSafroleTicket(validator types.Validator, payload []byte) error {
 	ack := make([]byte, 1)
 	if _, err := stream.Read(ack); err != nil {
 		return fmt.Errorf("failed to read acknowledgment: %w", err)
-	}
-
-	if ack[0] != 0x01 {
+	} else if ack[0] != 0x01 {
 		return fmt.Errorf("received invalid acknowledgment: %x", ack[0])
 	}
 
