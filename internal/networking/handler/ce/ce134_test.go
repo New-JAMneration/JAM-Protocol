@@ -102,7 +102,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	segmentMap := store.NewHashSegmentMap(client)
 	erasureMap := store.NewSegmentErasureMap(client)
 	fakePVM := &FakePVMExecutor{}
-	err = HandleWorkPackageShare(nil, &quic.Stream{Stream: stream}, keypair, fakePVM, erasureMap, segmentMap)
+	err = HandleWorkPackageShare_Recv(nil, &quic.Stream{Stream: stream}, keypair, fakePVM, erasureMap, segmentMap)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}

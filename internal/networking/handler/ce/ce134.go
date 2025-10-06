@@ -55,7 +55,7 @@ func readSegmentRootMappings(stream *quic.Stream) ([]SegmentRootMapping, error) 
 // 2. Ensure all import segments retrieved.
 // 3. Ensure work-package bundle exactly matches erasure-coded bundle.
 // 4. Add basic verification (auth + mappings) after receiving bundle.
-func HandleWorkPackageShare(
+func HandleWorkPackageShare_Recv(
 	blockchain blockchain.Blockchain,
 	stream *quic.Stream,
 	keypair keystore.KeyPair,
@@ -105,6 +105,60 @@ func HandleWorkPackageShare(
 		return fmt.Errorf("failed to write response: %w", err)
 	}
 	return stream.Close()
+}
+
+// HandleWorkPackageShare_Send implements the sender side of Guarantor -> Guarantor sharing.
+func HandleWorkPackageShare_Send(
+	stream *quic.Stream,
+	coreIndex types.CoreIndex,
+	mappings []SegmentRootMapping,
+	bundle []byte,
+	peerEd25519 types.Ed25519Public,
+) (types.WorkReportHash, []byte, error) {
+	// Build and write: Core Index (LE16) ++ Mappings (len:u8 ++ [WP Hash ++ Segments-Root]) in one write
+	if len(mappings) > 255 {
+		var zero types.WorkReportHash
+		return zero, nil, fmt.Errorf("too many mappings: %d", len(mappings))
+	}
+	headerAndMappings := make([]byte, 0, 2+1+len(mappings)*64)
+	headerAndMappings = append(headerAndMappings, encodeLE16(uint16(coreIndex))...)
+	headerAndMappings = append(headerAndMappings, byte(len(mappings)))
+	for _, m := range mappings {
+		headerAndMappings = append(headerAndMappings, m.WorkPackageHash[:]...)
+		headerAndMappings = append(headerAndMappings, m.SegmentRoot[:]...)
+	}
+	if err := stream.WriteMessage(headerAndMappings); err != nil {
+		var zero types.WorkReportHash
+		return zero, nil, fmt.Errorf("failed to write header and mappings: %w", err)
+	}
+
+	if len(bundle) > 0 {
+		if err := stream.WriteMessage(bundle); err != nil {
+			return types.WorkReportHash{}, nil, fmt.Errorf("failed to write bundle: %w", err)
+		}
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return types.WorkReportHash{}, nil, fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	// Read response: Work-Report Hash (32) + Signature (64)
+	resp := make([]byte, 32+ed25519.SignatureSize)
+	if err := stream.ReadFull(resp); err != nil {
+		return types.WorkReportHash{}, nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	var wrHash types.WorkReportHash
+	copy(wrHash[:], resp[:32])
+	sig := make([]byte, ed25519.SignatureSize)
+	copy(sig, resp[32:])
+
+	msg := []byte(types.JamGuarantee)
+	msg = append(msg, wrHash[:]...)
+	if !ed25519.Verify(ed25519.PublicKey(peerEd25519[:]), msg, sig) {
+		return types.WorkReportHash{}, nil, fmt.Errorf("bad_guarantor_signature")
+	}
+
+	return wrHash, sig, stream.Close()
 }
 
 func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) ([]byte, error) {
