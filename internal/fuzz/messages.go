@@ -32,10 +32,14 @@ type (
 		Patch uint8
 	}
 
+	Features uint32
+
 	PeerInfo struct {
-		Name       string
-		AppVersion Version
-		JamVersion Version
+		FuzzVersion  uint8
+		FuzzFeatures Features
+		AppVersion   Version
+		JamVersion   Version
+		AppName      string
 	}
 
 	ImportBlock types.Block
@@ -116,34 +120,6 @@ func (v *Version) ReadFrom(reader io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
-func (m *PeerInfo) FromConfig() error {
-	return m.FromValues(
-		config.Config.Info.Name,
-		config.Config.Info.AppVersion,
-		config.Config.Info.JamVersion,
-	)
-}
-
-func (m *PeerInfo) FromValues(name, strAppVersion, strJamVersion string) error {
-	var appVersion, jamVersion Version
-
-	err := appVersion.FromString(strAppVersion)
-	if err != nil {
-		return err
-	}
-
-	err = jamVersion.FromString(strJamVersion)
-	if err != nil {
-		return err
-	}
-
-	m.Name = name
-	m.AppVersion = appVersion
-	m.JamVersion = jamVersion
-
-	return nil
-}
-
 func (m *ErrorMessage) MarshalBinary() ([]byte, error) {
 	var buffer []byte
 	buffer = append(buffer, uint8(len(m.Error)))
@@ -169,37 +145,109 @@ func (m *ErrorMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (m *Features) MarshalBinary() ([]byte, error) {
+	return marshalUint32(uint32(*m)), nil
+}
+
+func (m *Features) UnmarshalBinary(data []byte) error {
+	*m = Features(unmarshalUint32(data))
+	return nil
+}
+
+func (m *PeerInfo) FromConfig() error {
+	return m.FromValues(
+		config.Config.Info.Name,
+		config.Config.Info.AppVersion,
+		config.Config.Info.JamVersion,
+		config.Config.Info.FuzzVersion,
+		config.Config.Info.FuzzFeatures,
+	)
+}
+
+func (m *PeerInfo) FromValues(name, strAppVersion, strJamVersion string, fuzzVersion uint8, fuzzFeatures uint32) error {
+	var appVersion, jamVersion Version
+
+	err := appVersion.FromString(strAppVersion)
+	if err != nil {
+		return err
+	}
+
+	err = jamVersion.FromString(strJamVersion)
+	if err != nil {
+		return err
+	}
+
+	m.FuzzVersion = fuzzVersion
+	m.FuzzFeatures = Features(fuzzFeatures)
+	m.JamVersion = jamVersion
+	m.AppVersion = appVersion
+	if name != "" {
+		m.AppName = name
+	} else {
+		m.AppName = "JAM-Protocol"
+	}
+	return nil
+}
+
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	var buffer []byte
 
-	buffer = append(buffer, uint8(len(m.Name)))
-	buffer = append(buffer, []byte(m.Name)...)
+	// Append size of fuzz version
+	buffer = append(buffer, byte(1))
+	buffer = append(buffer, marshalUint8(m.FuzzVersion)...)
 
-	buffer, err := m.AppVersion.AppendBinary(buffer)
+	// Append size of fuzz features
+	buffer = append(buffer, byte(4))
+	features, err := m.FuzzFeatures.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
+	buffer = append(buffer, features...)
 
+	// Append size of jam version
 	buffer, err = m.JamVersion.AppendBinary(buffer)
 	if err != nil {
 		return nil, err
 	}
+
+	// Append size of app version
+	buffer, err = m.AppVersion.AppendBinary(buffer)
+	if err != nil {
+		return nil, err
+	}
+	// Append size of app name
+	buffer = append(buffer, uint8(len(m.AppName)))
+	buffer = append(buffer, []byte(m.AppName)...)
 
 	return buffer, nil
 }
 
 func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	buffer := bytes.NewBuffer(data)
-	l, err := buffer.ReadByte()
-	if err != nil {
-		return err
-	}
 
-	nameBuffer := make([]byte, uint8(l))
-	_, err = io.ReadFull(buffer, nameBuffer)
+	// the first byte is the size of the fuzz version
+	fuzzVersionSize, err := buffer.ReadByte()
 	if err != nil {
 		return err
 	}
+	fuzzVersionBuffer := make([]byte, fuzzVersionSize)
+	_, err = io.ReadFull(buffer, fuzzVersionBuffer)
+	if err != nil {
+		return err
+	}
+	fuzzVersion := unmarshalUint8(fuzzVersionBuffer)
+
+	// fuzzfeature, 4 bytes
+	fuzzFeaturesSize, err := buffer.ReadByte()
+	if err != nil {
+		return err
+	}
+	fuzzFeaturesBuffer := make([]byte, fuzzFeaturesSize)
+	_, err = io.ReadFull(buffer, fuzzFeaturesBuffer)
+	if err != nil {
+		return err
+	}
+	fuzzFeatures := unmarshalUint32(fuzzFeaturesBuffer)
 
 	var appVersion, jamVersion Version
 
@@ -213,9 +261,21 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	m.Name = string(nameBuffer)
+	l, err := buffer.ReadByte()
+	if err != nil {
+		return err
+	}
+	nameBuffer := make([]byte, uint8(l))
+	_, err = io.ReadFull(buffer, nameBuffer)
+	if err != nil {
+		return err
+	}
+
+	m.AppName = string(nameBuffer)
 	m.AppVersion = appVersion
 	m.JamVersion = jamVersion
+	m.FuzzVersion = fuzzVersion
+	m.FuzzFeatures = Features(fuzzFeatures)
 
 	return nil
 }

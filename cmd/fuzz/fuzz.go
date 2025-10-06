@@ -97,9 +97,11 @@ func handshake(args []string) {
 	}
 
 	log.Println("received handshake response:")
-	log.Printf("  Name: %s\n", resp.Name)
-	log.Printf("  App Version: %v\n", resp.AppVersion)
-	log.Printf("  JAM Version: %v\n", resp.JamVersion)
+	log.Printf("  fuzz-version: %d\n", resp.FuzzVersion)
+	log.Printf("  fuzz-features: %d\n", resp.FuzzFeatures)
+	log.Printf("  jam-version: %v\n", resp.JamVersion)
+	log.Printf("  app-version: %v\n", resp.AppVersion)
+	log.Printf("  app-name: %s\n", resp.AppName)
 }
 
 func importBlock(args []string) {
@@ -296,6 +298,13 @@ func testFolder(args []string) {
 
 	successCount := 0
 	failureCount := 0
+
+	// Do the handshake
+	info, err := client.Handshake(fuzz.PeerInfo{AppName: "Fuzz-Test"})
+	if err != nil {
+		log.Fatalf("error doing handshake: %v\n", err)
+	}
+	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
 	// Process each JSON file
 	for _, jsonFile := range jsonFiles {
