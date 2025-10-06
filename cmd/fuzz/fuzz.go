@@ -14,6 +14,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func printUsage() {
@@ -353,7 +355,15 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		return fmt.Errorf("error parsing post_state state_root: %v", err)
 	}
 
-	log.Printf("[ImportBlock][Request] block_header_hash=0x%x", hex.EncodeToString(testData.Block.Header.Parent[:]))
+	// Print Sending ImportBlock
+	serializedHeader, err := utilities.HeaderSerialization(testData.Block.Header)
+	if err != nil {
+		return fmt.Errorf("error serializing header: %v", err)
+	}
+	hashHex := hash.Blake2bHash(serializedHeader)
+	log.Printf("[ImportBlock][Request] block_header_hash=0x%x", hashHex)
+
+	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
 	if err != nil {
 		log.Printf("[ImportBlock][Response] error=%v", err)
