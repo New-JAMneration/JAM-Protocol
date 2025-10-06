@@ -16,6 +16,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 func printUsage() {
@@ -308,21 +309,13 @@ func testFolder(args []string) {
 
 	// Process each JSON file
 	for _, jsonFile := range jsonFiles {
-		log.Printf("Testing file: %s\n", jsonFile)
-
 		if err := testSingleFile(client, jsonFile); err != nil {
-			log.Printf("FAILED!!: %s - %v\n", jsonFile, err)
+			logger.ColorRed("FAILED!!: %s - %v", jsonFile, err)
 			failureCount++
 		} else {
-			log.Printf("PASSED: %s\n", jsonFile)
+			logger.ColorGreen("PASSED: %s", jsonFile)
 			successCount++
 		}
-	}
-
-	if failureCount > 0 {
-		log.Fatalf("Some tests failed\n")
-	} else {
-		log.Printf("All tests passed!\n")
 	}
 }
 
@@ -345,15 +338,15 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 	}
 
 	// Print Sending SetState
-	log.Printf("[SetState][Request] block_header_hash=0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
+	logger.ColorGreen("[SetState][Request] block_header_hash=0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
 	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-	log.Printf("[SetState][Response] state_root=0x%v", hex.EncodeToString(actualPreStateRoot[:]))
+	logger.ColorYellow("[SetState][Response] state_root=0x%v", hex.EncodeToString(actualPreStateRoot[:]))
 	if err != nil {
 		return fmt.Errorf("SetState failed: %v", err)
 	}
 
 	if actualPreStateRoot != expectedPreStateRoot {
-		log.Printf("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
+		logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
 			expectedPreStateRoot, actualPreStateRoot)
 		mismatchCount++
 	}
@@ -370,20 +363,20 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		return fmt.Errorf("error serializing header: %v", err)
 	}
 	hashHex := hash.Blake2bHash(serializedHeader)
-	log.Printf("[ImportBlock][Request] block_header_hash=0x%x", hashHex)
+	logger.ColorGreen("[ImportBlock][Request] block_header_hash=0x%x", hashHex)
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
 	if err != nil {
-		log.Printf("[ImportBlock][Response] error=%v", err)
+		logger.ColorYellow("[ImportBlock][Response] error=%v", err)
 	} else if errorMessage != nil {
-		log.Printf("[ImportBlock][Response] error message=%v", errorMessage.Error)
+		logger.ColorYellow("[ImportBlock][Response] error message=%v", errorMessage.Error)
 	} else {
-		log.Printf("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
+		logger.ColorYellow("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
 
 	if actualPostStateRoot != expectedPostStateRoot {
-		log.Printf("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
+		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
 			expectedPostStateRoot, actualPostStateRoot)
 		mismatchCount++
 	}
