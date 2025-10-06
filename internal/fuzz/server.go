@@ -3,6 +3,7 @@ package fuzz
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -76,8 +77,13 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 		default:
 			var req, resp Message
 			_, err := req.ReadFrom(conn)
+			if err == io.EOF {
+				log.Printf("[fuzz-server] connection closed")
+				return
+			}
+
 			if err != nil {
-				log.Printf("error while reading requests: %v\n", err)
+				log.Printf("[fuzz-server] error while reading requests, err: %v", err)
 				return
 			}
 
@@ -95,19 +101,19 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 			}
 
 			if err != nil {
-				log.Printf("error processing request: %v\n", err)
+				log.Printf("[fuzz-server] error processing request: %v", err)
 				continue
 			}
 
 			respBytes, err := resp.MarshalBinary()
 			if err != nil {
-				log.Printf("error marshaling response: %v\n", err)
+				log.Printf("[fuzz-server] error marshaling response: %v", err)
 				continue
 			}
 
 			_, err = conn.Write(respBytes)
 			if err != nil {
-				log.Printf("error writing response: %v\n", err)
+				log.Printf("[fuzz-server] error writing response: %v", err)
 				continue
 			}
 		}
