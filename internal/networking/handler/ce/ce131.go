@@ -34,7 +34,7 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 // 1. Check finality of the block for stopping forwarding.
 // 2. Check finality is running behind the state to reset or stop the stream.
 func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	payload := make([]byte, 789)
+	payload := make([]byte, 789) // Epoch Index ++ Ticket
 	if err := stream.ReadFull(payload); err != nil {
 		return err
 	}
@@ -59,6 +59,25 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	}
 
 	if localBandersnatchKey != proxyValidator.Bandersnatch {
+		delaySlots := int(math.Max(float64(types.EpochLength)/60.0, 1.0))
+		time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
+
+		// CE131 send ticket to the proxy validator
+		addr := string(bytes.TrimRight(proxyValidator.Metadata[:32], "\x00"))
+		if addr == "" {
+			return fmt.Errorf("invalid proxy validator network address in metadata")
+		}
+
+		if err := stream.WriteMessage(payload); err != nil {
+			return fmt.Errorf("failed to write payload: %w", err)
+		}
+
+		fin := make([]byte, 3)
+		if err := stream.ReadFull(fin); err != nil {
+			return fmt.Errorf("failed to read FIN response: %w", err)
+		} else if string(fin) != "FIN" {
+			return fmt.Errorf("unexpected FIN response: %q", string(fin))
+		}
 		return stream.Close()
 	}
 
@@ -70,11 +89,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
 	halfLotteryPeriod := lotteryPeriod / 2
 
-	remainingSlots := halfLotteryPeriod - delaySlots
-	if remainingSlots < 1 {
-		remainingSlots = 1
-	}
-
+	remainingSlots := halfLotteryPeriod - delaySlots + types.SlotSubmissionEnd
 	currentValidators := store.GetInstance().GetPosteriorStates().GetKappa()
 	if len(currentValidators) == 0 {
 		if err := stream.WriteMessage([]byte("FIN")); err != nil {
@@ -86,16 +101,24 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	// Sleep until the initial delay threshold
 	time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
 
-	// Compute per-recipient spacing in slots
-	spacingSlots := int(math.Max(1.0, math.Floor(float64(remainingSlots)/float64(len(currentValidators)))))
+	// Compute batching: send to multiple validators per slot.
+	batches := int(math.Max(1.0, math.Floor(float64(remainingSlots))))
+	batchSize := int(math.Ceil(float64(len(currentValidators)) / float64(batches)))
 
 	go func(validators types.ValidatorsData) {
-		for i, validator := range validators {
-			if err := forwardSafroleTicket(validator, payload); err != nil {
-				fmt.Printf("Failed to forward ticket to validator %d: %v\n", validator, err)
+		for start := 0; start < len(validators); start += batchSize {
+			end := min(start+batchSize, len(validators))
+
+			// Send within this slot to the batch without inter-send sleep
+			for _, validator := range validators[start:end] {
+				if err := forwardSafroleTicket(validator, payload); err != nil {
+					fmt.Printf("Failed to forward ticket to validator %d: %v\n", validator, err)
+				}
 			}
-			if i != len(validators)-1 {
-				time.Sleep(time.Duration(spacingSlots) * time.Duration(types.SlotPeriod) * time.Second)
+
+			// Sleep exactly one slot between batches, except after the last batch
+			if end < len(validators) {
+				time.Sleep(time.Duration(types.SlotPeriod) * time.Second)
 			}
 		}
 	}(currentValidators)
