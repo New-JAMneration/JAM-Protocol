@@ -3,6 +3,7 @@ package PVM
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 
@@ -149,7 +150,6 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		input.Registers = regPrime
 		input.Memory = ram
 		input.Addition = addition
-
 		omega := omegas[input.Operation]
 		if omega == nil {
 			omega = hostCallException
@@ -925,6 +925,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 
 	// computation of l & a is independent, first compute l is easier to implement
+	fmt.Println("Write storageKey:", string(storageKey))
 	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
 	var l uint64
 	if storageKeyExists {
@@ -2305,12 +2306,11 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupDataLength := len(lookupData)
 
 	if lookupDataLength == 2 {
-		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+		if int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
 				input.Registers[7] = OK
 

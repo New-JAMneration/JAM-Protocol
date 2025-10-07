@@ -119,7 +119,6 @@ func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.Ac
 		}
 		deltaDoubleDagger[serviceId] = acc
 	}
-
 	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 }
 
