@@ -1,12 +1,17 @@
-package merklization
+package merklization_test
 
 import (
 	"errors"
+	"log"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	merklization "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	// jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
@@ -24,49 +29,51 @@ func CompareByteArray(data1 []byte, data2 []byte) bool {
 	return true
 }
 
-/*
-	func TestMerklizationJamTestVectors(t *testing.T) {
-		dirNames := []string{
-			"fallback",
-			"reports-l0",
-			"safrole",
+func TestMerklizationJamTestVectors(t *testing.T) {
+	dirNames := []string{
+		"fallback",
+		"preimages",
+		"preimages_light",
+		"safrole",
+		"storage",
+		"storage_light",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
+
+		fileNames, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error getting files from directory %s: %v", dir, err)
+			continue
 		}
 
-		for _, dirName := range dirNames {
-			dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
+		for _, fileName := range fileNames {
+			filePath := filepath.Join(dir, fileName)
 
-			fileNames, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+			// Read the bin file
+			traceTestCase := &jamtests_trace.TraceTestCase{}
+			err := utilities.GetTestFromBin(filePath, traceTestCase)
 			if err != nil {
-				t.Errorf("Error getting files from directory %s: %v", dir, err)
+				t.Errorf("Error reading file %s: %v", filePath, err)
 				continue
 			}
 
-			for _, fileName := range fileNames {
-				filePath := filepath.Join(dir, fileName)
+			// Get the post-state keyvals to execute merklization
+			stateKeyVals := traceTestCase.PostState.KeyVals
+			stateRoot := merklization.MerklizationSerializedState(stateKeyVals)
+			expectedStateRoot := traceTestCase.PostState.StateRoot
 
-				// Read the bin file
-				traceTestCase := &jamtests_trace.TraceTestCase{}
-				err := utilities.GetTestFromBin(filePath, traceTestCase)
-				if err != nil {
-					t.Errorf("Error reading file %s: %v", filePath, err)
-					continue
-				}
-
-				// Get the post-state keyvals to execute merklization
-				stateKeyVals := traceTestCase.PostState.KeyVals
-				stateRoot := MerklizationSerializedState(stateKeyVals)
-				expectedStateRoot := traceTestCase.PostState.StateRoot
-
-				// Compare the state root
-				if !reflect.DeepEqual(stateRoot, expectedStateRoot) {
-					log.Printf("❌ [%s] %s", dirName, fileName)
-				} else {
-					log.Printf("✅ [%s] %s", dirName, fileName)
-				}
+			// Compare the state root
+			if !reflect.DeepEqual(stateRoot, expectedStateRoot) {
+				log.Printf("❌ [%s] %s", dirName, fileName)
+			} else {
+				log.Printf("✅ [%s] %s", dirName, fileName)
 			}
 		}
 	}
-*/
+}
+
 func TestBytesToBits(t *testing.T) {
 	testCases := []struct {
 		input    types.ByteSequence
@@ -84,7 +91,7 @@ func TestBytesToBits(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := bytesToBits(tc.input)
+		actual := merklization.BytesToBits(tc.input)
 
 		if len(actual) != len(tc.expected) {
 			t.Errorf("Expected %v, got %v", tc.expected, actual)
@@ -116,7 +123,7 @@ func TestBitsToBytes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual, error := bitsToBytes(tc.input)
+		actual, error := merklization.BitsToBytes(tc.input)
 
 		// Check error message
 		if error != nil {
@@ -145,10 +152,10 @@ func TestBranchEncoding(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := BranchEncoding(tc.left, tc.right)
+		actual := merklization.BranchEncoding(tc.left, tc.right)
 
-		if len(actual) != NODE_SIZE {
-			t.Errorf("Expected %v, got %v", NODE_SIZE, actual)
+		if len(actual) != merklization.NODE_SIZE {
+			t.Errorf("Expected %v, got %v", merklization.NODE_SIZE, actual)
 		}
 
 		// Branch encoding first bit should be 0 (The node is branch)
@@ -156,8 +163,8 @@ func TestBranchEncoding(t *testing.T) {
 			t.Errorf("Expected %v, got %v", false, actual[0])
 		}
 
-		leftBits := bytesToBits(tc.left[:])
-		rightBits := bytesToBits(tc.right[:])
+		leftBits := merklization.BytesToBits(tc.left[:])
+		rightBits := merklization.BytesToBits(tc.right[:])
 
 		// Left bits should be 255 bits
 		// Branch encoding [1:256] should be equal to left bits
@@ -351,7 +358,7 @@ func TestBitSequenceToString(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := bitSequenceToString(tc.input)
+		actual := merklization.BitSequenceToString(tc.input)
 
 		if actual != tc.expected {
 			t.Errorf("Expected %v, got %v", tc.expected, actual)
@@ -362,7 +369,7 @@ func TestBitSequenceToString(t *testing.T) {
 func TestMerklizationState(t *testing.T) {
 	testState := types.State{}
 
-	stateRoot := MerklizationState(testState)
+	stateRoot := merklization.MerklizationState(testState)
 
 	resultLen := len(stateRoot)
 	expectedLen := len(types.OpaqueHash{})

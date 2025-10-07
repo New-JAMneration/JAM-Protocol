@@ -32,6 +32,10 @@ func bytesToBits(s types.ByteSequence) types.BitSequence {
 	return bitSequence
 }
 
+func BytesToBits(s types.ByteSequence) types.BitSequence {
+	return bytesToBits(s)
+}
+
 // bitsToBytes converts a BitSequence to a ByteSequence
 func bitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
 	if len(bits)%8 != 0 {
@@ -48,6 +52,10 @@ func bitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
 	}
 
 	return bytes, nil
+}
+
+func BitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
+	return bitsToBytes(bits)
 }
 
 // BranchEncoding encodes a branch node.
@@ -122,6 +130,10 @@ func bitSequenceToString(bitSequence types.BitSequence) string {
 		}
 	}
 	return str
+}
+
+func BitSequenceToString(bitSequence types.BitSequence) string {
+	return bitSequenceToString(bitSequence)
 }
 
 // INFO: Convert the BitSequence to a bitstrings, because we cannot use []bool as a
