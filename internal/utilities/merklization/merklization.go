@@ -26,9 +26,21 @@ type CE129Request struct {
 
 // CE129Response: server → client
 type CE129Response struct {
-	StartPath []types.OpaqueHash
-	EndPath   []types.OpaqueHash
-	Pairs     []types.StateKeyVal
+	BoundaryNodes []types.OpaqueHash
+	Pairs         []types.StateKeyVal
+}
+
+func mergeBoundaryPaths(startPath, endPath []types.OpaqueHash) []types.OpaqueHash {
+	merged := []types.OpaqueHash{}
+	seen := make(map[types.OpaqueHash]bool)
+
+	for _, h := range append(startPath, endPath...) {
+		if !seen[h] {
+			merged = append(merged, h)
+			seen[h] = true
+		}
+	}
+	return merged
 }
 
 // TODO: this is just a temp example for DB root → []LeafPath
@@ -58,8 +70,7 @@ func CE129Handler(request CE129Request) (CE129Response, error) {
 			endPath = leafPath.Path
 		}
 	}
-	result.StartPath = startPath
-	result.EndPath = endPath
+	result.BoundaryNodes = mergeBoundaryPaths(startPath, endPath)
 	// TODO: Check the actual logic of handling the MaxSize
 	if len(result.Pairs) > request.MaxSize {
 		result.Pairs = result.Pairs[:request.MaxSize]
@@ -195,8 +206,8 @@ func Merklization(d MerklizationInput) (types.OpaqueHash, []LeafPath) {
 	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
 	if len(d) == 1 {
 		for _, stateKeyVal := range d {
-			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
-			bytes, _ := bitsToBytes(leftEncoding)
+			leafEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
+			bytes, _ := bitsToBytes(leafEncoding)
 			leafHash := hash.Blake2bHash(bytes)
 			return leafHash, []LeafPath{{
 				Pair: stateKeyVal,
