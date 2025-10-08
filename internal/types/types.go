@@ -1628,6 +1628,8 @@ type StateKeyVal struct {
 	Value ByteSequence
 }
 
+types.StateKeyVal
+
 type StateKeyVals []StateKeyVal
 
 func (origin *StateKeyVals) DeepCopy() StateKeyVals {
