@@ -1584,6 +1584,8 @@ type StateKeyVal struct {
 	Value ByteSequence
 }
 
+types.StateKeyVal
+
 type StateKeyVals []StateKeyVal
 
 func Some[T any](v T) *T {
