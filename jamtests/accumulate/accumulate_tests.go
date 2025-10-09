@@ -773,6 +773,15 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 
+		// Fill PreimageStatus
+		for _, preimage := range delta.Data.PreimagesStatus {
+			key := types.LookupMetaMapkey{
+				Hash:   preimage.Hash,
+				Length: types.U32(len(serviceAccount.PreimageLookup[preimage.Hash])),
+			}
+			serviceAccount.LookupDict[key] = preimage.Status
+		}
+
 		// Fill Storage
 		for _, storageEntry := range delta.Data.Storage {
 			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
@@ -787,6 +796,7 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
+	store.ResetInstance()
 	s := store.GetInstance()
 
 	// Set time slot
@@ -918,17 +928,17 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Update the statistics in the PosteriorStates
-	// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
+	s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
 
 	// Validate statistics
-	/*if a.PostState.Statistics == nil {
+	if a.PostState.Statistics == nil {
 		// we ignore case don't compare statistics
 	} else if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
 		// log.Printf(Red+"Statistics do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
 		diff := cmp.Diff(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics)
 		log.Printf("Diff:\n%v", diff)
 		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
-	}*/
+	}
 
 	// Validate Accounts (AccountsMapEntry)
 	// INFO:

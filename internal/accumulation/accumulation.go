@@ -338,6 +338,11 @@ func merge(d, n, m types.ServiceAccountState) types.ServiceAccountState {
 	return result
 }
 
+type singleResult struct {
+	out SingleServiceAccumulationOutput
+	err error
+}
+
 // (12.17) ∆∗ parallelized accumulation function
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
@@ -369,12 +374,18 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	single_input.WorkReports = r
 	single_input.AlwaysAccumulateMap = f
 
+	cache := make(map[types.ServiceId]singleResult)
+
 	// Helper to run single service accumulation for a given service ID
 	// ∆(s) ≡ ∆1(e, t, r, f, s)
 	runSingleReplaceService := func(s types.ServiceId) (SingleServiceAccumulationOutput, error) {
+		if res, ok := cache[s]; ok {
+			return res.out, res.err
+		}
 		single_input.ServiceId = s
-		single_output, err := SingleServiceAccumulation(single_input)
-		return single_output, err
+		out, err := SingleServiceAccumulation(single_input)
+		cache[s] = singleResult{out: out, err: err}
+		return out, err
 	}
 
 	// p: output service blobs collection
