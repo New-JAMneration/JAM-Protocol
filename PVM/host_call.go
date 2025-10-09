@@ -2611,6 +2611,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	opaqueHash := types.OpaqueHash(h)
 	input.Addition.ResultContextX.Exception = &opaqueHash
 	// copy(input.Addition.ResultContextX.Exception[:], h)
+	input.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
