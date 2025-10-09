@@ -1627,11 +1627,6 @@ type NumDeferredTransfersAndTotalGasUsed struct {
 	TotalGasUsed         Gas
 }
 
-// (12.29)
-// X: deferred-transfers statistics
-// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
-type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
-
 type AuditReport struct {
 	CoreID      CoreIndex
 	Report      WorkReport
