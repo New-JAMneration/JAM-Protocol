@@ -56,8 +56,7 @@ func (a *AvailAssuranceController) CheckValidatorIndex() error {
 
 // SortUnique sorts the AvailAssurance slice and removes duplicates | Eq. 11.12
 func (a *AvailAssuranceController) SortUnique() error {
-	err := a.Unique()
-	a.Sort()
+	err := a.CheckUniqueAndSort()
 	if err != nil {
 		return err
 	}
@@ -65,22 +64,28 @@ func (a *AvailAssuranceController) SortUnique() error {
 	return nil
 }
 
-// Unique removes duplicates
-func (a *AvailAssuranceController) Unique() error {
+// CheckUniqueAndSort checks if the AvailAssurance slice is sorted and unique
+func (a *AvailAssuranceController) CheckUniqueAndSort() error {
 	if len(a.AvailAssurances) == 0 {
 		return nil
 	}
 
 	uniqueMap := make(map[types.ValidatorIndex]bool)
 	result := make([]types.AvailAssurance, 0)
-	last := -1
+	var last types.ValidatorIndex = 0
+
 	for _, availAssurance := range a.AvailAssurances {
-		if !uniqueMap[availAssurance.ValidatorIndex] || availAssurance.ValidatorIndex <= types.ValidatorIndex(last) {
-			uniqueMap[availAssurance.ValidatorIndex] = true
-			result = append(result, availAssurance)
-		} else {
+		if availAssurance.ValidatorIndex < last {
 			return errors.New("not_sorted_or_unique_assurers")
 		}
+
+		if uniqueMap[availAssurance.ValidatorIndex] {
+			return errors.New("not_sorted_or_unique_assurers")
+		}
+
+		uniqueMap[availAssurance.ValidatorIndex] = true
+		result = append(result, availAssurance)
+		last = availAssurance.ValidatorIndex
 	}
 
 	a.AvailAssurances = result
