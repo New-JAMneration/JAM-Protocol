@@ -103,7 +103,7 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	return accumulationStatistics
 }
 
-// (12.28) (12.29) (12.30) (12.31) (12.32)
+// (12.28) (12.29)
 // Build delta double dagger (second intermediate state)
 // NOTE: v0.7.1 has removed deferred transfers & Ψ_T
 func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.AccumulationStatistics) {
