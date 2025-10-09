@@ -1,8 +1,6 @@
 package merklization
 
 import (
-	"errors"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -10,59 +8,11 @@ import (
 
 const NODE_SIZE = 512
 
-// bytesToBits converts a byte sequence to a bit sequence.
-// The function defined in graypaper 3.7.3. Boolean Values
-func bytesToBits(s types.ByteSequence) types.BitSequence {
-	// Initialize the bit sequence.
-	bitSequence := types.BitSequence{}
-
-	// Iterate over the byte sequence.
-	for _, byte := range s {
-		// Iterate over the bits in the byte.
-		for i := 0; i < 8; i++ {
-			// Calculate the bit.
-			bit := ((byte >> uint(7-i)) & 1)
-
-			// Append the bit (bool) to the bit sequence.
-			bitSequence = append(bitSequence, bit == 1)
-		}
-	}
-
-	// Return the bit sequence.
-	return bitSequence
-}
-
-func BytesToBits(s types.ByteSequence) types.BitSequence {
-	return bytesToBits(s)
-}
-
-// bitsToBytes converts a BitSequence to a ByteSequence
-func bitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
-	if len(bits)%8 != 0 {
-		return nil, errors.New("bit sequence length must be a multiple of 8")
-	}
-
-	byteLength := len(bits) / 8
-	bytes := make(types.ByteSequence, byteLength)
-
-	for i, bit := range bits {
-		if bit {
-			bytes[i/8] |= 1 << uint(7-i%8)
-		}
-	}
-
-	return bytes, nil
-}
-
-func BitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
-	return bitsToBytes(bits)
-}
-
 // BranchEncoding encodes a branch node.
 func BranchEncoding(left, right types.OpaqueHash) types.BitSequence {
 	branchPrefixBit := types.BitSequence{false}
-	leftBits := bytesToBits(left[:])[1:]
-	rightBits := bytesToBits(right[:])
+	leftBits := utilities.BytesToBits(left[:])[1:]
+	rightBits := utilities.BytesToBits(right[:])
 
 	encoding := types.BitSequence{}
 	encoding = append(encoding, branchPrefixBit...) // 1 bit
@@ -79,13 +29,13 @@ func embeddedValueLeaf(key types.StateKey, value types.ByteSequence) types.BitSe
 
 	valueSize := types.U32(len(value))
 	serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
-	valueSizeBits := bytesToBits(serializedValueSize)
+	valueSizeBits := utilities.BytesToBits(serializedValueSize)
 
 	encoding := types.BitSequence{}
 	encoding = append(encoding, prefix...)
 	encoding = append(encoding, valueSizeBits[2:]...)
-	encoding = append(encoding, bytesToBits(key[:])...)
-	encoding = append(encoding, bytesToBits(value)...)
+	encoding = append(encoding, utilities.BytesToBits(key[:])...)
+	encoding = append(encoding, utilities.BytesToBits(value)...)
 
 	// Calculate the size, if it has space left, fill it with 0
 	if len(encoding) < NODE_SIZE {
@@ -104,9 +54,9 @@ func regularLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence
 	encoding = append(encoding, leftPrefixBit...)
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)
-	encoding = append(encoding, bytesToBits(key[:])...)
+	encoding = append(encoding, utilities.BytesToBits(key[:])...)
 	valueHash := hash.Blake2bHash(value)
-	encoding = append(encoding, bytesToBits(valueHash[:])...)
+	encoding = append(encoding, utilities.BytesToBits(valueHash[:])...)
 
 	return encoding
 }
@@ -150,7 +100,7 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 	if len(d) == 1 {
 		for _, stateKeyVal := range d {
 			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
-			bytes, _ := bitsToBytes(leftEncoding)
+			bytes, _ := utilities.BitsToBytes(leftEncoding)
 			return hash.Blake2bHash(bytes)
 		}
 	}
@@ -170,7 +120,7 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 	}
 
 	branchEncoding := BranchEncoding(Merklization(l), Merklization(r))
-	bytes, _ := bitsToBytes(branchEncoding)
+	bytes, _ := utilities.BitsToBytes(branchEncoding)
 	return hash.Blake2bHash(bytes)
 }
 
@@ -182,7 +132,7 @@ func MerklizationSerializedState(serializedState types.StateKeyVals) types.State
 
 	// Convert the StateKeyVals to merklization input
 	for _, stateKeyVal := range serializedState {
-		key := bitSequenceToString(bytesToBits(stateKeyVal.Key[:]))
+		key := bitSequenceToString(utilities.BytesToBits(stateKeyVal.Key[:]))
 		value := types.StateKeyVal{
 			Key:   stateKeyVal.Key,
 			Value: stateKeyVal.Value,

@@ -49,6 +49,10 @@ func TestMerklizationJamTestVectors(t *testing.T) {
 		}
 
 		for _, fileName := range fileNames {
+			// "genesis" struct is different from others.
+			if fileName == "genesis.bin" {
+				continue
+			}
 			filePath := filepath.Join(dir, fileName)
 
 			// Read the bin file
@@ -91,7 +95,7 @@ func TestBytesToBits(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := merklization.BytesToBits(tc.input)
+		actual := utilities.BytesToBits(tc.input)
 
 		if len(actual) != len(tc.expected) {
 			t.Errorf("Expected %v, got %v", tc.expected, actual)
@@ -123,7 +127,7 @@ func TestBitsToBytes(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual, error := merklization.BitsToBytes(tc.input)
+		actual, error := utilities.BitsToBytes(tc.input)
 
 		// Check error message
 		if error != nil {
@@ -163,8 +167,8 @@ func TestBranchEncoding(t *testing.T) {
 			t.Errorf("Expected %v, got %v", false, actual[0])
 		}
 
-		leftBits := merklization.BytesToBits(tc.left[:])
-		rightBits := merklization.BytesToBits(tc.right[:])
+		leftBits := utilities.BytesToBits(tc.left[:])
+		rightBits := utilities.BytesToBits(tc.right[:])
 
 		// Left bits should be 255 bits
 		// Branch encoding [1:256] should be equal to left bits

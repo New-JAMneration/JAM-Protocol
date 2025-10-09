@@ -3,7 +3,6 @@ package PVM
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"log"
 	"reflect"
 
@@ -925,7 +924,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 
 	// computation of l & a is independent, first compute l is easier to implement
-	fmt.Println("Write storageKey:", string(storageKey))
 	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
 	var l uint64
 	if storageKeyExists {
