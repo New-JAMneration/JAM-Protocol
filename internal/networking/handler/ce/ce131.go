@@ -46,11 +46,10 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	// calculate proxy validator index
 	proxyIndexBytes := req.Proof[780:784]
 	nextValidators := store.GetInstance().GetPosteriorStates().GetGammaK()
-	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(len(nextValidators))
-
-	if int(proxyIndex) >= len(nextValidators) {
+	if len(nextValidators) == 0 {
 		return stream.Close()
 	}
+	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(len(nextValidators))
 	proxyValidator := nextValidators[proxyIndex]
 
 	// Proxy validator must verify the ticket proof
