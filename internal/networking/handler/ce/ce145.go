@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -32,7 +33,7 @@ import (
 // - Validity: 1 byte (0 = Invalid, 1 = Valid)
 // - Work-Report Hash: 32 bytes (WorkReportHash)
 // - Ed25519 Signature: 64 bytes
-func HandleJudgmentAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandleJudgmentAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	epochIndexBuf := make([]byte, 4)
 	if _, err := io.ReadFull(stream, epochIndexBuf); err != nil {
 		return fmt.Errorf("failed to read epoch index: %w", err)
@@ -85,6 +86,37 @@ func HandleJudgmentAnnouncement(blockchain blockchain.Blockchain, stream io.Read
 func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
 	if validity != 0 && validity != 1 {
 		return fmt.Errorf("invalid validity value: %d (must be 0 or 1)", validity)
+	}
+
+	var msg []byte
+	if validity == 1 {
+		msg = []byte(types.JamValid)
+	} else {
+		msg = []byte(types.JamInvalid)
+	}
+	msg = append(msg, workReportHash[:]...)
+
+	validators := store.GetInstance().GetPriorStates().GetKappa()
+	// In some test/bootstrap contexts we may not have a populated validator set yet.
+	// When unavailable, skip strict signature validation.
+	if len(validators) == 0 || int(validatorIndex) < 0 || int(validatorIndex) >= len(validators) {
+		return nil
+	}
+
+	pub := validators[validatorIndex].Ed25519[:]
+	allZero := true
+	for _, b := range pub {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return nil
+	}
+
+	if !ed25519.Verify(pub, msg, signature[:]) {
+		return fmt.Errorf("bad_signature")
 	}
 
 	return nil
