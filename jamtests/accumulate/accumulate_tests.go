@@ -852,7 +852,6 @@ func (a *AccumulateTestCase) ExpectError() error {
 
 func (a *AccumulateTestCase) Validate() error {
 	s := store.GetInstance()
-	fmt.Println("Start!", store.GetInstance().GetPosteriorStates().GetServicesStatistics())
 	// Validate time slot
 	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
 		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, s.GetPosteriorStates().GetTau())
@@ -908,7 +907,6 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
-	fmt.Println("Before Update", store.GetInstance().GetPosteriorStates().GetServicesStatistics())
 	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
 	for _, serviceId := range serviceIds {
 		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
@@ -930,9 +928,6 @@ func (a *AccumulateTestCase) Validate() error {
 			ourStatisticsServices[serviceId] = newServiceActivityRecord
 		}
 	}
-	fmt.Println("Before Valid", store.GetInstance().GetPosteriorStates().GetServicesStatistics())
-	// Update the statistics in the PosteriorStates
-	s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
 	const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
 
 	// Validate statistics
