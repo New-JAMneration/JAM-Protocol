@@ -116,7 +116,7 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 		}
 
 		if err := stream.WriteMessage(blkData); err != nil {
-			log.Printf("failed to write length prefix: %v", err)
+			log.Printf("failed to write block data: %v", err)
 			return err
 		}
 

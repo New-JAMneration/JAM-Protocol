@@ -54,7 +54,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 
 	// Proxy validator must verify the ticket proof
 	if err := verifySafroleTicketProof(req); err != nil {
-		return fmt.Errorf("VRF proof verification failed: %w", err)
+		return fmt.Errorf("RingVRF proof verification failed: %w", err)
 	}
 
 	if localBandersnatchKey != proxyValidator.Bandersnatch {
