@@ -16,6 +16,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
@@ -321,6 +322,7 @@ func testFolder(args []string) {
 
 func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 	mismatchCount := 0
+	importBlockMismatch := false
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return fmt.Errorf("error reading JSON file: %v", err)
@@ -362,8 +364,8 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 	if err != nil {
 		return fmt.Errorf("error serializing header: %v", err)
 	}
-	hashHex := hash.Blake2bHash(serializedHeader)
-	logger.ColorGreen("[ImportBlock][Request] block_header_hash=0x%x", hashHex)
+	blockHeaderHashHex := hash.Blake2bHash(serializedHeader)
+	logger.ColorGreen("[ImportBlock][Request] block_header_hash=0x%x", blockHeaderHashHex)
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
@@ -379,6 +381,18 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
 			expectedPostStateRoot, actualPostStateRoot)
 		mismatchCount++
+		importBlockMismatch = true
+	}
+
+	if importBlockMismatch {
+		// request GetState
+		logger.ColorGreen("[GetState][Request] header_hash=0x%v", blockHeaderHashHex)
+		actualPostState, err := client.GetState(types.HeaderHash(blockHeaderHashHex))
+		stateRoot := merklization.MerklizationSerializedState(actualPostState)
+		if err != nil {
+			return fmt.Errorf("error sending get_state request: %v", err)
+		}
+		logger.ColorYellow("[GetState][Response] state_root=0x%v", hex.EncodeToString(stateRoot[:]))
 	}
 
 	if mismatchCount > 0 {
