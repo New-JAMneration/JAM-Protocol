@@ -101,7 +101,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
 
 	// Compute batching: send to multiple validators per slot.
-	batches := int(math.Max(1.0, math.Floor(float64(remainingSlots))))
+	batches := int(math.Max(1.0, float64(remainingSlots)))
 	batchSize := int(math.Ceil(float64(len(currentValidators)) / float64(batches)))
 
 	go func(validators types.ValidatorsData) {
@@ -111,7 +111,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 			// Send within this slot to the batch without inter-send sleep
 			for _, validator := range validators[start:end] {
 				if err := forwardSafroleTicket(validator, payload); err != nil {
-					fmt.Printf("Failed to forward ticket to validator %d: %v\n", validator, err)
+					fmt.Printf("Failed to forward ticket to validator (Ed25519: %x): %v\n", validator.Ed25519[:8], err)
 				}
 			}
 
