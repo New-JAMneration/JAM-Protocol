@@ -101,7 +101,7 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 			}
 
 			if err != nil {
-				log.Printf("[fuzz-server] error processing request: %v", err)
+				log.Printf("[fuzz-server] error processing request[%v]: %v", req.Type, err)
 				continue
 			}
 
@@ -168,7 +168,7 @@ func (s *FuzzServer) handleSetState(m Message) (Message, error) {
 func (s *FuzzServer) handleGetState(m Message) (Message, error) {
 	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*m.GetState))
 	if err != nil {
-		return Message{}, err
+		log.Printf("[fuzz-server][GetState] error: %v", err)
 	}
 
 	payload := State(stateKeyVals)
