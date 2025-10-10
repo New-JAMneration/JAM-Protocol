@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -30,19 +31,19 @@ func HandleJudgmentAnnouncement_Validator(blockchain blockchain.Blockchain, stre
 	signature := types.Ed25519Signature{}
 	copy(signature[:], payload[39:103])
 
-	finBuf := make([]byte, 3)
-	if err := stream.ReadFull(finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	} else if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
-	}
-
 	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("invalid judgment announcement: %w", err)
 	} else if err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
 	} else if err := stream.WriteMessage([]byte("FIN")); err != nil {
 		return fmt.Errorf("failed to write FIN response: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return errors.New("request does not end with FIN")
 	}
 
 	return stream.Close()
@@ -81,9 +82,28 @@ func HandleJudgmentAnnouncement_Auditor(
 	return stream.Close()
 }
 
+// TODO: add other judgment announcement validation here.
 func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
 	if validity != 0 && validity != 1 {
 		return fmt.Errorf("invalid validity value: %d (must be 0 or 1)", validity)
+	}
+
+	var msg []byte
+	if validity == 1 {
+		msg = []byte(types.JamValid)
+	} else {
+		msg = []byte(types.JamInvalid)
+	}
+	msg = append(msg, workReportHash[:]...)
+
+	validators := store.GetInstance().GetPriorStates().GetKappa()
+	if int(validatorIndex) < 0 || int(validatorIndex) >= len(validators) {
+		return fmt.Errorf("bad_validator_key")
+	}
+
+	pub := validators[validatorIndex].Ed25519[:]
+	if !ed25519.Verify(pub, msg, signature[:]) {
+		return fmt.Errorf("bad_signature")
 	}
 
 	return nil
