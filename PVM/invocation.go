@@ -7,102 +7,96 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
-var (
-	instrCount = 0
-
-	// hex, dec
-	instrLogFormat = "dec"
-)
-
-/*
-// SingleStepInvoke is A.1 (v0.6.2)
-func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
-	gas Gas, registers Registers, memory Memory, gasConsumed Gas) (
+// per-instruction based of (A.1) ψ_1,
+func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
-	// deblob programCodeBlob (c, k, j)  A.2
-	programCodeBlob, err := DeBlobProgramCode(programBlob)
-	if err == PVMExitTuple(PANIC, nil) {
-		return err, programCounter, gas, registers, memory
-	}
-	var singleGasConsumed Gas
-	gasPrime := gas
-
 	var exitReason error
-	exitReason, programCounterPrime, singleGasConsumed, registersPrime, memoryPrime := SingleStepStateTransition(
-		programCodeBlob.InstructionData, programCodeBlob.Bitmasks,
-		programCodeBlob.JumpTable, programCounter, gas,
-		registers, memory)
 
-	// accumulate how many gas will be consumed
-	gasConsumed += singleGasConsumed
+	exitReason, pcPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
+		program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
 
 	if exitReason == ErrNotImplemented {
-		return exitReason, programCounterPrime, gas - gasConsumed, registersPrime, memoryPrime
-	}
-
-	if isBasicBlockTerminationInstruction(programCodeBlob.InstructionData[programCounter]) {
-		gasPrime -= gasConsumed
-		gasConsumed = 0
-		logger.Debugf("       gas : %d -> %d", gas, gasPrime)
+		return exitReason, pcPrime, gasPrime, registersPrime, memoryPrime
 	}
 
 	switch exitReason.(*PVMExitReason).Reason {
 	case CONTINUE:
-		if gas < 0 {
-			return PVMExitTuple(OUT_OF_GAS, nil), programCounter, gasPrime, registers, memory
-		}
-
-		return SingleStepInvoke(programBlob, programCounterPrime, gasPrime, registersPrime, memoryPrime, gasConsumed)
-	case HALT:
-		logger.Debugf("instr: fallthrough")
-		fallthrough
-	case PANIC:
-		return exitReason, programCounterPrime, gasPrime - gasConsumed, registersPrime, memoryPrime
-	default: // host-call
-		return exitReason, programCounterPrime, gasPrime, registersPrime, memoryPrime
+		return SingleStepInvoke(program, pcPrime, gasPrime, registersPrime, memoryPrime)
+	case HALT, PANIC:
+		return exitReason, 0, gasPrime, registersPrime, memoryPrime
+	default: // HOST_CALL, OUT_OF_GAS
+		return exitReason, pcPrime, gasPrime, registersPrime, memoryPrime
 	}
 }
 
 var ErrNotImplemented = fmt.Errorf("instruction not implemented")
 
-// (v.6.2 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(instructionCode ProgramCode, bitmask Bitmask, jumpTable JumpTable,
-	programCounter ProgramCounter, gas Gas, registers Registers, memory Memory) (
+// (v.0.7.1 A.6, A.7) SingleStepStateTransition
+func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable,
+	pc ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
-	if int(programCounter) >= len(instructionCode) {
-		return PVMExitTuple(PANIC, nil), programCounter, gas, registers, memory
+	// check program-counter exceed blob length
+	if int(pc) >= len(instructionData) {
+		return PVMExitTuple(PANIC, nil), pc, gas, registers, memory
 	}
 
 	var exitReason error
-	// (v.6.2 A.19) l = skip(iota)
-	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
 
-	// opcodeData := instructionCode[programCounter.isOpocode()]
-	opcodeData := instructionCode.isOpcode(programCounter)
+	// (v0.7.1  A.19) check opcode validity
+	opcodeData := instructionData.isOpcode(pc)
+
+	// check gas
+	if gas < 0 {
+		logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
+		return PVMExitTuple(OUT_OF_GAS, nil), pc, gas, registers, memory
+	}
+	gas -= 1
+
 	target := execInstructions[opcodeData]
 	if target == nil {
-		return ErrNotImplemented, programCounter, gas, registers, memory
+		return ErrNotImplemented, pc, gas, registers, memory
+	}
+	// (v0.7.1  A.20) l = skip(iota)
+	skipLength := ProgramCounter(skip(int(pc), bitmask))
+
+	exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](instructionData, pc, skipLength, registers, memory, jumpTable, bitmask)
+	// update PVM states
+	registers = registersPrime
+	memory = memoryPrime
+	instrCount++
+
+	var pvmExit *PVMExitReason
+	if !errors.As(exitReason, &pvmExit) && exitReason != nil {
+		return exitReason, pc, gas, registers, memory
 	}
 
-	exitReason, newProgramCounter, gasDelta, registers, memory := execInstructions[opcodeData](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
+	reason := exitReason.(*PVMExitReason).Reason
+	switch reason {
+	case PANIC, HALT:
+		logger.Debugf("   gas: %d", gas)
+		return exitReason, 0, gas, registers, memory
+	case HOST_CALL:
+		return exitReason, pc + skipLength + 1, gas, registers, memory
+	}
 
+	if pc != newPC {
+		// execute branch instruction
+		return exitReason, newPC, gas, registers, memory
+	}
+
+	// iota' = iota + 1 +skip(iota)
+	newPC += skipLength + 1
 	// detailed instruction print
 	// log.Printf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], gas, registers)
 	// log.Printf("       gas : %d -> %d", gas+gasDelta, gas)
 
-	reason := exitReason.(*PVMExitReason).Reason
-	if (reason == CONTINUE || reason == HOST_CALL) && newProgramCounter == programCounter {
-		newProgramCounter += skipLength + 1
-	}
-
-	return exitReason, newProgramCounter, gasDelta, registers, memory
+	return exitReason, newPC, gas, registers, memory
 }
-*/
 
-// JIT version of (A.1) ψ_1
-func SingleInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+// block based version of (A.1) ψ_1
+func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasPrime := Gas(gas)
 	// decode instructions in a block
 	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
@@ -143,7 +137,7 @@ func SingleInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, me
 	}
 
 	// reason == CONTINUE
-	return SingleInvoke(program, pc, gasPrime, regPrime, memPrime)
+	return BlockBasedInvoke(program, pc, gasPrime, regPrime, memPrime)
 }
 
 func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitmask Bitmask) (ProgramCounter, int64, error) {
@@ -151,7 +145,6 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	count := int64(1)
 
 	for {
-
 		// check pc is not out of range and avoid infinit-loop
 		if pc > ProgramCounter(len(instructionData)) {
 			logger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))

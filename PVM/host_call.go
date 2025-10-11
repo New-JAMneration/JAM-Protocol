@@ -133,7 +133,18 @@ type Psi_H_ReturnType struct {
 // JIT version of (A.34) Ψ_H
 func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
 ) (psi_result Psi_H_ReturnType) {
-	exitReason, pcPrime, gasPrime, regPrime, memPrime := SingleInvoke(program, pc, Gas(gas), reg, ram)
+	var exitReason error
+	var pcPrime ProgramCounter
+	var gasPrime Gas
+	var regPrime Registers
+	var memPrime Memory
+
+	if GasChargingMode == "blockBased" {
+		exitReason, pcPrime, gasPrime, regPrime, memPrime = BlockBasedInvoke(program, pc, Gas(gas), reg, ram)
+	} else {
+		exitReason, pcPrime, gasPrime, regPrime, memPrime = SingleStepInvoke(program, pc, Gas(gas), reg, ram)
+	}
+
 	reason := exitReason.(*PVMExitReason)
 	logger.SetShowLine(true)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
@@ -734,7 +745,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(斜): ServiceId
+s(italic): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
@@ -979,7 +990,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(斜): ServiceId
+s(italic): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
@@ -1593,7 +1604,18 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 	// psi
 	input.Addition.Program.InstructionData = input.Addition.IntegratedPVMMap[n].ProgramCode
-	c, pcPrime, gasPrime, wPrime, uPrime := SingleInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+
+	var c error
+	var pcPrime ProgramCounter
+	var gasPrime Gas
+	var wPrime Registers
+	var uPrime Memory
+
+	if GasChargingMode == "blockBased" {
+		c, pcPrime, gasPrime, wPrime, uPrime = BlockBasedInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+	} else {
+		c, pcPrime, gasPrime, wPrime, uPrime = SingleStepInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+	}
 
 	// mu* = mu
 	encoder := types.NewEncoder()
