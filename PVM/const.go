@@ -7,3 +7,14 @@ const (
 	ZP = 1 << 12 // the PVM memory page size.
 	ZZ = 1 << 16 // standard PVM program initialization zone size
 )
+
+var (
+	// instruction counter
+	instrCount = 0
+
+	// log print as hex or dec, default: dec
+	instrLogFormat = "dec"
+
+	// perInstruction, blockBased, default: perInstruction
+	GasChargingMode = "perInstruction"
+)
