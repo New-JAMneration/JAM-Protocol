@@ -2796,12 +2796,23 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	level := LogLevel(input.Registers[7])
+	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
-	timeStamp := time.RFC3339
 
+	if level > 4 {
+		logger.Errorf("logHostCall level not supported")
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	timeStamp := time.RFC3339
 	var logMsg string
 	if input.Registers[8] == 0 && input.Registers[9] == 0 {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:0x%x]\n", timeStamp, levelStr[level],
