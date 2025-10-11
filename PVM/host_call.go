@@ -2750,7 +2750,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 func logHostCall(input OmegaInput) (output OmegaOutput) {
 	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
-
+	logger.SetShowLine(true)
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
 	if level > 4 {
@@ -2767,15 +2767,15 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	timeStamp := time.RFC3339
 	var logMsg string
 	if input.Registers[8] == 0 && input.Registers[9] == 0 {
-		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:0x%x]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), message)
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:%s]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), string(message))
 	} else {
 		target := input.Memory.Read(input.Registers[8], input.Registers[9])
-		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [target:0x%x] [message:0x%x]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, message)
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [target:0x%x] [message:%s]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
 	}
 	logger.Debugf("%v", logMsg)
-
+	logger.SetShowLine(false)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,
