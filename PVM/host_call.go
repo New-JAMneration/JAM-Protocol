@@ -2750,7 +2750,6 @@ func provide(input OmegaInput) (output OmegaOutput) {
 func logHostCall(input OmegaInput) (output OmegaOutput) {
 	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
-	logger.SetShowLine(true)
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
 	if level > 4 {
@@ -2775,7 +2774,6 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
 	}
 	logger.Debugf("%v", logMsg)
-	logger.SetShowLine(false)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,
