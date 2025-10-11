@@ -3,8 +3,10 @@ package PVM
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -2746,18 +2748,23 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	/*
-		level := LogLevel(input.Registers[7])
-		message := input.Memory.Read(input.Registers[10], input.Registers[11])
+	level := LogLevel(input.Registers[7])
+	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 
-		if input.Registers[8] == 0 && input.Registers[9] == 0 {
-			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
-		} else {
-			target := input.Memory.Read(input.Registers[8], input.Registers[9])
-			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
-				"taget : %v\n  message : %v\n", target, message)
-		}
-	*/
+	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
+	timeStamp := time.RFC3339
+
+	var logMsg string
+	if input.Registers[8] == 0 && input.Registers[9] == 0 {
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:0x%x]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), message)
+	} else {
+		target := input.Memory.Read(input.Registers[8], input.Registers[9])
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [target:0x%x] [message:0x%x]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, message)
+	}
+	logger.Debugf("%v", logMsg)
+
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,
@@ -2792,4 +2799,11 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 
 		serviceID = (serviceID-types.MinimumServiceIndex+1)%(1<<32-(1<<8)-types.MinimumServiceIndex) + types.MinimumServiceIndex
 	}
+}
+
+func derefernceOrNil[T any](p *T) any {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
