@@ -901,13 +901,14 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := make([]types.ServiceId, len(a.PostState.Accounts))
-	for i, account := range a.PostState.Accounts {
-		serviceIds[i] = account.Id
-	}
-
+	serviceIds := []types.ServiceId{}
 	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
+
+	for serviceId := range accumulationStatisitcs {
+		serviceIds = append(serviceIds, serviceId)
+	}
+
 	for _, serviceId := range serviceIds {
 		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
 		// Skip if the service has no accumulated reports or gas used
@@ -928,7 +929,7 @@ func (a *AccumulateTestCase) Validate() error {
 			ourStatisticsServices[serviceId] = newServiceActivityRecord
 		}
 	}
-	const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
+	// const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
 
 	// Validate statistics
 	if a.PostState.Statistics == nil {
@@ -938,13 +939,10 @@ func (a *AccumulateTestCase) Validate() error {
 		expected := a.PostState.Statistics
 
 		// TEMP FIX: ignore ejected service (ID = 2) for comparison
-		delete(expected, EjectedServiceIDException)
-
-		if !reflect.DeepEqual(got, expected) {
-			diff := cmp.Diff(got, expected)
-			log.Printf("Diff:\n%v", diff)
-			return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", expected, got)
-		}
+		// delete(expected, EjectedServiceIDException)
+		diff := cmp.Diff(got, expected)
+		log.Printf("Diff:\n%v", diff)
+		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", expected, got)
 	}
 
 	// Validate Accounts (AccountsMapEntry)
