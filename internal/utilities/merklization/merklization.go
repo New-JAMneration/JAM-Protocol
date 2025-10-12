@@ -12,8 +12,8 @@ import (
 const NODE_SIZE = 512
 
 type LeafPath struct {
-	Pair types.StateKeyVal
-	Path []types.OpaqueHash // hashes from root to leaf
+	State     types.StateKeyVal
+	PathBytes []types.ByteSequence // hashes from root to leaf
 }
 
 // CE129Request: client → server
@@ -26,18 +26,19 @@ type CE129Request struct {
 
 // CE129Response: server → client
 type CE129Response struct {
-	BoundaryNodes []types.OpaqueHash
+	BoundaryNodes []types.ByteSequence
 	Pairs         []types.StateKeyVal
 }
 
-func mergeBoundaryPaths(startPath, endPath []types.OpaqueHash) []types.OpaqueHash {
-	merged := []types.OpaqueHash{}
-	seen := make(map[types.OpaqueHash]bool)
+func mergeBoundaryPaths(startPath, endPath []types.ByteSequence) []types.ByteSequence {
+	merged := []types.ByteSequence{}
+	seen := make(map[string]bool)
 
 	for _, h := range append(startPath, endPath...) {
-		if !seen[h] {
+		key := string(h)
+		if !seen[key] {
 			merged = append(merged, h)
-			seen[h] = true
+			seen[key] = true
 		}
 	}
 	return merged
@@ -54,20 +55,20 @@ func CE129Handler(request CE129Request) (CE129Response, error) {
 	}
 
 	result := CE129Response{}
-	var startPath, endPath []types.OpaqueHash
+	var startPath, endPath []types.ByteSequence
 	foundStart := false
 
 	for _, leafPath := range LeafPaths {
-		key := leafPath.Pair.Key
+		key := leafPath.State.Key
 		// TODO: check the actual logic of the range compare
 		if bytes.Compare(key[:], request.StartKey[:]) >= 0 &&
 			bytes.Compare(key[:], request.EndKey[:]) < 0 {
-			result.Pairs = append(result.Pairs, leafPath.Pair)
+			result.Pairs = append(result.Pairs, leafPath.State)
 			if !foundStart {
-				startPath = leafPath.Path
+				startPath = leafPath.PathBytes
 				foundStart = true
 			}
-			endPath = leafPath.Path
+			endPath = leafPath.PathBytes
 		}
 	}
 	result.BoundaryNodes = mergeBoundaryPaths(startPath, endPath)
@@ -210,8 +211,8 @@ func Merklization(d MerklizationInput) (types.OpaqueHash, []LeafPath) {
 			bytes, _ := bitsToBytes(leafEncoding)
 			leafHash := hash.Blake2bHash(bytes)
 			return leafHash, []LeafPath{{
-				Pair: stateKeyVal,
-				Path: []types.OpaqueHash{leafHash},
+				State:     stateKeyVal,
+				PathBytes: []types.ByteSequence{bytes},
 			}}
 		}
 	}
@@ -235,10 +236,11 @@ func Merklization(d MerklizationInput) (types.OpaqueHash, []LeafPath) {
 	bytes, _ := bitsToBytes(branchEncoding)
 	nodeHash := hash.Blake2bHash(bytes)
 	for i := range leftPaths {
-		leftPaths[i].Path = append(leftPaths[i].Path, nodeHash)
+		leftPaths[i].PathBytes = append([]types.ByteSequence{bytes}, leftPaths[i].PathBytes...)
 	}
+
 	for i := range rightPaths {
-		rightPaths[i].Path = append(rightPaths[i].Path, nodeHash)
+		rightPaths[i].PathBytes = append([]types.ByteSequence{bytes}, rightPaths[i].PathBytes...)
 	}
 
 	allPaths := append(leftPaths, rightPaths...)
