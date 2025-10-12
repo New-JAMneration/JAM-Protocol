@@ -62,7 +62,7 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 	var otherServiceStates []types.StateKey
 	for _, keyVal := range keyValDiffs {
 		// C(1)-C(16)
-		if state, keyExists := keyValMap[keyVal.Key]; keyExists {
+		if state, keyExists := KeyValMap[keyVal.Key]; keyExists {
 			errorStateSlice = append(errorStateSlice, state)
 
 			log.Println("state: ", state)
@@ -121,7 +121,7 @@ func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) (statDiff error, er
 	return fmt.Errorf("%s", diff), nil
 }
 
-var keyValMap = map[types.StateKey]string{
+var KeyValMap = map[types.StateKey]string{
 	{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}:  "alpha",
 	{2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}:  "delta",
 	{3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}:  "beta",

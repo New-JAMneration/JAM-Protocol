@@ -17,8 +17,7 @@ type FuzzService interface {
 	GetState(types.HeaderHash) (types.StateKeyVals, error)
 }
 
-type FuzzServiceStub struct {
-}
+type FuzzServiceStub struct{}
 
 func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 	var response PeerInfo
@@ -51,16 +50,21 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 	// Get the latest state root
 	latestState := storeInstance.GetPosteriorStates().GetState()
-	latestStateRoot := m.MerklizationState(latestState)
+	serializedState, _ := m.StateEncoder(latestState)
+	storageKeyVal := storeInstance.GetStorageKeyVals()
+	serializedState = append(serializedState, storageKeyVal...)
+	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
 	if latestStateRoot != block.Header.ParentStateRoot {
-		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", block.Header.ParentStateRoot, latestStateRoot)
+		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", block.Header.ParentStateRoot, latestStateRoot)
 	}
 
 	// Reset State
 	storeInstance.StateCommit()
 
 	storeInstance.AddBlock(block)
+	h := storeInstance.GetLatestBlock().Header.Parent
+	fmt.Printf("after addBlock headerParent: %x\n", h)
 
 	// Run the STF and get the state root
 	err := stf.RunSTF()
@@ -69,7 +73,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
-	latestStateRoot = m.MerklizationState(latestState)
+	serializedState, _ = m.StateEncoder(latestState)
+	serializedState = append(serializedState, storageKeyVal...)
+	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
 	return latestStateRoot, nil
 }
@@ -81,28 +87,44 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
-	state, _, err := m.StateKeyValsToState(stateKeyVals)
+	state, storageKeyVal, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
 
 	storeInstance.GetPosteriorStates().SetState(state)
+	// store storage key-val into global variable
+	store.GetInstance().SetStorageKeyVals(storageKeyVal)
+	serializedState, _ := m.StateEncoder(state)
 
-	stateRoot := m.MerklizationState(state)
+	if len(storageKeyVal) > 0 {
+		serializedState = append(serializedState, storageKeyVal...)
+	}
+
+	stateRoot := m.MerklizationSerializedState(serializedState)
 
 	return stateRoot, nil
 }
 
-func (s *FuzzServiceStub) GetState(hash types.HeaderHash) (types.StateKeyVals, error) {
+func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyVals, error) {
 	storeInstance := store.GetInstance()
 
-	if hash != storeInstance.GetProcessingBlockPointer().GetBlock().Header.Parent {
-		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hash, storeInstance.GetProcessingBlockPointer().GetBlock().Header.Parent)
+	parentHeader := storeInstance.GetLatestBlock().Header
+	encoder := types.NewEncoder()
+	encoded_parent_header, err := encoder.Encode(&parentHeader)
+	hashHeader := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
+	if err != nil {
+		return types.StateKeyVals{}, fmt.Errorf("encode header failed: %v", err)
+	}
+	if headerHash != types.HeaderHash(hashHeader) {
+		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hashHeader, headerHash)
 	}
 
 	state := storeInstance.GetPosteriorStates().GetState()
 
 	encodedState, err := m.StateEncoder(state)
+	storageKeyVal := store.GetInstance().GetStorageKeyVals()
+	encodedState = append(encodedState, storageKeyVal...)
 	if err != nil {
 		return types.StateKeyVals{}, err
 	}
