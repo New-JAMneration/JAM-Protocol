@@ -334,20 +334,6 @@ func GetServicesFromAccumulationStatistics() []types.ServiceId {
 	return services
 }
 
-func GetServicesFromDeferredTransfersStatistics() []types.ServiceId {
-	store := store.GetInstance()
-
-	// Get the deferred transfers statistics (X)
-	deferredTransfersStatistics := store.GetIntermediateStates().GetDeferredTransfersStatistics()
-
-	services := make([]types.ServiceId, 0, len(deferredTransfersStatistics))
-	for key := range deferredTransfersStatistics {
-		services = append(services, key)
-	}
-
-	return services
-}
-
 // v0.7.1
 // s (13.13)
 func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
@@ -438,25 +424,6 @@ func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStat
 	}
 
 	return accumulateCount, accumulateGasUsed
-}
-
-// t
-// OnTransfersCount, OnTransfersGasUsed
-func CalculateTransfersStatistics(serviceId types.ServiceId, deferredTransfersStatistics types.DeferredTransfersStatistics) (onTransfersCount types.U32, onTransfersGasUsed types.Gas) {
-	onTransfersCount = 0
-	onTransfersGasUsed = 0
-
-	value, ok := deferredTransfersStatistics[serviceId]
-	if ok {
-		onTransfersCount = types.U32(value.NumDeferredTransfers)
-		onTransfersGasUsed = value.TotalGasUsed
-	} else {
-		// If the service id is not found, return 0
-		onTransfersCount = 0
-		onTransfersGasUsed = 0
-	}
-
-	return onTransfersCount, onTransfersGasUsed
 }
 
 // v0.7.1

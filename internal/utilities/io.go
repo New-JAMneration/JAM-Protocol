@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -158,4 +159,44 @@ func TestDecodeJamTestNetState(t *testing.T) {
 	} else {
 		types.SetFullMode()
 	}
+}
+
+// bytesToBits converts a byte sequence to a bit sequence.
+// The function defined in graypaper 3.7.3. Boolean Values
+func BytesToBits(s types.ByteSequence) types.BitSequence {
+	// Initialize the bit sequence.
+	bitSequence := types.BitSequence{}
+
+	// Iterate over the byte sequence.
+	for _, byte := range s {
+		// Iterate over the bits in the byte.
+		for i := 0; i < 8; i++ {
+			// Calculate the bit.
+			bit := ((byte >> uint(7-i)) & 1)
+
+			// Append the bit (bool) to the bit sequence.
+			bitSequence = append(bitSequence, bit == 1)
+		}
+	}
+
+	// Return the bit sequence.
+	return bitSequence
+}
+
+// bitsToBytes converts a BitSequence to a ByteSequence
+func BitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
+	if len(bits)%8 != 0 {
+		return nil, errors.New("bit sequence length must be a multiple of 8")
+	}
+
+	byteLength := len(bits) / 8
+	bytes := make(types.ByteSequence, byteLength)
+
+	for i, bit := range bits {
+		if bit {
+			bytes[i/8] |= 1 << uint(7-i%8)
+		}
+	}
+
+	return bytes, nil
 }

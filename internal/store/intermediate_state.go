@@ -25,26 +25,24 @@ type IntermediateState struct {
 	// (12.5) \mathbf{W}^Q GP 0.6.4
 	QueuedWorkReports types.ReadyQueueItem
 	// (12.11) \mathbf{W}^* GP 0.6.4
-	AccumulatableWorkReports    []types.WorkReport
-	AccumulationStatistics      types.AccumulationStatistics
-	DeferredTransfersStatistics types.DeferredTransfersStatistics
+	AccumulatableWorkReports []types.WorkReport
+	AccumulationStatistics   types.AccumulationStatistics
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaHDagger:                 types.BlocksHistory{},
-			RhoDagger:                   make(types.AvailabilityAssignments, types.CoresCount),
-			RhoDoubleDagger:             make(types.AvailabilityAssignments, types.CoresCount),
-			DeltaDagger:                 types.ServiceAccountState{},
-			DeltaDoubleDagger:           types.ServiceAccountState{},
-			AvailableWorkReports:        []types.WorkReport{},
-			PresentWorkReports:          []types.WorkReport{},
-			AccumulatedWorkReports:      []types.WorkReport{},
-			QueuedWorkReports:           types.ReadyQueueItem{},
-			AccumulatableWorkReports:    []types.WorkReport{},
-			AccumulationStatistics:      types.AccumulationStatistics{},
-			DeferredTransfersStatistics: types.DeferredTransfersStatistics{},
+			BetaHDagger:              types.BlocksHistory{},
+			RhoDagger:                make(types.AvailabilityAssignments, types.CoresCount),
+			RhoDoubleDagger:          make(types.AvailabilityAssignments, types.CoresCount),
+			DeltaDagger:              types.ServiceAccountState{},
+			DeltaDoubleDagger:        types.ServiceAccountState{},
+			AvailableWorkReports:     []types.WorkReport{},
+			PresentWorkReports:       []types.WorkReport{},
+			AccumulatedWorkReports:   []types.WorkReport{},
+			QueuedWorkReports:        types.ReadyQueueItem{},
+			AccumulatableWorkReports: []types.WorkReport{},
+			AccumulationStatistics:   types.AccumulationStatistics{},
 		},
 	}
 }
@@ -181,16 +179,4 @@ func (s *IntermediateStates) GetAccumulationStatistics() types.AccumulationStati
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.AccumulationStatistics
-}
-
-func (s *IntermediateStates) SetDeferredTransfersStatistics(w types.DeferredTransfersStatistics) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.DeferredTransfersStatistics = w
-}
-
-func (s *IntermediateStates) GetDeferredTransfersStatistics() types.DeferredTransfersStatistics {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.state.DeferredTransfersStatistics
 }

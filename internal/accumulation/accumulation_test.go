@@ -215,7 +215,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 		}
 
 		// Fill PreimageLookup
-		for _, preimage := range delta.Data.Preimages {
+		for _, preimage := range delta.Data.PreimagesBlob {
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 

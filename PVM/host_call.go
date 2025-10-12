@@ -3,8 +3,10 @@ package PVM
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -132,7 +134,17 @@ type Psi_H_ReturnType struct {
 // JIT version of (A.34) Ψ_H
 func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
 ) (psi_result Psi_H_ReturnType) {
-	exitReason, pcPrime, gasPrime, regPrime, memPrime := SingleInvoke(program, pc, Gas(gas), reg, ram)
+	var exitReason error
+	var pcPrime ProgramCounter
+	var gasPrime Gas
+	var regPrime Registers
+	var memPrime Memory
+
+	if GasChargingMode == "blockBased" {
+		exitReason, pcPrime, gasPrime, regPrime, memPrime = BlockBasedInvoke(program, pc, Gas(gas), reg, ram)
+	} else {
+		exitReason, pcPrime, gasPrime, regPrime, memPrime = SingleStepInvoke(program, pc, Gas(gas), reg, ram)
+	}
 
 	reason := exitReason.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
@@ -149,7 +161,6 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		input.Registers = regPrime
 		input.Memory = ram
 		input.Addition = addition
-
 		omega := omegas[input.Operation]
 		if omega == nil {
 			omega = hostCallException
@@ -774,7 +785,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(斜): ServiceId
+s(italic): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
@@ -984,7 +995,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(斜): ServiceId
+s(italic): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
@@ -1591,7 +1602,18 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 	// psi
 	input.Addition.Program.InstructionData = input.Addition.IntegratedPVMMap[n].ProgramCode
-	c, pcPrime, gasPrime, wPrime, uPrime := SingleInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+
+	var c error
+	var pcPrime ProgramCounter
+	var gasPrime Gas
+	var wPrime Registers
+	var uPrime Memory
+
+	if GasChargingMode == "blockBased" {
+		c, pcPrime, gasPrime, wPrime, uPrime = BlockBasedInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+	} else {
+		c, pcPrime, gasPrime, wPrime, uPrime = SingleStepInvoke(input.Addition.Program, input.Addition.IntegratedPVMMap[n].PC, Gas(gas), w, input.Addition.IntegratedPVMMap[n].Memory)
+	}
 
 	// mu* = mu
 	encoder := types.NewEncoder()
@@ -2305,12 +2327,11 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupDataLength := len(lookupData)
 
 	if lookupDataLength == 2 {
-		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+		if int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
 				input.Registers[7] = OK
 
@@ -2611,6 +2632,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	opaqueHash := types.OpaqueHash(h)
 	input.Addition.ResultContextX.Exception = &opaqueHash
 	// copy(input.Addition.ResultContextX.Exception[:], h)
+	input.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -2726,18 +2748,32 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	/*
-		level := LogLevel(input.Registers[7])
-		message := input.Memory.Read(input.Registers[10], input.Registers[11])
+	level := input.Registers[7]
+	message := input.Memory.Read(input.Registers[10], input.Registers[11])
+	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
-		if input.Registers[8] == 0 && input.Registers[9] == 0 {
-			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
-		} else {
-			target := input.Memory.Read(input.Registers[8], input.Registers[9])
-			getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
-				"taget : %v\n  message : %v\n", target, message)
+	if level > 4 {
+		logger.Errorf("logHostCall level not supported")
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
-	*/
+	}
+
+	timeStamp := time.RFC3339
+	var logMsg string
+	if input.Registers[8] == 0 && input.Registers[9] == 0 {
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:%s]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), string(message))
+	} else {
+		target := input.Memory.Read(input.Registers[8], input.Registers[9])
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [target:0x%x] [message:%s]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
+	}
+	logger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas,
@@ -2772,4 +2808,11 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 
 		serviceID = (serviceID-types.MinimumServiceIndex+1)%(1<<32-(1<<8)-types.MinimumServiceIndex) + types.MinimumServiceIndex
 	}
+}
+
+func derefernceOrNil[T any](p *T) any {
+	if p == nil {
+		return nil
+	}
+	return *p
 }

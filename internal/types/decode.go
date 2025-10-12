@@ -71,11 +71,9 @@ func (t *TimeSlotSet) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-
 	if length == 0 {
 		return nil
 	}
-
 	// make the slice with length
 	timeSlots := make([]TimeSlot, length)
 	for i := uint64(0); i < length; i++ {
@@ -2306,13 +2304,10 @@ func (a *AuthPools) Decode(d *Decoder) error {
 // ServiceInfo
 func (s *ServiceInfo) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ServiceInfo")
-	// Get the first byte
-	firstByte, err := d.buf.ReadByte()
-	if err != nil {
+	var err error
+
+	if err := s.Version.Decode(d); err != nil {
 		return err
-	}
-	if firstByte != 0 {
-		return fmt.Errorf("expected first byte to be 0, got %d", firstByte)
 	}
 
 	if err = s.CodeHash.Decode(d); err != nil {

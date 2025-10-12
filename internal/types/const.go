@@ -94,6 +94,7 @@ var (
 	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
 )
 
+var ServiceInfoVersion = U8(0)
 var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 // permanent constants
