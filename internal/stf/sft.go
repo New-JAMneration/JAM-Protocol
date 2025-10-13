@@ -48,10 +48,9 @@ func RunSTF() error {
 		return fmt.Errorf("update accumulate error: %v", err)
 	}
 
-	// Update History (beta^dagger -> beta^prime)
-	err = UpdateHistory()
-	if err != nil {
-		return fmt.Errorf("update histroy error: %v", err)
+	// Update History (beta_H^dagger -> beta_H^prime)
+	if err := recent_history.STFBetaHDagger2BetaHPrime(); err != nil {
+		return fmt.Errorf("update history error: %v", err)
 	}
 
 	// Update Preimages

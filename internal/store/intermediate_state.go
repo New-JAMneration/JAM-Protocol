@@ -27,6 +27,8 @@ type IntermediateState struct {
 	// (12.11) \mathbf{W}^* GP 0.6.4
 	AccumulatableWorkReports []types.WorkReport
 	AccumulationStatistics   types.AccumulationStatistics
+	// (7.7) b: MR(β′_B) GP 0.6.7 Only used for test-vector
+	MmrCommitment types.OpaqueHash
 }
 
 func NewIntermediateStates() *IntermediateStates {
@@ -43,6 +45,7 @@ func NewIntermediateStates() *IntermediateStates {
 			QueuedWorkReports:        types.ReadyQueueItem{},
 			AccumulatableWorkReports: []types.WorkReport{},
 			AccumulationStatistics:   types.AccumulationStatistics{},
+			MmrCommitment:            types.OpaqueHash{},
 		},
 	}
 }
@@ -179,4 +182,16 @@ func (s *IntermediateStates) GetAccumulationStatistics() types.AccumulationStati
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.AccumulationStatistics
+}
+
+func (s *IntermediateStates) SetMmrCommitment(mmrCommitment types.OpaqueHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.state.MmrCommitment = mmrCommitment
+}
+
+func (s *IntermediateStates) GetMmrCommitment() types.OpaqueHash {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.MmrCommitment
 }

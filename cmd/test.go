@@ -116,7 +116,7 @@ For example:
 			if testType == "jam-test-vectors" {
 				msg += fmt.Sprintf("(size: %s) ", testSize)
 			}
-			log.Printf(msg)
+			log.Println(msg)
 
 			passed := 0
 			failed := 0
@@ -178,12 +178,12 @@ For example:
 			}
 
 			for idx, testFile := range testFiles {
-				/*
-					if testFile.Name[:7] == "genesis" || testFile.Name[:8] != "00000003" {
-						continue
-					}
-				*/
-				log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
+				// skip genesis file cause the struct is different from others
+				if testFile.Name[:7] == "genesis" {
+					continue
+				}
+
+				log.Printf("------------------{%v, %s}--------------------", idx+1, testFile.Name)
 				if testType == "trace" {
 					// post-state update to pre-state, tau_prime+1
 					store.GetInstance().StateCommit()

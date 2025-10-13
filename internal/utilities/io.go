@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -199,4 +201,23 @@ func BitsToBytes(bits types.BitSequence) (types.ByteSequence, error) {
 	}
 
 	return bytes, nil
+}
+
+func HexToOpaqueHash(hexStr string) ([32]byte, error) {
+	// remove "0x" prefix
+	hexStr = strings.TrimPrefix(hexStr, "0x")
+
+	// decode hex string
+	bytes, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to decode hex: %v", err)
+	}
+
+	if len(bytes) != 32 {
+		return [32]byte{}, fmt.Errorf("invalid length: expected 32 bytes, got %d", len(bytes))
+	}
+
+	var result [32]byte
+	copy(result[:], bytes)
+	return result, nil
 }
