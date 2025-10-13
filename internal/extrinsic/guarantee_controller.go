@@ -59,7 +59,7 @@ func (g *GuaranteeController) Sort() error {
 		return err
 	}
 	for i := 1; i < len(g.Guarantees); i++ {
-		if g.Guarantees[i-1].Report.CoreIndex > g.Guarantees[i].Report.CoreIndex {
+		if g.Guarantees[i-1].Report.CoreIndex >= g.Guarantees[i].Report.CoreIndex {
 			err := ReportsErrorCode.OutOfOrderGuarantee
 			return &err
 		}
