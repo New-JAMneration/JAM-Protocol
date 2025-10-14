@@ -79,28 +79,31 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
 // We save the accumulation statistics in the store
 func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) types.AccumulationStatistics {
-	// Sum of gas used of the service
-	// service id map to sum of gas used
-	sumOfGasUsedMap := map[types.ServiceId]types.Gas{}
+	// (12.28–12.29)
+	// S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
+	// where:
+	//   G(s) ≡ Σ₍ₛ,ᵤ₎∈ᵤ(u)
+	//   N(s) ≡ [[d | r ∈ R*...n, d ∈ r_d, dₛ = s]]
+	G := map[types.ServiceId]types.Gas{} // G(s)
 	for _, serviceGasUsed := range serviceGasUsedList {
-		sumOfGasUsedMap[serviceGasUsed.ServiceId] += serviceGasUsed.Gas
+		G[serviceGasUsed.ServiceId] += serviceGasUsed.Gas
 	}
 
 	// calcualte the number of work reports accumulated
-	accumulationStatistics := types.AccumulationStatistics{}
-	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
-		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
+	S := types.AccumulationStatistics{}
+	for s, Gs := range G {
+		Ns := types.U64(len(getWorkResultByService(s, n)))
 
-		if numOfWorkReportsAccumulated == 0 {
+		if types.U64(Gs)+Ns == 0 {
 			continue // skip, N(S) = []
 		}
 
-		accumulationStatistics[serviceId] = types.GasAndNumAccumulatedReports{
-			Gas:                   sumOfGasUsed,
-			NumAccumulatedReports: numOfWorkReportsAccumulated,
+		S[s] = types.GasAndNumAccumulatedReports{
+			Gas:                   Gs,
+			NumAccumulatedReports: Ns,
 		}
 	}
-	return accumulationStatistics
+	return S
 }
 
 // (12.28) (12.29)
@@ -251,18 +254,20 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	if err != nil {
 		return OuterAccumulationOutput{}, err
 	}
-
+	b := output.AccumulatedServiceOutput
+	ePrime := output.PartialStateSet
 	// (12.22)
 	// Update the partial state set to posterior state
-	updatePartialStateSetToPosteriorState(store, output.PartialStateSet)
+	updatePartialStateSetToPosteriorState(store, ePrime)
 
-	// Convert AccumulatedServiceOutput to LastAccOut and assign it to the store
-	var lastAccOut types.LastAccOut
-	for accumulatedServiceHash := range output.AccumulatedServiceOutput {
+	// (12.26) θ′ ≡ [[(s, h) ∈ b]]
+	// Convert accumulated service output (b) to the accumulation output log (θ′)
+	var thetaPrime types.LastAccOut
+	for accumulatedServiceHash := range b {
 		// append accumulatedServiceHash to lastAccOut
-		lastAccOut = append(lastAccOut, accumulatedServiceHash)
+		thetaPrime = append(thetaPrime, accumulatedServiceHash)
 	}
-	store.GetPosteriorStates().SetLastAccOut(lastAccOut)
+	store.GetPosteriorStates().SetLastAccOut(thetaPrime)
 
 	return output, nil
 }
@@ -277,17 +282,20 @@ func DeferredTransfers() error {
 	if err != nil {
 		return err
 	}
-
+	n := output.NumberOfWorkResultsAccumulated // n
+	u := output.ServiceGasUsedList             // u
 	// (12.23) (12.24) (12.25)
-	accumulationStatistics := calculateAccumulationStatistics(output.ServiceGasUsedList, output.NumberOfWorkResultsAccumulated)
-	store.GetIntermediateStates().SetAccumulationStatistics(accumulationStatistics)
+	// Calculate the accumulation statistics I
+	// (12.28–12.29) S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
+	S := calculateAccumulationStatistics(u, n)
+	store.GetIntermediateStates().SetAccumulationStatistics(S)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	updateDeltaDoubleDagger(store, accumulationStatistics)
+	updateDeltaDoubleDagger(store, S)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
-	updateXi(store, output.NumberOfWorkResultsAccumulated)
+	updateXi(store, n)
 
 	// (12.33)
 	// Update ReadyQueue(Theta)

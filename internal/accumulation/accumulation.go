@@ -514,7 +514,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// (d ∪ n) ∖ m
 	// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
 	//	    		         s∈s
-	dPrime, err := Provide(merge(d, n, m), p)
+	dPrime, err := I(merge(d, n, m), p)
 	if err != nil {
 		return output, fmt.Errorf("failed to provide service accounts: %w", err)
 	}
