@@ -2,6 +2,7 @@ package accumulation
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"maps"
 
@@ -27,11 +28,14 @@ func Y(d types.ServiceAccountState, s types.ServiceId, i []byte) bool {
 	lookupKey := types.LookupMetaMapkey{Hash: h, Length: l}
 
 	// Check presence
-	_, inLookup := ds.LookupDict[lookupKey]
-	_, inPreimage := ds.PreimageLookup[h]
+	timeSlotSet, inLookup := ds.LookupDict[lookupKey]
+	if !inLookup {
+		return false
+	}
+	_, isInPreimageMap := ds.PreimageLookup[h]
 
 	// True if both absent
-	return !inLookup && !inPreimage
+	return !isInPreimageMap && len(timeSlotSet) == 0
 }
 
 // (12.38) δ′ = I(δ‡, E_P)
@@ -41,23 +45,37 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	eps := s.GetLatestBlock().Extrinsic.Preimages
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 
-	// Sanity: ensure E_P sorted & unique
+	// Check E_P sorted & unique
 	for i := 1; i < len(eps); i++ {
-		if eps[i-1].Requester > eps[i].Requester ||
-			(eps[i-1].Requester == eps[i].Requester &&
-				bytes.Compare(eps[i-1].Blob, eps[i].Blob) >= 0) {
-			log.Println("E_P not sorted or contains duplicates")
+		if eps[i-1].Requester > eps[i].Requester {
+			log.Println("eps is not sorted by Requester")
+			errCode := PreimageErrorCode.PrimagesNotSortedUnique
+			return &errCode
+		}
+		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) > 0 {
+			log.Println("eps.Requester is not sorted by Blob")
+			errCode := PreimageErrorCode.PrimagesNotSortedUnique
+			return &errCode
+		}
+		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {
+			log.Println("eps have duplicates")
 			errCode := PreimageErrorCode.PrimagesNotSortedUnique
 			return &errCode
 		}
 	}
-	// (12.37) disregard irrelevant preimages
-	EP := FilterRelevantPreimages(deltaDoubleDagger, eps)
 
-	// (12.38) integrate via I()
+	EP := make(types.ServiceBlobs, 0, len(eps))
+	for _, ep := range eps {
+		EP = append(EP, types.ServiceBlob{
+			ServiceID: ep.Requester,
+			Blob:      ep.Blob,
+		})
+	}
+
+	// (12.38) integrate preimage
 	dPrime, err := I(deltaDoubleDagger, EP)
 	if err != nil {
-		log.Println("Preimage integration error:", err)
+		log.Println("IntegratePreimageErr:", err)
 		errCode := PreimageErrorCode.PreimageUnneeded
 		return &errCode
 	}
@@ -67,46 +85,26 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	return nil
 }
 
-// (12.37) FilterRelevantPreimages
-// Disregard preimages no longer useful due to accumulation effects.
-// ∀(s, i) ∈ E_P : Y(δ, s, i)
-func FilterRelevantPreimages(delta types.ServiceAccountState, eps types.PreimagesExtrinsic) types.ServiceBlobs {
-	filtered := make(types.ServiceBlobs, 0, len(eps))
-	for _, ep := range eps {
-		if Y(delta, ep.Requester, ep.Blob) {
-			filtered = append(filtered, types.ServiceBlob{
-				ServiceID: ep.Requester,
-				Blob:      ep.Blob,
-			})
-		}
-	}
-	return filtered
-}
-
 // (12.21) I — preimage integration function
 func I(d types.ServiceAccountState, p types.ServiceBlobs) (types.ServiceAccountState, error) {
 	dPrime := maps.Clone(d)
 	tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
-
+	unneededFound := false
 	for _, pair := range p {
 		s := pair.ServiceID
 		i := pair.Blob
-
 		// check predicate Y
 		if !Y(d, s, i) {
+			unneededFound = true
 			continue
 		}
 
 		// Compute hash and length
-		h := hash.Blake2bHash(i)
-		l := types.U32(len(i))
-		key := types.LookupMetaMapkey{Hash: h, Length: l}
+		hash := hash.Blake2bHash(i)
+		len := types.U32(len(i))
+		key := types.LookupMetaMapkey{Hash: hash, Length: len}
 
-		// ensure account exists
-		ds, ok := dPrime[s]
-		if !ok {
-			continue
-		}
+		ds := dPrime[s]
 
 		// ensure maps initialized
 		if ds.LookupDict == nil {
@@ -118,9 +116,11 @@ func I(d types.ServiceAccountState, p types.ServiceBlobs) (types.ServiceAccountS
 
 		// apply integration
 		ds.LookupDict[key] = types.TimeSlotSet{tauPrime}
-		ds.PreimageLookup[h] = i
+		ds.PreimageLookup[hash] = i
 		dPrime[s] = ds
 	}
-
+	if unneededFound {
+		return dPrime, errors.New("preimage is not solicited")
+	}
 	return dPrime, nil
 }
