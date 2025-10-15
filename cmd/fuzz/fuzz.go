@@ -415,15 +415,11 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 				if err != nil {
 					return fmt.Errorf("fuzzer DecodeServiceIdFromType2 error: %v", err)
 				}
-				logger.ColorDebug("service: %d", serviceId)
+				logger.ColorYellow("service: %d", serviceId)
 				logger.ColorDebug("actualVal: %+v", v.ActualValue)
 				logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				if state == "pi" {
-					log.Printf("actual: %+v\n")
-					log.Printf("expect: %+v\n")
-				}
 			} else {
-				logger.ColorDebug("other state key: %v", v.Key)
+				logger.ColorYellow("other state key: %v", v.Key)
 				if len(v.ActualValue) > 1024 || len(v.ExpectedValue) > 1024 {
 					logger.ColorDebug("value too big, check json file")
 				} else {
@@ -432,7 +428,6 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 				}
 			}
 		}
-
 	}
 
 	if mismatchCount > 0 {

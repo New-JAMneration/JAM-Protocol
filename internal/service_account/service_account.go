@@ -134,7 +134,7 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
-		⎪ a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	32 + |x| ]
+		⎪ a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	34 + |x| ]
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
@@ -164,7 +164,7 @@ func CalcKeys(account types.ServiceAccount) types.U32 {
 // a_o: calculate total number of octets(datas) used in storage
 func CalcOctets(account types.ServiceAccount) types.U64 {
 	/*
-		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]
+		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	34 + |x| ]
 	*/
 	// calculate all (81 + preiamge lookup length in keysize)
 	keyContribution := 0
@@ -192,4 +192,18 @@ func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 		return 0
 	}
 	return aF
+}
+
+/*
+	a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
+	a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	34 + |x| ]
+*/
+// compute how many items a_i(keys) and a_o(ocetes) the lookupItem has
+func CalcLookupItemfootprint(lookupItem types.LookupMetaMapkey) (types.U32, types.U64) {
+	return 2, 81 + types.U64(lookupItem.Length)
+}
+
+// compute how many items a_i(keys) and a_o(ocetes) the storageItem has
+func CalcStorageItemfootprint(storageRawKey string, storageData types.ByteSequence) (types.U32, types.U64) {
+	return 1, 34 + types.U64(len(storageRawKey)) + types.U64(len(storageData))
 }

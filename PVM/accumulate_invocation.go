@@ -19,6 +19,7 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
+	fmt.Println("Psi_A serviceID: ", serviceId)
 	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
 		return Psi_A_ReturnType{
@@ -100,7 +101,7 @@ func Psi_A(
 	F[YieldOp] = HostCallFunctions[YieldOp]
 	F[ProvideOp] = HostCallFunctions[ProvideOp]
 	F[100] = logHostCall
-
+	fmt.Println("GeneralArgs: serviceID: ", serviceId)
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceAccount:      partialState.ServiceAccounts[serviceId],
@@ -139,6 +140,7 @@ func G(o OmegaOutput, serviceAccount types.ServiceAccount) OmegaOutput {
 }
 
 func wrapWithG(original Omega) Omega {
+	fmt.Println("wrapWithG")
 	return func(input OmegaInput) OmegaOutput {
 		output := original(input)
 		serviceAccount := input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[input.Addition.AccumulateArgs.ResultContextX.ServiceId]
@@ -214,7 +216,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 	return ResultContext{
 		ServiceId:         serviceId,
 		PartialState:      partialState,
-		ImportServiceId:   check(serviceId, partialState.ServiceAccounts),
+		ImportServiceId:   check(types.ServiceId(result), partialState.ServiceAccounts),
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
 	}

@@ -104,7 +104,11 @@ func SingleStepStateTransition(instructionCode ProgramCode, bitmask Bitmask, jum
 // JIT version of (A.1) ψ_1
 func SingleInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasPrime := Gas(gas)
-
+	/*
+		if gasPrime < 9990958 {
+			time.Sleep(1 * time.Minute)
+		}
+	*/
 	// decode instructions in a block
 	pcPrime, instrCount, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
 	if err != nil {

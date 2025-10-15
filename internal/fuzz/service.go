@@ -52,7 +52,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	latestState := storeInstance.GetPosteriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
 	storageKeyVal := storeInstance.GetStorageKeyVals()
-	serializedState = append(serializedState, storageKeyVal...)
+	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
 	if latestStateRoot != block.Header.ParentStateRoot {
@@ -63,9 +63,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	storeInstance.StateCommit()
 
 	storeInstance.AddBlock(block)
-	h := storeInstance.GetLatestBlock().Header.Parent
-	fmt.Printf("after addBlock headerParent: %x\n", h)
-
+	/*
+		h := storeInstance.GetLatestBlock().Header.Parent
+		fmt.Printf("after addBlock headerParent: %x\n", h)
+	*/
 	// Run the STF and get the state root
 	err := stf.RunSTF()
 	if err != nil {
@@ -74,7 +75,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
 	serializedState, _ = m.StateEncoder(latestState)
-	serializedState = append(serializedState, storageKeyVal...)
+	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
 	return latestStateRoot, nil
@@ -97,11 +98,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	store.GetInstance().SetStorageKeyVals(storageKeyVal)
 	serializedState, _ := m.StateEncoder(state)
 
-	if len(storageKeyVal) > 0 {
-		serializedState = append(serializedState, storageKeyVal...)
-	}
-
-	stateRoot := m.MerklizationSerializedState(serializedState)
+	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))
 
 	return stateRoot, nil
 }
@@ -124,7 +121,7 @@ func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyV
 
 	encodedState, err := m.StateEncoder(state)
 	storageKeyVal := store.GetInstance().GetStorageKeyVals()
-	encodedState = append(encodedState, storageKeyVal...)
+	encodedState = append(storageKeyVal, encodedState...)
 	if err != nil {
 		return types.StateKeyVals{}, err
 	}

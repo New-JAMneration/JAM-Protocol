@@ -3,13 +3,16 @@ package PVM
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
@@ -133,7 +136,7 @@ type Psi_H_ReturnType struct {
 func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
 ) (psi_result Psi_H_ReturnType) {
 	exitReason, pcPrime, gasPrime, regPrime, memPrime := SingleInvoke(program, pc, Gas(gas), reg, ram)
-
+	logger.SetShowLine(true)
 	reason := exitReason.(*PVMExitReason)
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -164,7 +167,7 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
 			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
-
+		logger.SetShowLine(false)
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = gasPrime
@@ -808,10 +811,6 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ResultContextX.ServiceId
-	serviceAccount := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
-	delta := input.Addition.ResultContextX.PartialState.ServiceAccounts
-
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -822,6 +821,9 @@ func read(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
+
+	serviceID := input.Addition.ResultContextX.ServiceId
+	delta := input.Addition.ResultContextX.PartialState.ServiceAccounts
 
 	var sStar uint64
 	// assign s*
@@ -846,9 +848,10 @@ func read(input OmegaInput) (output OmegaOutput) {
 	var a types.ServiceAccount
 	// assign a
 	if sStar == uint64(serviceID) {
-		a = serviceAccount
+		a = delta[serviceID]
 	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
 		a = value
+		serviceID = types.ServiceId(sStar)
 	} else {
 		// a = nil , v not panic, => v = nil
 		new_registers := input.Registers
@@ -864,19 +867,39 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
 	// first compute k , mu_ko...+kz
-	storageKey := input.Memory.Read(ko, kz)
+	storageRawKey := input.Memory.Read(ko, kz)
+	fmt.Println("request storageRawKey: ", storageRawKey)
+	v, exists := a.StorageDict[string(storageRawKey)]
 
-	v, exists := a.StorageDict[string(storageKey)]
+	storageValueFromKeyVal := getStorageFromKeyVal(serviceID, storageRawKey)
+
 	// v = nil
 	if !exists {
-		new_registers := input.Registers
-		new_registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: new_registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+		if storageValueFromKeyVal == nil { // check storage state key-val
+			new_registers := input.Registers
+			new_registers[7] = NONE
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: new_registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		} else {
+			v = *storageValueFromKeyVal
+
+			// store the unknown storage item to state
+			a.StorageDict[string(storageRawKey)] = v
+			input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+			// remove from storageKeyVal
+			removeStorageFromKeyVal(serviceID, storageRawKey)
+			/*
+				fmt.Println("???: ", storageKey, v)
+				fmt.Printf("encodedKey: %x\n", merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil))
+				fmt.Println("check service 2387142948: storage")
+				wVal := getStorageFromKeyVal(2387142948, storageKey)
+				fmt.Println("val: ", len(*wVal), wVal)
+			*/
 		}
 	}
 
@@ -950,40 +973,59 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// compute \mathbb{k}
-	storageKey := input.Memory.Read(ko, kz)
+	storageRawKey := input.Memory.Read(ko, kz)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
+	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 
-	// computation of l & a is independent, first compute l is easier to implement
-	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
-	var l uint64
-	if storageKeyExists {
-		l = uint64(len(value))
-	} else {
-		l = NONE
+	value, storageRawKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageRawKey)]
+
+	storageRawData := getStorageFromKeyVal(serviceID, storageRawKey)
+
+	var footprintItems types.U32
+	var footprintOctets types.U64
+	if storageRawKeyExists {
+		footprintItems, footprintOctets = service_account.CalcStorageItemfootprint(string(storageRawKey), value)
+	} else if !storageRawKeyExists && storageRawData != nil {
+		footprintItems, footprintOctets = service_account.CalcStorageItemfootprint(string(storageRawKey), *storageRawData)
 	}
 
-	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
-	if vz == 0 {
-		delete(a.StorageDict, string(storageKey))
-	} else if isReadable(vo, vz, input.Memory) {
-		storageValue := input.Memory.Read(vo, vz)
-		a.StorageDict[string(storageKey)] = storageValue
-		// check a_b < a_t : storage need gas, balance is not enough for storage
-		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
-			new_registers := input.Registers
-			new_registers[7] = FULL
+	var l uint64
+	if vz == 0 { // remove storage
+		delete(a.StorageDict, string(storageRawKey))
+		removeStorageFromKeyVal(serviceID, storageRawKey)
+		//
+		l = NONE
+		// direct update items, octets
+		a.ServiceInfo.Items -= footprintItems
+		a.ServiceInfo.Bytes -= footprintOctets
+	} else if isReadable(vo, vz, input.Memory) { // storage append/update
+		storageRawData := input.Memory.Read(vo, vz)
+		a.StorageDict[string(storageRawKey)] = storageRawData
+		removeStorageFromKeyVal(serviceID, storageRawKey)
+		l = uint64(len(storageRawData))
+
+		// pre-compute items, octets , check a_t > a_b first
+		newItems := a.ServiceInfo.Items - footprintItems
+		newOctets := a.ServiceInfo.Bytes - footprintOctets
+		newMinBalance := service_account.CalcThresholdBalance(newItems, newOctets, a.ServiceInfo.DepositOffset) // a_t
+		if newMinBalance > a.ServiceInfo.Balance {
+			input.Registers[7] = FULL
 			return OmegaOutput{
 				ExitReason:   PVMExitTuple(CONTINUE, nil),
 				NewGas:       newGas,
-				NewRegisters: new_registers,
+				NewRegisters: input.Registers,
 				NewMemory:    input.Memory,
 				Addition:     input.Addition,
 			}
 		}
+		// update items, octets
+		a.ServiceInfo.Items = newItems
+		a.ServiceInfo.Bytes = newOctets
+
 	} else {
 		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			ExitReason:   PVMExitTuple(PANIC, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -991,18 +1033,14 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// storageDict is updated, service items and service Bytes should be updated
-	a.ServiceInfo.Items = service_account.CalcKeys(a)
-	a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+	// update service state
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-
-	new_registers := input.Registers
-	new_registers[7] = l
+	input.Registers[7] = l
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
-		NewRegisters: new_registers,
+		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
 	}
@@ -1050,7 +1088,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 
 	}
 
-	derivatives := service_account.GetServiceAccountDerivatives(a)
+	minBalance := service_account.CalcThresholdBalance(a.ServiceInfo.Items, a.ServiceInfo.Bytes, a.ServiceInfo.DepositOffset)
 
 	var v types.ByteSequence
 	encoder := types.NewEncoder()
@@ -1061,7 +1099,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ = encoder.Encode(&a.ServiceInfo.Balance)
 	v = append(v, encoded...)
 	// a_t
-	encoded, _ = encoder.Encode(&derivatives.Minbalance)
+	encoded, _ = encoder.Encode(&minBalance)
 	v = append(v, encoded...)
 	// a_g
 	encoded, _ = encoder.Encode(&a.ServiceInfo.MinItemGas)
@@ -1070,10 +1108,10 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ = encoder.Encode(&a.ServiceInfo.MinMemoGas)
 	v = append(v, encoded...)
 	// a_o
-	encoded, _ = encoder.Encode(&derivatives.Bytes)
+	encoded, _ = encoder.Encode(&a.ServiceInfo.Bytes)
 	v = append(v, encoded...)
 	// a_i
-	encoded, _ = encoder.Encode(&derivatives.Items)
+	encoded, _ = encoder.Encode(&a.ServiceInfo.Items)
 	v = append(v, encoded...)
 	// a_f
 	encoded, _ = encoder.Encode(&a.ServiceInfo.DepositOffset)
@@ -2023,7 +2061,8 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if s_b < (x_s)_t
-	if s.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(s).Minbalance {
+	minBalance := service_account.CalcThresholdBalance(s.ServiceInfo.Items, s.ServiceInfo.Bytes, s.ServiceInfo.DepositOffset)
+	if s.ServiceInfo.Balance < minBalance {
 		input.Registers[7] = CASH
 
 		return OmegaOutput{
@@ -2195,7 +2234,8 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceId
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		if b < service_account.GetServiceAccountDerivatives(accountS).Minbalance {
+		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
+		if b < minBalance {
 			input.Registers[7] = CASH
 
 			return OmegaOutput{
@@ -2457,6 +2497,10 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
+
+		// TODO:
+		// var footprintItems types.U32
+		// var footprintOctets types.U64
 
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
@@ -2841,5 +2885,40 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 		}
 
 		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+	}
+}
+
+// 0.7.0 later, fuzzer needs to recover state, storage cannot be recover,
+// Thus, needs to check storage from KeyVal
+// return storage val and add storage state into ResultContextX
+func getStorageFromKeyVal(serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
+	// TODO: first check in store, maybe need to input storageKey from accumulation
+	storageKeyVal := store.GetInstance().GetStorageKeyVals()
+
+	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
+	fmt.Println("encodedStorageStateKey: ", requestedStorageStateKey)
+	fmt.Printf("encodedStorageStateKey: %x\n", requestedStorageStateKey)
+	for _, v := range storageKeyVal {
+		if v.Key == requestedStorageStateKey.Key {
+			return &v.Value
+		}
+	}
+
+	return nil
+}
+
+func removeStorageFromKeyVal(serviceID types.ServiceId, storageKey types.ByteSequence) {
+	storageKeyVal := store.GetInstance().GetStorageKeyVals()
+
+	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
+
+	for k, v := range storageKeyVal {
+		if v.Key == requestedStorageStateKey.Key {
+			if k < len(storageKeyVal)-1 { // not the last index
+				copy(storageKeyVal[k:], storageKeyVal[k+1:])
+				store.GetInstance().SetStorageKeyVals(storageKeyVal)
+				return
+			}
+		}
 	}
 }

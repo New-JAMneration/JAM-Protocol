@@ -335,6 +335,10 @@ func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKe
 	return stateKeyVal
 }
 
+func WrapEncodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+	return encodeDelta2KeyVal(id, key, value)
+}
+
 func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	encoder := types.NewEncoder()
 
