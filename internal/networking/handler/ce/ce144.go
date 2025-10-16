@@ -10,52 +10,84 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
-// HandleAuditAnnouncement handles the announcement of requirement to audit.
-// Auditors of a block (defined to be the prior validator set) should, at the beginning
-// of each tranche, broadcast an announcement to all other such auditors specifying
-// which work-reports they intend to audit.
-//
-// Protocol CE144:
-// Auditor -> Auditor
-//
-//	--> Header Hash ++ Tranche ++ Announcement
-//	--> Evidence
-//	--> FIN
-//	<-- FIN
-//
-// The transmission format includes:
-// - Header Hash: 32 bytes (OpaqueHash)
-// - Tranche: 1 byte (u8)
-// - Announcement: len++[Core Index ++ Work-Report Hash] ++ Ed25519 Signature
-// - Evidence: depends on tranche (Bandersnatch signature for tranche 0, more complex for others)
-func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	headerHash := types.HeaderHash{}
-	if _, err := stream.Read(headerHash[:]); err != nil {
-		return fmt.Errorf("failed to read header hash: %w", err)
+// HandleAuditAnnouncement_Recv handles the announcement of requirement to audit.
+func HandleAuditAnnouncement_Recv(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+	// First message: Header Hash ++ Tranche ++ Announcement
+	firstMessage := make([]byte, 33) // 32 bytes header hash + 1 byte tranche
+	if err := stream.ReadFull(firstMessage); err != nil {
+		return fmt.Errorf("failed to read header hash and tranche: %w", err)
 	}
 
-	trancheBuf := make([]byte, 1)
-	if _, err := stream.Read(trancheBuf); err != nil {
-		return fmt.Errorf("failed to read tranche: %w", err)
-	}
-	tranche := uint8(trancheBuf[0])
+	var headerHash types.HeaderHash
+	copy(headerHash[:], firstMessage[:32])
+	tranche := uint8(firstMessage[32])
 
 	announcement, err := readAnnouncement(stream)
 	if err != nil {
 		return fmt.Errorf("failed to read announcement: %w", err)
 	}
+
+	// Second message: Evidence
 	evidence, err := readEvidence(stream, tranche, len(announcement.WorkReports))
 	if err != nil {
 		return fmt.Errorf("failed to read evidence: %w", err)
 	}
 
+	// If this is the first tranche, verify the Bandersnatch IETF-VRF signature (96 bytes)
+	if tranche == 0 {
+		// Build ring from posterior validators
+		s := store.GetInstance()
+		gamma := s.GetPosteriorStates().GetGammaK()
+		if len(gamma) == 0 {
+			return fmt.Errorf("empty gamma for verifier")
+		}
+
+		ring := []byte{}
+		for _, v := range gamma {
+			ring = append(ring, v.Bandersnatch[:]...)
+		}
+
+		verifier, err := vrf.NewVerifier(ring, uint(len(gamma)))
+		if err != nil {
+			return fmt.Errorf("failed to create vrf verifier: %w", err)
+		}
+		defer verifier.Free()
+
+		// Serialize announcement into bytes to use as message (must match signer semantics)
+		tmpPayload := &CE144Payload{
+			HeaderHash:   headerHash,
+			Tranche:      0,
+			Announcement: *announcement,
+			Evidence:     CE144Evidence{},
+		}
+		annBytes, err := tmpPayload.Encode()
+		if err != nil {
+			return fmt.Errorf("failed to encode announcement for verification: %w", err)
+		}
+
+		ctx := []byte{}
+		msg := annBytes
+
+		verified := false
+		for i := uint(0); i < uint(len(gamma)); i++ {
+			if _, verr := verifier.IETFVerify(ctx, msg, evidence.BandersnatchSig[:], i); verr == nil {
+				verified = true
+				break
+			}
+		}
+		if !verified {
+			return fmt.Errorf("bandersnatch signature verification failed for announcement")
+		}
+	}
+
+	// Third message: FIN
 	finBuf := make([]byte, 3)
 	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
+	} else if string(finBuf) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
 
@@ -66,7 +98,7 @@ func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stre
 		return fmt.Errorf("failed to store audit announcement: %w", err)
 	}
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
 		return fmt.Errorf("failed to write FIN response: %w", err)
 	}
 
@@ -76,14 +108,14 @@ func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream *quic.Stre
 // readAnnouncement reads the announcement part of the message
 func readAnnouncement(stream *quic.Stream) (*CE144Announcement, error) {
 	lengthBuf := make([]byte, 4)
-	if _, err := stream.Read(lengthBuf); err != nil {
+	if err := stream.ReadFull(lengthBuf); err != nil {
 		return nil, fmt.Errorf("failed to read work reports length: %w", err)
 	}
 	workReportsLength := binary.LittleEndian.Uint32(lengthBuf)
 
 	// Read work reports (Core Index + Work-Report Hash pairs)
 	workReports := make([]WorkReportEntry, workReportsLength)
-	for i := range workReportsLength {
+	for i := uint32(0); i < workReportsLength; i++ {
 		coreIndexBuf := make([]byte, 2)
 		if err := stream.ReadFull(coreIndexBuf); err != nil {
 			return nil, fmt.Errorf("failed to read core index %d: %w", i, err)
@@ -243,6 +275,118 @@ func storeAuditAnnouncement(headerHash types.HeaderHash, tranche uint8, announce
 
 	return nil
 }
+
+// HandleAuditAnnouncement_Send sends an audit announcement
+func HandleAuditAnnouncement_Send(stream *quic.Stream, headerHash types.HeaderHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
+
+	if err := stream.WriteMessage([]byte{144}); err != nil {
+		return fmt.Errorf("failed to write protocol ID: %w", err)
+	}
+
+	annBytes, err := encodeAnnouncementPart(headerHash, tranche, announcement)
+	if err != nil {
+		return fmt.Errorf("failed to encode announcement part: %w", err)
+	}
+	if err := stream.WriteMessage(annBytes); err != nil {
+		return fmt.Errorf("failed to write announcement part: %w", err)
+	}
+
+	evidenceBytes, err := encodeEvidencePart(tranche, evidence, len(announcement.WorkReports))
+	if err != nil {
+		return fmt.Errorf("failed to encode evidence part: %w", err)
+	}
+	if err := stream.WriteMessage(evidenceBytes); err != nil {
+		return fmt.Errorf("failed to write evidence part: %w", err)
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	n, err := stream.Read(finBuf)
+	if err != nil {
+		return fmt.Errorf("failed to read FIN response: %w", err)
+	}
+	if n != 3 || string(finBuf[:n]) != "FIN" {
+		return fmt.Errorf("unexpected FIN response: %q", string(finBuf[:n]))
+	}
+
+	return stream.Close()
+}
+
+// encodeAnnouncementPart serializes the HeaderHash + Tranche + Announcement (without evidence)
+func encodeAnnouncementPart(headerHash types.HeaderHash, tranche uint8, announcement *CE144Announcement) ([]byte, error) {
+	if announcement == nil {
+		return nil, fmt.Errorf("nil announcement")
+	}
+
+	var encoded []byte
+	// Header Hash (32 bytes)
+	encoded = append(encoded, headerHash[:]...)
+	// Tranche (1 byte)
+	encoded = append(encoded, tranche)
+
+	// Announcement length (4 bytes)
+	workReportsLength := make([]byte, 4)
+	binary.LittleEndian.PutUint32(workReportsLength, uint32(len(announcement.WorkReports)))
+	encoded = append(encoded, workReportsLength...)
+
+	// Work Reports
+	for _, wr := range announcement.WorkReports {
+		coreIndexBytes := make([]byte, 2)
+		binary.LittleEndian.PutUint16(coreIndexBytes, uint16(wr.CoreIndex))
+		encoded = append(encoded, coreIndexBytes...)
+		encoded = append(encoded, wr.WorkReportHash[:]...)
+	}
+
+	// Ed25519 signature
+	encoded = append(encoded, announcement.Signature[:]...)
+
+	return encoded, nil
+}
+
+// encodeEvidencePart serializes the evidence part depending on tranche
+func encodeEvidencePart(tranche uint8, evidence *CE144Evidence, workReportsCount int) ([]byte, error) {
+	if evidence == nil {
+		return nil, fmt.Errorf("nil evidence")
+	}
+
+	var encoded []byte
+	if tranche == 0 {
+		// First tranche: just Bandersnatch signature (96 bytes)
+		encoded = append(encoded, evidence.BandersnatchSig[:]...)
+		return encoded, nil
+	}
+
+	// Subsequent tranche: for each work report emit BandersnatchSig ++ len(noShows) ++ noShows
+	if len(evidence.SubsequentEvidence) != workReportsCount {
+		return nil, fmt.Errorf("subsequent evidence count (%d) does not match work reports count (%d)", len(evidence.SubsequentEvidence), workReportsCount)
+	}
+
+	for _, se := range evidence.SubsequentEvidence {
+		encoded = append(encoded, se.BandersnatchSig[:]...)
+
+		noShowsLength := make([]byte, 4)
+		binary.LittleEndian.PutUint32(noShowsLength, uint32(len(se.NoShows)))
+		encoded = append(encoded, noShowsLength...)
+
+		for _, ns := range se.NoShows {
+			validatorIndexBytes := make([]byte, 2)
+			binary.LittleEndian.PutUint16(validatorIndexBytes, uint16(ns.ValidatorIndex))
+			encoded = append(encoded, validatorIndexBytes...)
+
+			prevAnnouncementLength := make([]byte, 4)
+			binary.LittleEndian.PutUint32(prevAnnouncementLength, uint32(len(ns.PreviousAnnouncement)))
+			encoded = append(encoded, prevAnnouncementLength...)
+			encoded = append(encoded, ns.PreviousAnnouncement...)
+		}
+	}
+
+	return encoded, nil
+}
+
+// test helper functions
 
 func CreateAuditAnnouncement(
 	headerHash types.HeaderHash,

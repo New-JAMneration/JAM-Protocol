@@ -53,7 +53,7 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 
 	fakeBlockchain := SetupFakeBlockchain()
 
-	err = HandleAuditAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
+	err = HandleAuditAnnouncement_Recv(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleAuditAnnouncement failed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 	stream := newMockStream(fullMessage)
 
 	fakeBlockchain := SetupFakeBlockchain()
-	err = HandleAuditAnnouncement(fakeBlockchain, &quic.Stream{Stream: stream})
+	err = HandleAuditAnnouncement_Recv(fakeBlockchain, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("HandleAuditAnnouncement failed: %v", err)
 	}
