@@ -3,8 +3,8 @@ package pebble
 import (
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/db"
-	testsuite "github.com/New-JAMneration/JAM-Protocol/internal/db/test"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
+	testsuite "github.com/New-JAMneration/JAM-Protocol/internal/database/test"
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/vfs"
 	"github.com/test-go/testify/require"
@@ -17,8 +17,8 @@ func TestWithPebbleDB(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		testsuite.TestDatabaseSuite(t, func() db.KeyValueDB {
-			return &KVStore{
+		testsuite.TestDatabaseSuite(t, func() database.Database {
+			return &Database{
 				inner: pebbleDB,
 			}
 		})

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/db"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDatabaseSuite(t *testing.T, New func() db.KeyValueDB) {
+func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 	store := New()
 	defer store.Close()
 
@@ -21,15 +21,16 @@ func TestDatabaseSuite(t *testing.T, New func() db.KeyValueDB) {
 		assert.False(t, got)
 
 		value := []byte("value")
-		err = store.Set(key, value)
+		err = store.Put(key, value)
 		require.NoError(t, err)
 
 		got, err = store.Has(key)
 		require.NoError(t, err)
 		assert.True(t, got)
 
-		gotValue, err := store.Get(key)
+		gotValue, found, err := store.Get(key)
 		require.NoError(t, err)
+		assert.True(t, found)
 		assert.True(t, bytes.Equal(gotValue, value))
 
 		err = store.Delete(key)
@@ -45,7 +46,7 @@ func TestDatabaseSuite(t *testing.T, New func() db.KeyValueDB) {
 		value := []byte("value")
 
 		for _, key := range keys {
-			err := store.Set(key, value)
+			err := store.Put(key, value)
 			require.NoError(t, err)
 		}
 
