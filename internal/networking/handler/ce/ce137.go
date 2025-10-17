@@ -7,6 +7,8 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
 )
 
@@ -224,6 +226,21 @@ func construct137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, e
 	merkleCoPath, err := constructMerkleCoPath(segmentShardSequence, segmentIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct Merkle co-path: %w", err)
+	}
+
+	var byteSequences []types.ByteSequence
+	for _, seg := range segmentShardSequence {
+		byteSequences = append(byteSequences, types.ByteSequence(seg))
+	}
+
+	// Compute root of the Merkle tree over segments
+	root := merkle_tree.M(byteSequences, hash.Blake2bHash)
+
+	// Build the proof using Jx (same logic as tests) and verify
+	proof := merkle_tree.Jx(0, byteSequences, types.U32(segmentIndex), hash.Blake2bHash)
+	ok := merkle_tree.VerifyMerkleProof(segmentShardSequence[segmentIndex], proof, int(segmentIndex), hash.Blake2bHash, root)
+	if !ok {
+		return nil, fmt.Errorf("constructed Merkle co-path failed verification for segment index %d", segmentIndex)
 	}
 
 	return merkleCoPath, nil

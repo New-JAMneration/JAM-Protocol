@@ -24,33 +24,6 @@ func TestJ0_VerifyMerkleProof_AllLeavesWithPadding(t *testing.T) {
 	}
 }
 
-func VerifyMerkleProof(leaf []byte, proof []types.OpaqueHash, index int, hashFunc func(types.ByteSequence) types.OpaqueHash, root types.OpaqueHash) bool {
-	h := append(types.ByteSequence("leaf"), leaf...)
-	current := hashFunc(h)
-	fmt.Printf("Leaf hash: %x\n", current)
-
-	for level := len(proof) - 1; level >= 0; level-- {
-		sibling := proof[level]
-		var node []byte
-		if index%2 == 0 {
-			node = append(types.ByteSequence("node"), current[:]...)
-			node = append(node, sibling[:]...)
-			// fmt.Printf("Level %d: Left %x, Right %x\n", level, current, sibling)
-		} else {
-			node = append(types.ByteSequence("node"), sibling[:]...)
-			node = append(node, current[:]...)
-			// fmt.Printf("Level %d: Left %x, Right %x\n", level, sibling, current)
-		}
-		current = hashFunc(node)
-		// fmt.Printf("Level %d result: %x\n", level, current)
-		index /= 2
-	}
-
-	// fmt.Printf("Computed root: %x\n", current)
-	// fmt.Printf("Expected root: %x\n", root)
-	return current == root
-}
-
 func TestN(t *testing.T) {
 	hash := hash.Blake2bHash
 	// leafs

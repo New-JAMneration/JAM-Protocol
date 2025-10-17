@@ -1,9 +1,11 @@
 package ce
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -90,7 +92,7 @@ func HandleSegmentShardRequestWithJustification_Guarantor(
 		return fmt.Errorf("erasure root must be 32 bytes, got %d", len(erasureRoot))
 	}
 
-	// Build request payload (fields) + raw FIN terminator
+	// --- Build request ---
 	reqLen := 32 + 4 + 2 + len(segmentIndices)*2 + 3
 	req := make([]byte, 0, reqLen)
 	req = append(req, erasureRoot...)
@@ -105,15 +107,51 @@ func HandleSegmentShardRequestWithJustification_Guarantor(
 		return fmt.Errorf("failed to send CE140 request: %w", err)
 	}
 
-	// Read one justification per requested segment
-	for i := range segmentIndices {
-		if _, err := stream.ReadMessage(); err != nil {
-			return fmt.Errorf("failed to read justification %d/%d: %w", i+1, len(segmentIndices), err)
-		} else {
-			// [TODO] Verify justification
+	for _, idx := range segmentIndices {
+		msg, err := stream.ReadMessage()
+		if err != nil {
+			return fmt.Errorf("failed to read justification %d/%d: %w", idx, len(segmentIndices), err)
+		}
+
+		buf := bytes.NewReader(msg)
+
+		var leafLen uint16
+		if err := binary.Read(buf, binary.LittleEndian, &leafLen); err != nil {
+			return fmt.Errorf("invalid justification: read leafLen: %w", err)
+		}
+		leaf := make([]byte, leafLen)
+		if _, err := io.ReadFull(buf, leaf); err != nil {
+			return fmt.Errorf("invalid justification: read leaf: %w", err)
+		}
+
+		var proofCount uint16
+		if err := binary.Read(buf, binary.LittleEndian, &proofCount); err != nil {
+			return fmt.Errorf("invalid justification: read proofCount: %w", err)
+		}
+
+		proof := make([]types.OpaqueHash, proofCount)
+		for j := 0; j < int(proofCount); j++ {
+			if _, err := io.ReadFull(buf, proof[j][:]); err != nil {
+				return fmt.Errorf("invalid justification: read proof %d: %w", j, err)
+			}
+		}
+
+		var index uint32
+		if err := binary.Read(buf, binary.LittleEndian, &index); err != nil {
+			return fmt.Errorf("invalid justification: read index: %w", err)
+		}
+
+		root := types.OpaqueHash{}
+		copy(root[:], erasureRoot)
+
+		ok := merkle_tree.VerifyMerkleProof(leaf, proof, int(index), hash.Blake2bHash, root)
+
+		if !ok {
+			return fmt.Errorf("invalid Merkle justification for segment %d (index=%d)", idx, index)
 		}
 	}
 
+	// --- Expect final FIN ---
 	finBuf := make([]byte, 3)
 	if err := stream.ReadFull(finBuf); err != nil {
 		return fmt.Errorf("failed to read FIN message: %w", err)
