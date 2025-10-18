@@ -343,9 +343,9 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 	}
 
 	// Print Sending SetState
-	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
+	logger.ColorGreen("[SetState][Request] block_header_hash=0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
 	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-	logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualPreStateRoot[:]))
+	logger.ColorYellow("[SetState][Response] state_root=0x%v", hex.EncodeToString(actualPreStateRoot[:]))
 	if err != nil {
 		return fmt.Errorf("SetState failed: %v", err)
 	}
@@ -368,16 +368,16 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		return fmt.Errorf("error serializing header: %v", err)
 	}
 	blockHeaderHashHex := hash.Blake2bHash(serializedHeader)
-	logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHashHex)
+	logger.ColorGreen("[ImportBlock][Request] block_header_hash=0x%x", blockHeaderHashHex)
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
 	if err != nil {
-		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
+		logger.ColorYellow("[ImportBlock][Response] error=%v", err)
 	} else if errorMessage != nil {
-		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		logger.ColorYellow("[ImportBlock][Response] error message=%v", errorMessage.Error)
 	} else {
-		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
+		logger.ColorYellow("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
 
 	if actualPostStateRoot != expectedPostStateRoot {
