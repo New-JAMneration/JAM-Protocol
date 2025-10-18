@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -14,20 +15,6 @@ const NODE_SIZE = 512
 type LeafPath struct {
 	State     types.StateKeyVal
 	PathBytes []types.ByteSequence // hashes from root to leaf
-}
-
-// CE129Request: client → server
-type CE129Request struct {
-	HeaderHash types.OpaqueHash
-	StartKey   types.StateKey
-	EndKey     types.StateKey
-	MaxSize    int
-}
-
-// CE129Response: server → client
-type CE129Response struct {
-	BoundaryNodes []types.ByteSequence
-	Pairs         []types.StateKeyVal
 }
 
 func mergeBoundaryPaths(startPath, endPath []types.ByteSequence) []types.ByteSequence {
@@ -48,21 +35,21 @@ func mergeBoundaryPaths(startPath, endPath []types.ByteSequence) []types.ByteSeq
 var GlobalMerklePathMap = make(map[types.StateRoot][]LeafPath)
 
 // TODO: review the exact implement of the CE129 handler after the DB design is done
-func CE129Handler(request CE129Request) (CE129Response, error) {
+func CE129Handler(request ce.CE129Payload) (ce.CE129Response, error) {
 	LeafPaths, ok := GlobalMerklePathMap[types.StateRoot(request.HeaderHash)]
 	if !ok {
-		return CE129Response{}, errors.New("header hash not found")
+		return ce.CE129Response{}, errors.New("header hash not found")
 	}
 
-	result := CE129Response{}
+	result := ce.CE129Response{}
 	var startPath, endPath []types.ByteSequence
 	foundStart := false
 
 	for _, leafPath := range LeafPaths {
 		key := leafPath.State.Key
 		// TODO: check the actual logic of the range compare
-		if bytes.Compare(key[:], request.StartKey[:]) >= 0 &&
-			bytes.Compare(key[:], request.EndKey[:]) < 0 {
+		if bytes.Compare(key[:], request.KeyStart[:]) >= 0 &&
+			bytes.Compare(key[:], request.KeyEnd[:]) < 0 {
 			result.Pairs = append(result.Pairs, leafPath.State)
 			if !foundStart {
 				startPath = leafPath.PathBytes
@@ -73,7 +60,7 @@ func CE129Handler(request CE129Request) (CE129Response, error) {
 	}
 	result.BoundaryNodes = mergeBoundaryPaths(startPath, endPath)
 	// TODO: Check the actual logic of handling the MaxSize
-	if len(result.Pairs) > request.MaxSize {
+	if len(result.Pairs) > int(request.MaxSize) {
 		result.Pairs = result.Pairs[:request.MaxSize]
 	}
 	// TODO: check the actual logic of empty result case

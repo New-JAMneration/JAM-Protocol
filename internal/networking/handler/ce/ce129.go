@@ -10,11 +10,18 @@ import (
 )
 
 // CE129Payload represents a state key range request message.
+// client → server
 type CE129Payload struct {
 	HeaderHash types.HeaderHash
 	KeyStart   types.StateKey
 	KeyEnd     types.StateKey
 	MaxSize    uint32
+}
+
+// CE129Response: server → client
+type CE129Response struct {
+	BoundaryNodes []types.ByteSequence
+	Pairs         []types.StateKeyVal
 }
 
 // HandleStateRequest handles a CE129 state key range request.
