@@ -7,10 +7,10 @@ import (
 
 type batch struct {
 	pb *pebble.Batch
-	db *Database
+	db *pebbleDB
 }
 
-func (db *Database) NewBatch() database.Batch {
+func (db *pebbleDB) NewBatch() database.Batch {
 	return &batch{
 		pb: db.inner.NewBatch(),
 		db: db,

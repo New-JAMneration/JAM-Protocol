@@ -3,35 +3,36 @@ package pebble
 import (
 	"runtime"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/cockroachdb/pebble"
 )
 
-type Database struct {
+type pebbleDB struct {
 	datadir   string
 	inner     *pebble.DB
 	writeOpts *pebble.WriteOptions
 }
 
-func New(datadir string, readOnly bool) (*Database, error) {
+func NewDatabase(datadir string, readOnly bool) (database.Database, error) {
 	opt := &pebble.Options{
 		// Default compaction concurrency is single-threaded, use all available logical cores
 		// for speeding up compactions.
 		MaxConcurrentCompactions: runtime.NumCPU,
 		ReadOnly:                 readOnly,
 	}
-	pebbleDB, err := pebble.Open(datadir, opt)
+	db, err := pebble.Open(datadir, opt)
 	if err != nil {
 		return nil, err
 	}
-	engine := &Database{
+	engine := &pebbleDB{
 		datadir:   datadir,
-		inner:     pebbleDB,
+		inner:     db,
 		writeOpts: pebble.NoSync,
 	}
 	return engine, nil
 }
 
-func (db *Database) Has(key []byte) (bool, error) {
+func (db *pebbleDB) Has(key []byte) (bool, error) {
 	_, closer, err := db.inner.Get(key)
 	if err == pebble.ErrNotFound {
 		return false, nil
@@ -44,7 +45,7 @@ func (db *Database) Has(key []byte) (bool, error) {
 	return true, nil
 }
 
-func (db *Database) Get(key []byte) ([]byte, bool, error) {
+func (db *pebbleDB) Get(key []byte) ([]byte, bool, error) {
 	value, closer, err := db.inner.Get(key)
 	if err != nil {
 		if err == pebble.ErrNotFound {
@@ -60,18 +61,18 @@ func (db *Database) Get(key []byte) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func (db *Database) Put(key, value []byte) error {
+func (db *pebbleDB) Put(key, value []byte) error {
 	return db.inner.Set(key, value, db.writeOpts)
 }
 
-func (db *Database) Delete(key []byte) error {
+func (db *pebbleDB) Delete(key []byte) error {
 	return db.inner.Delete(key, db.writeOpts)
 }
 
-func (db *Database) DeleteRange(start, end []byte) error {
+func (db *pebbleDB) DeleteRange(start, end []byte) error {
 	return db.inner.DeleteRange(start, end, db.writeOpts)
 }
 
-func (db *Database) Close() error {
+func (db *pebbleDB) Close() error {
 	return db.inner.Close()
 }

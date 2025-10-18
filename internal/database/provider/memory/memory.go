@@ -3,21 +3,23 @@ package memory
 import (
 	"bytes"
 	"sync"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 )
 
-type Database struct {
+type memoryDB struct {
 	mu   sync.RWMutex
 	data map[string][]byte
 }
 
-func NewDatabase() *Database {
-	return &Database{
+func NewDatabase() database.Database {
+	return &memoryDB{
 		mu:   sync.RWMutex{},
 		data: make(map[string][]byte),
 	}
 }
 
-func (db *Database) Has(key []byte) (bool, error) {
+func (db *memoryDB) Has(key []byte) (bool, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
@@ -25,7 +27,7 @@ func (db *Database) Has(key []byte) (bool, error) {
 	return exists, nil
 }
 
-func (db *Database) Get(key []byte) ([]byte, bool, error) {
+func (db *memoryDB) Get(key []byte) ([]byte, bool, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
@@ -39,7 +41,7 @@ func (db *Database) Get(key []byte) ([]byte, bool, error) {
 	return result, true, nil
 }
 
-func (db *Database) Put(key, value []byte) error {
+func (db *memoryDB) Put(key, value []byte) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -49,7 +51,7 @@ func (db *Database) Put(key, value []byte) error {
 	return nil
 }
 
-func (db *Database) Delete(key []byte) error {
+func (db *memoryDB) Delete(key []byte) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -57,7 +59,7 @@ func (db *Database) Delete(key []byte) error {
 	return nil
 }
 
-func (db *Database) DeleteRange(start, end []byte) error {
+func (db *memoryDB) DeleteRange(start, end []byte) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -70,7 +72,7 @@ func (db *Database) DeleteRange(start, end []byte) error {
 	return nil
 }
 
-func (db *Database) Close() error {
+func (db *memoryDB) Close() error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 

@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -17,3 +18,11 @@ type Blockchain interface {
 	// GenesisBlockHash returns the genesis block hash.
 	GenesisBlockHash() types.HeaderHash
 }
+
+type blockchain struct {
+	database database.Database
+
+	headerChain *HeaderChain
+}
+
+// func (bc blockchain)

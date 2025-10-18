@@ -12,14 +12,14 @@ import (
 
 func TestWithPebbleDB(t *testing.T) {
 	t.Run("DatabaseSuite", func(t *testing.T) {
-		pebbleDB, err := pebble.Open("", &pebble.Options{
+		db, err := pebble.Open("", &pebble.Options{
 			FS: vfs.NewMem(),
 		})
 		require.NoError(t, err)
 
 		testsuite.TestDatabaseSuite(t, func() database.Database {
-			return &Database{
-				inner: pebbleDB,
+			return &pebbleDB{
+				inner: db,
 			}
 		})
 	})

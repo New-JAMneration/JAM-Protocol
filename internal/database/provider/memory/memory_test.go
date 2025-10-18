@@ -8,8 +8,8 @@ import (
 )
 
 func TestMemoryKVDB(t *testing.T) {
-	memoryStore := NewDatabase()
+	memoryDB := NewDatabase()
 	testsuite.TestDatabaseSuite(t, func() database.Database {
-		return memoryStore
+		return memoryDB
 	})
 }

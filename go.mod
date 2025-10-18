@@ -22,7 +22,10 @@ require (
 	github.com/test-go/testify v1.1.4
 )
 
-require github.com/google/go-cmp v0.7.0
+require (
+	github.com/cockroachdb/pebble v1.1.5
+	github.com/google/go-cmp v0.7.0
+)
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
@@ -31,7 +34,6 @@ require (
 	github.com/cockroachdb/errors v1.11.3 // indirect
 	github.com/cockroachdb/fifo v0.0.0-20240606204812-0bbfbd93a7ce // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
-	github.com/cockroachdb/pebble v1.1.5 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect

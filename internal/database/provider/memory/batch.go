@@ -7,7 +7,7 @@ import (
 )
 
 type batch struct {
-	db       *Database
+	db       *memoryDB
 	writeOps []writeOp
 }
 
@@ -20,7 +20,7 @@ type writeOp struct {
 	rangeTo   []byte
 }
 
-func (db *Database) NewBatch() database.Batch {
+func (db *memoryDB) NewBatch() database.Batch {
 	return &batch{
 		db: db,
 	}
