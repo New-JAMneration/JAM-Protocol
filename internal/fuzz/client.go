@@ -66,7 +66,7 @@ func (c *FuzzClient) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 	return *resp.PeerInfo, nil
 }
 
-func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, error) {
+func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMessage, error) {
 	payload := ImportBlock(block)
 
 	req := Message{
@@ -76,14 +76,18 @@ func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, error) {
 
 	resp, err := c.makeRequest(req)
 	if err != nil {
-		return types.StateRoot{}, err
+		return types.StateRoot{}, nil, err
+	}
+
+	if resp.Type == MessageType_ErrorMessage {
+		return types.StateRoot{}, resp.Error, nil
 	}
 
 	if resp.Type != MessageType_StateRoot {
-		return types.StateRoot{}, ErrInvalidMessageType
+		return types.StateRoot{}, nil, ErrInvalidMessageType
 	}
 
-	return types.StateRoot(*resp.StateRoot), nil
+	return types.StateRoot(*resp.StateRoot), nil, nil
 }
 
 func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals) (types.StateRoot, error) {

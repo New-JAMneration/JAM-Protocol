@@ -4,12 +4,20 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 func printUsage() {
@@ -21,6 +29,7 @@ Valid commands are:
   import_block SOCKET JSON_FILE
   set_state SOCKET JSON_FILE
   get_state SOCKET JSON_FILE
+  test_folder SOCKET FOLDER_PATH
   help [COMMAND]`
 
 	log.Fatalln(usage)
@@ -34,6 +43,7 @@ var handlers = map[string]Handler{
 	"import_block": importBlock,
 	"set_state":    setState,
 	"get_state":    getState,
+	"test_folder":  testFolder,
 	"help":         help,
 }
 
@@ -89,9 +99,11 @@ func handshake(args []string) {
 	}
 
 	log.Println("received handshake response:")
-	log.Printf("  Name: %s\n", resp.Name)
-	log.Printf("  App Version: %v\n", resp.AppVersion)
-	log.Printf("  JAM Version: %v\n", resp.JamVersion)
+	log.Printf("  fuzz-version: %d\n", resp.FuzzVersion)
+	log.Printf("  fuzz-features: %d\n", resp.FuzzFeatures)
+	log.Printf("  jam-version: %v\n", resp.JamVersion)
+	log.Printf("  app-version: %v\n", resp.AppVersion)
+	log.Printf("  app-name: %s\n", resp.AppName)
 }
 
 func importBlock(args []string) {
@@ -124,9 +136,11 @@ func importBlock(args []string) {
 	}
 
 	// Send import_block request
-	stateRoot, err := client.ImportBlock(block)
+	stateRoot, errorMessage, err := client.ImportBlock(block)
 	if err != nil {
 		log.Fatalf("error sending import_block request: %v\n", err)
+	} else if errorMessage != nil {
+		log.Fatalf("error sending import_block request: %v\n", errorMessage.Error)
 	}
 
 	log.Printf("import_block successful, state root: %x\n", stateRoot)
@@ -235,6 +249,179 @@ func getState(args []string) {
 	log.Printf("get_state successful, retrieved %d key-value pairs\n", len(state))
 }
 
+// TestData represents the structure of test JSON files
+type TestData struct {
+	PreState struct {
+		StateRoot string             `json:"state_root"`
+		KeyVals   types.StateKeyVals `json:"keyvals"`
+	} `json:"pre_state"`
+	PostState struct {
+		StateRoot string             `json:"state_root"`
+		KeyVals   types.StateKeyVals `json:"keyvals"`
+	} `json:"post_state"`
+	Block types.Block `json:"block"`
+}
+
+func testFolder(args []string) {
+	if len(args) < 2 {
+		helpImpl("test_folder")
+	}
+
+	socketPath := args[0]
+	folderPath := args[1]
+
+	// Connect to server
+	client, err := fuzz.NewFuzzClient("unix", socketPath)
+	if err != nil {
+		log.Fatalf("error creating client: %v\n", err)
+	}
+	defer client.Close()
+
+	// Read all JSON files in the folder
+	var jsonFiles []string
+	err = filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(strings.ToLower(path), ".json") {
+			jsonFiles = append(jsonFiles, path)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("error walking directory: %v\n", err)
+	}
+
+	if len(jsonFiles) == 0 {
+		log.Fatalln("no JSON files found in the specified folder")
+	}
+
+	log.Printf("Found %d JSON files to test\n", len(jsonFiles))
+
+	successCount := 0
+	failureCount := 0
+
+	// Do the handshake
+	info, err := client.Handshake(fuzz.PeerInfo{AppName: "Fuzz-Test"})
+	if err != nil {
+		log.Fatalf("error doing handshake: %v\n", err)
+	}
+	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
+
+	// Process each JSON file
+	for _, jsonFile := range jsonFiles {
+		if err := testSingleFile(client, jsonFile); err != nil {
+			logger.ColorRed("FAILED!!: %s - %v", jsonFile, err)
+			failureCount++
+		} else {
+			logger.ColorGreen("PASSED: %s", jsonFile)
+			successCount++
+		}
+	}
+}
+
+func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
+	mismatchCount := 0
+	importBlockMismatch := false
+	data, err := os.ReadFile(jsonFile)
+	if err != nil {
+		return fmt.Errorf("error reading JSON file: %v", err)
+	}
+
+	var testData TestData
+	if err := json.Unmarshal(data, &testData); err != nil {
+		return fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Step 1: SetState with pre_state data
+	expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing pre_state state_root: %v", err)
+	}
+
+	// Print Sending SetState
+	logger.ColorGreen("[SetState][Request] block_header_hash=0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
+	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
+	logger.ColorYellow("[SetState][Response] state_root=0x%v", hex.EncodeToString(actualPreStateRoot[:]))
+	if err != nil {
+		return fmt.Errorf("SetState failed: %v", err)
+	}
+
+	if actualPreStateRoot != expectedPreStateRoot {
+		logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
+			expectedPreStateRoot, actualPreStateRoot)
+		mismatchCount++
+	}
+
+	// Step 2: ImportBlock
+	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing post_state state_root: %v", err)
+	}
+
+	// Print Sending ImportBlock
+	serializedHeader, err := utilities.HeaderSerialization(testData.Block.Header)
+	if err != nil {
+		return fmt.Errorf("error serializing header: %v", err)
+	}
+	blockHeaderHashHex := hash.Blake2bHash(serializedHeader)
+	logger.ColorGreen("[ImportBlock][Request] block_header_hash=0x%x", blockHeaderHashHex)
+
+	// Print ImportBlock Response
+	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
+	if err != nil {
+		logger.ColorYellow("[ImportBlock][Response] error=%v", err)
+	} else if errorMessage != nil {
+		logger.ColorYellow("[ImportBlock][Response] error message=%v", errorMessage.Error)
+	} else {
+		logger.ColorYellow("[ImportBlock][Response] state_root=0x%v", hex.EncodeToString(actualPostStateRoot[:]))
+	}
+
+	if actualPostStateRoot != expectedPostStateRoot {
+		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
+			expectedPostStateRoot, actualPostStateRoot)
+		mismatchCount++
+		importBlockMismatch = true
+	}
+
+	if importBlockMismatch {
+		// request GetState
+		logger.ColorGreen("[GetState][Request] header_hash=0x%v", blockHeaderHashHex)
+		actualPostState, err := client.GetState(types.HeaderHash(blockHeaderHashHex))
+		stateRoot := merklization.MerklizationSerializedState(actualPostState)
+		if err != nil {
+			return fmt.Errorf("error sending get_state request: %v", err)
+		}
+		logger.ColorYellow("[GetState][Response] state_root=0x%v", hex.EncodeToString(stateRoot[:]))
+	}
+
+	if mismatchCount > 0 {
+		return fmt.Errorf("mismatch count: %d", mismatchCount)
+	}
+
+	return nil
+}
+
+func parseStateRoot(stateRootStr string) (types.StateRoot, error) {
+	// Remove 0x prefix if present
+	if len(stateRootStr) > 2 && stateRootStr[:2] == "0x" {
+		stateRootStr = stateRootStr[2:]
+	}
+
+	var stateRoot types.StateRoot
+	hashBytes, err := hex.DecodeString(stateRootStr)
+	if err != nil {
+		return types.StateRoot{}, err
+	}
+
+	if len(hashBytes) != 32 {
+		return types.StateRoot{}, fmt.Errorf("state root must be 32 bytes, got %d bytes", len(hashBytes))
+	}
+
+	copy(stateRoot[:], hashBytes)
+	return stateRoot, nil
+}
+
 func help(args []string) {
 	helpImpl(args...)
 }
@@ -255,6 +442,8 @@ func helpImpl(args ...string) {
 		log.Fatalln("set_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a set_state request with header and state data from JSON_FILE")
 	case "get_state":
 		log.Fatalln("get_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a get_state request with header hash from JSON_FILE")
+	case "test_folder":
+		log.Fatalln("test_folder SOCKET FOLDER_PATH - tests all JSON files in FOLDER_PATH by running SetState and ImportBlock operations")
 	default:
 		printUsage()
 	}

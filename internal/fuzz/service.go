@@ -34,16 +34,19 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest block
 	storeInstance := store.GetInstance()
 
-	latestBlock := storeInstance.GetLatestBlock()
-	encoder := types.NewEncoder()
-	encodedLatestHeader, err := encoder.Encode(&latestBlock.Header)
-	if err != nil {
-		return types.StateRoot{}, err
-	}
-	latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
+	blocks := storeInstance.GetBlocks()
+	if len(blocks) > 0 {
+		latestBlock := storeInstance.GetLatestBlock()
+		encoder := types.NewEncoder()
+		encodedLatestHeader, err := encoder.Encode(&latestBlock.Header)
+		if err != nil {
+			return types.StateRoot{}, err
+		}
+		latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
 
-	if latestBlockHash != block.Header.Parent {
-		return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
+		if latestBlockHash != block.Header.Parent {
+			return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
+		}
 	}
 
 	// Get the latest state root
@@ -54,10 +57,13 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got %x, want %x", block.Header.ParentStateRoot, latestStateRoot)
 	}
 
+	// Reset State
+	storeInstance.StateCommit()
+
 	storeInstance.AddBlock(block)
 
 	// Run the STF and get the state root
-	err = stf.RunSTF()
+	err := stf.RunSTF()
 	if err != nil {
 		return types.StateRoot{}, err
 	}
@@ -69,9 +75,13 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 }
 
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
+	// Reset State and Blocks
+	store.ResetInstance()
+
+	// Set State
 	storeInstance := store.GetInstance()
 
-	state, err := m.StateKeyValsToState(stateKeyVals)
+	state, _, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
