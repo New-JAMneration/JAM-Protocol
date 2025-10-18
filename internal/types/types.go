@@ -355,7 +355,7 @@ func (wp *WorkPackage) Validate() error {
 		totalSize += len(item.Payload)
 
 		totalImportSegments += len(item.ImportSegments)
-		totalSize += len(item.ImportSegments) * SegmentSize
+		totalSize += len(item.ImportSegments) * SegmentFootprint
 
 		for _, extrinsic := range item.Extrinsic {
 			totalSize += int(extrinsic.Len)
