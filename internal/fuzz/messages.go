@@ -25,6 +25,12 @@ const (
 	MessageType_ErrorMessage MessageType = 6
 )
 
+const (
+	// Size constants for serialization
+	sizeOfUint8  = 1 // uint8 occupies 1 byte
+	sizeOfUint32 = 4 // uint32 occupies 4 bytes
+)
+
 type (
 	Version struct {
 		Major uint8
@@ -193,11 +199,11 @@ func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	var buffer []byte
 
 	// Append size of fuzz version
-	buffer = append(buffer, byte(1))
+	buffer = append(buffer, byte(sizeOfUint8))
 	buffer = append(buffer, marshalUint8(m.FuzzVersion)...)
 
 	// Append size of fuzz features
-	buffer = append(buffer, byte(4))
+	buffer = append(buffer, byte(sizeOfUint32))
 	features, err := m.FuzzFeatures.MarshalBinary()
 	if err != nil {
 		return nil, err
