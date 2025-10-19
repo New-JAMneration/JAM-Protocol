@@ -148,7 +148,7 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 	}
 
 	reason := exitReason.(*PVMExitReason)
-	logger.SetShowLine(true)
+
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
 		psi_result.Counter = uint32(pcPrime)

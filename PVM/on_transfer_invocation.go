@@ -1,7 +1,6 @@
 package PVM
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -19,7 +18,6 @@ type OnTransferInput struct {
 
 // Psi_T
 func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
-	fmt.Printf("service %d call Psi_T at timeslot %d\n", input.ServiceID, input.Timeslot)
 	account, accountExists := input.ServiceAccounts[input.ServiceID]
 	if !accountExists {
 		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
