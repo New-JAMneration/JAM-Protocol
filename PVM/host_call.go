@@ -2952,30 +2952,3 @@ func derefernceOrNil[T any](p *T) any {
 	}
 	return *p
 }
-
-// 0.7.0 later, fuzzer needs to recover state, storage cannot be recover,
-// Thus, needs to check storage from KeyVal
-// return storage val and add storage state into ResultContextX
-func (r *ResultContext) getStorageFromKeyVal(serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
-	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for _, v := range r.StorageKeyVal {
-		if v.Key == requestedStorageStateKey.Key {
-			return &v.Value
-		}
-	}
-
-	return nil
-}
-
-func (r *ResultContext) removeStorageFromKeyVal(serviceID types.ServiceId, storageKey types.ByteSequence) {
-	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-
-	for k, v := range r.StorageKeyVal {
-		if v.Key == requestedStorageStateKey.Key {
-			if k < len(r.StorageKeyVal)-1 { // not the last index
-				copy(r.StorageKeyVal[k:], r.StorageKeyVal[k+1:])
-				return
-			}
-		}
-	}
-}
