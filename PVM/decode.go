@@ -128,8 +128,6 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 		return 0, 0, 0, err
 	}
 
-	immediate = uint64(uint32(immediate))
-
 	offsetData := instructionCode[pc+2+lX : pc+2+lX+lY]
 	offset, _, err := ReadIntFixed(offsetData, len(offsetData))
 	if err != nil {

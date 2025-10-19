@@ -419,13 +419,15 @@ func (a *AssuranceTestCase) Dump() error {
 	s := store.GetInstance()
 
 	// Add block
-	header := types.Header{Slot: a.Input.Slot, Parent: a.Input.Parent}
 
 	s.GetPriorStates().SetKappa(a.PreState.CurrValidators)
 	s.GetPriorStates().SetRho(a.PreState.AvailAssignments)
 	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
 	block := types.Block{
-		Header: header,
+		Header: types.Header{
+			Slot:   a.Input.Slot,
+			Parent: a.Input.Parent,
+		},
 		Extrinsic: types.Extrinsic{
 			Assurances: a.Input.Assurances,
 		},

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -1494,6 +1495,77 @@ type PartialStateSet struct {
 	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
+func (origin *PartialStateSet) DeepCopy() PartialStateSet {
+	// ServiceAccountState
+
+	copiedServiceAccounts := make(ServiceAccountState)
+	for serviceID, originAccount := range origin.ServiceAccounts {
+		var copiedAccount ServiceAccount
+		copiedAccount.ServiceInfo = originAccount.ServiceInfo
+		copiedAccount.PreimageLookup = make(PreimagesMapEntry)
+		for preimageKey, preimageVal := range originAccount.PreimageLookup {
+			copiedPreimage := make(ByteSequence, len(preimageVal))
+			copy(copiedPreimage, preimageVal)
+			copiedAccount.PreimageLookup[preimageKey] = preimageVal
+		}
+		copiedAccount.LookupDict = make(LookupMetaMapEntry)
+		for k, v := range originAccount.LookupDict {
+			copiedAccount.LookupDict[k] = make(TimeSlotSet, len(v))
+			copy(copiedAccount.LookupDict[k], v)
+		}
+		copiedAccount.StorageDict = make(Storage)
+		for storageKey, storageVal := range originAccount.StorageDict {
+			copiedPreimage := make(ByteSequence, len(storageVal))
+			copy(copiedPreimage, storageVal)
+			copiedAccount.StorageDict[storageKey] = storageVal
+		}
+
+		copiedServiceAccounts[serviceID] = copiedAccount
+	}
+
+	// ValidatorsData
+	copiedValidators := make(ValidatorsData, len(origin.ValidatorKeys))
+	copy(copiedValidators, origin.ValidatorKeys)
+	/*
+		for k, v := range origin.ValidatorKeys {
+			// array(validator element: BandersnatchPublic, Ed25519Public, BlsPublic, ValidatorMetadata) is value type
+			copiedValidators[k] = v
+		}
+	*/
+	// AuthQueues
+	copiedAuthorizers := make(AuthQueues, len(origin.Authorizers))
+	for authorizerIdx, authorizerValue := range origin.Authorizers {
+		copiedAuthorizers[authorizerIdx] = make(AuthQueue, len(authorizerValue))
+		copy(copiedAuthorizers[authorizerIdx], authorizerValue)
+		/*
+			for queueIdx, queueValue := range authorizerValue {
+				copiedAuthorizers[authorizerIdx][queueIdx] = queueValue
+			}
+		*/
+	}
+
+	// Assign
+	copiedAssign := make(ServiceIdList, len(origin.Assign))
+	copy(copiedAssign, origin.Assign)
+	/*
+		for idx, serviceID := range copiedAssign {
+			copiedAssign[idx] = serviceID
+		}
+	*/
+	// AlwaysAccum
+	copiedAlwaysAccum := maps.Clone(origin.AlwaysAccum)
+
+	return PartialStateSet{
+		ServiceAccounts: copiedServiceAccounts,
+		ValidatorKeys:   copiedValidators,
+		Authorizers:     copiedAuthorizers,
+		Bless:           origin.Bless,
+		Assign:          copiedAssign,
+		Designate:       origin.Designate,
+		AlwaysAccum:     copiedAlwaysAccum,
+	}
+}
+
 // (12.18 pre-0.6.5)
 // (12.19 0.6.5)
 type Operand struct {
@@ -1596,6 +1668,20 @@ type StateKeyVal struct {
 }
 
 type StateKeyVals []StateKeyVal
+
+func (origin *StateKeyVals) DeepCopy() StateKeyVals {
+	copiedStateKeyVals := make(StateKeyVals, len(*origin))
+	// copy(copiedStateKeyVals, *origin)
+	for i := range *origin {
+		copiedStateKeyVals[i].Key = (*origin)[i].Key
+
+		copiedValue := make(ByteSequence, len((*origin)[i].Value))
+		copy(copiedValue, (*origin)[i].Value)
+		copiedStateKeyVals[i].Value = copiedValue
+	}
+
+	return copiedStateKeyVals
+}
 
 type StateKeyValDiff struct {
 	Key           StateKey

@@ -1,8 +1,10 @@
 package recent_history
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -97,6 +99,10 @@ func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPacka
 		}
 		reports = append(reports, report)
 	}
+
+	sort.Slice(reports, func(i, j int) bool {
+		return bytes.Compare(reports[i].Hash[:], reports[j].Hash[:]) < 0
+	})
 	return reports
 }
 

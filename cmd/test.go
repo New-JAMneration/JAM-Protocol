@@ -147,7 +147,7 @@ For example:
 						if err != nil {
 							log.Panicf("Failed to Read genesis: %v", err)
 						}
-						state, err = merklization.StateKeyValsToState(genesis.State.KeyVals)
+						state, _, err = merklization.StateKeyValsToState(genesis.State.KeyVals)
 						if err != nil {
 							log.Panicf("Failed to parse state key-vals to state: %v", err)
 						}
@@ -158,7 +158,7 @@ For example:
 						if err != nil {
 							log.Panicf("Failed to Read genesis: %v", err)
 						}
-						state, err = merklization.StateKeyValsToState(genesis.PostState.KeyVals)
+						state, _, err = merklization.StateKeyValsToState(genesis.PostState.KeyVals)
 						if err != nil {
 							log.Panicf("Failed to parse state key-vals to state: %v", err)
 						}
@@ -273,7 +273,7 @@ func validateTestMode(mode testdata.TestMode) error {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
 		testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode,
-		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode:
+		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode, testdata.StorageMode:
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)

@@ -344,14 +344,13 @@ var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registe
 
 // opcode 0
 func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
-	// log.Printf("instr: trap")
-	logger.Debugf("pc: %d, instr: %s", pc, zeta[opcode(instructionCode[pc])])
+	logger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(PANIC, nil), pc, reg, mem
 }
 
 // opcode 1
 func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
-	logger.Debugf("pc: %d, instr: %s", pc, zeta[opcode(instructionCode[pc])])
+	logger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -374,7 +373,7 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 	nuX = uint64(uint32(nuX))
 
-	logger.Debugf("pc: %d, instr: %s 0x%x", pc, zeta[opcode(instructionCode[pc])], nuX)
+	logger.Debugf("[%d]: pc: %d, %s %d", instrCount, pc, zeta[opcode(instructionCode[pc])], nuX)
 	return PVMExitTuple(HOST_CALL, nuX), pc, reg, mem
 }
 
@@ -388,7 +387,7 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 		logger.Errorf("insLoadImm64 deserialization raise error: %v", err)
 	}
 	reg[rA] = uint64(nuX)
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint64(nuX))
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint64(nuX)))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -403,9 +402,9 @@ func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	vy = uint64(uint8(vy))
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vx), vy)
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx), formatInt(vy))
 	} else {
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint(32))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -421,9 +420,9 @@ func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	vy = uint64(uint16(vy))
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vx), vy)
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx), formatInt(vy))
 	} else {
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint(32))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -439,9 +438,9 @@ func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	vy = uint64(uint32(vy))
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vx), vy)
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx), formatInt(vy))
 	} else {
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint(32))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -456,9 +455,9 @@ func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(vx), vy)
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vx), vy)
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx), formatInt(vy))
 	} else {
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint(32))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vx))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -474,10 +473,10 @@ func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 	reason, newPC := branch(pc, vX, true, bitmask, instructionCode)
 
 	if reason != CONTINUE {
-		logger.Debugf("pc: %d, instr: %s %d panic", pc, zeta[opcode(instructionCode[pc])], newPC)
+		logger.Debugf("[%d]: pc: %d, %s %d panic", instrCount, pc, zeta[opcode(instructionCode[pc])], newPC)
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	}
-	logger.Debugf("pc: %d, instr: %s %d", pc, zeta[opcode(instructionCode[pc])], newPC)
+	logger.Debugf("[%d]: pc: %d, %s %d", instrCount, pc, zeta[opcode(instructionCode[pc])], newPC)
 	return PVMExitTuple(reason, nil), newPC, reg, mem
 }
 
@@ -492,12 +491,12 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	dest := uint32(reg[rA] + vX)
 	reason, newPC := djump(pc, dest, jumpTable, bitmask)
 	if reason != CONTINUE { // newPc = dest
-		logger.Debugf("pc: %d, instr: %s 0x%x panic, %s = 0x%x, vX = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-			newPC, RegName[rA], reg[rA], vX)
+		logger.Debugf("[%d]: pc: %d, %s %d panic, %s = %s, vX = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			newPC, RegName[rA], formatInt(reg[rA]), formatInt(vX))
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	}
-	logger.Debugf("pc: %d, instr: %s %d, %s = 0x%x, vX = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		newPC, RegName[rA], reg[rA], vX)
+	logger.Debugf("[%d]: pc: %d, %s %d, %s = %s, vX = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		newPC, RegName[rA], formatInt(reg[rA]), formatInt(vX))
 	return PVMExitTuple(reason, nil), newPC, reg, mem
 }
 
@@ -509,8 +508,8 @@ func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		return err, pc, reg, mem
 	}
 	reg[rA] = uint64(vX)
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -522,11 +521,11 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, reg, mem
 	}
 	offset := uint32(1)
-	memVal, exitReason := loadFromMemory(mem, offset, uint32(uint8(vX)))
+	memVal, exitReason := loadFromMemory(mem, offset, uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadU8 loadFromMemory error: %v", err)
 		}
@@ -534,8 +533,8 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], memVal)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(memVal))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -548,11 +547,11 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int8(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadI8 loadFromMemory error: %v", err)
 		}
@@ -565,8 +564,8 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	reg[rA] = extend
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], memVal)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(memVal))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -579,19 +578,19 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(uint16(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadU16 loadFromMemory error: %v", err)
 		}
 		return exitReason, pc, reg, mem
 	}
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], memVal)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(memVal))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -602,13 +601,12 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		logger.Errorf("instLoadI16 decodeOneRegisterAndOneImmediate error: %v", err)
 		return err, pc, reg, mem
 	}
-
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int16(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadI16 loadFromMemory error: %v", err)
 		}
@@ -620,8 +618,8 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		return exitReason, pc, reg, mem
 	}
 	reg[rA] = extend
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], extend)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(extend))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -638,7 +636,7 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadU32 loadFromMemory error: %v", err)
 		}
@@ -646,8 +644,8 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], memVal)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(memVal))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -664,7 +662,7 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadI32 loadFromMemory error: %v", err)
 		}
@@ -676,8 +674,8 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		logger.Errorf("instLoadI32 signExtend error: %v", err)
 	}
 	reg[rA] = extend
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], extend)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(extend))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -694,7 +692,7 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 		} else {
 			logger.Errorf("instLoadU64 loadFromMemory error: %v", err)
 		}
@@ -702,8 +700,8 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], memVal)
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(memVal))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -718,9 +716,9 @@ func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	offset := 1
 	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint8(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], uint64(uint8(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint8(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 	}
 
 	return exitReason, pc, reg, mem
@@ -737,9 +735,9 @@ func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 	offset := 2
 	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint16(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], uint64(uint16(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint16(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -755,9 +753,9 @@ func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 	offset := 4
 	exitReason := storeIntoMemory(mem, offset, uint32(vX), uint64(uint32(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], uint64(uint32(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint32(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -773,9 +771,9 @@ func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(vX), reg[rA])
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ 0x%x ] = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], reg[rA])
+		logger.Debugf("[%d]: pc: %d, %s, mem[ 0x%x ] = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX), RegName[rA], formatInt(reg[rA]))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], uint32(vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], uint32(vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -791,9 +789,9 @@ func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength Pro
 	offset := 1
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint8(vY)))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX), uint64(uint8(vY)))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX), formatInt(uint64(uint8(vY))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -809,9 +807,9 @@ func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	offset := 2
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint16(vY)))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX), uint64(uint16(vY)))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX), formatInt(uint64(uint16(vY))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -827,9 +825,9 @@ func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	offset := 4
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), uint64(uint32(vY)))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX), uint64(uint32(vY)))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX), formatInt(uint64(uint32(vY))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s= 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -845,9 +843,9 @@ func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rA]+vX), vY)
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX), vY)
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX), formatInt(vY))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rA], uint32(vX), uint32(reg[rA]+vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint32(vX)), uint32(reg[rA]+vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -866,49 +864,48 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 	case 80:
 		reg[rA] = vX
 		branchCondition = true
-		logMsg = fmt.Sprintf("branch(%d, T), %s = %d, %s = 0x%x", vY, RegName[rA], reg[rA], RegName[rA], reg[rA])
+		logMsg = fmt.Sprintf("branch(%d, T), %s = %d, %s = %s", vY, RegName[rA], reg[rA], RegName[rA], formatInt(reg[rA]))
 	case 81:
 		branchCondition = reg[rA] == vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x == 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s == %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 82:
 		branchCondition = reg[rA] != vX
-
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x != 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s != %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 83:
 		branchCondition = reg[rA] < vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s < %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 84:
 		branchCondition = reg[rA] <= vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s <= %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 85:
 		branchCondition = reg[rA] >= vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s >= %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 86:
 		branchCondition = reg[rA] > vX
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], reg[rA], vX, branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s > %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	case 87:
 		branchCondition = int64(reg[rA]) < int64(vX)
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x < 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s < %s) = %t)", vY, RegName[rA], formatInt(int64(reg[rA])), formatInt(int64(vX)), branchCondition)
 	case 88:
 		branchCondition = int64(reg[rA]) <= int64(vX)
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x <= 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s <= %s) = %t)", vY, RegName[rA], formatInt(int64(reg[rA])), formatInt(int64(vX)), branchCondition)
 	case 89:
 		branchCondition = int64(reg[rA]) >= int64(vX)
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x >= 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s >= %s) = %t)", vY, RegName[rA], formatInt(int64(reg[rA])), formatInt(int64(vX)), branchCondition)
 	case 90:
 		branchCondition = int64(reg[rA]) > int64(vX)
-		logMsg = fmt.Sprintf("branch(%d, (%s=0x%x > 0x%x) = %t)", vY, RegName[rA], int64(reg[rA]), int64(vX), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s > %s) = %t)", vY, RegName[rA], formatInt(int64(reg[rA])), formatInt(int64(vX)), branchCondition)
 	default:
 		logger.Fatalf("instImmediateBranch is supposed to be called with opcode in [80, 90]")
 	}
 
 	reason, newPC := branch(pc, vY, branchCondition, bitmask, instructionCode)
 	if reason != CONTINUE {
-		logger.Debugf("pc: %d, instr: %s panic", pc, zeta[opcode(instructionCode[pc])])
+		logger.Debugf("[%d]: pc: %d, %s panic", instrCount, pc, zeta[opcode(instructionCode[pc])])
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s", pc, zeta[opcode(instructionCode[pc])], logMsg)
+	logger.Debugf("[%d]: pc: %d, %s %s", instrCount, pc, zeta[opcode(instructionCode[pc])], logMsg)
 	return PVMExitTuple(reason, nil), newPC, reg, mem
 }
 
@@ -921,7 +918,7 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 	// mutation
 	reg[rD] = reg[rA]
-	logger.Debugf("pc: %d, instr: %s, %s = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], RegName[rA], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], RegName[rA], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -933,16 +930,29 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 		return err, pc, reg, mem
 	}
 
-	// rA := getRegFloorIndex(instructionCode, pc)
-	// minAddr := slices.Min(reg[:]) // x >= h (heap) defined in A.7 --> writable memory
-
-	if !isWriteable(mem.heapPointer, reg[rA], mem) {
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ 0x%x ]", pc, zeta[opcode(instructionCode[pc])], mem.heapPointer)
-		return PVMExitTuple(PAGE_FAULT, mem.heapPointer), pc, reg, mem
+	// this reivision is according to jam-test-vector traces: Note on SBRK
+	if reg[rA] == 0 {
+		reg[rD] = mem.heapPointer
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], formatInt(reg[rD]))
+		return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 	}
-	reg[rD] = mem.heapPointer + reg[rA]
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA])
+
+	nextPageBoundary := P(int(mem.heapPointer))
+	newHeapPointer := mem.heapPointer + reg[rA]
+
+	if newHeapPointer > uint64(nextPageBoundary) {
+		finalBoundary := P(int(newHeapPointer))
+
+		// allocated memeory access
+		allocateMemorySegment(&mem, uint32(mem.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
+	}
+
+	mem.heapPointer = newHeapPointer
+	reg[rD] = newHeapPointer
+
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s + %s = %s + %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rD], RegName[rA], formatInt(reg[rD]), formatInt(reg[rA]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -966,7 +976,7 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 		}
 	}
 	reg[rD] = sum
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -990,7 +1000,7 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 		}
 	}
 	reg[rD] = sum
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1015,7 +1025,7 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 		n++
 	}
 	reg[rD] = n
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1040,7 +1050,7 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 		n++
 	}
 	reg[rD] = n
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1065,7 +1075,7 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 		n++
 	}
 	reg[rD] = n
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1090,7 +1100,7 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 		n++
 	}
 	reg[rD] = n
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1107,7 +1117,7 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	unsignedInt := uint64(signedInt)
 
 	reg[rD] = unsignedInt
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1124,7 +1134,7 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	unsignedInt := uint64(signedInt)
 
 	reg[rD] = unsignedInt
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1138,7 +1148,7 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	// mutation
 	regA := reg[rA]
 	reg[rD] = regA % (1 << 16)
-	logger.Debugf("pc: %d, instr: %s , %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reg[rD])
+	logger.Debugf("[%d]: pc: %d, %s , %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1157,7 +1167,7 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
 	}
 	reg[rD] = reversedBytes
-	logger.Debugf("pc: %d, instr: %s , %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], RegName[rD], reversedBytes)
+	logger.Debugf("[%d]: pc: %d, %s , %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rD], formatInt(reversedBytes))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1172,10 +1182,10 @@ func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	offset := 1
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX), uint64(uint8(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX), formatInt(uint64(uint8(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+0x%x = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
 			RegName[rB], uint32(vX), uint32(reg[rB]+vX))
 	}
 	return exitReason, pc, reg, mem
@@ -1192,11 +1202,11 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	offset := 2
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint16(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX), uint64(uint16(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s, mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(reg[rB]+vX)), formatInt(int64(uint16(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s, page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX))
+		logger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(reg[rB]+vX)))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -1212,11 +1222,11 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	offset := 4
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(uint32(reg[rA])))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s , mem[ %s+0x%x = 0x%x ] = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX), uint64(uint32(reg[rA])))
+		logger.Debugf("[%d]: pc: %d, %s , mem[ %s+%s = 0x%x ] = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX), formatInt(uint64(uint32(reg[rA]))))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s , page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX))
+		logger.Debugf("[%d]: pc: %d, %s , page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX))
 	}
 	return exitReason, pc, reg, mem
 }
@@ -1232,11 +1242,11 @@ func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	offset := 8
 	exitReason := storeIntoMemory(mem, offset, uint32(reg[rB]+vX), uint64(reg[rA]))
 	if exitReason.(*PVMExitReason).Reason == CONTINUE {
-		logger.Debugf("pc: %d, instr: %s , mem[ %s+0x%x = 0x%x...+%d ] = %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX), offset, RegName[rA], uint64(reg[rA]))
+		logger.Debugf("[%d]: pc: %d, %s , mem[ %s+%s = 0x%x...+%d ] = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX), offset, RegName[rA], formatInt(uint64(reg[rA])))
 	} else { // page fault error
-		logger.Debugf("pc: %d, instr: %s , page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rB], uint32(vX), uint32(reg[rB]+vX))
+		logger.Debugf("[%d]: pc: %d, %s , page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rB], formatInt(uint32(vX)), uint32(reg[rB]+vX))
 	}
 
 	return exitReason, pc, reg, mem
@@ -1255,15 +1265,16 @@ func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength Program
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-				RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+				RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndU8 loadFromMemory error: %v", err)
 		}
 		return exitReason, pc, reg, mem
 	}
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA],
+		RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1280,7 +1291,7 @@ func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength Program
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndI8 loadFromMemory error: %v", err)
 		}
@@ -1288,7 +1299,7 @@ func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength Program
 	}
 
 	reg[rA] = uint64(int8(memVal))
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1305,7 +1316,7 @@ func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndU16 loadFromMemory error: %v", err)
 		}
@@ -1313,7 +1324,7 @@ func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1330,7 +1341,7 @@ func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndI16 loadFromMemory error: %v", err)
 		}
@@ -1338,7 +1349,7 @@ func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = uint64(int16(memVal))
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1355,7 +1366,7 @@ func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])], RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndU32 loadFromMemory error: %v", err)
 		}
@@ -1363,7 +1374,7 @@ func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1380,8 +1391,8 @@ func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-				RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+				RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndI32 loadFromMemory error: %v", err)
 		}
@@ -1389,8 +1400,8 @@ func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = uint64(int32(memVal))
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1407,8 +1418,8 @@ func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
-			logger.Debugf("pc: %d, instr: %s page fault error at mem[ %s+0x%x = 0x%x ]", pc, zeta[opcode(instructionCode[pc])],
-				RegName[rB], vX, uint32(reg[rB]+vX))
+			logger.Debugf("[%d]: pc: %d, %s page fault error at mem[ %s+%s = 0x%x ]", instrCount, pc, zeta[opcode(instructionCode[pc])],
+				RegName[rB], formatInt(vX), uint32(reg[rB]+vX))
 		} else {
 			logger.Errorf("instLoadIndU64 loadFromMemory error: %v", err)
 		}
@@ -1416,8 +1427,8 @@ func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = memVal
-	logger.Debugf("pc: %d, instr: %s, %s = mem[ %s+0x%x = 0x%x ] = 0x%x ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, uint32(reg[rB]+vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1434,8 +1445,8 @@ func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 		logger.Errorf("instAddImm32 SignExtend error: %v", err)
 	}
 	reg[rA] = val
-	logger.Debugf("pc: %d, instr: %s, %s = (%s + 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1448,8 +1459,8 @@ func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	reg[rA] = reg[rB] & vX
-	logger.Debugf("pc: %d, instr: %s, %s = (%s & 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s & %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1462,8 +1473,8 @@ func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	reg[rA] = reg[rB] ^ vX
-	logger.Debugf("pc: %d, instr: %s, %s = (%s ^ 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = %s", pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1476,7 +1487,7 @@ func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	reg[rA] = reg[rB] | vX
-	logger.Debugf("pc: %d, instr: %s, %s = (%s | 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s | %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
 		RegName[rA], RegName[rB], vX, reg[rA])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -1495,8 +1506,8 @@ func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 		return err, pc, reg, mem
 	}
 	reg[rA] = val
-	logger.Debugf("pc: %d, instr: %s, %s = (%s • 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1513,8 +1524,8 @@ func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	} else {
 		reg[rA] = 0
 	}
-	logger.Debugf("pc: %d, instr: %s, %s = (%s < 0x%x) = 0x%x ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1531,8 +1542,8 @@ func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	} else {
 		reg[rA] = 0
 	}
-	logger.Debugf("pc: %d, instr: %s, %s = (%s < 0x%x) = (0x%x < 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], int(reg[rB]), int64(vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(int(reg[rB])), formatInt(int64(vX)), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1551,8 +1562,8 @@ func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (%s • 2^0x%x) = (0x%x • 2^(0x%x)) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1571,8 +1582,8 @@ func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return PVMExitTuple(PANIC, nil), pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = %s / 2^0x%x = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1586,8 +1597,8 @@ func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 
 	vX = vX & 31 // % 32
 	reg[rA] = uint64(int32(reg[rB]) >> vX)
-	logger.Debugf("pc: %d, instr: %s, %s = (%s / 2^(0x%x) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = 0x%x", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1605,8 +1616,8 @@ func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 		return err, pc, reg, mem
 	}
 	reg[rA] = uint64(imm)
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x + 2^32 - %s) = (0x%x + 2^32 - 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (0x%x + (1<<32) - %s) = (0x%x + (1<<32) - %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], vX, RegName[rB], vX, formatInt(reg[rB]), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1623,8 +1634,8 @@ func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	} else {
 		reg[rA] = 0
 	}
-	logger.Debugf("pc: %d, instr: %s, %s = (%s > 0x%x) = (0x%x > 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s > %s) = (%s > %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1641,8 +1652,8 @@ func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	} else {
 		reg[rA] = 0
 	}
-	logger.Debugf("pc: %d, instr: %s, %s = (%s > 0x%x) = (0x%x > 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], int64(vX), reg[rB], int64(vX), reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s > %s) = (0x%x > %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(int64(vX)), formatInt(reg[rB]), formatInt(int64(vX)), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1660,8 +1671,8 @@ func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x • 2^(%s) = (0x%x • 2^(0x%x)) = 0x%x) ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s) ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1679,8 +1690,8 @@ func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x / 2^(%s)) = (0x%x / 2^(0x%x)) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB]&31, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(reg[rB]&31), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1694,8 +1705,8 @@ func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 
 	imm := uint64(int32(uint32(vX)) >> (reg[rB] & 31))
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x / 2^(%s) = (0x%x / 2^(0x%x)) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], uint32(vX), RegName[rB], uint32(vX), reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> 0x%x) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(uint32(vX)), RegName[rB], formatInt(uint32(vX)), reg[rB], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1709,11 +1720,11 @@ func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 	if reg[rB] == 0 {
 		reg[rA] = vX
-		logger.Debugf("pc: %d, instr: %s, %s = 0x%x (%s == 0)", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rA], vX, RegName[rB])
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s (%s == 0)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rA], formatInt(vX), RegName[rB])
 	} else {
-		logger.Debugf("pc: %d, instr: %s, %s = 0x%x (%s != 0)", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rA], reg[rA], RegName[rB])
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s (%s != 0)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rA], formatInt(reg[rA]), RegName[rB])
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
@@ -1729,11 +1740,11 @@ func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 
 	if reg[rB] != 0 {
 		reg[rA] = vX
-		logger.Debugf("pc: %d, instr: %s, %s = 0x%x (%s != 0)", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rA], vX, RegName[rB])
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s (%s != 0)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rA], formatInt(vX), RegName[rB])
 	} else {
-		logger.Debugf("pc: %d, instr: %s, %s = 0x%x (%s == 0)", pc, zeta[opcode(instructionCode[pc])],
-			RegName[rA], vX, RegName[rB])
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s (%s == 0)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rA], formatInt(vX), RegName[rB])
 	}
 
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
@@ -1748,8 +1759,8 @@ func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 	}
 
 	reg[rA] = reg[rB] + vX
-	logger.Debugf("pc: %d, instr: %s, %s = (%s + 0x%x)  = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s)  = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1762,8 +1773,8 @@ func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 	}
 
 	reg[rA] = reg[rB] * vX
-	logger.Debugf("pc: %d, instr: %s, %s = (%s • 0x%x) = (0x%x • 0x%x) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rB], vX, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1781,8 +1792,8 @@ func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (%s • 2^(0x%x) = (0x%x • 2^(0x%x)) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX&63, reg[rB], vX&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(reg[rB]), formatInt(vX&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1800,8 +1811,8 @@ func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		return err, pc, reg, mem
 	}
 	reg[rA] = imm
-	logger.Debugf("pc: %d, instr: %s, %s = (%s / 2^(0x%x) = (0x%x / 2^(0x%x)) = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX&63, reg[rB], vX&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(reg[rB]), formatInt(vX&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1814,8 +1825,8 @@ func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = uint64(int64(reg[rB]) >> (vX & 63))
-	logger.Debugf("pc: %d, instr: %s, %s = (%s / 2^(0x%x) = (0x%x / 2^(0x%x)) = 0x%x ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX&63, reg[rB], vX&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(reg[rB]), formatInt(vX&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1828,8 +1839,8 @@ func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	}
 
 	reg[rA] = vX - reg[rB]
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x + 2^64 - %s) = (0x%x + 2^64 - 0x%x) = 0x%x ", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + (1<<64) - %s) = (%s + (1<<64) - %s) = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(reg[rB]), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1842,8 +1853,8 @@ func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 	}
 
 	reg[rA] = vX << (reg[rB] & 63)
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x • 2^(%s) = (0x%x • 2^(0x%x)) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB]&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(reg[rB]&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1856,8 +1867,8 @@ func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 	}
 
 	reg[rA] = vX >> (reg[rB] & 63)
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x / 2^(%s) = (0x%x / 2^(0x%x)) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB]&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(reg[rB]&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1870,8 +1881,8 @@ func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 	}
 
 	reg[rA] = uint64(int64(vX) >> (reg[rB] & 63))
-	logger.Debugf("pc: %d, instr: %s, %s = (0x%x / 2^(%s) = (0x%x / 2^(0x%x)) = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], vX, RegName[rB], vX, reg[rB]&63, reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(int64(vX)), RegName[rB], formatInt(int64(vX)), formatInt(reg[rB]&63), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1886,8 +1897,8 @@ func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	// rotate right
 	reg[rA] = bits.RotateLeft64(reg[rB], -int(vX&63))
 	// reg[rA] = (reg[rB] >> vX) | (reg[rB] << (64 - vX))
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1902,8 +1913,8 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 	// rotate right
 	reg[rB] &= 63 // % 64
 	reg[rA] = bits.RotateLeft64(vX, -int(reg[rB]&63))
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1924,8 +1935,8 @@ func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 		return PVMExitTuple(PANIC, nil), pc, reg, mem
 	}
 	reg[rA] = val
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1946,8 +1957,8 @@ func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 		return PVMExitTuple(PANIC, nil), pc, reg, mem
 	}
 	reg[rA] = val
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -1959,42 +1970,42 @@ func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 	var logMsg string
 	branchCondition := false
-
+	// logMsg = fmt.Sprintf("branch(%d, (%s=%s != %s) = %t)", vY, RegName[rA], formatInt(reg[rA]), formatInt(vX), branchCondition)
 	switch instructionCode[pc] {
 	case 170:
 		branchCondition = reg[rA] == reg[rB]
-		logMsg = fmt.Sprintf("branch(%d, (%s == %s)) = branch(%d, (%s = 0x%x == %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], reg[rA], RegName[rB], reg[rB], branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s == %s=%s) = %t)",
+			vX, RegName[rA], formatInt(reg[rA]), RegName[rB], formatInt(reg[rB]), branchCondition)
 	case 171:
 		branchCondition = reg[rA] != reg[rB]
-		logMsg = fmt.Sprintf("branch(%d, (%s != %s)) = branch(%d, (%s = 0x%x != %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], reg[rA], RegName[rB], reg[rB], branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s != %s=%s) = %t)",
+			vX, RegName[rA], formatInt(reg[rA]), RegName[rB], formatInt(reg[rB]), branchCondition)
 	case 172:
 		branchCondition = reg[rA] < reg[rB]
-		logMsg = fmt.Sprintf("branch(%d, (%s < %s)) = branch(%d, (%s = 0x%x < %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], reg[rA], RegName[rB], reg[rB], branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s < %s=%s) = %t)",
+			vX, RegName[rA], formatInt(reg[rA]), RegName[rB], formatInt(reg[rB]), branchCondition)
 	case 173:
 		branchCondition = int64(reg[rA]) < int64(reg[rB])
-		logMsg = fmt.Sprintf("branch(%d, (%s < %s)) = branch(%d, (%s = 0x%x < %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], int64(reg[rA]), RegName[rB], int64(reg[rB]), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s < %s=%s) = %t)",
+			vX, RegName[rA], formatInt(int64(reg[rA])), RegName[rB], formatInt(int64(reg[rB])), branchCondition)
 	case 174:
 		branchCondition = reg[rA] >= reg[rB]
-		logMsg = fmt.Sprintf("branch(%d, (%s >= %s)) = branch(%d, (%s = 0x%x >= %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], reg[rA], RegName[rB], reg[rB], branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s=%s >= %s=%s) = %t)",
+			vX, RegName[rA], formatInt(reg[rA]), RegName[rB], formatInt(reg[rB]), branchCondition)
 	case 175:
 		branchCondition = int64(reg[rA]) >= int64(reg[rB])
-		logMsg = fmt.Sprintf("branch(%d, (%s >= %s)) = branch(%d, (%s = 0x%x == %s = 0x%x)) = %t)",
-			vX, RegName[rA], RegName[rB], vX, RegName[rA], int64(reg[rA]), RegName[rB], int64(reg[rB]), branchCondition)
+		logMsg = fmt.Sprintf("branch(%d, (%s= 0x%x >= %s=%s) = %t)",
+			vX, RegName[rA], formatInt(int64(reg[rA])), RegName[rB], formatInt(int64(reg[rB])), branchCondition)
 	default:
 		logger.Fatalf("instBranch is supposed to be called with opcode in [170, 175]")
 	}
 
 	reason, newPC := branch(pc, vX, branchCondition, bitmask, instructionCode)
 	if reason != CONTINUE {
-		logger.Errorf("pc: %d, instr: %s panic", pc, zeta[opcode(instructionCode[pc])])
+		logger.Errorf("[%d]: pc: %d, %s panic", instrCount, pc, zeta[opcode(instructionCode[pc])])
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	}
-	logger.Debugf("pc: %d, instr: %s, %s", pc, zeta[opcode(instructionCode[pc])], logMsg)
+	logger.Debugf("[%d]: pc: %d, %s, %s", instrCount, pc, zeta[opcode(instructionCode[pc])], logMsg)
 	return PVMExitTuple(reason, nil), newPC, reg, mem
 }
 
@@ -2012,11 +2023,11 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 
 	reg[rA] = vX
 	if reason != CONTINUE {
-		logger.Debugf("pc: %d, instr: %s, %v", pc, zeta[opcode(instructionCode[pc])], reason)
+		logger.Debugf("[%d]: pc: %d, %s, %v", instrCount, pc, zeta[opcode(instructionCode[pc])], reason)
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	}
-	logger.Debugf("pc: %d, instr: %s, ((%s + 0x%x) mod 2^32) = (0x%x + 0x%x) mod 2^32 = 0x%x)", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rB], vY, reg[rB], vY, dest)
+	logger.Debugf("[%d]: pc: %d, %s, (%s + %s) = (%s + %s) mod (1<<32) = %s)", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rB], formatInt(vY), formatInt(reg[rB]), formatInt(vY), formatInt(dest))
 	return PVMExitTuple(reason, nil), newPC, reg, mem
 }
 
@@ -2034,8 +2045,8 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = (%s + %s) mod 2^32 = (0x%x + 0x%x) mod 2^32 = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], RegName[rA], RegName[rB], reg[rA], reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = u32(%s + %s)  = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2047,15 +2058,16 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, reg, mem
 	}
 	// mutation
-	bMod32 := uint32(reg[rB])
-	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
+	// bMod32 := uint32(reg[rB])
+	// reg[rD], err = SignExtend(4, uint64(uint32(reg[rA]+^uint64(bMod32)+1)))
+	reg[rD], err = SignExtend(4, uint64(uint32(reg[rA])-uint32(reg[rB])))
 	if err != nil {
 		logger.Errorf("instSub32 signExtend error: %v", err)
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = (%s + 2^32 - (%s mod 2^32)) mod 2^32 = (0x%x + 2^32 - 0x%x mod 2^32) mod 2^32 = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], RegName[rA], RegName[rB], reg[rA], reg[rB], reg[rA])
+	logger.Debugf("[%d]: pc: %d, %s, %s = u32(%s) - u32(%s) = u32(%s) - u32(%s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(uint32(reg[rA])), formatInt(uint32(reg[rB])), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2073,8 +2085,8 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x , %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2091,16 +2103,18 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 
 	if bMod32 == 0 {
 		reg[rD] = ^uint64(0) // 2^64 - 1
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], formatInt(reg[rD]))
 	} else {
 		reg[rD], err = SignExtend(4, uint64(aMod32/bMod32))
 		if err != nil {
 			logger.Errorf("instDivU32 signExtend error: %v", err)
 			return err, pc, reg, mem
 		}
+		logger.Debugf("[%d]: pc: %d, %s, %s = (%s / %s) = (%s / %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2122,8 +2136,8 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64(a / b)
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = 0x%x", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2147,8 +2161,8 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2169,8 +2183,8 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64((smod(a, b)))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2188,8 +2202,8 @@ func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2209,8 +2223,8 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		return err, pc, reg, mem
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2227,8 +2241,8 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	shift := reg[rB] % 32
 	reg[rD] = uint64(signedA >> shift)
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(signedA), formatInt(shift), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2242,8 +2256,8 @@ func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] + reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = (%s + %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2257,8 +2271,8 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] + (^reg[rB] + 1)
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s - %s) = (%s - %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2272,8 +2286,8 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] * reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2291,8 +2305,8 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = reg[rA] / reg[rB]
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2312,8 +2326,8 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64((int64(reg[rA]) / int64(reg[rB])))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2331,8 +2345,8 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = reg[rA] % reg[rB]
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2350,8 +2364,8 @@ func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = uint64(smod(int64(reg[rA]), int64(reg[rB])))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2365,8 +2379,8 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = reg[rA] << (reg[rB] % 64)
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = %s", pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rA]), formatInt(reg[rB]%64), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2380,8 +2394,8 @@ func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = reg[rA] >> (reg[rB] % 64)
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rA]), formatInt(reg[rB]%64), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2395,8 +2409,8 @@ func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = uint64(int64(reg[rA]) >> (reg[rB] % 64))
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(int64(reg[rA])), formatInt(reg[rB]%64), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2410,8 +2424,8 @@ func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = reg[rA] & reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s & %s) = (%s & %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2425,8 +2439,8 @@ func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = reg[rA] ^ reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = (%s ^ %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2440,8 +2454,8 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 	// mutation
 	reg[rD] = reg[rA] | reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s | %s) = (%s | %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2464,8 +2478,8 @@ func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		reg[rD] = uint64(-int64(hi))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2480,8 +2494,8 @@ func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	hi, _ := bits.Mul64(reg[rA], reg[rB])
 	reg[rD] = hi
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2507,8 +2521,8 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 		reg[rD] = hi
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2526,8 +2540,8 @@ func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = 0
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %t", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2545,8 +2559,8 @@ func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = 0
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], RegName[rA], RegName[rB], formatInt(int64(reg[rA])), formatInt(int64(reg[rB])), formatInt(int64(reg[rD])))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2560,10 +2574,13 @@ func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	// mutation
 	if reg[rB] == 0 {
 		reg[rD] = reg[rA]
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], RegName[rA], formatInt(reg[rD]))
+	} else {
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], formatInt(reg[rD]))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2577,10 +2594,13 @@ func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	// mutation
 	if reg[rB] != 0 {
 		reg[rD] = reg[rA]
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], RegName[rA], formatInt(reg[rD]))
+	} else {
+		logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+			RegName[rD], formatInt(reg[rD]))
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2594,8 +2614,8 @@ func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	// mutation
 	reg[rD] = bits.RotateLeft64(reg[rA], int(reg[rB]%64))
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2615,8 +2635,8 @@ func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 	reg[rD] = extend
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2630,8 +2650,8 @@ func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	// mutation
 	reg[rD] = bits.RotateLeft64(reg[rA], -int(reg[rB]%64))
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2651,8 +2671,8 @@ func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 	reg[rD] = extend
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2666,8 +2686,8 @@ func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	// mutation
 	reg[rD] = reg[rA] & ^reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2681,8 +2701,8 @@ func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 	// mutation
 	reg[rD] = reg[rA] | ^reg[rB]
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2696,8 +2716,8 @@ func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 	// mutation
 	reg[rD] = ^(reg[rA] ^ reg[rB])
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2712,8 +2732,8 @@ func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = uint64(max(int64(reg[rA]), int64(reg[rB])))
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2732,8 +2752,8 @@ func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 		reg[rD] = reg[rB]
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2748,8 +2768,8 @@ func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	reg[rD] = uint64(min(int64(reg[rA]), int64(reg[rB])))
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
@@ -2768,7 +2788,7 @@ func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 		reg[rD] = reg[rB]
 	}
 
-	logger.Debugf("pc: %d, instr: %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
-		RegName[rD], reg[rD], RegName[rA], reg[rA], RegName[rB], reg[rB])
+	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
