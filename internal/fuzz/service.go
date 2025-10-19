@@ -53,10 +53,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	serializedState, _ := m.StateEncoder(latestState)
 	storageKeyVal := storeInstance.GetStorageKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
-	latestStateRoot := m.MerklizationSerializedState(serializedState)
+	preStateRoot := m.MerklizationSerializedState(serializedState)
 
-	if latestStateRoot != block.Header.ParentStateRoot {
-		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", block.Header.ParentStateRoot, latestStateRoot)
+	if preStateRoot != block.Header.ParentStateRoot {
+		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", block.Header.ParentStateRoot, preStateRoot)
 	}
 
 	// Reset State
@@ -66,13 +66,13 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Run the STF and get the state root
 	err := stf.RunSTF()
 	if err != nil {
-		return types.StateRoot{}, err
+		return types.StateRoot{preStateRoot}, err
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
 	serializedState, _ = m.StateEncoder(latestState)
 	serializedState = append(storageKeyVal, serializedState...)
-	latestStateRoot = m.MerklizationSerializedState(serializedState)
+	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
 	return latestStateRoot, nil
 }
