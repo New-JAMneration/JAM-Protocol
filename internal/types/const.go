@@ -43,13 +43,13 @@ func SetTinyMode() {
 func SetFullMode() {
 	log.Println("⚙️  Full mode activated")
 	TEST_MODE = "full"
-	ValidatorsCount = 1023
-	CoresCount = 341
-	EpochLength = 600
-	SlotSubmissionEnd = 500
-	RotationPeriod = 4
-	MaxTicketsPerBlock = 16
-	TicketsPerValidator = 2
+	ValidatorsCount = 1023  // V
+	CoresCount = 341        // C
+	EpochLength = 600       // E
+	SlotSubmissionEnd = 500 // Y
+	RotationPeriod = 4      // R
+	MaxTicketsPerBlock = 16 // K
+	TicketsPerValidator = 2 // N
 	ValidatorsSuperMajority = 683
 	AvailBitfieldBytes = 43
 }
@@ -120,18 +120,20 @@ const (
 
 // work package constants
 const (
-	MaxTotalSize       = 12 * 1024 * 1024                 // W_B = 12 MB (14.6)
-	MaxRefineGas       = 5_000_000_000                    // G_R v0.6.4
-	MaxAccumulateGas   = 10_000_000                       // G_A v0.6.4
-	IsAuthorizedGas    = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package's Is-Authorized logic.
-	TotalGas           = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
-	MaxImportCount     = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
-	MaxExportCount     = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
-	ECPiecesPerSegment = 6                                // W_P: The number of erasure-coded pieces in a segment
-	ECBasicSize        = 684                              // W_E: The basic size of erasure-coded pieces in octets
-	SegmentSize        = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
-	MaxExtrinsics      = 128                              // T (14.4). graypaper 0.6.3
-	MaxServiceCodeSize = 4_000_000                        // W_C v0.6.4
+	MaxTotalSize            = 13_794_305                       // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
+	MaxRefineGas            = 5_000_000_000                    // G_R v0.6.4
+	MaxAccumulateGas        = 10_000_000                       // G_A v0.6.4
+	IsAuthorizedGas         = 50_000_000                       // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
+	TotalGas                = 3_500_000_000                    // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
+	MaxImportCount          = 3072                             // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
+	MaxExportCount          = 3072                             // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
+	ECPiecesPerSegment      = 6                                // W_P: The number of erasure-coded pieces in a segment
+	ECBasicSize             = 684                              // W_E: The basic size of erasure-coded pieces in octets
+	SegmentSize             = ECPiecesPerSegment * ECBasicSize // W_G = 4104: The size of a segment in octets
+	MaxExtrinsics           = 128                              // T (14.4). graypaper 0.6.3
+	MaxServiceCodeSize      = 4_000_000                        // W_C v0.6.4
+	MaxIsAuthorizedCodeSize = 64_000                           // W_A v0.6.6 The maximum size of is-authorized code in octets
+	AccumulateQueueSize     = 1024                             // S v0.6.6 The maxixum number of entries in the accumulation queue
 )
 
 // erasure coding constants

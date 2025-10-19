@@ -1,0 +1,394 @@
+package ce
+
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
+	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
+)
+
+func HandleSegmentShardRequestWithJustification_Assurer(
+	blockchain blockchain.Blockchain,
+	stream *quic.Stream,
+) error {
+	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
+	buf := make([]byte, 32+4+2)
+	if err := stream.ReadFull(buf); err != nil {
+		return err
+	}
+	erasureRoot := buf[:32]
+	shardIndex := binary.LittleEndian.Uint32(buf[32:36])
+	segmentIndicesLen := binary.LittleEndian.Uint16(buf[36:38])
+
+	// Validate segment indices length (should not exceed 2W_M = 6144)
+	if segmentIndicesLen > 6144 {
+		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
+	}
+
+	segmentIndices := make([]uint16, segmentIndicesLen)
+	if segmentIndicesLen > 0 {
+		indicesBuf := make([]byte, segmentIndicesLen*2)
+		if err := stream.ReadFull(indicesBuf); err != nil {
+			return err
+		}
+		for i := uint16(0); i < segmentIndicesLen; i++ {
+			segmentIndices[i] = binary.LittleEndian.Uint16(indicesBuf[i*2 : (i+1)*2])
+		}
+	}
+
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return err
+	} else if string(finBuf) != "FIN" {
+		return errors.New("request does not end with FIN")
+	}
+
+	bundle, err := lookupWorkPackageBundle(erasureRoot)
+	if err != nil {
+		return fmt.Errorf("failed to lookup work package bundle: %w", err)
+	}
+
+	segmentShards, err := extractSegmentShards(bundle, shardIndex, segmentIndices)
+	if err != nil {
+		return fmt.Errorf("failed to extract segment shards: %w", err)
+	}
+
+	if err := stream.WriteMessage(segmentShards); err != nil {
+		return err
+	}
+
+	for _, segmentIndex := range segmentIndices {
+		justification, err := construct140Justification(bundle, erasureRoot, shardIndex, segmentIndex)
+		if err != nil {
+			return fmt.Errorf("failed to construct justification for segment %d: %w", segmentIndex, err)
+		}
+		if err := stream.WriteMessage(justification); err != nil {
+			return err
+		}
+	}
+
+	if err := stream.WriteMessage([]byte("FIN")); err != nil {
+		return err
+	}
+
+	return stream.Close()
+}
+
+func HandleSegmentShardRequestWithJustification_Guarantor(
+	stream *quic.Stream,
+	erasureRoot []byte,
+	shardIndex uint32,
+	segmentIndices []uint16,
+) error {
+	if len(erasureRoot) != 32 {
+		return fmt.Errorf("erasure root must be 32 bytes, got %d", len(erasureRoot))
+	}
+
+	// --- Build request ---
+	reqLen := 32 + 4 + 2 + len(segmentIndices)*2 + 3
+	req := make([]byte, 0, reqLen)
+	req = append(req, erasureRoot...)
+	req = append(req, encodeLE32(shardIndex)...)
+	req = append(req, encodeLE16(uint16(len(segmentIndices)))...)
+	for _, idx := range segmentIndices {
+		req = append(req, encodeLE16(idx)...)
+	}
+	req = append(req, []byte("FIN")...)
+
+	if err := stream.WriteMessage(req); err != nil {
+		return fmt.Errorf("failed to send CE140 request: %w", err)
+	}
+
+	for _, idx := range segmentIndices {
+		msg, err := stream.ReadMessage()
+		if err != nil {
+			return fmt.Errorf("failed to read justification %d/%d: %w", idx, len(segmentIndices), err)
+		}
+
+		buf := bytes.NewReader(msg)
+
+		var leafLen uint16
+		if err := binary.Read(buf, binary.LittleEndian, &leafLen); err != nil {
+			return fmt.Errorf("invalid justification: read leafLen: %w", err)
+		}
+		leaf := make([]byte, leafLen)
+		if _, err := io.ReadFull(buf, leaf); err != nil {
+			return fmt.Errorf("invalid justification: read leaf: %w", err)
+		}
+
+		var proofCount uint16
+		if err := binary.Read(buf, binary.LittleEndian, &proofCount); err != nil {
+			return fmt.Errorf("invalid justification: read proofCount: %w", err)
+		}
+
+		proof := make([]types.OpaqueHash, proofCount)
+		for j := 0; j < int(proofCount); j++ {
+			if _, err := io.ReadFull(buf, proof[j][:]); err != nil {
+				return fmt.Errorf("invalid justification: read proof %d: %w", j, err)
+			}
+		}
+
+		var index uint32
+		if err := binary.Read(buf, binary.LittleEndian, &index); err != nil {
+			return fmt.Errorf("invalid justification: read index: %w", err)
+		}
+
+		root := types.OpaqueHash{}
+		copy(root[:], erasureRoot)
+
+		ok := merkle_tree.VerifyMerkleProof(leaf, proof, int(index), hash.Blake2bHash, root)
+
+		if !ok {
+			return fmt.Errorf("invalid Merkle justification for segment %d (index=%d)", idx, index)
+		}
+	}
+
+	// --- Expect final FIN ---
+	finBuf := make([]byte, 3)
+	if err := stream.ReadFull(finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN message: %w", err)
+	} else if string(finBuf) != "FIN" {
+		return fmt.Errorf("expected FIN message, got %q", string(finBuf))
+	}
+
+	return stream.Close()
+}
+
+// construct140Justification constructs the justification for a segment shard using the formula:
+// j ^ [b] ^ T(s, i, H)
+func construct140Justification(bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
+	// Get the CE137 justification (j) - this would come from the assurer's CE137 response
+	ce137Justification, err := getCE137Justification(erasureRoot, shardIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CE137 justification: %w", err)
+	}
+
+	// Get the bundle shard hash (b)
+	bundleShardHash, err := getBundleShardHash(bundle, shardIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bundle shard hash: %w", err)
+	}
+
+	// Get the segment shard sequence (s) for the given shard index
+	segmentShardSequence, err := getSegmentShardSequence(bundle, shardIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get segment shard sequence: %w", err)
+	}
+
+	// Construct T(s, i, H) - the Merkle tree co-path for the segment
+	merkleCoPath, err := constructMerkleCoPath(segmentShardSequence, segmentIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct Merkle co-path: %w", err)
+	}
+
+	// Combine the justifications: j ^ [b] ^ T(s, i, H)
+	combinedJustification := combineJustifications(ce137Justification, bundleShardHash, merkleCoPath)
+
+	return combinedJustification, nil
+}
+
+// getCE137Justification retrieves the CE137 justification for the given erasure root and shard index.
+func getCE137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	// TODO: Implement actual CE137 justification lookup
+	// 1. Look up the CE137 justification from the assurer's local storage
+	// 2. The justification would have been received when the assurer requested their shard via CE137
+	// 3. Return the stored justification or an error if not found
+
+	// For now, create a mock justification that simulates a real CE137 response
+	// TODO:  the justification received from the guarantor via CE137
+	mockJustification := make([]byte, 33) // 1 byte discriminator + 32 bytes hash
+	mockJustification[0] = 0x00           // Type 0: single hash
+
+	// Create a deterministic hash based on erasure root and shard index
+	// TODO: actual hash from the CE137 response
+	hashInput := append(erasureRoot, byte(shardIndex), byte(shardIndex>>8), byte(shardIndex>>16), byte(shardIndex>>24))
+	mockHash := hash.Blake2bHash(types.ByteSequence(hashInput))
+	copy(mockJustification[1:], mockHash[:])
+
+	return mockJustification, nil
+}
+
+// getBundleShardHash computes the hash of the bundle shard at the given index.
+func getBundleShardHash(bundle *types.WorkPackageBundle, shardIndex uint32) ([]byte, error) {
+	// Encode the bundle to get the raw bytes
+	encoder := types.NewEncoder()
+	bundleBytes, err := encoder.Encode(bundle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode bundle: %w", err)
+	}
+
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundleBytes)+683)/684)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+
+	shards, err := ec.Encode(bundleBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode bundle into shards: %w", err)
+	}
+
+	if int(shardIndex) >= len(shards) {
+		return nil, fmt.Errorf("shard index %d out of range (max: %d)", shardIndex, len(shards)-1)
+	}
+	requestedShard := shards[shardIndex]
+
+	shardHash := hash.Blake2bHash(types.ByteSequence(requestedShard))
+	return shardHash[:], nil
+}
+
+// getSegmentShardSequence gets the full sequence of segment shards for the given shard index.
+func getSegmentShardSequence(bundle *types.WorkPackageBundle, shardIndex uint32) ([][]byte, error) {
+	encoder := types.NewEncoder()
+	bundleBytes, err := encoder.Encode(bundle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode bundle: %w", err)
+	}
+
+	ec, err := erasurecoding.NewErasureCoding(types.DataShards, types.TotalShards, (len(bundleBytes)+683)/684)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create erasure coding: %w", err)
+	}
+
+	shards, err := ec.Encode(bundleBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode bundle into shards: %w", err)
+	}
+
+	if int(shardIndex) >= len(shards) {
+		return nil, fmt.Errorf("shard index %d out of range (max: %d)", shardIndex, len(shards)-1)
+	}
+	requestedShard := shards[shardIndex]
+
+	segmentSize := 32
+	var segments [][]byte
+	for i := 0; i < len(requestedShard); i += segmentSize {
+		end := i + segmentSize
+		if end > len(requestedShard) {
+			end = len(requestedShard)
+		}
+		segments = append(segments, requestedShard[i:end])
+	}
+
+	return segments, nil
+}
+
+// constructMerkleCoPath constructs the Merkle tree co-path for the given segment index.
+func constructMerkleCoPath(segmentShardSequence [][]byte, segmentIndex uint16) ([]byte, error) {
+	if int(segmentIndex) >= len(segmentShardSequence) {
+		return nil, fmt.Errorf("segment index %d out of range (max: %d)", segmentIndex, len(segmentShardSequence)-1)
+	}
+
+	var byteSequences []types.ByteSequence
+	for _, segment := range segmentShardSequence {
+		byteSequences = append(byteSequences, types.ByteSequence(segment))
+	}
+
+	// Use the T function from merkle_tree package to get the co-path
+	// T(s, i, H) where s is the segment sequence, i is the segment index, H is Blake2b
+	coPath := merkle_tree.T(byteSequences, types.U32(segmentIndex), hash.Blake2bHash)
+
+	// The co-path should be encoded as a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash OR 2 ++ Segment Shard]
+	var result []byte
+
+	for _, item := range coPath {
+		if len(item.ByteSequence) > 0 {
+			// This is a segment shard (type 2)
+			result = append(result, 0x02)
+			result = append(result, item.ByteSequence...)
+		} else {
+			// This is a hash (type 0)
+			result = append(result, 0x00) // discriminator for hash
+			result = append(result, item.Hash[:]...)
+		}
+	}
+
+	return result, nil
+}
+
+// combineJustifications combines multiple justifications using XOR operation.
+// The formula is: j ^ [b] ^ T(s, i, H)
+func combineJustifications(ce137Justification, bundleShardHash, merkleCoPath []byte) []byte {
+	// Find the maximum length among all justifications
+	maxLen := len(ce137Justification)
+	if len(bundleShardHash) > maxLen {
+		maxLen = len(bundleShardHash)
+	}
+	if len(merkleCoPath) > maxLen {
+		maxLen = len(merkleCoPath)
+	}
+
+	paddedCE137 := make([]byte, maxLen)
+	copy(paddedCE137, ce137Justification)
+
+	paddedBundleHash := make([]byte, maxLen)
+	copy(paddedBundleHash, bundleShardHash)
+
+	paddedMerkleCoPath := make([]byte, maxLen)
+	copy(paddedMerkleCoPath, merkleCoPath)
+
+	combined := make([]byte, maxLen)
+	for i := 0; i < maxLen; i++ {
+		combined[i] = paddedCE137[i] ^ paddedBundleHash[i] ^ paddedMerkleCoPath[i]
+	}
+
+	return combined
+}
+
+type CE140Payload struct {
+	ErasureRoot    []byte
+	ShardIndex     uint32
+	SegmentIndices []uint16
+}
+
+func (h *DefaultCERequestHandler) encodeSegmentShardRequestWithJustification(message interface{}) ([]byte, error) {
+	segmentReq, ok := message.(*CE140Payload)
+	if !ok {
+		return nil, fmt.Errorf("unsupported message type for SegmentShardRequestWithJustification: %T", message)
+	}
+
+	encoder := types.NewEncoder()
+
+	// Encode ErasureRoot (32 bytes)
+	if len(segmentReq.ErasureRoot) != 32 {
+		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	}
+	if err := h.writeBytes(encoder, segmentReq.ErasureRoot); err != nil {
+		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
+	}
+
+	// Encode ShardIndex (4 bytes little-endian)
+	if err := h.writeBytes(encoder, encodeLE32(segmentReq.ShardIndex)); err != nil {
+		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
+	}
+
+	// Encode Segment Indices Length (2 bytes little-endian)
+	segmentIndicesLen := uint16(len(segmentReq.SegmentIndices))
+	if err := h.writeBytes(encoder, encodeLE16(segmentIndicesLen)); err != nil {
+		return nil, fmt.Errorf("failed to encode SegmentIndicesLength: %w", err)
+	}
+
+	// Encode Segment Indices (2 bytes each, little-endian)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		if err := h.writeBytes(encoder, encodeLE16(segmentIndex)); err != nil {
+			return nil, fmt.Errorf("failed to encode SegmentIndex: %w", err)
+		}
+	}
+
+	result := make([]byte, 0, 38+len(segmentReq.SegmentIndices)*2)
+	result = append(result, segmentReq.ErasureRoot...)
+	result = append(result, encodeLE32(segmentReq.ShardIndex)...)
+	result = append(result, encodeLE16(segmentIndicesLen)...)
+	for _, segmentIndex := range segmentReq.SegmentIndices {
+		result = append(result, encodeLE16(segmentIndex)...)
+	}
+
+	return result, nil
+}

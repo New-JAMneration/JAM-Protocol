@@ -77,26 +77,63 @@ func TestGenerateEd25519PrivateKey(t *testing.T) {
 	}
 }
 
-func TestEncodeBase32(t *testing.T) {
+func TestAlternativeName(t *testing.T) {
 	type args struct {
 		data []byte
 	}
+	// test cases are given in https://docs.jamcha.in/basics/dev-accounts
+	// ed25519_public, dns_alt_name
 	tests := []struct {
 		name string
 		args args
 		want string
 	}{
 		{
-			name: "test",
+			name: "alice",
 			args: args{
-				data: []byte("test"),
+				data: strToHex("0x4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace"),
 			},
-			want: "orsxg5a",
+			want: "eecgwpgwq3noky4ijm4jmvjtmuzv44qvigciusxakq5epnrfj2utb",
+		},
+		{
+			name: "bob",
+			args: args{
+				data: strToHex("0xad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933"),
+			},
+			want: "en5ejs5b2tybkfh4ym5vpfh7nynby73xhtfzmazumtvcijpcsz6ma",
+		},
+		{
+			name: "carol",
+			args: args{
+				data: strToHex("0xcab2b9ff25c2410fbe9b8a717abb298c716a03983c98ceb4def2087500b8e341"),
+			},
+			want: "ekwmt37xecoq6a7otkm4ux5gfmm4uwbat4bg5m223shckhaaxdpqa",
+		},
+		{
+			name: "david",
+			args: args{
+				data: strToHex("0xf30aa5444688b3cab47697b37d5cac5707bb3289e986b19b17db437206931a8d"),
+			},
+			want: "etxckkczii4mvm22ox4m3horvx2bwlzerjxbd3n6c36qehdms2idb",
+		},
+		{
+			name: "eve",
+			args: args{
+				data: strToHex("0x8b8c5d436f92ecf605421e873a99ec528761eb52a88a2f9a057b3b3003e6f32a"),
+			},
+			want: "eled3vb5nse3n7cii6ybvtms5s2bdwvlkivc7cnwa33oatby4txka",
+		},
+		{
+			name: "fergie",
+			args: args{
+				data: strToHex("0xab0084d01534b31c1dd87c81645fd762482a90027754041ca1b56133d0466c06"),
+			},
+			want: "elfaiiixcuzmzroa34lajwp52cdsucikaxdviaoeuvnygdi3imtba",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := EncodeBase32(tt.args.data); got != tt.want {
+			if got := AlternativeName(tt.args.data); got != tt.want {
 				t.Errorf("EncodeBase32() = %v, want %v", got, tt.want)
 			}
 		})

@@ -415,6 +415,21 @@ func (s *ServiceId) Decode(d *Decoder) error {
 	return nil
 }
 
+// ServiceIdList
+func (s *ServiceIdList) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceIdList")
+	val := make([]ServiceId, CoresCount)
+	for i := 0; i < CoresCount; i++ {
+		var err error
+		if err = val[i].Decode(d); err != nil {
+			return err
+		}
+	}
+	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	*s = val
+	return nil
+}
+
 // ByteSequence
 func (b *ByteSequence) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ByteSequence")
@@ -2112,7 +2127,7 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = b.Mmr.Decode(d); err != nil {
+	if err = b.MmrPeak.Decode(d); err != nil {
 		return err
 	}
 
@@ -2163,6 +2178,21 @@ func (b *BlocksHistory) Decode(d *Decoder) error {
 	}
 
 	*b = history
+
+	return nil
+}
+
+// Beta
+func (b *Beta) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding Beta")
+
+	if err := b.History.Decode(d); err != nil {
+		return err
+	}
+
+	if err := b.BeefyBelt.Decode(d); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -2238,6 +2268,10 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 
 	var err error
 
+	if err = s.GratisStorageOffset.Decode(d); err != nil {
+		return err
+	}
+
 	if err = s.CodeHash.Decode(d); err != nil {
 		return err
 	}
@@ -2251,6 +2285,18 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	}
 
 	if err = s.MinMemoGas.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.CreateTime.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.RecentAccumulateTime.Decode(d); err != nil {
+		return err
+	}
+
+	if err = s.ParentService.Decode(d); err != nil {
 		return err
 	}
 
@@ -2770,17 +2816,18 @@ func (s *Storage) Decode(d *Decoder) error {
 			return nil
 		}
 
-		var key OpaqueHash
+		var key ByteSequence
 		if err = key.Decode(d); err != nil {
 			return err
 		}
+		str := string(key)
 
 		var val ByteSequence
 		if err = val.Decode(d); err != nil {
 			return err
 		}
 
-		(*s)[key] = val
+		(*s)[str] = val
 	}
 
 	return nil
@@ -3214,6 +3261,56 @@ func (s *StateKeyVals) Decode(d *Decoder) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+// AccumulatedServiceHash
+func (a *AccumulatedServiceHash) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedServiceHash")
+
+	var err error
+
+	if err = a.ServiceId.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AccumulatedServiceOutput
+func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding AccumulatedServiceOutput")
+
+	var err error
+
+	// Decode the length of the map
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	// Initialize the map with the given length
+	*a = make(AccumulatedServiceOutput, length)
+	for i := uint64(0); i < length; i++ {
+		var key AccumulatedServiceHash
+		if err = key.Decode(d); err != nil {
+			return err
+		}
+
+		// Put the key in the map
+		(*a)[key] = true // The value is always true in this context
+	}
+
+	cLog(Yellow, fmt.Sprintf("AccumulatedServiceOutput: %v", *a))
 
 	return nil
 }

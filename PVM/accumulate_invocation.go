@@ -16,8 +16,8 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
-	c := partialState.ServiceAccounts[serviceId].ServiceInfo.CodeHash
-	if storedCode, ok := partialState.ServiceAccounts[serviceId].PreimageLookup[c]; !ok {
+	s, ok := partialState.ServiceAccounts[serviceId]
+	if !ok {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
 			DeferredTransfers: []types.DeferredTransfer{},
@@ -25,97 +25,91 @@ func Psi_A(
 			Gas:               0,
 			ServiceBlobs:      []types.ServiceBlob{},
 		}
-	} else {
+	}
 
-		serialized := []byte{}
-		encoder := types.NewEncoder()
-
-		// Encode the t
-		encoded, err := encoder.Encode(&time)
-		if err != nil {
-			panic(err)
-		}
-		serialized = append(serialized, encoded...)
-
-		// Encode the s
-		encoded, err = encoder.Encode(&serviceId)
-		if err != nil {
-			panic(err)
-		}
-		serialized = append(serialized, encoded...)
-
-		// Encode the o
-		// Encode the length of the operands
-		encoded, err = encoder.EncodeUint(uint64(len(operands)))
-		if err != nil {
-			panic(err)
-		}
-		serialized = append(serialized, encoded...)
-
-		for _, operand := range operands {
-			encoded, err = encoder.Encode(&operand)
-			if err != nil {
-				panic(err)
-			}
-			serialized = append(serialized, encoded...)
-		}
-
-		F := Omegas{}
-		F[ReadOp] = wrapWithG(HostCallFunctions[ReadOp])
-		F[WriteOp] = wrapWithG(HostCallFunctions[WriteOp])
-		F[LookupOp] = wrapWithG(HostCallFunctions[LookupOp])
-		F[GasOp] = HostCallFunctions[GasOp]
-		F[InfoOp] = wrapWithG(HostCallFunctions[InfoOp])
-		F[BlessOp] = HostCallFunctions[BlessOp]
-		F[AssignOp] = HostCallFunctions[AssignOp]
-		F[DesignateOp] = HostCallFunctions[DesignateOp]
-		F[CheckpointOp] = HostCallFunctions[CheckpointOp]
-		F[NewOp] = HostCallFunctions[NewOp]
-		F[UpgradeOp] = HostCallFunctions[UpgradeOp]
-		F[TransferOp] = HostCallFunctions[TransferOp]
-		F[EjectOp] = HostCallFunctions[EjectOp]
-		F[QueryOp] = HostCallFunctions[QueryOp]
-		F[SolicitOp] = HostCallFunctions[SolicitOp]
-		F[ForgetOp] = HostCallFunctions[ForgetOp]
-		F[YieldOp] = HostCallFunctions[YieldOp]
-		F[ProvideOp] = HostCallFunctions[ProvideOp]
-		F[OperationType(len(HostCallFunctions)-1)] = accumulateInvocationHostCallException
-
-		addition := HostCallArgs{
-			GeneralArgs: GeneralArgs{
-				ServiceAccount:      partialState.ServiceAccounts[serviceId],
-				ServiceId:           serviceId,
-				ServiceAccountState: partialState.ServiceAccounts,
-			},
-			AccumulateArgs: AccumulateArgs{
-				ResultContextX: I(partialState, serviceId, time, eta),
-				ResultContextY: I(partialState, serviceId, time, eta),
-			},
-		}
-
-		resultM := Psi_M(StandardCodeFormat(storedCode), 5, gas, Argument(serialized), F, addition)
-		partialState, deferredTransfer, result, gas, serviceBlobs := C(resultM.Gas, resultM.ReasonOrBytes, AccumulateArgs{
-			ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
-			ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
-		})
+	storedCode, ok := s.PreimageLookup[s.ServiceInfo.CodeHash]
+	if !ok || len(storedCode) == 0 || len(storedCode) > types.MaxServiceCodeSize {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
-			DeferredTransfers: deferredTransfer,
-			Result:            result,
-			Gas:               gas,
-			ServiceBlobs:      serviceBlobs,
+			DeferredTransfers: []types.DeferredTransfer{},
+			Result:            nil,
+			Gas:               0,
+			ServiceBlobs:      []types.ServiceBlob{},
 		}
 	}
-}
 
-func accumulateInvocationHostCallException(input OmegaInput) (output OmegaOutput) {
-	input.Registers[7] = WHAT
-	return OmegaOutput{
-		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas - 10,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+	var serialized []byte
+	encoder := types.NewEncoder()
+
+	// Encode t
+	encoded, err := encoder.Encode(&time)
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+
+	// Encode s
+	encoded, err = encoder.Encode(&serviceId)
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+
+	// Encode |o|
+	encoded, err = encoder.EncodeUint(uint64(len(operands)))
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+
+	F := Omegas{}
+	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
+	F[ReadOp] = wrapWithG(HostCallFunctions[ReadOp])
+	F[WriteOp] = wrapWithG(HostCallFunctions[WriteOp])
+	F[LookupOp] = wrapWithG(HostCallFunctions[LookupOp])
+	F[GasOp] = HostCallFunctions[GasOp]
+	F[InfoOp] = wrapWithG(HostCallFunctions[InfoOp])
+	F[BlessOp] = HostCallFunctions[BlessOp]
+	F[AssignOp] = HostCallFunctions[AssignOp]
+	F[DesignateOp] = HostCallFunctions[DesignateOp]
+	F[CheckpointOp] = HostCallFunctions[CheckpointOp]
+	F[NewOp] = HostCallFunctions[NewOp]
+	F[UpgradeOp] = HostCallFunctions[UpgradeOp]
+	F[TransferOp] = HostCallFunctions[TransferOp]
+	F[EjectOp] = HostCallFunctions[EjectOp]
+	F[QueryOp] = HostCallFunctions[QueryOp]
+	F[SolicitOp] = HostCallFunctions[SolicitOp]
+	F[ForgetOp] = HostCallFunctions[ForgetOp]
+	F[YieldOp] = HostCallFunctions[YieldOp]
+	F[ProvideOp] = HostCallFunctions[ProvideOp]
+	F[100] = logHostCall
+
+	addition := HostCallArgs{
+		GeneralArgs: GeneralArgs{
+			ServiceAccount:      partialState.ServiceAccounts[serviceId],
+			ServiceId:           &serviceId,
+			ServiceAccountState: partialState.ServiceAccounts,
+			CoreId:              nil, // TODO: may need to update coreID if needed
+		},
+		AccumulateArgs: AccumulateArgs{
+			ResultContextX: I(partialState, serviceId, time, eta),
+			ResultContextY: I(partialState, serviceId, time, eta),
+			Eta:            eta,
+			Operands:       operands,
+		},
+	}
+
+	resultM := Psi_M(StandardCodeFormat(storedCode), 5, types.Gas(gas), Argument(serialized), F, addition)
+	partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
+		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
+		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
+	})
+	return Psi_A_ReturnType{
+		PartialStateSet:   partialState,
+		DeferredTransfers: deferredTransfer,
+		Result:            result,
+		Gas:               gas,
+		ServiceBlobs:      serviceBlobs,
 	}
 }
 

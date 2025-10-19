@@ -1,14 +1,71 @@
 package merklization
 
 import (
+	"bytes"
 	"errors"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 const NODE_SIZE = 512
+
+type LeafPath struct {
+	State     types.StateKeyVal
+	PathBytes []types.ByteSequence // hashes from root to leaf
+}
+
+func mergeBoundaryPaths(startPath, endPath []types.ByteSequence) []types.ByteSequence {
+	merged := []types.ByteSequence{}
+	seen := make(map[string]bool)
+
+	for _, h := range append(startPath, endPath...) {
+		key := string(h)
+		if !seen[key] {
+			merged = append(merged, h)
+			seen[key] = true
+		}
+	}
+	return merged
+}
+
+// TODO: this is just a temp example for DB root → []LeafPath
+var GlobalMerklePathMap = make(map[types.StateRoot][]LeafPath)
+
+// TODO: review the exact implement of the CE129 handler after the DB design is done
+func CE129Handler(request ce.CE129Payload) (ce.CE129Response, error) {
+	LeafPaths, ok := GlobalMerklePathMap[types.StateRoot(request.HeaderHash)]
+	if !ok {
+		return ce.CE129Response{}, errors.New("header hash not found")
+	}
+
+	result := ce.CE129Response{}
+	var startPath, endPath []types.ByteSequence
+	foundStart := false
+
+	for _, leafPath := range LeafPaths {
+		key := leafPath.State.Key
+		// TODO: check the actual logic of the range compare
+		if bytes.Compare(key[:], request.KeyStart[:]) >= 0 &&
+			bytes.Compare(key[:], request.KeyEnd[:]) < 0 {
+			result.Pairs = append(result.Pairs, leafPath.State)
+			if !foundStart {
+				startPath = leafPath.PathBytes
+				foundStart = true
+			}
+			endPath = leafPath.PathBytes
+		}
+	}
+	result.BoundaryNodes = mergeBoundaryPaths(startPath, endPath)
+	// TODO: Check the actual logic of handling the MaxSize
+	if len(result.Pairs) > int(request.MaxSize) {
+		result.Pairs = result.Pairs[:request.MaxSize]
+	}
+	// TODO: check the actual logic of empty result case
+	return result, nil
+}
 
 // bytesToBits converts a byte sequence to a bit sequence.
 // The function defined in graypaper 3.7.3. Boolean Values
@@ -128,18 +185,22 @@ func bitSequenceToString(bitSequence types.BitSequence) string {
 // key in a map
 type MerklizationInput map[string]types.StateKeyVal
 
-func Merklization(d MerklizationInput) types.OpaqueHash {
+func Merklization(d MerklizationInput) (types.OpaqueHash, []LeafPath) {
 	if len(d) == 0 {
 		// zero hash
-		return types.OpaqueHash{}
+		return types.OpaqueHash{}, nil
 	}
 
 	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
 	if len(d) == 1 {
 		for _, stateKeyVal := range d {
-			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
-			bytes, _ := bitsToBytes(leftEncoding)
-			return hash.Blake2bHash(bytes)
+			leafEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
+			bytes, _ := bitsToBytes(leafEncoding)
+			leafHash := hash.Blake2bHash(bytes)
+			return leafHash, []LeafPath{{
+				State:     stateKeyVal,
+				PathBytes: []types.ByteSequence{bytes},
+			}}
 		}
 	}
 
@@ -156,10 +217,22 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 			r[key[1:]] = value
 		}
 	}
-
-	branchEncoding := BranchEncoding(Merklization(l), Merklization(r))
+	leftHash, leftPaths := Merklization(l)
+	rightHash, rightPaths := Merklization(r)
+	branchEncoding := BranchEncoding(leftHash, rightHash)
 	bytes, _ := bitsToBytes(branchEncoding)
-	return hash.Blake2bHash(bytes)
+	nodeHash := hash.Blake2bHash(bytes)
+	for i := range leftPaths {
+		leftPaths[i].PathBytes = append([]types.ByteSequence{bytes}, leftPaths[i].PathBytes...)
+	}
+
+	for i := range rightPaths {
+		rightPaths[i].PathBytes = append([]types.ByteSequence{bytes}, rightPaths[i].PathBytes...)
+	}
+
+	allPaths := append(leftPaths, rightPaths...)
+
+	return nodeHash, allPaths
 }
 
 // basic Merklization function
@@ -178,8 +251,11 @@ func MerklizationSerializedState(serializedState types.StateKeyVals) types.State
 
 		merklizationInput[key] = value
 	}
+	root, paths := Merklization(merklizationInput)
 
-	return types.StateRoot(Merklization(merklizationInput))
+	// TODO: refactor after the DB design is done
+	GlobalMerklePathMap[types.StateRoot(root)] = paths
+	return types.StateRoot(root)
 }
 
 // MerklizationState is a function that takes a state and returns the

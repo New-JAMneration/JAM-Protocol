@@ -20,6 +20,10 @@ func NewRedisBackend(client *RedisClient) *RedisBackend {
 	return &RedisBackend{client: client, encoder: types.NewEncoder(), decoder: types.NewDecoder()}
 }
 
+func (r *RedisBackend) GetClient() *RedisClient {
+	return r.client
+}
+
 func hexOf(h types.OpaqueHash) string {
 	return hex.EncodeToString(h[:])
 }
@@ -145,7 +149,7 @@ func (r *RedisBackend) SetGenesisBlock(ctx context.Context, block *types.Block) 
 	return nil
 }
 
-func (r *RedisBackend) GetGenesisBlock(ctx context.Context) (*types.Block, error) {
+func (r *RedisBackend) GetGenesisBlock() (*types.Block, error) {
 	key := "meta:genesisBlock"
 	data, err := r.client.Get(key)
 	if err != nil {
@@ -236,4 +240,15 @@ func (r *RedisBackend) RemoveBlock(ctx context.Context, hash types.OpaqueHash) e
 	}
 
 	return nil
+}
+
+// CE137 Justification Storage
+func (r *RedisBackend) PutJustification(ctx context.Context, erasureRoot []byte, shardIndex uint32, justification []byte) error {
+	key := fmt.Sprintf("ce137_justification:%x:%d", erasureRoot, shardIndex)
+	return r.client.Put(key, justification)
+}
+
+func (r *RedisBackend) GetJustification(ctx context.Context, erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	key := fmt.Sprintf("ce137_justification:%x:%d", erasureRoot, shardIndex)
+	return r.client.Get(key)
 }

@@ -3,6 +3,7 @@ package PVM
 import (
 	"bytes"
 	"log"
+	"reflect"
 
 	// service "github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -15,35 +16,39 @@ import (
 type OperationType int
 
 const (
-	GasOp              OperationType = iota // gas = 0
-	LookupOp                                // lookup = 1
-	ReadOp                                  // read = 2
-	WriteOp                                 // write = 3
-	InfoOp                                  // info = 4
-	BlessOp                                 // bless = 5
-	AssignOp                                // assign = 6
-	DesignateOp                             // designate = 7
-	CheckpointOp                            // checkpoint = 8
-	NewOp                                   // new = 9
-	UpgradeOp                               // upgrade = 10
-	TransferOp                              // transfer = 11
-	EjectOp                                 // eject = 12
-	QueryOp                                 // query = 13
-	SolicitOp                               // solicit = 14
-	ForgetOp                                // forget = 15
-	YieldOp                                 // yield = 16
-	HistoricalLookupOp                      // historical_lookup = 17
-	FetchOp                                 // fetch = 18;
+	// ----------------- General Functions -----------------
+	GasOp    OperationType = iota // gas = 0
+	FetchOp                       // fetch = 1
+	LookupOp                      // lookup = 2
+	ReadOp                        // read = 3
+	WriteOp                       // write = 4
+	InfoOp                        // info = 5
 
-	ExportOp  // export = 19
-	MachineOp // machine = 20
-	PeekOp    // peek = 21
-	PokeOp    // poke = 22
-	ZeroOp    // zero = 23
-	VoidOp    // void = 24
-	InvokeOp  // invoke = 25
-	ExpungeOp // expunge = 26
-	ProvideOp // provide = 27
+	// ----------------- Refine Functions -----------------
+	HistoricalLookupOp // historical_lookup = 6
+	ExportOp           // export = 7
+	MachineOp          // machine = 8
+	PeekOp             // peek = 9
+	PokeOp             // poke = 10
+	PagesOp            // pages = 11
+	InvokeOp           // invoke = 12
+	ExpungeOp          // expunge = 13
+
+	// ----------------- Accumulate Functions -----------------
+	BlessOp      // bless = 14
+	AssignOp     // assign = 15
+	DesignateOp  // designate = 16
+	CheckpointOp // checkpoint = 17
+	NewOp        // new = 18
+	UpgradeOp    // upgrade = 19
+	TransferOp   // transfer = 20
+	EjectOp      // eject = 21
+	QueryOp      // query = 22
+	SolicitOp    // solicit = 23
+	ForgetOp     // forget = 24
+	YieldOp      // yield = 25
+	ProvideOp    // provide = 26
+	LogOp        = OperationType(100)
 )
 
 type HistoryState struct {
@@ -75,29 +80,42 @@ type (
 
 type GeneralArgs struct {
 	ServiceAccount      types.ServiceAccount
-	ServiceId           types.ServiceId
+	ServiceId           *types.ServiceId
 	ServiceAccountState types.ServiceAccountState
+	CoreId              *types.CoreIndex
 }
 
 type AccumulateArgs struct {
 	ResultContextX ResultContext
 	ResultContextY ResultContext
 	Timeslot       types.TimeSlot
+	Eta            types.Entropy   // italic n / eta_0, used in fetch
+	Operands       []types.Operand // o, used in fetch
 }
 
 type RefineArgs struct {
-	RefineInput                            // i, p(package), o, bold{i}, zeta
-	IntegratedPVMMap                       // D ( N -> M ) : N -> (p(program_code), u, i)
-	ExportSegment    []types.ExportSegment // e
-	ServiceID        types.ServiceId       // s
-	TimeSlot         types.TimeSlot        // t
-	ExtrinsicDataMap                       // extrinsic data map
+	WorkItemIndex       *uint                   // i
+	WorkPackage         *types.WorkPackage      // p
+	AuthOutput          *types.ByteSequence     // r
+	ImportSegments      [][]types.ExportSegment // overline{bold{i}}
+	ExportSegmentOffset uint                    // zeta
+	ExtrinsicDataMap    ExtrinsicDataMap        // extrinsic data map
+	IntegratedPVMMap    IntegratedPVMMap        // D ( N -> M ) : N -> (p(program_code), u, i)
+	ExportSegment       []types.ExportSegment   // e
+	ServiceID           types.ServiceId         // s
+	TimeSlot            types.TimeSlot          // t
+	Extrinsics          [][]types.ExtrinsicSpec // overline{x}, used in fetch
+}
+
+type OnTransferArgs struct {
+	DeferredTransfer []types.DeferredTransfer // bold{t}
 }
 
 type HostCallArgs struct {
 	GeneralArgs
 	AccumulateArgs
 	RefineArgs
+	OnTransferArgs
 }
 
 type Psi_H_ReturnType struct {
@@ -140,7 +158,7 @@ func Psi_H(
 		input.Addition = addition
 		omega := omegas[input.Operation]
 		if omega == nil {
-			omega = omegas[27]
+			omega = hostCallException
 		}
 		omega_result := omega(input)
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
@@ -165,38 +183,39 @@ func Psi_H(
 	return
 }
 
-var HostCallFunctions = [29]Omega{
-	0:  gas,
-	1:  lookup,
-	2:  read,
-	3:  write,
-	4:  info,
-	5:  bless,
-	6:  assign,
-	7:  designate,
-	8:  checkpoint,
-	9:  new,
-	10: upgrade,
-	11: transfer,
-	12: eject,
-	13: query,
-	14: solicit,
-	15: forget,
-	16: yield,
-	17: historicalLookup,
-	18: fetch,
-	19: export,
-	20: machine,
-	21: peek,
-	22: poke,
-	23: zero,
-	24: void,
-	25: invoke,
-	26: expunge,
-	27: provide,
+var HostCallFunctions = map[OperationType]Omega{
+	0:   gas,
+	1:   fetch,
+	2:   lookup,
+	3:   read,
+	4:   write,
+	5:   info,
+	6:   historicalLookup,
+	7:   export,
+	8:   machine,
+	9:   peek,
+	10:  poke,
+	11:  pages,
+	12:  invoke,
+	13:  expunge,
+	14:  bless,
+	15:  assign,
+	16:  designate,
+	17:  checkpoint,
+	18:  new,
+	19:  upgrade,
+	20:  transfer,
+	21:  eject,
+	22:  query,
+	23:  solicit,
+	24:  forget,
+	25:  yield,
+	26:  provide,
+	100: logHostCall,
 }
 
-func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
+func hostCallException(input OmegaInput) (output OmegaOutput) {
+	// non-defined host call
 	input.Registers[7] = WHAT
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -207,7 +226,7 @@ func onTransferHostCallException(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// Gas Function（ΩG）
+// Gas Function（ΩG）, gas = 0
 func gas(input OmegaInput) OmegaOutput {
 	newGas := input.Gas - 10
 	if newGas < 0 {
@@ -230,7 +249,7 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
-// ΩL(ϱ, ω, μ, s, s, d)
+// ΩL(ϱ, ω, μ, s, s, d) , lookup = 2
 func lookup(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ServiceId
 	serviceAccount := input.Addition.ServiceAccount
@@ -248,7 +267,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var a types.ServiceAccount
-	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(serviceID) {
+	if input.Registers[7] == 0xffffffffffffffff || input.Registers[7] == uint64(*serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(input.Registers[7])]; exists {
 		a = value
@@ -325,7 +344,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s, d)
+// ΩR(ϱ, ω, μ, s, s, d) , read = 3
 /*
 ϱ: gas
 ω: registers
@@ -354,7 +373,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	var a types.ServiceAccount
 	// s* = ?
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = uint64(serviceID)
+		sStar = uint64(*serviceID)
 	} else {
 		sStar = input.Registers[7]
 	}
@@ -371,7 +390,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// a = ?
-	if sStar == uint64(serviceID) {
+	if sStar == uint64(*serviceID) {
 		a = serviceAccount
 	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
 		a = value
@@ -389,21 +408,12 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
-	// first compute k
-	encoder := types.NewEncoder()
-	serviceStar := types.ServiceId(sStar)
-	concated_bytes, _ := encoder.Encode(&serviceStar)
-	// mu_ko...+kz
-	for address := uint32(ko); address < uint32(ko+kz); address++ {
-		page := address / ZP
-		index := address % ZP
-		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-	}
+	// first compute k , mu_ko...+kz
+	storageKey := input.Memory.Read(ko, kz)
 
-	k := hash.Blake2bHash(concated_bytes)
-	v, exists := a.StorageDict[k]
-	f := min(input.Registers[11], uint64(len(concated_bytes)))
-	l := min(input.Registers[12], uint64(len(concated_bytes))-f)
+	v, exists := a.StorageDict[string(storageKey)]
+	f := min(input.Registers[11], uint64(len(v)))
+	l := min(input.Registers[12], uint64(len(v))-f)
 	// first check not writable, then check v = nil (not exists)
 	if !isWriteable(o, l, input.Memory) {
 		return OmegaOutput{
@@ -447,9 +457,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩW (ϱ, ω, μ, s, s)
+// ΩW (ϱ, ω, μ, s, s) , write = 4
 func write(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
 	serviceAccount := input.Addition.ServiceAccount
 
 	newGas := input.Gas - 10
@@ -474,26 +483,18 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	encoder := types.NewEncoder()
-	concated_bytes, _ := encoder.Encode(&serviceID)
-	for address := uint32(ko); address < uint32(ko+kz); address++ {
-		page := address / ZP
-		index := address % ZP
-		concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-	}
-	k := hash.Blake2bHash(concated_bytes)
+	// compute \mathbb{k}
+	storageKey := input.Memory.Read(ko, kz)
+
 	var a types.ServiceAccount
 	if vz == 0 {
 		a = serviceAccount
-		delete(a.StorageDict, k)
+		delete(a.StorageDict, string(storageKey))
 	} else if isReadable(vo, vz, input.Memory) {
-		concated_bytes = []byte{}
-		for address := uint32(vo); address < uint32(vo+vz); address++ {
-			page := address / ZP
-			index := address % ZP
-			concated_bytes = append(concated_bytes, input.Memory.Pages[page].Value[index])
-		}
+		storageValue := input.Memory.Read(vo, vz)
 		a = serviceAccount
+		a.StorageDict[string(storageKey)] = storageValue
+
 		// need extra storage space :
 		// check a_t > a_b : storage need gas, balance is not enough for storage
 		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
@@ -507,7 +508,6 @@ func write(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
-		a.StorageDict[k] = concated_bytes
 	} else {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -518,9 +518,9 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	value, exists := serviceAccount.StorageDict[k]
+	value, storageKeyExists := serviceAccount.StorageDict[string(storageKey)]
 	var l uint64
-	if exists {
+	if storageKeyExists {
 		l = uint64(len(value))
 	} else {
 		l = NONE
@@ -537,7 +537,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, d)
+// ΩR(ϱ, ω, μ, s, d) , info = 5
 /*
 ϱ: gas
 ω: registers
@@ -547,8 +547,6 @@ s(斜): ServiceId
 d: ServiceAccountState (map[ServiceId]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	serviceID := input.Addition.ServiceId
-	delta := input.Addition.ServiceAccountState
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
@@ -560,22 +558,81 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var t types.ServiceAccount
+	serviceID := input.Addition.ServiceId
+	delta := input.Addition.ServiceAccountState
+
+	var a types.ServiceAccount
 	var empty bool
 	empty = true
 	if input.Registers[7] == 0xffffffffffffffff {
-		value, exist := delta[types.ServiceId(serviceID)]
+		value, exist := delta[types.ServiceId(*serviceID)]
 		if exist {
-			t = value
+			a = value
 			empty = false
 		}
 	} else {
 		value, exist := delta[types.ServiceId(input.Registers[7])]
 		if exist {
-			t = value
+			a = value
 			empty = false
 		}
+
 	}
+
+	derivatives := service_account.GetServiceAccountDerivatives(a)
+
+	var v types.ByteSequence
+	encoder := types.NewEncoder()
+	// a_c
+	encoded, _ := encoder.Encode(&a.ServiceInfo.CodeHash)
+	v = append(v, encoded...)
+	// a_b
+	encoded, _ = encoder.Encode(&a.ServiceInfo.Balance)
+	v = append(v, encoded...)
+	// a_t
+	encoded, _ = encoder.Encode(&derivatives.Minbalance)
+	v = append(v, encoded...)
+	// a_g
+	encoded, _ = encoder.Encode(&a.ServiceInfo.MinItemGas)
+	v = append(v, encoded...)
+	// a_m
+	encoded, _ = encoder.Encode(&a.ServiceInfo.MinMemoGas)
+	v = append(v, encoded...)
+	// a_o
+	encoded, _ = encoder.Encode(&derivatives.Bytes)
+	v = append(v, encoded...)
+	// a_i
+	encoded, _ = encoder.Encode(&derivatives.Items)
+	v = append(v, encoded...)
+	// a_f
+	encoded, _ = encoder.Encode(&a.ServiceInfo.GratisStorageOffset)
+	v = append(v, encoded...)
+	// a_r
+	encoded, _ = encoder.Encode(&a.ServiceInfo.CreateTime)
+	v = append(v, encoded...)
+	// a_a
+	encoded, _ = encoder.Encode(&a.ServiceInfo.RecentAccumulateTime)
+	v = append(v, encoded...)
+	// a_p
+	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
+	v = append(v, encoded...)
+
+	f := min(input.Registers[11], uint64(len(v)))
+	l := min(input.Registers[12], uint64(len(v))-f)
+
+	o := input.Registers[8]
+	// if mathbf{N}_{o..._l} \not in mathbf{V}^*_mu
+	if !isWriteable(o, l, input.Memory) { // v = ∇ not defined
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// if a is nil => v = nil
 	if empty {
 		new_registers := input.Registers
 		new_registers[7] = NONE
@@ -588,63 +645,18 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	derivatives := service_account.GetServiceAccountDerivatives(t)
+	input.Memory.Write(f, l, v)
 
-	var serialized_bytes types.ByteSequence
-	encoder := types.NewEncoder()
-	// t_c
-	encoded, _ := encoder.Encode(&t.ServiceInfo.CodeHash)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_b
-	encoded, _ = encoder.Encode(&t.ServiceInfo.Balance)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_t
-	encoded, _ = encoder.Encode(&derivatives.Minbalance)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_g
-	encoded, _ = encoder.Encode(&t.ServiceInfo.MinItemGas)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_m
-	encoded, _ = encoder.Encode(&t.ServiceInfo.MinMemoGas)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_o
-	encoded, _ = encoder.Encode(&derivatives.Bytes)
-	serialized_bytes = append(serialized_bytes, encoded...)
-	// t_i
-	encoded, _ = encoder.Encode(&derivatives.Items)
-	serialized_bytes = append(serialized_bytes, encoded...)
-
-	o := input.Registers[8]
-
-	if !isWriteable(o, uint64(len(serialized_bytes)), input.Memory) {
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-	new_memory := input.Memory
-	for i := 0; i < len(serialized_bytes); i++ {
-		address := uint32(int(o) + i)
-		page := address / ZP
-		index := address % ZP
-		new_memory.Pages[page].Value[index] = serialized_bytes[i]
-	}
-
-	new_registers := input.Registers
-	new_registers[7] = OK
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
-		NewRegisters: new_registers,
-		NewMemory:    new_memory,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
 		Addition:     input.Addition,
 	}
 }
 
-// bless = 5
+// bless = 14
 func bless(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -660,10 +672,42 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
-	offset := uint64(12 * n)
+	// if N_{a...+4C} not readable
+	offset := uint64(4 * types.CoresCount)
+	if !isReadable(a, offset, input.Memory) {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	// \mathbb{a}
+	rawData := input.Memory.Read(a, uint64(4*types.CoresCount))
+	var assignData types.ServiceIdList
+	decoder := types.NewDecoder()
+	err := decoder.Decode(rawData, assignData)
+	if err != nil {
+		log.Printf("host-call function \"bless\" decode assignData error : %v", err)
+	}
+
+	offset = uint64(12 * n)
 	if !isReadable(o, offset, input.Memory) { // not readable, return
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if x_s ≠ (x_u)_m
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Bless {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -686,24 +730,19 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 	// otherwise
 	// read data from memory, might cross many pages
-	rawData := input.Memory.Read(o, offset)
+	rawData = input.Memory.Read(o, offset)
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := types.AlwaysAccumulateMap{}
-	decoder := types.NewDecoder()
-	err := decoder.Decode(rawData, alwaysAccum)
+	err = decoder.Decode(rawData, alwaysAccum)
 	if err != nil {
-		log.Fatalf("host-call function \"bless\" decode alwaysAccum error : %v", err)
+		log.Printf("host-call function \"bless\" decode alwaysAccum error : %v", err)
 	}
 
 	input.Registers[7] = OK
 
-	input.Addition.ResultContextX.PartialState.Privileges = types.Privileges{
-		Bless:       types.ServiceId(m),
-		Assign:      types.ServiceId(a),
-		Designate:   types.ServiceId(v),
-		AlwaysAccum: alwaysAccum,
-	}
+	input.Addition.ResultContextX.PartialState.Assign = assignData
+	input.Addition.ResultContextX.PartialState.AlwaysAccum = alwaysAccum
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -714,7 +753,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// assign = 6
+// assign = 15
 func assign(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -728,7 +767,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	o := input.Registers[8]
+	c, o, a := input.Registers[7], input.Registers[8], input.Registers[9]
 
 	offset := uint64(32 * types.AuthQueueSize)
 	if !isReadable(o, offset, input.Memory) { // not readable, panic
@@ -740,8 +779,21 @@ func assign(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	// w7 >= C
-	if input.Registers[7] >= uint64(types.CoresCount) {
+
+	// otherwise if x_s ≠ (x_u)_a[c]
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if c >= C
+	if c >= uint64(types.CoresCount) {
 		input.Registers[7] = CORE
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -754,15 +806,16 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	rawData := input.Memory.Read(o, offset)
 
-	// decode rawData
+	// decode rawData , authQueue = mathbb{q}
 	authQueue := types.AuthQueue{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, authQueue)
 	if err != nil {
-		log.Fatalf("host-call function \"assign\" decode error : %v", err)
+		log.Printf("host-call function \"assign\" decode error : %v", err)
 	}
 
-	input.Addition.ResultContextX.PartialState.Authorizers[input.Registers[7]] = authQueue
+	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
+	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceId(a)
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -774,7 +827,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// designate = 7
+// designate = 16
 func designate(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -801,6 +854,18 @@ func designate(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	// otherwise if x_s ≠ (x_u)_v
+	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Designate {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	// 336 * types.ValidatorsCount might cross many pages
 	rawData := input.Memory.Read(o, offset) // bold{v}
 
@@ -808,7 +873,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, validatorsData)
 	if err != nil {
-		log.Fatalf("host-call function \"designate\" decode validatorsData error : %v", err)
+		log.Printf("host-call function \"designate\" decode validatorsData error : %v", err)
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
@@ -823,7 +888,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// checkpoint = 8
+// checkpoint = 17
 func checkpoint(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -849,7 +914,7 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// new = 9
+// new = 18
 func new(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -863,12 +928,25 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 	newGas := input.Gas - gasFee
 
-	o, l, g, m := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
+	o, l, g, m, f := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
 	offset := uint64(32)
+	// if c = ∇
 	if !(isReadable(o, offset, input.Memory) && l < (1<<32)) { // not readable, return
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// otherwise if f ≠ 0 and x_s ≠ (x_u)_m
+	if f != 0 && input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextY.PartialState.Bless {
+		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -882,9 +960,10 @@ func new(input OmegaInput) (output OmegaOutput) {
 	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !sExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-	// s_b < (x_s)_t
+
+	// otherwise if s_b < (x_s)_t
 	if s.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(s).Minbalance {
 		input.Registers[7] = CASH
 
@@ -901,16 +980,20 @@ func new(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(c, &cDecoded)
 	if err != nil {
-		log.Fatalf("host-call function \"new\" decode error %v: ", err)
+		log.Printf("host-call function \"new\" decode error %v: ", err)
 	}
 
 	// new an account
 	a := types.ServiceAccount{
 		ServiceInfo: types.ServiceInfo{
-			CodeHash:   types.OpaqueHash(c), // c
-			Balance:    0,                   // b, will be updated later
-			MinItemGas: types.Gas(g),        // g
-			MinMemoGas: types.Gas(m),        // m
+			CodeHash:             types.OpaqueHash(c),                     // c
+			Balance:              0,                                       // b, will be updated later
+			MinItemGas:           types.Gas(g),                            // g
+			MinMemoGas:           types.Gas(m),                            // m
+			CreateTime:           input.Addition.TimeSlot,                 // r
+			GratisStorageOffset:  types.U64(0),                            // f
+			RecentAccumulateTime: types.TimeSlot(0),                       // a
+			ParentService:        input.Addition.ResultContextX.ServiceId, // p
 		},
 		PreimageLookup: types.PreimagesMapEntry{}, // p
 		LookupDict: types.LookupMetaMapEntry{ // l
@@ -920,6 +1003,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 			}: types.TimeSlotSet{},
 		},
 		StorageDict: types.Storage{}, // s
+
 	}
 	at := service_account.GetServiceAccountDerivatives(a).Minbalance
 	a.ServiceInfo.Balance = at
@@ -930,12 +1014,12 @@ func new(input OmegaInput) (output OmegaOutput) {
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 	// reg[7] = x_i
 	input.Registers[7] = uint64(importServiceID)
-	// x_i = check(i)
-	i := (1 << 8) + (importServiceID-(1<<8)+42)%(1<<32-1<<9)
-	input.Addition.ResultContextX.ImportServiceId = check(i, input.Addition.ResultContextX.PartialState.ServiceAccounts)
-	// x_i -> a
+	// i* = check(i)
+	iStar := check((1<<8)+(importServiceID-(1<<8)+42)%(1<<32-1<<9), input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	input.Addition.ResultContextX.ImportServiceId = iStar
+	// mathbb{d} : x_i -> a
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
-	// x_s -> s
+	// mathbb{d} : x_s -> s
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 
 	return OmegaOutput{
@@ -947,7 +1031,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// upgrade = 10
+// upgrade = 19
 func upgrade(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -987,7 +1071,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = serviceAccount
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -999,7 +1083,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// transfer = 11
+// transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10) + Gas(input.Registers[9])
 	if input.Gas < gasFee {
@@ -1077,7 +1161,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	input.Registers[7] = OK
@@ -1091,7 +1175,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// eject = 12
+// eject = 21
 func eject(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1189,7 +1273,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				}
 			}
 			// according GP, no need to check the service exists => it should in ServiceAccountState
-			log.Fatalf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
+			log.Printf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 		}
 	}
 
@@ -1204,7 +1288,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// query = 13
+// query = 22
 func query(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1238,7 +1322,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !accountExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		log.Fatalf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 	lookupData, lookupDataExists := account.LookupDict[lookupKey]
@@ -1280,7 +1364,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// solicit = 14
+// solicit = 23
 func solicit(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1349,7 +1433,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		}
 	} else {
-		log.Fatalf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -1361,7 +1445,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// forget = 15
+// forget = 24
 func forget(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1432,7 +1516,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			input.Registers[7] = HUH
 		}
 	} else {
-		log.Fatalf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
+		log.Printf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -1444,7 +1528,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// yield = 16
+// yield = 25
 func yield(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1486,7 +1570,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// historical_lookup = 17
+// historical_lookup = 6
 func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1566,7 +1650,23 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// fetch = 18
+// Encoding of a work item, used in the fetch function.
+// This is added because the encoding for WorkItem used in fetch
+// is a little different from the default encoding
+func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
+	return encoder.EncodeMany(
+		types.U32(item.Service),             // w_s
+		item.CodeHash,                       // w_h
+		types.U64(item.RefineGasLimit),      // w_g
+		types.U64(item.AccumulateGasLimit),  // w_a
+		types.U16(item.ExportCount),         // w_e
+		types.U16(len(item.ImportSegments)), // |w_i|
+		types.U16(len(item.Extrinsic)),      // |w_x|
+		types.U32(len(item.Payload)),        // |w_y|
+	)
+}
+
+// fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1581,69 +1681,274 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - gasFee
 
 	// pre-processing
+	var (
+		v   []byte
+		err error
+	)
 	encoder := types.NewEncoder()
-	// condition reg[10] == 3
-	// w_11 < |p_w|
-	condition31 := input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items))
-	// workItem3 = p_w[w_11]
-	workItem3 := input.Addition.WorkPackage.Items[input.Registers[11]]
-	// w_12 < |p_w[w_11]x|
-	condition32 := input.Registers[12] < uint64(len(workItem3.Extrinsic))
-	// extrinsic data exists
-	extrinsicData3, condition33 := input.Addition.ExtrinsicDataMap[workItem3.Extrinsic[input.Registers[12]].Hash]
 
-	// condition reg[10] == 4
-	// workItem4 = p_w[i]
-	workItem4 := input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex]
+	switch input.Registers[10] {
+	case 0:
+		v, err = encoder.EncodeMany(
+			types.U64(types.AdditionalMinBalancePerItem),      // B_I
+			types.U64(types.AdditionalMinBalancePerOctet),     // B_L
+			types.U64(types.BasicMinBalance),                  // B_S
+			types.U16(types.CoresCount),                       // C
+			types.U32(types.UnreferencedPreimageTimeslots),    // D
+			types.U32(types.EpochLength),                      // E
+			types.U64(types.MaxAccumulateGas),                 // G_A
+			types.U64(types.IsAuthorizedGas),                  // G_I
+			types.U64(types.MaxRefineGas),                     // G_R
+			types.U64(types.TotalGas),                         // G_T
+			types.U16(types.MaxBlocksHistory),                 // H
+			types.U16(types.MaximumWorkItems),                 // I
+			types.U16(types.MaximumDependencyItems),           // J
+			types.U32(types.MaxLookupAge),                     // L
+			types.U16(types.AuthPoolMaxSize),                  // O
+			types.U16(types.SlotPeriod),                       // P
+			types.U16(types.AuthQueueSize),                    // Q
+			types.U16(types.RotationPeriod),                   // R
+			types.U16(types.AccumulateQueueSize),              // S
+			types.U16(types.MaxExtrinsics),                    // T
+			types.U16(types.WorkReportTimeout),                // U
+			types.U16(types.ValidatorsCount),                  // V
+			types.U32(types.MaxIsAuthorizedCodeSize),          // W_A
+			types.U32(types.MaxTotalSize),                     // W_B
+			types.U32(types.MaxServiceCodeSize),               // W_C
+			types.U32(types.ECBasicSize),                      // W_E
+			types.U32(types.SegmentSize),                      // W_G
+			types.U32(types.MaxImportCount),                   // W_M
+			types.U32(types.ECPiecesPerSegment),               // W_P
+			types.U32(types.WorkReportOutputBlobsMaximumSize), // W_R
+			types.U32(types.TransferMemoSize),                 // W_T
+			types.U32(types.MaxExportCount),                   // W_X
+			types.U32(types.SlotSubmissionEnd),                // Y
+		)
+		break
+	case 1:
+		if reflect.ValueOf(input.Addition.Eta).IsZero() {
+			break
+		}
 
-	// condition4 := extrinsicSpec4.Hash == workItem4.Extrinsic[input.Registers[11]].Hash && extrinsicSpec4.Len == workItem4.Extrinsic[input.Registers[11]].Len
-	extrinsicData4, condition4 := input.Addition.ExtrinsicDataMap[workItem4.Extrinsic[input.Registers[11]].Hash]
+		v, err = encoder.Encode(input.Addition.Eta)
+		break
+	case 2:
+		if input.Addition.AuthOutput == nil {
+			break
+		}
 
-	var v []byte
-	var dataLength uint64
+		v, err = encoder.Encode(input.Addition.AuthOutput)
+		break
+	case 3:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
 
-	switch {
-	case input.Registers[10] == 0:
-		wp, _ := encoder.Encode(input.Addition.WorkPackage)
-		// v = |E(p)
-		v = wp
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.Extrinsics)) {
+			break
+		}
 
-	case input.Registers[10] == 1:
-		// v = o
-		v = input.Addition.AuthOutput
-		dataLength = uint64(len(v))
+		w12 := input.Registers[12]
+		if w12 >= uint64(len(input.Addition.Extrinsics[w11])) {
+			break
+		}
 
-	case input.Registers[10] == 2 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items)):
-		// v = p_w[w_11]y
-		v = input.Addition.WorkPackage.Items[input.Registers[11]].Payload
-		dataLength = uint64(len(v))
+		v, err = encoder.Encode(input.Addition.Extrinsics[w11][w12])
+		break
+	case 4:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
+		i := *input.Addition.WorkItemIndex
 
-	case input.Registers[10] == 3 && condition31 && condition32 && condition33:
-		// v = x = p_w[w_11]_x
-		v = extrinsicData3
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
+			break
+		}
 
-	case input.Registers[10] == 4 && input.Registers[11] < uint64(len(input.Addition.WorkPackage.Items[input.Addition.WorkItemIndex].Extrinsic)) && condition4:
-		// v = x = p_w[i]x
-		v = extrinsicData4
-		dataLength = uint64(len(v))
+		v, err = encoder.Encode(input.Addition.Extrinsics[i][w11])
+		break
 
-	case input.Registers[10] == 5 && input.Registers[11] < uint64(len(input.Addition.ImportSegments)) && input.Registers[12] < uint64(len(input.Addition.ImportSegments[input.Registers[11]])):
-		v = input.Addition.ImportSegments[input.Registers[11]][input.Registers[12]][:]
-		dataLength = uint64(len(v))
+	case 5:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
 
-	case input.Registers[10] == 6 && input.Registers[11] < uint64(len(input.Addition.ImportSegments[input.Addition.WorkItemIndex])):
-		v = input.Addition.ImportSegments[input.Addition.WorkItemIndex][input.Registers[11]][:]
-		dataLength = uint64(len(v))
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.ImportSegments)) {
+			break
+		}
 
-	case input.Registers[10] == 7:
-		v = input.Addition.WorkPackage.Authorizer.Params
-		dataLength = uint64(len(input.Addition.WorkPackage.Authorizer.Params))
-	default: // default = nil
-		dataLength = 0
+		w12 := input.Registers[12]
+		if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.ImportSegments[w11][w12])
+		break
+	case 6:
+		if input.Addition.WorkItemIndex == nil {
+			break
+		}
+
+		i := *input.Addition.WorkItemIndex
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.ImportSegments[i])) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.ImportSegments[i][w11])
+		break
+	case 7:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(*input.Addition.WorkPackage)
+		break
+	case 8:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.EncodeMany(
+			input.Addition.WorkPackage.Authorizer.CodeHash,
+			input.Addition.WorkPackage.Authorizer.Params,
+		)
+		break
+	case 9:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Authorization)
+		break
+	case 10:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Context)
+		break
+	case 11:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.WorkPackage.Items)))
+		if err != nil {
+			break
+		}
+
+		for _, w := range input.Addition.WorkPackage.Items {
+			sw, err := S(encoder, w)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, sw...)
+		}
+
+		v = buffer
+		break
+	case 12:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+			break
+		}
+
+		v, err = S(encoder, input.Addition.WorkPackage.Items[w11])
+		break
+	case 13:
+		if input.Addition.WorkPackage == nil {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.WorkPackage.Items[w11].Payload)
+		break
+	case 14:
+		if len(input.Addition.Operands) == 0 {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.Operands)))
+		if err != nil {
+			break
+		}
+
+		for _, o := range input.Addition.Operands {
+			bytes, err := encoder.Encode(o)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, bytes...)
+		}
+
+		v = buffer
+		break
+	case 15:
+		if len(input.Addition.Operands) == 0 {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.Operands)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.Operands[w11])
+		break
+	case 16:
+		if len(input.Addition.DeferredTransfer) == 0 {
+			break
+		}
+
+		buffer, err := encoder.Encode(types.U64(len(input.Addition.DeferredTransfer)))
+		if err != nil {
+			break
+		}
+
+		for _, t := range input.Addition.DeferredTransfer {
+			bytes, err := encoder.Encode(t)
+			if err != nil {
+				break
+			}
+
+			buffer = append(buffer, bytes...)
+		}
+
+		v = buffer
+		break
+	case 17:
+		if len(input.Addition.DeferredTransfer) == 0 {
+			break
+		}
+
+		w11 := input.Registers[11]
+		if w11 >= uint64(len(input.Addition.DeferredTransfer)) {
+			break
+		}
+
+		v, err = encoder.Encode(input.Addition.DeferredTransfer[w11])
+		break
 	}
 
+	if err != nil {
+		v = nil
+	}
+
+	dataLength := uint64(len(v))
 	o := input.Registers[7]
 	f := min(input.Registers[8], dataLength)
 	l := min(input.Registers[9], dataLength-f)
@@ -1660,7 +1965,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if v = nil
-	if v == nil {
+	if len(v) == 0 {
 		input.Registers[7] = NONE
 
 		return OmegaOutput{
@@ -1684,7 +1989,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// export = 19
+// export = 7
 func export(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1742,7 +2047,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// machine = 20
+// machine = 8
 func machine(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1809,7 +2114,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// peek = 21
+// peek = 9
 func peek(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1878,7 +2183,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// poke = 22
+// poke = 10
 func poke(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -1945,7 +2250,8 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// zero = 23
+// zero is removed in GP 0.6.7
+/*
 func zero(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2003,9 +2309,10 @@ func zero(input OmegaInput) (output OmegaOutput) {
 		Addition:     input.Addition,
 	}
 }
+*/
 
-// void = 24
-func void(input OmegaInput) (output OmegaOutput) {
+// pages = 11 , GP 0.6.7 void is renamed pages
+func pages(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
 		return OmegaOutput{
@@ -2063,7 +2370,7 @@ func void(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// invoke = 25
+// invoke = 12
 func invoke(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2114,13 +2421,13 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// decode gas
 	err := decoder.Decode(data[:8], gas)
 	if err != nil {
-		log.Fatalf("host-call function \"invoke\" decode gas error : %v", err)
+		log.Printf("host-call function \"invoke\" decode gas error : %v", err)
 	}
 	// decode registers
 	for i := uint64(1); i < offset/8; i++ {
 		err = decoder.Decode(data[8*i:8*(i+1)], w[i-1])
 		if err != nil {
-			log.Fatalf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
+			log.Printf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
 	// psi
@@ -2177,7 +2484,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// expunge = 26
+// expunge = 13
 func expunge(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2229,6 +2536,7 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 	}
 }
 
+// provide = 26
 func provide(input OmegaInput) (output OmegaOutput) {
 	gasFee := Gas(10)
 	if input.Gas < gasFee {
@@ -2260,7 +2568,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	// s* = s or s = omega_7
 	var sStar types.ServiceId
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = input.Addition.ServiceId
+		sStar = *input.Addition.ServiceId
 	} else {
 		sStar = types.ServiceId(input.Registers[7])
 	}
@@ -2325,6 +2633,28 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
+func logHostCall(input OmegaInput) (output OmegaOutput) {
+	level := LogLevel(input.Registers[7])
+	message := input.Memory.Read(input.Registers[10], input.Registers[11])
+
+	if input.Registers[8] == 0 && input.Registers[9] == 0 {
+		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID, "message : %v\n", message)
+	} else {
+		target := input.Memory.Read(input.Registers[8], input.Registers[9])
+		getLogger().log(level, input.Addition.CoreId, &input.Addition.ServiceID,
+			"taget : %v\n  message : %v\n", target, message)
+	}
+
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(CONTINUE, nil),
+		NewGas:       input.Gas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,

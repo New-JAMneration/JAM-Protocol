@@ -1,6 +1,9 @@
 package PVM
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // SingleStepInvoke is A.1 (v0.6.2)
 func SingleStepInvoke(programBlob []byte, programCounter ProgramCounter,
@@ -55,17 +58,19 @@ func SingleStepStateTransition(instructionCode []byte, bitmask Bitmask, jumpTabl
 	// (v.6.2 A.19) l = skip(iota)
 	skipLength := ProgramCounter(skip(int(programCounter), bitmask))
 
-	opcode := instructionCode[programCounter]
+	opcodeData := instructionCode[programCounter.isOpocode()]
 
-	target := execInstructions[opcode]
+	target := execInstructions[opcodeData]
 	if target == nil {
 		return ErrNotImplemented, programCounter, gas, registers, memory
 	}
 
-	exitReason, newProgramCounter, gasDelta, registers, memory := execInstructions[opcode](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
+	exitReason, newProgramCounter, gasDelta, registers, memory := execInstructions[opcodeData](instructionCode, programCounter, skipLength, registers, memory, jumpTable, bitmask)
 
 	// recently, set all gasDelta = 2 for consistent with testvector
 	gas -= gasDelta
+
+	log.Printf("instr:%s(%d) pc=%d gas=%d registers=%v", zeta[opcode(opcodeData)], opcodeData, programCounter, gas, registers)
 
 	if exitReason.(*PVMExitReason).Reason == CONTINUE && newProgramCounter == programCounter {
 		newProgramCounter += skipLength + 1

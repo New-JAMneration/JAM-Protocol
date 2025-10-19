@@ -206,7 +206,7 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		},
 	}
 
-	bundle, err := buildWorkPackageBundle(wp, extrinsicMap, importSegments, importProofs)
+	bundle, err := BuildWorkPackageBundle(wp, extrinsicMap, importSegments, importProofs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

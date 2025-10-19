@@ -32,6 +32,7 @@ type (
 	U64          uint64
 	ByteSequence []byte
 	ByteArray32  [32]byte
+	ByteString   string
 )
 
 type BitSequence []bool
@@ -109,16 +110,25 @@ func (v ValidatorsData) Validate() error {
 
 // Service
 
-type ServiceId U32
+type (
+	ServiceId     U32
+	ServiceIdList []ServiceId
+)
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
+// GP 0.6.7
+// TODO: check json tags
 type ServiceInfo struct {
-	CodeHash   OpaqueHash `json:"code_hash,omitempty"`    // a_c
-	Balance    U64        `json:"balance,omitempty"`      // a_b
-	MinItemGas Gas        `json:"min_item_gas,omitempty"` // a_g
-	MinMemoGas Gas        `json:"min_memo_gas,omitempty"` // a_m
-	Bytes      U64        `json:"bytes,omitempty"`        // a_o
-	Items      U32        `json:"items,omitempty"`        // a_i
+	GratisStorageOffset  U64        // a_f
+	CodeHash             OpaqueHash `json:"code_hash,omitempty"`    // a_c
+	Balance              U64        `json:"balance,omitempty"`      // a_b
+	MinItemGas           Gas        `json:"min_item_gas,omitempty"` // a_g
+	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"` // a_m
+	CreateTime           TimeSlot   // a_r
+	RecentAccumulateTime TimeSlot   // a_a
+	ParentService        ServiceId  // a_p
+	Bytes                U64        `json:"bytes,omitempty"` // a_o
+	Items                U32        `json:"items,omitempty"` // a_i
 }
 
 type ServiceAccountDerivatives struct {
@@ -190,7 +200,7 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 // Used in v0.6.3 (14.2)
 type Authorizer struct {
 	CodeHash OpaqueHash   `json:"code_hash,omitempty"` // authorization code hash
-	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob
+	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob, the term is updated to auth config in 0.6.5
 }
 
 type AuthorizerHash OpaqueHash
@@ -262,9 +272,11 @@ func (a AuthQueues) Validate() error {
 
 // --- v0.6.3 Chapter 14.3. Packages and Items ---
 
-type ExportSegment [SegmentSize]byte
-type ExportSegmentMatrix [][]ExportSegment
-type OpaqueHashMatrix [][]OpaqueHash
+type (
+	ExportSegment       [SegmentSize]byte
+	ExportSegmentMatrix [][]ExportSegment
+	OpaqueHashMatrix    [][]OpaqueHash
+)
 
 type ImportSpec struct {
 	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
@@ -547,8 +559,8 @@ type ReportedWorkPackage struct {
 }
 
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
-	Mmr        Mmr                   `json:"mmr"`
+	HeaderHash HeaderHash `json:"header_hash,omitempty"`
+	MmrPeak    OpaqueHash
 	StateRoot  StateRoot             `json:"state_root,omitempty"`
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
@@ -560,6 +572,12 @@ func (b BlocksHistory) Validate() error {
 		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %v", MaxBlocksHistory)
 	}
 	return nil
+}
+
+// (7.1) GP 0.6.7
+type Beta struct {
+	History   BlocksHistory
+	BeefyBelt Mmr `json:"mmr"`
 }
 
 // Statistics
@@ -1446,7 +1464,7 @@ type AlwaysAccumulateMap map[ServiceId]Gas
 
 type Privileges struct {
 	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceId           `json:"chi_a"` // AlterPhi
+	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
 	Designate   ServiceId           `json:"chi_v"` // AlterIota
 	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
 }
@@ -1458,7 +1476,10 @@ type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
 	Authorizers     AuthQueues          // q
-	Privileges      Privileges          // x
+	Bless           ServiceId           // m
+	Assign          ServiceIdList       // a
+	Designate       ServiceId           // v
+	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
 // (12.18 pre-0.6.5)
@@ -1527,9 +1548,11 @@ type AuditPool struct {
 	data map[WorkPackageHash][]AuditReport
 }
 
-type ExtrinsicData []byte
-type ExtrinsicDataList []ExtrinsicData
-type ExtrinsicDataMap map[OpaqueHash]ExtrinsicData
+type (
+	ExtrinsicData     []byte
+	ExtrinsicDataList []ExtrinsicData
+	ExtrinsicDataMap  map[OpaqueHash]ExtrinsicData
+)
 
 type WorkPackageBundle struct {
 	Package        WorkPackage
@@ -1548,9 +1571,21 @@ type ServiceBlobs []ServiceBlob
 // For state serialization, merklization, and reading trace test cases
 type StateKey [31]byte
 
+// BoundaryNode represents a node in the state trie for merklization boundary reporting.
+type BoundaryNode struct {
+	Key    StateKey
+	Hash   [32]byte
+	Parent *StateKey
+	IsLeaf bool
+}
+
 type StateKeyVal struct {
 	Key   StateKey
 	Value ByteSequence
 }
 
 type StateKeyVals []StateKeyVal
+
+func Some[T any](v T) *T {
+	return &v
+}

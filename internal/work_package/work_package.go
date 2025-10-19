@@ -58,7 +58,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 }
 
 // (14.15) second param: E(p,X#(pw),S#(pw),J#(pw))
-func buildWorkPackageBundle(
+func BuildWorkPackageBundle(
 	wp *types.WorkPackage,
 	extrinsicMap PVM.ExtrinsicDataMap,
 	importSegments types.ExportSegmentMatrix,
@@ -135,7 +135,7 @@ func WorkReportCompute(
 		AuthorizerHash: pa,
 		AuthOutput:     o,
 		Results:        results,
-		AuthGasUsed:    types.U64(g),
+		AuthGasUsed:    g,
 	}, nil
 }
 
@@ -162,7 +162,7 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 	e := refineOuput.ExportSegment
 	u := refineOuput.Gas
 	z := len(o) + rSum
-	if len(r)+z >= types.WorkReportOutputBlobsMaximumSize {
+	if len(r)+z > types.WorkReportOutputBlobsMaximumSize {
 		emptyExport := make([]types.ExportSegment, expectedCount)
 		return types.WorkExecResult{
 			types.WorkExecResultReportOversize: nil,
@@ -200,7 +200,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 		AccumulateGas: item.AccumulateGasLimit,
 		Result:        result,
 		RefineLoad: types.RefineLoad{
-			GasUsed:        types.U64(gas),
+			GasUsed:        gas,
 			Imports:        importCount,
 			ExtrinsicCount: item.ExportCount,
 			ExtrinsicSize:  extrinsicSize,
