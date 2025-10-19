@@ -521,7 +521,7 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, reg, mem
 	}
 	offset := uint32(1)
-	memVal, exitReason := loadFromMemory(mem, offset, uint32(uint8(vX)))
+	memVal, exitReason := loadFromMemory(mem, offset, uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -547,7 +547,7 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int8(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -578,7 +578,7 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(uint16(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {
@@ -601,9 +601,8 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 		logger.Errorf("instLoadI16 decodeOneRegisterAndOneImmediate error: %v", err)
 		return err, pc, reg, mem
 	}
-
 	offset := 2
-	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(int16(vX)))
+	memVal, exitReason := loadFromMemory(mem, uint32(offset), uint32(vX))
 	if exitReason != nil {
 		var pvmExit *PVMExitReason
 		if errors.As(exitReason, &pvmExit) {

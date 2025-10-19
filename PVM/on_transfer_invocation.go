@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
@@ -18,6 +19,7 @@ type OnTransferInput struct {
 
 // Psi_T
 func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
+	fmt.Printf("service %d call Psi_T at timeslot %d\n", input.ServiceID, input.Timeslot)
 	account, accountExists := input.ServiceAccounts[input.ServiceID]
 	if !accountExists {
 		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
@@ -29,14 +31,13 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	*/
 	_, code, err := service_account.FetchCodeByHash(account, account.ServiceInfo.CodeHash)
 	if err != nil {
-		logger.Errorf("on-transfer FetchCodeByHash failed")
+		logger.Debug("no code to execute in Psi_T")
 		return account, 0
 	}
 	// programCode, programCodeExists := account.PreimageLookup[codeHash]
-	if len(code) == 0 || len(code) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
+	if len(code) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
 		return account, 0
 	}
-
 	encoder := types.NewEncoder()
 	// Psi_M arguments
 	gasLimits := types.Gas(0)
@@ -44,13 +45,11 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 
 	F := Omegas{}
 
-	account.ServiceInfo.Balance += balances
-
 	// timeslot(t) bytes
-	timeslotSer, _ := encoder.Encode(input.Timeslot)
+	timeslotSer, _ := encoder.EncodeUint(uint64(input.Timeslot))
 	deferredTransferSer, _ := encoder.EncodeUint(uint64(len(input.DeferredTransfers)))
 	// serviceID(s) bytes
-	serviceIDSer, _ := encoder.Encode(input.ServiceID)
+	serviceIDSer, _ := encoder.EncodeUint(uint64(input.ServiceID))
 
 	var serialized []byte
 	serialized = append(serialized, timeslotSer...)
@@ -61,7 +60,8 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		gasLimits += deferredTransfer.GasLimit
 		balances += deferredTransfer.Balance
 	}
-
+	account.ServiceInfo.Balance += balances
+	input.ServiceAccounts[input.ServiceID] = account
 	store := store.GetInstance()
 	eta0 := store.GetPriorStates().GetEta()[0]
 
@@ -88,7 +88,6 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 			DeferredTransfer: input.DeferredTransfers,
 		},
 	}
-
 	result := Psi_M(StandardCodeFormat(code), 10, gasLimits, serialized, F, addition)
 	account = result.Addition.ServiceAccount
 

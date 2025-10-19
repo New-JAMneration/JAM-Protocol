@@ -1669,6 +1669,20 @@ type StateKeyVal struct {
 
 type StateKeyVals []StateKeyVal
 
+func (origin *StateKeyVals) DeepCopy() StateKeyVals {
+	copiedStateKeyVals := make(StateKeyVals, len(*origin))
+	// copy(copiedStateKeyVals, *origin)
+	for i := range *origin {
+		copiedStateKeyVals[i].Key = (*origin)[i].Key
+
+		copiedValue := make(ByteSequence, len((*origin)[i].Value))
+		copy(copiedValue, (*origin)[i].Value)
+		copiedStateKeyVals[i].Value = copiedValue
+	}
+
+	return copiedStateKeyVals
+}
+
 type StateKeyValDiff struct {
 	Key           StateKey
 	ExpectedValue ByteSequence

@@ -56,6 +56,14 @@ func InitConfig() {
 	if err := loadConfig(configPath); err != nil {
 		panic(err)
 	}
+
+	var mode string
+	set.StringVar(&mode, "mode", "tiny", "set tiny/full mode")
+	if mode == "full" {
+		types.SetFullMode()
+	} else {
+		types.SetTinyMode()
+	}
 }
 
 func loadConfig(path string) error {

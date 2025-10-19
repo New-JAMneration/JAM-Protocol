@@ -330,7 +330,34 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 			return nil, err
 		}
 		return lastAccOut, nil
+	default:
+		// C(255, s)
+		isServiceInfo := stateKey[0] == 0xFF
+		if isServiceInfo {
+			cLog(Yellow, "[ServiceInfo]")
+			printStateKey(Cyan, stateKey)
+			printStateValue(stateVal)
+			services := types.ServiceAccountState{}
+			// ServiceId
+			serviceId, err := DecodeServiceIdFromType2(stateKey)
+			if err != nil {
+				return services, err
+			}
+
+			// Decode the value
+			serviceInfo, err := decodeServiceInfo(stateVal)
+			if err != nil {
+				return services, err
+			}
+
+			service := types.ServiceAccount{}
+			service.ServiceInfo = serviceInfo
+			services[serviceId] = service
+			return service, err
+		}
+
 	}
+
 	return nil, errors.New("unsupported stat-key")
 }
 

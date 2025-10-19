@@ -104,34 +104,31 @@ func SingleStepStateTransition(instructionCode ProgramCode, bitmask Bitmask, jum
 // JIT version of (A.1) ψ_1
 func SingleInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasPrime := Gas(gas)
-	/*
-		if gasPrime < 9990958 {
-			time.Sleep(1 * time.Minute)
-		}
-	*/
 	// decode instructions in a block
-	pcPrime, instrCount, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
+	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
 	if err != nil {
 		logger.Errorf("DecodeInstructionBlock error : %v", err)
 		return err, 0, Gas(gas), reg, mem
 	}
-
-	// check gas, currently each instruction gas = 1, so only check instrCount
-	if Gas(gas) < Gas(instrCount) {
-		logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
-		return PVMExitTuple(OUT_OF_GAS, nil), pc, Gas(gas), reg, mem
-	}
-
+	/*
+		// check gas, currently each instruction gas = 1, so only check instrCount
+		if Gas(gas) < Gas(blockInstrCount) {
+			logger.Debugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)
+			return PVMExitTuple(OUT_OF_GAS, nil), pc, Gas(gas), reg, mem
+		}
+	*/
 	// To avoid duplicate charging
 	// ecalli will back to host-call level, then continue to execute remaining instructions
-	if program.Bitmasks.IsStartOfBasicBlock(pc) {
-		// charge gas
-		gasPrime -= Gas(instrCount)
-		logger.Debugf("    charge gas : %d -> %d", gas, gasPrime)
-	}
-
+	/*
+		if program.Bitmasks.IsStartOfBasicBlock(pc) {
+			// charge gas
+			// gasPrime -= Gas(blockInstrCount)
+			logger.Debugf("    charge gas : %d -> %d", gas, gasPrime)
+		}
+	*/
 	// execute instructions in the block
-	pc, regPrime, memPrime, exitReason := ExecuteInstructions(program.InstructionData, program.Bitmasks, program.JumpTable, pc, pcPrime, reg, mem)
+	pc, regPrime, memPrime, gasPrime, exitReason := ExecuteInstructions(program.InstructionData, program.Bitmasks, program.JumpTable, pc, pcPrime, reg, mem, gas)
+
 	var pvmExit *PVMExitReason
 	if !errors.As(exitReason, &pvmExit) {
 		return exitReason, 0, 0, Registers{}, Memory{}
@@ -141,7 +138,7 @@ func SingleInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, me
 	switch reason {
 	case PANIC, HALT:
 		return exitReason, 0, Gas(gasPrime), regPrime, memPrime
-	case HOST_CALL:
+	case HOST_CALL, OUT_OF_GAS:
 		return exitReason, pc, Gas(gasPrime), regPrime, memPrime
 	}
 
@@ -178,9 +175,12 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 }
 
 // execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
-func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory) (ProgramCounter, Registers, Memory, error) {
+func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) {
 	// no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
 	for pc <= pcPrime {
+		if gas < 1 {
+			return pc, registers, memory, gas, PVMExitTuple(OUT_OF_GAS, nil)
+		}
 		opcodeData := instructionData[pc]
 		skipLength := ProgramCounter(skip(int(pc), bitmask))
 
@@ -189,29 +189,29 @@ func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable
 		registers = registersPrime
 		memory = memoryPrime
 		instrCount++
-
+		gas -= 1
+		logger.Debug("gasPrime: ", gas)
 		var pvmExit *PVMExitReason
 		if !errors.As(exitReason, &pvmExit) && exitReason != nil {
-			return pc, registers, memory, exitReason
+			return pc, registers, memory, gas, exitReason
 		}
-
 		reason := exitReason.(*PVMExitReason).Reason
 		switch reason {
 		case PANIC, HALT:
-			return 0, registers, memory, exitReason
+			return 0, registers, memory, gas, exitReason
 		case HOST_CALL:
-			return pc + skipLength + 1, registers, memory, exitReason
+			return pc + skipLength + 1, registers, memory, gas, exitReason
 		}
 
 		if pc != newPC {
 			// check branch
-			return newPC, registers, memory, exitReason
+			return newPC, registers, memory, gas, exitReason
 		}
 
 		pc += skipLength + 1
 	}
 
-	return pc, registers, memory, PVMExitTuple(CONTINUE, nil)
+	return pc, registers, memory, gas, PVMExitTuple(CONTINUE, nil)
 }
 
 type Int interface {

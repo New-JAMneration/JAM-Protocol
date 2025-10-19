@@ -191,7 +191,7 @@ func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 		// result < 0
 		return 0
 	}
-	return aF
+	return storage
 }
 
 /*
