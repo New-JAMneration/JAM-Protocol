@@ -63,10 +63,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	storeInstance.StateCommit()
 
 	storeInstance.AddBlock(block)
-	/*
-		h := storeInstance.GetLatestBlock().Header.Parent
-		fmt.Printf("after addBlock headerParent: %x\n", h)
-	*/
 	// Run the STF and get the state root
 	err := stf.RunSTF()
 	if err != nil {
