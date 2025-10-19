@@ -66,7 +66,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Run the STF and get the state root
 	err := stf.RunSTF()
 	if err != nil {
-		return types.StateRoot{preStateRoot}, err
+		return preStateRoot, err
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
