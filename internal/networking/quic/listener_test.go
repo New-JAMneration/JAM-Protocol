@@ -5,13 +5,10 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func TestNewListener(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
-	defer store.CloseMiniRedis()
 
 	listenAddr := "localhost:0"
 	quicCfg := NewQuicConfig()

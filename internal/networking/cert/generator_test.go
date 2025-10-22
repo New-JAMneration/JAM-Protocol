@@ -8,8 +8,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func strToHex(str string) []byte {
@@ -230,7 +228,6 @@ func TestSelfSignedCertGen(t *testing.T) {
 func TestTLSConfigGen(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
 	defer os.Unsetenv("USE_MINI_REDIS") // Cleanup after test
-	defer store.CloseMiniRedis()
 
 	tests := []struct {
 		name      string
