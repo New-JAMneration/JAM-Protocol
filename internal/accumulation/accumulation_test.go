@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -24,8 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPreimageTestVectors(t *testing.T) {
-
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "preimages", "data")
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
@@ -72,29 +72,54 @@ func TestPreimageTestVectors(t *testing.T) {
 			// Store ServiceAccount into inputDelta
 			inputDelta[delta.Id] = serviceAccount
 		}
-		inputEp := preimages.Input.Preimages
-		inputSlot := preimages.Input.Slot
+
 		// Get store instance and required states
+		store.ResetInstance()
 		s := store.GetInstance()
-		s.GetProcessingBlockPointer().SetPreimagesExtrinsic(inputEp)
+
+		block := types.Block{
+			Header: types.Header{
+				Slot: preimages.Input.Slot,
+			},
+			Extrinsic: types.Extrinsic{
+				Preimages: preimages.Input.Preimages,
+			},
+		}
+		s.AddBlock(block)
+
 		s.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
-		s.GetPosteriorStates().SetTau(inputSlot)
+		s.GetPosteriorStates().SetTau(preimages.Input.Slot)
+
+		/*
+			STF
+		*/
 		accumulateErr := ProcessPreimageExtrinsics()
+
 		// Get output state
 		outputDelta := s.GetPosteriorStates().GetDelta()
+
+		statistics.UpdateServiceActivityStatistics(s.GetLatestBlock().Extrinsic)
+
 		// Validate output state
 		if preimages.Output.Err != nil {
-			if accumulateErr == nil {
+			if accumulateErr == nil || accumulateErr.Error() != preimages.Output.Err.Error() {
 				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 				t.Fatalf("Should raise Error %v but got %v", preimages.Output.Err, accumulateErr)
 			} else {
-				t.Logf("Error: %v", accumulateErr)
+				t.Logf("ErrorCode matched: expected %v, got %v", preimages.Output.Err, accumulateErr)
 				t.Logf("🔴 [%s] %s", types.TEST_MODE, binFile)
 			}
 		} else {
-			if !reflect.DeepEqual(outputDelta, inputDelta) {
+			if accumulateErr != nil {
 				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
-				t.Fatalf("Result States are not equal: %v", accumulateErr)
+				t.Fatalf("No Error expected but got %v", accumulateErr)
+			} else if !reflect.DeepEqual(outputDelta, inputDelta) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				diff := cmp.Diff(inputDelta, outputDelta)
+				t.Fatalf("Result States are not equal: %v", diff)
+			} else if !reflect.DeepEqual(s.GetPosteriorStates().GetPi().Services, preimages.PostState.Statistics) {
+				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+				t.Fatalf("Service statistics do not match expected: %v, but got %v", preimages.PostState.Statistics, s.GetPosteriorStates().GetPi().Services)
 			} else {
 				t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
 			}
@@ -103,7 +128,7 @@ func TestPreimageTestVectors(t *testing.T) {
 }
 
 func TestAccumulateTestVectors(t *testing.T) {
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "accumulate", types.TEST_MODE)
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)

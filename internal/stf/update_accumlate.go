@@ -1,13 +1,11 @@
 package stf
 
 import (
-	"log"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
 )
 
 func UpdateAccumlate() error {
-	log.Println("Update Accumlate")
+	// log.Println("Update Accumlate")
 
 	// 12.1, 12.2
 	err := accumulation.ProcessAccumulation()

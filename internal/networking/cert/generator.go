@@ -12,7 +12,6 @@ import (
 	"log"
 	"math/big"
 	"net"
-
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -37,7 +36,6 @@ func Ed25519KeyGen(seed []byte) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 // AlternativeName returns a string with prefix "e" and followed by
 // the result of import Ed25519 public key base function
 func AlternativeName(pk ed25519.PublicKey) string {
-
 	// E^{-1}_{32} deserialize function for 256-bit unsigned integers (serialization codec appendix)
 	deserialize := func(pk ed25519.PublicKey) *big.Int {
 		x := big.NewInt(0)
@@ -165,7 +163,11 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 	}
 
 	// Get first 4 bytes (8 nibbles) of the genesis header hash
-	genesisBlockHeaderHash := hash.Blake2bHashPartial(utils.HeaderSerialization(genesisBlock.Header), 4)
+	bytes, err := utils.HeaderSerialization(genesisBlock.Header)
+	if err != nil {
+		return nil, err
+	}
+	genesisBlockHeaderHash := hash.Blake2bHashPartial(bytes, 4)
 	// Convert to lowercase hexadecimal string
 	hashHex := hex.EncodeToString(genesisBlockHeaderHash)
 

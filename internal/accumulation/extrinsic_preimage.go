@@ -8,6 +8,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	PreimageErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/preimages"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
@@ -76,7 +77,7 @@ func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState
 
 // v0.6.4 (12.38) P = {(s, p) | (s, p)∈ EP , R(δ‡, s, H(p), |p|)}
 // FilterPreimageExtrinsics filtered extrinsics that should be integrated
-func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState) (types.PreimagesExtrinsic, error) {
+func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState) (types.PreimagesExtrinsic, *types.ErrorCode) {
 	// If eps is empty, return empty slice
 	if len(eps) == 0 {
 		log.Printf("Nothing is provided in Eps")
@@ -86,24 +87,32 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 	// If eps is not sorted, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i-1].Requester > eps[i].Requester {
-			return nil, errors.New("eps is not sorted by Requester")
+			log.Println("eps is not sorted by Requester")
+			errCode := PreimageErrorCode.PrimagesNotSortedUnique
+			return nil, &errCode
 		}
 
 		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) > 0 {
-			return nil, errors.New("eps.Requester is not sorted by Blob")
+			log.Println("eps.Requester is not sorted by Blob")
+			errCode := PreimageErrorCode.PrimagesNotSortedUnique
+			return nil, &errCode
 		}
 	}
 
 	// If eps have duplicates, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {
-			return nil, errors.New("eps have duplicates")
+			log.Println("eps have duplicates")
+			errCode := PreimageErrorCode.PrimagesNotSortedUnique
+			return nil, &errCode
 		}
 	}
 
 	filteredEps, err := IntegratePreimage(eps, deltaDoubleDagger)
 	if err != nil {
-		return nil, err
+		log.Println("IntegratePreimageErr:", err)
+		errCode := PreimageErrorCode.PreimageUnneeded
+		return nil, &errCode
 	}
 	return filteredEps, nil
 }
@@ -148,23 +157,23 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 // ProcessPreimageExtrinsics is the main unified function for handling preimage extrinsics
 // It combines filtering and delta state updates in a single call for external use
 // v0.6.4 (12.38-12.39)
-func ProcessPreimageExtrinsics() error {
+func ProcessPreimageExtrinsics() *types.ErrorCode {
 	// Get store instance and required states
 	s := store.GetInstance()
-	eps := s.GetProcessingBlockPointer().GetPreimagesExtrinsic()
+	eps := s.GetLatestBlock().Extrinsic.Preimages
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 	tauPrime := s.GetPosteriorStates().GetTau()
 
 	// Filter preimage extrinsics
-	filteredEps, err := FilterPreimageExtrinsics(eps, deltaDoubleDagger)
-	if err != nil {
-		return err
+	filteredEps, FilterErr := FilterPreimageExtrinsics(eps, deltaDoubleDagger)
+	if FilterErr != nil {
+		return FilterErr
 	}
 
 	// Update deltaDoubleDagger with filtered preimages
-	newDeltaDoubleDagger, err := UpdateDeltaWithExtrinsicPreimage(filteredEps, deltaDoubleDagger, tauPrime)
-	if err != nil {
-		return err
+	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, deltaDoubleDagger, tauPrime)
+	if UpdateErr != nil {
+		log.Println("UpdateDeltaWithExtrinsicPreimageErr:", UpdateErr)
 	}
 
 	// Update new double-dagger to posterior state

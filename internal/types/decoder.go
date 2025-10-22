@@ -31,11 +31,14 @@ func cLog(color string, string string) {
 }
 
 type Decoder struct {
-	buf *bytes.Reader
+	buf            *bytes.Reader
+	HashSegmentMap HashSegmentMap
 }
 
 func NewDecoder() *Decoder {
-	return &Decoder{}
+	return &Decoder{
+		HashSegmentMap: nil,
+	}
 }
 
 func (d *Decoder) Decode(data []byte, v interface{}) error {
@@ -281,4 +284,8 @@ func (d *Decoder) decodeStruct(v interface{}) error {
 
 type Decodable interface {
 	Decode(d *Decoder) error
+}
+
+func (d *Decoder) SetHashSegmentMap(hashSegmentMap HashSegmentMap) {
+	d.HashSegmentMap = hashSegmentMap
 }

@@ -15,17 +15,21 @@ func SerializeOpaqueHash(input types.OpaqueHash) (output types.ByteSequence) {
 	return WrapOpaqueHash(input).Serialize()
 }
 
-func BlockSerialization(block types.Block) (output types.ByteSequence) {
+func BlockSerialization(block types.Block) (output types.ByteSequence, err error) {
 	/*
 		(C.13) E (H, ET (ET ), EP (EP ), EG(EG), EA(EA), ED(ED))
 	*/
-	output = append(output, HeaderSerialization(block.Header)...)
+	serializedHeader, err := HeaderSerialization(block.Header)
+	if err != nil {
+		return nil, err
+	}
+	output = append(output, serializedHeader...)
 	output = append(output, ExtrinsicTicketSerialization(block.Extrinsic.Tickets)...)
 	output = append(output, ExtrinsicPreimageSerialization(block.Extrinsic.Preimages)...)
 	output = append(output, ExtrinsicGuaranteeSerialization(block.Extrinsic.Guarantees)...)
 	output = append(output, ExtrinsicAssuranceSerialization(block.Extrinsic.Assurances)...)
 	output = append(output, ExtrinsicDisputeSerialization(block.Extrinsic.Disputes)...)
-	return output
+	return output, nil
 }
 
 func ExtrinsicTicketSerialization(tickets types.TicketsExtrinsic) (output types.ByteSequence) {
@@ -281,61 +285,35 @@ func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.Byt
 	return output, nil
 }
 
-func HeaderSerialization(header types.Header) (output types.ByteSequence) {
-	// (C.19) E(H) = EU (H) ⌢ E(Hs)
-	output = append(output, HeaderUSerialization(header)...)
-	output = append(output, SerializeByteSequence(header.Seal[:])...)
-	return output
+// (C.22)
+func HeaderSerialization(header types.Header) (output types.ByteSequence, err error) {
+	// Encode the header
+	encoder := types.NewEncoder()
+	output, err = encoder.Encode(&header)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
-func HeaderUSerialization(header types.Header) (output types.ByteSequence) {
-	// (C.20) EU (H) = E(Hp,Hr,Hx) ⌢ E4(Ht) ⌢ E(¿He, ¿Hw, ↕Ho, E2(Hi),Hv)
-	// header.Parent, header.ParentStateRoot, header.ExtrinsicHash
-	output = append(output, SerializeByteSequence(header.Parent[:])...)
-	output = append(output, SerializeByteSequence(header.ParentStateRoot[:])...)
-	output = append(output, SerializeOpaqueHash(header.ExtrinsicHash)...)
-	// header.Slot
-	output = append(output, SerializeFixedLength(types.U32(header.Slot), 4)...)
-	// ?He header.EpochMark
-	{
-		num, _ := EmptyOrPair(header.EpochMark)
-		output = append(output, SerializeU64(types.U64(num))...)
-		if header.EpochMark != nil {
-			output = append(output, SerializeByteSequence(header.EpochMark.Entropy[:])...)
-			output = append(output, SerializeByteSequence(header.EpochMark.TicketsEntropy[:])...)
-			for _, validator := range header.EpochMark.Validators {
-				output = append(output, SerializeByteSequence(validator.Bandersnatch[:])...)
-				output = append(output, SerializeByteSequence(validator.Ed25519[:])...)
-			}
-		}
+// (C.23)
+// This function encodes the header's properties without the seal
+// I still use header encoding function, but remove the length of the encoded seal
+func HeaderUSerialization(header types.Header) (output types.ByteSequence, err error) {
+	encoder := types.NewEncoder()
+
+	serializedHeader, err := encoder.Encode(&header)
+	if err != nil {
+		return nil, err
 	}
-	// ?Hw header.TicketsMark
-	{
-		num, _ := EmptyOrPair(header.TicketsMark)
-		output = append(output, SerializeU64(types.U64(num))...)
-		if header.TicketsMark != nil {
-			for _, ticket := range *header.TicketsMark {
-				output = append(output, SerializeByteSequence(ticket.Id[:])...)
-				output = append(output, SerializeU64(types.U64(ticket.Attempt))...)
-			}
-		}
-	}
-	// ↕Ho header.OffendersMark
-	{
-		output = append(output, SerializeU64(types.U64(len(header.OffendersMark)))...)
-		for _, offender := range header.OffendersMark {
-			output = append(output, SerializeByteSequence(offender[:])...)
-		}
-	}
-	// E2(Hi) header.AuthorIndex
-	{
-		output = append(output, SerializeFixedLength(types.U32(header.AuthorIndex), 2)...)
-	}
-	// Hv header.EntropySource
-	{
-		output = append(output, SerializeByteSequence(header.EntropySource[:])...)
-	}
-	return output
+
+	lengthOfSeal := len(header.Seal)
+	validLength := len(serializedHeader) - lengthOfSeal
+
+	output = append(output, serializedHeader[:validLength]...)
+
+	return output, nil
 }
 
 func RefineContextSerialization(refine_context types.RefineContext) (output types.ByteSequence) {
@@ -486,9 +464,9 @@ func SerializeWorkPackage(work_package types.WorkPackage) (output types.ByteSequ
 	output = append(output, SerializeU64(types.U64(len(work_package.Authorization)))...)
 	output = append(output, SerializeByteSequence(work_package.Authorization)...)
 	output = append(output, SerializeFixedLength(types.U64(work_package.AuthCodeHost), 4)...)
-	output = append(output, SerializeOpaqueHash(work_package.Authorizer.CodeHash)...)
-	output = append(output, SerializeU64(types.U64(len(work_package.Authorizer.Params)))...)
-	output = append(output, SerializeByteSequence(work_package.Authorizer.Params)...)
+	output = append(output, SerializeOpaqueHash(work_package.AuthCodeHash)...)
+	output = append(output, SerializeU64(types.U64(len(work_package.AuthorizerConfig)))...)
+	output = append(output, SerializeByteSequence(work_package.AuthorizerConfig)...)
 	output = append(output, RefineContextSerialization(work_package.Context)...)
 	output = append(output, SerializeU64(types.U64(len(work_package.Items)))...)
 	for _, work_item := range work_package.Items {

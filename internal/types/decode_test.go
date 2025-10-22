@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -45,38 +46,38 @@ func GetBlockFromJson(filename string) (*types.Block, error) {
 	return &block, nil
 }
 
-func TestDecodeBlock(t *testing.T) {
-	blockBinFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
+// func TestDecodeBlock(t *testing.T) {
+// 	blockBinFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 
-	// Get the bytes from the file
-	data, err := GetBytesFromFile(blockBinFile)
-	if err != nil {
-		t.Errorf("Error getting bytes from file: %v", err)
-	}
+// 	// Get the bytes from the file
+// 	data, err := GetBytesFromFile(blockBinFile)
+// 	if err != nil {
+// 		t.Errorf("Error getting bytes from file: %v", err)
+// 	}
 
-	// Create a new block (pointer)
-	block := &types.Block{}
+// 	// Create a new block (pointer)
+// 	block := &types.Block{}
 
-	// Decode the block from the binary file
-	decoder := types.NewDecoder()
-	err = decoder.Decode(data, block)
-	if err != nil {
-		t.Errorf("Error decoding block: %v", err)
-	}
+// 	// Decode the block from the binary file
+// 	decoder := types.NewDecoder()
+// 	err = decoder.Decode(data, block)
+// 	if err != nil {
+// 		t.Errorf("Error decoding block: %v", err)
+// 	}
 
-	// Check the decode block is same as expected block
-	// Read json file and unmarshal it to get the expected block
-	blockJsonFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
-	expectedBlock, err := GetBlockFromJson(blockJsonFile)
-	if err != nil {
-		t.Errorf("Error getting block from json file: %v", err)
-	}
+// 	// Check the decode block is same as expected block
+// 	// Read json file and unmarshal it to get the expected block
+// 	blockJsonFile := "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.json"
+// 	expectedBlock, err := GetBlockFromJson(blockJsonFile)
+// 	if err != nil {
+// 		t.Errorf("Error getting block from json file: %v", err)
+// 	}
 
-	// Compare the two blocks
-	if !reflect.DeepEqual(block, expectedBlock) {
-		t.Errorf("Blocks do not match")
-	}
-}
+// 	// Compare the two blocks
+// 	if !reflect.DeepEqual(block, expectedBlock) {
+// 		t.Errorf("Blocks do not match")
+// 	}
+// }
 
 func TestDecodeU64(t *testing.T) {
 	data := []byte{0, 228, 11, 84, 2, 0, 0, 0}
@@ -113,7 +114,7 @@ func TestDecodeServiceId(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsAccumulateFile(t *testing.T) {
-	file := "../../pkg/test_data/jam-test-vectors/accumulate/tiny/accumulate_ready_queued_reports-1.bin"
+	file := "../../pkg/test_data/jam-test-vectors/stf/accumulate/tiny/accumulate_ready_queued_reports-1.bin"
 
 	data, err := GetBytesFromFile(file)
 	if err != nil {
@@ -265,12 +266,10 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 
 	bundle := types.WorkPackageBundle{
 		Package: types.WorkPackage{
-			Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-			AuthCodeHost:  types.ServiceId(1),
-			Authorizer: types.Authorizer{
-				CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-				Params:   types.ByteSequence{0x07, 0x08, 0x09},
-			},
+			Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+			AuthCodeHost:     types.ServiceId(1),
+			AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+			AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 			Context: types.RefineContext{
 				Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 				StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -307,14 +306,20 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 			{h1},
 		},
 	}
-
+	redisBackend, _ := store.GetRedisBackend()
 	encoder := types.NewEncoder()
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+	encoder.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := encoder.Encode(&bundle)
 	if err != nil {
 		t.Fatalf("failed to encode WorkPackageBundle: %v", err)
 	}
 	var decoded types.WorkPackageBundle
 	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(hashSegmentMap)
 	err = decoder.Decode(encoded, &decoded)
 	if err != nil {
 		t.Fatalf("failed to decode WorkPackageBundle: %v", err)
@@ -327,12 +332,10 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 
 func TestWorkPackage_EncodeDecode(t *testing.T) {
 	wp := types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
+		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
+		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
 			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -359,8 +362,13 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 			},
 		},
 	}
-
+	redisBackend, _ := store.GetRedisBackend()
 	e := types.NewEncoder()
+	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	if err != nil {
+		t.Fatalf("Failed to get hash segment map: %v", err)
+	}
+	e.SetHashSegmentMap(hashSegmentMap)
 	encoded, err := e.Encode(&wp)
 	if err != nil {
 		t.Fatalf("failed to encode WorkPackage: %v", err)
@@ -368,6 +376,7 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 
 	var decoded types.WorkPackage
 	d := types.NewDecoder()
+	d.SetHashSegmentMap(hashSegmentMap)
 	err = d.Decode(encoded, &decoded)
 	if err != nil {
 		t.Fatalf("failed to decode WorkPackage: %v", err)

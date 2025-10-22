@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/test-go/testify/require"
 )
 
@@ -13,18 +14,18 @@ func TestHashSegmentMap_LoadDict_Empty(t *testing.T) {
 	rdb, cleanup := setupTestRedis(t)
 	defer cleanup()
 
-	dict := NewHashSegmentMap(rdb)
+	backend := NewRedisBackend(rdb)
 
-	result, err := dict.LoadDict()
+	result, err := backend.GetHashSegmentMap()
 	require.NoError(t, err, "Should not error when loading from empty Redis key")
 	require.Empty(t, result, "Expected empty map when no data is saved")
 }
 
 func TestHashSegmentMap_LoadDict(t *testing.T) {
-	client, cleanup := setupTestRedis(t)
+	rdb, cleanup := setupTestRedis(t)
 	defer cleanup()
 
-	dict := NewHashSegmentMap(client)
+	backend := NewRedisBackend(rdb)
 
 	// Add 3 test data
 	for i := 0; i < 3; i++ {
@@ -32,13 +33,13 @@ func TestHashSegmentMap_LoadDict(t *testing.T) {
 		copy(wpHash[:], []byte(fmt.Sprintf("wp%02d", i)))
 		copy(segRoot[:], []byte(fmt.Sprintf("seg%02d", i)))
 
-		_, err := dict.SaveWithLimit(wpHash, segRoot)
+		_, err := backend.SetHashSegmentMapWithLimit(wpHash, segRoot)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second)
 	}
 
 	// Get data from Redis
-	result, err := dict.LoadDict()
+	result, err := backend.GetHashSegmentMap()
 	require.NoError(t, err)
 	require.Len(t, result, 3)
 
@@ -57,19 +58,19 @@ func TestHashSegmentMap_SaveWithLimit(t *testing.T) {
 	rdb, cleanup := setupTestRedis(t)
 	defer cleanup()
 
-	dict := NewHashSegmentMap(rdb)
+	backend := NewRedisBackend(rdb)
 
 	for i := 0; i < 10; i++ {
 		var wpHash, segRoot types.OpaqueHash
 		copy(wpHash[:], []byte(fmt.Sprintf("wp%02d", i)))
 		copy(segRoot[:], []byte(fmt.Sprintf("seg%02d", i)))
 
-		_, err := dict.SaveWithLimit(wpHash, segRoot)
+		_, err := backend.SetHashSegmentMapWithLimit(wpHash, segRoot)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // Simulate time difference
 	}
 
-	result, err := dict.LoadDict()
+	result, err := backend.GetHashSegmentMap()
 	require.NoError(t, err)
 	require.Len(t, result, 8)
 
@@ -94,16 +95,16 @@ func TestHashSegmentMap_SaveWithLimit(t *testing.T) {
 }
 
 func TestHashSegmentMap_LoadDict_ReturnData(t *testing.T) {
-	client, cleanup := setupTestRedis(t)
+	rdb, cleanup := setupTestRedis(t)
 	defer cleanup()
 
-	dict := NewHashSegmentMap(client)
+	backend := NewRedisBackend(rdb)
 
 	// Add test data
 	var wpHash1, segRoot1 types.OpaqueHash
 	copy(wpHash1[:], []byte("wp01"))
 	copy(segRoot1[:], []byte("seg01"))
-	data, err := dict.SaveWithLimit(wpHash1, segRoot1)
+	data, err := backend.SetHashSegmentMapWithLimit(wpHash1, segRoot1)
 	require.NoError(t, err)
 	require.Len(t, data, 1)
 	require.Equal(t, segRoot1, data[wpHash1], "Expected wpHash %v to return segRoot %v", wpHash1, segRoot1)
@@ -112,9 +113,73 @@ func TestHashSegmentMap_LoadDict_ReturnData(t *testing.T) {
 	var wpHash2, segRoot2 types.OpaqueHash
 	copy(wpHash2[:], []byte("wp02"))
 	copy(segRoot2[:], []byte("seg02"))
-	data, err = dict.SaveWithLimit(wpHash2, segRoot2)
+	data, err = backend.SetHashSegmentMapWithLimit(wpHash2, segRoot2)
 	require.NoError(t, err)
 	require.Len(t, data, 2)
 	require.Equal(t, segRoot1, data[wpHash1], "Expected wpHash %v to return segRoot %v", wpHash1, segRoot1)
 	require.Equal(t, segRoot2, data[wpHash2], "Expected wpHash %v to return segRoot %v", wpHash2, segRoot2)
+}
+
+func TestSegmentErasureMap_SaveAndGet(t *testing.T) {
+	// Setup
+	rdb, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	backend := NewRedisBackend(rdb)
+
+	// Test data
+	segmentRoot := types.OpaqueHash{
+		0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+	}
+	erasureRoot := types.OpaqueHash{
+		0x98, 0x76, 0x54, 0x32, 0x10, 0xfe, 0xdc, 0xba,
+	}
+
+	// Save
+	err := backend.SetSegmentErasureMap(segmentRoot, erasureRoot)
+	require.NoError(t, err)
+
+	// Get
+	got, err := backend.GetSegmentErasureMap(segmentRoot)
+	require.NoError(t, err)
+	require.Equal(t, erasureRoot, got)
+
+	// Make sure getting a non-existent key returns empty OpaqueHash, not an error
+	missingKey := types.OpaqueHash{}
+	missingVal, err := backend.GetSegmentErasureMap(missingKey)
+	require.NoError(t, err)
+	require.Equal(t, types.OpaqueHash{}, missingVal)
+}
+
+func TestSegmentErasureMap_TTL(t *testing.T) {
+	// Setup
+	// Start a local, in-memory Redis server for testing
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("failed to init miniredis %v:", err)
+	}
+	defer s.Close()
+
+	// Initialize our RedisClient using the in-memory server's address
+	rdb := NewRedisClient(s.Addr(), "", 0)
+
+	backend := NewRedisBackend(rdb)
+
+	segmentRoot := types.OpaqueHash{
+		0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+	}
+	erasureRoot := types.OpaqueHash{
+		0x98, 0x76, 0x54, 0x32, 0x10, 0xfe, 0xdc, 0xba,
+	}
+
+	err = backend.SetSegmentErasureMap(segmentRoot, erasureRoot)
+	require.NoError(t, err)
+
+	// Simulate 29 days passing
+	s.FastForward(29 * 24 * time.Hour)
+
+	// Check if the key has expired
+	got, err := backend.GetSegmentErasureMap(segmentRoot)
+	require.NoError(t, err)
+	require.Equal(t, types.OpaqueHash{}, got)
 }

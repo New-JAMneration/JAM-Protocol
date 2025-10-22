@@ -163,8 +163,7 @@ func BuildAnnouncement(
 	hashFunc func(types.ByteSequence) types.OpaqueHash, // H(w): hash function
 	validatorIndex types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey, // κ[v]ᵉ: Ed25519 private key
-) types.Ed25519Signature {
-
+) (types.Ed25519Signature, error) {
 	// (17.10) Compute xn = concat of E([E2(c) ⌢ H(w)] for all (c, w) ∈ an)
 	var xnPayload types.ByteSequence
 	for _, pair := range an {
@@ -180,7 +179,11 @@ func BuildAnnouncement(
 
 	// Get H(H): hash of the intermediate header
 	header := store.GetInstance().GetProcessingBlockPointer().GetHeader()
-	headerHash := hashFunc(utilities.HeaderSerialization(header))
+	serializedHeader, err := utilities.HeaderSerialization(header)
+	if err != nil {
+		return types.Ed25519Signature{}, err
+	}
+	headerHash := hashFunc(serializedHeader)
 
 	// (17.9) context = ⟨XI ⌢ n ⌢ xn ⌢ H(H)⟩
 	context := XI
@@ -190,7 +193,7 @@ func BuildAnnouncement(
 
 	// Sign context with validator Ed25519 private key: S = Sign(context)
 	signature := ed25519.Sign(validatorPrivKey, context)
-	return types.Ed25519Signature(signature)
+	return types.Ed25519Signature(signature), nil
 }
 
 // (17.12) GetAssignedValidators returns the set Aₙ(w) of validators assigned to work-report w.
@@ -463,11 +466,13 @@ func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8
 	// TODO: Implement the logic to broadcast the announcement
 	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
+
 func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
 	// TODO: Implement the logic to update the assignment map from other nodes
 	// This could involve receiving messages from other nodes and merging their assignment maps.
 	return assignmentMap
 }
+
 func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	// TODO: Implement the logic to update the positive judgers from other nodes
 	// This could involve receiving messages from other nodes and merging their positive judgers.
@@ -486,6 +491,7 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	}
 	return positiveJudgers
 }
+
 func WaitNextTranche(tranche types.U8) {
 	// TODO: Implement the logic to wait for the next tranche
 	// This could involve sleeping for a certain duration or waiting for an event.
@@ -498,7 +504,8 @@ func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash
 
 func SyncAssignmentMapFromOtherNodes(
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
-	validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash][]types.ValidatorIndex {
+	validatorIndex types.ValidatorIndex, tranche types.U8,
+) map[types.WorkPackageHash][]types.ValidatorIndex {
 	// TODO CE 144 QUIC, the final input types TBD
 	return assignmentMap
 }
@@ -508,6 +515,7 @@ func GetJudgement(report types.AuditReport) bool {
 	// TODO : Implement the logic to evaluate the audit report
 	return true
 }
+
 func SingleNodeAuditingAndPublish(
 	validatorIndex types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey,
@@ -538,7 +546,11 @@ func SingleNodeAuditingAndPublish(
 	}
 
 	// Step 5: Sign and broadcast A0 assignment (CE144)
-	a0Announcement := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	a0Announcement, err := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	if err != nil {
+		return err
+	}
+
 	BroadcastAnnouncement(validatorIndex, 0, assignmentMap, a0Announcement)
 
 	// Step 6: (17.17) Evaluate judgment for each assigned report in a0
@@ -576,7 +588,10 @@ func SingleNodeAuditingAndPublish(
 		}
 
 		// Step 13: Broadcast CE144 announcement for aₙ
-		anAnnouncement := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		anAnnouncement, err := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		if err != nil {
+			return err
+		}
 		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnnouncement)
 
 		// Step 14: Update positive judgers

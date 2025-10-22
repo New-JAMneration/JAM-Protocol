@@ -4,18 +4,12 @@ go 1.23.0
 
 toolchain go1.23.4
 
-require (
-	github.com/klauspost/reedsolomon v1.12.4 // for Erasure Coding
-	golang.org/x/crypto v0.38.0
-)
+require golang.org/x/crypto v0.38.0
+
+require golang.org/x/sys v0.33.0 // indirect
 
 require (
-	github.com/klauspost/cpuid/v2 v2.2.8 // indirect; indirect: for Erasure Coding
-	golang.org/x/sys v0.33.0 // indirect
-)
-
-require (
-	github.com/alicebob/miniredis/v2 v2.34.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/quic-go/quic-go v0.50.0
 	github.com/stretchr/testify v1.9.0
@@ -23,8 +17,10 @@ require (
 )
 
 require (
+	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/google/go-cmp v0.7.0
+	github.com/pkg/errors v0.9.1
 )
 
 require (
@@ -39,10 +35,10 @@ require (
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/gomodule/redigo v1.9.3 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect

@@ -81,7 +81,6 @@ func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
 
 func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
-	s.unfinalizedBlocks.AddBlock(block)
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
 }
@@ -99,37 +98,60 @@ func (s *Store) IsBlockFinalized(blockHash types.HeaderHash) bool {
 }
 
 // GetFinalizedBlocks returns all finalized blocks
-// TODO: This is not efficient,
-// We’re checking the blocks in reverse order—if we encounter a finalized block,
-// can we assume that all remaining blocks are also finalized?
 func (s *Store) GetFinalizedBlocks() []types.Block {
 	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
-	var finalizedBlocks []types.Block
 
+	finalizedBlocksIdx := -1
 	for i := len(allBlocks) - 1; i >= 0; i-- {
 		block := allBlocks[i]
 		if s.IsBlockFinalized(block.Header.Parent) {
-			finalizedBlocks = append(finalizedBlocks, block)
+			finalizedBlocksIdx = i
+			break
 		}
 	}
 
-	return finalizedBlocks
+	if finalizedBlocksIdx == -1 {
+		return []types.Block{}
+	}
+
+	return allBlocks[:finalizedBlocksIdx+1]
+}
+
+// GetFinalizedBlocks returns all finalized blocks
+func (s *Store) GetFinalizedBlock() types.Block {
+	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
+
+	finalizedBlocksIdx := -1
+	found := false
+	for i := len(allBlocks) - 1; i >= 0; i-- {
+		block := allBlocks[i]
+		if s.IsBlockFinalized(block.Header.Parent) {
+			finalizedBlocksIdx = i
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return types.Block{}
+	}
+
+	return allBlocks[finalizedBlocksIdx]
 }
 
 // GetUnfinalizedBlocks returns all unfinalized blocks
 func (s *Store) GetUnfinalizedBlocks() []types.Block {
 	allBlocks := s.unfinalizedBlocks.GetAllAncientBlocks()
-	var unfinalizedBlocks []types.Block
+	finalizedBlockIdx := -1
 
 	for i := len(allBlocks) - 1; i >= 0; i-- {
-		block := allBlocks[i]
-		if s.IsBlockFinalized(block.Header.Parent) {
+		if s.IsBlockFinalized(allBlocks[i].Header.Parent) {
+			finalizedBlockIdx = i
 			break
 		}
-		unfinalizedBlocks = append(unfinalizedBlocks, block)
 	}
 
-	return unfinalizedBlocks
+	return allBlocks[finalizedBlockIdx+1:]
 }
 
 // GetLatestFinalizedBlock returns the most recent finalized block
@@ -166,7 +188,7 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 }
 
 func (s *Store) GenerateGenesisState(state types.State) {
-	s.priorStates.GenerateGenesisState(state)
+	s.posteriorStates.GenerateGenesisState(state)
 	log.Println("🚀 Genesis state generated")
 }
 
@@ -192,6 +214,14 @@ func (s *Store) GetPosteriorCurrentValidators() types.ValidatorsData {
 
 func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) types.Validator {
 	return s.posteriorCurrentValidators.GetValidatorByIndex(index)
+}
+
+// post-state update to pre-state
+func (s *Store) StateCommit() {
+	posterState := s.GetPosteriorStates().GetState()
+	s.GetPriorStates().SetState(posterState)
+
+	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

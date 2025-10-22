@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -214,11 +215,14 @@ func (a AuthPool) Validate() error {
 	return nil
 }
 
-func (a *AuthPool) RemovePairedValue(h OpaqueHash) {
+func (a *AuthPool) RemoveLeftMostPairedValue(h OpaqueHash) {
 	result := (*a)[:0]
+	removed := false
 	for _, v := range *a {
-		if !bytes.Equal(v[:], h[:]) {
+		if removed || !bytes.Equal(v[:], h[:]) {
 			result = append(result, v)
+		} else {
+			removed = true
 		}
 	}
 	*a = result
@@ -312,13 +316,14 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workitem", w)
 }
 
-// v0.6.3 (14.2) Work Package
+// v0.7.0 (14.2) Work Package
 type WorkPackage struct {
-	Authorization ByteSequence  `json:"authorization,omitempty"`  // authorization token
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"` // host service index
-	Authorizer    Authorizer    `json:"authorizer"`
-	Context       RefineContext `json:"context"`
-	Items         []WorkItem    `json:"items,omitempty"`
+	AuthCodeHost     ServiceId     `json:"auth_code_host,omitempty"`    // host service index h
+	AuthCodeHash     OpaqueHash    `json:"auth_code_hash,omitempty"`    // u
+	Context          RefineContext `json:"context"`                     // c
+	Authorization    ByteSequence  `json:"authorization,omitempty"`     // authorization token j
+	AuthorizerConfig ByteSequence  `json:"authorizer_config,omitempty"` // f
+	Items            []WorkItem    `json:"items,omitempty"`             // w
 }
 
 func (w *WorkPackage) ScaleDecode(data []byte) error {
@@ -340,7 +345,7 @@ func (wp *WorkPackage) Validate() error {
 		return fmt.Errorf("WorkPackage must have items between 1 and %v, but got %v", MaximumWorkItems, len(wp.Items))
 	}
 
-	totalSize := len(wp.Authorization) + len(wp.Authorizer.Params)
+	totalSize := len(wp.Authorization) + len(wp.AuthorizerConfig)
 	totalImportSegments := 0
 	totalExportSegments := 0
 	totalExtrinsics := 0
@@ -387,7 +392,7 @@ func (wp *WorkPackage) Validate() error {
 		totalAccumulateGas += item.AccumulateGasLimit
 	}
 
-	if totalRefineGas > MaxRefineGas {
+	if totalRefineGas > Gas(MaxRefineGas) {
 		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
 	}
 	if totalAccumulateGas > MaxAccumulateGas {
@@ -435,6 +440,7 @@ type RefineLoad struct {
 }
 
 // v0.6.4 (11.6) WorkResult $\mathbb{L}$
+// v0.7.0 (11.6) Work Digest
 type WorkResult struct {
 	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
@@ -469,11 +475,11 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 
 // v0.6.3 (11.5) Availability specifications $\mathbb{S}$
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash,omitempty"`
-	Length       U32             `json:"length,omitempty"`
-	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
-	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-	ExportsCount U16             `json:"exports_count,omitempty"`
+	Hash         WorkPackageHash `json:"hash,omitempty"`          // p
+	Length       U32             `json:"length,omitempty"`        // l
+	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`  // u
+	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`  // e
+	ExportsCount U16             `json:"exports_count,omitempty"` // n
 }
 
 type SegmentRootLookupItem struct {
@@ -485,13 +491,13 @@ type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
 // v0.6.4 (11.2) WorkReport $\mathbb{W}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // s
-	Context           RefineContext     `json:"context"`                       // x
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // \mathbf{s}
+	Context           RefineContext     `json:"context"`                       // \mathbf{c}
 	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
 	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{o}
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{r}
-	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{l}
+	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{t}
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{l}
+	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{d}
 	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
 }
 
@@ -548,6 +554,7 @@ func (w *WorkReport) ScaleEncode() ([]byte, error) {
 
 type MmrPeak *OpaqueHash
 
+// Beefy Belt (7.3) GP 0.6.7
 type Mmr struct {
 	Peaks []MmrPeak `json:"peaks,omitempty"`
 }
@@ -564,6 +571,7 @@ type BlockInfo struct {
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
 
+// (7.2) GP 0.6.7
 type BlocksHistory []BlockInfo
 
 func (b BlocksHistory) Validate() error {
@@ -1461,11 +1469,17 @@ type (
 
 type AlwaysAccumulateMap map[ServiceId]Gas
 
+// jam-types.asn AlwaysAccumulateMapEntry
+type AlwaysAccumulateMapDTO struct {
+	ServiceId ServiceId `json:"id"`
+	Gas       Gas       `json:"gas"`
+}
+
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // Manager
-	Assign      ServiceIdList       `json:"chi_a"` // AlterPhi
-	Designate   ServiceId           `json:"chi_v"` // AlterIota
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // AutoAccumulateGasLimits
+	Bless       ServiceId           `json:"bless"`      // Manager
+	Assign      ServiceIdList       `json:"assign"`     // AlterPhi
+	Designate   ServiceId           `json:"designate"`  // AlterIota
+	AlwaysAccum AlwaysAccumulateMap `json:"always_acc"` // AutoAccumulateGasLimits
 }
 
 type AccumulateRoot OpaqueHash
@@ -1479,6 +1493,77 @@ type PartialStateSet struct {
 	Assign          ServiceIdList       // a
 	Designate       ServiceId           // v
 	AlwaysAccum     AlwaysAccumulateMap // z
+}
+
+func (origin *PartialStateSet) DeepCopy() PartialStateSet {
+	// ServiceAccountState
+
+	copiedServiceAccounts := make(ServiceAccountState)
+	for serviceID, originAccount := range origin.ServiceAccounts {
+		var copiedAccount ServiceAccount
+		copiedAccount.ServiceInfo = originAccount.ServiceInfo
+		copiedAccount.PreimageLookup = make(PreimagesMapEntry)
+		for preimageKey, preimageVal := range originAccount.PreimageLookup {
+			copiedPreimage := make(ByteSequence, len(preimageVal))
+			copy(copiedPreimage, preimageVal)
+			copiedAccount.PreimageLookup[preimageKey] = preimageVal
+		}
+		copiedAccount.LookupDict = make(LookupMetaMapEntry)
+		for k, v := range originAccount.LookupDict {
+			copiedAccount.LookupDict[k] = make(TimeSlotSet, len(v))
+			copy(copiedAccount.LookupDict[k], v)
+		}
+		copiedAccount.StorageDict = make(Storage)
+		for storageKey, storageVal := range originAccount.StorageDict {
+			copiedPreimage := make(ByteSequence, len(storageVal))
+			copy(copiedPreimage, storageVal)
+			copiedAccount.StorageDict[storageKey] = storageVal
+		}
+
+		copiedServiceAccounts[serviceID] = copiedAccount
+	}
+
+	// ValidatorsData
+	copiedValidators := make(ValidatorsData, len(origin.ValidatorKeys))
+	copy(copiedValidators, origin.ValidatorKeys)
+	/*
+		for k, v := range origin.ValidatorKeys {
+			// array(validator element: BandersnatchPublic, Ed25519Public, BlsPublic, ValidatorMetadata) is value type
+			copiedValidators[k] = v
+		}
+	*/
+	// AuthQueues
+	copiedAuthorizers := make(AuthQueues, len(origin.Authorizers))
+	for authorizerIdx, authorizerValue := range origin.Authorizers {
+		copiedAuthorizers[authorizerIdx] = make(AuthQueue, len(authorizerValue))
+		copy(copiedAuthorizers[authorizerIdx], authorizerValue)
+		/*
+			for queueIdx, queueValue := range authorizerValue {
+				copiedAuthorizers[authorizerIdx][queueIdx] = queueValue
+			}
+		*/
+	}
+
+	// Assign
+	copiedAssign := make(ServiceIdList, len(origin.Assign))
+	copy(copiedAssign, origin.Assign)
+	/*
+		for idx, serviceID := range copiedAssign {
+			copiedAssign[idx] = serviceID
+		}
+	*/
+	// AlwaysAccum
+	copiedAlwaysAccum := maps.Clone(origin.AlwaysAccum)
+
+	return PartialStateSet{
+		ServiceAccounts: copiedServiceAccounts,
+		ValidatorKeys:   copiedValidators,
+		Authorizers:     copiedAuthorizers,
+		Bless:           origin.Bless,
+		Assign:          copiedAssign,
+		Designate:       origin.Designate,
+		AlwaysAccum:     copiedAlwaysAccum,
+	}
 }
 
 // (12.18 pre-0.6.5)
@@ -1506,7 +1591,14 @@ type AccumulatedServiceHash struct {
 	Hash      OpaqueHash // AccumulationOutput
 }
 
+// v0.6.7 (7.4)
+// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+type LastAccOut []AccumulatedServiceHash
+
 // (12.15) B
+// INFO:
+// - We define (12.15) AccumulatedServiceOutput as a map of AccumulatedServiceHash.
+// - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
 // (12.23)
@@ -1577,6 +1669,14 @@ type StateKeyVal struct {
 
 type StateKeyVals []StateKeyVal
 
+type StateKeyValDiff struct {
+	Key           StateKey
+	ExpectedValue ByteSequence
+	ActualValue   ByteSequence
+}
+
 func Some[T any](v T) *T {
 	return &v
 }
+
+type HashSegmentMap map[OpaqueHash]OpaqueHash
