@@ -35,6 +35,31 @@ func NewBlockchain(db database.Database) (Blockchain, error) {
 	if err != nil {
 		return nil, err
 	}
+	genesisHash, found, err := store.ReadCanonicalHash(db, 0)
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		// verify the genesis block hash matches the stored one
+		headerHash := func(header *types.Header) types.HeaderHash {
+			encoded, _ := types.NewEncoder().Encode(header)
+			return types.HeaderHash(hash.Blake2bHash(encoded))
+		}
+		if genesisHash != headerHash(&genesis.Header) {
+			return nil, errors.New("genesis block hash mismatch with the stored one")
+		}
+	} else {
+		batch := db.NewBatch()
+		if err = store.WriteBlock(batch, genesis); err != nil {
+			return nil, err
+		}
+		if err = store.WriteCanonicalHash(batch, genesisHash, 0); err != nil {
+			return nil, err
+		}
+		if err = batch.Commit(); err != nil {
+			return nil, err
+		}
+	}
 
 	return &blockchain{
 		db:            db,
