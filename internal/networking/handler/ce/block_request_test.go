@@ -39,7 +39,7 @@ func (f *fakeBlockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot
 	return blockTimeSlot, nil
 }
 
-func (f *fakeBlockchain) GetBlockHashByTimeSlot(slot types.TimeSlot) (res []types.HeaderHash, err error) {
+func (f *fakeBlockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) (res []types.HeaderHash, err error) {
 	res, ok := f.blockTimeSlotToHash[slot]
 	if !ok {
 		return nil, errors.New("block not found")

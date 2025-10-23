@@ -1,12 +1,15 @@
 package database
 
-import "io"
+import (
+	"io"
+)
 
 // Database is all interfaces for underlying key-value database.
 type Database interface {
 	Reader
 	Writer
 	Batcher
+	Iterable
 	io.Closer
 }
 
@@ -35,4 +38,16 @@ type Batch interface {
 
 	// Commit writes all changes buffered in the batch to the underlying database.
 	Commit() error
+}
+
+type Iterable interface {
+	NewIterator(prefix []byte, start []byte) (Iterator, error)
+}
+
+type Iterator interface {
+	Next() bool
+	Key() []byte
+	Value() []byte
+	Error() error
+	Close() error
 }

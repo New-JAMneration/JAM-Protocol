@@ -35,7 +35,7 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]*
 		currentHash := req.HeaderHash
 		for i := uint32(0); i < count; i++ {
 			candidateTimeSlot := startTimeSlot + types.TimeSlot(i)
-			candidateHashes, err := blockchain.GetBlockHashByTimeSlot(candidateTimeSlot)
+			candidateHashes, err := blockchain.GetBlockHashesByTimeSlot(candidateTimeSlot)
 			if err != nil {
 				break
 			}

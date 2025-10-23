@@ -10,10 +10,10 @@ import (
 )
 
 func TestDatabaseSuite(t *testing.T, New func() database.Database) {
-	store := New()
-	defer store.Close()
-
 	t.Run("BasicOps", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
 		key := []byte("key")
 
 		got, err := store.Has(key)
@@ -42,6 +42,9 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 	})
 
 	t.Run("RangeDelete", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
 		keys := [][]byte{[]byte("a"), []byte("b"), []byte("c"), []byte("d"), []byte("e")}
 		value := []byte("value")
 
@@ -68,6 +71,9 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 	})
 
 	t.Run("BatchWrite", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
 		batch := store.NewBatch()
 
 		// Add multiple operations to the batch
@@ -100,6 +106,9 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 	})
 
 	t.Run("BatchDelete", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
 		// First, put some keys
 		keys := [][]byte{[]byte("del1"), []byte("del2"), []byte("del3")}
 		value := []byte("value")
@@ -137,6 +146,9 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 	})
 
 	t.Run("BatchMixedOperations", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
 		batch := store.NewBatch()
 
 		// Put some initial data
@@ -175,5 +187,169 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 		require.NoError(t, err)
 		assert.True(t, found)
 		assert.True(t, bytes.Equal(gotValue, []byte("new_value")))
+	})
+
+	t.Run("IteratorAllKeys", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
+		// Put some test data with a specific prefix to avoid conflicts with other tests
+		keys := [][]byte{[]byte("allrange_key1"), []byte("allrange_key2"), []byte("allrange_key3")}
+		values := [][]byte{[]byte("value1"), []byte("value2"), []byte("value3")}
+
+		for i, key := range keys {
+			err := store.Put(key, values[i])
+			require.NoError(t, err)
+		}
+
+		// Iterate through keys with specific range prefix
+		iter, err := store.NewIterator(nil, nil)
+		require.NoError(t, err)
+		defer iter.Close()
+
+		iteratedKeys := make([][]byte, 0)
+		iteratedValues := make([][]byte, 0)
+		for iter.Next() {
+			key := iter.Key()
+			value := iter.Value()
+			assert.NotNil(t, key)
+			assert.NotNil(t, value)
+
+			// Copy key and value since Iterator.Next() returns pointers to internal data
+			keyCopy := make([]byte, len(key))
+			copy(keyCopy, key)
+			valueCopy := make([]byte, len(value))
+			copy(valueCopy, value)
+			iteratedKeys = append(iteratedKeys, keyCopy)
+			iteratedValues = append(iteratedValues, valueCopy)
+		}
+
+		assert.NoError(t, iter.Error())
+		assert.Equal(t, len(keys), len(iteratedKeys), "should iterate through all keys")
+
+		// Verify length matches
+		assert.Equal(t, len(keys), len(iteratedKeys), "should iterate exactly the expected number of keys")
+		assert.Equal(t, len(values), len(iteratedValues), "should iterate exactly the expected number of values")
+
+		// Verify keys and values at same indices
+		for i := 0; i < len(iteratedKeys); i++ {
+			assert.True(t, bytes.Equal(iteratedKeys[i], keys[i]), "key at index %d should match", i)
+			assert.True(t, bytes.Equal(iteratedValues[i], values[i]), "value at index %d should match", i)
+		}
+	})
+
+	t.Run("IteratorWithPrefix", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
+		// Put test data
+		keys := [][]byte{[]byte("key"), []byte("prefix_x"), []byte("prefix_y"), []byte("prefix_z")}
+		values := [][]byte{[]byte("value"), []byte("prefix_val_x"), []byte("prefix_val_y"), []byte("prefix_val_z")}
+
+		for i, key := range keys {
+			err := store.Put(key, values[i])
+			require.NoError(t, err)
+		}
+
+		iter, err := store.NewIterator([]byte("prefix"), nil)
+		require.NoError(t, err)
+		defer iter.Close()
+
+		var iteratedKeys [][]byte
+		var iteratedValues [][]byte
+		for iter.Next() {
+			key := iter.Key()
+			value := iter.Value()
+
+			// Copy key and value since Iterator.Next() returns pointers to internal data
+			keyCopy := make([]byte, len(key))
+			copy(keyCopy, key)
+			valueCopy := make([]byte, len(value))
+			copy(valueCopy, value)
+			iteratedKeys = append(iteratedKeys, keyCopy)
+			iteratedValues = append(iteratedValues, valueCopy)
+		}
+
+		assert.NoError(t, iter.Error())
+
+		// Expected keys before "end_y": end_x
+		expectedKeys := [][]byte{[]byte("prefix_x"), []byte("prefix_y"), []byte("prefix_z")}
+		expectedValues := [][]byte{[]byte("prefix_val_x"), []byte("prefix_val_y"), []byte("prefix_val_z")}
+
+		// Verify length matches
+		assert.Equal(t, len(expectedKeys), len(iteratedKeys), "should iterate exactly the expected number of keys")
+		assert.Equal(t, len(expectedValues), len(iteratedValues), "should iterate exactly the expected number of values")
+
+		// Verify keys and values at same indices
+		for i := 0; i < len(iteratedKeys); i++ {
+			assert.True(t, bytes.Equal(iteratedKeys[i], expectedKeys[i]), "key at index %d should match", i)
+			assert.True(t, bytes.Equal(iteratedValues[i], expectedValues[i]), "value at index %d should match", i)
+		}
+	})
+
+	t.Run("IteratorWithPrefixAndStart", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
+		// Put test data
+		keys := [][]byte{[]byte("prefix_key"), []byte("prefix_start_a"), []byte("prefix_start_b"), []byte("prefix_start_c")}
+		values := [][]byte{[]byte("val"), []byte("val_a"), []byte("val_b"), []byte("val_c")}
+
+		for i, key := range keys {
+			err := store.Put(key, values[i])
+			require.NoError(t, err)
+		}
+
+		// Iterate from "range_b" to end
+		iter, err := store.NewIterator([]byte("prefix"), []byte("_start"))
+		require.NoError(t, err)
+		defer iter.Close()
+
+		var iteratedKeys [][]byte
+		var iteratedValues [][]byte
+		for iter.Next() {
+			key := iter.Key()
+			value := iter.Value()
+			// Copy key and value since Iterator.Next() returns pointers to internal data
+			keyCopy := make([]byte, len(key))
+			copy(keyCopy, key)
+			valueCopy := make([]byte, len(value))
+			copy(valueCopy, value)
+			iteratedKeys = append(iteratedKeys, keyCopy)
+			iteratedValues = append(iteratedValues, valueCopy)
+		}
+
+		assert.NoError(t, iter.Error())
+
+		// Expected keys from "range_b" onwards: range_b, range_c, range_d, range_e
+		expectedKeys := [][]byte{[]byte("prefix_start_a"), []byte("prefix_start_b"), []byte("prefix_start_c")}
+		expectedValues := [][]byte{[]byte("val_a"), []byte("val_b"), []byte("val_c")}
+
+		// Verify length matches
+		assert.Equal(t, len(expectedKeys), len(iteratedKeys), "should iterate exactly the expected number of keys")
+		assert.Equal(t, len(expectedValues), len(iteratedValues), "should iterate exactly the expected number of values")
+
+		// Verify keys and values at same indices
+		for i := 0; i < len(iteratedKeys); i++ {
+			assert.True(t, bytes.Equal(iteratedKeys[i], expectedKeys[i]), "key at index %d should match", i)
+			assert.True(t, bytes.Equal(iteratedValues[i], expectedValues[i]), "value at index %d should match", i)
+		}
+	})
+
+	t.Run("IteratorNoMatchingRange", func(t *testing.T) {
+		store := New()
+		defer store.Close()
+
+		// Put some data
+		err := store.Put([]byte("nomatch_abc"), []byte("value"))
+		require.NoError(t, err)
+
+		// Iterate with a range that doesn't match
+		iter, err := store.NewIterator([]byte("nomatch_xyz"), []byte("nomatch_zzz"))
+		require.NoError(t, err)
+		defer iter.Close()
+
+		assert.False(t, iter.Next(), "should not find keys outside range")
+		assert.NoError(t, iter.Error())
 	})
 }

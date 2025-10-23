@@ -11,13 +11,12 @@ import (
 )
 
 // Just the template for the interface
-// TODO: Implement the Blockchain interface.
 // Blockchain defines the required interface for retrieving blocks.
 type Blockchain interface {
-	// GetBlockNumber returns the block number for the given block hash.
+	// GetBlockTimeSlot returns the block number for the given block hash.
 	GetBlockTimeSlot(types.HeaderHash) (types.TimeSlot, error)
 	// GetBlockHashByTimeSlot returns candidate block hashes for the specified block number.
-	GetBlockHashByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error)
+	GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error)
 	// GetBlockByHash returns a block for the given block hash.
 	GetBlockByHash(types.HeaderHash) (*types.Block, error)
 	// GenesisBlockHash returns the genesis block hash.
@@ -68,11 +67,21 @@ func NewBlockchain(db database.Database) (Blockchain, error) {
 }
 
 func (bc *blockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot, error) {
-
-	return types.TimeSlot(0), nil
+	slot, found, err := store.ReadHeaderTimeSlot(bc.db, hash)
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return 0, errors.Wrap(ErrBlockNotFound, fmt.Sprintf("hash: %s", hash))
+	}
+	return slot, nil
 }
 
-func (bc *blockchain) GetBlockHashByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error) {
+func (bc *blockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error) {
+	// hashes, found, err := store.ReadBlockHashesByTimeSlot(bc.db, slot)
+	// if err != nil {
+	// return nil, err
+	// }
 
 	return nil, nil
 }
