@@ -376,6 +376,7 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
 	} else if errorMessage != nil {
 		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		actualPostStateRoot = actualPreStateRoot
 	} else {
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
