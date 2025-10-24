@@ -30,6 +30,44 @@ func TestSaveAndGetBlock(t *testing.T) {
 	require.Equal(t, block, *readBlock)
 }
 
+func TestMultipleBlocks(t *testing.T) {
+	block1 := types.Block{
+		Header:    types.Header{Slot: 1},
+		Extrinsic: types.Extrinsic{},
+	}
+	block2 := types.Block{
+		Header:    types.Header{Slot: 2},
+		Extrinsic: types.Extrinsic{},
+	}
+
+	db := memory.NewDatabase()
+	batch := db.NewBatch()
+
+	encoder := types.NewEncoder()
+
+	encoded1, err := encoder.Encode(&block1.Header)
+	require.NoError(t, err)
+	headerHash1 := types.HeaderHash(hash.Blake2bHash(encoded1))
+
+	encoded2, err := encoder.Encode(&block2.Header)
+	require.NoError(t, err)
+	headerHash2 := types.HeaderHash(hash.Blake2bHash(encoded2))
+
+	require.NoError(t, store.SaveBlock(batch, &block1))
+	require.NoError(t, store.SaveBlock(batch, &block2))
+	require.NoError(t, batch.Commit())
+
+	readBlock1, found, err := store.GetBlock(db, headerHash1, 1)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, block1, *readBlock1)
+
+	readBlock2, found, err := store.GetBlock(db, headerHash2, 2)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, block2, *readBlock2)
+}
+
 func TestGetNonExistentBlock(t *testing.T) {
 	db := memory.NewDatabase()
 
