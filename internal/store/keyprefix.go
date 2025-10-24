@@ -3,18 +3,19 @@ package store
 import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 
 var (
-	headerPrefix         = []byte("h")
-	headerHashPrefix     = []byte("hh")
-	headerTimeSlotPrefix = []byte("ht")
-	extrinsicPrefix      = []byte("e")
+	headerPrefix         = []byte("h:")
+	headerHashPrefix     = []byte("hh:")
+	headerTimeSlotPrefix = []byte("ht:")
+	extrinsicPrefix      = []byte("e:")
 )
 
 func headerKey(slot types.TimeSlot, hash types.HeaderHash) []byte {
-	encoded, _ := types.NewEncoder().EncodeMany(&slot, &hash)
-	return append(headerPrefix, encoded...)
+	encoder := types.NewEncoder()
+	timeSlotEncoded, _ := encoder.Encode(&slot)
+	return append(append(headerPrefix, timeSlotEncoded...), hash[:]...)
 }
 
-func headerHashKey(slot types.TimeSlot) []byte {
+func canocicalHeaderHashKey(slot types.TimeSlot) []byte {
 	encoded, _ := types.NewEncoder().Encode(&slot)
 	return append(headerHashPrefix, encoded...)
 }

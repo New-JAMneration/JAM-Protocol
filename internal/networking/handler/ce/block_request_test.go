@@ -188,12 +188,8 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	addr := listener.ListenAddress()
 	t.Logf("Server listening on %s", addr)
 
-	fmt.Println("HERE 1")
-
 	// Setup our fake blockchain.
 	fakeBC := setupFakeBlockchain()
-
-	fmt.Println("HERE 2")
 
 	// Start server goroutine.
 	go func() {

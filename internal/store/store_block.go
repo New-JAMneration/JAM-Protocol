@@ -26,7 +26,7 @@ func ReadBlock(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*
 	return &types.Block{
 		Header:    *header,
 		Extrinsic: *extrinsic,
-	}, false, nil
+	}, true, nil
 }
 
 // GenesisBlock reads and returns the genesis block from the database.
@@ -53,9 +53,9 @@ func WriteBlock(w database.Writer, block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	hash := types.HeaderHash(hash.Blake2bHash(encoded))
+	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	err = WriteExtrinsic(w, hash, block.Header.Slot, &block.Extrinsic)
+	err = WriteExtrinsic(w, headerHash, block.Header.Slot, &block.Extrinsic)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func ReadExtrinsic(r database.Reader, hash types.HeaderHash, slot types.TimeSlot
 	extrinsic := &types.Extrinsic{}
 
 	decoder := types.NewDecoder()
-	if err := decoder.Decode(encoded, &extrinsic); err != nil {
+	if err := decoder.Decode(encoded, extrinsic); err != nil {
 		return nil, false, err
 	}
 

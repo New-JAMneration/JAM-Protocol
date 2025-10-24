@@ -7,7 +7,7 @@ import (
 )
 
 func ReadCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash, bool, error) {
-	data, found, err := r.Get(headerHashKey(slot))
+	data, found, err := r.Get(canocicalHeaderHashKey(slot))
 	if err != nil {
 		return types.HeaderHash{}, found, err
 	}
@@ -18,7 +18,7 @@ func ReadCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash
 }
 
 func WriteCanonicalHash(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
-	return w.Put(headerHashKey(slot), hash[:])
+	return w.Put(canocicalHeaderHashKey(slot), hash[:])
 }
 
 func ReadHeader(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*types.Header, bool, error) {
@@ -32,7 +32,7 @@ func ReadHeader(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (
 
 	header := &types.Header{}
 	decoder := types.NewDecoder()
-	if err := decoder.Decode(encoded, &header); err != nil {
+	if err := decoder.Decode(encoded, header); err != nil {
 		return nil, false, err
 	}
 
@@ -54,11 +54,9 @@ func WriteHeader(w database.Writer, header *types.Header) error {
 	if err := WriteHeaderTimeSlot(w, hash, slot); err != nil {
 		return err
 	}
-
 	if err := w.Put(headerKey(slot, hash), encoded); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -86,11 +84,11 @@ func ReadHeaderTimeSlot(r database.Reader, hash types.HeaderHash) (types.TimeSlo
 		return types.TimeSlot(0), false, err
 	}
 
-	return slot, false, nil
+	return slot, true, nil
 }
 
 func WriteHeaderTimeSlot(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
-	encoded, err := types.NewEncoder().Encode(slot)
+	encoded, err := types.NewEncoder().Encode(&slot)
 	if err != nil {
 		return err
 	}
@@ -111,9 +109,8 @@ func ReadHeaderHashesByTimeSlot(r database.Iterable, slot types.TimeSlot) ([]typ
 
 	var hashes []types.HeaderHash
 	for iter.Next() {
-		data := make([]byte, len(iter.Value()))
-		copy(data, iter.Value())
-		hashes = append(hashes, types.HeaderHash(data))
+		hash := hash.Blake2bHash(iter.Value())
+		hashes = append(hashes, types.HeaderHash(hash))
 	}
 
 	return hashes, nil
