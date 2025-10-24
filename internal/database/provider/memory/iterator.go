@@ -15,8 +15,8 @@ type iterator struct {
 	values    [][]byte
 }
 
-// NewIterator creates a new iterator for the given key range.
-// The start key is inclusive, and the end key is exclusive. [start, end).
+// NewIterator creates a new iterator for the given prefix.
+// The start key is inclusive.
 func (db *memoryDB) NewIterator(prefix []byte, start []byte) (database.Iterator, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
@@ -55,6 +55,7 @@ func (db *memoryDB) NewIterator(prefix []byte, start []byte) (database.Iterator,
 	}, nil
 }
 
+// Next advances the iterator to the next key/value pair.
 func (it *iterator) Next() bool {
 	it.index++
 	if it.index >= len(it.keys) {
@@ -65,6 +66,8 @@ func (it *iterator) Next() bool {
 	return true
 }
 
+// Key returns the current key.
+// The returned slice is only valid until the next call to `Next()`, and should not be modified.
 func (it *iterator) Key() []byte {
 	if it.index < 0 || it.index >= len(it.keys) {
 		return nil
@@ -72,6 +75,8 @@ func (it *iterator) Key() []byte {
 	return []byte(it.currKey)
 }
 
+// Value returns the current value.
+// The returned slice is only valid until the next call to `Next()`, and should not be modified.
 func (it *iterator) Value() []byte {
 	if it.index < 0 || it.index >= len(it.values) {
 		return nil
@@ -86,6 +91,7 @@ func (it *iterator) Error() error {
 }
 
 // Close closes the iterator.
+// It is safe to call Close multiple times.
 func (it *iterator) Close() error {
 	it.index = -1
 	it.keys = nil

@@ -78,12 +78,11 @@ func (bc *blockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot, e
 }
 
 func (bc *blockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error) {
-	// hashes, found, err := store.ReadBlockHashesByTimeSlot(bc.db, slot)
-	// if err != nil {
-	// return nil, err
-	// }
-
-	return nil, nil
+	hashes, err := store.ReadHeaderHashesByTimeSlot(bc.db, slot)
+	if err != nil {
+		return nil, err
+	}
+	return hashes, nil
 }
 
 func (bc *blockchain) GetBlock(hash types.HeaderHash, slot types.TimeSlot) (*types.Block, error) {

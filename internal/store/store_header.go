@@ -100,3 +100,21 @@ func WriteHeaderTimeSlot(w database.Writer, hash types.HeaderHash, slot types.Ti
 func DeleteHeaderTimeSlot(w database.Writer, hash types.HeaderHash) error {
 	return w.Delete(headerTimeSlotKey(hash))
 }
+
+func ReadHeaderHashesByTimeSlot(r database.Iterable, slot types.TimeSlot) ([]types.HeaderHash, error) {
+	encoded, _ := types.NewEncoder().Encode(&slot)
+	iter, err := r.NewIterator(headerPrefix, encoded)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	var hashes []types.HeaderHash
+	for iter.Next() {
+		data := make([]byte, len(iter.Value()))
+		copy(data, iter.Value())
+		hashes = append(hashes, types.HeaderHash(data))
+	}
+
+	return hashes, nil
+}
