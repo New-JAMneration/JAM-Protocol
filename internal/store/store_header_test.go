@@ -10,22 +10,22 @@ import (
 	"github.com/test-go/testify/require"
 )
 
-func TestWriteAndReadCanonicalHash(t *testing.T) {
+func TestSaveAndGetCanonicalHash(t *testing.T) {
 	db := memory.NewDatabase()
 
 	slot := types.TimeSlot(1)
 	headerHash := types.HeaderHash{0x01, 0x02, 0x03}
 
-	err := store.WriteCanonicalHash(db, headerHash, slot)
+	err := store.SaveCanonicalHash(db, headerHash, slot)
 	require.NoError(t, err)
 
-	readHash, found, err := store.ReadCanonicalHash(db, slot)
+	readHash, found, err := store.GetCanonicalHash(db, slot)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, headerHash, readHash)
 }
 
-func TestWriteAndReadHeader(t *testing.T) {
+func TestSaveAndGetHeader(t *testing.T) {
 	db := memory.NewDatabase()
 
 	header := &types.Header{
@@ -37,10 +37,10 @@ func TestWriteAndReadHeader(t *testing.T) {
 	require.NoError(t, err)
 	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	err = store.WriteHeader(db, header)
+	err = store.SaveHeader(db, header)
 	require.NoError(t, err)
 
-	readHeader, found, err := store.ReadHeader(db, headerHash, header.Slot)
+	readHeader, found, err := store.GetHeader(db, headerHash, header.Slot)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, header, readHeader)
@@ -57,19 +57,19 @@ func TestDeleteHeader(t *testing.T) {
 	require.NoError(t, err)
 	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	err = store.WriteHeader(db, header)
+	err = store.SaveHeader(db, header)
 	require.NoError(t, err)
 
 	err = store.DeleteHeader(db, headerHash, header.Slot)
 	require.NoError(t, err)
 
-	readHeader, found, err := store.ReadHeader(db, headerHash, header.Slot)
+	readHeader, found, err := store.GetHeader(db, headerHash, header.Slot)
 	require.NoError(t, err)
 	require.False(t, found)
 	require.Nil(t, readHeader)
 }
 
-func TestReadHeaderTimeSlot(t *testing.T) {
+func TestGetHeaderTimeSlot(t *testing.T) {
 	db := memory.NewDatabase()
 
 	header := &types.Header{
@@ -80,16 +80,16 @@ func TestReadHeaderTimeSlot(t *testing.T) {
 	require.NoError(t, err)
 	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	err = store.WriteHeader(db, header)
+	err = store.SaveHeader(db, header)
 	require.NoError(t, err)
 
-	slot, found, err := store.ReadHeaderTimeSlot(db, headerHash)
+	slot, found, err := store.GetHeaderTimeSlot(db, headerHash)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, header.Slot, slot)
 }
 
-func TestReadHeaderHashesByTimeSlot(t *testing.T) {
+func TestGetHeaderHashesByTimeSlot(t *testing.T) {
 	db := memory.NewDatabase()
 
 	slot := types.TimeSlot(1)
@@ -111,12 +111,12 @@ func TestReadHeaderHashesByTimeSlot(t *testing.T) {
 	require.NoError(t, err)
 	headerHash2 := types.HeaderHash(hash.Blake2bHash(encoded2))
 
-	err = store.WriteHeader(db, header1)
+	err = store.SaveHeader(db, header1)
 	require.NoError(t, err)
-	err = store.WriteHeader(db, header2)
+	err = store.SaveHeader(db, header2)
 	require.NoError(t, err)
 
-	hashes, err := store.ReadHeaderHashesByTimeSlot(db, slot)
+	hashes, err := store.GetHeaderHashesByTimeSlot(db, slot)
 	require.NoError(t, err)
 	require.Len(t, hashes, 2)
 	require.Contains(t, hashes, headerHash1)

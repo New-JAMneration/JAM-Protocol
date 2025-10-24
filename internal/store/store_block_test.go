@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteAndReadBlock(t *testing.T) {
+func TestSaveAndGetBlock(t *testing.T) {
 	block := types.Block{
 		Header:    types.Header{Slot: 1},
 		Extrinsic: types.Extrinsic{},
@@ -23,18 +23,18 @@ func TestWriteAndReadBlock(t *testing.T) {
 	require.NoError(t, err)
 	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	require.NoError(t, store.WriteBlock(db, &block))
-	readBlock, found, err := store.ReadBlock(db, headerHash, 1)
+	require.NoError(t, store.SaveBlock(db, &block))
+	readBlock, found, err := store.GetBlock(db, headerHash, 1)
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, block, *readBlock)
 }
 
-func TestReadNonExistentBlock(t *testing.T) {
+func TestGetNonExistentBlock(t *testing.T) {
 	db := memory.NewDatabase()
 
 	headerHash := types.HeaderHash{}
-	readBlock, found, err := store.ReadBlock(db, headerHash, 1)
+	readBlock, found, err := store.GetBlock(db, headerHash, 1)
 	require.NoError(t, err)
 	require.False(t, found)
 	require.Nil(t, readBlock)
@@ -52,9 +52,9 @@ func TestDeleteBlock(t *testing.T) {
 	require.NoError(t, err)
 	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
-	require.NoError(t, store.WriteBlock(db, &block))
+	require.NoError(t, store.SaveBlock(db, &block))
 	require.NoError(t, store.DeleteBlock(db, headerHash, 1))
-	readBlock, found, err := store.ReadBlock(db, headerHash, 1)
+	readBlock, found, err := store.GetBlock(db, headerHash, 1)
 	require.NoError(t, err)
 	require.False(t, found)
 	require.Nil(t, readBlock)

@@ -6,7 +6,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-func ReadCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash, bool, error) {
+func GetCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash, bool, error) {
 	data, found, err := r.Get(canocicalHeaderHashKey(slot))
 	if err != nil {
 		return types.HeaderHash{}, found, err
@@ -17,11 +17,11 @@ func ReadCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash
 	return types.HeaderHash(data), found, nil
 }
 
-func WriteCanonicalHash(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
+func SaveCanonicalHash(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
 	return w.Put(canocicalHeaderHashKey(slot), hash[:])
 }
 
-func ReadHeader(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*types.Header, bool, error) {
+func GetHeader(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*types.Header, bool, error) {
 	encoded, found, err := r.Get(headerKey(slot, hash))
 	if err != nil {
 		return nil, found, err
@@ -39,7 +39,7 @@ func ReadHeader(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (
 	return header, true, nil
 }
 
-func WriteHeader(w database.Writer, header *types.Header) error {
+func SaveHeader(w database.Writer, header *types.Header) error {
 	encoded, err := types.NewEncoder().Encode(header)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func WriteHeader(w database.Writer, header *types.Header) error {
 		hash = types.HeaderHash(hash.Blake2bHash(encoded))
 	)
 
-	if err := WriteHeaderTimeSlot(w, hash, slot); err != nil {
+	if err := SaveHeaderTimeSlot(w, hash, slot); err != nil {
 		return err
 	}
 	if err := w.Put(headerKey(slot, hash), encoded); err != nil {
@@ -68,7 +68,7 @@ func DeleteHeader(w database.Writer, hash types.HeaderHash, slot types.TimeSlot)
 	return w.Delete(headerKey(slot, hash))
 }
 
-func ReadHeaderTimeSlot(r database.Reader, hash types.HeaderHash) (types.TimeSlot, bool, error) {
+func GetHeaderTimeSlot(r database.Reader, hash types.HeaderHash) (types.TimeSlot, bool, error) {
 	encoded, found, err := r.Get(headerTimeSlotKey(hash))
 	if err != nil {
 		return types.TimeSlot(0), found, err
@@ -87,7 +87,7 @@ func ReadHeaderTimeSlot(r database.Reader, hash types.HeaderHash) (types.TimeSlo
 	return slot, true, nil
 }
 
-func WriteHeaderTimeSlot(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
+func SaveHeaderTimeSlot(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
 	encoded, err := types.NewEncoder().Encode(&slot)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func DeleteHeaderTimeSlot(w database.Writer, hash types.HeaderHash) error {
 	return w.Delete(headerTimeSlotKey(hash))
 }
 
-func ReadHeaderHashesByTimeSlot(r database.Iterable, slot types.TimeSlot) ([]types.HeaderHash, error) {
+func GetHeaderHashesByTimeSlot(r database.Iterable, slot types.TimeSlot) ([]types.HeaderHash, error) {
 	encoded, _ := types.NewEncoder().Encode(&slot)
 	iter, err := r.NewIterator(headerPrefix, encoded)
 	if err != nil {
