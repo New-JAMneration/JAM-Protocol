@@ -15,7 +15,6 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 
 	exitReason, pcPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
 		program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
-
 	if exitReason == ErrNotImplemented {
 		return exitReason, pcPrime, gasPrime, registersPrime, memoryPrime
 	}
@@ -46,7 +45,6 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 
 	// (v0.7.1  A.19) check opcode validity
 	opcodeData := instructionData.isOpcode(pc)
-
 	// check gas
 	if gas < 0 {
 		logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
@@ -66,7 +64,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	registers = registersPrime
 	memory = memoryPrime
 	instrCount++
-
+	// logger.Debug("gasPrime, regPrime: ", gas, registersPrime)
 	var pvmExit *PVMExitReason
 	if !errors.As(exitReason, &pvmExit) && exitReason != nil {
 		return exitReason, pc, gas, registers, memory
@@ -105,6 +103,7 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 		return err, 0, Gas(gas), reg, mem
 	}
 	/*
+		//check block gas then execute
 		// check gas, currently each instruction gas = 1, so only check instrCount
 		if Gas(gas) < Gas(blockInstrCount) {
 			logger.Debugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)

@@ -119,7 +119,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		// GeneralArgs is only for historical_lookup op
 		GeneralArgs: GeneralArgs{
 			ServiceId:           &workItem.Service,
-			ServiceAccountState: input.ServiceAccounts,
+			ServiceAccountState: &input.ServiceAccounts,
 			CoreId:              nil, // TODO: may need to update coreID if needed
 		},
 		RefineArgs: RefineArgs{

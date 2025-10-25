@@ -14,14 +14,15 @@ type OnTransferInput struct {
 	Timeslot          types.TimeSlot
 	ServiceID         types.ServiceId
 	DeferredTransfers []types.DeferredTransfer
+	StorageKeyVal     types.StateKeyVals
 }
 
 // Psi_T
-func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
+func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas, types.StateKeyVals) {
 	account, accountExists := input.ServiceAccounts[input.ServiceID]
 	if !accountExists {
 		log.Fatalf("OnTransferInvoke serviceAccount : %d not exists", input.ServiceID)
-		return account, 0
+		return account, 0, input.StorageKeyVal
 	}
 	/*
 	   codeHash := s.ServiceInfo.CodeHash
@@ -30,11 +31,12 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	_, code, err := service_account.FetchCodeByHash(account, account.ServiceInfo.CodeHash)
 	if err != nil {
 		logger.Debug("no code to execute in Psi_T")
-		return account, 0
+		return account, 0, input.StorageKeyVal
 	}
 	// programCode, programCodeExists := account.PreimageLookup[codeHash]
 	if len(code) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
-		return account, 0
+		logger.Debug(len(code), len(input.DeferredTransfers))
+		return account, 0, input.StorageKeyVal
 	}
 	encoder := types.NewEncoder()
 	// Psi_M arguments
@@ -43,16 +45,29 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 
 	F := Omegas{}
 
-	// timeslot(t) bytes
-	timeslotSer, _ := encoder.EncodeUint(uint64(input.Timeslot))
-	deferredTransferSer, _ := encoder.EncodeUint(uint64(len(input.DeferredTransfers)))
-	// serviceID(s) bytes
-	serviceIDSer, _ := encoder.EncodeUint(uint64(input.ServiceID))
-
 	var serialized []byte
-	serialized = append(serialized, timeslotSer...)
-	serialized = append(serialized, serviceIDSer...)
-	serialized = append(serialized, deferredTransferSer...)
+	// timeslot(t) bytes
+	encoded, err := encoder.EncodeUint(uint64(input.Timeslot))
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+	logger.Debug("serialized: ", serialized)
+	// serviceID(s) bytes
+	encoded, err = encoder.EncodeUint(uint64(input.ServiceID))
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+	// deferredTransfer(bold{t})
+	encoded, err = encoder.EncodeUint(uint64(len(input.DeferredTransfers)))
+	if err != nil {
+		panic(err)
+	}
+	serialized = append(serialized, encoded...)
+	logger.Debug("serialized: ", serialized)
+
+	logger.Debug("serialized: ", serialized)
 
 	for _, deferredTransfer := range input.DeferredTransfers {
 		gasLimits += deferredTransfer.GasLimit
@@ -72,12 +87,15 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 	F[InfoOp] = HostCallFunctions[InfoOp]
 	F[100] = logHostCall
 
+	serviceAccounts := input.ServiceAccounts
+	serviceAccount := serviceAccounts[input.ServiceID]
 	// addition, on-transfer only uses GeneralArgs
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
-			ServiceAccount:      input.ServiceAccounts[input.ServiceID],
+			ServiceAccount:      &serviceAccount,
 			ServiceId:           &input.ServiceID,
-			ServiceAccountState: input.ServiceAccounts,
+			ServiceAccountState: &serviceAccounts,
+			StorageKeyVal:       &input.StorageKeyVal,
 		},
 		AccumulateArgs: AccumulateArgs{
 			Eta: eta0,
@@ -87,7 +105,6 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas) {
 		},
 	}
 	result := Psi_M(StandardCodeFormat(code), 10, gasLimits, serialized, F, addition)
-	account = result.Addition.ServiceAccount
 
-	return account, types.Gas(result.Gas)
+	return *result.Addition.ServiceAccount, types.Gas(result.Gas), *result.Addition.StorageKeyVal
 }
