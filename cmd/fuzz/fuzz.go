@@ -20,7 +20,6 @@ import (
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
-	"github.com/google/go-cmp/cmp"
 )
 
 func printUsage() {
@@ -404,39 +403,42 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		logger.ColorYellow("[GetState][Response] %d different key-val: ", len(diffs))
 		for _, v := range diffs {
 			if state, keyExists := jamtests.KeyValMap[v.Key]; keyExists {
-				logger.ColorDebug("state: %s, key: %v", state, v.Key)
+				logger.ColorYellow("state: %s, key: %v", state, v.Key)
 				if len(v.ActualValue) > 600 {
 					logger.ColorDebug("value too big, only check diff")
-					actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-					expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
+					/*
+						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
+						if err != nil {
+							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+						}
+						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
+						if err != nil {
+							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+						}
 
-					diff := cmp.Diff(actualStateStruct, expectStateStruct)
-					logger.ColorDebug("diffs: %+v", diff)
+						diff := cmp.Diff(actualStateStruct, expectStateStruct)
+						logger.ColorDebug("diffs: %+v", diff)
+					*/
 				} else {
 					logger.ColorDebug("actualVal: %+v", v.ActualValue)
 					logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
+					/*
+						// detailed state struct, except service-related
+						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
+						if err != nil {
+							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+						}
+						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
+						if err != nil {
+							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+						}
 
-					// detailed state struct, except service-related
-					actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-					expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
+						logger.ColorDebug("actualState: %+v", actualStateStruct)
+						logger.ColorDebug("actualState: %+v", expectStateStruct)
 
-					logger.ColorDebug("actualState: %+v", actualStateStruct)
-					logger.ColorDebug("actualState: %+v", expectStateStruct)
-
-					diff := cmp.Diff(actualStateStruct, expectStateStruct)
-					logger.ColorDebug("diffs: %+v", diff)
+						diff := cmp.Diff(actualStateStruct, expectStateStruct)
+						logger.ColorDebug("diffs: %+v", diff)
+					*/
 				}
 			} else if v.Key[0] == byte(255) {
 				serviceId, err := merklization.DecodeServiceIdFromType2(v.Key)
@@ -446,21 +448,23 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 				logger.ColorYellow("service: %d", serviceId)
 				logger.ColorDebug("actualVal: %+v", v.ActualValue)
 				logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-				if err != nil {
-					return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-				}
-				expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-				if err != nil {
-					return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-				}
+				/*
+					actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
+					if err != nil {
+						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+					}
+					expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
+					if err != nil {
+						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
+					}
 
-				logger.ColorDebug("actualStruct: %+v", actualStateStruct)
-				logger.ColorDebug("expectStruct: %+v", expectStateStruct)
-				diff := cmp.Diff(actualStateStruct, expectStateStruct)
-				logger.ColorDebug("diffs: %+v", diff)
+					logger.ColorDebug("actualStruct: %+v", actualStateStruct)
+					logger.ColorDebug("expectStruct: %+v", expectStateStruct)
+					diff := cmp.Diff(actualStateStruct, expectStateStruct)
+					logger.ColorDebug("diffs: %+v", diff)
+				*/
 			} else {
-				logger.ColorYellow("other state key: %v", v.Key)
+				logger.ColorYellow("other state key: 0x%x", v.Key)
 				if len(v.ActualValue) > 1024 || len(v.ExpectedValue) > 1024 {
 					logger.ColorDebug("value too big, check json file")
 				} else {
