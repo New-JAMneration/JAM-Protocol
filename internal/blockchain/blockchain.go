@@ -66,7 +66,7 @@ func NewBlockchain(db database.Database) (Blockchain, error) {
 }
 
 func (bc *blockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot, error) {
-	slot, found, err := store.ReadHeaderTimeSlot(bc.db, hash)
+	slot, found, err := store.GetHeaderTimeSlot(bc.db, hash)
 	if err != nil {
 		return 0, err
 	}
@@ -77,7 +77,7 @@ func (bc *blockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot, e
 }
 
 func (bc *blockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error) {
-	hashes, err := store.ReadHeaderHashesByTimeSlot(bc.db, slot)
+	hashes, err := store.GetHeaderHashesByTimeSlot(bc.db, slot)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (bc *blockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.Hea
 
 func (bc *blockchain) GetBlock(hash types.HeaderHash, slot types.TimeSlot) (*types.Block, error) {
 	// TODO: cache blocks in memory if it is already finalized
-	block, found, err := store.ReadBlock(bc.db, hash, slot)
+	block, found, err := store.GetBlock(bc.db, hash, slot)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (bc *blockchain) GetBlock(hash types.HeaderHash, slot types.TimeSlot) (*typ
 }
 
 func (bc *blockchain) GetBlockByTimeSlot(slot types.TimeSlot) (*types.Block, error) {
-	hash, found, err := store.ReadCanonicalHash(bc.db, slot)
+	hash, found, err := store.GetCanonicalHash(bc.db, slot)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (bc *blockchain) GetBlockByTimeSlot(slot types.TimeSlot) (*types.Block, err
 }
 
 func (bc *blockchain) GetBlockByHash(hash types.HeaderHash) (*types.Block, error) {
-	slot, found, err := store.ReadHeaderTimeSlot(bc.db, hash)
+	slot, found, err := store.GetHeaderTimeSlot(bc.db, hash)
 	if err != nil {
 		return nil, err
 	}

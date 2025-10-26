@@ -61,21 +61,21 @@ func (iter *iterator) Key() []byte {
 
 // Value returns the current value.
 // The returned slice is only valid until the next call to `Next()`, and should not be modified.
-func (it *iterator) Value() []byte {
-	return it.inner.Value()
+func (iter *iterator) Value() []byte {
+	return iter.inner.Value()
 }
 
 // Error returns the error encountered during iteration, if any.
-func (it *iterator) Error() error {
-	return it.inner.Error()
+func (iter *iterator) Error() error {
+	return iter.inner.Error()
 }
 
 // Close closes the iterator.
 // It is safe to call Close multiple times.
-func (it *iterator) Close() error {
-	if it.closed {
+func (iter *iterator) Close() error {
+	if iter.closed {
 		return nil
 	}
-	it.closed = true
-	return it.inner.Close()
+	iter.closed = true
+	return iter.inner.Close()
 }

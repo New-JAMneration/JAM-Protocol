@@ -56,45 +56,45 @@ func (db *memoryDB) NewIterator(prefix []byte, start []byte) (database.Iterator,
 }
 
 // Next advances the iterator to the next key/value pair.
-func (it *iterator) Next() bool {
-	it.index++
-	if it.index >= len(it.keys) {
+func (iter *iterator) Next() bool {
+	iter.index++
+	if iter.index >= len(iter.keys) {
 		return false
 	}
-	it.currKey = it.keys[it.index]
-	it.currValue = it.values[it.index]
+	iter.currKey = iter.keys[iter.index]
+	iter.currValue = iter.values[iter.index]
 	return true
 }
 
 // Key returns the current key.
 // The returned slice is only valid until the next call to `Next()`, and should not be modified.
-func (it *iterator) Key() []byte {
-	if it.index < 0 || it.index >= len(it.keys) {
+func (iter *iterator) Key() []byte {
+	if iter.index < 0 || iter.index >= len(iter.keys) {
 		return nil
 	}
-	return []byte(it.currKey)
+	return []byte(iter.currKey)
 }
 
 // Value returns the current value.
 // The returned slice is only valid until the next call to `Next()`, and should not be modified.
-func (it *iterator) Value() []byte {
-	if it.index < 0 || it.index >= len(it.values) {
+func (iter *iterator) Value() []byte {
+	if iter.index < 0 || iter.index >= len(iter.values) {
 		return nil
 	}
-	return it.currValue
+	return iter.currValue
 }
 
 // Error returns any error encountered during iteration.
 // In-memory iterator does not produce errors, so this always returns nil.
-func (it *iterator) Error() error {
+func (iter *iterator) Error() error {
 	return nil
 }
 
 // Close closes the iterator.
 // It is safe to call Close multiple times.
-func (it *iterator) Close() error {
-	it.index = -1
-	it.keys = nil
-	it.values = nil
+func (iter *iterator) Close() error {
+	iter.index = -1
+	iter.keys = nil
+	iter.values = nil
 	return nil
 }
