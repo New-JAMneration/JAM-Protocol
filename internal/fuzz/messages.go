@@ -51,7 +51,8 @@ type (
 	ImportBlock types.Block
 
 	ErrorMessage struct {
-		Error string
+		Error        string
+		PreStateRoot types.StateRoot
 	}
 
 	SetState struct {
@@ -130,6 +131,15 @@ func (m *ErrorMessage) MarshalBinary() ([]byte, error) {
 	var buffer []byte
 	buffer = append(buffer, uint8(len(m.Error)))
 	buffer = append(buffer, []byte(m.Error)...)
+
+	// Serialize PreStateRoot
+	encoder := types.NewEncoder()
+	preStateRootBytes, err := encoder.Encode(&m.PreStateRoot)
+	if err != nil {
+		return nil, err
+	}
+	buffer = append(buffer, preStateRootBytes...)
+
 	return buffer, nil
 }
 
@@ -147,6 +157,14 @@ func (m *ErrorMessage) UnmarshalBinary(data []byte) error {
 	}
 
 	m.Error = string(errorBuffer)
+
+	// Deserialize PreStateRoot
+	remaining := buffer.Bytes()
+	decoder := types.NewDecoder()
+	err = decoder.Decode(remaining, &m.PreStateRoot)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

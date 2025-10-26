@@ -372,10 +372,15 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
+	preStateRoot := types.StateRoot{}
 	if err != nil {
 		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
+		preStateRoot = errorMessage.PreStateRoot
+		logger.ColorYellow("[ImportBlock][Response] pre_state_root= 0x%v", hex.EncodeToString(preStateRoot[:]))
 	} else if errorMessage != nil {
 		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		preStateRoot = errorMessage.PreStateRoot
+		logger.ColorYellow("[ImportBlock][Response] pre_state_root= 0x%v", hex.EncodeToString(preStateRoot[:]))
 	} else {
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}

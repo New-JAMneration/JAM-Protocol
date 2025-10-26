@@ -138,7 +138,8 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 		return Message{
 			Type: MessageType_ErrorMessage,
 			Error: &ErrorMessage{
-				Error: err.Error(),
+				Error:        err.Error(),
+				PreStateRoot: stateRoot,
 			},
 		}, nil
 	}
