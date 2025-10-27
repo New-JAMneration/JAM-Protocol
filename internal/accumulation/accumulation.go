@@ -420,6 +420,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	vStar := singleOutput.PartialStateSet.Designate
 	zPrime := singleOutput.PartialStateSet.AlwaysAccum
 	aPrime := make(types.ServiceIdList, types.CoresCount)
+	singleInput.PartialStateSet.Designate = vStar
 
 	// ∀c ∈ NC ∶ a′c = ((∆1(o, w, f, a∗c )o)a)c
 	if len(aStar) != types.CoresCount {
@@ -535,6 +536,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	storageKeyVal := store.GetInstance().GetStorageKeyVals()
 	pvmResult := PVM.Psi_A(e, tauPrime, s, g, i, eta0, storageKeyVal)
 	store.GetInstance().SetStorageKeyVals(pvmResult.StorageKeyVal)
+
 	// Collect PVM results as output
 	{
 		output.AccumulationOutput = pvmResult.Result
