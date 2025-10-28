@@ -155,17 +155,22 @@ func wrapWithG(original Omega) Omega {
 // (B.13) C
 func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs, types.StateKeyVals) {
 	serviceBlobs := make(types.ServiceBlobs, 0)
-	switch reasonOrBytes.(type) {
+	switch reasonOrBytes := reasonOrBytes.(type) {
 	case error: // system error
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
 		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
-	case types.ByteSequence:
+	case []byte:
+		var h types.OpaqueHash
+		if len(reasonOrBytes) != len(h) {
+			return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
+		}
+		copy(h[:], reasonOrBytes[:len(h)])
+		opaqueHash := &h
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		opaqueHash := reasonOrBytes.(*types.OpaqueHash)
 		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
 	default:
 		if reasonOrBytes == OUT_OF_GAS || reasonOrBytes == PANIC {
