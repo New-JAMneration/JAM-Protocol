@@ -47,7 +47,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	opcodeData := instructionData.isOpcode(pc)
 	// check gas
 	if gas < 0 {
-		logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
+		// logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
 		return PVMExitTuple(OUT_OF_GAS, nil), pc, gas, registers, memory
 	}
 	gas -= 1
@@ -73,7 +73,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	reason := exitReason.(*PVMExitReason).Reason
 	switch reason {
 	case PANIC, HALT:
-		logger.Debugf("   gas: %d", gas)
+		// logger.Debugf("   gas: %d", gas)
 		return exitReason, 0, gas, registers, memory
 	case HOST_CALL:
 		return exitReason, pc + skipLength + 1, gas, registers, memory
@@ -147,13 +147,13 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 
 		// check pc is not out of range and avoid infinit-loop
 		if pc > ProgramCounter(len(instructionData)) {
-			logger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
+			// logger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 
 		// check opcode is valid after computing with skip
 		if !instructionData.isOpcodeValid(pc) {
-			logger.Debugf("PVM panic: decode program failed: opcode invalid")
+			// logger.Debugf("PVM panic: decode program failed: opcode invalid")
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 
@@ -183,7 +183,7 @@ func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable
 		memory = memoryPrime
 		instrCount++
 		gas -= 1
-		logger.Debug("gasPrime: ", gas)
+		// logger.Debug("gasPrime: ", gas)
 		var pvmExit *PVMExitReason
 		if !errors.As(exitReason, &pvmExit) && exitReason != nil {
 			return pc, registers, memory, gas, exitReason

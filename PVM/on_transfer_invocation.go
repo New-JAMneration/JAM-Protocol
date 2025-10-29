@@ -6,7 +6,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type OnTransferInput struct {
@@ -30,12 +29,10 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas, t
 	*/
 	_, code, err := service_account.FetchCodeByHash(account, account.ServiceInfo.CodeHash)
 	if err != nil {
-		logger.Debug("no code to execute in Psi_T")
 		return account, 0, input.StorageKeyVal
 	}
 	// programCode, programCodeExists := account.PreimageLookup[codeHash]
 	if len(code) > types.MaxServiceCodeSize || len(input.DeferredTransfers) == 0 {
-		logger.Debug(len(code), len(input.DeferredTransfers))
 		return account, 0, input.StorageKeyVal
 	}
 	encoder := types.NewEncoder()
@@ -52,7 +49,6 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas, t
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-	logger.Debug("serialized: ", serialized)
 	// serviceID(s) bytes
 	encoded, err = encoder.EncodeUint(uint64(input.ServiceID))
 	if err != nil {
@@ -65,9 +61,6 @@ func OnTransferInvoke(input OnTransferInput) (types.ServiceAccount, types.Gas, t
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-	logger.Debug("serialized: ", serialized)
-
-	logger.Debug("serialized: ", serialized)
 
 	for _, deferredTransfer := range input.DeferredTransfers {
 		gasLimits += deferredTransfer.GasLimit
