@@ -4,7 +4,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // (B.8) Ψ_A
@@ -173,7 +172,6 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 			for _, v := range resultContext.ResultContextY.ServiceBlobs {
 				serviceBlobs = append(serviceBlobs, v)
 			}
-			logger.Debug("Psi_A C function: PVM exitReason: ", reasonOrBytes)
 			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
 		}
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {

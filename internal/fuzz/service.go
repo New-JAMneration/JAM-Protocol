@@ -70,7 +70,12 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
-	serializedState, _ = m.StateEncoder(latestState)
+	serializedState, err = m.StateEncoder(latestState)
+	if err != nil {
+		fmt.Printf("state encoder error: %v\n", err)
+		return types.StateRoot{}, err
+	}
+	storageKeyVal = storeInstance.GetStorageKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
