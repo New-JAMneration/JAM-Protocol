@@ -15,8 +15,7 @@ type iterator struct {
 	values    [][]byte
 }
 
-// NewIterator creates a new iterator for the given prefix.
-// The start key is inclusive.
+// NewIterator creates a new iterator for the given prefix. The start key is inclusive.
 func (db *memoryDB) NewIterator(prefix []byte, start []byte) (database.Iterator, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()

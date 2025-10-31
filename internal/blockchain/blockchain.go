@@ -12,9 +12,9 @@ import (
 // Just the template for the interface
 // Blockchain defines the required interface for retrieving blocks.
 type Blockchain interface {
-	// GetBlockTimeSlot returns the block number for the given block hash.
+	// GetBlockTimeSlot returns the block timeslot for the given block hash.
 	GetBlockTimeSlot(types.HeaderHash) (types.TimeSlot, error)
-	// GetBlockHashByTimeSlot returns candidate block hashes for the specified block number.
+	// GetBlockHashByTimeSlot returns candidate block hashes for the specified block timeslot.
 	GetBlockHashesByTimeSlot(slot types.TimeSlot) ([]types.HeaderHash, error)
 	// GetBlockByHash returns a block for the given block hash.
 	GetBlockByHash(types.HeaderHash) (*types.Block, error)

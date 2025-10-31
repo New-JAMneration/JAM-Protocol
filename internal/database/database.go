@@ -40,10 +40,12 @@ type Batch interface {
 	Commit() error
 }
 
+// Iterable defines new iterator creation for a key-value database.
 type Iterable interface {
 	NewIterator(prefix []byte, start []byte) (Iterator, error)
 }
 
+// Iterator defines the interface for iterating over key-value pairs in the database.
 type Iterator interface {
 	Next() bool
 	Key() []byte

@@ -11,8 +11,7 @@ type iterator struct {
 	closed bool
 }
 
-// NewIterator creates a new iterator for the given prefix.
-// The start key is inclusive, and the end key is exclusive.
+// NewIterator creates a new iterator for the given prefix. The start key is inclusive.
 func (db *pebbleDB) NewIterator(prefix []byte, start []byte) (database.Iterator, error) {
 	// prefix iterator upper bound calculation
 	// https://github.com/cockroachdb/pebble/blob/ffc306f908df470254d953bf865aca1c94e49271/iterator_example_test.go#L44

@@ -15,7 +15,7 @@ type pebbleDB struct {
 
 func NewDatabase(datadir string, readOnly bool) (database.Database, error) {
 	opt := &pebble.Options{
-		// Default compaction concurrency is single-threaded, use all available logical cores
+		// Default compaction concurrency is 1, use all available logical cores
 		// for speeding up compactions.
 		MaxConcurrentCompactions: runtime.NumCPU,
 		ReadOnly:                 readOnly,
