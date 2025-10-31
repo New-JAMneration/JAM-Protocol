@@ -46,15 +46,15 @@ func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.St
 /*
 	s = [ E_4(s) ⌢ E(h) | (s, h) <− θ′ ]
 */
-func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
-	newEncoder := types.NewEncoder()
-	var output types.ByteSequence
-	for _, accumulatedServiceHash := range lastAccOut {
-		data, err := newEncoder.Encode(&accumulatedServiceHash)
+func serLastAccOut(lastAccOut types.LastAccOut) ([]types.ByteSequence, error) {
+	output := make([]types.ByteSequence, 0, len(lastAccOut))
+	for i := 0; i < len(lastAccOut); i++ {
+		enc := types.NewEncoder()
+		data, err := enc.Encode(&lastAccOut[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode accumulatedServiceHash: %v", err)
+			return nil, fmt.Errorf("failed to encode lastAccOut[%d]: %v", i, err)
 		}
-		output = append(output, data...)
+		output = append(output, data)
 	}
 
 	return output, nil
@@ -64,8 +64,8 @@ func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
 /*
 	MB ( s, HK )
 */
-func lastAccOutRoot(serializedLastAccOut types.ByteSequence) types.OpaqueHash {
-	return merkle.Mb([]types.ByteSequence{serializedLastAccOut}, hash.KeccakHash)
+func lastAccOutRoot(serializedLastAccOut []types.ByteSequence) types.OpaqueHash {
+	return merkle.Mb(serializedLastAccOut, hash.KeccakHash)
 }
 
 // Append lastAccOutRoot to mmr and form commitment (7.7) GP 0.6.7
