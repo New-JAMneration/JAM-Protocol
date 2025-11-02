@@ -27,7 +27,7 @@ func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 		output.ByteSequence = v[0]
 		return output
 	} else {
-		mid := len(v) / 2
+		mid := (len(v) + 1) / 2
 		left := v[:mid]
 		right := v[mid:]
 		// $node + N(left) + N(right)
