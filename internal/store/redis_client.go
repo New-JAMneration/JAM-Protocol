@@ -34,9 +34,6 @@ func (r *RedisClient) Ping() error {
 
 // Put sets key -> value in Redis. No expiration is set.
 func (r *RedisClient) Put(key string, value []byte) error {
-	// For logging/tracing:
-	log.Printf("PUT key=%s value(hex)=%s", key, hex.EncodeToString(value))
-
 	// TODO: setup expired time
 	err := r.client.Set(key, value, 0).Err()
 	if err != nil {
@@ -112,10 +109,8 @@ func (r *RedisClient) Batch(ctx context.Context, operations []BatchOperation) er
 	for _, op := range operations {
 		switch op.Type {
 		case OpPut:
-			fmt.Printf("BATCH PUT key=%s\n", op.Key)
 			pipe.Set(op.Key, op.Value, 0)
 		case OpDelete:
-			fmt.Printf("BATCH DELETE key=%s\n", op.Key)
 			pipe.Del(op.Key)
 		}
 	}

@@ -101,26 +101,5 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyVals, error) {
 	storeInstance := store.GetInstance()
-
-	parentHeader := storeInstance.GetLatestBlock().Header
-	encoder := types.NewEncoder()
-	encoded_parent_header, err := encoder.Encode(&parentHeader)
-	hashHeader := types.HeaderHash(hash.Blake2bHash(encoded_parent_header))
-	if err != nil {
-		return types.StateKeyVals{}, fmt.Errorf("encode header failed: %v", err)
-	}
-	if headerHash != types.HeaderHash(hashHeader) {
-		return types.StateKeyVals{}, fmt.Errorf("hash mismatch: got %x, want %x", hashHeader, headerHash)
-	}
-
-	state := storeInstance.GetPosteriorStates().GetState()
-
-	encodedState, err := m.StateEncoder(state)
-	storageKeyVal := store.GetInstance().GetStorageKeyVals()
-	encodedState = append(storageKeyVal, encodedState...)
-	if err != nil {
-		return types.StateKeyVals{}, err
-	}
-
-	return encodedState, nil
+	return storeInstance.GetStateByBlockHash(headerHash)
 }
