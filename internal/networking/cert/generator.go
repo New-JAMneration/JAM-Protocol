@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
