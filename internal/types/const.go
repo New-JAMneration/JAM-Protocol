@@ -43,6 +43,7 @@ func SetTinyMode() {
 	MaxRefineGas = 1_000_000_000       // G_R
 	ECPiecesPerSegment = 1026
 	ECBasicSize = 4
+	MaxLookupAge = 24 // L
 }
 
 func SetFullMode() {
@@ -62,6 +63,7 @@ func SetFullMode() {
 	MaxRefineGas = 5_000_000_000                              // G_R
 	ECPiecesPerSegment = 6
 	ECBasicSize = 684
+	MaxLookupAge = 14400 // L
 }
 
 // changeable constants depends on chainspec
@@ -92,6 +94,7 @@ var (
 	MaxRefineGas                  = 1_000_000_000 // G_R v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	ECPiecesPerSegment            = 1026          // W_P: The number of erasure-coded pieces in a segment
 	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
+	MaxLookupAge                  = 24            // L
 )
 
 var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -130,7 +133,7 @@ const (
 	MaximumDependencyItems           = 8         // J
 	WorkReportTimeout                = 5         // U
 	WorkReportOutputBlobsMaximumSize = 48 * 1024 // W_R
-	MaxLookupAge                     = 14400     // L
+
 )
 
 // work package constants

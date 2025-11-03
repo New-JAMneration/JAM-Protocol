@@ -65,11 +65,12 @@ func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArg
 		return Gas(u), OUT_OF_GAS, Psi_H_Return.Addition
 	case HALT:
 		if isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
-			startPage := Psi_H_Return.Reg[7] / ZP
-			endPage := (Psi_H_Return.Reg[7] + Psi_H_Return.Reg[8]) / ZP
-			value := []byte{}
-			for i := startPage; i <= endPage; i++ {
-				value = append(value, Psi_H_Return.Ram.Pages[uint32(i)].Value...)
+			start := uint64(Psi_H_Return.Reg[7])
+			length := uint64(Psi_H_Return.Reg[8])
+
+			value, ok := readRAM(start, length, Psi_H_Return.Ram)
+			if !ok {
+				return Gas(u), []byte{}, Psi_H_Return.Addition
 			}
 			return Gas(u), value, Psi_H_Return.Addition
 		}
@@ -80,11 +81,17 @@ func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArg
 }
 
 func isReadable(start, offset uint64, m Memory) bool {
+	if offset == 0 {
+		return true
+	}
 	startPage := uint32(start / ZP)
-	endPage := uint32((start + offset) / ZP)
-
-	return !(m.GetPageAccess(startPage) == MemoryInaccessible ||
-		m.GetPageAccess(endPage) == MemoryInaccessible)
+	endPage := uint32((start + offset - 1) / ZP)
+	for p := startPage; p <= endPage; p++ {
+		if m.GetPageAccess(p) == MemoryInaccessible {
+			return false
+		}
+	}
+	return true
 }
 
 func isWriteable(start, offset uint64, m Memory) bool {
@@ -93,6 +100,47 @@ func isWriteable(start, offset uint64, m Memory) bool {
 
 	return m.GetPageAccess(startPage) == MemoryReadWrite &&
 		m.GetPageAccess(endPage) == MemoryReadWrite
+}
+
+func readRAM(start, length uint64, m Memory) ([]byte, bool) {
+	if length == 0 {
+		return []byte{}, true
+	}
+	end := start + length // [start, end)
+	startPage := uint32(start / ZP)
+	endPage := uint32((end - 1) / ZP)
+
+	out := make([]byte, 0, length)
+
+	for p := startPage; p <= endPage; p++ {
+		page, ok := m.Pages[p]
+		if !ok || page.Value == nil || len(page.Value) == 0 {
+			return nil, false
+		}
+
+		pageStartAddr := uint64(p) * ZP
+		pageEndAddr := pageStartAddr + ZP
+
+		s := max(start, pageStartAddr)
+		e := min(end, pageEndAddr)
+		if e <= s {
+			continue
+		}
+
+		offS := s - pageStartAddr
+		offE := e - pageStartAddr
+
+		if offE > uint64(len(page.Value)) {
+			return nil, false
+		}
+
+		out = append(out, page.Value[offS:offE]...)
+	}
+
+	if uint64(len(out)) != length {
+		return nil, false
+	}
+	return out, true
 }
 
 type Psi_M_ReturnType struct {
