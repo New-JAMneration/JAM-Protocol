@@ -102,13 +102,13 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 
 			if err != nil {
 				log.Printf("[fuzz-server] error processing request[%v]: %v", req.Type, err)
-				continue
+				return
 			}
 
 			respBytes, err := resp.MarshalBinary()
 			if err != nil {
 				log.Printf("[fuzz-server] error marshaling response: %v", err)
-				continue
+				return
 			}
 
 			_, err = conn.Write(respBytes)
