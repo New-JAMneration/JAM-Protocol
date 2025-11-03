@@ -7,9 +7,11 @@ import (
 	testsuite "github.com/New-JAMneration/JAM-Protocol/internal/database/test"
 )
 
-func TestMemoryKVDB(t *testing.T) {
-	memoryStore := NewDatabase()
-	testsuite.TestDatabaseSuite(t, func() database.Database {
-		return memoryStore
+func TestMemoryDB(t *testing.T) {
+	t.Run("DatabaseSuite", func(t *testing.T) {
+		memoryDB := NewDatabase()
+		testsuite.TestDatabaseSuite(t, func() database.Database {
+			return memoryDB
+		})
 	})
 }
