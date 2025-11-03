@@ -8,8 +8,10 @@ import (
 )
 
 func TestMemoryDB(t *testing.T) {
-	testsuite.TestDatabaseSuite(t, func() database.Database {
-		memoryDB := NewDatabase()
-		return memoryDB
+	t.Run("DatabaseSuite", func(t *testing.T) {
+		testsuite.TestDatabaseSuite(t, func() database.Database {
+			memoryDB := NewDatabase()
+			return memoryDB
+		})
 	})
 }
