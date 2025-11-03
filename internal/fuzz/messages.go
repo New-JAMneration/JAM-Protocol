@@ -161,7 +161,6 @@ func (m *Features) UnmarshalBinary(data []byte) error {
 }
 
 func (m *PeerInfo) FromConfig() error {
-	fmt.Println(config.Config)
 	return m.FromValues(
 		config.Config.Info.Name,
 		config.Config.Info.AppVersion,

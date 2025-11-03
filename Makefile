@@ -1,10 +1,10 @@
 .PHONY: run
 run:
-	go run ./cmd/server/main.go
+	go run ./cmd/node
 
 .PHONY: build
 build:
-	go build ./...
+	go build -o ./build/JAM-Protocol ./cmd/node
 
 .PHONY: test
 test:

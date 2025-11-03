@@ -27,13 +27,13 @@ go mod tidy
 ## Start the JAM Protocol
 
 ```bash
-go run . start
+make run
 ```
 
 ## Compile the JAM Protocol
 
 ```bash
-go build -o ./build/JAM-Protocol
+make build
 ```
 
 ## Rust Submodule Guide

@@ -35,7 +35,7 @@ var (
 		Value: "example.json",
 	}
 
-	socketAddr = &cli.StringArg{
+	socketAddrArg = &cli.StringArg{
 		Name: "socket-addr",
 	}
 
@@ -56,7 +56,7 @@ var cmd = cli.Command{
 	Action:      serve,
 	ArgsUsage:   "<socket-addr>",
 	Arguments: []cli.Argument{
-		socketAddr,
+		socketAddrArg,
 	},
 	Flags: []cli.Flag{
 		configPathFlag,
@@ -79,7 +79,7 @@ var (
 		Action:      handshake,
 		ArgsUsage:   "<socket-addr>",
 		Arguments: []cli.Argument{
-			socketAddr,
+			socketAddrArg,
 		},
 	}
 
@@ -90,7 +90,7 @@ var (
 		Action:      importBlock,
 		ArgsUsage:   "<socket-addr> <json-file>",
 		Arguments: []cli.Argument{
-			socketAddr,
+			socketAddrArg,
 			jsonFileArg,
 		},
 	}
@@ -102,7 +102,7 @@ var (
 		Action:      setState,
 		ArgsUsage:   "<socket-addr> <json-file>",
 		Arguments: []cli.Argument{
-			socketAddr,
+			socketAddrArg,
 			jsonFileArg,
 		},
 	}
@@ -114,7 +114,7 @@ var (
 		Action:      getState,
 		ArgsUsage:   "<socket-addr> <json-file>",
 		Arguments: []cli.Argument{
-			socketAddr,
+			socketAddrArg,
 			jsonFileArg,
 		},
 	}
@@ -124,7 +124,7 @@ var (
 		Action:    testFolder,
 		ArgsUsage: "<socket-addr> <folder-path>",
 		Arguments: []cli.Argument{
-			socketAddr,
+			socketAddrArg,
 			folderPathArg,
 		},
 	}
@@ -138,7 +138,7 @@ func main() {
 }
 
 func serve(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("serve requires a socket path argument")
 	}
@@ -162,7 +162,7 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 }
 
 func handshake(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("handshake requires a socket path argument")
 	}
@@ -200,7 +200,7 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 }
 
 func importBlock(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("import_block requires a socket path argument")
 	}
@@ -240,7 +240,7 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 }
 
 func setState(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("set_state requires a socket path argument")
 	}
@@ -282,7 +282,7 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 }
 
 func getState(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("get_state requires a socket path argument")
 	}
@@ -356,7 +356,7 @@ type TestData struct {
 }
 
 func testFolder(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddr.Name)
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
 		return fmt.Errorf("test_folder requires a socket path argument")
 	}
