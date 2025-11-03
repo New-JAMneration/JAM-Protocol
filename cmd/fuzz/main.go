@@ -19,11 +19,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
-<<<<<<< HEAD:cmd/fuzz/main.go
-	"github.com/google/go-cmp/cmp"
 	"github.com/urfave/cli/v3"
-=======
->>>>>>> fuzz:cmd/fuzz/fuzz.go
 )
 
 var (

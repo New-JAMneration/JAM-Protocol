@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 
@@ -175,22 +174,15 @@ func (m *PeerInfo) FromConfig() error {
 func (m *PeerInfo) FromValues(name, strAppVersion, strJamVersion string, fuzzVersion uint8, fuzzFeatures uint32) error {
 	var appVersion, jamVersion Version
 
-	log.Println("here 1")
-	log.Println(strAppVersion)
-
 	err := appVersion.FromString(strAppVersion)
 	if err != nil {
 		return err
 	}
 
-	log.Println("here 2")
-
 	err = jamVersion.FromString(strJamVersion)
 	if err != nil {
 		return err
 	}
-
-	log.Println("here 3")
 
 	m.FuzzVersion = fuzzVersion
 	m.FuzzFeatures = Features(fuzzFeatures)
