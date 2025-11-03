@@ -24,7 +24,6 @@ var cmd = &cli.Command{
 	Description: "JAM Node Command Line Interface",
 	Version:     AppVersion,
 	Authors:     []any{"New JAMneration"},
-	Copyright:   "Copyright 2024-2025 New JAMneration Developers",
 	Action:      node,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
