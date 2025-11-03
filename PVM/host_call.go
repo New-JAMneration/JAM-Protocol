@@ -300,27 +300,26 @@ func gas(input OmegaInput) OmegaOutput {
 
 // fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	var (
 		v   *[]byte
 		err error
 	)
 	encoder := types.NewEncoder()
-	logger.Debug("fetch case ", input.Registers[10])
+	var val []byte
 	switch input.Registers[10] {
 	case 0:
-		val, err := encoder.EncodeMany(
+		val, err = encoder.EncodeMany(
 			getPtr(types.U64(types.AdditionalMinBalancePerItem)),      // B_I
 			getPtr(types.U64(types.AdditionalMinBalancePerOctet)),     // B_L
 			getPtr(types.U64(types.BasicMinBalance)),                  // B_S
@@ -357,13 +356,14 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		)
 		if err != nil {
 			logger.Errorf("fetch host-call case 0 encode error: %v", err)
+			break
 		}
 		v = &val
 	case 1:
 		if reflect.ValueOf(input.Addition.Eta).IsZero() {
 			break
 		}
-		val, err := encoder.Encode(&input.Addition.Eta)
+		val, err = encoder.Encode(&input.Addition.Eta)
 		if err != nil {
 			logger.Errorf("fetch host-call case 1 encode error: %v", err)
 		}
@@ -373,7 +373,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.AuthOutput)
+		val, err = encoder.Encode(&input.Addition.AuthOutput)
 		if err != nil {
 			logger.Errorf("fetch host-call case 2 encode error: %v", err)
 		}
@@ -393,7 +393,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.Extrinsics[w11][w12])
+		val, err = encoder.Encode(&input.Addition.Extrinsics[w11][w12])
 		if err != nil {
 			logger.Errorf("fetch host-call case 3 encode error: %v", err)
 		}
@@ -416,7 +416,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.Extrinsics[i][w11])
+		val, err = encoder.Encode(&input.Addition.Extrinsics[i][w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 4 encode error: %v", err)
 		}
@@ -436,7 +436,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.ImportSegments[w11][w12])
+		val, err = encoder.Encode(&input.Addition.ImportSegments[w11][w12])
 		if err != nil {
 			logger.Errorf("fetch host-call case 5 encode error: %v", err)
 		}
@@ -458,7 +458,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.ImportSegments[i][w11])
+		val, err = encoder.Encode(&input.Addition.ImportSegments[i][w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 6 encode error: %v", err)
 		}
@@ -468,7 +468,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.WorkPackage)
+		val, err = encoder.Encode(&input.Addition.WorkPackage)
 		if err != nil {
 			logger.Errorf("fetch host-call case 7 encode error: %v", err)
 		}
@@ -478,20 +478,33 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.EncodeMany(
-			&input.Addition.WorkPackage.AuthCodeHash,
-			&input.Addition.WorkPackage.AuthorizerConfig,
-		)
+		var encoded []byte
+		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthCodeHash)
 		if err != nil {
-			logger.Errorf("fetch host-call case 8 encode error: %v", err)
+			logger.Errorf("fetch host-call case 8 encode WorkPackage AuthCodeHash error: %v", err)
+			break
 		}
-		v = &val
+		encoded = append(encoded, val...)
+
+		val, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.AuthorizerConfig)))
+		if err != nil {
+			logger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig length error: %v", err)
+		}
+		encoded = append(encoded, val...)
+
+		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthorizerConfig)
+		if err != nil {
+			logger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig error: %v", err)
+		}
+		encoded = append(encoded, val...)
+
+		v = &encoded
 	case 9:
 		if input.Addition.WorkPackage == nil {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.WorkPackage.Authorization)
+		val, err = encoder.Encode(&input.Addition.WorkPackage.Authorization)
 		if err != nil {
 			logger.Errorf("fetch host-call case 9 encode error: %v", err)
 		}
@@ -501,7 +514,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.WorkPackage.Context)
+		val, err = encoder.Encode(&input.Addition.WorkPackage.Context)
 		if err != nil {
 			logger.Errorf("fetch host-call case 10 encode error: %v", err)
 		}
@@ -511,14 +524,16 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		buffer, err := encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.Items)))
+		var buffer []byte
+		buffer, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.Items)))
 		if err != nil {
 			logger.Errorf("fetch host-call case 11 encode error: %v", err)
 			break
 		}
 
 		for _, w := range input.Addition.WorkPackage.Items {
-			sw, err := S(encoder, w)
+			var sw []byte
+			sw, err = S(encoder, w)
 			if err != nil {
 				logger.Errorf("fetch host-call case 11 S func error: %v", err)
 				break
@@ -538,7 +553,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := S(encoder, input.Addition.WorkPackage.Items[w11])
+		val, err = S(encoder, input.Addition.WorkPackage.Items[w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 12 S func error: %v", err)
 		}
@@ -553,20 +568,26 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.WorkPackage.Items[w11].Payload)
+		val, err = encoder.Encode(&input.Addition.WorkPackage.Items[w11].Payload)
 		if err != nil {
 			logger.Errorf("fetch host-call case 13 encode error: %v", err)
 		}
 		v = &val
 	case 14:
-		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.Operands))))
+		if len(input.Addition.Operands) == 0 {
+			break
+		}
+
+		var buffer []byte
+		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.Operands))))
 		if err != nil {
 			logger.Errorf("fetch host-call case 14 encode uint error: %v", err)
 			break
 		}
 
 		for _, o := range input.Addition.Operands {
-			bytes, err := encoder.Encode(&o)
+			var bytes []byte
+			bytes, err = encoder.Encode(&o)
 			if err != nil {
 				logger.Errorf("fetch host-call case 14 encode error: %v", err)
 				break
@@ -585,7 +606,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.Operands[w11])
+		val, err = encoder.Encode(&input.Addition.Operands[w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 15 encode error: %v", err)
 		}
@@ -595,14 +616,16 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		buffer, err := encoder.EncodeUint(uint64(len(input.Addition.DeferredTransfer)))
+		var buffer []byte
+		buffer, err = encoder.EncodeUint(uint64(len(input.Addition.DeferredTransfer)))
 		if err != nil {
 			logger.Errorf("fetch host-call case 16 encode uint error: %v", err)
 			break
 		}
 
 		for _, t := range input.Addition.DeferredTransfer {
-			bytes, err := encoder.Encode(&t)
+			var bytes []byte
+			bytes, err = encoder.Encode(&t)
 			if err != nil {
 				logger.Errorf("fetch host-call case 16 encode error: %v", err)
 				break
@@ -622,7 +645,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		val, err := encoder.Encode(&input.Addition.DeferredTransfer[w11])
+		val, err = encoder.Encode(&input.Addition.DeferredTransfer[w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 17 encode error: %v", err)
 		}
@@ -693,7 +716,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -726,15 +749,17 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	preimageRawData := input.Memory.Read(h, 32)
 
 	var v *types.ByteSequence
-	if preimage, preimageExists := a.PreimageLookup[types.OpaqueHash(preimageRawData)]; preimageExists && a != nil {
-		v = &preimage
-	}
-
 	var f uint64
 	var l uint64
-	if v != nil {
-		f = min(input.Registers[10], uint64(len(*v)))
-		l = min(input.Registers[11], uint64(len(*v))-f)
+	if a != nil {
+		if preimage, preimageExists := a.PreimageLookup[types.OpaqueHash(preimageRawData)]; preimageExists {
+			v = &preimage
+		}
+
+		if v != nil {
+			f = min(input.Registers[10], uint64(len(*v)))
+			l = min(input.Registers[11], uint64(len(*v))-f)
+		}
 	}
 
 	if !isWriteable(o, l, input.Memory) && l != 0 {
@@ -787,7 +812,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       input.Gas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -863,7 +888,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 			a.StorageDict[string(storageRawKey)] = v
 			input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a // TODO: refactor
 			// remove from storageKeyVal
-			removeStorageFromKeyVal(input.Addition.StorageKeyVal, serviceID, storageRawKey)
+			removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 		}
 	}
 
@@ -915,11 +940,10 @@ func read(input OmegaInput) (output OmegaOutput) {
 // ΩW (ϱ, ω, μ, s, s) , write = 4
 func write(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - 10
-
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -941,11 +965,11 @@ func write(input OmegaInput) (output OmegaOutput) {
 	storageRawKey := input.Memory.Read(ko, kz)
 
 	serviceID := *input.Addition.GeneralArgs.ServiceId
-	a := (*input.Addition.GeneralArgs.ServiceAccountState)[serviceID]
+	a := *input.Addition.GeneralArgs.ServiceAccount
 
-	value, storageRawKeyExists := (*input.Addition.GeneralArgs.ServiceAccountState)[serviceID].StorageDict[string(storageRawKey)]
+	value, storageRawKeyExists := a.StorageDict[string(storageRawKey)]
 
-	storageRawData := getStorageFromKeyVal(input.Addition.StorageKeyVal, serviceID, storageRawKey)
+	storageRawData := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 
 	var l uint64
 	var footprintItems types.U32
@@ -964,7 +988,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 
 	if vz == 0 { // remove storage
 		delete(a.StorageDict, string(storageRawKey))
-		removeStorageFromKeyVal(input.Addition.StorageKeyVal, serviceID, storageRawKey)
+		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 
 		// direct update items, octets
 		a.ServiceInfo.Items -= footprintItems
@@ -972,8 +996,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	} else if isReadable(vo, vz, input.Memory) { // storage append/update
 		storageRawData := input.Memory.Read(vo, vz)
 		a.StorageDict[string(storageRawKey)] = storageRawData
-		logger.Debugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
-		removeStorageFromKeyVal(input.Addition.StorageKeyVal, serviceID, storageRawKey)
+		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 		// compute items, octets , check a_t > a_b first
 		newItems := a.ServiceInfo.Items - footprintItems
 		newOctets := a.ServiceInfo.Bytes - footprintOctets
@@ -992,6 +1015,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
+		logger.Debugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
 		// update items, octets
 		a.ServiceInfo.Items = newItems
 		a.ServiceInfo.Bytes = newOctets
@@ -1037,7 +1061,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -1153,17 +1177,16 @@ func info(input OmegaInput) (output OmegaOutput) {
 
 // historical_lookup = 6
 func historicalLookup(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	// first check v panic, then assign a
 	h, o := input.Registers[8], input.Registers[9]
@@ -1239,17 +1262,16 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 
 // export = 7
 func export(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	p := input.Registers[7]
 	z := min(input.Registers[8], types.SegmentSize)
@@ -1298,17 +1320,16 @@ func export(input OmegaInput) (output OmegaOutput) {
 
 // machine = 8
 func machine(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	po, pz, i := input.Registers[7], input.Registers[8], input.Registers[9]
 	// pz = offset
@@ -1366,17 +1387,16 @@ func machine(input OmegaInput) (output OmegaOutput) {
 
 // peek = 9
 func peek(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	n, o, s, z := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 
@@ -1447,17 +1467,16 @@ func peek(input OmegaInput) (output OmegaOutput) {
 
 // poke = 10
 func poke(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	n, s, o, z := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 
@@ -1515,17 +1534,16 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 // pages = 11 , GP 0.6.7 void is renamed pages
 func pages(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	n, p, c := input.Registers[7], input.Registers[8], input.Registers[9]
 	// u = panic
@@ -1574,17 +1592,16 @@ func pages(input OmegaInput) (output OmegaOutput) {
 
 // invoke = 12
 func invoke(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	n, o := input.Registers[7], input.Registers[8]
 
@@ -1701,17 +1718,16 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 // expunge = 13
 func expunge(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	n := input.Registers[7]
 	// n not in K(m)
@@ -1742,17 +1758,16 @@ func expunge(input OmegaInput) (output OmegaOutput) {
 
 // bless = 14
 func bless(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
@@ -1875,17 +1890,16 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 // assign = 15
 func assign(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	c, o, a := input.Registers[7], input.Registers[8], input.Registers[9]
 
@@ -1950,17 +1964,16 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 // designate = 16
 func designate(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o := input.Registers[7]
 
@@ -2012,17 +2025,17 @@ func designate(input OmegaInput) (output OmegaOutput) {
 
 // checkpoint = 17
 func checkpoint(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
+
 	input.Addition.ResultContextY = input.Addition.ResultContextX.DeepCopy()
 
 	input.Registers[7] = uint64(newGas)
@@ -2038,17 +2051,17 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 
 // new = 18
 func new(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, l, g, m, f := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
 
@@ -2163,17 +2176,16 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 // upgrade = 19
 func upgrade(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, g, m := input.Registers[7], input.Registers[8], input.Registers[9]
 
@@ -2218,8 +2230,8 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 
 // transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
-	gasFee := 10 + input.Registers[9]
-	if input.Gas < Gas(gasFee) || uint64(input.Gas) < input.Registers[9] { // the second condition is to avoid int64(reg[9]) < 0
+	newGas := input.Gas - 10 - Gas(input.Registers[9])
+	if newGas < 0 || uint64(input.Gas) < input.Registers[9] { // the second condition is to avoid int64(reg[9]) < 0
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
 			NewGas:       0,
@@ -2228,8 +2240,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
-	newGas := input.Gas - Gas(gasFee)
 
 	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(o, uint64(types.TransferMemoSize), input.Memory) { // not readable, return
@@ -2313,17 +2323,16 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 
 // eject = 21
 func eject(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	d, o := input.Registers[7], input.Registers[8]
 
@@ -2427,17 +2436,16 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 // query = 22
 func query(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -2504,17 +2512,16 @@ func query(input OmegaInput) (output OmegaOutput) {
 
 // solicit = 23
 func solicit(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -2609,17 +2616,16 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 // forget = 24
 func forget(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[7], input.Registers[8]
 
@@ -2712,17 +2718,16 @@ func forget(input OmegaInput) (output OmegaOutput) {
 
 // yield = 25
 func yield(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o := input.Registers[7]
 
@@ -2754,17 +2759,16 @@ func yield(input OmegaInput) (output OmegaOutput) {
 
 // provide = 26
 func provide(input OmegaInput) (output OmegaOutput) {
-	gasFee := Gas(10)
-	if input.Gas < gasFee {
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
-	newGas := input.Gas - gasFee
 
 	o, z := input.Registers[8], input.Registers[9]
 	// i = panic
