@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -35,6 +36,7 @@ func (c *FuzzClient) makeRequest(req Message) (Message, error) {
 
 	_, err = c.conn.Write(reqBytes)
 	if err != nil {
+		err = fmt.Errorf("error writing request: %v. Please check the server logs.", err)
 		return Message{}, err
 	}
 
