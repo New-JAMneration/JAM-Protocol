@@ -19,7 +19,10 @@ func RunSTF() error {
 		// Validate Header Seal
 		priorState := st.GetPriorStates().GetState()
 		header := st.GetLatestBlock().Header
-		safrole.ValidateHeaderSeal(header, &priorState)
+		err := safrole.ValidateHeaderSeal(header, &priorState)
+		if err != nil {
+			return fmt.Errorf("validate header seal error: %v", err)
+		}
 	}
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)

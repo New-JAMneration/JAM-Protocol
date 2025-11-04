@@ -81,14 +81,6 @@ func SealingByBandersnatchs() error {
 		return err
 	}
 	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
-
-	NewVerifier, _ := vrf.NewVerifier(public_key[:], 1)
-	output, err := NewVerifier.IETFVerify(context, message, signature, 0)
-	if err != nil {
-		fmt.Println("VRF FAIL:", err)
-		fmt.Println(output)
-		return err
-	}
 	return nil
 }
 
@@ -190,13 +182,10 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
-	output, err := verifier.IETFVerify(context, message, signature, 0)
+	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		fmt.Println("❌ VRF VERIFY FAIL:", err)
-		return err
+		return fmt.Errorf("bandersnatch vrf verification failure: %v", err)
 	}
-
-	fmt.Println("✅ VRF VERIFY PASS", output[:16])
 	return nil
 }
 func ValidateByTickets(header types.Header, posterior_state *types.State) error {
@@ -229,13 +218,10 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
 
-	output, err := verifier.IETFVerify(context, message, signature, 0)
+	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		fmt.Println("❌ TICKET VRF VERIFY FAIL:", err)
-		return err
+		return fmt.Errorf("ticket vrf verification failure: %v", err)
 	}
-
-	fmt.Println("✅ TICKET VRF VERIFY PASS:", output[:16])
 	return nil
 }
 
