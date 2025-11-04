@@ -81,6 +81,14 @@ func SealingByBandersnatchs() error {
 		return err
 	}
 	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+
+	NewVerifier, _ := vrf.NewVerifier(public_key[:], 1)
+	output, err := NewVerifier.IETFVerify(context, message, signature, 0)
+	if err != nil {
+		fmt.Println("VRF FAIL:", err)
+		fmt.Println(output)
+		return err
+	}
 	return nil
 }
 
@@ -166,6 +174,86 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
 	signature, _ := handler.IETFSign(context, message)    // F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	return signature
+}
+func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
+
+	eta_prime := posterior_state.Eta
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
+	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
+
+	signature := header.Seal[:]
+	verifier, _ := vrf.NewVerifier(public_key[:], 1)
+	output, err := verifier.IETFVerify(context, message, signature, 0)
+	if err != nil {
+		fmt.Println("❌ VRF VERIFY FAIL:", err)
+		return err
+	}
+
+	fmt.Println("✅ VRF VERIFY PASS", output[:16])
+	return nil
+}
+func ValidateByTickets(header types.Header, posterior_state *types.State) error {
+	/*
+	   (6.15) γ′s ∈ ⟦C⟧  Hs ∈ F EU(H)  Ha  ⟨XT ⌢ η′3 ⌢ ir⟩
+	*/
+	gammaSTickets := posterior_state.Gamma.GammaS.Tickets
+
+	index := uint(header.Slot) % uint(len(gammaSTickets))
+	ticket := gammaSTickets[index]
+
+	// Same logic as bandersnatch: author_index → correct key source
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
+	eta_prime := posterior_state.Eta
+
+	// context = XT || η′3 || ir
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
+	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
+	context = append(context, byte(ticket.Attempt))                          // ir (uint8)
+
+	signature := header.Seal[:]
+
+	verifier, err := vrf.NewVerifier(public_key[:], 1)
+	if err != nil {
+		return fmt.Errorf("failed to create verifier: %w", err)
+	}
+
+	output, err := verifier.IETFVerify(context, message, signature, 0)
+	if err != nil {
+		fmt.Println("❌ TICKET VRF VERIFY FAIL:", err)
+		return err
+	}
+
+	fmt.Println("✅ TICKET VRF VERIFY PASS:", output[:16])
+	return nil
+}
+
+func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error {
+	gammaS := posterior_state.Gamma.GammaS
+	if len(gammaS.Keys) > 0 {
+		err := ValidateByBandersnatchs(header, posterior_state)
+		if err != nil {
+			return err
+		}
+	} else if len(gammaS.Tickets) > 0 {
+		err := ValidateByTickets(header, posterior_state)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // NO REFERENCES
