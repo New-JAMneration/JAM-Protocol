@@ -167,6 +167,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	signature, _ := handler.IETFSign(context, message)    // F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	return signature
 }
+
 func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 
@@ -177,8 +178,8 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 
 	eta_prime := posterior_state.Eta
 	var context types.ByteSequence
-	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
-	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
+	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...)
+	context = append(context, types.ByteSequence(eta_prime[3][:])...)
 
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
@@ -188,16 +189,15 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 	}
 	return nil
 }
+
+// TODO find testcase to cover this function
 func ValidateByTickets(header types.Header, posterior_state *types.State) error {
-	/*
-	   (6.15) γ′s ∈ ⟦C⟧  Hs ∈ F EU(H)  Ha  ⟨XT ⌢ η′3 ⌢ ir⟩
-	*/
+
 	gammaSTickets := posterior_state.Gamma.GammaS.Tickets
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 
-	// Same logic as bandersnatch: author_index → correct key source
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
@@ -205,7 +205,6 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 	}
 	eta_prime := posterior_state.Eta
 
-	// context = XT || η′3 || ir
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
@@ -238,7 +237,6 @@ func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error
 			return err
 		}
 	}
-
 	return nil
 }
 
