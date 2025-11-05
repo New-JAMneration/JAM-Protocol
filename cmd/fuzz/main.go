@@ -17,87 +17,176 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
+	"github.com/urfave/cli/v3"
 )
 
-func printUsage() {
-	usage := `Usage: go run cmd/fuzz/fuzz.go COMMAND [ARGS...]
+var (
+	modeFlag = &cli.StringFlag{
+		Name:  "mode",
+		Usage: "Node mode: tiny or full or custom",
+		Value: "tiny",
+	}
 
-Valid commands are:
-  serve FILE
-  handshake FILE
-  import_block SOCKET JSON_FILE
-  set_state SOCKET JSON_FILE
-  get_state SOCKET JSON_FILE
-  test_folder SOCKET FOLDER_PATH
-  help [COMMAND]`
+	configPathFlag = &cli.StringFlag{
+		Name:  "config",
+		Usage: "Path to configuration file",
+		Value: "example.json",
+	}
 
-	log.Fatalln(usage)
+	socketAddrArg = &cli.StringArg{
+		Name: "socket-addr",
+	}
+
+	jsonFileArg = &cli.StringArg{
+		Name: "json-file",
+	}
+
+	folderPathArg = &cli.StringArg{
+		Name: "folder-path",
+	}
+)
+
+var cmd = cli.Command{
+	Name:        "fuzz",
+	Usage:       "JAM Fuzz Testing Server",
+	Description: `JAM Fuzz Testing Server`,
+	Authors:     []any{"New JAMneration"},
+	Action:      serve,
+	ArgsUsage:   "<socket-addr>",
+	Arguments: []cli.Argument{
+		socketAddrArg,
+	},
+	Flags: []cli.Flag{
+		configPathFlag,
+		modeFlag,
+	},
+	Commands: []*cli.Command{
+		handshakeCmd,
+		importBlockCmd,
+		setStateCmd,
+		getStateCmd,
+		testFolderCmd,
+	},
 }
 
-type Handler func([]string)
+var (
+	handshakeCmd = &cli.Command{
+		Name:        "handshake",
+		Usage:       "Fuzz peer handshake",
+		Description: "Fuzz peer handshake",
+		Action:      handshake,
+		ArgsUsage:   "<socket-addr>",
+		Arguments: []cli.Argument{
+			socketAddrArg,
+		},
+	}
 
-var handlers = map[string]Handler{
-	"serve":        serve,
-	"handshake":    handshake,
-	"import_block": importBlock,
-	"set_state":    setState,
-	"get_state":    getState,
-	"test_folder":  testFolder,
-	"help":         help,
-}
+	importBlockCmd = &cli.Command{
+		Name:        "import_block",
+		Usage:       "Fuzz import block",
+		Description: "Fuzz import block",
+		Action:      importBlock,
+		ArgsUsage:   "<socket-addr> <json-file>",
+		Arguments: []cli.Argument{
+			socketAddrArg,
+			jsonFileArg,
+		},
+	}
+
+	setStateCmd = &cli.Command{
+		Name:        "set_state",
+		Usage:       "Fuzz set state",
+		Description: "Fuzz set state",
+		Action:      setState,
+		ArgsUsage:   "<socket-addr> <json-file>",
+		Arguments: []cli.Argument{
+			socketAddrArg,
+			jsonFileArg,
+		},
+	}
+
+	getStateCmd = &cli.Command{
+		Name:        "get_state",
+		Usage:       "Fuzz get state",
+		Description: "Fuzz get state",
+		Action:      getState,
+		ArgsUsage:   "<socket-addr> <json-file>",
+		Arguments: []cli.Argument{
+			socketAddrArg,
+			jsonFileArg,
+		},
+	}
+
+	testFolderCmd = &cli.Command{
+		Name:      "test_folder",
+		Action:    testFolder,
+		ArgsUsage: "<socket-addr> <folder-path>",
+		Arguments: []cli.Argument{
+			socketAddrArg,
+			folderPathArg,
+		},
+	}
+)
 
 func main() {
-	if len(os.Args) == 1 {
-		printUsage()
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		fmt.Printf("error: %v\n", err)
+		os.Exit(1)
 	}
-
-	handler, valid := handlers[os.Args[1]]
-	if !valid {
-		printUsage()
-	}
-
-	config.InitConfig()
-
-	handler(os.Args[2:])
 }
 
-func serve(args []string) {
-	if len(args) == 0 {
-		helpImpl("serve")
+func serve(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("serve requires a socket path argument")
 	}
 
-	server, err := fuzz.NewFuzzServer("unix", args[0])
+	configPath := cmd.String(configPathFlag.Name)
+	mode := cmd.String(modeFlag.Name)
+
+	config.InitConfig(configPath, mode)
+
+	server, err := fuzz.NewFuzzServer("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating server: %v\n", err)
+		return fmt.Errorf("error creating server: %v", err)
 	}
 
-	server.ListenAndServe(context.Background())
+	err = server.ListenAndServe(ctx)
+	if err != nil {
+		return fmt.Errorf("error running server: %v", err)
+	}
+
+	return nil
 }
 
-func handshake(args []string) {
-	if len(args) == 0 {
-		helpImpl("handshake")
+func handshake(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("handshake requires a socket path argument")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	configPath := cmd.String(configPathFlag.Name)
+	mode := cmd.String(modeFlag.Name)
+
+	config.InitConfig(configPath, mode)
+
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		return fmt.Errorf("error creating client: %v", err)
 	}
-
 	defer client.Close()
 
 	var info fuzz.PeerInfo
 
 	if err := info.FromConfig(); err != nil {
-		log.Fatalf("error reading config: %v\n", err)
+		return fmt.Errorf("error reading config: %v", err)
 	}
 
 	resp, err := client.Handshake(info)
 	if err != nil {
-		log.Fatalf("error sending request: %v\n", err)
+		return fmt.Errorf("error sending request: %v", err)
 	}
 
 	log.Println("received handshake response:")
@@ -106,69 +195,69 @@ func handshake(args []string) {
 	log.Printf("  jam-version: %v\n", resp.JamVersion)
 	log.Printf("  app-version: %v\n", resp.AppVersion)
 	log.Printf("  app-name: %s\n", resp.AppName)
+
+	return nil
 }
 
-func importBlock(args []string) {
-	if len(args) == 0 {
-		helpImpl("import_block")
+func importBlock(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("import_block requires a socket path argument")
+	}
+	jsonFile := cmd.StringArg(jsonFileArg.Name)
+	if jsonFile == "" {
+		return fmt.Errorf("import_block requires a json file path argument")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
 		log.Fatalf("error creating client: %v\n", err)
 	}
-
 	defer client.Close()
 
-	// Read JSON file containing block data
-	if len(args) < 2 {
-		log.Fatalln("import_block requires a JSON file path as second argument")
-	}
-
-	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		log.Fatalf("error reading JSON file: %v\n", err)
+		return fmt.Errorf("error reading JSON file: %w", err)
 	}
 
 	// Parse JSON data into Block structure
 	var block types.Block
 	if err := json.Unmarshal(data, &block); err != nil {
-		log.Fatalf("error parsing JSON: %v\n", err)
+		return fmt.Errorf("error parsing JSON: %v", err)
 	}
 
 	// Send import_block request
 	stateRoot, errorMessage, err := client.ImportBlock(block)
 	if err != nil {
-		log.Fatalf("error sending import_block request: %v\n", err)
+		return fmt.Errorf("error sending import_block request: %v", err)
 	} else if errorMessage != nil {
-		log.Fatalf("error sending import_block request: %v\n", errorMessage.Error)
+		return fmt.Errorf("error sending import_block request: %v", errorMessage.Error)
 	}
 
 	log.Printf("import_block successful, state root: %x\n", stateRoot)
+
+	return nil
 }
 
-func setState(args []string) {
-	if len(args) == 0 {
-		helpImpl("set_state")
+func setState(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("set_state requires a socket path argument")
+	}
+	jsonFile := cmd.StringArg(jsonFileArg.Name)
+	if jsonFile == "" {
+		return fmt.Errorf("set_state requires a json file path argument")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		return fmt.Errorf("error creating client: %v", err)
 	}
-
 	defer client.Close()
 
-	// Read JSON file containing header and state data
-	if len(args) < 2 {
-		log.Fatalln("set_state requires a JSON file path as second argument")
-	}
-
-	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		log.Fatalf("error reading JSON file: %v\n", err)
+		return fmt.Errorf("error reading JSON file: %v", err)
 	}
 
 	// Parse JSON data into header and state structures
@@ -178,39 +267,39 @@ func setState(args []string) {
 	}
 
 	if err := json.Unmarshal(data, &requestData); err != nil {
-		log.Fatalf("error parsing JSON: %v\n", err)
+		return fmt.Errorf("error parsing JSON: %v", err)
 	}
 
 	// Send set_state request
 	stateRoot, err := client.SetState(requestData.Header, requestData.State)
 	if err != nil {
-		log.Fatalf("error sending set_state request: %v\n", err)
+		return fmt.Errorf("error sending set_state request: %v", err)
 	}
 
 	log.Printf("set_state successful, state root: %x\n", stateRoot)
+
+	return nil
 }
 
-func getState(args []string) {
-	if len(args) == 0 {
-		helpImpl("get_state")
+func getState(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("get_state requires a socket path argument")
+	}
+	jsonFile := cmd.StringArg(jsonFileArg.Name)
+	if jsonFile == "" {
+		return fmt.Errorf("get_state requires a json file path argument")
 	}
 
-	client, err := fuzz.NewFuzzClient("unix", args[0])
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		return fmt.Errorf("error creating client: %v", err)
 	}
-
 	defer client.Close()
 
-	// Read JSON file containing header hash
-	if len(args) < 2 {
-		log.Fatalln("get_state requires a JSON file path as second argument")
-	}
-
-	jsonFile := args[1]
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		log.Fatalf("error reading JSON file: %v\n", err)
+		return fmt.Errorf("error reading JSON file: %v", err)
 	}
 
 	// Parse JSON data into header hash
@@ -219,7 +308,7 @@ func getState(args []string) {
 	}
 
 	if err := json.Unmarshal(data, &requestData); err != nil {
-		log.Fatalf("error parsing JSON: %v\n", err)
+		return fmt.Errorf("error parsing JSON: %v", err)
 	}
 
 	// Parse header hash from hex string
@@ -233,11 +322,11 @@ func getState(args []string) {
 	var headerHash types.HeaderHash
 	hashBytes, err := hex.DecodeString(headerHashStr)
 	if err != nil {
-		log.Fatalf("error parsing header hash: %v\n", err)
+		return fmt.Errorf("error parsing header hash: %v", err)
 	}
 
 	if len(hashBytes) != 32 {
-		log.Fatalf("header hash must be 32 bytes, got %d bytes\n", len(hashBytes))
+		return fmt.Errorf("header hash must be 32 bytes, got %d bytes", len(hashBytes))
 	}
 
 	copy(headerHash[:], hashBytes)
@@ -245,10 +334,12 @@ func getState(args []string) {
 	// Send get_state request
 	state, err := client.GetState(headerHash)
 	if err != nil {
-		log.Fatalf("error sending get_state request: %v\n", err)
+		return fmt.Errorf("error sending get_state request: %v", err)
 	}
 
 	log.Printf("get_state successful, retrieved %d key-value pairs\n", len(state))
+
+	return nil
 }
 
 // TestData represents the structure of test JSON files
@@ -264,18 +355,20 @@ type TestData struct {
 	Block types.Block `json:"block"`
 }
 
-func testFolder(args []string) {
-	if len(args) < 2 {
-		helpImpl("test_folder")
+func testFolder(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("test_folder requires a socket path argument")
+	}
+	folderPath := cmd.StringArg(folderPathArg.Name)
+	if folderPath == "" {
+		return fmt.Errorf("test_folder requires a json file path argument")
 	}
 
-	socketPath := args[0]
-	folderPath := args[1]
-
 	// Connect to server
-	client, err := fuzz.NewFuzzClient("unix", socketPath)
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		return fmt.Errorf("error creating client: %v", err)
 	}
 	defer client.Close()
 
@@ -291,11 +384,11 @@ func testFolder(args []string) {
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("error walking directory: %v\n", err)
+		return fmt.Errorf("error walking directory: %v", err)
 	}
 
 	if len(jsonFiles) == 0 {
-		log.Fatalln("no JSON files found in the specified folder")
+		return fmt.Errorf("no JSON files found in the specified folder")
 	}
 
 	log.Printf("Found %d JSON files to test\n", len(jsonFiles))
@@ -306,7 +399,7 @@ func testFolder(args []string) {
 	// Do the handshake
 	info, err := client.Handshake(fuzz.PeerInfo{AppName: "Fuzz-Test"})
 	if err != nil {
-		log.Fatalf("error doing handshake: %v\n", err)
+		return fmt.Errorf("error doing handshake: %v", err)
 	}
 	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
@@ -320,6 +413,8 @@ func testFolder(args []string) {
 			successCount++
 		}
 	}
+
+	return nil
 }
 
 func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
@@ -397,7 +492,7 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 		}
 
 		// actual state struct, key-val to state
-		diffs, err := m.GetStateKeyValsDiff(testData.PostState.KeyVals, actualStateKeyVal)
+		diffs, err := merklization.GetStateKeyValsDiff(testData.PostState.KeyVals, actualStateKeyVal)
 		if err != nil {
 			return fmt.Errorf("fuzzer GetStateKeyValsDiff error: %v", err)
 		}
@@ -502,31 +597,4 @@ func parseStateRoot(stateRootStr string) (types.StateRoot, error) {
 
 	copy(stateRoot[:], hashBytes)
 	return stateRoot, nil
-}
-
-func help(args []string) {
-	helpImpl(args...)
-}
-
-func helpImpl(args ...string) {
-	if len(args) == 0 {
-		printUsage()
-	}
-
-	switch args[0] {
-	case "serve":
-		log.Fatalln("serve FILE - starts a server listening on FILE via named Unix socket")
-	case "handshake":
-		log.Fatalln("handshake FILE - connects to a server listening on FILE and sends a handshake")
-	case "import_block":
-		log.Fatalln("import_block SOCKET JSON_FILE - connects to a server listening on SOCKET and sends an import_block request with block data from JSON_FILE")
-	case "set_state":
-		log.Fatalln("set_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a set_state request with header and state data from JSON_FILE")
-	case "get_state":
-		log.Fatalln("get_state SOCKET JSON_FILE - connects to a server listening on SOCKET and sends a get_state request with header hash from JSON_FILE")
-	case "test_folder":
-		log.Fatalln("test_folder SOCKET FOLDER_PATH - tests all JSON files in FOLDER_PATH by running SetState and ImportBlock operations")
-	default:
-		printUsage()
-	}
 }

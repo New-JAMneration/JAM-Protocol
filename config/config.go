@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -24,9 +23,6 @@ type config struct {
 		SlotSubmissionEnd       int `json:"slot_submission_end"`
 		MaxTicketsPerBlock      int `json:"max_tickets_per_block"`
 		TicketsPerValidator     int `json:"tickets_per_validator"`
-		MaxBlocksHistory        int `json:"max_blocks_history"`
-		AuthPoolMaxSize         int `json:"auth_pool_max_size"`
-		AuthQueueSize           int `json:"auth_queue_size"`
 		ValidatorsSuperMajority int `json:"validators_super_majority"`
 		AvailBitfieldBytes      int `json:"avail_bitfield_bytes"`
 	} `json:"const"`
@@ -44,26 +40,22 @@ type config struct {
 	} `json:"info"`
 }
 
-func InitConfig() {
-	var configPath string
-	set := flag.NewFlagSet("config", flag.ExitOnError)
-	set.StringVar(&configPath, "config", "example.json", "set config file path")
-	err := set.Parse(os.Args[1:])
-	if err != nil {
-		return
-	}
-
+func InitConfig(configPath string, mode string) error {
 	if err := loadConfig(configPath); err != nil {
 		panic(err)
 	}
 
-	var mode string
-	set.StringVar(&mode, "mode", "tiny", "set tiny/full mode")
-	if mode == "full" {
+	switch mode {
+	case "full":
 		types.SetFullMode()
-	} else {
+	case "tiny":
 		types.SetTinyMode()
+	case "custom":
+		initJamConst()
+	default:
+		return fmt.Errorf("invalid mode: %s", mode)
 	}
+	return nil
 }
 
 func loadConfig(path string) error {
@@ -82,7 +74,6 @@ func loadConfig(path string) error {
 		return fmt.Errorf("can't parse config file: %w", err)
 	}
 
-	initJamConst()
 	initLog()
 	initJamScaleRegistry()
 
