@@ -31,17 +31,17 @@ func GetBlock(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*t
 
 // GenesisBlock reads and returns the genesis block from the database.
 // Genesis block must exist when this function is called.
-func GetGenesisBlock(r database.Reader) (*types.Block, error) {
-	hash, _, err := GetCanonicalHash(r, 0)
-	if err != nil {
-		return nil, err
-	}
-	block, _, err := GetBlock(r, hash, 0)
-	if err != nil {
-		return nil, err
-	}
-	return block, nil
-}
+// func GetGenesisBlock(r database.Reader) (*types.Block, error) {
+// hash, _, err := GetCanonicalHash(r, 0)
+// if err != nil {
+// return nil, err
+// }
+// block, _, err := GetBlock(r, hash, 0)
+// if err != nil {
+// return nil, err
+// }
+// return block, nil
+// }
 
 func SaveBlock(w database.Writer, block *types.Block) error {
 	// TODO: optimize header hashing by passing hash from outside
