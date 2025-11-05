@@ -13,12 +13,8 @@ type batch struct {
 
 type writeOp struct {
 	isDelete bool
-
-	key   []byte
-	value []byte
-
-	rangeStart []byte
-	rangeEnd   []byte
+	key      []byte
+	value    []byte
 }
 
 func (db *memoryDB) NewBatch() database.Batch {
@@ -40,11 +36,6 @@ func (b *batch) Delete(key []byte) error {
 	return nil
 }
 
-func (b *batch) DeleteRange(start, end []byte) error {
-	b.writeOps = append(b.writeOps, writeOp{isDelete: true, rangeStart: start, rangeEnd: end})
-	return nil
-}
-
 func (b *batch) Commit() error {
 	b.db.mu.Lock()
 	defer b.db.mu.Unlock()
@@ -55,20 +46,7 @@ func (b *batch) Commit() error {
 
 	for _, op := range b.writeOps {
 		if op.isDelete {
-			if len(op.key) != 0 {
-				delete(b.db.data, string(op.key))
-			} else {
-				// Range deletion [start, end)
-				for key := range b.db.data {
-					if op.rangeStart != nil && key < string(op.rangeStart) {
-						continue
-					}
-					if op.rangeEnd != nil && key >= string(op.rangeEnd) {
-						continue
-					}
-					delete(b.db.data, key)
-				}
-			}
+			delete(b.db.data, string(op.key))
 		} else {
 			b.db.data[string(op.key)] = op.value
 		}

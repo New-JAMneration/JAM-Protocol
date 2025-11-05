@@ -69,10 +69,6 @@ func (db *pebbleDB) Delete(key []byte) error {
 	return db.inner.Delete(key, db.writeOpts)
 }
 
-func (db *pebbleDB) DeleteRange(start, end []byte) error {
-	return db.inner.DeleteRange(start, end, db.writeOpts)
-}
-
 func (db *pebbleDB) Close() error {
 	return db.inner.Close()
 }

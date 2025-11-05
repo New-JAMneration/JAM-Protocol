@@ -4,12 +4,17 @@ import (
 	"log"
 	"sync"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 var (
 	initOnce    sync.Once
 	globalStore *Store
+
+	dbInitOnce sync.Once
+	db         database.Database
 )
 
 // Store represents a thread-safe global state container
@@ -57,6 +62,23 @@ func ResetInstance() {
 		posteriorCurrentValidators: NewPosteriorValidators(),
 	}
 	log.Println("🚀 Store reset")
+}
+
+func GetDatabase() database.Database {
+	dbInitOnce.Do(func() {
+		db = memory.NewDatabase()
+
+		genesisBlock := genGenesisBlock()
+		SaveBlock(db, genesisBlock)
+
+		log.Println("🚀 Database initialized")
+	})
+	return db
+}
+
+func ResetDatabase() {
+	db = memory.NewDatabase()
+	log.Println("🚀 Database reset")
 }
 
 func (s *Store) AddBlock(block types.Block) {

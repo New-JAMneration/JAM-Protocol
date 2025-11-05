@@ -36,14 +36,6 @@ func (b *batch) Delete(key []byte) error {
 	return nil
 }
 
-func (b *batch) DeleteRange(start, end []byte) error {
-	err := b.pb.DeleteRange(start, end, b.db.writeOpts)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (b *batch) Commit() error {
 	return b.pb.Commit(b.db.writeOpts)
 }

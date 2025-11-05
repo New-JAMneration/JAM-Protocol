@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"bytes"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
@@ -56,19 +55,6 @@ func (db *memoryDB) Delete(key []byte) error {
 	defer db.mu.Unlock()
 
 	delete(db.data, string(key))
-	return nil
-}
-
-func (db *memoryDB) DeleteRange(start, end []byte) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	for k := range db.data {
-		keyBytes := []byte(k)
-		if bytes.Compare(keyBytes, start) >= 0 && bytes.Compare(keyBytes, end) < 0 {
-			delete(db.data, k)
-		}
-	}
 	return nil
 }
 

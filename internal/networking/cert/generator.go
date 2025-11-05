@@ -14,7 +14,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -157,7 +157,8 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // ALPNGen generates an ALPN string based on a genesis header and builder flag
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
-	genesisBlock, err := blockchain.GetGenesisBlock()
+	db := store.GetDatabase()
+	genesisBlock, err := store.GetGenesisBlock(db)
 	if err != nil {
 		return nil, fmt.Errorf("error getting genesis block: %v", err)
 	}

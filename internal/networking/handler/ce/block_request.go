@@ -20,28 +20,28 @@ type BlockRequest struct {
 	MaxBlocks  uint32           // Maximum number of blocks requested
 }
 
-func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]*types.Block, error) {
+func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]types.Block, error) {
 	count := req.MaxBlocks
-	var blocks []*types.Block
+	var blocks []types.Block
 
 	log.Printf("Handling block request for %v, direction %d, count %d\n", req.HeaderHash, req.Direction, count)
 
 	switch req.Direction {
 	case 0: // Ascending exclusive: start with a child of the given block.
-		startTimeSlot, err := blockchain.GetBlockTimeSlot(req.HeaderHash)
+		startNum, err := blockchain.GetBlockNumber(req.HeaderHash)
 		if err != nil {
 			return nil, err
 		}
 		currentHash := req.HeaderHash
 		for i := uint32(0); i < count; i++ {
-			candidateTimeSlot := startTimeSlot + types.TimeSlot(i)
-			candidateHashes, err := blockchain.GetBlockHashesByTimeSlot(candidateTimeSlot)
+			candidateNum := startNum + i
+			candidateHashes, err := blockchain.GetBlockHashByNumber(candidateNum)
 			if err != nil {
 				break
 			}
 			found := false
 			for _, candidate := range candidateHashes {
-				blk, err := blockchain.GetBlockByHash(candidate)
+				blk, err := blockchain.GetBlock(candidate)
 				if err != nil {
 					continue
 				}
@@ -60,7 +60,7 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req BlockRequest) ([]*
 	case 1: // Descending inclusive: start with the given block and traverse to ancestors.
 		currentHash := req.HeaderHash
 		for i := uint32(0); i < count; i++ {
-			blk, err := blockchain.GetBlockByHash(currentHash)
+			blk, err := blockchain.GetBlock(currentHash)
 			if err != nil {
 				break
 			}

@@ -41,35 +41,6 @@ func TestDatabaseSuite(t *testing.T, New func() database.Database) {
 		assert.False(t, got)
 	})
 
-	t.Run("RangeDelete", func(t *testing.T) {
-		store := New()
-		defer store.Close()
-
-		keys := [][]byte{[]byte("a"), []byte("b"), []byte("c"), []byte("d"), []byte("e")}
-		value := []byte("value")
-
-		for _, key := range keys {
-			err := store.Put(key, value)
-			require.NoError(t, err)
-		}
-
-		// expect to delete keys "a", "b", "c"
-		// delete [start,end)
-		err := store.DeleteRange([]byte("a"), []byte("d"))
-		require.NoError(t, err)
-
-		for _, key := range keys {
-			has, err := store.Has(key)
-			require.NoError(t, err)
-
-			if bytes.Compare(key, []byte("a")) >= 0 && bytes.Compare(key, []byte("d")) < 0 {
-				assert.False(t, has, "key %s should be deleted", key)
-			} else {
-				assert.True(t, has, "key %s should not be deleted", key)
-			}
-		}
-	})
-
 	t.Run("BatchWrite", func(t *testing.T) {
 		store := New()
 		defer store.Close()

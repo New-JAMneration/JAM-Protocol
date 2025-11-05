@@ -15,7 +15,6 @@ import (
 	"io"
 	"log"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -25,34 +24,34 @@ import (
 
 // --- fakeBlockchain is a fake implementation of blockchain.Blockchain.
 type fakeBlockchain struct {
-	blocks              map[types.HeaderHash]types.Block
-	blockTimeSlotToHash map[types.TimeSlot][]types.HeaderHash
-	hashToBlockTimeSlot map[types.HeaderHash]types.TimeSlot
-	genesis             types.HeaderHash
+	blocks            map[types.HeaderHash]types.Block
+	blockNumberToHash map[uint32][]types.HeaderHash
+	hashToblockNumber map[types.HeaderHash]uint32
+	genesis           types.HeaderHash
 }
 
-func (f *fakeBlockchain) GetBlockTimeSlot(hash types.HeaderHash) (types.TimeSlot, error) {
-	blockTimeSlot, ok := f.hashToBlockTimeSlot[hash]
+func (f *fakeBlockchain) GetBlockNumber(hash types.HeaderHash) (uint32, error) {
+	blocknumber, ok := f.hashToblockNumber[hash]
 	if !ok {
 		return 0, fmt.Errorf("block not found: %v", hex.EncodeToString(hash[:]))
 	}
-	return blockTimeSlot, nil
+	return blocknumber, nil
 }
 
-func (f *fakeBlockchain) GetBlockHashesByTimeSlot(slot types.TimeSlot) (res []types.HeaderHash, err error) {
-	res, ok := f.blockTimeSlotToHash[slot]
+func (f *fakeBlockchain) GetBlockHashByNumber(number uint32) (res []types.HeaderHash, err error) {
+	res, ok := f.blockNumberToHash[number]
 	if !ok {
 		return nil, errors.New("block not found")
 	}
 	return res, nil
 }
 
-func (f *fakeBlockchain) GetBlockByHash(hash types.HeaderHash) (*types.Block, error) {
+func (f *fakeBlockchain) GetBlock(hash types.HeaderHash) (types.Block, error) {
 	blk, ok := f.blocks[hash]
 	if !ok {
-		return nil, fmt.Errorf("block not found: %v", hex.EncodeToString(hash[:]))
+		return types.Block{}, fmt.Errorf("block not found: %v", hex.EncodeToString(hash[:]))
 	}
-	return &blk, nil
+	return blk, nil
 }
 
 func (f *fakeBlockchain) GenesisBlockHash() types.HeaderHash {
@@ -101,10 +100,10 @@ func setupFakeBlockchain() *fakeBlockchain {
 		Extrinsic: types.Extrinsic{},
 	}
 	fb := &fakeBlockchain{
-		blocks:              make(map[types.HeaderHash]types.Block),
-		blockTimeSlotToHash: make(map[types.TimeSlot][]types.HeaderHash),
-		hashToBlockTimeSlot: make(map[types.HeaderHash]types.TimeSlot),
-		genesis:             genesisHash,
+		blocks:            make(map[types.HeaderHash]types.Block),
+		blockNumberToHash: make(map[uint32][]types.HeaderHash),
+		hashToblockNumber: make(map[types.HeaderHash]uint32),
+		genesis:           genesisHash,
 	}
 
 	fb.blocks[genesisHash] = genesisBlock
@@ -112,17 +111,17 @@ func setupFakeBlockchain() *fakeBlockchain {
 	fb.blocks[block2Hash] = block2
 	fb.blocks[block3Hash] = block3
 
-	// blockTimeSlotToHash
-	fb.blockTimeSlotToHash[0] = []types.HeaderHash{genesisHash}
-	fb.blockTimeSlotToHash[1] = []types.HeaderHash{block1Hash}
-	fb.blockTimeSlotToHash[2] = []types.HeaderHash{block2Hash}
-	fb.blockTimeSlotToHash[3] = []types.HeaderHash{block3Hash}
+	// blockNumberToHash
+	fb.blockNumberToHash[0] = []types.HeaderHash{genesisHash}
+	fb.blockNumberToHash[1] = []types.HeaderHash{block1Hash}
+	fb.blockNumberToHash[2] = []types.HeaderHash{block2Hash}
+	fb.blockNumberToHash[3] = []types.HeaderHash{block3Hash}
 
-	// hashToBlockTimeSlot
-	fb.hashToBlockTimeSlot[genesisHash] = 0
-	fb.hashToBlockTimeSlot[block1Hash] = 1
-	fb.hashToBlockTimeSlot[block2Hash] = 2
-	fb.hashToBlockTimeSlot[block3Hash] = 3
+	// hashToblockNumber
+	fb.hashToblockNumber[genesisHash] = 0
+	fb.hashToblockNumber[block1Hash] = 1
+	fb.hashToblockNumber[block2Hash] = 2
+	fb.hashToblockNumber[block3Hash] = 3
 
 	return fb
 }
@@ -168,17 +167,14 @@ func generateTLSConfig() *tls.Config {
 
 // TestRealQuicStreamBlockRequest uses a real QUIC connection to test the block request handler.
 func TestRealQuicStreamBlockRequest(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
-
 	// Setup TLS configurations.
-	clientTLS, err := quic.NewTLSConfig(false, false)
+	clientTLS, err := quic.NewTLSConfig(false)
 	if err != nil {
 		t.Fatalf("Client TLS config error: %v", err)
 	}
-	clientTLS.InsecureSkipVerify = true
 
 	// Listen on an ephemeral port.
-	listener, err := quic.NewListener("localhost:0", false, quic.NewTLSConfig, nil)
+	listener, err := quic.NewListener("localhost:0", quic.NewTLSConfig, nil)
 	if err != nil {
 		t.Fatalf("Listener error: %v", err)
 	}

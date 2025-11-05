@@ -23,7 +23,6 @@ type Reader interface {
 type Writer interface {
 	Put(key, value []byte) error
 	Delete(key []byte) error
-	DeleteRange(start, end []byte) error
 }
 
 // Batcher defines batch write operations for a key-value database.
