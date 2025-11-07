@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -135,6 +136,11 @@ func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {
 func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 	stateRoot, err := s.Service.ImportBlock(types.Block(*m.ImportBlock))
 	if err != nil {
+		// 1. runtime/system error → fatal → close connection
+		if strings.Contains(err.Error(), "STF runtime error") {
+			return Message{}, err
+		}
+		// 2. protocol error → return ErrorMessage
 		return Message{
 			Type: MessageType_ErrorMessage,
 			Error: &ErrorMessage{

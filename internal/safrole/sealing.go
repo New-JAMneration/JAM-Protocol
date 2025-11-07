@@ -10,6 +10,11 @@ import (
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
+const (
+	VrfSealInvalid    types.ErrorCode = iota // 0 VrfSealInvalid
+	VrfEntropyInvalid                        // 1 VrfEntropyInvalid
+)
+
 // TODO VERIFY 6.15 6.16
 func SealingByTickets() error {
 	/*
@@ -184,7 +189,8 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 	signature := header.EntropySource[:]
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		return fmt.Errorf("entropy vrf verification failure: %v", err)
+		errCode := VrfEntropyInvalid
+		return &errCode
 	}
 	return nil
 }
@@ -206,7 +212,8 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		return fmt.Errorf("bandersnatch vrf verification failure: %v", err)
+		errCode := VrfSealInvalid
+		return &errCode
 	}
 	return nil
 }
@@ -240,7 +247,8 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		return fmt.Errorf("ticket vrf verification failure: %v", err)
+		errCode := VrfSealInvalid
+		return &errCode
 	}
 	return nil
 }

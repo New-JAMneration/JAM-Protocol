@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -26,25 +25,18 @@ func isProtocolError(err error) bool {
 func RunSTF() (bool, error) {
 
 	st := store.GetInstance()
-	{
-		// Validate Header Seal
-		priorState := st.GetPriorStates().GetState()
-		header := st.GetLatestBlock().Header
-		err := safrole.ValidateHeaderSeal(header, &priorState)
-		if err != nil {
-			return true, fmt.Errorf("validate header seal error: %v", err)
-		}
-		err = safrole.ValidateHeaderEntropy(header, &priorState)
-		if err != nil {
-			return true, fmt.Errorf("validate header entropy error: %v", err)
-		}
-	}
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
+	priorState := st.GetPriorStates().GetState()
+	header := st.GetLatestBlock().Header
+	err := ValidateHeader(header, &priorState)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+	}
 	// Update Disputes
-	err := UpdateDisputes()
+	err = UpdateDisputes()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update disputes error: %v", err)
 	}
