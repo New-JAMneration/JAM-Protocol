@@ -168,6 +168,27 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	return signature
 }
 
+func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) error {
+	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	seal := header.Seal
+	var message types.ByteSequence // message: []
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
+	handler, _ := CreateVRFHandler(public_key)
+	vrfOutput, _ := handler.VRFIetfOutput(seal[:])
+	context = append(context, types.ByteSequence(vrfOutput)...) // Y(Hs)
+	verifier, err := vrf.NewVerifier(public_key[:], 1)
+	if err != nil {
+		return fmt.Errorf("failed to create verifier: %w", err)
+	}
+	signature := header.EntropySource[:]
+	_, err = verifier.IETFVerify(context, message, signature, 0)
+	if err != nil {
+		return fmt.Errorf("entropy vrf verification failure: %v", err)
+	}
+	return nil
+}
+
 func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
 

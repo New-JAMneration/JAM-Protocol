@@ -22,6 +22,7 @@ func isProtocolError(err error) bool {
 	// Runtime error → unexpected bug
 	return false
 }
+
 func RunSTF() (bool, error) {
 
 	st := store.GetInstance()
@@ -32,6 +33,10 @@ func RunSTF() (bool, error) {
 		err := safrole.ValidateHeaderSeal(header, &priorState)
 		if err != nil {
 			return true, fmt.Errorf("validate header seal error: %v", err)
+		}
+		err = safrole.ValidateHeaderEntropy(header, &priorState)
+		if err != nil {
+			return true, fmt.Errorf("validate header entropy error: %v", err)
 		}
 	}
 	// Update timeslot
