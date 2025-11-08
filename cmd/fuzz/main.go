@@ -403,9 +403,8 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	}
 	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
-	// Process each JSON file
 	for _, jsonFile := range jsonFiles {
-		if err := testSingleFile(client, jsonFile); err != nil {
+		if err := testFixtureFile(client, jsonFile); err != nil {
 			logger.ColorRed("FAILED!!: %s - %v", jsonFile, err)
 			failureCount++
 		} else {
@@ -417,13 +416,35 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
-	mismatchCount := 0
-	importBlockMismatch := false
+func testFixtureFile(client *fuzz.FuzzClient, jsonFile string) error {
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return fmt.Errorf("error reading JSON file: %v", err)
 	}
+
+	var probe struct {
+		PreState json.RawMessage `json:"pre_state"`
+		State    json.RawMessage `json:"state"`
+	}
+
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	if len(probe.PreState) > 0 {
+		return testTraceFixture(client, jsonFile, data)
+	}
+
+	if len(probe.State) > 0 {
+		return testGenesisFixture(client, jsonFile, data)
+	}
+
+	return fmt.Errorf("unknown fixture format")
+}
+
+func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) error {
+	mismatchCount := 0
+	importBlockMismatch := false
 
 	var testData TestData
 	if err := json.Unmarshal(data, &testData); err != nil {
@@ -574,6 +595,41 @@ func testSingleFile(client *fuzz.FuzzClient, jsonFile string) error {
 
 	if mismatchCount > 0 {
 		return fmt.Errorf("mismatch count: %d", mismatchCount)
+	}
+
+	return nil
+}
+
+func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) error {
+	var genesisData struct {
+		Header types.Header `json:"header"`
+		State  struct {
+			StateRoot string             `json:"state_root"`
+			KeyVals   types.StateKeyVals `json:"keyvals"`
+		} `json:"state"`
+	}
+
+	if err := json.Unmarshal(data, &genesisData); err != nil {
+		return fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	fmt.Println("File: ", jsonFile)
+
+	expectedStateRoot, err := parseStateRoot(genesisData.State.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing state state_root: %v", err)
+	}
+
+	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(genesisData.Header.Parent[:]))
+	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals)
+	logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualStateRoot[:]))
+	if err != nil {
+		return fmt.Errorf("SetState failed: %v", err)
+	}
+
+	if actualStateRoot != expectedStateRoot {
+		logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x", expectedStateRoot, actualStateRoot)
+		return fmt.Errorf("state_root mismatch")
 	}
 
 	return nil
