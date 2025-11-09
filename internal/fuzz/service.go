@@ -44,7 +44,11 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
 
 		if latestBlockHash != block.Header.Parent {
-			return types.StateRoot{}, fmt.Errorf("parent mismatch: got %x, want %x", block.Header.Parent, latestBlockHash)
+			// Try the restore block and state
+			err := storeInstance.RestoreBlockAndState(block.Header.Parent)
+			if err != nil {
+				return types.StateRoot{}, fmt.Errorf("failed to restore block and state after parent mismatch: %w", err)
+			}
 		}
 	}
 

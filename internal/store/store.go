@@ -8,6 +8,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
@@ -21,6 +22,7 @@ type Store struct {
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
 	finalizedIndex             map[types.HeaderHash]bool
+	blockByHash                map[types.HeaderHash]types.Block
 	processingBlock            *ProcessingBlock
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
@@ -37,6 +39,7 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
 			finalizedIndex:             make(map[types.HeaderHash]bool),
+			blockByHash:                make(map[types.HeaderHash]types.Block),
 			processingBlock:            NewProcessingBlock(),
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
@@ -55,6 +58,7 @@ func ResetInstance() {
 	globalStore = &Store{
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
 		finalizedIndex:             make(map[types.HeaderHash]bool),
+		blockByHash:                make(map[types.HeaderHash]types.Block),
 		processingBlock:            NewProcessingBlock(),
 		priorStates:                NewPriorStates(),
 		intermediateStates:         NewIntermediateStates(),
@@ -68,6 +72,13 @@ func ResetInstance() {
 
 func (s *Store) AddBlock(block types.Block) {
 	s.unfinalizedBlocks.AddBlock(block)
+	if err := s.persistBlockMapping(block); err != nil {
+		log.Printf("AddBlock: failed to index block: %v", err)
+	}
+}
+
+func (s *Store) CleanupBlock(blockHash types.HeaderHash) {
+	s.unfinalizedBlocks = NewUnfinalizedBlocks()
 }
 
 func (s *Store) GetBlocks() []types.Block {
@@ -90,6 +101,9 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
+	if err := s.persistBlockMapping(block); err != nil {
+		log.Printf("GenerateGenesisBlock: failed to index block: %v", err)
+	}
 }
 
 // Finalized Blocks Management
@@ -235,19 +249,26 @@ func (s *Store) StateCommit() {
 
 	latestBlock := s.GetLatestBlock()
 
-	encoder := types.NewEncoder()
-	encodedHeader, err := encoder.Encode(&latestBlock.Header)
+	blockHeaderHash, err := computeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
 		log.Printf("StateCommit: failed to encode header: %v", err)
 	} else {
-		blockHeaderHash := types.HeaderHash(hash.Blake2bHash(encodedHeader))
 		posteriorState := s.GetPosteriorStates().GetState()
 
+		// Persist state for block
 		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
 		if err != nil {
 			log.Printf("StateCommit: failed to persist state: %v", err)
 		} else {
 			log.Printf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+		}
+
+		// Persist block mapping
+		err = s.persistBlockMapping(latestBlock)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist block: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
 	}
 
@@ -306,6 +327,65 @@ func (s *Store) GetStorageKeyVals() types.StateKeyVals {
 
 func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
 	s.storageKeyVals = storageKeyVals
+}
+
+func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, bool) {
+	block, ok := s.blockByHash[headerHash]
+	return block, ok
+}
+
+func (s *Store) persistBlockMapping(block types.Block) error {
+	headerHash, err := computeBlockHeaderHash(block.Header)
+	if err != nil {
+		return fmt.Errorf("failed to compute block header hash: %w", err)
+	}
+	s.blockByHash[headerHash] = block
+	return nil
+}
+
+func computeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
+	encoder := types.NewEncoder()
+	encodedHeader, err := encoder.Encode(&header)
+	if err != nil {
+		return types.HeaderHash{}, err
+	}
+	return types.HeaderHash(hash.Blake2bHash(encodedHeader)), nil
+}
+
+func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {
+	block, ok := s.GetBlockByHash(blockHeaderHash)
+	if !ok {
+		return types.Block{}, nil, fmt.Errorf("block not found for hash 0x%x", blockHeaderHash[:8])
+	}
+
+	state, err := s.GetStateByBlockHash(blockHeaderHash)
+	if err != nil {
+		return types.Block{}, nil, fmt.Errorf("failed to restore state for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	return block, state, nil
+}
+
+func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
+	block, stateKeyVals, err := s.GetBlockAndState(blockHeaderHash)
+	if err != nil {
+		return fmt.Errorf("failed to restore block and state for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	// Restore state and storage key-vals
+	state, storageKeyVal, err := merklization.StateKeyValsToState(stateKeyVals)
+	if err != nil {
+		return err
+	}
+
+	s.GetPosteriorStates().SetState(state)
+	s.SetStorageKeyVals(storageKeyVal)
+
+	// Restore block
+	s.CleanupBlock(blockHeaderHash)
+	s.AddBlock(block)
+
+	return nil
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)
