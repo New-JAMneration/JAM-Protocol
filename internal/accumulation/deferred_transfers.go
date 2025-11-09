@@ -140,22 +140,24 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accu
 
 	for serviceId := range deltaDagger {
 		selectionFunctionOutput := selectionFunction(t, serviceId)
+		storageKeyVals := store.GetStorageKeyVals()
 		onTransferInput := PVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
 			ServiceID:         serviceId,
 			DeferredTransfers: selectionFunctionOutput,
+			StorageKeyVal:     storageKeyVals,
 		}
 
 		// (12.27) x
-		serviceAccount, gas := PVM.OnTransferInvoke(onTransferInput)
+		serviceAccount, gas, newStorageKeyVals := PVM.OnTransferInvoke(onTransferInput)
 
 		// === (12.32) apply a'_a = τ′ for s ∈ K(S) ===
 		if _, ok := accumulationStatistics[serviceId]; ok {
 			serviceAccount.ServiceInfo.LastAccumulationSlot = tauPrime
 		}
 		deltaDoubleDagger[serviceId] = serviceAccount
-
+		store.SetStorageKeyVals(newStorageKeyVals)
 		// Calculate transfers statistics (X)
 		// (12.29) (12.30) Calculate the deferred transfers statistics
 		if len(selectionFunctionOutput) != 0 {
@@ -312,6 +314,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		// append accumulatedServiceHash to lastAccOut
 		lastAccOut = append(lastAccOut, accumulatedServiceHash)
 	}
+
+	sort.Slice(lastAccOut, func(i, j int) bool {
+		if lastAccOut[i].ServiceId != lastAccOut[j].ServiceId {
+			return lastAccOut[i].ServiceId < lastAccOut[j].ServiceId
+		}
+		return bytes.Compare(lastAccOut[i].Hash[:], lastAccOut[j].Hash[:]) < 0
+	})
+
 	store.GetPosteriorStates().SetLastAccOut(lastAccOut)
 
 	return output, nil

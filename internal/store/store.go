@@ -1,12 +1,16 @@
 package store
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 var (
@@ -28,6 +32,7 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	storageKeyVals             types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -43,6 +48,7 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
+			storageKeyVals:             types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -60,6 +66,7 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
+		storageKeyVals:             types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -240,10 +247,87 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 
 // post-state update to pre-state
 func (s *Store) StateCommit() {
+	blocks := s.GetBlocks()
+	if len(blocks) == 0 {
+		posterState := s.GetPosteriorStates().GetState()
+		s.GetPriorStates().SetState(posterState)
+		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+		return
+	}
+
+	latestBlock := s.GetLatestBlock()
+
+	encoder := types.NewEncoder()
+	encodedHeader, err := encoder.Encode(&latestBlock.Header)
+	if err != nil {
+		log.Printf("StateCommit: failed to encode header: %v", err)
+	} else {
+		blockHeaderHash := types.HeaderHash(hash.Blake2bHash(encodedHeader))
+		posteriorState := s.GetPosteriorStates().GetState()
+
+		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist state: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+		}
+	}
+
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
-
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+}
+
+// PersistStateForBlock persists the state for a given block to Redis
+func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state types.State) error {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	serializedState, err := m.StateEncoder(state)
+	if err != nil {
+		return fmt.Errorf("failed to encode state: %w", err)
+	}
+
+	storageKeyVals := s.GetStorageKeyVals()
+	fullStateKeyVals := append(storageKeyVals, serializedState...)
+
+	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
+
+	ctx := context.Background()
+
+	err = redisBackend.StoreStateRootByBlockHash(ctx, blockHeaderHash, stateRoot)
+	if err != nil {
+		return fmt.Errorf("failed to store state root mapping: %w", err)
+	}
+
+	err = redisBackend.StoreStateData(ctx, stateRoot, fullStateKeyVals)
+	if err != nil {
+		return fmt.Errorf("failed to store state data: %w", err)
+	}
+
+	return nil
+}
+
+// GetStateByBlockHash retrieves state data for a given block from Redis
+func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	return redisBackend.GetStateByBlockHash(ctx, blockHeaderHash)
+}
+
+// StorageKeyVals
+func (s *Store) GetStorageKeyVals() types.StateKeyVals {
+	return s.storageKeyVals
+}
+
+func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
+	s.storageKeyVals = storageKeyVals
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

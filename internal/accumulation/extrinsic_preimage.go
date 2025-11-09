@@ -31,6 +31,7 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	account, isInAccount := d[s]
 	if !isInAccount || account.PreimageLookup == nil || account.LookupDict == nil {
 		// If account does not exist or maps are uninitialized, return false
+		// log.Println("ServiceAccount not found or maps are uninitialized")
 		return false
 	}
 
@@ -43,10 +44,11 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 		Length: l,
 	}
 
-	// Check if the preimage hash and length's time slot set is empty
-	timeSlotSet, exists := account.LookupDict[lookupKey]
-	if !exists {
+	// Check if the lookupKey have been set before(time slot set is not empty)
+	timeSlotSet := account.LookupDict[lookupKey]
+	if len(timeSlotSet) != 0 {
 		// If lookup key doesn't exist in the dictionary, consider the time slot set as empty
+		// log.Println("Lookup key have been set before")
 		return false
 	}
 
@@ -162,16 +164,18 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	s := store.GetInstance()
 	eps := s.GetLatestBlock().Extrinsic.Preimages
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
+	deltaPrime := make(types.ServiceAccountState)
+	maps.Copy(deltaPrime, deltaDoubleDagger)
 	tauPrime := s.GetPosteriorStates().GetTau()
 
 	// Filter preimage extrinsics
-	filteredEps, FilterErr := FilterPreimageExtrinsics(eps, deltaDoubleDagger)
+	filteredEps, FilterErr := FilterPreimageExtrinsics(eps, deltaPrime)
 	if FilterErr != nil {
 		return FilterErr
 	}
 
 	// Update deltaDoubleDagger with filtered preimages
-	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, deltaDoubleDagger, tauPrime)
+	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, deltaPrime, tauPrime)
 	if UpdateErr != nil {
 		log.Println("UpdateDeltaWithExtrinsicPreimageErr:", UpdateErr)
 	}

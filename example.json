@@ -18,5 +18,10 @@
     "host": "localhost",
     "port": 6379,
     "password": "password"
+  },
+  "info": {
+    "name": "New-JAMneration",
+    "app_version": "1.0.0",
+    "jam_version": "0.7.0"
   }
 }

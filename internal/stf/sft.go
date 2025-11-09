@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
+	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
@@ -12,13 +13,21 @@ import (
 // The functions should validate inputs and handle errors appropriately
 // Consider adding proper logging and metrics collection
 func RunSTF() error {
+
 	st := store.GetInstance()
+	{
+		// Validate Header Seal
+		priorState := st.GetPriorStates().GetState()
+		header := st.GetLatestBlock().Header
+		err := safrole.ValidateHeaderSeal(header, &priorState)
+		if err != nil {
+			return fmt.Errorf("validate header seal error: %v", err)
+		}
+	}
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
-
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
-
 	// Update Disputes
 	err := UpdateDisputes()
 	if err != nil {
