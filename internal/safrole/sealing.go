@@ -5,14 +5,10 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
-)
-
-const (
-	VrfSealInvalid    types.ErrorCode = iota // 0 VrfSealInvalid
-	VrfEntropyInvalid                        // 1 VrfEntropyInvalid
 )
 
 // TODO VERIFY 6.15 6.16
@@ -189,7 +185,7 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 	signature := header.EntropySource[:]
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		errCode := VrfEntropyInvalid
+		errCode := SafroleErrorCode.VrfEntropyInvalid
 		return &errCode
 	}
 	return nil
@@ -212,7 +208,7 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		errCode := VrfSealInvalid
+		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
 	return nil
@@ -247,7 +243,7 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
-		errCode := VrfSealInvalid
+		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
 	return nil
