@@ -491,7 +491,14 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) err
 		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
 		return err
 	} else if errorMessage != nil {
-		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		if actualPostStateRoot != expectedPostStateRoot {
+			logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
+				expectedPostStateRoot, actualPostStateRoot)
+			mismatchCount++
+			importBlockMismatch = true
+		} else {
+			logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		}
 		return err
 	} else {
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))

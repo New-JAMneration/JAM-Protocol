@@ -23,7 +23,6 @@ func isProtocolError(err error) bool {
 }
 
 func RunSTF() (bool, error) {
-
 	st := store.GetInstance()
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
