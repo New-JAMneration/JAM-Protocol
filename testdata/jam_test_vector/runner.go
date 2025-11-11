@@ -18,7 +18,8 @@ func NewJamTestVectorsRunner(mode testdata.TestMode) *JamTestVectorsRunner {
 
 func (r *JamTestVectorsRunner) RunFnnc(runSTF bool) error {
 	if runSTF {
-		return stf.RunSTF()
+		_, err := stf.RunSTF()
+		return err
 	}
 
 	switch r.Mode {

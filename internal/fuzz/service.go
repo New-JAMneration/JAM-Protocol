@@ -64,8 +64,11 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 	storeInstance.AddBlock(block)
 	// Run the STF and get the state root
-	err := stf.RunSTF()
+	isProtocolError, err := stf.RunSTF()
 	if err != nil {
+		if !isProtocolError {
+			return types.StateRoot{}, fmt.Errorf("STF runtime error: %v", err)
+		}
 		return types.StateRoot{}, err
 	}
 
