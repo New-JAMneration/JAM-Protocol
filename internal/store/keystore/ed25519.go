@@ -4,11 +4,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+
+	"github.com/hdevalence/ed25519consensus"
 )
 
 type Ed25519KeyPair struct {
 	private ed25519.PrivateKey
-	public  ed25519.PublicKey
+	Public  ed25519.PublicKey
 }
 
 func (k *Ed25519KeyPair) Type() KeyType {
@@ -16,7 +18,7 @@ func (k *Ed25519KeyPair) Type() KeyType {
 }
 
 func (k *Ed25519KeyPair) PublicKey() []byte {
-	return k.public
+	return k.Public
 }
 
 func (k *Ed25519KeyPair) PrivateKey() []byte {
@@ -28,7 +30,10 @@ func (k *Ed25519KeyPair) Sign(message []byte) ([]byte, error) {
 }
 
 func (k *Ed25519KeyPair) Verify(message []byte, signature []byte) bool {
-	return ed25519.Verify(k.public, message, signature)
+	// We use ed25519consensus to verify the signature
+	// which is compliant with ZIP 215.
+	return ed25519consensus.Verify(k.Public, message, signature)
+	// return ed25519.Verify(k.Public, message, signature)
 }
 
 func NewEd25519KeyPair() (*Ed25519KeyPair, error) {
@@ -36,7 +41,7 @@ func NewEd25519KeyPair() (*Ed25519KeyPair, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Ed25519KeyPair{private: priv, public: pub}, nil
+	return &Ed25519KeyPair{private: priv, Public: pub}, nil
 }
 
 // imports from a 32-byte seed
@@ -46,7 +51,7 @@ func ImportEd25519KeyPair(seed []byte) (*Ed25519KeyPair, error) {
 	}
 	priv := ed25519.NewKeyFromSeed(seed)
 	pub := priv.Public().(ed25519.PublicKey)
-	return &Ed25519KeyPair{private: priv, public: pub}, nil
+	return &Ed25519KeyPair{private: priv, Public: pub}, nil
 }
 
 func FromEd25519PrivateKey(priv ed25519.PrivateKey) (*Ed25519KeyPair, error) {
@@ -54,5 +59,5 @@ func FromEd25519PrivateKey(priv ed25519.PrivateKey) (*Ed25519KeyPair, error) {
 		return nil, errors.New("invalid ed25519 private key size")
 	}
 	pub := priv.Public().(ed25519.PublicKey)
-	return &Ed25519KeyPair{private: priv, public: pub}, nil
+	return &Ed25519KeyPair{private: priv, Public: pub}, nil
 }
