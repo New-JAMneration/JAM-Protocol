@@ -2,7 +2,6 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"fmt"
 	"sort"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // VerdictWrapper is a struct that contains a Verdict
@@ -90,7 +90,7 @@ func (v *VerdictWrapper) VerifySignature() error {
 
 		message = append(message, target...)
 
-		if !ed25519.Verify(publicKey, message, v.Verdict.Votes[i].Signature[:]) {
+		if !ed25519consensus.Verify(publicKey, message, v.Verdict.Votes[i].Signature[:]) {
 			invalidVotes = append(invalidVotes, i)
 		}
 	}
