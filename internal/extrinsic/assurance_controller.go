@@ -2,7 +2,6 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"errors"
 	"sort"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
@@ -121,7 +121,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 		message = append(message, hased[:]...)
 
 		publicKey := kappa[availAssurance.ValidatorIndex].Ed25519
-		if !ed25519.Verify(publicKey[:], message, availAssurance.Signature[:]) {
+		if !ed25519consensus.Verify(publicKey[:], message, availAssurance.Signature[:]) {
 			return errors.New("invalid_signature")
 		}
 	}
