@@ -22,7 +22,6 @@ type Store struct {
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
 	finalizedIndex             map[types.HeaderHash]bool
-	blockByHash                map[types.HeaderHash]types.Block
 	processingBlock            *ProcessingBlock
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
@@ -39,7 +38,6 @@ func GetInstance() *Store {
 		globalStore = &Store{
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
 			finalizedIndex:             make(map[types.HeaderHash]bool),
-			blockByHash:                make(map[types.HeaderHash]types.Block),
 			processingBlock:            NewProcessingBlock(),
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
@@ -58,7 +56,6 @@ func ResetInstance() {
 	globalStore = &Store{
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
 		finalizedIndex:             make(map[types.HeaderHash]bool),
-		blockByHash:                make(map[types.HeaderHash]types.Block),
 		processingBlock:            NewProcessingBlock(),
 		priorStates:                NewPriorStates(),
 		intermediateStates:         NewIntermediateStates(),
@@ -77,7 +74,7 @@ func (s *Store) AddBlock(block types.Block) {
 	}
 }
 
-func (s *Store) CleanupBlock(blockHash types.HeaderHash) {
+func (s *Store) CleanupBlock() {
 	s.unfinalizedBlocks = NewUnfinalizedBlocks()
 }
 
@@ -329,9 +326,22 @@ func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
 	s.storageKeyVals = storageKeyVals
 }
 
-func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, bool) {
-	block, ok := s.blockByHash[headerHash]
-	return block, ok
+func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return types.Block{}, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	block, err := redisBackend.GetBlockByHash(ctx, types.OpaqueHash(headerHash))
+	if err != nil {
+		return types.Block{}, err
+	}
+	if block == nil {
+		return types.Block{}, fmt.Errorf("block not found for hash 0x%x", headerHash[:8])
+	}
+
+	return *block, nil
 }
 
 func (s *Store) persistBlockMapping(block types.Block) error {
@@ -339,7 +349,17 @@ func (s *Store) persistBlockMapping(block types.Block) error {
 	if err != nil {
 		return fmt.Errorf("failed to compute block header hash: %w", err)
 	}
-	s.blockByHash[headerHash] = block
+
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	if err := redisBackend.StoreBlockByHash(ctx, &block, types.OpaqueHash(headerHash)); err != nil {
+		return fmt.Errorf("failed to persist block in redis: %w", err)
+	}
+
 	return nil
 }
 
@@ -353,9 +373,9 @@ func computeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
 }
 
 func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {
-	block, ok := s.GetBlockByHash(blockHeaderHash)
-	if !ok {
-		return types.Block{}, nil, fmt.Errorf("block not found for hash 0x%x", blockHeaderHash[:8])
+	block, err := s.GetBlockByHash(blockHeaderHash)
+	if err != nil {
+		return types.Block{}, nil, fmt.Errorf("failed to retrieve block for hash 0x%x: %w", blockHeaderHash[:8], err)
 	}
 
 	state, err := s.GetStateByBlockHash(blockHeaderHash)
@@ -382,7 +402,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	s.SetStorageKeyVals(storageKeyVal)
 
 	// Restore block
-	s.CleanupBlock(blockHeaderHash)
+	s.CleanupBlock()
 	s.AddBlock(block)
 
 	return nil
