@@ -2,7 +2,11 @@ package merklization_test
 
 import (
 	"bytes"
+<<<<<<< HEAD
 	"os"
+=======
+	"fmt"
+>>>>>>> main
 	"path/filepath"
 	"testing"
 
@@ -36,7 +40,11 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 			continue
 		}
 
+<<<<<<< HEAD
 		genesisState, _, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+=======
+		genesisState, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+>>>>>>> main
 		if err != nil {
 			t.Errorf("Error parsing state keyvals: %v", err)
 		}
@@ -55,6 +63,12 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
+=======
+// FIXME: We cannot obtain the storage key from StateKeyVal.
+// so this test will not work as expected.
+// INFO: We can pass fallback and safrole directories because they do not contain storage keys.
+>>>>>>> main
 func TestStateKeyValsToState(t *testing.T) {
 	dirNames := []string{
 		"fallback",
@@ -90,7 +104,70 @@ func TestStateKeyValsToState(t *testing.T) {
 			}
 
 			// Parse the state keyvals
+<<<<<<< HEAD
 			state, storageKeyVals, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+=======
+			state, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+			if err != nil {
+				t.Errorf("Error parsing state keyvals: %v", err)
+			}
+
+			// Create a state root with the parsed state
+			stateRoot := merklization.MerklizationState(state)
+
+			expectedStateRoot := traceTestCase.PostState.StateRoot
+
+			// Compare the state root with the expected state root
+			if stateRoot != expectedStateRoot {
+				t.Errorf("❌ State root mismatch in [%s] %s: expected 0x%x, got 0x%x", dirName, fileName, expectedStateRoot, stateRoot)
+			} else {
+				t.Logf("✅ State root matches in [%s] %s: 0x%x", dirName, fileName, stateRoot)
+			}
+		}
+	}
+}
+
+// We cannot obtain the storage key from StateKeyVal in its current form,
+// so our StateKeyValsToState function does not include storage keys in the output state.
+// This test checks that the state keyvals do not contain storage keys,
+// which is expected behavior.
+func TestStateKeyValsToState_CheckStateKeyValsWithoutStorageKey(t *testing.T) {
+	dirNames := []string{
+		"fallback",
+		"preimages",
+		"preimages_light",
+		"safrole",
+		"storage",
+		"storage_light",
+	}
+
+	for _, dirName := range dirNames {
+		dir := filepath.Join("..", utilities.JAM_TEST_VECTORS_DIR, "traces", dirName)
+
+		fileNames, err := utilities.GetTargetExtensionFiles(dir, utilities.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error getting files from directory %s: %v", dir, err)
+			continue
+		}
+
+		for _, fileName := range fileNames {
+			if fileName == "genesis.bin" { // skip genesis
+				continue
+			}
+
+			filePath := filepath.Join(dir, fileName)
+
+			// Read the bin file
+			traceTestCase := &jamtests_trace.TraceTestCase{}
+			err := utilities.GetTestFromBin(filePath, traceTestCase)
+			if err != nil {
+				t.Errorf("Error reading file %s: %v", filePath, err)
+				continue
+			}
+
+			// Parse the state keyvals
+			state, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+>>>>>>> main
 			if err != nil {
 				t.Errorf("Error parsing state keyvals: %v", err)
 			}
@@ -109,9 +186,30 @@ func TestStateKeyValsToState(t *testing.T) {
 
 			expectedStateRoot := traceTestCase.PostState.StateRoot
 
+<<<<<<< HEAD
 			// Compare the state root with the expected state root
 			if actualStateRoot != expectedStateRoot {
 				t.Errorf("❌ State root mismatch in [%s] %s: expected 0x%x, got 0x%x", dirName, fileName, expectedStateRoot, actualStateRoot)
+=======
+			diffs, err := merklization.GetStateKeyValsDiff(expectedStateKeyVals, actualStateKeyVals)
+			if err != nil {
+				t.Errorf("Error getting state keyvals diff: %v", err)
+			}
+
+			if len(diffs) > 0 {
+				for _, diff := range diffs {
+					// Only check the key exists in the actual state keyvals
+					// because we cannot obtain the storage key from StateKeyVal
+					// The state will not contain storage keys in its current form.
+					if _, exists := actualStateKeyValsMap[diff.Key]; !exists {
+						continue
+					}
+
+					t.Errorf("❌ State key 0x%x has diff in [%s] %s\n", diff.Key, dirName, fileName)
+					t.Errorf("Expected: 0x%x\n", diff.ExpectedValue)
+					t.Errorf("Actual: 0x%x\n", diff.ActualValue)
+				}
+>>>>>>> main
 			} else {
 				t.Logf("✅ State root matches in [%s] %s: 0x%x", dirName, fileName, actualStateRoot)
 			}

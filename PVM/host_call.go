@@ -178,6 +178,10 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
 		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
 			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.Gas = gasPrime
@@ -578,16 +582,24 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
+<<<<<<< HEAD
 		var buffer []byte
 		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.Operands))))
+=======
+		buffer, err := encoder.EncodeUint(uint64((len(input.Addition.Operands))))
+>>>>>>> main
 		if err != nil {
 			logger.Errorf("fetch host-call case 14 encode uint error: %v", err)
 			break
 		}
 
 		for _, o := range input.Addition.Operands {
+<<<<<<< HEAD
 			var bytes []byte
 			bytes, err = encoder.Encode(&o)
+=======
+			bytes, err := encoder.Encode(&o)
+>>>>>>> main
 			if err != nil {
 				logger.Errorf("fetch host-call case 14 encode error: %v", err)
 				break
@@ -892,6 +904,23 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+<<<<<<< HEAD
+=======
+	v, exists := a.StorageDict[string(storageKey)]
+	// v = nil
+	if !exists {
+		new_registers := input.Registers
+		new_registers[7] = NONE
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: new_registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+>>>>>>> main
 	f := min(input.Registers[11], uint64(len(v)))
 	l := min(input.Registers[12], uint64(len(v))-f)
 	// nothing to write, don't need to check memory access
@@ -971,6 +1000,13 @@ func write(input OmegaInput) (output OmegaOutput) {
 
 	storageRawData := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 
+<<<<<<< HEAD
+=======
+	serviceID := input.Addition.ResultContextX.ServiceId
+
+	// computation of l & a is independent, first compute l is easier to implement
+	value, storageKeyExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID].StorageDict[string(storageKey)]
+>>>>>>> main
 	var l uint64
 	var footprintItems types.U32
 	var footprintOctets types.U64
@@ -984,6 +1020,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		l = NONE
 	}
 
+<<<<<<< HEAD
 	encodedKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageRawKey, nil)
 
 	if vz == 0 { // remove storage
@@ -1007,6 +1044,18 @@ func write(input OmegaInput) (output OmegaOutput) {
 		newMinBalance := service_account.CalcThresholdBalance(newItems, newOctets, a.ServiceInfo.DepositOffset) // a_t
 		if newMinBalance > a.ServiceInfo.Balance {
 			input.Registers[7] = FULL
+=======
+	a := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if vz == 0 {
+		delete(a.StorageDict, string(storageKey))
+	} else if isReadable(vo, vz, input.Memory) {
+		storageValue := input.Memory.Read(vo, vz)
+		a.StorageDict[string(storageKey)] = storageValue
+		// check a_b < a_t : storage need gas, balance is not enough for storage
+		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
+			new_registers := input.Registers
+			new_registers[7] = FULL
+>>>>>>> main
 			return OmegaOutput{
 				ExitReason:   PVMExitTuple(CONTINUE, nil),
 				NewGas:       newGas,
@@ -1029,6 +1078,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+<<<<<<< HEAD
 	// update service state
 	(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
 	(*input.Addition.GeneralArgs.ServiceAccount) = a
@@ -1037,6 +1087,15 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Registers[7] = l
+=======
+	// storageDict is updated, service items and service Bytes should be updated
+	a.ServiceInfo.Items = service_account.CalcKeys(a)
+	a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
+	new_registers := input.Registers
+	new_registers[7] = l
+>>>>>>> main
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -2552,10 +2611,13 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
 			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
+<<<<<<< HEAD
 			itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
 			newFootprintItems += itemFootprintItems
 			newFootprintOctets += itemFootprintOctets
 
+=======
+>>>>>>> main
 		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			// first take off the lookup item footprints
@@ -2580,6 +2642,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 
+<<<<<<< HEAD
 		newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, a.ServiceInfo.DepositOffset)
 
 		// a_b < a_t
@@ -2592,15 +2655,33 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 				NewMemory:    input.Memory,
 				Addition:     input.Addition,
 			}
+=======
+		// a_b < a_t
+		if a.ServiceInfo.Balance < service_account.GetServiceAccountDerivatives(a).Minbalance {
+			// rollback the changes made to the lookup dict
+			if lookupDataExists {
+				a.LookupDict[lookupKey] = lookupData[:2]
+			} else {
+				delete(a.LookupDict, lookupKey)
+			}
+			input.Registers[7] = FULL
+>>>>>>> main
 		}
 		//
 		input.Registers[7] = OK
 		// LookupDict is updated, service items and service Bytes should be updated
+<<<<<<< HEAD
 		a.ServiceInfo.Items = newFootprintItems
 		a.ServiceInfo.Bytes = newFootprintOctets
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a // update general args
 		*input.Addition.GeneralArgs.ServiceAccount = a
+=======
+		a.ServiceInfo.Items = service_account.CalcKeys(a)
+		a.ServiceInfo.Bytes = service_account.CalcOctets(a)
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+
+>>>>>>> main
 	} else {
 		log.Printf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
@@ -2649,10 +2730,13 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
+<<<<<<< HEAD
 			itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
 
 			newFootprintItems := a.ServiceInfo.Items
 			newFootprintOctets := a.ServiceInfo.Bytes
+=======
+>>>>>>> main
 			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
 				// delete (h,z) from a_l
 				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
@@ -2667,6 +2751,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
 				a.LookupDict[lookupKey] = lookupData
+<<<<<<< HEAD
 				itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
 				newFootprintItems += itemFootprintItems
 				newFootprintOctets += itemFootprintOctets
@@ -2674,6 +2759,9 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			} else if lookupDataLength == 3 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 				newFootprintItems -= itemFootprintItems
 				newFootprintOctets -= itemFootprintOctets
+=======
+			} else if lookupDataLength == 3 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
+>>>>>>> main
 				// a_l[h,z] = [w,t]
 				lookupData[0] = lookupData[2]
 				lookupData[1] = timeslot
@@ -2878,6 +2966,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+<<<<<<< HEAD
 	timeFormat := time.RFC3339
 	timeStamp := time.Now().Format(timeFormat)
 	var logMsg string
@@ -2887,6 +2976,16 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	} else {
 		target := input.Memory.Read(input.Registers[8], input.Registers[9])
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
+=======
+	timeStamp := time.RFC3339
+	var logMsg string
+	if input.Registers[8] == 0 && input.Registers[9] == 0 {
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [message:%s]\n", timeStamp, levelStr[level],
+			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), string(message))
+	} else {
+		target := input.Memory.Read(input.Registers[8], input.Registers[9])
+		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v] [target:0x%x] [message:%s]\n", timeStamp, levelStr[level],
+>>>>>>> main
 			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
 	}
 	logger.Debugf("%v", logMsg)
@@ -2926,6 +3025,7 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 	}
 }
 
+<<<<<<< HEAD
 // 0.7.0 later, fuzzer needs to recover state, storage cannot be recover,
 // Thus, needs to check storage from KeyVal
 // return storage val and add storage state into ResultContextX
@@ -2955,6 +3055,8 @@ func removeStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.
 	}
 }
 
+=======
+>>>>>>> main
 func derefernceOrNil[T any](p *T) any {
 	if p == nil {
 		return nil

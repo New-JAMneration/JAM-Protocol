@@ -1497,6 +1497,10 @@ type PartialStateSet struct {
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	// ServiceAccountState
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
 	copiedServiceAccounts := make(ServiceAccountState)
 	for serviceID, originAccount := range origin.ServiceAccounts {
 		var copiedAccount ServiceAccount
@@ -1565,7 +1569,12 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	}
 }
 
+<<<<<<< HEAD
 // (12.19 0.7.0)
+=======
+// (12.18 pre-0.6.5)
+// (12.19 0.6.5)
+>>>>>>> main
 type Operand struct {
 	Hash           WorkPackageHash // p
 	ExportsRoot    ExportsRoot     // e
