@@ -167,7 +167,12 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 	}
 
 	// Get first 4 bytes (8 nibbles) of the genesis header hash
-	genesisBlockHeaderHash := hash.Blake2bHashPartial(utils.HeaderSerialization(genesisBlock.Header), 4)
+	genesisBlockHeaderHash, err := utils.HeaderSerialization(genesisBlock.Header)
+	if err != nil {
+		return nil, fmt.Errorf("error serializing genesis block header: %v", err)
+	}
+	genesisBlockHeaderHash = hash.Blake2bHashPartial(genesisBlockHeaderHash, 4)
+	
 	// Convert to lowercase hexadecimal string
 	hashHex := hex.EncodeToString(genesisBlockHeaderHash)
 
