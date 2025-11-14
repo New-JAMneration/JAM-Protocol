@@ -490,12 +490,8 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 
 	dest := uint32(reg[rA] + vX)
 	reason, newPC := djump(pc, dest, jumpTable, bitmask)
-<<<<<<< HEAD
 	switch reason {
 	case PANIC:
-=======
-	if reason != CONTINUE { // newPc = dest
->>>>>>> main
 		logger.Debugf("[%d]: pc: %d, %s %d panic, %s = %s, vX = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
 			newPC, RegName[rA], formatInt(reg[rA]), formatInt(vX))
 		return PVMExitTuple(reason, nil), pc, reg, mem
@@ -508,12 +504,6 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 			newPC, RegName[rA], formatInt(reg[rA]), formatInt(vX))
 		return PVMExitTuple(reason, nil), newPC, reg, mem
 	}
-<<<<<<< HEAD
-=======
-	logger.Debugf("[%d]: pc: %d, %s %d, %s = %s, vX = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		newPC, RegName[rA], formatInt(reg[rA]), formatInt(vX))
-	return PVMExitTuple(reason, nil), newPC, reg, mem
->>>>>>> main
 }
 
 // opcode 51
@@ -1489,11 +1479,7 @@ func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	reg[rA] = reg[rB] ^ vX
-<<<<<<< HEAD
 	logger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-=======
-	logger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = %s", pc, zeta[opcode(instructionCode[pc])],
->>>>>>> main
 		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -1932,11 +1918,7 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 
 	// rotate right
 	reg[rB] &= 63 // % 64
-<<<<<<< HEAD
 	reg[rA] = bits.RotateLeft64(vX, -int(reg[rB]))
-=======
-	reg[rA] = bits.RotateLeft64(vX, -int(reg[rB]&63))
->>>>>>> main
 	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
 		RegName[rA], formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
@@ -2046,14 +2028,9 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 	reason, newPC := djump(pc, dest, jumpTable, bitmask)
 
 	reg[rA] = vX
-<<<<<<< HEAD
 	switch reason {
 	case PANIC:
 		logger.Debugf("[%d]: pc: %d PANIC, %s, %v", instrCount, pc, zeta[opcode(instructionCode[pc])], reason)
-=======
-	if reason != CONTINUE {
-		logger.Debugf("[%d]: pc: %d, %s, %v", instrCount, pc, zeta[opcode(instructionCode[pc])], reason)
->>>>>>> main
 		return PVMExitTuple(reason, nil), pc, reg, mem
 	case HALT:
 		logger.Debugf("[%d]: pc: %d HALT, %s, %v", instrCount, pc, zeta[opcode(instructionCode[pc])], reason)
@@ -2063,12 +2040,6 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 			RegName[rB], formatInt(vY), formatInt(reg[rB]), formatInt(vY), formatInt(dest))
 		return PVMExitTuple(reason, nil), newPC, reg, mem
 	}
-<<<<<<< HEAD
-=======
-	logger.Debugf("[%d]: pc: %d, %s, (%s + %s) = (%s + %s) mod (1<<32) = %s)", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		RegName[rB], formatInt(vY), formatInt(reg[rB]), formatInt(vY), formatInt(dest))
-	return PVMExitTuple(reason, nil), newPC, reg, mem
->>>>>>> main
 }
 
 // opcode 190
@@ -2201,11 +2172,7 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		return err, pc, reg, mem
 	}
 
-<<<<<<< HEAD
 	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-=======
-	logger.Debugf("[%d]: pc: %d, %s, %s = %s", pc, zeta[opcode(instructionCode[pc])],
->>>>>>> main
 		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -2423,11 +2390,7 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 	// mutation
 	reg[rD] = reg[rA] << (reg[rB] % 64)
 
-<<<<<<< HEAD
 	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-=======
-	logger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = %s", pc, zeta[opcode(instructionCode[pc])],
->>>>>>> main
 		RegName[rD], formatInt(reg[rA]), formatInt(reg[rB]%64), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -2800,11 +2763,7 @@ func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 		reg[rD] = reg[rB]
 	}
 
-<<<<<<< HEAD
 	logger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-=======
-	logger.Debugf("[%d]: pc: %d, %s, %s = %s", pc, zeta[opcode(instructionCode[pc])],
->>>>>>> main
 		RegName[rD], formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }

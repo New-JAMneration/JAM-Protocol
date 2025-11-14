@@ -172,7 +172,7 @@ func ALPNGen(isBuilder bool) ([]string, error) {
 		return nil, fmt.Errorf("error serializing genesis block header: %v", err)
 	}
 	genesisBlockHeaderHash = hash.Blake2bHashPartial(genesisBlockHeaderHash, 4)
-	
+
 	// Convert to lowercase hexadecimal string
 	hashHex := hex.EncodeToString(genesisBlockHeaderHash)
 

@@ -330,7 +330,6 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 			return nil, err
 		}
 		return lastAccOut, nil
-<<<<<<< HEAD
 	default:
 		// C(255, s)
 		isServiceInfo := stateKey[0] == 0xFF
@@ -363,13 +362,6 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 }
 
 func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.StateKeyVals, error) {
-=======
-	}
-	return nil, errors.New("unsupported stat-key")
-}
-
-func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
->>>>>>> main
 	var err error
 	state := types.State{
 		Delta: make(types.ServiceAccountState),

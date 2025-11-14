@@ -1,8 +1,6 @@
 package PVM
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -117,13 +115,8 @@ func Psi_A(
 		},
 		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-<<<<<<< HEAD
 			ResultContextX: I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
 			ResultContextY: I(partialState, serviceId, timeslot, eta, &storageKeyVal),
-=======
-			ResultContextX: I(partialState.DeepCopy(), serviceId, timeslot, eta),
-			ResultContextY: I(partialState, serviceId, timeslot, eta),
->>>>>>> main
 			Eta:            eta,
 			Operands:       operands,
 			Timeslot:       timeslot,
@@ -162,16 +155,11 @@ func wrapWithG(original Omega) Omega {
 // (B.13) C
 func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs, types.StateKeyVals) {
 	serviceBlobs := make(types.ServiceBlobs, 0)
-<<<<<<< HEAD
 	switch reasonOrBytes := reasonOrBytes.(type) {
-=======
-	switch reasonOrBytes.(type) {
->>>>>>> main
 	case error: // system error
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-<<<<<<< HEAD
 		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
 	case []byte:
 		var h types.OpaqueHash
@@ -180,11 +168,6 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 		}
 		copy(h[:], reasonOrBytes[:len(h)])
 		opaqueHash := &h
-=======
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
-	case types.ByteSequence:
-		fmt.Println("accumulate invocation case ByteSequence")
->>>>>>> main
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
@@ -194,21 +177,12 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 			for _, v := range resultContext.ResultContextY.ServiceBlobs {
 				serviceBlobs = append(serviceBlobs, v)
 			}
-<<<<<<< HEAD
 			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
-=======
-
-			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
->>>>>>> main
 		}
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-<<<<<<< HEAD
 		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
-=======
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs
->>>>>>> main
 	}
 }
 
@@ -252,10 +226,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		ImportServiceId:   result,
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
-<<<<<<< HEAD
 		StorageKeyVal:     storageKeyVal,
-=======
->>>>>>> main
 	}
 }
 
