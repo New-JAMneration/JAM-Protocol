@@ -45,8 +45,11 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	}
 
 	// Check if the lookupKey have been set before(time slot set is not empty)
-	timeSlotSet := account.LookupDict[lookupKey]
-	if len(timeSlotSet) != 0 {
+	timeSlotSet, lookupKeyExists := account.LookupDict[lookupKey]
+	if !lookupKeyExists {
+		// log.Println("Lookup key does not exist in the dictionary")
+		return false
+	} else if len(timeSlotSet) != 0 {
 		// If lookup key doesn't exist in the dictionary, consider the time slot set as empty
 		// log.Println("Lookup key have been set before")
 		return false
