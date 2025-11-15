@@ -4,6 +4,7 @@ package safrole
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 )
 
 // CreateEpochMarker creates the epoch marker
@@ -62,4 +63,76 @@ func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeS
 		var ticketsMark *types.TicketsMark = nil
 		s.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
 	}
+}
+
+func ValidateHeaderEpochMark(header types.Header, state *types.State) error {
+	tau := state.Tau
+	e, _ := R(tau)
+
+	tauPrime := header.Slot
+	ePrime, _ := R(tauPrime)
+
+	em := header.EpochMark
+	shouldHave := ePrime > e
+
+	if !shouldHave {
+		if em != nil {
+			errCode := SafroleErrorCode.InvalidEpochMark
+			return &errCode
+		}
+		return nil
+	}
+
+	if em == nil {
+		errCode := SafroleErrorCode.InvalidEpochMark
+		return &errCode
+	}
+
+	eta := state.Eta
+	if em.Entropy != eta[0] || em.TicketsEntropy != eta[1] {
+		errCode := SafroleErrorCode.InvalidEpochMark
+		return &errCode
+	}
+	return nil
+}
+
+func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
+	tau := state.Tau
+	e, m := R(tau)
+
+	tauPrime := header.Slot
+	ePrime, mPrime := R(tauPrime)
+
+	tm := header.TicketsMark
+	shouldHave := ePrime == e && m < types.TimeSlot(types.SlotSubmissionEnd) && mPrime >= types.TimeSlot(types.SlotSubmissionEnd)
+
+	if !shouldHave {
+		if tm != nil {
+			errCode := SafroleErrorCode.InvalidTicketsMark
+			return &errCode
+		}
+		return nil
+	}
+
+	if tm == nil {
+		errCode := SafroleErrorCode.InvalidTicketsMark
+		return &errCode
+	}
+
+	gammaA := state.Gamma.GammaA
+	expectedTm := OutsideInSequencer(&gammaA)
+
+	if len(*tm) != len(expectedTm) {
+		errCode := SafroleErrorCode.InvalidTicketsMark
+		return &errCode
+	}
+
+	for i := range *tm {
+		if (*tm)[i] != expectedTm[i] {
+			errCode := SafroleErrorCode.InvalidTicketsMark
+			return &errCode
+		}
+	}
+
+	return nil
 }

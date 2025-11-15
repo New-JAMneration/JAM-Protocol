@@ -15,5 +15,12 @@ func ValidateHeader(header types.Header, state *types.State) error {
 	if err != nil {
 		return err
 	}
+	err = safrole.ValidateHeaderEpochMark(header, state)
+	if err != nil {
+		return err
+	}
+	if err := safrole.ValidateHeaderTicketsMark(header, state); err != nil {
+		return err
+	}
 	return nil
 }
