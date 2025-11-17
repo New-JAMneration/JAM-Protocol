@@ -169,6 +169,21 @@ func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, erro
 	return diffs, nil
 }
 
+func isServiceInfoKey(stateKey types.StateKey) bool {
+	if stateKey[0] != 0xFF {
+		return false
+	}
+	for i := 1; i < len(stateKey); i++ {
+		if i == 1 || i == 3 || i == 5 || i == 7 {
+			continue
+		}
+		if stateKey[i] != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (interface{}, error) {
 	switch stateKey {
 	case C(1):
@@ -333,7 +348,7 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 		return lastAccOut, nil
 	default:
 		// C(255, s)
-		isServiceInfo := stateKey[0] == 0xFF
+		isServiceInfo := isServiceInfoKey(stateKey)
 		if isServiceInfo {
 			cLog(Yellow, "[ServiceInfo]")
 			printStateKey(Cyan, stateKey)
@@ -554,7 +569,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			delete(unmatchedStateKeyVals, stateKey)
 		default:
 			// C(255, s)
-			isServiceInfo := stateKey[0] == 0xFF
+			isServiceInfo := isServiceInfoKey(stateKey)
 			if isServiceInfo {
 				cLog(Yellow, "[ServiceInfo]")
 				printStateKey(Cyan, stateKey)
