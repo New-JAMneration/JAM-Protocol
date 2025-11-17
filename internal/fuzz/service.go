@@ -73,7 +73,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		if !isProtocolError {
 			return types.StateRoot{}, fmt.Errorf("STF runtime error: %v", err)
 		}
-		return types.StateRoot{}, err
+		return block.Header.ParentStateRoot, err
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
