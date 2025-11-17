@@ -496,6 +496,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) err
 				expectedPostStateRoot, actualPostStateRoot)
 			mismatchCount++
 			importBlockMismatch = true
+			return fmt.Errorf("mismatch count: %d", mismatchCount)
 		} else {
 			logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
 		}
