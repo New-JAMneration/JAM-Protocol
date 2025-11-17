@@ -2326,43 +2326,43 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	var err error
 
 	if err = s.CodeHash.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode code hash: %w", err)
 	}
 
 	if err = s.Balance.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode balance: %w", err)
 	}
 
 	if err = s.MinItemGas.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode min item gas: %w", err)
 	}
 
 	if err = s.MinMemoGas.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode min memo gas: %w", err)
 	}
 
 	if err = s.Bytes.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode bytes: %w", err)
 	}
 
 	if err = s.DepositOffset.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode deposit offset: %w", err)
 	}
 
 	if err = s.Items.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode items: %w", err)
 	}
 
 	if err = s.CreationSlot.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode creation slot: %w", err)
 	}
 
 	if err = s.LastAccumulationSlot.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode last accumulation slot: %w", err)
 	}
 
 	if err = s.ParentService.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode parent service: %w", err)
 	}
 
 	return nil

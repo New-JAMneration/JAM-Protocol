@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -22,9 +23,9 @@ var (
 	White   = "\033[97m"
 )
 
-var debugMode = false
+// var debugMode = false
 
-// var debugMode = true
+var debugMode = true
 
 func cLog(color string, string string) {
 	if debugMode {
@@ -382,7 +383,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			alpha, err := decodeAlpha(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode alpha: %w", err)
 			}
 			state.Alpha = alpha
 			delete(unmatchedStateKeyVals, stateKey)
@@ -393,7 +394,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			varphi, err := decodeVarphi(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode varphi: %w", err)
 			}
 			state.Varphi = varphi
 			delete(unmatchedStateKeyVals, stateKey)
@@ -404,7 +405,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			beta, err := decodeBeta(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode beta: %w", err)
 			}
 			state.Beta = beta
 			delete(unmatchedStateKeyVals, stateKey)
@@ -415,7 +416,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			gamma, err := decodeGamma(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode gamma: %w", err)
 			}
 			state.Gamma = gamma
 			delete(unmatchedStateKeyVals, stateKey)
@@ -426,7 +427,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			psi, err := decodePsi(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode psi: %w", err)
 			}
 			state.Psi = psi
 			delete(unmatchedStateKeyVals, stateKey)
@@ -437,7 +438,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			eta, err := decodeEta(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode eta: %w", err)
 			}
 			state.Eta = eta
 			delete(unmatchedStateKeyVals, stateKey)
@@ -448,7 +449,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			iota, err := decodeIota(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode iota: %w", err)
 			}
 			state.Iota = iota
 			delete(unmatchedStateKeyVals, stateKey)
@@ -459,7 +460,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			kappa, err := decodeKappa(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode kappa: %w", err)
 			}
 			state.Kappa = kappa
 			delete(unmatchedStateKeyVals, stateKey)
@@ -470,7 +471,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			lambda, err := decodeLambda(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode lambda: %w", err)
 			}
 			state.Lambda = lambda
 			delete(unmatchedStateKeyVals, stateKey)
@@ -481,7 +482,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			rho, err := decodeRho(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode rho: %w", err)
 			}
 			state.Rho = rho
 			delete(unmatchedStateKeyVals, stateKey)
@@ -492,7 +493,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			tau, err := decodeTau(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode tau: %w", err)
 			}
 			state.Tau = tau
 			delete(unmatchedStateKeyVals, stateKey)
@@ -503,7 +504,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			chi, err := decodeChi(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode chi: %w", err)
 			}
 			state.Chi = chi
 			delete(unmatchedStateKeyVals, stateKey)
@@ -514,7 +515,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			pi, err := decodePi(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode pi: %w", err)
 			}
 			state.Pi = pi
 			delete(unmatchedStateKeyVals, stateKey)
@@ -525,7 +526,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			theta, err := decodeTheta(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
 			}
 			state.Theta = theta
 			delete(unmatchedStateKeyVals, stateKey)
@@ -536,7 +537,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			xi, err := decodeXi(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode xi: %w", err)
 			}
 			state.Xi = xi
 			delete(unmatchedStateKeyVals, stateKey)
@@ -547,7 +548,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			lastAccOut, err := decodeThetaAccOut(stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to decode theta AccumulatedServiceOutput: %w", err)
 			}
 			state.LastAccOut = lastAccOut
 			delete(unmatchedStateKeyVals, stateKey)
@@ -562,24 +563,24 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				// ServiceId
 				serviceId, err := DecodeServiceIdFromType2(stateKey)
 				if err != nil {
-					return state, nil, err
+					log.Printf("failed to decode service ID: %v", err)
+				} else {
+					// Decode the value
+					serviceInfo, err := decodeServiceInfo(stateVal)
+					if err != nil {
+						log.Printf("failed to decode service info of service ID %d: %v", serviceId, err)
+					} else {
+						// Update the service info in the state
+						updateServiceInfo(&state, serviceId, serviceInfo)
+						delete(unmatchedStateKeyVals, stateKey)
+						continue
+					}
 				}
-
-				// Decode the value
-				serviceInfo, err := decodeServiceInfo(stateVal)
-				if err != nil {
-					return state, nil, err
-				}
-
-				// Update the service info in the state
-				updateServiceInfo(&state, serviceId, serviceInfo)
-
-				delete(unmatchedStateKeyVals, stateKey)
 			}
 
 			isPreimage, err := isPreimage(stateKey, stateVal)
 			if err != nil {
-				return state, nil, err
+				return state, nil, fmt.Errorf("failed to check if preimage: %w", err)
 			}
 
 			if isPreimage {
@@ -590,7 +591,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				// ServiceId
 				serviceId, err := decodeServiceIdFromType3(stateKey)
 				if err != nil {
-					return state, nil, err
+					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 				}
 
 				// PreimageValue
@@ -603,6 +604,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				updatePreimage(&state, serviceId, preimageKey, preimageValue)
 
 				delete(unmatchedStateKeyVals, stateKey)
+				continue
 			}
 		} // End of switch
 	} // End of for loop
