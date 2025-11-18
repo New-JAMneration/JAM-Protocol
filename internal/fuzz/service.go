@@ -63,9 +63,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", block.Header.ParentStateRoot, latestStateRoot)
 	}
 
-	// Reset State
-	storeInstance.StateCommit()
-
 	storeInstance.AddBlock(block)
 	// Run the STF and get the state root
 	isProtocolError, err := stf.RunSTF()
@@ -85,6 +82,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	storageKeyVal = storeInstance.GetStorageKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
+
+	// Commit the state and persist the state to Redis
+	storeInstance.StateCommit()
 
 	return latestStateRoot, nil
 }
@@ -107,6 +107,9 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	serializedState, _ := m.StateEncoder(state)
 
 	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))
+
+	// Commit the state
+	storeInstance.StateCommit()
 
 	return stateRoot, nil
 }
