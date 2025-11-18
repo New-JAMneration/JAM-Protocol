@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -23,9 +22,9 @@ var (
 	White   = "\033[97m"
 )
 
-// var debugMode = false
+var debugMode = false
 
-var debugMode = true
+// var debugMode = true
 
 func cLog(color string, string string) {
 	if debugMode {
@@ -563,7 +562,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			printStateValue(stateVal)
 			lastAccOut, err := decodeThetaAccOut(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode theta AccumulatedServiceOutput: %w", err)
+				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
 			}
 			state.LastAccOut = lastAccOut
 			delete(unmatchedStateKeyVals, stateKey)
@@ -578,23 +577,23 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				// ServiceId
 				serviceId, err := DecodeServiceIdFromType2(stateKey)
 				if err != nil {
-					log.Printf("failed to decode service ID: %v", err)
-				} else {
-					// Decode the value
-					serviceInfo, err := decodeServiceInfo(stateVal)
-					if err != nil {
-						log.Printf("failed to decode service info of service ID %d: %v", serviceId, err)
-					} else {
-						// Update the service info in the state
-						updateServiceInfo(&state, serviceId, serviceInfo)
-						delete(unmatchedStateKeyVals, stateKey)
-						continue
-					}
+					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 				}
+				// Decode the value
+				serviceInfo, err := decodeServiceInfo(stateVal)
+				if err != nil {
+					return state, nil, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceId, err)
+				}
+				// Update the service info in the state
+				updateServiceInfo(&state, serviceId, serviceInfo)
+				delete(unmatchedStateKeyVals, stateKey)
+				continue
 			}
 
 			isPreimage, err := isPreimage(stateKey, stateVal)
 			if err != nil {
+				// This error should not happen
+				// As the state key passed here should be service-related
 				return state, nil, fmt.Errorf("failed to check if preimage: %w", err)
 			}
 
@@ -617,7 +616,6 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 
 				// Update the preimage in the state
 				updatePreimage(&state, serviceId, preimageKey, preimageValue)
-
 				delete(unmatchedStateKeyVals, stateKey)
 				continue
 			}
@@ -659,7 +657,6 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				}
 
 				updateLookup(&state, serviceId, lookupKey, timeSlotSet)
-
 				delete(unmatchedStateKeyVals, lookupStateKey)
 			}
 		}
