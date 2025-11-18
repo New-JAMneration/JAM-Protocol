@@ -7,14 +7,14 @@ import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 // hash component and a chapter component, equivalent to either the index of a state component or, in the case of the
 // inner dictionaries of δ, a service index.
 
-// (D.1) type 1
+// (D.1) type 1 (i): most state keys
 func C(stateIndex types.U8) types.StateKey {
 	stateWrapper := StateWrapper{StateIndex: stateIndex}
 	stateKey := stateWrapper.StateKeyConstruct()
 	return stateKey
 }
 
-// (D.1) type 2
+// (D.1) type 2 (i, s): delta
 func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) {
 	// Decode the service Id from the state key
 	// service id = [k1, k3, k5, k7]
@@ -29,7 +29,7 @@ func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) 
 	return serviceId, nil
 }
 
-// (D.1) type 3
+// (D.1) type 3 (s, h): a_s, a_p, a_l
 func decodeServiceIdFromType3(stateKey types.StateKey) (types.ServiceId, error) {
 	// Decode the service Id from the state key
 	// service id = [k0, k2, k4, k6]
