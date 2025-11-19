@@ -53,14 +53,14 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	// Get the latest state root
-	latestState := storeInstance.GetPosteriorStates().GetState()
+	latestState := storeInstance.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
 	storageKeyVal := storeInstance.GetStorageKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
 	if latestStateRoot != block.Header.ParentStateRoot {
-		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", block.Header.ParentStateRoot, latestStateRoot)
+		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", latestStateRoot, block.Header.ParentStateRoot)
 	}
 
 	storeInstance.AddBlock(block)
