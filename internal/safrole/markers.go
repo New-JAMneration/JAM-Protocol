@@ -93,6 +93,12 @@ func ValidateHeaderEpochMark(header types.Header, state *types.State) error {
 		errCode := SafroleErrorCode.InvalidEpochMark
 		return &errCode
 	}
+
+	if types.ValidatorsCount > 0 && len(em.Validators) != types.ValidatorsCount {
+		errCode := SafroleErrorCode.InvalidEpochMark
+		return &errCode
+	}
+
 	return nil
 }
 
