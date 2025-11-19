@@ -82,7 +82,7 @@ func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMess
 	}
 
 	if resp.Type == MessageType_ErrorMessage {
-		return types.StateRoot{}, resp.Error, nil
+		return block.Header.ParentStateRoot, resp.Error, nil
 	}
 
 	if resp.Type != MessageType_StateRoot {
