@@ -1,6 +1,7 @@
 package safrole
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -182,7 +183,7 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
-	signature := header.EntropySource[:]
+	signature := header.EntropySource[:] // Hv
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
 		errCode := SafroleErrorCode.VrfEntropyInvalid
@@ -193,7 +194,7 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 
 func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-
+	fmt.Println(public_key)
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
@@ -207,6 +208,7 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
+
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
@@ -214,38 +216,27 @@ func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) 
 	return nil
 }
 
-// TODO find testcase to cover this function
+// Need test vectors to verify correctness
 func ValidateByTickets(header types.Header, posterior_state *types.State) error {
-
 	gammaSTickets := posterior_state.Gamma.GammaS.Tickets
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-	message, err := utilities.HeaderUSerialization(header)
-	if err != nil {
-		return err
-	}
-	eta_prime := posterior_state.Eta
+	seal := header.Seal[:] // Hs
 
-	var context types.ByteSequence
-	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
-	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
-	context = append(context, byte(ticket.Attempt))                          // ir (uint8)
+	i_y := ticket.Id[:] // expected = Y(Hs)
 
-	signature := header.Seal[:]
+	handler, _ := CreateVRFHandler(public_key)
+	vrfOutput, _ := handler.VRFIetfOutput(seal)
 
-	verifier, err := vrf.NewVerifier(public_key[:], 1)
-	if err != nil {
-		return fmt.Errorf("failed to create verifier: %w", err)
-	}
-
-	_, err = verifier.IETFVerify(context, message, signature, 0)
-	if err != nil {
+	// Compare Y(Hs) with ticket.Id
+	if !bytes.Equal(vrfOutput, i_y) {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
+
 	return nil
 }
 

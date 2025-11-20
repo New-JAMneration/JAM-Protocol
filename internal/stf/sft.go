@@ -28,14 +28,9 @@ func RunSTF() (bool, error) {
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
-	priorState := st.GetPriorStates().GetState()
 	header := st.GetLatestBlock().Header
-	err := ValidateHeader(header, &priorState)
-	if err != nil {
-		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
-	}
 	// Update Disputes
-	err = UpdateDisputes()
+	err := UpdateDisputes()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update disputes error: %v", err)
 	}
@@ -45,7 +40,12 @@ func RunSTF() (bool, error) {
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update safrole error: %v", err)
 	}
+	postState := st.GetPosteriorStates().GetState()
 
+	err = ValidateHeader(header, &postState)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+	}
 	// Update Assurances
 	err = UpdateAssurances()
 	if err != nil {
