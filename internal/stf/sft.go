@@ -49,7 +49,12 @@ func RunSTF() (bool, error) {
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update safrole error: %v", err)
 	}
+	postState := st.GetPosteriorStates().GetState()
 
+	err = ValidateHeader(header, &postState)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+	}
 	// Update Assurances
 	err = UpdateAssurances()
 	if err != nil {

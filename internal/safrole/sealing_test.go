@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -340,13 +341,13 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 		}
 	}
 
-	func TestSealingByTicket(t *testing.T) {
-		// 455228_002.json
-		var header types.Header
-		header.Parent = types.HeaderHash(hex2Bytes("0x61a0942cea9fa3ae1dc2f3e9235c379966bbe97ef5ee8db802cf59d061e8bd1a"))
-		header.ParentStateRoot = types.StateRoot(hex2Bytes("0x319609cc1c7d5dfadfaad29cbab35c7f2289414a8aea0709af54a22f812273fd"))
-		header.ExtrinsicHash = types.OpaqueHash(hex2Bytes("0xc75d11d284d5f2da6ee593034d1a883e5a752ef9d7d8a89343d793082837e552"))
-		header.Slot = 5462738
+		func TestSealingByTicket(t *testing.T) {
+			// 455228_002.json
+			var header types.Header
+			header.Parent = types.HeaderHash(hex2Bytes("0x61a0942cea9fa3ae1dc2f3e9235c379966bbe97ef5ee8db802cf59d061e8bd1a"))
+			header.ParentStateRoot = types.StateRoot(hex2Bytes("0x319609cc1c7d5dfadfaad29cbab35c7f2289414a8aea0709af54a22f812273fd"))
+			header.ExtrinsicHash = types.OpaqueHash(hex2Bytes("0xc75d11d284d5f2da6ee593034d1a883e5a752ef9d7d8a89343d793082837e552"))
+			header.Slot = 5462738
 
 		s := store.GetInstance()
 		header.EpochMark = nil
@@ -481,4 +482,81 @@ func TestValidateSealUsingTraceFile(t *testing.T) {
 	runSealValidationTraceTest(t, "1758621879", "00000348.bin")
 	runSealValidationTraceTest(t, "1758622313", "00000012.bin")
 	runSealValidationTraceTest(t, "1757092821", "00000157.bin")
+}
+
+func TestValidateByBandersnatchs(t *testing.T) {
+	// Testcase: 1758621879/00000348.json
+	s := store.GetInstance()
+	// --- posterior_state.Kappa --- //
+	kappa := types.ValidatorsData{
+		{Bandersnatch: hexToBandersnatch("0xff71c6c03ff88adb5ed52c9681de1629a54e702fc14729f6b50d2f0a76f185b3")},
+		{Bandersnatch: hexToBandersnatch("0xdee6d555b82024f1ccf8a1e37e60fa60fd40b1958c4bb3006af78647950e1b91")},
+		{Bandersnatch: hexToBandersnatch("0x9326edb21e5541717fde24ec085000b28709847b8aab1ac51f84e94b37ca1b66")},
+		{Bandersnatch: hexToBandersnatch("0x0746846d17469fb2f95ef365efcab9f4e22fa1feb53111c995376be8019981cc")},
+		{Bandersnatch: hexToBandersnatch("0x151e5c8fe2b9d8a606966a79edd2f9e5db47e83947ce368ccba53bf6ba20a40b")},
+		{Bandersnatch: hexToBandersnatch("0x2105650944fcd101621fd5bb3124c9fd191d114b7ad936c1d79d734f9f21392e")},
+	}
+	s.GetPosteriorStates().SetKappa(kappa)
+
+	// --- posterior_state.Eta --- //
+	eta := types.EntropyBuffer{
+		types.Entropy([32]byte{64, 186, 116, 106, 83, 71, 182, 226, 16, 161, 211, 207, 127, 179, 96, 237, 94, 144, 202, 112, 55, 45, 42, 125, 219, 106, 194, 253, 125, 25, 63, 2}),
+		types.Entropy([32]byte{30, 52, 236, 106, 112, 184, 56, 152, 178, 207, 162, 89, 124, 10, 63, 45, 171, 29, 58, 57, 170, 141, 78, 53, 15, 133, 227, 118, 191, 139, 25, 215}),
+		types.Entropy([32]byte{26, 127, 144, 161, 22, 203, 229, 45, 241, 116, 45, 33, 203, 147, 244, 134, 39, 196, 194, 232, 213, 214, 170, 121, 11, 241, 83, 230, 188, 87, 164, 166}),
+		types.Entropy([32]byte{186, 94, 51, 171, 253, 144, 245, 68, 194, 11, 71, 207, 80, 193, 231, 12, 165, 8, 134, 66, 227, 198, 154, 172, 99, 107, 21, 247, 12, 214, 167, 100}),
+	}
+
+	s.GetPosteriorStates().SetEta(eta)
+
+	// --- Construct header --- //
+	epochMark := types.EpochMark{
+		Entropy:        hexToEntropy("0x1e34ec6a70b83898b2cfa2597c0a3f2dab1d3a39aa8d4e350f85e376bf8b19d7"),
+		TicketsEntropy: hexToEntropy("0x1a7f90a116cbe52df1742d21cb93f48627c4c2e8d5d6aa790bf153e6bc57a4a6"),
+		Validators: []types.EpochMarkValidatorKeys{
+			{
+				Bandersnatch: hexToBandersnatch("0xff71c6c03ff88adb5ed52c9681de1629a54e702fc14729f6b50d2f0a76f185b3"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0x4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace")),
+			},
+			{
+				Bandersnatch: hexToBandersnatch("0x2105650944fcd101621fd5bb3124c9fd191d114b7ad936c1d79d734f9f21392e"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0xab0084d01534b31c1dd87c81645fd762482a90027754041ca1b56133d0466c06")),
+			},
+			{
+				Bandersnatch: hexToBandersnatch("0xdee6d555b82024f1ccf8a1e37e60fa60fd40b1958c4bb3006af78647950e1b91"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0xad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933")),
+			},
+			{
+				Bandersnatch: hexToBandersnatch("0x151e5c8fe2b9d8a606966a79edd2f9e5db47e83947ce368ccba53bf6ba20a40b"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0x8b8c5d436f92ecf605421e873a99ec528761eb52a88a2f9a057b3b3003e6f32a")),
+			},
+			{
+				Bandersnatch: hexToBandersnatch("0x0746846d17469fb2f95ef365efcab9f4e22fa1feb53111c995376be8019981cc"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0xf30aa5444688b3cab47697b37d5cac5707bb3289e986b19b17db437206931a8d")),
+			},
+			{
+				Bandersnatch: hexToBandersnatch("0x9326edb21e5541717fde24ec085000b28709847b8aab1ac51f84e94b37ca1b66"),
+				Ed25519:      types.Ed25519Public(hexToByteArray32("0xcab2b9ff25c2410fbe9b8a717abb298c716a03983c98ceb4def2087500b8e341")),
+			},
+		},
+	}
+
+	header := types.Header{
+		EpochMark:       &epochMark,
+		Parent:          types.HeaderHash(hexToByteArray32("0x9f03ef3f2953fb6673d01f5478360cfd5b246912c5e449fc4a73eea24a971b35")),
+		ParentStateRoot: types.StateRoot(hexToByteArray32("0x1ac6a5e935dc771655674566a089a964c7f1f57c45efbea22972f32aac397307")),
+		ExtrinsicHash:   types.OpaqueHash(hexToByteArray32("0x173d0b9a24e4eac2000363ba1db95247461c068f653021ca970d34101fb06bbc")),
+		Slot:            348,
+		TicketsMark:     nil,
+		AuthorIndex:     1,
+		EntropySource:   types.BandersnatchVrfSignature(hexToBytes("0xcbe60d6cc9a03ea984162d53c6d0a77ef92cbe377bd7e88cb7d5b8c715c49fc1c7b11d844ba88076e346d02799a78ff1ac237d3919095e156c7c72b321bced00908af0f0aceb3bc87444d7cfa0b528ce4502f87e0ec66481b86c6713bc01ec12")),
+		OffendersMark:   []types.Ed25519Public{},
+		Seal:            types.BandersnatchVrfSignature(hexToBytes("0xa41a8a8d8765ac71b20005f402ae2aea69496ba34bad9e853be331558a89c86c1fce8fea7c90e6127d2e678a70a2c1264c723037054e76b85caeeee3fd706200f18c510f68d9f604a83b70d78c098504e31ba170358e820640552dd338702c16")),
+	}
+
+	// --- Now run validate --- //
+	postState := s.GetPosteriorStates().GetState()
+	err := ValidateByBandersnatchs(header, &postState)
+	if err != nil {
+		t.Fatalf("ValidateByBandersnatchs failed: %v", err)
+	}
 }
