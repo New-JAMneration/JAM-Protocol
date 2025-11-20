@@ -15,4 +15,5 @@ const (
 	InvalidEpochMark                             // 9 InvalidEpochMark
 	InvalidTicketsMark                           // 10 InvalidTicketsMark
 	InvalidOffenderMarker                        // 11 InvalidOffenderMarker
+	UnexpectedAuthor                             // 12 Block author is not the expected one
 )
