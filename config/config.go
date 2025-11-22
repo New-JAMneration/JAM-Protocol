@@ -38,6 +38,7 @@ type config struct {
 		FuzzVersion  uint8  `json:"fuzz_version"`
 		FuzzFeatures uint32 `json:"fuzz_features"`
 	} `json:"info"`
+	FolderWise bool
 }
 
 func InitConfig(configPath string, mode string) error {
