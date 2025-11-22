@@ -398,7 +398,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 		return err
 	}
 
-	s.GetPosteriorStates().SetState(state)
+	s.GetPriorStates().SetState(state)
 	s.SetStorageKeyVals(storageKeyVal)
 
 	// Restore block
