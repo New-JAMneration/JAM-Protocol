@@ -54,3 +54,8 @@ func (b *batch) Commit() error {
 
 	return nil
 }
+
+func (b *batch) Close() error {
+	// No resources to free in this implementation
+	return nil
+}

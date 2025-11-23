@@ -39,3 +39,7 @@ func (b *batch) Delete(key []byte) error {
 func (b *batch) Commit() error {
 	return b.pb.Commit(b.db.writeOpts)
 }
+
+func (b *batch) Close() error {
+	return b.pb.Close()
+}

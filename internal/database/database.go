@@ -37,6 +37,9 @@ type Batch interface {
 
 	// Commit writes all changes buffered in the batch to the underlying database.
 	Commit() error
+
+	// Close closes the batch without committing it.
+	Close() error
 }
 
 // Iterable defines new iterator creation for a key-value database.
