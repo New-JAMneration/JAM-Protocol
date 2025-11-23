@@ -194,7 +194,6 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 
 func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
 	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-	fmt.Println(public_key)
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
@@ -247,14 +246,11 @@ func tryValidateSeal(header types.Header, posterior_state *types.State, idx type
 	defer func() { header.AuthorIndex = original }()
 
 	gammaS := posterior_state.Gamma.GammaS
-
-	if len(gammaS.Keys) > 0 {
-		return ValidateByBandersnatchs(header, posterior_state)
-	}
 	if len(gammaS.Tickets) > 0 {
 		return ValidateByTickets(header, posterior_state)
+	} else {
+		return ValidateByBandersnatchs(header, posterior_state)
 	}
-	return nil
 }
 
 func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error {

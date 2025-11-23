@@ -6,6 +6,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 )
 
 func hexToByteArray32(hexString string) types.ByteArray32 {
@@ -514,8 +515,18 @@ func TestValidateByBandersnatchs(t *testing.T) {
 
 	// --- Now run validate --- //
 	postState := s.GetPosteriorStates().GetState()
-	err := ValidateByBandersnatchs(header, &postState)
+	err := ValidateHeaderSeal(header, &postState)
 	if err != nil {
 		t.Fatalf("ValidateByBandersnatchs failed: %v", err)
+	}
+	header.AuthorIndex = 4
+	err = ValidateHeaderSeal(header, &postState)
+	errCode, ok := err.(*types.ErrorCode)
+	if !ok {
+		t.Fatalf("error type mismatch: expected ErrorCode, got %T", err)
+	}
+
+	if *errCode != SafroleErrorCode.UnexpectedAuthor {
+		t.Fatalf("expected UnexpectedAuthor (%d), got %d", SafroleErrorCode.UnexpectedAuthor, *errCode)
 	}
 }
