@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
+	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/hdevalence/ed25519consensus"
 )
