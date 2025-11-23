@@ -7,9 +7,13 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+<<<<<<< HEAD
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+=======
+	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+>>>>>>> a382eed (refactor: add unit test for wrong author index in safrole sealing validation)
 )
 
 func hexToByteArray32(hexString string) types.ByteArray32 {
@@ -555,8 +559,18 @@ func TestValidateByBandersnatchs(t *testing.T) {
 
 	// --- Now run validate --- //
 	postState := s.GetPosteriorStates().GetState()
-	err := ValidateByBandersnatchs(header, &postState)
+	err := ValidateHeaderSeal(header, &postState)
 	if err != nil {
 		t.Fatalf("ValidateByBandersnatchs failed: %v", err)
+	}
+	header.AuthorIndex = 4
+	err = ValidateHeaderSeal(header, &postState)
+	errCode, ok := err.(*types.ErrorCode)
+	if !ok {
+		t.Fatalf("error type mismatch: expected ErrorCode, got %T", err)
+	}
+
+	if *errCode != SafroleErrorCode.UnexpectedAuthor {
+		t.Fatalf("expected UnexpectedAuthor (%d), got %d", SafroleErrorCode.UnexpectedAuthor, *errCode)
 	}
 }
