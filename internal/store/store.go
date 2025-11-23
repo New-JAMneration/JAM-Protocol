@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
 	"sync"
@@ -77,39 +76,6 @@ func ResetInstance() {
 		storageKeyVals:             types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
-}
-
-func genGenesisBlock() *types.Block {
-	hash := "5c743dbc514284b2ea57798787c5a155ef9d7ac1e9499ec65910a7a3d65897b7"
-	byteArray, _ := hex.DecodeString(hash)
-	genesisBlock := types.Block{
-		Header: types.Header{
-			// hash string to jamTypes.HeaderHash
-			Parent:          types.HeaderHash(byteArray),
-			ParentStateRoot: types.StateRoot{},
-			ExtrinsicHash:   types.OpaqueHash{},
-			Slot:            0,
-			EpochMark:       nil,
-			TicketsMark:     nil,
-			OffendersMark:   types.OffendersMark{},
-			AuthorIndex:     0,
-			EntropySource:   types.BandersnatchVrfSignature{},
-			Seal:            types.BandersnatchVrfSignature{},
-		},
-		Extrinsic: types.Extrinsic{
-			Tickets:    types.TicketsExtrinsic{},
-			Preimages:  types.PreimagesExtrinsic{},
-			Guarantees: types.GuaranteesExtrinsic{},
-			Assurances: types.AssurancesExtrinsic{},
-			Disputes:   types.DisputesExtrinsic{},
-		},
-	}
-
-	return &genesisBlock
-}
-
-func genInitHashSegmentMap() map[string]string {
-	return make(map[string]string)
 }
 
 func (s *Store) AddBlock(block types.Block) {
@@ -282,46 +248,43 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 }
 
 // post-state update to pre-state
-func (s *Store) StateCommit() error {
+func (s *Store) StateCommit() {
 	blocks := s.GetBlocks()
 	if len(blocks) == 0 {
 		posterState := s.GetPosteriorStates().GetState()
 		s.GetPriorStates().SetState(posterState)
 		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
-		return nil
+		return
 	}
 
 	latestBlock := s.GetLatestBlock()
-	posteriorState := s.GetPosteriorStates().GetState()
 
-	encoder := types.NewEncoder()
-	encodedHeader, err := encoder.Encode(&latestBlock.Header)
+	blockHeaderHash, err := computeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
-		return err
-	}
-	headerHash := types.HeaderHash(hash.Blake2bHash(encodedHeader))
+		log.Printf("StateCommit: failed to encode header: %v", err)
+	} else {
+		posteriorState := s.GetPosteriorStates().GetState()
 
-	// Persist state for block
-	err = s.PersistStateForBlock(headerHash, posteriorState)
-	if err != nil {
-		log.Printf("StateCommit: failed to persist state: %v", err)
-		return err
-	}
-	log.Printf("StateCommit: persisted state for block 0x%x", headerHash[:8])
+		// Persist state for block
+		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist state: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+		}
 
-	// Persist block mapping
-	err = s.repo.SaveBlock(s.repo.Database(), &latestBlock)
-	if err != nil {
-		log.Printf("StateCommit: failed to persist block: %v", err)
-		return err
+		// Persist block mapping
+		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist block: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
+		}
 	}
-	log.Printf("StateCommit: persisted block 0x%x", headerHash[:8])
 
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
-
-	return nil
 }
 
 // PersistStateForBlock persists the state for a given block to Redis
@@ -363,6 +326,26 @@ func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
 	s.storageKeyVals = storageKeyVals
 }
 
+// GetGenesisBlock retrieves the genesis block from the store.
+// This function panics if the genesis block does not exist, as it is assumed to always be present.
+// TODO: This is because respecting the current implementation usage of `GenerateGenesisBlock`, but later should ensure genesis block exist at store initialization.
+func (s *Store) GetGenesisBlock() types.Block {
+	headerHash, err := s.repo.GetCanonicalHash(s.repo.Database(), 0)
+	if err != nil {
+		// This is coding error, genesis block must exist.
+		// Store instance without genesis block should never happen.
+		panic(fmt.Sprintf("genesis block must exist, failed to retrieve genesis block hash: %v", err))
+	}
+
+	block, err := s.repo.GetBlock(s.repo.Database(), headerHash, 0)
+	if err != nil {
+		// This is coding error, genesis block must exist.
+		// Store instance without genesis block should never happen.
+		panic(fmt.Sprintf("genesis block must exist, failed to retrieve genesis block: %v", err))
+	}
+	return *block
+}
+
 func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
 	timeSlot, err := s.repo.GetHeaderTimeSlot(s.repo.Database(), headerHash)
 	if err != nil {
@@ -375,6 +358,15 @@ func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error)
 	}
 
 	return *block, nil
+}
+
+func computeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
+	encoder := types.NewEncoder()
+	encodedHeader, err := encoder.Encode(&header)
+	if err != nil {
+		return types.HeaderHash{}, err
+	}
+	return types.HeaderHash(hash.Blake2bHash(encodedHeader)), nil
 }
 
 func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {

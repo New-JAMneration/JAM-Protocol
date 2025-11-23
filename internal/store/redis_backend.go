@@ -19,6 +19,11 @@ type RedisBackend struct {
 	decoder *types.Decoder
 }
 
+// NewRedisBackend initializes and returns a new RedisBackend.
+func NewRedisBackend(client *RedisClient) *RedisBackend {
+	return &RedisBackend{client: client, encoder: types.NewEncoder(), decoder: types.NewDecoder()}
+}
+
 /*
 example HashSegmentMap:
 {

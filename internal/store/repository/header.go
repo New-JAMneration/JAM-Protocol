@@ -8,15 +8,15 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-func (repo *Repository) GetCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash, bool, error) {
+func (repo *Repository) GetCanonicalHash(r database.Reader, slot types.TimeSlot) (types.HeaderHash, error) {
 	data, found, err := r.Get(canocicalHeaderHashKey(repo.encoder, slot))
 	if err != nil {
-		return types.HeaderHash{}, found, err
+		return types.HeaderHash{}, err
 	}
 	if !found {
-		return types.HeaderHash{}, found, nil
+		return types.HeaderHash{}, fmt.Errorf("canonical hash not found for slot %d", slot)
 	}
-	return types.HeaderHash(data), found, nil
+	return types.HeaderHash(data), nil
 }
 
 func (repo *Repository) SaveCanonicalHash(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {

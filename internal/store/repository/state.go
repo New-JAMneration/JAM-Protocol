@@ -8,16 +8,23 @@ import (
 )
 
 func (repo *Repository) SaveStateRootByHeaderHash(w database.Writer, headerHash types.HeaderHash, stateRoot types.StateRoot) error {
+
+	fmt.Println("HERE SAVE STATE ROOT")
+	fmt.Println(string(stateRootKey(headerHash)))
+
 	return w.Put(stateRootKey(headerHash), stateRoot[:])
 }
 
 func (repo *Repository) GetStateRootByHeaderHash(r database.Reader, headerHash types.HeaderHash) (types.StateRoot, error) {
+	fmt.Println("HERE GET STATE ROOT")
+	fmt.Println(string(stateRootKey(headerHash)))
+
 	data, found, err := r.Get(stateRootKey(headerHash))
 	if err != nil {
 		return types.StateRoot{}, err
 	}
 	if !found {
-		return types.StateRoot{}, fmt.Errorf("state root not found for header %x", headerHash)
+		return types.StateRoot{}, fmt.Errorf("state root not found for header hash %x", headerHash)
 	}
 
 	var stateRoot types.StateRoot
