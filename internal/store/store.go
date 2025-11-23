@@ -274,7 +274,7 @@ func (s *Store) StateCommit() {
 		}
 
 		// Persist block mapping
-		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
+		err = s.repo.SaveBlock(s.repo.Database(), &latestBlock)
 		if err != nil {
 			log.Printf("StateCommit: failed to persist block: %v", err)
 		} else {
