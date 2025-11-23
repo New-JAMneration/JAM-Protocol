@@ -158,9 +158,7 @@ func ValidateHeaderOffenderMarker(header types.Header, state *types.State) error
 		expected = append(expected, c.Key)
 	}
 	for _, f := range disputes.Faults {
-		if f.Vote {
-			expected = append(expected, f.Key)
-		}
+		expected = append(expected, f.Key)
 	}
 	var got []types.Ed25519Public
 	if header.OffendersMark != nil {
