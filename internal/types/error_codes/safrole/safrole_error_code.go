@@ -12,4 +12,5 @@ const (
 	DuplicateTicket                          // 6 Found a ticket duplicate
 	VrfSealInvalid                           // 7 VrfSealInvalid
 	VrfEntropyInvalid                        // 8 VrfEntropyInvalid
+	UnexpectedAuthor                         // 9 Block author is not the expected one
 )

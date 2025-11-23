@@ -240,20 +240,40 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 	return nil
 }
 
-func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error {
+func tryValidateSeal(header types.Header, posterior_state *types.State, idx types.ValidatorIndex) error {
+	// temporarily override author index
+	original := header.AuthorIndex
+	header.AuthorIndex = idx
+	defer func() { header.AuthorIndex = original }()
+
 	gammaS := posterior_state.Gamma.GammaS
+
 	if len(gammaS.Keys) > 0 {
-		err := ValidateByBandersnatchs(header, posterior_state)
-		if err != nil {
-			return err
-		}
-	} else if len(gammaS.Tickets) > 0 {
-		err := ValidateByTickets(header, posterior_state)
-		if err != nil {
-			return err
-		}
+		return ValidateByBandersnatchs(header, posterior_state)
+	}
+	if len(gammaS.Tickets) > 0 {
+		return ValidateByTickets(header, posterior_state)
 	}
 	return nil
+}
+
+func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error {
+	if tryValidateSeal(header, posterior_state, header.AuthorIndex) == nil {
+		return nil
+	}
+	// Check for wrong author cases
+	for i := 0; i < len(posterior_state.Kappa); i++ {
+		if i == int(header.AuthorIndex) {
+			continue
+		}
+		if tryValidateSeal(header, posterior_state, types.ValidatorIndex(i)) == nil {
+			errCode := SafroleErrorCode.UnexpectedAuthor
+			return &errCode
+		}
+	}
+
+	errCode := SafroleErrorCode.VrfSealInvalid
+	return &errCode
 }
 
 // NO REFERENCES
