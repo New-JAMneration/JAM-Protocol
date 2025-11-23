@@ -74,6 +74,7 @@ var cmd = cli.Command{
 		setStateCmd,
 		getStateCmd,
 		testFolderCmd,
+		testStepFolderCmd,
 	},
 }
 
