@@ -19,18 +19,18 @@ func SealingByTickets() error {
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
 	*/
 	s := store.GetInstance()
-	posterior_state := s.GetPosteriorStates()
-	gammaSTickets := posterior_state.GetGammaS().Tickets
+	posteriorState := s.GetPosteriorStates()
+	gammaSTickets := posteriorState.GetGammaS().Tickets
 	header := s.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
-	public_key := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch
+	public_key := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
 	i_r := ticket.Attempt
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
 	}
-	eta_prime := posterior_state.GetEta()
+	eta_prime := posteriorState.GetEta()
 
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
@@ -221,20 +221,19 @@ func ValidateByBandersnatchs(header types.Header, priorState *types.State) error
 }
 
 // Need test vectors to verify correctness
-func ValidateByTickets(header types.Header, posterior_state *types.State) error {
-	gammaSTickets := posterior_state.Gamma.GammaS.Tickets
+func ValidateByTickets(header types.Header, state *types.State) error {
+	gammaSTickets := state.Gamma.GammaS.Tickets
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 
-	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
 	seal := header.Seal[:] // Hs
 
 	i_y := ticket.Id[:] // expected = Y(Hs)
 
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	vrfOutput, _ := verifier.VRFIetfOutput(seal)
-
 	// Compare Y(Hs) with ticket.Id
 	if !bytes.Equal(vrfOutput, i_y) {
 		errCode := SafroleErrorCode.VrfSealInvalid
@@ -244,28 +243,28 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 	return nil
 }
 
-func tryValidateSeal(header types.Header, posterior_state *types.State, idx types.ValidatorIndex) error {
+func tryValidateSeal(header types.Header, state *types.State, idx types.ValidatorIndex) error {
 	// override author index
 	header.AuthorIndex = idx
 
-	gammaS := posterior_state.Gamma.GammaS
+	gammaS := state.Gamma.GammaS
 	if len(gammaS.Tickets) > 0 {
-		return ValidateByTickets(header, posterior_state)
+		return ValidateByTickets(header, state)
 	} else {
-		return ValidateByBandersnatchs(header, posterior_state)
+		return ValidateByBandersnatchs(header, state)
 	}
 }
 
-func ValidateHeaderSeal(header types.Header, posterior_state *types.State) error {
-	if tryValidateSeal(header, posterior_state, header.AuthorIndex) == nil {
+func ValidateHeaderSeal(header types.Header, state *types.State) error {
+	if tryValidateSeal(header, state, header.AuthorIndex) == nil {
 		return nil
 	}
 	// Check for wrong author cases
-	for i := 0; i < len(posterior_state.Kappa); i++ {
+	for i := 0; i < len(state.Kappa); i++ {
 		if i == int(header.AuthorIndex) {
 			continue
 		}
-		if tryValidateSeal(header, posterior_state, types.ValidatorIndex(i)) == nil {
+		if tryValidateSeal(header, state, types.ValidatorIndex(i)) == nil {
 			errCode := SafroleErrorCode.UnexpectedAuthor
 			return &errCode
 		}
