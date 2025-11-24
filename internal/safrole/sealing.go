@@ -227,7 +227,7 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 
 	i_y := ticket.Id[:] // expected = Y(Hs)
 
-	handler, _ := CreateVRFHandler(public_key)
+	handler, _ := vrf.NewVerifier(public_key[:], 1)
 	vrfOutput, _ := handler.VRFIetfOutput(seal)
 
 	// Compare Y(Hs) with ticket.Id
@@ -240,10 +240,8 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 }
 
 func tryValidateSeal(header types.Header, posterior_state *types.State, idx types.ValidatorIndex) error {
-	// temporarily override author index
-	original := header.AuthorIndex
+	// override author index
 	header.AuthorIndex = idx
-	defer func() { header.AuthorIndex = original }()
 
 	gammaS := posterior_state.Gamma.GammaS
 	if len(gammaS.Tickets) > 0 {

@@ -42,7 +42,7 @@ func RunSTF() (bool, error) {
 	}
 	postState := st.GetPosteriorStates().GetState()
 
-	err = ValidateHeader(header, &postState)
+	err = ValidateHeaderVrf(header, &postState)
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
 	}
