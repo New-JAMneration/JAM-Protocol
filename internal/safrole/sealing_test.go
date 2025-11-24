@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 <<<<<<< HEAD
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 =======
-	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
@@ -610,4 +608,6 @@ func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 func TestValidateSealUsingTraceFile(t *testing.T) {
 	runSealValidationTraceTest(t, "1758621879", "00000347.bin")
 	runSealValidationTraceTest(t, "1758621879", "00000348.bin")
+	runSealValidationTraceTest(t, "1758622313", "00000012.bin")
+	runSealValidationTraceTest(t, "1757092821", "00000157.bin")
 }
