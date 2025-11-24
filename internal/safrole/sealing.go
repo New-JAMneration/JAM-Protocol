@@ -193,7 +193,7 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 }
 
 func ValidateByBandersnatchs(header types.Header, priorState *types.State) error {
-	epoch, _ := R(header.Slot - 1)
+	epoch, _ := R(priorState.Tau)
 	epochPrime, _ := R(header.Slot)
 	public_key := priorState.Kappa[header.AuthorIndex].Bandersnatch
 	if epochPrime > epoch {
@@ -213,7 +213,6 @@ func ValidateByBandersnatchs(header types.Header, priorState *types.State) error
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
-
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
