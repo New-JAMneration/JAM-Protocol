@@ -24,13 +24,22 @@ func isProtocolError(err error) bool {
 
 func RunSTF() (bool, error) {
 	st := store.GetInstance()
+	priorState := st.GetPriorStates().GetState()
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
+
+	// Validate Header
+	header := st.GetLatestBlock().Header
+	err := ValidateHeader(header, &priorState)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+	}
+
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
-	header := st.GetLatestBlock().Header
+
 	// Update Disputes
-	err := UpdateDisputes()
+	err = UpdateDisputes()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update disputes error: %v", err)
 	}
@@ -40,17 +49,13 @@ func RunSTF() (bool, error) {
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update safrole error: %v", err)
 	}
-	postState := st.GetPosteriorStates().GetState()
 
-	err = ValidateHeaderVrf(header, &postState)
-	if err != nil {
-		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
-	}
 	// Update Assurances
 	err = UpdateAssurances()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update assurances error: %v", err)
 	}
+
 	// Update Reports
 	err = UpdateReports()
 	if err != nil {

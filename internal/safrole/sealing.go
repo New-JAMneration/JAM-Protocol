@@ -170,8 +170,8 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	return signature
 }
 
-func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) error {
-	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
+	public_key := priorState.Kappa[header.AuthorIndex].Bandersnatch
 	seal := header.Seal
 	var message types.ByteSequence // message: []
 	var context types.ByteSequence
@@ -192,18 +192,24 @@ func ValidateHeaderEntropy(header types.Header, posterior_state *types.State) er
 	return nil
 }
 
-func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
-	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
+func ValidateByBandersnatchs(header types.Header, priorState *types.State) error {
+	epoch, _ := R(header.Slot - 1)
+	epochPrime, _ := R(header.Slot)
+	public_key := priorState.Kappa[header.AuthorIndex].Bandersnatch
+	if epochPrime > epoch {
+		public_key = priorState.Gamma.GammaK[header.AuthorIndex].Bandersnatch
+	}
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
 	}
-
-	eta_prime := posterior_state.Eta
 	var context types.ByteSequence
-	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...)
-	context = append(context, types.ByteSequence(eta_prime[3][:])...)
-
+	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
+	if epochPrime > epoch {
+		context = append(context, types.ByteSequence(priorState.Eta[2][:])...)
+	} else {
+		context = append(context, types.ByteSequence(priorState.Eta[3][:])...)
+	}
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
@@ -227,8 +233,8 @@ func ValidateByTickets(header types.Header, posterior_state *types.State) error 
 
 	i_y := ticket.Id[:] // expected = Y(Hs)
 
-	handler, _ := vrf.NewVerifier(public_key[:], 1)
-	vrfOutput, _ := handler.VRFIetfOutput(seal)
+	verifier, _ := vrf.NewVerifier(public_key[:], 1)
+	vrfOutput, _ := verifier.VRFIetfOutput(seal)
 
 	// Compare Y(Hs) with ticket.Id
 	if !bytes.Equal(vrfOutput, i_y) {
