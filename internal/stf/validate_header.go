@@ -6,7 +6,7 @@ import (
 )
 
 // TODO: Align the official errorCode
-func ValidateHeaderVrf(header types.Header, state *types.State) error {
+func ValidateHeader(header types.Header, state *types.State) error {
 	err := safrole.ValidateHeaderSeal(header, state)
 	if err != nil {
 		return err
