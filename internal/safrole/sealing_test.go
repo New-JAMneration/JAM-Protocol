@@ -2,11 +2,15 @@ package safrole
 
 import (
 	"encoding/hex"
+	"path/filepath"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
 func hexToByteArray32(hexString string) types.ByteArray32 {
@@ -529,4 +533,39 @@ func TestValidateByBandersnatchs(t *testing.T) {
 	if *errCode != SafroleErrorCode.UnexpectedAuthor {
 		t.Fatalf("expected UnexpectedAuthor (%d), got %d", SafroleErrorCode.UnexpectedAuthor, *errCode)
 	}
+}
+
+func runSealValidationTraceTest(t *testing.T, dir string, file string) {
+	t.Helper()
+
+	// Locate trace path
+	tracePath := filepath.Join("..", "..",
+		"pkg", "test_data", "jam-conformance",
+		"fuzz-reports", "0.7.0", "traces",
+		dir, file,
+	)
+
+	// --- Load Trace File ---
+	trace := &jamtests_trace.TraceTestCase{}
+	err := utilities.GetTestFromBin(tracePath, trace)
+	if err != nil {
+		t.Fatalf("Failed to load trace file %s: %v", tracePath, err)
+	}
+
+	// --- Parse PreState ---
+	preState, _, err := merklization.StateKeyValsToState(trace.PreState.KeyVals)
+	if err != nil {
+		t.Fatalf("Failed to parse PreState: %v", err)
+	}
+
+	// --- Validate Seal ---
+	err = ValidateHeaderSeal(trace.Block.Header, &preState)
+	if err != nil {
+		t.Fatalf("ValidateHeaderSeal failed: %v", err)
+	}
+}
+
+func TestValidateSealUsingTraceFile(t *testing.T) {
+	runSealValidationTraceTest(t, "1758621879", "00000347.bin")
+	runSealValidationTraceTest(t, "1758621879", "00000348.bin")
 }
