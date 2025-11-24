@@ -192,7 +192,6 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	return nil
 }
 
-<<<<<<< HEAD
 func ValidateByBandersnatchs(header types.Header, priorState *types.State) error {
 	epoch, _ := R(priorState.Tau)
 	epochPrime, _ := R(header.Slot)
@@ -200,10 +199,6 @@ func ValidateByBandersnatchs(header types.Header, priorState *types.State) error
 	if epochPrime > epoch {
 		public_key = priorState.Gamma.GammaK[header.AuthorIndex].Bandersnatch
 	}
-=======
-func ValidateByBandersnatchs(header types.Header, posterior_state *types.State) error {
-	public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
->>>>>>> a382eed (refactor: add unit test for wrong author index in safrole sealing validation)
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
