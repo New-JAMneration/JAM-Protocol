@@ -23,17 +23,30 @@ func isProtocolError(err error) bool {
 }
 
 func RunSTF() (bool, error) {
+	var err error
 	st := store.GetInstance()
+
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
+
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
+
 	priorState := st.GetPriorStates().GetState()
-	header := st.GetLatestBlock().Header
-	err := ValidateHeader(header, &priorState)
+
+	block := st.GetLatestBlock()
+	header := block.Header
+
+	err = ValidateHeader(header, &priorState)
 	if err != nil {
-		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+		return isProtocolError(err), fmt.Errorf("block header validate failure: %v", err)
 	}
+
+	err = ValidateBlock(block)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("block verification failure: %v", err)
+	}
+
 	// Update Disputes
 	err = UpdateDisputes()
 	if err != nil {
