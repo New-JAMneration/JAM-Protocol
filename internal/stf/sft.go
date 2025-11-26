@@ -47,7 +47,7 @@ func RunSTF() (bool, error) {
 
 	// Validate Header Vtf(seal, entropy)
 	stateForVrfValidate := st.GetPosteriorStates().GetState()
-	err = ValidateHeader(header, &stateForVrfValidate)
+	err = ValidateHeaderVrf(header, &stateForVrfValidate)
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
 	}
