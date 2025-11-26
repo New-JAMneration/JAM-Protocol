@@ -432,19 +432,6 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 		}
 	}
 */
-func hexToBandersnatch(hexStr string) types.BandersnatchPublic {
-	b := hexToByteArray32(hexStr)
-	var out types.BandersnatchPublic
-	copy(out[:], b[:])
-	return out
-}
-
-func hexToEntropy(hexStr string) types.Entropy {
-	b := hexToByteArray32(hexStr)
-	var out types.Entropy
-	copy(out[:], b[:])
-	return out
-}
 
 func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 	t.Helper()
@@ -463,14 +450,14 @@ func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 		t.Fatalf("Failed to load trace file %s: %v", tracePath, err)
 	}
 
-	// --- Parse PreState ---
-	preState, _, err := merklization.StateKeyValsToState(trace.PreState.KeyVals)
+	// --- Parse State ---
+	State, _, err := merklization.StateKeyValsToState(trace.PostState.KeyVals)
 	if err != nil {
 		t.Fatalf("Failed to parse PreState: %v", err)
 	}
 
 	// --- Validate Seal ---
-	err = ValidateHeaderSeal(trace.Block.Header, &preState)
+	err = ValidateHeaderSeal(trace.Block.Header, &State)
 	if err != nil {
 		t.Fatalf("ValidateHeaderSeal failed: %v", err)
 	}

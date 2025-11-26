@@ -1,7 +1,6 @@
 package safrole
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -193,23 +192,14 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 }
 
 func ValidateByBandersnatchs(header types.Header, priorState *types.State) error {
-	epoch, _ := R(priorState.Tau)
-	epochPrime, _ := R(header.Slot)
 	public_key := priorState.Kappa[header.AuthorIndex].Bandersnatch
-	if epochPrime > epoch {
-		public_key = priorState.Gamma.GammaK[header.AuthorIndex].Bandersnatch
-	}
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
 	}
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
-	if epochPrime > epoch {
-		context = append(context, types.ByteSequence(priorState.Eta[2][:])...)
-	} else {
-		context = append(context, types.ByteSequence(priorState.Eta[3][:])...)
-	}
+	context = append(context, types.ByteSequence(priorState.Eta[3][:])...)
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(public_key[:], 1)
 	_, err = verifier.IETFVerify(context, message, signature, 0)
@@ -228,14 +218,25 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 	ticket := gammaSTickets[index]
 
 	public_key := state.Kappa[header.AuthorIndex].Bandersnatch
-	seal := header.Seal[:] // Hs
+	message, err := utilities.HeaderUSerialization(header)
+	if err != nil {
+		return err
+	}
+	eta_prime := state.Eta
 
-	i_y := ticket.Id[:] // expected = Y(Hs)
+	var context types.ByteSequence
+	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
+	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
+	context = append(context, byte(ticket.Attempt))                          // ir (uint8)
 
-	verifier, _ := vrf.NewVerifier(public_key[:], 1)
-	vrfOutput, _ := verifier.VRFIetfOutput(seal)
-	// Compare Y(Hs) with ticket.Id
-	if !bytes.Equal(vrfOutput, i_y) {
+	signature := header.Seal[:]
+	verifier, err := vrf.NewVerifier(public_key[:], 1)
+	if err != nil {
+		return fmt.Errorf("failed to create verifier: %w", err)
+	}
+	_, err = verifier.IETFVerify(context, message, signature, 0)
+
+	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
