@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
@@ -215,13 +216,6 @@ func (h *HistoryTestCase) Dump() error {
 
 	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
 
-	// we mock lastAccOut here, set the value to posteriorLastAccOut
-	// let internal stf can get value from store
-	mockLastAccout := types.LastAccOut{
-		types.AccumulatedServiceHash{ServiceId: 1, Hash: h.Input.AccumulateRoot},
-	}
-	storeInstance.GetPosteriorStates().SetLastAccOut(mockLastAccout)
-
 	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 	for _, workPackage := range h.Input.WorkPackages {
 		mockGuarantessExtrinsic = append(mockGuarantessExtrinsic, types.ReportGuarantee{
@@ -237,6 +231,8 @@ func (h *HistoryTestCase) Dump() error {
 	// Set extrinsic
 	block := types.Block{
 		Header: types.Header{
+			// We set this block's HeaderHash to parent
+			// for the sake of using this value in STF
 			Parent:          h.Input.HeaderHash,
 			ParentStateRoot: h.Input.ParentStateRoot,
 		},
@@ -245,6 +241,13 @@ func (h *HistoryTestCase) Dump() error {
 		},
 	}
 	storeInstance.AddBlock(block)
+
+	// We do part of STF here, due to the .asn file giving the intermediate value
+	beefyBelt := h.PreState.Beta.Mmr
+	merkleRoot := h.Input.AccumulateRoot
+	beefyBeltPrime, commitment := recent_history.AppendAndCommitMmr(beefyBelt, merkleRoot)
+	storeInstance.GetIntermediateStates().SetMmrCommitment(commitment)
+	storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
 
 	return nil
 }

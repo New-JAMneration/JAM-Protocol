@@ -1,4 +1,4 @@
-package recent_history
+package recent_history_test
 
 import (
 	"encoding/hex"
@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -794,7 +795,6 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		}
 		block := types.Block{
 			Header: types.Header{
-				Parent:          history.Input.HeaderHash,
 				ParentStateRoot: history.Input.ParentStateRoot,
 			},
 			Extrinsic: types.Extrinsic{
@@ -807,7 +807,7 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 			STF
 		*/
 		// Start test STFBeta2BetaDagger (4.6)
-		STFBetaH2BetaHDagger()
+		recent_history.STFBetaH2BetaHDagger()
 
 		// Validate intermediate state betaHDagger
 		HistoryDagger := storeInstance.GetIntermediateStates().GetBetaHDagger()
@@ -820,11 +820,11 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		// For test-vector, we cannot call STFBetaHDagger2BetaHPrime(),
 		// set intermediate value accumulationRoot manually
 		t.Logf("mmr peaks before append: %+v", history.PreState.Beta.Mmr.Peaks)
-		beefyBeltPrime, commitment := AppendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
+		beefyBeltPrime, commitment := recent_history.AppendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
 		t.Logf("mmr peaks after append: %+v", beefyBeltPrime.Peaks)
-		workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-		item := NewItem(workReportHash, commitment)
-		historyPrime := AddItem2BetaHPrime(HistoryDagger, item)
+		workReportHash := recent_history.MapWorkReportFromEg(block.Extrinsic.Guarantees)
+		item := recent_history.NewItem(history.Input.HeaderHash, workReportHash, commitment)
+		historyPrime := recent_history.AddItem2BetaHPrime(HistoryDagger, item)
 		// Set beta_B^prime and beta_H^prime to store
 		storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
 		storeInstance.GetPosteriorStates().SetBetaH(historyPrime)

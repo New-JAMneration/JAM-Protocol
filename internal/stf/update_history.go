@@ -1,8 +1,6 @@
 package stf
 
-import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-)
+import "github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 
 func UpdateHistory() error {
 	// log.Println("Update History")
