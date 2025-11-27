@@ -300,7 +300,7 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 			return fmt.Errorf("expected error but got success")
 		}
 		if errorMessage.Error != targetMsg.Error {
-			if strings.Contains(targetMsg.Error, errorMessage.Error) {
+			if fuzzyMatchErrorMessage(targetMsg.Error, errorMessage.Error) {
 				return nil
 			}
 			return fmt.Errorf("error message mismatch: expected %s, got %s", targetMsg.Error, errorMessage.Error)
@@ -335,4 +335,24 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 	}
 
 	return nil
+}
+
+func fuzzyMatchErrorMessage(expected, actual string) bool {
+	if strings.Contains(expected, actual) {
+		return true
+	}
+
+	// Map our error messages to possible aliases
+	errorAliasMap := map[string]string{
+		"invalid epoch mark":   "InvalidEpochMark",
+		"invalid tickets mark": "InvalidTicketsMark",
+	}
+
+	if alias, exists := errorAliasMap[actual]; exists {
+		if strings.Contains(expected, alias) {
+			return true
+		}
+	}
+
+	return false
 }

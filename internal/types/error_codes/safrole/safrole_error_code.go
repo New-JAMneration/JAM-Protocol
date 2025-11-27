@@ -27,7 +27,7 @@ var SafroleErrorCodeMessages = map[types.ErrorCode]string{
 	BadTicketAttempt:      "invalid ticket attempt value",
 	Reserved:              "reserved",
 	DuplicateTicket:       "found a ticket duplicate",
-	VrfSealInvalid:        "vrf seal invalid",
+	VrfSealInvalid:        "BadSealSignature", // matches fuzz-proto example
 	VrfEntropyInvalid:     "vrf entropy invalid",
 	InvalidEpochMark:      "invalid epoch mark",
 	InvalidTicketsMark:    "invalid tickets mark",
