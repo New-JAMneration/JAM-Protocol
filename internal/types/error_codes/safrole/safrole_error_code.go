@@ -17,3 +17,19 @@ const (
 	InvalidOffenderMarker                        // 11 InvalidOffenderMarker
 	UnexpectedAuthor                             // 12 Block author is not the expected one
 )
+
+// This map provides human-readable messages following the fuzz-proto examples
+var SafroleErrorCodeMessages = map[types.ErrorCode]string{
+	BadSlot:               "timeslot value must be strictly monotonic",
+	UnexpectedTicket:      "received a ticket while in epoch's tail",
+	BadTicketOrder:        "tickets must be sorted",
+	BadTicketProof:        "invalid ticket ring proof",
+	BadTicketAttempt:      "invalid ticket attempt value",
+	Reserved:              "reserved",
+	DuplicateTicket:       "found a ticket duplicate",
+	VrfSealInvalid:        "vrf seal invalid",
+	VrfEntropyInvalid:     "vrf entropy invalid",
+	InvalidEpochMark:      "invalid epoch mark",
+	InvalidTicketsMark:    "invalid tickets mark",
+	InvalidOffenderMarker: "invalid offender marker",
+}
