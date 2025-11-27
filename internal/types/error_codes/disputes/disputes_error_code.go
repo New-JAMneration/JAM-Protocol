@@ -39,3 +39,22 @@ var DisputesErrorMap = map[string]types.ErrorCode{
 	"bad_guarantor_key":            BadGuarantorKey,
 	"bad_auditor_key":              BadAuditorKey,
 }
+
+// This map provides human-readable messages following the fuzz-proto examples
+var DisputesErrorCodeMessages = map[types.ErrorCode]string{
+	AlreadyJudged:             "already judged",
+	BadVoteSplit:              "bad vote split",
+	VerdictsNotSortedUnique:   "verdicts not sorted and unique",
+	JudgementsNotSortedUnique: "judgements not sorted and unique",
+	CulpritsNotSortedUnique:   "culprits not sorted and unique",
+	FaultsNotSortedUnique:     "faults not sorted and unique",
+	NotEnoughCulprits:         "not enough culprits",
+	NotEnoughFaults:           "not enough faults",
+	CulpritsVerdictNotBad:     "culprits' verdict not 'bad'",
+	FaultVerdictWrong:         "fault verdict wrong",
+	OffenderAlreadyReported:   "offender already reported",
+	BadJudgementAge:           "bad judgement age",
+	BadValidatorIndex:         "bad validator index",
+	BadSignature:              "bad signature",
+	BadGuarantorKey:           "bad guarantor key",
+}

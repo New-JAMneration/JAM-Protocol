@@ -55,3 +55,31 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"work_report_too_big":             WorkReportTooBig,
 	"banned_validator":                BannedValidator,
 }
+
+// This map provides human-readable messages following the fuzz-proto examples
+var ReportsErrorCodeMessages = map[types.ErrorCode]string{
+	BadCoreIndex:                "bad core index for work report",      // matches fuzz-proto example
+	FutureReportSlot:            "report refers to slot in the future", // matches fuzz-proto example
+	ReportEpochBeforeLast:       "report epoch before last",
+	InsufficientGuarantees:      "insufficient guarantees",
+	OutOfOrderGuarantee:         "out of order guarantee",
+	NotSortedOrUniqueGuarantors: "not sorted or unique guarantors",
+	WrongAssignment:             "wrong core assignment", // matches fuzz-proto example
+	CoreEngaged:                 "core engaged",
+	AnchorNotRecent:             "anchor not recent",
+	BadServiceId:                "bad service id",
+	BadCodeHash:                 "bad code hash",
+	DependencyMissing:           "dependency missing",
+	DuplicatePackage:            "duplicate package",
+	BadStateRoot:                "bad state root",
+	BadBeefyMmrRoot:             "bad beefy mmr root",
+	CoreUnauthorized:            "code unauthorized", // matches fuzz-proto example
+	BadValidatorIndex:           "bad validator index",
+	WorkReportGasTooHigh:        "work report gas too high",
+	ServiceItemGasTooLow:        "service item gas too low",
+	TooManyDependencies:         "too many dependencies",
+	SegmentRootLookupInvalid:    "segment root lookup invalid",
+	BadSignature:                "bad signature",
+	WorkReportTooBig:            "work report too big",
+	BannedValidator:             "banned validator",
+}
