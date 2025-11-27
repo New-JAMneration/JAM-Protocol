@@ -16,8 +16,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
 )
@@ -490,7 +488,6 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired 
 
 func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, setStateRequired bool) error {
 	mismatchCount := 0
-	importBlockMismatch := false
 	var testData TestData
 	if err := json.Unmarshal(data, &testData); err != nil {
 		return fmt.Errorf("error parsing JSON: %v", err)
@@ -543,104 +540,19 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
 
-	if actualPostStateRoot != expectedPostStateRoot {
-		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
-			expectedPostStateRoot, actualPostStateRoot)
-		mismatchCount++
-		importBlockMismatch = true
+	mismatch, err := compareImportBlockState(importBlockCompareInput{
+		Client:            client,
+		Block:             testData.Block,
+		BlockHeaderHash:   types.HeaderHash(blockHeaderHashHex),
+		ExpectedStateRoot: expectedPostStateRoot,
+		ActualStateRoot:   actualPostStateRoot,
+		ExpectedPostState: testData.PostState.KeyVals,
+	})
+	if err != nil {
+		return err
 	}
-
-	if importBlockMismatch {
-		// request GetState
-		logger.ColorGreen("[GetState][Request] header_hash= 0x%v", hex.EncodeToString(blockHeaderHashHex[:]))
-		actualStateKeyVal, err := client.GetState(types.HeaderHash(blockHeaderHashHex))
-		if err != nil {
-			return fmt.Errorf("error sending get_state request: %v", err)
-		}
-
-		// actual state struct, key-val to state
-		diffs, err := merklization.GetStateKeyValsDiff(testData.PostState.KeyVals, actualStateKeyVal)
-		if err != nil {
-			return fmt.Errorf("fuzzer GetStateKeyValsDiff error: %v", err)
-		}
-		// stateRoot := merklization.MerklizationSerializedState(actualPostState)
-		logger.ColorYellow("[GetState][Response] %d different key-val: ", len(diffs))
-		nullStateRoot := types.StateRoot{}
-		for _, v := range diffs {
-			if actualPostStateRoot == nullStateRoot || expectedPostStateRoot == nullStateRoot || len(actualStateKeyVal) == 0 {
-				break
-			}
-			if state, keyExists := jamtests.KeyValMap[v.Key]; keyExists {
-				logger.ColorYellow("state: %s, key: %v", state, v.Key)
-				if len(v.ActualValue) > 256 || len(v.ExpectedValue) > 256 {
-					logger.ColorDebug("value too big, only check diff")
-					/*
-						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-
-						diff := cmp.Diff(actualStateStruct, expectStateStruct)
-						logger.ColorDebug("diffs: %+v", diff)
-					*/
-				} else {
-					logger.ColorDebug("actualVal: %+v", v.ActualValue)
-					logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-					/*
-						// detailed state struct, except service-related
-						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-
-						logger.ColorDebug("actualState: %+v", actualStateStruct)
-						logger.ColorDebug("actualState: %+v", expectStateStruct)
-
-						diff := cmp.Diff(actualStateStruct, expectStateStruct)
-						logger.ColorDebug("diffs: %+v", diff)
-					*/
-				}
-			} else if v.Key[0] == byte(255) {
-				serviceId, err := merklization.DecodeServiceIdFromType2(v.Key)
-				if err != nil {
-					return fmt.Errorf("fuzzer DecodeServiceIdFromType2 error: %v", err)
-				}
-				logger.ColorYellow("service: %d", serviceId)
-				logger.ColorDebug("actualVal: %+v", v.ActualValue)
-				logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				/*
-					actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-					expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-
-					logger.ColorDebug("actualStruct: %+v", actualStateStruct)
-					logger.ColorDebug("expectStruct: %+v", expectStateStruct)
-					diff := cmp.Diff(actualStateStruct, expectStateStruct)
-					logger.ColorDebug("diffs: %+v", diff)
-				*/
-			} else {
-				logger.ColorYellow("other state key: 0x%x", v.Key)
-				if len(v.ActualValue) > 256 || len(v.ExpectedValue) > 256 {
-					logger.ColorDebug("value too big, check json file")
-				} else {
-					logger.ColorDebug("actualVal: %+v", v.ActualValue)
-					logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				}
-			}
-		}
+	if mismatch {
+		mismatchCount++
 	}
 
 	if mismatchCount > 0 {
