@@ -319,9 +319,16 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 		return fmt.Errorf("unexpected error: %s", errorMessage.Error)
 	}
 
-	if actualStateRoot != expectedStateRoot {
-		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
-			expectedStateRoot, actualStateRoot)
+	mismatch, err := compareImportBlockState(importBlockCompareInput{
+		Client:            client,
+		Block:             fuzzerMsg.ImportBlock,
+		ExpectedStateRoot: expectedStateRoot,
+		ActualStateRoot:   actualStateRoot,
+	})
+	if err != nil {
+		return err
+	}
+	if mismatch {
 		return fmt.Errorf("state_root mismatch")
 	}
 
