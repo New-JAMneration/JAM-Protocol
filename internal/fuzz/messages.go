@@ -33,19 +33,19 @@ const (
 
 type (
 	Version struct {
-		Major uint8
-		Minor uint8
-		Patch uint8
+		Major uint8 `json:"major"`
+		Minor uint8 `json:"minor"`
+		Patch uint8 `json:"patch"`
 	}
 
 	Features uint32
 
 	PeerInfo struct {
-		FuzzVersion  uint8
-		FuzzFeatures Features
-		AppVersion   Version
-		JamVersion   Version
-		AppName      string
+		FuzzVersion  uint8    `json:"fuzz_version"`
+		FuzzFeatures Features `json:"fuzz_features"`
+		AppVersion   Version  `json:"app_version"`
+		JamVersion   Version  `json:"jam_version"`
+		AppName      string   `json:"app_name"`
 	}
 
 	ImportBlock types.Block
