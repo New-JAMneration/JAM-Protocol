@@ -112,7 +112,12 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
 	ePrime, mPrime := R(tauPrime)
 
 	tm := header.TicketsMark
-	shouldHave := ePrime == e && m < types.TimeSlot(types.SlotSubmissionEnd) && mPrime >= types.TimeSlot(types.SlotSubmissionEnd)
+	gammaA := state.Gamma.GammaA
+
+	condition1 := ePrime == e
+	condition2 := m < types.TimeSlot(types.SlotSubmissionEnd) && mPrime >= types.TimeSlot(types.SlotSubmissionEnd)
+	condition3 := len(gammaA) == types.EpochLength
+	shouldHave := condition1 && condition2 && condition3
 
 	if !shouldHave {
 		if tm != nil {
@@ -127,7 +132,6 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
 		return &errCode
 	}
 
-	gammaA := state.Gamma.GammaA
 	expectedTm := OutsideInSequencer(&gammaA)
 
 	if len(*tm) != len(expectedTm) {
