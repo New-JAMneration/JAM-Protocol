@@ -43,8 +43,8 @@ type (
 	PeerInfo struct {
 		FuzzVersion  uint8    `json:"fuzz_version"`
 		FuzzFeatures Features `json:"fuzz_features"`
-		AppVersion   Version  `json:"app_version"`
 		JamVersion   Version  `json:"jam_version"`
+		AppVersion   Version  `json:"app_version"`
 		AppName      string   `json:"app_name"`
 	}
 
@@ -257,12 +257,12 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 
 	var appVersion, jamVersion Version
 
-	_, err = appVersion.ReadFrom(buffer)
+	_, err = jamVersion.ReadFrom(buffer)
 	if err != nil {
 		return err
 	}
 
-	_, err = jamVersion.ReadFrom(buffer)
+	_, err = appVersion.ReadFrom(buffer)
 	if err != nil {
 		return err
 	}
