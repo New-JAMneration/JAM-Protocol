@@ -45,9 +45,15 @@ func RunSTF() (bool, error) {
 		return isProtocolError(err), fmt.Errorf("update safrole error: %v", err)
 	}
 
-	// Validate Header Vtf(seal, entropy)
-	stateForVrfValidate := st.GetPosteriorStates().GetState()
-	err = ValidateHeaderVrf(header, &stateForVrfValidate)
+	// Validate Header Vrf(seal, entropy)
+	stateForHeaderValidate := st.GetPosteriorStates().GetState()
+	err = ValidateHeaderVrf(header, &stateForHeaderValidate)
+	if err != nil {
+		return isProtocolError(err), fmt.Errorf("header vrf validate error: %v", err)
+	}
+
+	// Validate Header Vrf(seal, entropy)
+	err = ValidateHeader(header, &stateForHeaderValidate)
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
 	}

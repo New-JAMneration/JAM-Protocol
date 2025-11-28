@@ -179,6 +179,7 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	vrfOutput, _ := handler.VRFIetfOutput(seal[:])
 	context = append(context, types.ByteSequence(vrfOutput)...) // Y(Hs)
 	verifier, err := vrf.NewVerifier(publicKey[:], 1)
+	defer verifier.Free()
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
@@ -202,6 +203,7 @@ func ValidateByBandersnatchs(header types.Header, priorState *types.State) error
 	context = append(context, types.ByteSequence(priorState.Eta[3][:])...)
 	signature := header.Seal[:]
 	verifier, _ := vrf.NewVerifier(publicKey[:], 1)
+	defer verifier.Free()
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
@@ -231,6 +233,7 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 
 	signature := header.Seal[:]
 	verifier, err := vrf.NewVerifier(publicKey[:], 1)
+	defer verifier.Free()
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
