@@ -1,9 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -287,6 +289,11 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 
 	unmatchedKeyVals := s.GetUnmatchedKeyVals()
 	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
+
+	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
+	sort.Slice(fullStateKeyVals, func(i, j int) bool {
+		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
+	})
 
 	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
 
