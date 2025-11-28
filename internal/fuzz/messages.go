@@ -17,12 +17,12 @@ type MessageType uint8
 
 const (
 	MessageType_PeerInfo     MessageType = 0
-	MessageType_ImportBlock  MessageType = 1
-	MessageType_SetState     MessageType = 2
-	MessageType_GetState     MessageType = 3
-	MessageType_State        MessageType = 4
-	MessageType_StateRoot    MessageType = 5
-	MessageType_ErrorMessage MessageType = 6
+	MessageType_SetState     MessageType = 1
+	MessageType_StateRoot    MessageType = 2
+	MessageType_ImportBlock  MessageType = 3
+	MessageType_GetState     MessageType = 4
+	MessageType_State        MessageType = 5
+	MessageType_ErrorMessage MessageType = 255
 )
 
 const (
