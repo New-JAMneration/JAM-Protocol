@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -159,6 +160,8 @@ func processStep(client *fuzz.FuzzClient, step stepFile) error {
 		targetAction = "peer_info"
 	case "initialize", "import_block":
 		targetAction = "state_root"
+	case "get_state":
+		targetAction = "get_state"
 	default:
 		return fmt.Errorf("unknown action: %s", step.action)
 	}
@@ -177,6 +180,8 @@ func processStep(client *fuzz.FuzzClient, step stepFile) error {
 			} else {
 				return fmt.Errorf("target file not found: %s or %s", targetPath, targetErrorPath)
 			}
+		} else if targetAction == "get_state" {
+			targetPath = filepath.Join(dir, fmt.Sprintf("%s_target_state.json", stepNum))
 		} else {
 			return fmt.Errorf("target file not found: %s", targetPath)
 		}
@@ -199,6 +204,8 @@ func processStep(client *fuzz.FuzzClient, step stepFile) error {
 		return processInitialize(client, fuzzerData, targetData)
 	case "import_block":
 		return processImportBlock(client, fuzzerData, targetData)
+	case "get_state":
+		return processGetState(client, fuzzerData, targetData)
 	default:
 		return fmt.Errorf("unknown action: %s", step.action)
 	}
@@ -332,6 +339,52 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 	}
 	if mismatch {
 		return fmt.Errorf("state_root mismatch")
+	}
+
+	return nil
+}
+
+func processGetState(client *fuzz.FuzzClient, fuzzerData, targetData []byte) error {
+	var fuzzerMsg struct {
+		GetState types.HeaderHash `json:"get_state"`
+	}
+
+	if err := json.Unmarshal(fuzzerData, &fuzzerMsg); err != nil {
+		return fmt.Errorf("error parsing fuzzer get_state: %v", err)
+	}
+
+	var targetMsg struct {
+		State types.StateKeyVals `json:"state"`
+	}
+
+	if err := json.Unmarshal(targetData, &targetMsg); err != nil {
+		return fmt.Errorf("error parsing target state: %v", err)
+	}
+
+	actualState, err := client.GetState(fuzzerMsg.GetState)
+	if err != nil {
+		return fmt.Errorf("GetState failed: %v", err)
+	}
+
+	expectedState := targetMsg.State
+
+	if len(actualState) != len(expectedState) {
+		return fmt.Errorf("state length mismatch: expected %d, got %d", len(expectedState), len(actualState))
+	}
+
+	// Compare expected and actual state key-values
+	for i := range expectedState {
+		expectedKey := expectedState[i].Key
+		expectedValue := expectedState[i].Value
+		actualKey := actualState[i].Key
+		actualValue := actualState[i].Value
+
+		if expectedKey != actualKey {
+			return fmt.Errorf("state key mismatch at index %d: expected key %s, got key %s", i, expectedKey, actualKey)
+		}
+		if !bytes.Equal(expectedValue, actualValue) {
+			return fmt.Errorf("state value mismatch at index %d for key %s: expected value %x, got value %x", i, expectedKey, expectedValue, actualValue)
+		}
 	}
 
 	return nil
