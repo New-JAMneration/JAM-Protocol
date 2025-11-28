@@ -346,6 +346,7 @@ func fuzzyMatchErrorMessage(expected, actual string) bool {
 	errorAliasMap := map[string]string{
 		"invalid epoch mark":   "InvalidEpochMark",
 		"invalid tickets mark": "InvalidTicketsMark",
+		"unexpected author":    "UnexpectedAuthor",
 	}
 
 	if alias, exists := errorAliasMap[actual]; exists {
