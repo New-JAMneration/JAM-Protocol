@@ -5,7 +5,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func (repo *Repository) GetBlock(r database.Reader, hash types.HeaderHash, slot types.TimeSlot) (*types.Block, error) {
@@ -25,30 +24,11 @@ func (repo *Repository) GetBlock(r database.Reader, hash types.HeaderHash, slot 
 	}, nil
 }
 
-// GenesisBlock reads and returns the genesis block from the database.
-// Genesis block must exist when this function is called.
-// func (repo *Repository) GetGenesisBlock(r database.Reader) (*types.Block, error) {
-// hash, _, err := repo.GetCanonicalHash(r, 0)
-// if err != nil {
-// return nil, err
-// }
-// block, _, err := repo.GetBlock(r, hash, 0)
-// if err != nil {
-// return nil, err
-// }
-// return block, nil
-// }
-
 func (repo *Repository) SaveBlock(w database.Writer, block *types.Block) error {
-	if err := repo.SaveHeader(w, &block.Header); err != nil {
-		return err
-	}
-
-	encoded, err := repo.encoder.Encode(&block.Header)
+	headerHash, err := repo.SaveHeader(w, &block.Header)
 	if err != nil {
 		return err
 	}
-	headerHash := types.HeaderHash(hash.Blake2bHash(encoded))
 
 	err = repo.SaveExtrinsic(w, headerHash, block.Header.Slot, &block.Extrinsic)
 	if err != nil {

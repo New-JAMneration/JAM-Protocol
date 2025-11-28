@@ -40,7 +40,6 @@ func GetInstance() *Store {
 	initOnce.Do(func() {
 		db := memory.NewDatabase()
 		repo := repository.NewRepository(db)
-
 		globalStore = &Store{
 			repo:                       repo,
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
@@ -62,7 +61,6 @@ func ResetInstance() {
 	// reset globalStore
 	db := memory.NewDatabase()
 	repo := repository.NewRepository(db)
-
 	globalStore = &Store{
 		repo:                       repo,
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),

@@ -52,25 +52,26 @@ func (repo *Repository) GetHeader(r database.Reader, hash types.HeaderHash, slot
 	return header, nil
 }
 
-func (repo *Repository) SaveHeader(w database.Writer, header *types.Header) error {
+func (repo *Repository) SaveHeader(w database.Writer, header *types.Header) (types.HeaderHash, error) {
 	encoded, err := repo.encoder.Encode(header)
 	if err != nil {
-		return err
+		return types.HeaderHash{}, err
 	}
 
 	var (
 		slot = header.Slot
-		// TODO: implement Hash method for Header type
 		hash = types.HeaderHash(hash.Blake2bHash(encoded))
 	)
 
 	if err := repo.SaveHeaderTimeSlot(w, hash, slot); err != nil {
-		return err
+		return types.HeaderHash{}, err
 	}
+
 	if err := w.Put(headerKey(repo.encoder, slot, hash), encoded); err != nil {
-		return err
+		return types.HeaderHash{}, err
 	}
-	return nil
+
+	return hash, nil
 }
 
 func (repo *Repository) DeleteHeader(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
