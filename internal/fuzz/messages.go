@@ -152,11 +152,11 @@ func (m *ErrorMessage) UnmarshalBinary(data []byte) error {
 }
 
 func (m *Features) MarshalBinary() ([]byte, error) {
-	return marshalUint32(uint32(*m)), nil
+	return marshalUint32LE(uint32(*m)), nil
 }
 
 func (m *Features) UnmarshalBinary(data []byte) error {
-	*m = Features(unmarshalUint32(data))
+	*m = Features(unmarshalUint32LE(data))
 	return nil
 }
 
@@ -199,11 +199,9 @@ func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	var buffer []byte
 
 	// Append size of fuzz version
-	buffer = append(buffer, byte(sizeOfUint8))
 	buffer = append(buffer, marshalUint8(m.FuzzVersion)...)
 
 	// Append size of fuzz features
-	buffer = append(buffer, byte(sizeOfUint32))
 	features, err := m.FuzzFeatures.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -231,11 +229,9 @@ func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	buffer := bytes.NewBuffer(data)
 
-	// the first byte is the size of the fuzz version
-	fuzzVersionSize, err := buffer.ReadByte()
-	if err != nil {
-		return err
-	}
+	var err error
+
+	fuzzVersionSize := uint8(sizeOfUint8)
 	fuzzVersionBuffer := make([]byte, fuzzVersionSize)
 	_, err = io.ReadFull(buffer, fuzzVersionBuffer)
 	if err != nil {
@@ -243,17 +239,13 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	}
 	fuzzVersion := unmarshalUint8(fuzzVersionBuffer)
 
-	// fuzzfeature, 4 bytes
-	fuzzFeaturesSize, err := buffer.ReadByte()
-	if err != nil {
-		return err
-	}
+	fuzzFeaturesSize := uint8(sizeOfUint32)
 	fuzzFeaturesBuffer := make([]byte, fuzzFeaturesSize)
 	_, err = io.ReadFull(buffer, fuzzFeaturesBuffer)
 	if err != nil {
 		return err
 	}
-	fuzzFeatures := unmarshalUint32(fuzzFeaturesBuffer)
+	fuzzFeatures := unmarshalUint32LE(fuzzFeaturesBuffer)
 
 	var appVersion, jamVersion Version
 
