@@ -32,11 +32,11 @@ type config struct {
 		Password string `json:"password"`
 	} `json:"redis"`
 	Info struct {
-		Name         string `json:"name"`
-		AppVersion   string `json:"app_version"`
-		JamVersion   string `json:"jam_version"`
 		FuzzVersion  uint8  `json:"fuzz_version"`
 		FuzzFeatures uint32 `json:"fuzz_features"`
+		JamVersion   string `json:"jam_version"`
+		AppVersion   string `json:"app_version"`
+		Name         string `json:"name"`
 	} `json:"info"`
 	FolderWise bool
 }
