@@ -32,4 +32,5 @@ var SafroleErrorCodeMessages = map[types.ErrorCode]string{
 	InvalidEpochMark:      "invalid epoch mark",
 	InvalidTicketsMark:    "invalid tickets mark",
 	InvalidOffenderMarker: "invalid offender marker",
+	UnexpectedAuthor:      "UnexpectedAuthor", // matches fuzz-proto example
 }
