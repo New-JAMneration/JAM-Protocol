@@ -201,16 +201,6 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// (GP 6.28)
 	CreateWinningTickets(e, ePrime, m, mPrime)
 
-	// Get the header of processing block
-	block := s.GetLatestBlock()
-	header := block.Header
-	postState := s.GetPosteriorStates().GetState()
-	err = ValidateHeaderSeal(header, &postState)
-	if err != nil {
-		errCode := SafroleErrorCode.VrfSealInvalid
-		return &errCode
-	}
-
 	// --- sealing.go (GP 6.15~6.24) --- //
 	err = SealingHeader()
 	if err != nil {

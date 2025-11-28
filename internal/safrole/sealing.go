@@ -238,7 +238,6 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
 	_, err = verifier.IETFVerify(context, message, signature, 0)
-
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
