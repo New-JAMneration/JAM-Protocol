@@ -131,7 +131,6 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 
 	// Get prior state
 	priorState := s.GetPriorStates()
-
 	if ePrime > e {
 		// Update state to posterior state
 		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))

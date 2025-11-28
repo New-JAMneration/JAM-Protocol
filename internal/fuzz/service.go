@@ -108,6 +108,13 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))
 
+	if header.Parent == (types.HeaderHash{}) {
+		// Use the header to store the mapping
+		block := types.Block{
+			Header: header,
+		}
+		storeInstance.AddBlock(block)
+	}
 	// Commit the state
 	storeInstance.StateCommit()
 

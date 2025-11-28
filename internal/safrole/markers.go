@@ -2,6 +2,8 @@
 package safrole
 
 import (
+	"bytes"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
@@ -137,6 +139,51 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
 		if (*tm)[i] != expectedTm[i] {
 			errCode := SafroleErrorCode.InvalidTicketsMark
 			return &errCode
+		}
+	}
+
+	return nil
+}
+
+func ValidateHeaderOffenderMarker(header types.Header, state *types.State) error {
+	block := store.GetInstance().GetLatestBlock()
+	if block.Header.Slot != header.Slot {
+		// Not the latest block, skip validation
+		return nil
+	}
+	disputes := block.Extrinsic.Disputes
+	expected := make([]types.Ed25519Public, 0, len(disputes.Culprits)+len(disputes.Faults))
+
+	for _, c := range disputes.Culprits {
+		expected = append(expected, c.Key)
+	}
+	for _, f := range disputes.Faults {
+		expected = append(expected, f.Key)
+	}
+	var got []types.Ed25519Public
+	if header.OffendersMark != nil {
+		got = header.OffendersMark
+	}
+
+	if len(expected) == 0 {
+		if header.OffendersMark != nil && len(got) > 0 {
+			err := SafroleErrorCode.InvalidOffenderMarker
+			return &err
+		}
+		return nil
+	}
+	if header.OffendersMark == nil {
+		err := SafroleErrorCode.InvalidOffenderMarker
+		return &err
+	}
+	if len(got) != len(expected) {
+		err := SafroleErrorCode.InvalidOffenderMarker
+		return &err
+	}
+	for i := range expected {
+		if !bytes.Equal(got[i][:], expected[i][:]) {
+			err := SafroleErrorCode.InvalidOffenderMarker
+			return &err
 		}
 	}
 

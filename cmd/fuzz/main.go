@@ -16,8 +16,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
 )
@@ -46,6 +44,12 @@ var (
 	folderPathArg = &cli.StringArg{
 		Name: "folder-path",
 	}
+
+	folderWiseArg = &cli.BoolFlag{
+		Name:  "folderwise",
+		Usage: "SetState once(true) or SetState each block(false)",
+		Value: false,
+	}
 )
 
 var cmd = cli.Command{
@@ -68,6 +72,7 @@ var cmd = cli.Command{
 		setStateCmd,
 		getStateCmd,
 		testFolderCmd,
+		testStepFolderCmd,
 	},
 }
 
@@ -126,6 +131,9 @@ var (
 		Arguments: []cli.Argument{
 			socketAddrArg,
 			folderPathArg,
+		},
+		Flags: []cli.Flag{
+			folderWiseArg,
 		},
 	}
 )
@@ -364,6 +372,7 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	if folderPath == "" {
 		return fmt.Errorf("test_folder requires a json file path argument")
 	}
+	config.Config.FolderWise = cmd.Bool(folderWiseArg.Name)
 
 	// Connect to server
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
@@ -374,13 +383,36 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 
 	// Read all JSON files in the folder
 	var jsonFiles []string
+	firstFiles := make(map[string]string)
 	err = filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !d.IsDir() && strings.HasSuffix(strings.ToLower(path), ".json") {
 			jsonFiles = append(jsonFiles, path)
+		} else {
+			return nil
 		}
+
+		// folder-wise
+		if config.Config.FolderWise {
+			folderName := strings.Split(path, "/")
+			folderIndex := folderName[len(folderName)-2]
+			fileName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+
+			// 1. record each group of the first-data, genesis might not be the first file to be read
+			if _, ok := firstFiles[folderIndex]; !ok || fileName == "genesis" {
+				firstFiles[folderIndex] = fileName
+			}
+
+			// 2. re-order genesis, assume each test-data index is unique, genesis might not be the first data to be append in jsonFiles
+			if fileName == "genesis" {
+				index := findGroupFirstIndex(&jsonFiles, folderIndex) // find how many test-data in a group has appended in the jsonFiles
+				copy(jsonFiles[index+1:], jsonFiles[index:len(jsonFiles)-1])
+				jsonFiles[index] = path
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -404,7 +436,19 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
 	for _, jsonFile := range jsonFiles {
-		if err := testFixtureFile(client, jsonFile); err != nil {
+		var setStateRequired bool
+		if config.Config.FolderWise {
+			folderName := strings.Split(jsonFile, "/")
+			fileName := strings.TrimSuffix(filepath.Base(jsonFile), filepath.Ext(jsonFile))
+			folderIndex := folderName[len(folderName)-2]
+
+			firstFileName, ok := firstFiles[folderIndex]
+			if ok && firstFileName == fileName {
+				setStateRequired = true
+			}
+		}
+
+		if err := testFixtureFile(client, jsonFile, setStateRequired); err != nil {
 			logger.ColorRed("FAILED!!: %s - %v", jsonFile, err)
 			failureCount++
 		} else {
@@ -416,7 +460,7 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func testFixtureFile(client *fuzz.FuzzClient, jsonFile string) error {
+func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired bool) error {
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return fmt.Errorf("error reading JSON file: %v", err)
@@ -432,7 +476,7 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string) error {
 	}
 
 	if len(probe.PreState) > 0 {
-		return testTraceFixture(client, jsonFile, data)
+		return testTraceFixture(client, jsonFile, data, setStateRequired)
 	}
 
 	if len(probe.State) > 0 {
@@ -442,35 +486,35 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string) error {
 	return fmt.Errorf("unknown fixture format")
 }
 
-func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) error {
+func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, setStateRequired bool) error {
 	mismatchCount := 0
-	importBlockMismatch := false
-
 	var testData TestData
 	if err := json.Unmarshal(data, &testData); err != nil {
 		return fmt.Errorf("error parsing JSON: %v", err)
 	}
 	fmt.Println("File: ", jsonFile)
 	// Step 1: SetState with pre_state data
-	expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
-	if err != nil {
-		return fmt.Errorf("error parsing pre_state state_root: %v", err)
-	}
+	// folder-wise: only when the data is the first data will do SetState
+	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
+		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+		if err != nil {
+			return fmt.Errorf("error parsing pre_state state_root: %v", err)
+		}
 
-	// Print Sending SetState
-	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
-	actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-	logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualPreStateRoot[:]))
-	if err != nil {
-		return fmt.Errorf("SetState failed: %v", err)
-	}
+		// Print Sending SetState
+		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
+		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
+		logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualPreStateRoot[:]))
+		if err != nil {
+			return fmt.Errorf("SetState failed: %v", err)
+		}
 
-	if actualPreStateRoot != expectedPreStateRoot {
-		logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
-			expectedPreStateRoot, actualPreStateRoot)
-		mismatchCount++
+		if actualPreStateRoot != expectedPreStateRoot {
+			logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
+				expectedPreStateRoot, actualPreStateRoot)
+			mismatchCount++
+		}
 	}
-
 	// Step 2: ImportBlock
 	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
 	if err != nil {
@@ -496,100 +540,19 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) err
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
 	}
 
-	if actualPostStateRoot != expectedPostStateRoot {
-		logger.ColorBlue("[ImportBlock][Check] state_root mismatch: expected 0x%x, got 0x%x",
-			expectedPostStateRoot, actualPostStateRoot)
-		mismatchCount++
-		importBlockMismatch = true
+	mismatch, err := compareImportBlockState(importBlockCompareInput{
+		Client:            client,
+		Block:             testData.Block,
+		BlockHeaderHash:   types.HeaderHash(blockHeaderHashHex),
+		ExpectedStateRoot: expectedPostStateRoot,
+		ActualStateRoot:   actualPostStateRoot,
+		ExpectedPostState: testData.PostState.KeyVals,
+	})
+	if err != nil {
+		return err
 	}
-
-	if importBlockMismatch {
-		// request GetState
-		logger.ColorGreen("[GetState][Request] header_hash= 0x%v", hex.EncodeToString(blockHeaderHashHex[:]))
-		actualStateKeyVal, err := client.GetState(types.HeaderHash(blockHeaderHashHex))
-		if err != nil {
-			return fmt.Errorf("error sending get_state request: %v", err)
-		}
-
-		// actual state struct, key-val to state
-		diffs, err := merklization.GetStateKeyValsDiff(testData.PostState.KeyVals, actualStateKeyVal)
-		if err != nil {
-			return fmt.Errorf("fuzzer GetStateKeyValsDiff error: %v", err)
-		}
-		// stateRoot := merklization.MerklizationSerializedState(actualPostState)
-		logger.ColorYellow("[GetState][Response] %d different key-val: ", len(diffs))
-		for _, v := range diffs {
-			if state, keyExists := jamtests.KeyValMap[v.Key]; keyExists {
-				logger.ColorYellow("state: %s, key: %v", state, v.Key)
-				if len(v.ActualValue) > 600 {
-					logger.ColorDebug("value too big, only check diff")
-					/*
-						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-
-						diff := cmp.Diff(actualStateStruct, expectStateStruct)
-						logger.ColorDebug("diffs: %+v", diff)
-					*/
-				} else {
-					logger.ColorDebug("actualVal: %+v", v.ActualValue)
-					logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-					/*
-						// detailed state struct, except service-related
-						actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-						expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-						if err != nil {
-							return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-						}
-
-						logger.ColorDebug("actualState: %+v", actualStateStruct)
-						logger.ColorDebug("actualState: %+v", expectStateStruct)
-
-						diff := cmp.Diff(actualStateStruct, expectStateStruct)
-						logger.ColorDebug("diffs: %+v", diff)
-					*/
-				}
-			} else if v.Key[0] == byte(255) {
-				serviceId, err := merklization.DecodeServiceIdFromType2(v.Key)
-				if err != nil {
-					return fmt.Errorf("fuzzer DecodeServiceIdFromType2 error: %v", err)
-				}
-				logger.ColorYellow("service: %d", serviceId)
-				logger.ColorDebug("actualVal: %+v", v.ActualValue)
-				logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				/*
-					actualStateStruct, err := m.SingleKeyValToState(v.Key, v.ActualValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-					expectStateStruct, err := m.SingleKeyValToState(v.Key, v.ExpectedValue)
-					if err != nil {
-						return fmt.Errorf("GetState SingleKeyValToState failed: %v", err)
-					}
-
-					logger.ColorDebug("actualStruct: %+v", actualStateStruct)
-					logger.ColorDebug("expectStruct: %+v", expectStateStruct)
-					diff := cmp.Diff(actualStateStruct, expectStateStruct)
-					logger.ColorDebug("diffs: %+v", diff)
-				*/
-			} else {
-				logger.ColorYellow("other state key: 0x%x", v.Key)
-				if len(v.ActualValue) > 1024 || len(v.ExpectedValue) > 1024 {
-					logger.ColorDebug("value too big, check json file")
-				} else {
-					logger.ColorDebug("actualVal: %+v", v.ActualValue)
-					logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-				}
-			}
-		}
+	if mismatch {
+		mismatchCount++
 	}
 
 	if mismatchCount > 0 {
@@ -652,4 +615,18 @@ func parseStateRoot(stateRootStr string) (types.StateRoot, error) {
 
 	copy(stateRoot[:], hashBytes)
 	return stateRoot, nil
+}
+
+func findGroupFirstIndex(jsonFiles *[]string, groupIndex string) int {
+	var firstFileIndex int
+
+	for i := len(*jsonFiles) - 1; i >= 0; i-- {
+		folderName := strings.Split((*jsonFiles)[i], "/")
+		folderIndex := folderName[len(folderName)-2]
+		if folderIndex != groupIndex {
+			firstFileIndex = i + 1
+			break
+		}
+	}
+	return firstFileIndex
 }
