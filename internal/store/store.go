@@ -290,7 +290,9 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 	}
 
 	storageKeyVals := s.GetStorageKeyVals()
+	lookupKeyVals := s.GetUnmatchedLookupKeyVals()
 	fullStateKeyVals := append(storageKeyVals, serializedState...)
+	fullStateKeyVals = append(fullStateKeyVals, lookupKeyVals...)
 
 	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
 

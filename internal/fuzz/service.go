@@ -56,7 +56,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	latestState := storeInstance.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
 	storageKeyVal := storeInstance.GetStorageKeyVals()
+	lookupKeyVal := storeInstance.GetUnmatchedLookupKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
+	serializedState = append(lookupKeyVal, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
 	if latestStateRoot != block.Header.ParentStateRoot {
@@ -80,7 +82,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 	storageKeyVal = storeInstance.GetStorageKeyVals()
+	lookupKeyVal = storeInstance.GetUnmatchedLookupKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
+
+	serializedState = append(serializedState, lookupKeyVal...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
 	// Commit the state and persist the state to Redis
