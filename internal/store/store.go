@@ -29,6 +29,7 @@ type Store struct {
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	storageKeyVals             types.StateKeyVals
+	unmatchedLookupKeyVals     types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -45,6 +46,7 @@ func GetInstance() *Store {
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			storageKeyVals:             types.StateKeyVals{},
+			unmatchedLookupKeyVals:     types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -63,6 +65,7 @@ func ResetInstance() {
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
 		storageKeyVals:             types.StateKeyVals{},
+		unmatchedLookupKeyVals:     types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -326,6 +329,15 @@ func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
 	s.storageKeyVals = storageKeyVals
 }
 
+// UnmatchedLookupKeyVals
+func (s *Store) GetUnmatchedLookupKeyVals() types.StateKeyVals {
+	return s.unmatchedLookupKeyVals
+}
+
+func (s *Store) SetUnmatchedLookupKeyVals(unmatchedLookupKeyVals types.StateKeyVals) {
+	s.unmatchedLookupKeyVals = unmatchedLookupKeyVals
+}
+
 func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
 	redisBackend, err := GetRedisBackend()
 	if err != nil {
@@ -393,13 +405,14 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	}
 
 	// Restore state and storage key-vals
-	state, storageKeyVal, err := merklization.StateKeyValsToState(stateKeyVals)
+	state, storageKeyVal, unmatchedLookupKeyVals, err := merklization.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return err
 	}
 
 	s.GetPriorStates().SetState(state)
 	s.SetStorageKeyVals(storageKeyVal)
+	s.SetUnmatchedLookupKeyVals(unmatchedLookupKeyVals)
 
 	// Restore block
 	s.CleanupBlock()

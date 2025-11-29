@@ -36,7 +36,7 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 			continue
 		}
 
-		genesisState, _, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+		genesisState, _, _, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 		if err != nil {
 			t.Errorf("Error parsing state keyvals: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestStateKeyValsToState(t *testing.T) {
 			}
 
 			// Parse the state keyvals
-			state, storageKeyVals, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+			state, storageKeyVals, unmatchedLookupKeyVals, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 			if err != nil {
 				t.Errorf("Error parsing state keyvals: %v", err)
 			}
@@ -103,6 +103,7 @@ func TestStateKeyValsToState(t *testing.T) {
 
 			// Add storage keyvals to actual state keyvals
 			actualStateKeyVals = append(actualStateKeyVals, storageKeyVals...)
+			actualStateKeyVals = append(actualStateKeyVals, unmatchedLookupKeyVals...)
 
 			// Create a state root with the genesis state
 			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)
@@ -201,6 +202,7 @@ func TestFuzzReports070Trace(t *testing.T) {
 
 			var state types.State
 			var storageKeyVals types.StateKeyVals
+			var unmatchedLookupKeyVals types.StateKeyVals
 			var expectedStateRoot types.StateRoot
 
 			if fileName == "genesis.bin" {
@@ -212,7 +214,7 @@ func TestFuzzReports070Trace(t *testing.T) {
 				}
 
 				// Parse the state keyvals
-				state, storageKeyVals, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+				state, storageKeyVals, unmatchedLookupKeyVals, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 				if err != nil {
 					t.Errorf("Error parsing state keyvals: %v", err)
 				}
@@ -228,7 +230,7 @@ func TestFuzzReports070Trace(t *testing.T) {
 				}
 
 				// Parse the state keyvals
-				state, storageKeyVals, err = merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+				state, storageKeyVals, unmatchedLookupKeyVals, err = merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 				if err != nil {
 					t.Errorf("Error parsing state keyvals: %v", err)
 				}
@@ -246,6 +248,7 @@ func TestFuzzReports070Trace(t *testing.T) {
 
 			// Add storage keyvals to actual state keyvals
 			actualStateKeyVals = append(actualStateKeyVals, storageKeyVals...)
+			actualStateKeyVals = append(actualStateKeyVals, unmatchedLookupKeyVals...)
 
 			// Create a state root with the genesis state
 			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)

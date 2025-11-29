@@ -96,7 +96,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
-	state, storageKeyVal, err := m.StateKeyValsToState(stateKeyVals)
+	state, storageKeyVal, unmatchedLookupKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
@@ -104,9 +104,12 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	storeInstance.GetPosteriorStates().SetState(state)
 	// store storage key-val into global variable
 	store.GetInstance().SetStorageKeyVals(storageKeyVal)
+	store.GetInstance().SetUnmatchedLookupKeyVals(unmatchedLookupKeyVals)
 	serializedState, _ := m.StateEncoder(state)
 
-	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))
+	merkleInput := append(storageKeyVal, serializedState...)
+	merkleInput = append(merkleInput, unmatchedLookupKeyVals...)
+	stateRoot := m.MerklizationSerializedState(merkleInput)
 
 	if header.Parent == (types.HeaderHash{}) {
 		// Use the header to store the mapping
