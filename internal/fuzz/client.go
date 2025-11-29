@@ -58,7 +58,7 @@ func (c *FuzzClient) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 
 	resp, err := c.makeRequest(req)
 	if err != nil {
-		return PeerInfo{}, err
+		return PeerInfo{}, nil
 	}
 
 	if resp.Type != MessageType_PeerInfo {
@@ -105,7 +105,7 @@ func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals) (ty
 
 	resp, err := c.makeRequest(req)
 	if err != nil {
-		return types.StateRoot{}, nil
+		return types.StateRoot{}, err
 	}
 
 	if resp.Type != MessageType_StateRoot {
