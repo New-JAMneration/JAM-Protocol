@@ -379,7 +379,7 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	return stateKeyVal
 }
 
-func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
+func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
 	encoder := types.NewEncoder()
 
 	encodeLength := 4
@@ -548,7 +548,7 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	// delta 4
 	for id, account := range state.Delta {
 		for key, val := range account.LookupDict {
-			stateKeyVal := encodeDelta4KeyVal(id, key, val)
+			stateKeyVal := EncodeDelta4KeyVal(id, key, val)
 			encoded = append(encoded, stateKeyVal)
 		}
 	}

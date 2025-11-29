@@ -30,3 +30,12 @@ func KeccakHash(input types.ByteSequence) types.OpaqueHash {
 
 	return types.OpaqueHash(res[:])
 }
+
+func ComputeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
+	encoder := types.NewEncoder()
+	encodedHeader, err := encoder.Encode(&header)
+	if err != nil {
+		return types.HeaderHash{}, err
+	}
+	return types.HeaderHash(Blake2bHash(encodedHeader)), nil
+}

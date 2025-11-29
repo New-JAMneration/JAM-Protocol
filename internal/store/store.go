@@ -8,7 +8,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
@@ -246,7 +245,7 @@ func (s *Store) StateCommit() {
 
 	latestBlock := s.GetLatestBlock()
 
-	blockHeaderHash, err := computeBlockHeaderHash(latestBlock.Header)
+	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
 		log.Printf("StateCommit: failed to encode header: %v", err)
 	} else {
@@ -345,7 +344,7 @@ func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error)
 }
 
 func (s *Store) persistBlockMapping(block types.Block) error {
-	headerHash, err := computeBlockHeaderHash(block.Header)
+	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
 	if err != nil {
 		return fmt.Errorf("failed to compute block header hash: %w", err)
 	}
@@ -361,15 +360,6 @@ func (s *Store) persistBlockMapping(block types.Block) error {
 	}
 
 	return nil
-}
-
-func computeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
-	encoder := types.NewEncoder()
-	encodedHeader, err := encoder.Encode(&header)
-	if err != nil {
-		return types.HeaderHash{}, err
-	}
-	return types.HeaderHash(hash.Blake2bHash(encodedHeader)), nil
 }
 
 func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {
@@ -393,7 +383,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	}
 
 	// Restore state and storage key-vals
-	state, storageKeyVal, err := merklization.StateKeyValsToState(stateKeyVals)
+	state, storageKeyVal, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return err
 	}

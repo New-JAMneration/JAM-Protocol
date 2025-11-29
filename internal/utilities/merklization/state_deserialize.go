@@ -198,7 +198,7 @@ func decodeThetaAccOut(encodedValue types.ByteSequence) (types.LastAccOut, error
 }
 
 // C(255, s) -> ac ⌢ E8(ab, ag, am, ao) ⌢ E4(ai)
-func decodeServiceInfo(encodedValue types.ByteSequence) (types.ServiceInfo, error) {
+func DecodeServiceInfo(encodedValue types.ByteSequence) (types.ServiceInfo, error) {
 	output := types.ServiceInfo{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(encodedValue, &output)
