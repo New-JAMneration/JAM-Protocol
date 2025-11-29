@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	PreimageErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/preimages"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 /*
@@ -26,7 +27,7 @@ After that, adding those preimages into delta anchored with time for each servic
 */
 
 // v0.6.4 (12.36) R function determines whether a preimage should be integrated
-func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h types.OpaqueHash, l types.U32) bool {
+func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h types.OpaqueHash, l types.U32, keyVals types.StateKeyVals) bool {
 	// Check for existence of the service account
 	account, isInAccount := d[s]
 	if !isInAccount || account.PreimageLookup == nil || account.LookupDict == nil {
@@ -48,7 +49,11 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	timeSlotSet, lookupKeyExists := account.LookupDict[lookupKey]
 	if !lookupKeyExists {
 		// log.Println("Lookup key does not exist in the dictionary")
-		return false
+		if lookupInKeyVal(keyVals, lookupKey, s) {
+			return true
+		} else {
+			return false
+		}
 	} else if len(timeSlotSet) != 0 {
 		// If lookup key doesn't exist in the dictionary, consider the time slot set as empty
 		// log.Println("Lookup key have been set before")
@@ -59,9 +64,25 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	return !isInPreimageMap && (len(timeSlotSet) == 0)
 }
 
+func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceId) bool {
+	lookupStateKey := m.EncodeDelta4Key(serviceId, lookupKey)
+
+	for _, v := range keyVals {
+		if v.Key == lookupStateKey {
+			if len(v.Value) == 1 && v.Value[0] == 0 {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+
+	return false
+}
+
 // IntegratePreimage filters the preimage extrinsics and returns only those that should be integrated
 // v0.6.4 (12.37): ∀(s, p) ∈ EP ∶ R(δ, s, H(p), |p|)
-func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, error) {
+func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState, keyVals types.StateKeyVals) (types.PreimagesExtrinsic, error) {
 	j := 0
 	for i, ep := range eps {
 		// Calculate preimage hash and length
@@ -69,12 +90,14 @@ func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState
 		preimageLength := types.U32(len(ep.Blob))
 
 		// Check if the preimage should be integrated
-		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength) {
+		shouldIntegratePreimage := ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength, keyVals)
+		if shouldIntegratePreimage {
 			eps[j] = eps[i]
 			j++
-		} else if !ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength) {
+		} else {
 			return nil, errors.New("preimage is not solicited")
 		}
+
 	}
 	eps = eps[:j]
 	return eps, nil
@@ -82,7 +105,7 @@ func IntegratePreimage(eps types.PreimagesExtrinsic, d types.ServiceAccountState
 
 // v0.6.4 (12.38) P = {(s, p) | (s, p)∈ EP , R(δ‡, s, H(p), |p|)}
 // FilterPreimageExtrinsics filtered extrinsics that should be integrated
-func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState) (types.PreimagesExtrinsic, *types.ErrorCode) {
+func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState, keyVals types.StateKeyVals) (types.PreimagesExtrinsic, *types.ErrorCode) {
 	// If eps is empty, return empty slice
 	if len(eps) == 0 {
 		log.Printf("Nothing is provided in Eps")
@@ -113,7 +136,7 @@ func FilterPreimageExtrinsics(eps types.PreimagesExtrinsic, deltaDoubleDagger ty
 		}
 	}
 
-	filteredEps, err := IntegratePreimage(eps, deltaDoubleDagger)
+	filteredEps, err := IntegratePreimage(eps, deltaDoubleDagger, keyVals)
 	if err != nil {
 		log.Println("IntegratePreimageErr:", err)
 		errCode := PreimageErrorCode.PreimageUnneeded
@@ -168,11 +191,12 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	eps := s.GetLatestBlock().Extrinsic.Preimages
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 	deltaPrime := make(types.ServiceAccountState)
+	keyVals := s.GetStorageKeyVals()
 	maps.Copy(deltaPrime, deltaDoubleDagger)
 	tauPrime := s.GetPosteriorStates().GetTau()
 
 	// Filter preimage extrinsics
-	filteredEps, FilterErr := FilterPreimageExtrinsics(eps, deltaPrime)
+	filteredEps, FilterErr := FilterPreimageExtrinsics(eps, deltaPrime, keyVals)
 	if FilterErr != nil {
 		return FilterErr
 	}
