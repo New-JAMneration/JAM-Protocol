@@ -4,6 +4,12 @@
 go run ./cmd/fuzz --help
 ```
 
+### Run jam-test-vectors
+
+```
+go run ./cmd/node test --help
+```
+
 ### Run Server
 ```
 go run ./cmd/fuzz /tmp/fuzz.sock

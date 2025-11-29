@@ -36,6 +36,18 @@ make run
 make build
 ```
 
+### Test jam-test-vectors
+
+Run single test:
+```bash
+make test-jam-test-vectors mode=safrole size=full
+```
+
+Run all:
+```bash
+make test-jam-test-vectors
+```
+
 ## Rust Submodule Guide
 
 For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/rust-vrf-compile-guide.md).

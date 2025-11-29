@@ -30,7 +30,7 @@ func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) 
 }
 
 // (D.1) type 3 (s, h): a_s, a_p, a_l
-func decodeServiceIdFromType3(stateKey types.StateKey) (types.ServiceId, error) {
+func DecodeServiceIdFromType3(stateKey types.StateKey) (types.ServiceId, error) {
 	// Decode the service Id from the state key
 	// service id = [k0, k2, k4, k6]
 	encodedServiceId := types.ByteSequence{stateKey[0], stateKey[2], stateKey[4], stateKey[6]}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +85,7 @@ func TestStorePersistsBlocksInRedis(t *testing.T) {
 	err := store.persistBlockMapping(block)
 	require.NoError(t, err, "persistBlockMapping should succeed")
 
-	headerHash, err := computeBlockHeaderHash(block.Header)
+	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
 	require.NoError(t, err, "computeBlockHeaderHash should succeed")
 
 	retrieved, err := store.GetBlockByHash(headerHash)

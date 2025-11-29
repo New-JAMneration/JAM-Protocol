@@ -12,15 +12,21 @@ test:
 
 .PHONY: test-jam-test-vectors
 test-jam-test-vectors:
-	@MODES="safrole assurances preimages disputes history accumulate authorizations statistics reports"; \
-	SIZES="tiny full"; \
-	for mode in $$MODES; do \
-	    for size in $$SIZES; do \
-	        echo "Testing $$mode ($$size)..."; \
-	        go run ./cmd/node test --mode "$$mode" --size "$$size"; \
-	        echo ""; \
-	    done; \
-	done
+	@if [ -n "$(mode)" ] && [ -n "$(size)" ]; then \
+	    echo "Testing $(mode) ($(size))..."; \
+	    export USE_MINI_REDIS=true; go run ./cmd/node test --mode "$(mode)" --size "$(size)"; \
+	else \
+		MODES="safrole assurances preimages disputes history accumulate authorizations statistics reports"; \
+		SIZES="tiny full"; \
+		for mode in $$MODES; do \
+			for size in $$SIZES; do \
+				echo "Testing $$mode ($$size)..."; \
+				export USE_MINI_REDIS=true; go run ./cmd/node test --mode "$$mode" --size "$$size"; \
+				echo ""; \
+			done; \
+		done; \
+	fi
+
 
 .PHONY: lint
 lint:

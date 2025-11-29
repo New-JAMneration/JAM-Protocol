@@ -77,9 +77,9 @@ func RunSTF() (bool, error) {
 	}
 
 	// Update History (beta^dagger -> beta^prime)
-	err = UpdateHistory()
-	if err != nil {
-		return isProtocolError(err), fmt.Errorf("update histroy error: %v", err)
+	// err = UpdateHistory()
+	if err = recent_history.STFBetaHDagger2BetaHPrime(); err != nil {
+		return isProtocolError(err), fmt.Errorf("update history error: %v", err)
 	}
 
 	// Update Preimages

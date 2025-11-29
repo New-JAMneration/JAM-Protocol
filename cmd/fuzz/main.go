@@ -14,7 +14,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
@@ -492,8 +491,11 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	if err := json.Unmarshal(data, &testData); err != nil {
 		return fmt.Errorf("error parsing JSON: %v", err)
 	}
-	fmt.Println("File: ", jsonFile)
-	// Step 1: SetState with pre_state data
+	log.Println("File:", jsonFile)
+
+	/*
+		Step 1: Initialization (SetState) to the pre_state
+	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
 		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
@@ -502,9 +504,9 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		}
 
 		// Print Sending SetState
-		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(testData.Block.Header.Parent[:]))
+		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", testData.Block.Header.Parent)
 		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-		logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualPreStateRoot[:]))
+		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %v", err)
 		}
@@ -515,19 +517,20 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 			mismatchCount++
 		}
 	}
-	// Step 2: ImportBlock
+	/*
+		Step 2: ImportBlock
+	*/
 	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
 	if err != nil {
 		return fmt.Errorf("error parsing post_state state_root: %v", err)
 	}
 
 	// Print Sending ImportBlock
-	serializedHeader, err := utilities.HeaderSerialization(testData.Block.Header)
+	blockHeaderHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
 	if err != nil {
-		return fmt.Errorf("error serializing header: %v", err)
+		return fmt.Errorf("error computing block header hash: %v", err)
 	}
-	blockHeaderHashHex := hash.Blake2bHash(serializedHeader)
-	logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHashHex)
+	logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHash)
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
@@ -537,13 +540,13 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	} else if errorMessage != nil {
 		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
 	} else {
-		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualPostStateRoot[:]))
+		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%x", actualPostStateRoot)
 	}
 
 	mismatch, err := compareImportBlockState(importBlockCompareInput{
 		Client:            client,
 		Block:             testData.Block,
-		BlockHeaderHash:   types.HeaderHash(blockHeaderHashHex),
+		BlockHeaderHash:   types.HeaderHash(blockHeaderHash),
 		ExpectedStateRoot: expectedPostStateRoot,
 		ActualStateRoot:   actualPostStateRoot,
 		ExpectedPostState: testData.PostState.KeyVals,
@@ -582,9 +585,9 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 		return fmt.Errorf("error parsing state state_root: %v", err)
 	}
 
-	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%v", hex.EncodeToString(genesisData.Header.Parent[:]))
+	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", genesisData.Header.Parent)
 	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals)
-	logger.ColorYellow("[SetState][Response] state_root= 0x%v", hex.EncodeToString(actualStateRoot[:]))
+	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %v", err)
 	}
