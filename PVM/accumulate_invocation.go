@@ -12,7 +12,7 @@ func Psi_A(
 	timeslot types.TimeSlot,
 	serviceId types.ServiceId,
 	gas types.Gas,
-	operands []types.Operand,
+	operandOrDeferTransfers []types.OperandOrDeferredTransfer,
 	eta types.Entropy,
 	storageKeyVal types.StateKeyVals,
 ) (
@@ -45,6 +45,16 @@ func Psi_A(
 		}
 	}
 
+	// s = e
+	var balances uint64
+	for _, v := range operandOrDeferTransfers {
+		if v.DeferredTransfer != nil {
+			balances += uint64(v.DeferredTransfer.Balance)
+		}
+	}
+	s.ServiceInfo.Balance += types.U64(balances)
+
+	// if c = ∅ or |c| > W_C
 	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
@@ -75,7 +85,7 @@ func Psi_A(
 	}
 	serialized = append(serialized, encoded...)
 	// Encode |o|
-	encoded, err = encoder.EncodeUint(uint64(len(operands)))
+	encoded, err = encoder.EncodeUint(uint64(len(operandOrDeferTransfers)))
 	if err != nil {
 		panic(err)
 	}
@@ -115,11 +125,11 @@ func Psi_A(
 		},
 		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX: I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
-			ResultContextY: I(partialState, serviceId, timeslot, eta, &storageKeyVal),
-			Eta:            eta,
-			Operands:       operands,
-			Timeslot:       timeslot,
+			ResultContextX:            I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
+			ResultContextY:            I(partialState, serviceId, timeslot, eta, &storageKeyVal),
+			Eta:                       eta,
+			OperandOrDeferredTransfer: operandOrDeferTransfers,
+			Timeslot:                  timeslot,
 		},
 	}
 
@@ -216,9 +226,9 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		panic(err)
 	}
 
-	var modValue types.ServiceId = (1 << 32) - (1 << 9) // 2^32 - 2^9
-	var addValue types.ServiceId = 1 << 8               // 2^8
-	result = check((result%modValue), partialState.ServiceAccounts) + addValue
+	var modValue types.ServiceId = (1 << 32) - types.MinimumServiceIndex - (1 << 8) // 2^32 - S - 2^8
+	var addValue types.ServiceId = types.MinimumServiceIndex                        // 2^8
+	result = check((result%modValue)+addValue, partialState.ServiceAccounts)
 
 	return ResultContext{
 		ServiceId:         serviceId,
