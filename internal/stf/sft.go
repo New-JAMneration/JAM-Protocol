@@ -45,18 +45,12 @@ func RunSTF() (bool, error) {
 	if err != nil {
 		// INFO: Now, we use Safrole error codes for all header validation errors.
 		// If needed, we should manage the error codes for header validation separately.
-
-		// const errPrefix = "block header verification failure: "
-		// errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
-
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	err = ValidateBlock(block)
 	if err != nil {
-		// const errPrefix = "block verification failure: "
 		// TODO: Implement proper block error codes
 		errorMessage := ""
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
@@ -65,9 +59,6 @@ func RunSTF() (bool, error) {
 	// Update Disputes
 	err = UpdateDisputes()
 	if err != nil {
-		// const errPrefix = "disputes error: "
-		// errorMessage := DisputesErrorCodes.DisputesErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
 		errorMessage := DisputesErrorCodes.DisputesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
@@ -75,9 +66,6 @@ func RunSTF() (bool, error) {
 	// Update Safrole
 	err = UpdateSafrole()
 	if err != nil {
-		// const errPrefix = "safrole error: "
-		// errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
@@ -90,26 +78,9 @@ func RunSTF() (bool, error) {
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
-	// Validate Header (other fields)
-	err = ValidateHeader(header, &priorState)
-	if err != nil {
-		// INFO: Now, we use Safrole error codes for all header validation errors.
-		// If needed, we should manage the error codes for header validation separately.
-
-		// const errPrefix = "block header verification failure: "
-		// errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
-
-		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
-		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
-	}
-
 	// Update Assurances
 	err = UpdateAssurances()
 	if err != nil {
-		// const errPrefix = "assurances error: "
-		// errorMessage := AssurancesErrorCodes.AssurancesErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
 		errorMessage := AssurancesErrorCodes.AssurancesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
@@ -117,9 +88,6 @@ func RunSTF() (bool, error) {
 	// Update Reports
 	err = UpdateReports()
 	if err != nil {
-		// const errPrefix = "reports error: "
-		// errorMessage := ReportsErrorCodes.ReportsErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
 		errorMessage := ReportsErrorCodes.ReportsErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
@@ -139,9 +107,6 @@ func RunSTF() (bool, error) {
 	// Update Preimages
 	err = UpdatePreimages()
 	if err != nil {
-		// const errPrefix = "preimages error: "
-		// errorMessage := PreimagesErrorCodes.PreimagesErrorCodeMessages[*err.(*types.ErrorCode)]
-		// return isProtocolError(err), fmt.Errorf("%s%v", errPrefix, errorMessage)
 		errorMessage := PreimagesErrorCodes.PreimagesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
