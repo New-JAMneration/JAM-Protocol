@@ -36,51 +36,50 @@ type stepFile struct {
 	isFuzzer bool
 }
 
-func testStepFolder(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddrArg.Name)
-	if socketAddr == "" {
-		return fmt.Errorf("test_step_folder requires a socket path argument")
-	}
-	folderPath := cmd.StringArg(folderPathArg.Name)
-	if folderPath == "" {
-		return fmt.Errorf("test_step_folder requires a folder path argument")
-	}
-
-	client, err := fuzz.NewFuzzClient("unix", socketAddr)
-	if err != nil {
-		return fmt.Errorf("error creating client: %v", err)
-	}
-	defer client.Close()
-
-	stepFiles, err := scanStepFiles(folderPath)
-	if err != nil {
-		return err
-	}
-
-	if len(stepFiles) == 0 {
-		return fmt.Errorf("no step files found in the specified folder")
-	}
-
-	log.Printf("Found %d step files to process\n", len(stepFiles))
-
-	successCount := 0
-	failureCount := 0
-
-	for _, step := range stepFiles {
-		if err := processStep(client, step); err != nil {
-			logger.ColorRed("FAILED: %s - %v", filepath.Base(step.path), err)
-			failureCount++
-		} else {
-			logger.ColorGreen("PASSED: %s", filepath.Base(step.path))
-			successCount++
-		}
-	}
-
-	log.Printf("Summary: %d passed, %d failed\n", successCount, failureCount)
-	return nil
+// peerInfoFuzzerMsg represents the fuzzer message for peer_info action
+type peerInfoFuzzerMsg struct {
+	PeerInfo fuzz.PeerInfo `json:"peer_info"`
 }
 
-func scanStepFiles(folderPath string) ([]stepFile, error) {
+// peerInfoTargetMsg represents the target message for peer_info action
+type peerInfoTargetMsg struct {
+	PeerInfo fuzz.PeerInfo `json:"peer_info"`
+}
+
+// initializeData represents the initialize data structure
+type initializeData struct {
+	Header types.Header       `json:"header"`
+	State  types.StateKeyVals `json:"state"`
+}
+
+// initializeFuzzerMsg represents the fuzzer message for initialize action
+type initializeFuzzerMsg struct {
+	Initialize initializeData `json:"initialize"`
+}
+
+// initializeTargetMsg represents the target message for initialize action
+type initializeTargetMsg struct {
+	StateRoot string `json:"state_root"`
+}
+
+// importBlockFuzzerMsg represents the fuzzer message for import_block action
+type importBlockFuzzerMsg struct {
+	ImportBlock types.Block `json:"import_block"`
+}
+
+// importBlockTargetMsg represents the target message for import_block action
+type importBlockTargetMsg struct {
+	StateRoot string `json:"state_root,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+type stepTestProcessor struct {
+	fuzzerData []byte
+	targetData []byte
+	stepFiles  []stepFile
+}
+
+func (p *stepTestProcessor) ScanFolder(folderPath string) ([]string, error) {
 	var files []stepFile
 
 	err := filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
@@ -146,12 +145,28 @@ func scanStepFiles(folderPath string) ([]stepFile, error) {
 		return files[i].action < files[j].action
 	})
 
-	return files, nil
+	p.stepFiles = files
+	var filePaths []string
+	for _, step := range files {
+		if step.isFuzzer {
+			filePaths = append(filePaths, step.path)
+		}
+	}
+
+	return filePaths, nil
 }
 
-func processStep(client *fuzz.FuzzClient, step stepFile) error {
-	if !step.isFuzzer {
-		return nil
+func (p *stepTestProcessor) ProcessFile(client *fuzz.FuzzClient, filePath string) error {
+	var step stepFile
+	for _, s := range p.stepFiles {
+		if s.path == filePath && s.isFuzzer {
+			step = s
+			break
+		}
+	}
+
+	if step.path == "" {
+		return fmt.Errorf("step file not found: %s", filePath)
 	}
 
 	var targetAction string
@@ -193,65 +208,29 @@ func processStep(client *fuzz.FuzzClient, step stepFile) error {
 		return fmt.Errorf("error reading target file: %v", err)
 	}
 
+	p.fuzzerData = fuzzerData
+	p.targetData = targetData
+
 	switch step.action {
 	case "peer_info":
-		return processPeerInfo(client, fuzzerData, targetData)
+		return p.ProcessPeerInfo(client)
 	case "initialize":
-		return processInitialize(client, fuzzerData, targetData)
+		return p.ProcessInitialize(client)
 	case "import_block":
-		return processImportBlock(client, fuzzerData, targetData)
+		return p.ProcessImportBlock(client)
 	default:
 		return fmt.Errorf("unknown action: %s", step.action)
 	}
 }
 
-func processPeerInfo(client *fuzz.FuzzClient, fuzzerData, targetData []byte) error {
-	var fuzzerMsg struct {
-		PeerInfo fuzz.PeerInfo `json:"peer_info"`
-	}
-	if err := json.Unmarshal(fuzzerData, &fuzzerMsg); err != nil {
-		return fmt.Errorf("error parsing fuzzer peer_info: %v", err)
-	}
-
-	var targetMsg struct {
-		PeerInfo fuzz.PeerInfo `json:"peer_info"`
-	}
-	if err := json.Unmarshal(targetData, &targetMsg); err != nil {
-		return fmt.Errorf("error parsing target peer_info: %v", err)
-	}
-
-	actual, err := client.Handshake(fuzzerMsg.PeerInfo)
-	if err != nil {
-		return fmt.Errorf("handshake failed: %v", err)
-	}
-
-	expected := targetMsg.PeerInfo
-	if actual.FuzzVersion != expected.FuzzVersion ||
-		actual.FuzzFeatures != expected.FuzzFeatures ||
-		actual.AppName != expected.AppName ||
-		actual.AppVersion != expected.AppVersion ||
-		actual.JamVersion != expected.JamVersion {
-		return fmt.Errorf("peer_info mismatch: expected %+v, got %+v", expected, actual)
-	}
-
-	return nil
-}
-
-func processInitialize(client *fuzz.FuzzClient, fuzzerData, targetData []byte) error {
-	var fuzzerMsg struct {
-		Initialize struct {
-			Header types.Header       `json:"header"`
-			State  types.StateKeyVals `json:"state"`
-		} `json:"initialize"`
-	}
-	if err := json.Unmarshal(fuzzerData, &fuzzerMsg); err != nil {
+func (p *stepTestProcessor) ProcessInitialize(client *fuzz.FuzzClient) error {
+	var fuzzerMsg initializeFuzzerMsg
+	if err := json.Unmarshal(p.fuzzerData, &fuzzerMsg); err != nil {
 		return fmt.Errorf("error parsing fuzzer initialize: %v", err)
 	}
 
-	var targetMsg struct {
-		StateRoot string `json:"state_root"`
-	}
-	if err := json.Unmarshal(targetData, &targetMsg); err != nil {
+	var targetMsg initializeTargetMsg
+	if err := json.Unmarshal(p.targetData, &targetMsg); err != nil {
 		return fmt.Errorf("error parsing target state_root: %v", err)
 	}
 
@@ -276,22 +255,18 @@ func processInitialize(client *fuzz.FuzzClient, fuzzerData, targetData []byte) e
 	return nil
 }
 
-func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) error {
-	var fuzzerMsg struct {
-		ImportBlock types.Block `json:"import_block"`
-	}
-	if err := json.Unmarshal(fuzzerData, &fuzzerMsg); err != nil {
+func (p *stepTestProcessor) ProcessImportBlock(client *fuzz.FuzzClient) error {
+	var fuzzerMsg importBlockFuzzerMsg
+	if err := json.Unmarshal(p.fuzzerData, &fuzzerMsg); err != nil {
 		return fmt.Errorf("error parsing fuzzer import_block: %v", err)
 	}
 
-	var targetMsg struct {
-		StateRoot string `json:"state_root,omitempty"`
-		Error     string `json:"error,omitempty"`
-	}
-	if err := json.Unmarshal(targetData, &targetMsg); err != nil {
+	var targetMsg importBlockTargetMsg
+	if err := json.Unmarshal(p.targetData, &targetMsg); err != nil {
 		return fmt.Errorf("error parsing target response: %v", err)
 	}
 
+	// Handle expected error case
 	if targetMsg.Error != "" {
 		_, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock)
 		if err != nil {
@@ -311,26 +286,95 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 		return fmt.Errorf("error parsing expected state_root: %v", err)
 	}
 
-	actualStateRoot, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock)
-	if err != nil {
-		return fmt.Errorf("ImportBlock failed: %v", err)
-	}
-	if errorMessage != nil {
-		return fmt.Errorf("unexpected error: %s", errorMessage.Error)
-	}
-
-	mismatch, err := compareImportBlockState(importBlockCompareInput{
+	result, err := executeImportBlock(importBlockExecuteInput{
 		Client:            client,
 		Block:             fuzzerMsg.ImportBlock,
 		ExpectedStateRoot: expectedStateRoot,
-		ActualStateRoot:   actualStateRoot,
+		EnableLogging:     false,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("ImportBlock failed: %v", err)
 	}
-	if mismatch {
+
+	if result.ErrorMessage != nil {
+		return fmt.Errorf("unexpected error: %s", result.ErrorMessage.Error)
+	}
+	if result.HasMismatch {
 		return fmt.Errorf("state_root mismatch")
 	}
 
+	return nil
+}
+
+func (p *stepTestProcessor) ProcessPeerInfo(client *fuzz.FuzzClient) error {
+	var fuzzerMsg peerInfoFuzzerMsg
+	if err := json.Unmarshal(p.fuzzerData, &fuzzerMsg); err != nil {
+		return fmt.Errorf("error parsing fuzzer peer_info: %v", err)
+	}
+
+	var targetMsg peerInfoTargetMsg
+	if err := json.Unmarshal(p.targetData, &targetMsg); err != nil {
+		return fmt.Errorf("error parsing target peer_info: %v", err)
+	}
+
+	actual, err := client.Handshake(fuzzerMsg.PeerInfo)
+	if err != nil {
+		return fmt.Errorf("handshake failed: %v", err)
+	}
+
+	expected := targetMsg.PeerInfo
+	if actual.FuzzVersion != expected.FuzzVersion ||
+		actual.FuzzFeatures != expected.FuzzFeatures ||
+		actual.AppName != expected.AppName ||
+		actual.AppVersion != expected.AppVersion ||
+		actual.JamVersion != expected.JamVersion {
+		return fmt.Errorf("peer_info mismatch: expected %+v, got %+v", expected, actual)
+	}
+
+	return nil
+}
+
+func testStepFolder(ctx context.Context, cmd *cli.Command) error {
+	socketAddr := cmd.StringArg(socketAddrArg.Name)
+	if socketAddr == "" {
+		return fmt.Errorf("test_step_folder requires a socket path argument")
+	}
+	folderPath := cmd.StringArg(folderPathArg.Name)
+	if folderPath == "" {
+		return fmt.Errorf("test_step_folder requires a folder path argument")
+	}
+
+	client, err := fuzz.NewFuzzClient("unix", socketAddr)
+	if err != nil {
+		return fmt.Errorf("error creating client: %v", err)
+	}
+	defer client.Close()
+
+	processor := &stepTestProcessor{}
+	filePaths, err := processor.ScanFolder(folderPath)
+	if err != nil {
+		return err
+	}
+
+	if len(filePaths) == 0 {
+		return fmt.Errorf("no step files found in the specified folder")
+	}
+
+	log.Printf("Found %d step files to process\n", len(filePaths))
+
+	successCount := 0
+	failureCount := 0
+
+	for _, filePath := range filePaths {
+		if err := processor.ProcessFile(client, filePath); err != nil {
+			logger.ColorRed("FAILED: %s - %v", filepath.Base(filePath), err)
+			failureCount++
+		} else {
+			logger.ColorGreen("PASSED: %s", filepath.Base(filePath))
+			successCount++
+		}
+	}
+
+	log.Printf("Summary: %d passed, %d failed\n", successCount, failureCount)
 	return nil
 }
