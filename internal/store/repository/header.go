@@ -113,8 +113,8 @@ func (repo *Repository) DeleteHeaderTimeSlot(w database.Writer, hash types.Heade
 }
 
 func (repo *Repository) GetHeaderHashesByTimeSlot(r database.Iterable, slot types.TimeSlot) ([]types.HeaderHash, error) {
-	encoded, _ := repo.encoder.Encode(&slot)
-	iter, err := r.NewIterator(headerPrefix, encoded)
+	headerKeyPrefix := headerKeyPrefix(repo.encoder, slot)
+	iter, err := r.NewIterator(headerKeyPrefix, nil)
 	if err != nil {
 		return nil, err
 	}

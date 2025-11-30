@@ -3,6 +3,7 @@ package repository_test
 import (
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -100,6 +101,29 @@ func TestGetHeaderHashesByTimeSlot(t *testing.T) {
 		Parent: [32]byte{0x01},
 	}
 
+	slot2 := types.TimeSlot(11)
+	header3 := &types.Header{
+		Slot:   slot2,
+		Parent: [32]byte{0x02},
+	}
+
+	err := repo.WithBatch(func(batch database.Batch) error {
+		_, err := repo.SaveHeader(db, header1)
+		if err != nil {
+			return err
+		}
+		_, err = repo.SaveHeader(db, header2)
+		if err != nil {
+			return err
+		}
+		_, err = repo.SaveHeader(db, header3)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
 	encoded1, err := encoder.Encode(header1)
 	require.NoError(t, err)
 	headerHash1 := types.HeaderHash(hash.Blake2bHash(encoded1))
@@ -108,11 +132,7 @@ func TestGetHeaderHashesByTimeSlot(t *testing.T) {
 	require.NoError(t, err)
 	headerHash2 := types.HeaderHash(hash.Blake2bHash(encoded2))
 
-	_, err = repo.SaveHeader(db, header1)
-	require.NoError(t, err)
-	_, err = repo.SaveHeader(db, header2)
-	require.NoError(t, err)
-
+	// Ensure only headers for the specified slot are returned
 	hashes, err := repo.GetHeaderHashesByTimeSlot(db, slot)
 	require.NoError(t, err)
 	require.Len(t, hashes, 2)
