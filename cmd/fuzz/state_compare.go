@@ -13,6 +13,23 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
+// importBlockExecuteInput contains parameters for executing ImportBlock
+type importBlockExecuteInput struct {
+	Client            *fuzz.FuzzClient
+	Block             types.Block
+	ExpectedStateRoot types.StateRoot
+	BlockHeaderHash   types.HeaderHash   // optional, will be computed if empty
+	ExpectedPostState types.StateKeyVals // optional, for detailed diff logging
+	EnableLogging     bool               // whether to log request/response
+}
+
+// importBlockExecuteResult contains the result of executing ImportBlock
+type importBlockExecuteResult struct {
+	ActualStateRoot types.StateRoot
+	ErrorMessage    *fuzz.ErrorMessage
+	HasMismatch     bool
+}
+
 type importBlockCompareInput struct {
 	Client            *fuzz.FuzzClient
 	Block             types.Block
@@ -111,4 +128,60 @@ func logImportBlockDiff(client *fuzz.FuzzClient, headerHash types.HeaderHash, ex
 	}
 
 	return nil
+}
+
+// executeImportBlock executes ImportBlock and compares the result with expected state root
+func executeImportBlock(input importBlockExecuteInput) (*importBlockExecuteResult, error) {
+	if input.EnableLogging {
+		blockHeaderHash := input.BlockHeaderHash
+		if blockHeaderHash == (types.HeaderHash{}) {
+			serializedHeader, err := utilities.HeaderSerialization(input.Block.Header)
+			if err != nil {
+				return nil, fmt.Errorf("error serializing header: %v", err)
+			}
+			blockHeaderHash = types.HeaderHash(hash.Blake2bHash(serializedHeader))
+		}
+		logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHash)
+	}
+
+	actualStateRoot, errorMessage, err := input.Client.ImportBlock(input.Block)
+	if err != nil {
+		if input.EnableLogging {
+			logger.ColorYellow("[ImportBlock][Response] error= %v", err)
+		}
+		return nil, err
+	}
+
+	result := &importBlockExecuteResult{
+		ActualStateRoot: actualStateRoot,
+		ErrorMessage:    errorMessage,
+	}
+
+	if errorMessage != nil {
+		if input.EnableLogging {
+			logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
+		}
+		// Don't check mismatch if there's an error message
+		return result, nil
+	}
+
+	if input.EnableLogging {
+		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%v", hex.EncodeToString(actualStateRoot[:]))
+	}
+
+	// Compare state roots
+	mismatch, err := compareImportBlockState(importBlockCompareInput{
+		Client:            input.Client,
+		Block:             input.Block,
+		BlockHeaderHash:   input.BlockHeaderHash,
+		ExpectedStateRoot: input.ExpectedStateRoot,
+		ActualStateRoot:   actualStateRoot,
+		ExpectedPostState: input.ExpectedPostState,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result.HasMismatch = mismatch
+	return result, nil
 }
