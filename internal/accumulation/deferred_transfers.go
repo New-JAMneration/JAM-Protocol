@@ -140,7 +140,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accu
 
 	for serviceId := range deltaDagger {
 		selectionFunctionOutput := selectionFunction(t, serviceId)
-		storageKeyVals := store.GetStorageKeyVals()
+		storageKeyVals := store.GetUnmatchedKeyVals()
 		onTransferInput := PVM.OnTransferInput{
 			ServiceAccounts:   deltaDagger,
 			Timeslot:          tauPrime,
@@ -157,7 +157,7 @@ func updateDeltaDoubleDagger(store *store.Store, t types.DeferredTransfers, accu
 			serviceAccount.ServiceInfo.LastAccumulationSlot = tauPrime
 		}
 		deltaDoubleDagger[serviceId] = serviceAccount
-		store.SetStorageKeyVals(newStorageKeyVals)
+		store.SetUnmatchedKeyVals(newStorageKeyVals)
 		// Calculate transfers statistics (X)
 		// (12.29) (12.30) Calculate the deferred transfers statistics
 		if len(selectionFunctionOutput) != 0 {

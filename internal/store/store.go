@@ -27,7 +27,7 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
-	storageKeyVals             types.StateKeyVals
+	unmatchedKeyVals           types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -43,7 +43,7 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
-			storageKeyVals:             types.StateKeyVals{},
+			unmatchedKeyVals:           types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -61,7 +61,7 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
-		storageKeyVals:             types.StateKeyVals{},
+		unmatchedKeyVals:           types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -285,8 +285,8 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 		return fmt.Errorf("failed to encode state: %w", err)
 	}
 
-	storageKeyVals := s.GetStorageKeyVals()
-	fullStateKeyVals := append(storageKeyVals, serializedState...)
+	unmatchedKeyVals := s.GetUnmatchedKeyVals()
+	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
 
 	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
 
@@ -316,13 +316,13 @@ func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.Sta
 	return redisBackend.GetStateByBlockHash(ctx, blockHeaderHash)
 }
 
-// StorageKeyVals
-func (s *Store) GetStorageKeyVals() types.StateKeyVals {
-	return s.storageKeyVals
+// UnmatchedKeyVals
+func (s *Store) GetUnmatchedKeyVals() types.StateKeyVals {
+	return s.unmatchedKeyVals
 }
 
-func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
-	s.storageKeyVals = storageKeyVals
+func (s *Store) SetUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.unmatchedKeyVals = unmatchedKeyVals
 }
 
 func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
@@ -383,13 +383,13 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	}
 
 	// Restore state and storage key-vals
-	state, storageKeyVal, err := m.StateKeyValsToState(stateKeyVals)
+	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return err
 	}
 
 	s.GetPriorStates().SetState(state)
-	s.SetStorageKeyVals(storageKeyVal)
+	s.SetUnmatchedKeyVals(unmatchedKeyVals)
 
 	// Restore block
 	s.CleanupBlock()
