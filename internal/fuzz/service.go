@@ -55,7 +55,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest state root
 	latestState := storeInstance.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
-	storageKeyVal := storeInstance.GetStorageKeyVals()
+	storageKeyVal := storeInstance.GetUnmatchedKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
@@ -79,7 +79,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		fmt.Printf("state encoder error: %v\n", err)
 		return types.StateRoot{}, err
 	}
-	storageKeyVal = storeInstance.GetStorageKeyVals()
+	storageKeyVal = storeInstance.GetUnmatchedKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
@@ -103,7 +103,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	storeInstance.GetPosteriorStates().SetState(state)
 	// store storage key-val into global variable
-	store.GetInstance().SetStorageKeyVals(storageKeyVal)
+	store.GetInstance().SetUnmatchedKeyVals(storageKeyVal)
 	serializedState, _ := m.StateEncoder(state)
 
 	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))

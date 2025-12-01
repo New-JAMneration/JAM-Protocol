@@ -533,9 +533,9 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
 
 	// (e, w, f , s)↦ ΨA(e, τ ′, s, g, i)
-	storageKeyVal := store.GetInstance().GetStorageKeyVals()
+	storageKeyVal := store.GetInstance().GetUnmatchedKeyVals()
 	pvmResult := PVM.Psi_A(e, tauPrime, s, g, i, eta0, storageKeyVal)
-	store.GetInstance().SetStorageKeyVals(pvmResult.StorageKeyVal)
+	store.GetInstance().SetUnmatchedKeyVals(pvmResult.StorageKeyVal)
 
 	// Collect PVM results as output
 	{
