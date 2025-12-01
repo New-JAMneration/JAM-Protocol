@@ -2543,6 +2543,24 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	timeslot := input.Addition.Timeslot
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		// check lookupItem from key-val
+		var timeSlotSet types.TimeSlotSet
+		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
+		if lookupTimeSlotSet != nil {
+			decoder := types.NewDecoder()
+			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+			if err != nil {
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(PANIC, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			a.LookupDict[lookupKey] = timeSlotSet
+		}
+
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
 		itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
 
@@ -2647,6 +2665,24 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		// check lookupItem from key-val
+		var timeSlotSet types.TimeSlotSet
+		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
+		if lookupTimeSlotSet != nil {
+			decoder := types.NewDecoder()
+			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+			if err != nil {
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(PANIC, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			a.LookupDict[lookupKey] = timeSlotSet
+		}
+
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
 			itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
@@ -2813,6 +2849,24 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		Length: types.U32(z),
 	}
 
+	// check lookupItem from key-val
+	var timeSlotSet types.TimeSlotSet
+	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, sStar, lookupKey)
+	if lookupTimeSlotSet != nil {
+		decoder := types.NewDecoder()
+		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+		if err != nil {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+		account.LookupDict[lookupKey] = timeSlotSet
+	}
+
 	// otherwise if a_l[H(i), z] not in []
 	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists && len(lookupData) != 0 {
 		input.Registers[7] = HUH
@@ -2926,12 +2980,12 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 	}
 }
 
-// 0.7.0 later, fuzzer needs to recover state, storage cannot be recover,
-// Thus, needs to check storage from KeyVal
+// 0.7.0 later, fuzzer (forks) needs to recover state, storage, part of lookupData cannot be recover,
+// Thus, needs to check storage, part of lookupData from KeyVal
 // return storage val and add storage state into ResultContextX
-func getStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
+func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for _, v := range *storageKeyVal {
+	for _, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
 			return &v.Value
 		}
@@ -2940,19 +2994,35 @@ func getStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.Ser
 	return nil
 }
 
-func removeStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) {
+func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for k, v := range *storageKeyVal {
+	for k, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
-			logger.Debugf("remove key: 0x%x\n", requestedStorageStateKey.Key)
-			if k < len(*storageKeyVal)-1 { // not the last index
-				*storageKeyVal = append((*storageKeyVal)[:k], (*storageKeyVal)[k+1:]...)
-				return
+			logger.Debugf("remove storage key: 0x%x\n", requestedStorageStateKey.Key)
+			if k < len(*keyVal)-1 { // not the last index
+				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
 			} else {
-				*storageKeyVal = (*storageKeyVal)[:k]
+				*keyVal = (*keyVal)[:k]
 			}
 		}
 	}
+}
+
+func getLookupItemFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, lookupKey types.LookupMetaMapkey) []byte {
+	lookupStateKey := merklization.EncodeDelta4Key(serviceID, lookupKey)
+	for k, v := range *keyVal {
+		if v.Key == lookupStateKey {
+			// remove from key-val
+			if k < len(*keyVal)-1 { // not the last index
+				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
+			} else {
+				*keyVal = (*keyVal)[:k]
+			}
+			return v.Value
+		}
+	}
+
+	return nil
 }
 
 func derefernceOrNil[T any](p *T) any {
