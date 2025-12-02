@@ -3004,6 +3004,7 @@ func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.Service
 			} else {
 				*keyVal = (*keyVal)[:k]
 			}
+			return
 		}
 	}
 }
