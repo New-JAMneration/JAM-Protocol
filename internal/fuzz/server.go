@@ -175,6 +175,12 @@ func (s *FuzzServer) handleGetState(m Message) (Message, error) {
 	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*m.GetState))
 	if err != nil {
 		log.Printf("[fuzz-server][GetState] error: %v", err)
+		return Message{
+			Type: MessageType_ErrorMessage,
+			Error: &ErrorMessage{
+				Error: err.Error(),
+			},
+		}, nil
 	}
 
 	payload := State(stateKeyVals)
