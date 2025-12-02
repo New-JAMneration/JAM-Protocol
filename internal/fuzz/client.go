@@ -58,7 +58,7 @@ func (c *FuzzClient) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 
 	resp, err := c.makeRequest(req)
 	if err != nil {
-		return PeerInfo{}, nil
+		return PeerInfo{}, err
 	}
 
 	if resp.Type != MessageType_PeerInfo {
