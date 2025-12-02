@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // Assurance is a struct that contains a slice of Assurance
-func Assurance() (err error) {
+func Assurance() (err *types.ErrorCode) {
 	block := store.GetInstance().GetLatestBlock()
 	assuranceExtrinsic := block.Extrinsic.Assurances
 	assurances := AvailAssuranceController{AvailAssurances: assuranceExtrinsic}

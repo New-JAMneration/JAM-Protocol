@@ -5,5 +5,9 @@ import (
 )
 
 func UpdateAssurances() error {
-	return extrinsic.Assurance()
+	err := extrinsic.Assurance()
+	if err != nil {
+		return err
+	}
+	return nil
 }

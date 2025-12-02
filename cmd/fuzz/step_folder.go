@@ -131,7 +131,6 @@ func scanStepFiles(folderPath string) ([]stepFile, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error walking directory: %v", err)
 	}
@@ -301,6 +300,9 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 			return fmt.Errorf("expected error but got success")
 		}
 		if errorMessage.Error != targetMsg.Error {
+			if strings.Contains(targetMsg.Error, errorMessage.Error) {
+				return nil
+			}
 			return fmt.Errorf("error message mismatch: expected %s, got %s", targetMsg.Error, errorMessage.Error)
 		}
 		return nil

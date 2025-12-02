@@ -136,6 +136,9 @@ func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {
 func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 	stateRoot, err := s.Service.ImportBlock(types.Block(*m.ImportBlock))
 	if err != nil {
+		// const errPrefix = "Chain error: "
+		// err = fmt.Errorf("%s%v", errPrefix, err)
+
 		// 1. runtime/system error → fatal → close connection
 		if strings.Contains(err.Error(), "STF runtime error") {
 			return Message{}, err
