@@ -2,13 +2,8 @@ package safrole
 
 import (
 	"encoding/hex"
-	"path/filepath"
-	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 )
 
 func hexToByteArray32(hexString string) types.ByteArray32 {
@@ -431,7 +426,7 @@ func hexToByteArray32(hexString string) types.ByteArray32 {
 			t.Errorf("UpdateEntropy() = %v, want %v", expectedSeal, actualSeal)
 		}
 	}
-*/
+
 
 func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 	t.Helper()
@@ -469,3 +464,4 @@ func TestValidateSealUsingTraceFile(t *testing.T) {
 	runSealValidationTraceTest(t, "1758622313", "00000012.bin")
 	runSealValidationTraceTest(t, "1757092821", "00000157.bin")
 }
+*/

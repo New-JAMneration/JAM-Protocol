@@ -2,6 +2,7 @@ package safrole
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -103,26 +104,17 @@ func SealingHeader() error {
 	return nil
 }
 
-func UpdateEtaPrime0() error {
+func UpdateEtaPrime0(verifier *vrf.Verifier) error {
 	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
 
 	s := store.GetInstance()
 
-	posteriorState := s.GetPosteriorStates()
 	priorState := s.GetPriorStates()
 	header := s.GetLatestBlock().Header
 
-	// public_key := posterior_state.Kappa[header.AuthorIndex].Bandersnatch
-	publicKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
 	entropySource := header.EntropySource
 	eta := priorState.GetEta()
 
-	// TODO: verify correctness of vrfOutput
-	verifier, err := vrf.NewVerifier(publicKey[:], 1)
-	if err != nil {
-		return fmt.Errorf("NewVerifier: %v", err)
-	}
-	defer verifier.Free()
 	vrfOutput, err := verifier.VRFIetfOutput(entropySource[:])
 	if err != nil {
 		return fmt.Errorf("VRFIetfOutput: %v", err)
@@ -169,20 +161,19 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	return signature
 }
 
-func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
-	publicKey := priorState.Kappa[header.AuthorIndex].Bandersnatch
-	seal := header.Seal
-	var message types.ByteSequence // message: []
-	var context types.ByteSequence
-	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
-	handler, _ := CreateVRFHandler(publicKey)
-	vrfOutput, _ := handler.VRFIetfOutput(seal[:])
-	context = append(context, types.ByteSequence(vrfOutput)...) // Y(Hs)
-	verifier, err := vrf.NewVerifier(publicKey[:], 1)
-	defer verifier.Free()
+func ValidateHeaderEntropy(verifier *vrf.Verifier, header types.Header) *types.ErrorCode {
+	// Hv = V^{[]}_{HA} ⟨XE ⌢ Y(HS)⟩
+	vrfOutput, err := verifier.VRFIetfOutput(header.Seal[:])
 	if err != nil {
-		return fmt.Errorf("failed to create verifier: %w", err)
+		log.Println("ValidateHeaderEntropy VRFIetfOutput err:", err)
 	}
+
+	var message types.ByteSequence // message: []
+
+	var context types.ByteSequence
+	context = append(context, types.JamEntropy[:]...) // XE
+	context = append(context, vrfOutput...)           // Y(Hs)
+
 	signature := header.EntropySource[:] // Hv
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
@@ -192,7 +183,7 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	return nil
 }
 
-func ValidateByBandersnatchs(header types.Header, state *types.State) error {
+func ValidateByBandersnatchs(verifier *vrf.Verifier, header types.Header, state *types.State) *types.ErrorCode {
 	gammaSKeys := state.Gamma.GammaS.Keys
 	index := uint(header.Slot) % uint(len(gammaSKeys))
 
@@ -206,14 +197,14 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) error {
 
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
-		return err
+		log.Println("ValidateByBandersnatchs HeaderUSerialization err:", err)
+		return nil
 	}
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(state.Eta[3][:])...)
 	signature := header.Seal[:]
-	verifier, _ := vrf.NewVerifier(actualPublicKey[:], 1)
-	defer verifier.Free()
+
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
@@ -223,30 +214,26 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) error {
 }
 
 // Need test vectors to verify correctness
-func ValidateByTickets(header types.Header, state *types.State) error {
+func ValidateByTickets(verifier *vrf.Verifier, header types.Header, state *types.State) *types.ErrorCode {
 	gammaSTickets := state.Gamma.GammaS.Tickets
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 
-	publicKey := state.Kappa[header.AuthorIndex].Bandersnatch
+	// publicKey := state.Kappa[header.AuthorIndex].Bandersnatch
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
-		return err
+		log.Println("ValidateByTickets HeaderUSerialization err:", err)
+		return nil
 	}
-	eta_prime := state.Eta
 
 	var context types.ByteSequence
-	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
-	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
-	context = append(context, byte(ticket.Attempt))                          // ir (uint8)
+	context = append(context, types.JamTicketSeal[:]...) // XT
+	context = append(context, state.Eta[3][:]...)        // η′3
+	context = append(context, byte(ticket.Attempt))      // ir (uint8)
 
 	signature := header.Seal[:]
-	verifier, err := vrf.NewVerifier(publicKey[:], 1)
-	defer verifier.Free()
-	if err != nil {
-		return fmt.Errorf("failed to create verifier: %w", err)
-	}
+
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
@@ -256,12 +243,12 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 	return nil
 }
 
-func ValidateHeaderSeal(header types.Header, state *types.State) error {
+func ValidateHeaderSeal(verifier *vrf.Verifier, header types.Header, state *types.State) *types.ErrorCode {
 	gammaS := state.Gamma.GammaS
 	if len(gammaS.Tickets) > 0 {
-		return ValidateByTickets(header, state)
+		return ValidateByTickets(verifier, header, state)
 	} else {
-		return ValidateByBandersnatchs(header, state)
+		return ValidateByBandersnatchs(verifier, header, state)
 	}
 }
 

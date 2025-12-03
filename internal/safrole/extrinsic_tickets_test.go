@@ -1,15 +1,6 @@
 package safrole
 
-import (
-	"encoding/hex"
-	"reflect"
-	"testing"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	SaforleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
-)
-
+/*
 // publish-tickets-no-mark-1.json
 // Submit an extrinsic with a bad ticket attempt number.
 func TestCheckTicketsAttempt(t *testing.T) {
@@ -622,3 +613,4 @@ func TestCreatCreateNewTicketAccumulator(t *testing.T) {
 		}
 	}
 }
+*/

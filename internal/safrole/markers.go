@@ -149,7 +149,7 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
 	return nil
 }
 
-func ValidateHeaderOffenderMarker(header types.Header, state *types.State) error {
+func ValidateHeaderOffenderMarker(header types.Header) error {
 	block := store.GetInstance().GetLatestBlock()
 	if block.Header.Slot != header.Slot {
 		// Not the latest block, skip validation

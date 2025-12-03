@@ -10,9 +10,12 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -322,7 +325,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSafroleTestVectors(t *testing.T) {
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
@@ -383,7 +386,13 @@ func setupTestState(preState jamtests_safrole.SafroleState, input jamtests_safro
 
 	storeInstance.GetPosteriorStates().SetPsiO(preState.PostOffenders)
 
-	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(input.Extrinsic)
+	// Add block with TicketsExtrinsic
+	block := types.Block{
+		Extrinsic: types.Extrinsic{
+			Tickets: input.Extrinsic,
+		},
+	}
+	storeInstance.AddBlock(block)
 }
 
 // Validate final state
@@ -493,6 +502,93 @@ func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
 			}
 			t.Errorf("%s mismatch:\n%v", check.name, diff)
 			return
+		}
+	}
+}
+
+func TestFuzzReports070Trace(t *testing.T) {
+	dirsPath := filepath.Join("..", "..", "..", "pkg", "test_data", "jam-conformance", "fuzz-reports", "0.7.0", "traces")
+
+	// Get all dirs in dirsPath
+	dirs, err := os.ReadDir(dirsPath)
+	if err != nil {
+		t.Errorf("Error reading dirs in %s: %v", dirsPath, err)
+		return
+	}
+
+	for _, dirEntry := range dirs {
+		if !dirEntry.IsDir() {
+			continue
+		}
+
+		dirPath := filepath.Join(dirsPath, dirEntry.Name())
+
+		fileNames, err := utils.GetTargetExtensionFiles(dirPath, utils.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error getting files from directory %s: %v", dirPath, err)
+			continue
+		}
+
+		for _, fileName := range fileNames {
+			filePath := filepath.Join(dirPath, fileName)
+
+			var state types.State
+			var storageKeyVals types.StateKeyVals
+			var expectedStateRoot types.StateRoot
+
+			if fileName == "genesis.bin" {
+				genesisTestCase := &jamtests_trace.Genesis{}
+				err = utilities.GetTestFromBin(filePath, genesisTestCase)
+				if err != nil {
+					t.Errorf("Error reading file %s: %v", filePath, err)
+					continue
+				}
+
+				// Parse the state keyvals
+				state, storageKeyVals, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+				if err != nil {
+					t.Errorf("Error parsing state keyvals: %v", err)
+				}
+
+				expectedStateRoot = genesisTestCase.State.StateRoot
+			} else {
+				// Read the bin file
+				traceTestCase := &jamtests_trace.TraceTestCase{}
+				err := utilities.GetTestFromBin(filePath, traceTestCase)
+				if err != nil {
+					t.Errorf("Error reading file %s: %v", filePath, err)
+					continue
+				}
+
+				// Parse the state keyvals
+				state, storageKeyVals, err = merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+				if err != nil {
+					t.Errorf("Error parsing state keyvals: %v", err)
+				}
+
+				expectedStateRoot = traceTestCase.PostState.StateRoot
+			}
+
+			// serialize the state
+			actualStateKeyVals, err := merklization.StateEncoder(state)
+			if err != nil {
+				t.Errorf("Error serializing state: %v", err)
+			}
+
+			t.Logf("Dir: %s, Size of storageKeyVals: %d", dirEntry.Name(), len(storageKeyVals))
+
+			// Add storage keyvals to actual state keyvals
+			actualStateKeyVals = append(actualStateKeyVals, storageKeyVals...)
+
+			// Create a state root with the genesis state
+			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)
+
+			// Compare the state root with the expected state root
+			if actualStateRoot != expectedStateRoot {
+				t.Errorf("❌ State root mismatch in [%s] %s: expected 0x%x, got 0x%x", dirEntry.Name(), fileName, expectedStateRoot, actualStateRoot)
+			} else {
+				t.Logf("✅ State root matches in [%s] %s: 0x%x", dirEntry.Name(), fileName, actualStateRoot)
+			}
 		}
 	}
 }
