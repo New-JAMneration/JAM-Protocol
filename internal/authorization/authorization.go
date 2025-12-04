@@ -67,7 +67,7 @@ func Authorization() error {
 	slot := block.Header.Slot
 	guarantees := block.Extrinsic.Guarantees
 	if len(guarantees) == 0 {
-		fmt.Println("No guarantees found in the block extrinsic, no authorization needed.")
+		// fmt.Println("No guarantees found in the block extrinsic, no authorization needed.")
 	} else if err := guarantees.Validate(); err != nil {
 		fmt.Printf("extrinsic_guarantee validation failed: %v\n", err)
 	}

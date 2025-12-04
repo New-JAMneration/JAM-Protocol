@@ -235,7 +235,25 @@ func ValidateByTickets(verifier *vrf.Verifier, header types.Header, state *types
 	signature := header.Seal[:]
 
 	_, err = verifier.IETFVerify(context, message, signature, 0)
-	if err != nil {
+	if err != nil { //
+		for i := 0; i < len(state.Kappa); i++ {
+			if i == int(header.AuthorIndex) {
+				continue
+			}
+			publicKey := state.Kappa[i].Bandersnatch
+			tempVerifier, err := vrf.NewVerifier(publicKey[:], 0)
+			if err != nil {
+				log.Println("ValidateByTickets NewVerifier err:", err)
+				return nil
+			}
+			defer tempVerifier.Free()
+			if _, err = tempVerifier.IETFVerify(context, message, signature, 0); err == nil {
+				// Found a valid signature, return Bad signature
+				errCode := SafroleErrorCode.VrfSealInvalid
+				return &errCode
+			}
+		}
+		// All verifiers failed, return Bad signature
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
