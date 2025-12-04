@@ -325,7 +325,7 @@ func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.Sta
 
 // UnmatchedKeyVals
 func (s *Store) GetUnmatchedKeyVals() types.StateKeyVals {
-	return s.unmatchedKeyVals
+	return s.unmatchedKeyVals.DeepCopy()
 }
 
 func (s *Store) SetUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
