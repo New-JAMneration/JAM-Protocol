@@ -2748,6 +2748,17 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
+	gasFee := Gas(10)
+	if input.Gas < gasFee {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       input.Gas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+	newGas := input.Gas - gasFee
 	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
@@ -2762,7 +2773,6 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-
 	timeStamp := time.RFC3339
 	var logMsg string
 	if input.Registers[8] == 0 && input.Registers[9] == 0 {
@@ -2776,7 +2786,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	logger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas,
+		NewGas:       newGas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
