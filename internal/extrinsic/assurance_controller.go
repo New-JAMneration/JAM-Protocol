@@ -3,7 +3,7 @@ package extrinsic
 import (
 	"bytes"
 	"sort"
-	
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	AssuranceErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
