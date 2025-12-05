@@ -90,7 +90,7 @@ func AppendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types
 	p = { ((g_w)s)h ↦ ((g_w)s)e | g ∈ EG }
 */
 func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
-	var reports []types.ReportedWorkPackage
+	reports := make([]types.ReportedWorkPackage, 0, len(eg))
 	// Create a map from eg.Report.PackageSpec.Hash to eg.Report.PackageSpec.ExportsRoot
 	for _, eg := range eg {
 		report := types.ReportedWorkPackage{
