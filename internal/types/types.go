@@ -1507,7 +1507,7 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		for preimageKey, preimageVal := range originAccount.PreimageLookup {
 			copiedPreimage := make(ByteSequence, len(preimageVal))
 			copy(copiedPreimage, preimageVal)
-			copiedAccount.PreimageLookup[preimageKey] = preimageVal
+			copiedAccount.PreimageLookup[preimageKey] = copiedPreimage
 		}
 		copiedAccount.LookupDict = make(LookupMetaMapEntry)
 		for k, v := range originAccount.LookupDict {
@@ -1516,9 +1516,9 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		}
 		copiedAccount.StorageDict = make(Storage)
 		for storageKey, storageVal := range originAccount.StorageDict {
-			copiedPreimage := make(ByteSequence, len(storageVal))
-			copy(copiedPreimage, storageVal)
-			copiedAccount.StorageDict[storageKey] = storageVal
+			copiedStorage := make(ByteSequence, len(storageVal))
+			copy(copiedStorage, storageVal)
+			copiedAccount.StorageDict[storageKey] = copiedStorage
 		}
 
 		copiedServiceAccounts[serviceID] = copiedAccount
