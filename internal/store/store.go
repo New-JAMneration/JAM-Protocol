@@ -29,7 +29,8 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
-	unmatchedKeyVals           types.StateKeyVals
+	preStateUnmatchedKeyVals   types.StateKeyVals
+	postStateUnmatchedKeyVals  types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -45,7 +46,8 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
-			unmatchedKeyVals:           types.StateKeyVals{},
+			preStateUnmatchedKeyVals:   types.StateKeyVals{},
+			postStateUnmatchedKeyVals:  types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -63,7 +65,8 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
-		unmatchedKeyVals:           types.StateKeyVals{},
+		preStateUnmatchedKeyVals:   types.StateKeyVals{},
+		postStateUnmatchedKeyVals:  types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -240,7 +243,9 @@ func (s *Store) StateCommit() {
 	blocks := s.GetBlocks()
 	if len(blocks) == 0 {
 		posterState := s.GetPosteriorStates().GetState()
+		postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
 		s.GetPriorStates().SetState(posterState)
+		s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
 		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 		return
 	}
@@ -287,7 +292,7 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 		return fmt.Errorf("failed to encode state: %w", err)
 	}
 
-	unmatchedKeyVals := s.GetUnmatchedKeyVals()
+	unmatchedKeyVals := s.GetPostStateUnmatchedKeyVals()
 	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
 
 	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
@@ -324,12 +329,20 @@ func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.Sta
 }
 
 // UnmatchedKeyVals
-func (s *Store) GetUnmatchedKeyVals() types.StateKeyVals {
-	return s.unmatchedKeyVals.DeepCopy()
+func (s *Store) GetPriorStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.preStateUnmatchedKeyVals
 }
 
-func (s *Store) SetUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
-	s.unmatchedKeyVals = unmatchedKeyVals
+func (s *Store) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.preStateUnmatchedKeyVals = unmatchedKeyVals
+}
+
+func (s *Store) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.postStateUnmatchedKeyVals
+}
+
+func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.postStateUnmatchedKeyVals = unmatchedKeyVals
 }
 
 func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
@@ -396,7 +409,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	}
 
 	s.GetPriorStates().SetState(state)
-	s.SetUnmatchedKeyVals(unmatchedKeyVals)
+	s.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
 
 	// Restore block
 	s.CleanupBlock()

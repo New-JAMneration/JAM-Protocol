@@ -229,7 +229,7 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	eps := s.GetLatestBlock().Extrinsic.Preimages
 	delta := s.GetPriorStates().GetDelta()
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
-	keyVals := s.GetUnmatchedKeyVals()
+	keyVals := s.GetPostStateUnmatchedKeyVals()
 	tauPrime := s.GetPosteriorStates().GetTau()
 	// validate E_P and prior state service preimage, lookupDict
 	err := validatePreimageExtrinsics(eps, delta, &keyVals)
