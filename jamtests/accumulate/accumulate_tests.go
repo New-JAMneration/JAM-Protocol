@@ -446,7 +446,7 @@ func (a *ServiceAccount) Decode(d *types.Decoder) error {
 	return nil
 }
 
-func (a PreimagesRequestsMapEntry) Decode(d *types.Decoder) error {
+func (a *PreimagesRequestsMapEntry) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = a.Key.Decode(d); err != nil {
