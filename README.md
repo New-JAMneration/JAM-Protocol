@@ -27,13 +27,25 @@ go mod tidy
 ## Start the JAM Protocol
 
 ```bash
-go run . start
+make run
 ```
 
 ## Compile the JAM Protocol
 
 ```bash
-go build -o ./build/JAM-Protocol
+make build
+```
+
+### Test jam-test-vectors
+
+Run single test:
+```bash
+make test-jam-test-vectors mode=safrole size=full
+```
+
+Run all:
+```bash
+make test-jam-test-vectors
 ```
 
 ## Rust Submodule Guide

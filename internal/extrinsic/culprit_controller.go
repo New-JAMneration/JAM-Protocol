@@ -2,11 +2,11 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -65,7 +65,7 @@ func (c *CulpritController) VerifyCulpritSignature() error {
 		}
 		msg := []byte(types.JamGuarantee)
 		msg = append(msg, culprit.Target[:]...)
-		if !ed25519.Verify(culprit.Key[:], msg, culprit.Signature[:]) {
+		if !ed25519consensus.Verify(culprit.Key[:], msg, culprit.Signature[:]) {
 			return fmt.Errorf("bad_signature")
 		}
 	}

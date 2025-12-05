@@ -1,10 +1,16 @@
 package store
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"log"
+	"sort"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 var (
@@ -23,6 +29,8 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	preStateUnmatchedKeyVals   types.StateKeyVals
+	postStateUnmatchedKeyVals  types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -38,6 +46,8 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
+			preStateUnmatchedKeyVals:   types.StateKeyVals{},
+			postStateUnmatchedKeyVals:  types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -55,12 +65,21 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
+		preStateUnmatchedKeyVals:   types.StateKeyVals{},
+		postStateUnmatchedKeyVals:  types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
 
 func (s *Store) AddBlock(block types.Block) {
 	s.unfinalizedBlocks.AddBlock(block)
+	if err := s.persistBlockMapping(block); err != nil {
+		log.Printf("AddBlock: failed to index block: %v", err)
+	}
+}
+
+func (s *Store) CleanupBlock() {
+	s.unfinalizedBlocks = NewUnfinalizedBlocks()
 }
 
 func (s *Store) GetBlocks() []types.Block {
@@ -83,6 +102,9 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
+	if err := s.persistBlockMapping(block); err != nil {
+		log.Printf("GenerateGenesisBlock: failed to index block: %v", err)
+	}
 }
 
 // Finalized Blocks Management
@@ -218,10 +240,182 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 
 // post-state update to pre-state
 func (s *Store) StateCommit() {
+	blocks := s.GetBlocks()
+	if len(blocks) == 0 {
+		posterState := s.GetPosteriorStates().GetState()
+		postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
+		s.GetPriorStates().SetState(posterState)
+		s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
+		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+		return
+	}
+
+	latestBlock := s.GetLatestBlock()
+
+	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
+	if err != nil {
+		log.Printf("StateCommit: failed to encode header: %v", err)
+	} else {
+		posteriorState := s.GetPosteriorStates().GetState()
+
+		// Persist state for block
+		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist state: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+		}
+
+		// Persist block mapping
+		err = s.persistBlockMapping(latestBlock)
+		if err != nil {
+			log.Printf("StateCommit: failed to persist block: %v", err)
+		} else {
+			log.Printf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
+		}
+	}
+
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
-
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+}
+
+// PersistStateForBlock persists the state for a given block to Redis
+func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state types.State) error {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	serializedState, err := m.StateEncoder(state)
+	if err != nil {
+		return fmt.Errorf("failed to encode state: %w", err)
+	}
+
+	unmatchedKeyVals := s.GetPostStateUnmatchedKeyVals()
+	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
+
+	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
+	sort.Slice(fullStateKeyVals, func(i, j int) bool {
+		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
+	})
+
+	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
+
+	ctx := context.Background()
+
+	err = redisBackend.StoreStateRootByBlockHash(ctx, blockHeaderHash, stateRoot)
+	if err != nil {
+		return fmt.Errorf("failed to store state root mapping: %w", err)
+	}
+
+	err = redisBackend.StoreStateData(ctx, stateRoot, fullStateKeyVals)
+	if err != nil {
+		return fmt.Errorf("failed to store state data: %w", err)
+	}
+
+	return nil
+}
+
+// GetStateByBlockHash retrieves state data for a given block from Redis
+func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	return redisBackend.GetStateByBlockHash(ctx, blockHeaderHash)
+}
+
+// UnmatchedKeyVals
+func (s *Store) GetPriorStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.preStateUnmatchedKeyVals
+}
+
+func (s *Store) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.preStateUnmatchedKeyVals = unmatchedKeyVals
+}
+
+func (s *Store) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.postStateUnmatchedKeyVals
+}
+
+func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.postStateUnmatchedKeyVals = unmatchedKeyVals
+}
+
+func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return types.Block{}, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	block, err := redisBackend.GetBlockByHash(ctx, types.OpaqueHash(headerHash))
+	if err != nil {
+		return types.Block{}, err
+	}
+	if block == nil {
+		return types.Block{}, fmt.Errorf("block not found for hash 0x%x", headerHash[:8])
+	}
+
+	return *block, nil
+}
+
+func (s *Store) persistBlockMapping(block types.Block) error {
+	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
+	if err != nil {
+		return fmt.Errorf("failed to compute block header hash: %w", err)
+	}
+
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	ctx := context.Background()
+	if err := redisBackend.StoreBlockByHash(ctx, &block, types.OpaqueHash(headerHash)); err != nil {
+		return fmt.Errorf("failed to persist block in redis: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {
+	block, err := s.GetBlockByHash(blockHeaderHash)
+	if err != nil {
+		return types.Block{}, nil, fmt.Errorf("failed to retrieve block for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	state, err := s.GetStateByBlockHash(blockHeaderHash)
+	if err != nil {
+		return types.Block{}, nil, fmt.Errorf("failed to restore state for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	return block, state, nil
+}
+
+func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
+	block, stateKeyVals, err := s.GetBlockAndState(blockHeaderHash)
+	if err != nil {
+		return fmt.Errorf("failed to restore block and state for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	// Restore state and storage key-vals
+	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
+	if err != nil {
+		return err
+	}
+
+	s.GetPriorStates().SetState(state)
+	s.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
+
+	// Restore block
+	s.CleanupBlock()
+	s.AddBlock(block)
+
+	return nil
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

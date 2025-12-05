@@ -82,13 +82,13 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	encoded, _ = encoder.EncodeUint(uint64(input.WorkItemIndex))
 	a = append(a, encoded...)
 	// w_s
-	encoded, _ = encoder.Encode(workItem.CodeHash)
+	encoded, _ = encoder.Encode(&workItem.CodeHash)
 	a = append(a, encoded...)
 	// |w_y| . w_y
-	encoded, _ = encoder.Encode(workItem.Payload)
+	encoded, _ = encoder.Encode(&workItem.Payload)
 	a = append(a, encoded...)
 	// H(p)
-	encoded, _ = encoder.Encode(input.WorkPackage)
+	encoded, _ = encoder.Encode(&input.WorkPackage)
 	h := hash.Blake2bHash(encoded)
 	a = append(a, h[:]...)
 
@@ -123,8 +123,8 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		// GeneralArgs is only for historical_lookup op
 		GeneralArgs: GeneralArgs{
 			ServiceId:           &workItem.Service,
-			ServiceAccountState: input.ServiceAccounts,
-			CoreId:              nil, // TODO: may need to update coreID if needed
+			ServiceAccountState: &input.ServiceAccounts,
+			CoreId:              &input.CoreIndex,
 		},
 		RefineArgs: RefineArgs{
 			WorkItemIndex:       types.Some(input.WorkItemIndex),

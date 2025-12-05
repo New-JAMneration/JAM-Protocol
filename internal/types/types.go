@@ -1499,7 +1499,6 @@ type PartialStateSet struct {
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	// ServiceAccountState
-
 	copiedServiceAccounts := make(ServiceAccountState)
 	for serviceID, originAccount := range origin.ServiceAccounts {
 		var copiedAccount ServiceAccount
@@ -1568,18 +1567,15 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	}
 }
 
-// (12.18 pre-0.6.5)
-// (12.19 0.6.5)
-// (12.13) U
-// U = operand
+// (12.19 0.7.0)
 type Operand struct {
-	Hash           WorkPackageHash // h
+	Hash           WorkPackageHash // p
 	ExportsRoot    ExportsRoot     // e
 	AuthorizerHash OpaqueHash      // a
 	PayloadHash    OpaqueHash      // y
 	GasLimit       Gas             // g   0.6.5
-	Result         WorkExecResult  // d
-	AuthOutput     ByteSequence    // o
+	Result         WorkExecResult  // l
+	AuthOutput     ByteSequence    // t
 }
 
 type OperandOrDeferredTransfer struct {
@@ -1672,6 +1668,20 @@ type StateKeyVal struct {
 }
 
 type StateKeyVals []StateKeyVal
+
+func (origin *StateKeyVals) DeepCopy() StateKeyVals {
+	copiedStateKeyVals := make(StateKeyVals, len(*origin))
+	// copy(copiedStateKeyVals, *origin)
+	for i := range *origin {
+		copiedStateKeyVals[i].Key = (*origin)[i].Key
+
+		copiedValue := make(ByteSequence, len((*origin)[i].Value))
+		copy(copiedValue, (*origin)[i].Value)
+		copiedStateKeyVals[i].Value = copiedValue
+	}
+
+	return copiedStateKeyVals
+}
 
 type StateKeyValDiff struct {
 	Key           StateKey

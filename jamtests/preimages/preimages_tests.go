@@ -707,7 +707,7 @@ func (p *PreimageTestCase) Dump() error {
 		},
 	}
 	storeInstance.AddBlock(block)
-
+	storeInstance.GetPriorStates().SetDelta(inputDelta)
 	storeInstance.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
 	storeInstance.GetPosteriorStates().SetTau(p.Input.Slot)
 
@@ -731,7 +731,7 @@ func (p *PreimageTestCase) ExpectError() error {
 
 func (p *PreimageTestCase) Validate() error {
 	storeInstance := store.GetInstance()
-	inputDelta := storeInstance.GetIntermediateStates().GetDeltaDoubleDagger()
+	inputDelta := storeInstance.GetPriorStates().GetDelta()
 	outputDelta := storeInstance.GetPosteriorStates().GetDelta()
 
 	// Validate output accounts

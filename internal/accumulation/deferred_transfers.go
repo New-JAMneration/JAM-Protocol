@@ -3,6 +3,7 @@ package accumulation
 import (
 	"bytes"
 	"slices"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -262,6 +263,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		// append accumulatedServiceHash to lastAccOut
 		lastAccOut = append(lastAccOut, accumulatedServiceHash)
 	}
+
+	sort.Slice(lastAccOut, func(i, j int) bool {
+		if lastAccOut[i].ServiceId != lastAccOut[j].ServiceId {
+			return lastAccOut[i].ServiceId < lastAccOut[j].ServiceId
+		}
+		return bytes.Compare(lastAccOut[i].Hash[:], lastAccOut[j].Hash[:]) < 0
+	})
+
 	store.GetPosteriorStates().SetLastAccOut(lastAccOut)
 
 	return output, nil

@@ -2,14 +2,14 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"errors"
 	"sort"
-
+	
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	AssuranceErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // AvailAssuranceController is a struct that contains a slice of AvailAssurance
@@ -33,29 +33,31 @@ func NewAvailAssuranceController() *AvailAssuranceController {
 }
 
 // ValidateAnchor validates the anchor of the AvailAssurance | Eq. 11.11
-func (a *AvailAssuranceController) ValidateAnchor() error {
+func (a *AvailAssuranceController) ValidateAnchor() *types.ErrorCode {
 	headerParent := types.OpaqueHash(store.GetInstance().GetBlock().Header.Parent)
 
 	for _, availAssurance := range a.AvailAssurances {
 		if !bytes.Equal(availAssurance.Anchor[:], headerParent[:]) {
-			return errors.New("bad_attestation_parent")
+			errCode := AssuranceErrorCode.BadAttestationParent
+			return &errCode
 		}
 	}
 
 	return nil
 }
 
-func (a *AvailAssuranceController) CheckValidatorIndex() error {
+func (a *AvailAssuranceController) CheckValidatorIndex() *types.ErrorCode {
 	for _, availAssurance := range a.AvailAssurances {
 		if int(availAssurance.ValidatorIndex) >= types.ValidatorsCount {
-			return errors.New("bad_validator_index")
+			errCode := AssuranceErrorCode.BadValidatorIndex
+			return &errCode
 		}
 	}
 	return nil
 }
 
 // SortUnique sorts the AvailAssurance slice and removes duplicates | Eq. 11.12
-func (a *AvailAssuranceController) SortUnique() error {
+func (a *AvailAssuranceController) SortUnique() *types.ErrorCode {
 	err := a.CheckUniqueAndSort()
 	if err != nil {
 		return err
@@ -65,7 +67,7 @@ func (a *AvailAssuranceController) SortUnique() error {
 }
 
 // CheckUniqueAndSort checks if the AvailAssurance slice is sorted and unique
-func (a *AvailAssuranceController) CheckUniqueAndSort() error {
+func (a *AvailAssuranceController) CheckUniqueAndSort() *types.ErrorCode {
 	if len(a.AvailAssurances) == 0 {
 		return nil
 	}
@@ -73,14 +75,15 @@ func (a *AvailAssuranceController) CheckUniqueAndSort() error {
 	uniqueMap := make(map[types.ValidatorIndex]bool)
 	result := make([]types.AvailAssurance, 0)
 	var last types.ValidatorIndex = 0
-
 	for _, availAssurance := range a.AvailAssurances {
 		if availAssurance.ValidatorIndex < last {
-			return errors.New("not_sorted_or_unique_assurers")
+			errCode := AssuranceErrorCode.NotSortedOrUniqueAssurers
+			return &errCode
 		}
 
 		if uniqueMap[availAssurance.ValidatorIndex] {
-			return errors.New("not_sorted_or_unique_assurers")
+			errCode := AssuranceErrorCode.NotSortedOrUniqueAssurers
+			return &errCode
 		}
 
 		uniqueMap[availAssurance.ValidatorIndex] = true
@@ -111,7 +114,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 }
 
 // ValidateSignature validates the signature of the AvailAssurance | Eq. 11.13, 11.14
-func (a *AvailAssuranceController) ValidateSignature() error {
+func (a *AvailAssuranceController) ValidateSignature() *types.ErrorCode {
 	kappa := store.GetInstance().GetPriorStates().GetKappa()
 
 	for _, availAssurance := range a.AvailAssurances {
@@ -122,8 +125,9 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 		message = append(message, hased[:]...)
 
 		publicKey := kappa[availAssurance.ValidatorIndex].Ed25519
-		if !ed25519.Verify(publicKey[:], message, availAssurance.Signature[:]) {
-			return errors.New("invalid_signature")
+		if !ed25519consensus.Verify(publicKey[:], message, availAssurance.Signature[:]) {
+			errCode := AssuranceErrorCode.BadSignature
+			return &errCode
 		}
 	}
 
@@ -131,7 +135,7 @@ func (a *AvailAssuranceController) ValidateSignature() error {
 }
 
 // ValidateBitField | Eq. 11.15
-func (a *AvailAssuranceController) ValidateBitField() error {
+func (a *AvailAssuranceController) ValidateBitField() *types.ErrorCode {
 	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
 
 	for i := 0; i < len(a.AvailAssurances); i++ {
@@ -139,7 +143,8 @@ func (a *AvailAssuranceController) ValidateBitField() error {
 			// rhoDagger[j] nil : core j has no report to be process
 			// assurers can not set nil core
 			if a.AvailAssurances[i].Bitfield.GetBit(j) == 1 && rhoDagger[j] == nil {
-				return errors.New("core_engaged")
+				errCode := AssuranceErrorCode.CoreNotEngaged
+				return &errCode
 			}
 		}
 	}
@@ -193,7 +198,7 @@ func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkR
 }
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
-func (a *AvailAssuranceController) FilterAvailableReports() error {
+func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 	store := store.GetInstance()
 
 	rhoDagger := store.GetIntermediateStates().GetRhoDagger()

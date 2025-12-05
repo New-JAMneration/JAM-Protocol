@@ -2,11 +2,11 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // FaultController is a struct that contains a slice of Fault
@@ -71,7 +71,7 @@ func (f *FaultController) VerifyFaultSignature() error {
 		}
 		msg = append(msg, vote.Target[:]...)
 
-		if !ed25519.Verify(vote.Key[:], msg, vote.Signature[:]) {
+		if !ed25519consensus.Verify(vote.Key[:], msg, vote.Signature[:]) {
 			return fmt.Errorf("bad_signature")
 		}
 	}

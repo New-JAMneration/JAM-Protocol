@@ -2,7 +2,6 @@ package stf
 
 import (
 	"log"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 )
 

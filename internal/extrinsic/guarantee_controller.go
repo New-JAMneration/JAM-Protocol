@@ -1,7 +1,6 @@
 package extrinsic
 
 import (
-	"crypto/ed25519"
 	"log"
 	"sort"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
@@ -137,7 +137,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 				return &err
 			}
 			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
-			if !ed25519.Verify(publicKey, message, sig.Signature[:]) {
+			if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
 				err := ReportsErrorCode.BadSignature
 				return &err
 			}

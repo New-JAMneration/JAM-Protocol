@@ -38,7 +38,7 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	readWriteEnd := readWriteStart + uint32(len(w))
 	readWritePadding := readWriteStart + P(len(w)) + uint32(z)*ZP
 	heapStart := readWritePadding
-	heapEnd := readWritePadding + ZP // ZP is according to davxy, traces-on-sbrk
+	// heapEnd := readWritePadding + ZP // ZP is according to davxy, traces-on-sbrk
 
 	stackEnd := uint32(1<<32 - 2*ZZ - ZI)
 	stackStart := stackEnd - P(int(s))
@@ -64,8 +64,8 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	allocateMemorySegment(&mem, argumentEnd, argumentPadding, nil, MemoryReadOnly) // Padding
 	logger.Debugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
 
-	allocateMemorySegment(&mem, heapStart, heapEnd, nil, MemoryReadWrite)
-	logger.Debugf("Heap pointer : 0x%08x", heapStart)
+	// allocateMemorySegment(&mem, heapStart, heapEnd, nil, MemoryReadWrite)
+	// logger.Debugf("Heap pointer : 0x%08x", heapStart)
 
 	// Registers initialization
 	var regs Registers
