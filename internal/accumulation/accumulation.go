@@ -14,6 +14,15 @@ import (
 // This function extracts all known (past) accumulated WorkPackageHashes.
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	xi := store.GetInstance().GetPriorStates().GetXi() // Retrieve ξ
+
+	// Pre-calculate total size to avoid multiple memory reallocations
+	totalSize := 0
+	for _, history := range xi {
+		totalSize += len(history)
+	}
+
+	output = make([]types.WorkPackageHash, 0, totalSize)
+
 	for _, history := range xi {
 		output = append(output, history...) // Form ©ξ ≡ union over ξ
 	}
@@ -143,6 +152,8 @@ func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkRepor
 // the mapping function P which extracts the corresponding work-package hashes from a set of work-reports
 
 func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHash) {
+	// Pre-allocate with exact capacity to avoid memory reallocations
+	output = make([]types.WorkPackageHash, 0, len(w))
 	for _, workReport := range w {
 		output = append(output, workReport.PackageSpec.Hash)
 	}
@@ -166,7 +177,16 @@ func UpdateAccumulatableWorkReports() {
 	Wbang := store.GetIntermediateStates().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
-	var composedQueue types.ReadyQueueItem
+	// Pre-calculate total capacity for composedQueue to avoid multiple reallocations
+	composedQueueCapacity := len(WQ)
+	for _, record := range theta[m:] {
+		composedQueueCapacity += len(record)
+	}
+	for _, record := range theta[:m] {
+		composedQueueCapacity += len(record)
+	}
+	composedQueue := make(types.ReadyQueueItem, 0, composedQueueCapacity)
+
 	for _, record := range theta[m:] {
 		composedQueue = append(composedQueue, record...)
 	}
