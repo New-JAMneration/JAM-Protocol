@@ -119,8 +119,8 @@ func WorkReportCompute(
 		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
 	}
 
-	var results []types.WorkResult
-	var exports [][]types.ExportSegment
+	results := make([]types.WorkResult, 0, len(workPackage.Items))
+	exports := make([][]types.ExportSegment, 0, len(workPackage.Items))
 
 	rSum := 0
 	for j, item := range workPackage.Items {
@@ -360,7 +360,7 @@ func PadToMultiple(x []byte, n int) []byte {
 }
 
 func convertMapToLookup(m map[types.OpaqueHash]types.OpaqueHash) types.SegmentRootLookup {
-	var lookup types.SegmentRootLookup
+	lookup := make(types.SegmentRootLookup, 0, len(m))
 	for wpHash, segmentRoot := range m {
 		lookup = append(lookup, types.SegmentRootLookupItem{
 			WorkPackageHash: types.WorkPackageHash(wpHash),
