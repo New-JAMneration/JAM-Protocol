@@ -55,7 +55,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest state root
 	latestState := storeInstance.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
-	storageKeyVal := storeInstance.GetUnmatchedKeyVals()
+	storageKeyVal := storeInstance.GetPriorStateUnmatchedKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
@@ -79,7 +79,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		fmt.Printf("state encoder error: %v\n", err)
 		return types.StateRoot{}, err
 	}
-	storageKeyVal = storeInstance.GetUnmatchedKeyVals()
+	storageKeyVal = storeInstance.GetPostStateUnmatchedKeyVals()
 	serializedState = append(storageKeyVal, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
@@ -96,17 +96,17 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
-	state, storageKeyVal, err := m.StateKeyValsToState(stateKeyVals)
+	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
 
 	storeInstance.GetPosteriorStates().SetState(state)
 	// store storage key-val into global variable
-	store.GetInstance().SetUnmatchedKeyVals(storageKeyVal)
+	store.GetInstance().SetPostStateUnmatchedKeyVals(unmatchedKeyVals)
 	serializedState, _ := m.StateEncoder(state)
 
-	stateRoot := m.MerklizationSerializedState(append(storageKeyVal, serializedState...))
+	stateRoot := m.MerklizationSerializedState(append(unmatchedKeyVals, serializedState...))
 
 	if header.Parent == (types.HeaderHash{}) {
 		// Use the header to store the mapping
