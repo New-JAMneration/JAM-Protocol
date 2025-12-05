@@ -61,11 +61,20 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	store := store.GetInstance()
 	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
-	output := []types.WorkResult{}
-
+	// First pass: count matching results to determine exact capacity
+	count := 0
 	for _, workReport := range accumulatableWorkReports[:n] {
-		workResult := workReport.Results
-		for _, result := range workResult {
+		for _, result := range workReport.Results {
+			if result.ServiceId == s {
+				count++
+			}
+		}
+	}
+
+	// Second pass: append results to a pre-allocated slice
+	output := make([]types.WorkResult, 0, count)
+	for _, workReport := range accumulatableWorkReports[:n] {
+		for _, result := range workReport.Results {
 			if result.ServiceId == s {
 				output = append(output, result)
 			}
