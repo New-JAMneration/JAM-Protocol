@@ -253,6 +253,13 @@ func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
 
 func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
+	// Version
+	serviceAccount.ServiceInfo.Version = types.ServiceInfoVersion
+	encodedVersion, err := encoder.Encode(&serviceAccount.ServiceInfo.Version)
+	if err != nil {
+		return nil
+	}
+	output = append(output, encodedVersion...)
 	// a_c
 	encodedCodeHash, err := encoder.Encode(&serviceAccount.ServiceInfo.CodeHash)
 	if err != nil {

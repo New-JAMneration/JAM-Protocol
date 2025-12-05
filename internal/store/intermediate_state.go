@@ -28,26 +28,24 @@ type IntermediateState struct {
 	AccumulatableWorkReports []types.WorkReport
 	AccumulationStatistics   types.AccumulationStatistics
 	// (7.7) b: MR(β′_B) GP 0.6.7 Only used for test-vector
-	MmrCommitment               types.OpaqueHash
-	DeferredTransfersStatistics types.DeferredTransfersStatistics
+	MmrCommitment types.OpaqueHash
 }
 
 func NewIntermediateStates() *IntermediateStates {
 	return &IntermediateStates{
 		state: &IntermediateState{
-			BetaHDagger:                 types.BlocksHistory{},
-			RhoDagger:                   make(types.AvailabilityAssignments, types.CoresCount),
-			RhoDoubleDagger:             make(types.AvailabilityAssignments, types.CoresCount),
-			DeltaDagger:                 types.ServiceAccountState{},
-			DeltaDoubleDagger:           types.ServiceAccountState{},
-			AvailableWorkReports:        []types.WorkReport{},
-			PresentWorkReports:          []types.WorkReport{},
-			AccumulatedWorkReports:      []types.WorkReport{},
-			QueuedWorkReports:           types.ReadyQueueItem{},
-			AccumulatableWorkReports:    []types.WorkReport{},
-			AccumulationStatistics:      types.AccumulationStatistics{},
-			MmrCommitment:               types.OpaqueHash{},
-			DeferredTransfersStatistics: types.DeferredTransfersStatistics{},
+			BetaHDagger:              types.BlocksHistory{},
+			RhoDagger:                make(types.AvailabilityAssignments, types.CoresCount),
+			RhoDoubleDagger:          make(types.AvailabilityAssignments, types.CoresCount),
+			DeltaDagger:              types.ServiceAccountState{},
+			DeltaDoubleDagger:        types.ServiceAccountState{},
+			AvailableWorkReports:     []types.WorkReport{},
+			PresentWorkReports:       []types.WorkReport{},
+			AccumulatedWorkReports:   []types.WorkReport{},
+			QueuedWorkReports:        types.ReadyQueueItem{},
+			AccumulatableWorkReports: []types.WorkReport{},
+			AccumulationStatistics:   types.AccumulationStatistics{},
+			MmrCommitment:            types.OpaqueHash{},
 		},
 	}
 }
@@ -184,18 +182,6 @@ func (s *IntermediateStates) GetAccumulationStatistics() types.AccumulationStati
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.AccumulationStatistics
-}
-
-func (s *IntermediateStates) SetDeferredTransfersStatistics(w types.DeferredTransfersStatistics) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.state.DeferredTransfersStatistics = w
-}
-
-func (s *IntermediateStates) GetDeferredTransfersStatistics() types.DeferredTransfersStatistics {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.state.DeferredTransfersStatistics
 }
 
 func (s *IntermediateStates) SetMmrCommitment(mmrCommitment types.OpaqueHash) {

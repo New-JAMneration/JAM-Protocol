@@ -48,10 +48,16 @@ type PreimagesMapEntry struct {
 	Blob types.ByteSequence `json:"blob"`
 }
 
+type PreimagesStatusMapEntry struct {
+	Hash   types.OpaqueHash  `json:"hash"`
+	Status types.TimeSlotSet `json:"status"`
+}
+
 type Account struct {
-	Service   types.ServiceInfo   `json:"service"`
-	Storage   []StorageMapEntry   `json:"storage"`
-	Preimages []PreimagesMapEntry `json:"preimages"`
+	Service         types.ServiceInfo         `json:"service"`
+	Storage         []StorageMapEntry         `json:"storage"`
+	PreimagesBlob   []PreimagesMapEntry       `json:"preimages_blob"`
+	PreimagesStatus []PreimagesStatusMapEntry `json:"preimages_status"`
 }
 
 type AccountsMapEntry struct {
@@ -217,9 +223,10 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling Account")
 
 	var temp struct {
-		Service   types.ServiceInfo   `json:"service"`
-		Storage   []StorageMapEntry   `json:"storage"`
-		Preimages []PreimagesMapEntry `json:"preimages"`
+		Service         types.ServiceInfo         `json:"service"`
+		Storage         []StorageMapEntry         `json:"storage"`
+		PreimagesBlob   []PreimagesMapEntry       `json:"preimages_blob"`
+		PreimagesStatus []PreimagesStatusMapEntry `json:"preimages_status"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -234,10 +241,16 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 		a.Storage = nil
 	}
 
-	if len(temp.Preimages) != 0 {
-		a.Preimages = temp.Preimages
+	if len(temp.PreimagesBlob) != 0 {
+		a.PreimagesBlob = temp.PreimagesBlob
 	} else {
-		a.Preimages = nil
+		a.PreimagesBlob = nil
+	}
+
+	if len(temp.PreimagesStatus) != 0 {
+		a.PreimagesStatus = temp.PreimagesStatus
+	} else {
+		a.PreimagesStatus = nil
 	}
 
 	return nil
@@ -355,6 +368,21 @@ func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
 	return nil
 }
 
+// PreimagesMapEntry
+func (p *PreimagesStatusMapEntry) Decode(d *types.Decoder) error {
+	var err error
+
+	if err = p.Hash.Decode(d); err != nil {
+		return err
+	}
+
+	if err = p.Status.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Account
 func (a *Account) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding Account")
@@ -381,22 +409,37 @@ func (a *Account) Decode(d *types.Decoder) error {
 		}
 	}
 
-	preimageLength, err := d.DecodeLength()
+	preimageBlobLength, err := d.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	if preimageLength == 0 {
-		a.Preimages = nil
+	if preimageBlobLength == 0 {
+		a.PreimagesBlob = nil
 	} else {
-		a.Preimages = make([]PreimagesMapEntry, preimageLength)
-		for i := uint64(0); i < preimageLength; i++ {
-			if err = a.Preimages[i].Decode(d); err != nil {
+		a.PreimagesBlob = make([]PreimagesMapEntry, preimageBlobLength)
+		for i := uint64(0); i < preimageBlobLength; i++ {
+			if err = a.PreimagesBlob[i].Decode(d); err != nil {
 				return err
 			}
 		}
 	}
 
+	preimageStatusLength, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	if preimageStatusLength == 0 {
+		a.PreimagesStatus = nil
+	} else {
+		a.PreimagesStatus = make([]PreimagesStatusMapEntry, preimageStatusLength)
+		for i := uint64(0); i < preimageStatusLength; i++ {
+			if err = a.PreimagesStatus[i].Decode(d); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -548,6 +591,22 @@ func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
 	return nil
 }
 
+// PreimagesMapEntry
+func (p *PreimagesStatusMapEntry) Encode(e *types.Encoder) error {
+	cLog(Cyan, "Encoding PreimagesMapEntry")
+	var err error
+
+	if err = p.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = p.Status.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Account
 func (a *Account) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding Account")
@@ -569,11 +628,22 @@ func (a *Account) Encode(e *types.Encoder) error {
 	}
 
 	// Preimages
-	if err = e.EncodeLength(uint64(len(a.Preimages))); err != nil {
+	if err = e.EncodeLength(uint64(len(a.PreimagesBlob))); err != nil {
 		return err
 	}
 
-	for _, preimage := range a.Preimages {
+	for _, preimage := range a.PreimagesBlob {
+		if err = preimage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// Preimages
+	if err = e.EncodeLength(uint64(len(a.PreimagesStatus))); err != nil {
+		return err
+	}
+
+	for _, preimage := range a.PreimagesStatus {
 		if err = preimage.Encode(e); err != nil {
 			return err
 		}
@@ -699,8 +769,17 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 		}
 
 		// Fill PreimageLookup
-		for _, preimage := range delta.Data.Preimages {
+		for _, preimage := range delta.Data.PreimagesBlob {
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
+		}
+
+		// Fill PreimageStatus
+		for _, preimage := range delta.Data.PreimagesStatus {
+			key := types.LookupMetaMapkey{
+				Hash:   preimage.Hash,
+				Length: types.U32(len(serviceAccount.PreimageLookup[preimage.Hash])),
+			}
+			serviceAccount.LookupDict[key] = preimage.Status
 		}
 
 		// Fill Storage
@@ -717,6 +796,7 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
+	store.ResetInstance()
 	s := store.GetInstance()
 
 	// Set time slot
@@ -772,7 +852,6 @@ func (a *AccumulateTestCase) ExpectError() error {
 
 func (a *AccumulateTestCase) Validate() error {
 	s := store.GetInstance()
-
 	// Validate time slot
 	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
 		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, s.GetPosteriorStates().GetTau())
@@ -822,16 +901,20 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := make([]types.ServiceId, len(a.PostState.Accounts))
-	for i, account := range a.PostState.Accounts {
-		serviceIds[i] = account.Id
-	}
-
+	serviceIds := []types.ServiceId{}
 	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
+
+	for serviceId := range accumulationStatisitcs {
+		serviceIds = append(serviceIds, serviceId)
+	}
+
 	for _, serviceId := range serviceIds {
 		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
-
+		// Skip if the service has no accumulated reports or gas used
+		if accumulateCount == 0 && accumulateGasUsed == 0 {
+			continue
+		}
 		// Update the statistics for the service
 		thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
 		if ok {
@@ -846,18 +929,20 @@ func (a *AccumulateTestCase) Validate() error {
 			ourStatisticsServices[serviceId] = newServiceActivityRecord
 		}
 	}
-
-	// Update the statistics in the PosteriorStates
-	// s.GetPosteriorStates().SetServicesStatistics(ourStatisticsServices)
+	// const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
 
 	// Validate statistics
 	if a.PostState.Statistics == nil {
 		// we ignore case don't compare statistics
 	} else if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
-		log.Printf(Red+"Statistics do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
-		diff := cmp.Diff(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics)
+		got := s.GetPosteriorStates().GetServicesStatistics()
+		expected := a.PostState.Statistics
+
+		// TEMP FIX: ignore ejected service (ID = 2) for comparison
+		// delete(expected, EjectedServiceIDException)
+		diff := cmp.Diff(got, expected)
 		log.Printf("Diff:\n%v", diff)
-		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", a.PostState.Statistics, s.GetPosteriorStates().GetServicesStatistics())
+		return fmt.Errorf("statistics do not match expected:\n%v,\nbut got %v", expected, got)
 	}
 
 	// Validate Accounts (AccountsMapEntry)

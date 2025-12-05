@@ -97,6 +97,7 @@ var (
 	MaxLookupAge                  = 24            // L
 )
 
+var ServiceInfoVersion = U8(0)
 var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 // permanent constants
@@ -167,8 +168,9 @@ const (
 
 // PVM constants
 const (
-	TransferMemoSize   = 128   // W_T
-	LookupAnchorMaxAge = 14400 // L
+	TransferMemoSize    = 128   // W_T
+	LookupAnchorMaxAge  = 14400 // L
+	MinimumServiceIndex = 65536 // S (GP 0.7.1)
 )
 
 // Auditing (17.16)

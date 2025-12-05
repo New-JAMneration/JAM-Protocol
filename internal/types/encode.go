@@ -6,6 +6,19 @@ import (
 	"sort"
 )
 
+// U8
+func (u *U8) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding U8")
+	encoded, err := e.EncodeUintWithLength(uint64(*u), 1)
+	if err != nil {
+		return err
+	}
+	if _, err := e.buf.Write(encoded); err != nil {
+		return err
+	}
+	return nil
+}
+
 // U16
 func (u *U16) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding U16")
@@ -20,6 +33,18 @@ func (u *U16) Encode(e *Encoder) error {
 		return err
 	}
 
+	return nil
+}
+
+func (t *TimeSlotSet) Encode(e *Encoder) error {
+	if err := e.EncodeLength(uint64(len(*t))); err != nil {
+		return err
+	}
+	for _, ts := range *t {
+		if err := ts.Encode(e); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1594,20 +1619,6 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	}
 	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", s.AccumulateGasUsed))
 
-	// OnTransfersCount
-	cLog(Cyan, "Encoding OnTransfersCount")
-	if err := e.EncodeInteger(uint64(s.OnTransfersCount)); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("OnTransfersCount: %v", s.OnTransfersCount))
-
-	// OnTransfersGasUsed
-	cLog(Cyan, "Encoding OnTransfersGasUsed")
-	if err := e.EncodeInteger(uint64(s.OnTransfersGasUsed)); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("OnTransfersGasUsed: %v", s.OnTransfersGasUsed))
-
 	return nil
 }
 
@@ -2077,6 +2088,11 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 func (s *ServiceInfo) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceInfo")
 
+	// Version (new in GP 0.7.1)
+	if err := s.Version.Encode(e); err != nil {
+		return err
+	}
+
 	// CodeHash
 	if err := s.CodeHash.Encode(e); err != nil {
 		return err
@@ -2102,7 +2118,7 @@ func (s *ServiceInfo) Encode(e *Encoder) error {
 		return err
 	}
 
-	// DepositOffset
+	// GratisStorageOffset
 	if err := s.DepositOffset.Encode(e); err != nil {
 		return err
 	}
@@ -2385,7 +2401,10 @@ func (p *Privileges) Encode(e *Encoder) error {
 	if err := p.Designate.Encode(e); err != nil {
 		return err
 	}
-
+	// CreateAcct
+	if err := p.CreateAcct.Encode(e); err != nil {
+		return err
+	}
 	// AlwaysAccum (dictionary)
 	if err := p.AlwaysAccum.Encode(e); err != nil {
 		return err
@@ -2853,6 +2872,41 @@ func (o *Operand) Encode(e *Encoder) error {
 	// AuthOutput
 	if err := o.AuthOutput.Encode(e); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (o *OperandOrDeferredTransfer) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding OperandOrDeferredTransfer")
+
+	// if operand is nil, append 0 to the buffer, else append 1
+	if o.Operand == nil && o.DeferredTransfer == nil {
+		return fmt.Errorf("Operand and DeferredTransfer are both nil")
+	}
+
+	if o.Operand != nil && o.DeferredTransfer != nil {
+		return fmt.Errorf("Operand and DeferredTransfer are both not nil")
+	}
+
+	// Operand
+	if o.Operand != nil {
+		// prefix
+		e.buf.Write([]byte{0})
+
+		if err := o.Operand.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	// DeferredTransfer
+	if o.DeferredTransfer != nil {
+		// prefix
+		e.buf.Write([]byte{1})
+
+		if err := o.DeferredTransfer.Encode(e); err != nil {
+			return err
+		}
 	}
 
 	return nil

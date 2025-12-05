@@ -2394,7 +2394,6 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
 				input.Registers[7] = OK
 
@@ -2840,7 +2839,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// check lookupItem from key-val
 	var timeSlotSet types.TimeSlotSet
-	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, sStar, lookupKey)
+	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, s, lookupKey)
 	if lookupTimeSlotSet != nil {
 		decoder := types.NewDecoder()
 		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
