@@ -43,29 +43,29 @@ type StorageMapEntry struct {
 	Value types.ByteSequence `json:"value"`
 }
 
-type PreimagesMapEntry struct {
+type PreimagesBlobMapEntry struct {
 	Hash types.OpaqueHash   `json:"hash"`
 	Blob types.ByteSequence `json:"blob"`
 }
 type PreimagesRequestsMapKey struct {
 	Hash   types.OpaqueHash `json:"hash"`
-	Length types.U32        `json:"value"`
+	Length types.U32        `json:"length"`
 }
 type PreimagesRequestsMapEntry struct {
 	Key   PreimagesRequestsMapKey `json:"key"`
 	Value types.TimeSlotSet       `json:"value"`
 }
 
-type Account struct {
+type ServiceAccount struct {
 	Service           types.ServiceInfo           `json:"service"`
 	Storage           []StorageMapEntry           `json:"storage"`
-	PreimagesBlob     []PreimagesMapEntry         `json:"preimage_blobs"`
+	PreimagesBlob     []PreimagesBlobMapEntry     `json:"preimage_blobs"`
 	PreimagesRequests []PreimagesRequestsMapEntry `json:"preimage_requests"`
 }
 
 type AccountsMapEntry struct {
 	Id   types.ServiceId `json:"id"`
-	Data Account         `json:"data"`
+	Data ServiceAccount  `json:"data"`
 }
 
 type AccumulateState struct {
@@ -194,7 +194,7 @@ func (s *StorageMapEntry) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
+func (p *PreimagesBlobMapEntry) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Hash string `json:"hash,omitempty"`
 		Blob string `json:"blob,omitempty"`
@@ -222,13 +222,13 @@ func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
 }
 
 // Unmarshal json Account
-func (a *Account) UnmarshalJSON(data []byte) error {
+func (a *ServiceAccount) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling Account")
 
 	var temp struct {
 		Service           types.ServiceInfo           `json:"service"`
 		Storage           []StorageMapEntry           `json:"storage"`
-		PreimagesBlob     []PreimagesMapEntry         `json:"preimage_blobs"`
+		PreimagesBlob     []PreimagesBlobMapEntry     `json:"preimage_blobs"`
 		PreimagesRequests []PreimagesRequestsMapEntry `json:"preimage_requests"`
 	}
 
@@ -265,7 +265,7 @@ func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
 
 	var temp struct {
 		Id   types.ServiceId `json:"id"`
-		Data Account         `json:"data"`
+		Data ServiceAccount  `json:"data"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -357,7 +357,7 @@ func (s *StorageMapEntry) Decode(d *types.Decoder) error {
 }
 
 // PreimagesMapEntry
-func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
+func (p *PreimagesBlobMapEntry) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = p.Hash.Decode(d); err != nil {
@@ -387,7 +387,7 @@ func (p *PreimagesRequestsMapKey) Decode(d *types.Decoder) error {
 }
 
 // Account
-func (a *Account) Decode(d *types.Decoder) error {
+func (a *ServiceAccount) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding Account")
 	var err error
 
@@ -420,7 +420,7 @@ func (a *Account) Decode(d *types.Decoder) error {
 	if preimageBlobLength == 0 {
 		a.PreimagesBlob = nil
 	} else {
-		a.PreimagesBlob = make([]PreimagesMapEntry, preimageBlobLength)
+		a.PreimagesBlob = make([]PreimagesBlobMapEntry, preimageBlobLength)
 		for i := uint64(0); i < preimageBlobLength; i++ {
 			if err = a.PreimagesBlob[i].Decode(d); err != nil {
 				return err
@@ -593,7 +593,7 @@ func (s *StorageMapEntry) Encode(e *types.Encoder) error {
 }
 
 // PreimagesMapEntry
-func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
+func (p *PreimagesBlobMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding PreimagesMapEntry")
 	var err error
 
@@ -609,7 +609,7 @@ func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
 }
 
 // Account
-func (a *Account) Encode(e *types.Encoder) error {
+func (a *ServiceAccount) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding Account")
 	var err error
 
@@ -806,7 +806,7 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 		for _, preimage := range delta.Data.PreimagesRequests {
 			key := types.LookupMetaMapkey{
 				Hash:   preimage.Key.Hash,
-				Length: types.U32(len(serviceAccount.PreimageLookup[preimage.Key.Hash])),
+				Length: preimage.Key.Length,
 			}
 			serviceAccount.LookupDict[key] = preimage.Value
 		}
