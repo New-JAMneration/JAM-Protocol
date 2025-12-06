@@ -229,16 +229,17 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	eps := s.GetLatestBlock().Extrinsic.Preimages
 	delta := s.GetPriorStates().GetDelta()
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
-	keyVals := s.GetPostStateUnmatchedKeyVals()
+	priorKeyVals := s.GetPriorStateUnmatchedKeyVals()
+	postKeyVals := s.GetPostStateUnmatchedKeyVals()
 	tauPrime := s.GetPosteriorStates().GetTau()
 	// validate E_P and prior state service preimage, lookupDict
-	err := validatePreimageExtrinsics(eps, delta, &keyVals)
+	err := validatePreimageExtrinsics(eps, delta, &priorKeyVals)
 	if err != nil {
 		return err
 	}
 
 	// Filter preimage extrinsics, integrate lookup keyvals into dict
-	filteredEps, updatedLookupServiceAccount := filterPreimageExtrinsics(eps, deltaDoubleDagger, &keyVals)
+	filteredEps, updatedLookupServiceAccount := filterPreimageExtrinsics(eps, deltaDoubleDagger, &postKeyVals)
 
 	// Update deltaDoubleDagger with filtered preimages
 	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, updatedLookupServiceAccount, tauPrime)
