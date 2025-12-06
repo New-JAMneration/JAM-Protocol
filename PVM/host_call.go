@@ -91,11 +91,11 @@ type GeneralArgs struct {
 }
 
 type AccumulateArgs struct {
-	ResultContextX            ResultContext
-	ResultContextY            ResultContext
-	Timeslot                  types.TimeSlot
-	Eta                       types.Entropy                     // italic n / eta_0, used in fetch
-	OperandOrDeferredTransfer []types.OperandOrDeferredTransfer // o, used in fetch
+	ResultContextX             ResultContext
+	ResultContextY             ResultContext
+	Timeslot                   types.TimeSlot
+	Eta                        types.Entropy                     // italic n / eta_0, used in fetch
+	OperandOrDeferredTransfers []types.OperandOrDeferredTransfer // o, used in fetch
 }
 
 type RefineArgs struct {
@@ -110,10 +110,6 @@ type RefineArgs struct {
 	// ServiceID           types.ServiceId         // s
 	TimeSlot   types.TimeSlot          // t
 	Extrinsics [][]types.ExtrinsicSpec // overline{x}, used in fetch
-}
-
-type OnTransferArgs struct {
-	DeferredTransfer []types.DeferredTransfer // bold{t}
 }
 
 type HostCallArgs struct {
@@ -573,18 +569,18 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 		v = &val
 	case 14:
-		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfers) == 0 {
 			break
 		}
 
 		var buffer []byte
-		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfer))))
+		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfers))))
 		if err != nil {
 			logger.Errorf("fetch host-call case 14 encode uint error: %v", err)
 			break
 		}
 
-		for _, o := range input.Addition.OperandOrDeferredTransfer {
+		for _, o := range input.Addition.OperandOrDeferredTransfers {
 			var bytes []byte
 			bytes, err = encoder.Encode(&o)
 			if err != nil {
@@ -596,16 +592,16 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v = &buffer
 	case 15:
-		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfers) == 0 {
 			break
 		}
 
 		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfer)) {
+		if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfers)) {
 			break
 		}
 
-		val, err = encoder.Encode(&input.Addition.OperandOrDeferredTransfer[w11])
+		val, err = encoder.Encode(&input.Addition.OperandOrDeferredTransfers[w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 15 encode error: %v", err)
 		}
@@ -1745,7 +1741,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	offset = uint64(12 * n)
-	if !isReadable(o, offset, input.Memory) && n != 0 { // not readable, return
+	if !isReadable(o, offset, input.Memory) { // not readable, return
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -2458,6 +2454,23 @@ func query(input OmegaInput) (output OmegaOutput) {
 		log.Printf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+	var timeSlotSet types.TimeSlotSet
+	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
+	if lookupTimeSlotSet != nil {
+		decoder := types.NewDecoder()
+		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+		if err != nil {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+		account.LookupDict[lookupKey] = timeSlotSet
+	}
+
 	lookupData, lookupDataExists := account.LookupDict[lookupKey]
 	if lookupDataExists {
 		// a = lookupData[h,z]

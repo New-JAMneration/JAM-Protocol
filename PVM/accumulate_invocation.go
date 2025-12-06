@@ -8,11 +8,11 @@ import (
 
 // (B.8) Ψ_A
 func Psi_A(
-	partialState types.PartialStateSet,
-	timeslot types.TimeSlot,
-	serviceId types.ServiceId,
-	gas types.Gas,
-	operandOrDeferTransfers []types.OperandOrDeferredTransfer,
+	partialState types.PartialStateSet, // e
+	timeslot types.TimeSlot, // t
+	serviceId types.ServiceId, // s
+	gas types.Gas, // g
+	operandOrDeferTransfers []types.OperandOrDeferredTransfer, // i
 	eta types.Entropy,
 	storageKeyVal types.StateKeyVals,
 ) (
@@ -125,11 +125,11 @@ func Psi_A(
 		},
 		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX:            I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
-			ResultContextY:            I(partialState, serviceId, timeslot, eta, &storageKeyVal),
-			Eta:                       eta,
-			OperandOrDeferredTransfer: operandOrDeferTransfers,
-			Timeslot:                  timeslot,
+			ResultContextX:             I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
+			ResultContextY:             I(partialState, serviceId, timeslot, eta, &storageKeyVal),
+			Eta:                        eta,
+			OperandOrDeferredTransfers: operandOrDeferTransfers,
+			Timeslot:                   timeslot,
 		},
 	}
 
