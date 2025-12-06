@@ -459,12 +459,14 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	if len(a) != types.CoresCount {
 		return output, fmt.Errorf("input.PartialStateSet.Assign length does not match types.CoresCount")
 	}
-	for c := range types.CoresCount {
-		singleOutput, err := runSingleReplaceService(a[c])
-		if err != nil {
-			return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+	if len(eStar.Assign) == types.CoresCount {
+		for c := range types.CoresCount {
+			singleOutput, err := runSingleReplaceService(a[c])
+			if err != nil {
+				return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+			}
+			aPrime[c] = R(a[c], eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
 		}
-		aPrime[c] = R(a[c], eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
 	}
 
 	// v' = R(v, e∗v , (∆(v)e)v )
