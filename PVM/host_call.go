@@ -1740,8 +1740,13 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	offset = uint64(12 * n)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
+	// \mathbb{a}
+	rawData := input.Memory.Read(a, offset)
+	var assignData types.ServiceIdList
+	decoder := types.NewDecoder()
+	assignErr := decoder.Decode(rawData, &assignData)
+	if assignErr != nil {
+		logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -1752,13 +1757,8 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// \mathbb{a}
-	rawData := input.Memory.Read(a, offset)
-	var assignData types.ServiceIdList
-	decoder := types.NewDecoder()
-	assignErr := decoder.Decode(rawData, &assignData)
-	if assignErr != nil {
-		logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
+	offset = uint64(12 * n)
+	if !isReadable(o, offset, input.Memory) { // not readable, return
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
