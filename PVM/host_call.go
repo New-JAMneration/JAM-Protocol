@@ -1745,66 +1745,68 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	offset = uint64(12 * n)
-	if !isReadable(o, offset, input.Memory) && n != 0 { // not readable, return
-		input.Registers[7] = OOB
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// \mathbb{a}
-	rawData := input.Memory.Read(a, offset)
 	var assignData types.ServiceIdList
-	decoder := types.NewDecoder()
-	assignErr := decoder.Decode(rawData, &assignData)
-	if assignErr != nil {
-		logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
-		input.Registers[7] = OOB
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// read data from memory, might cross many pages
-	rawData = input.Memory.Read(o, offset)
-
-	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := make(types.AlwaysAccumulateMap)
-	var accumErr error
-	for len(rawData) > 0 {
-		var alwaysAccumServiceId types.ServiceId
-		var alwaysAccumServiceGas types.Gas
-		alwaysAccumRawData := rawData[:12]
-		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
-		if accumErr != nil {
-			logger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
-			break
+	if n != 0 {
+		if !isReadable(o, offset, input.Memory) { // not readable, return
+			input.Registers[7] = OOB
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
 		}
-		accumErr = decoder.Decode(alwaysAccumRawData[4:], &alwaysAccumServiceGas)
-		if accumErr != nil {
-			logger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
-			break
-		}
-		rawData = rawData[12:]
-		alwaysAccum[alwaysAccumServiceId] = alwaysAccumServiceGas
-	}
 
-	if accumErr != nil {
-		input.Registers[7] = OOB
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+		// \mathbb{a}
+		rawData := input.Memory.Read(a, offset)
+		decoder := types.NewDecoder()
+		assignErr := decoder.Decode(rawData, &assignData)
+		if assignErr != nil {
+			logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
+			input.Registers[7] = OOB
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+
+		// read data from memory, might cross many pages
+		rawData = input.Memory.Read(o, offset)
+
+		// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
+		var accumErr error
+		for len(rawData) > 0 {
+			var alwaysAccumServiceId types.ServiceId
+			var alwaysAccumServiceGas types.Gas
+			alwaysAccumRawData := rawData[:12]
+			accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
+			if accumErr != nil {
+				logger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
+				break
+			}
+			accumErr = decoder.Decode(alwaysAccumRawData[4:], &alwaysAccumServiceGas)
+			if accumErr != nil {
+				logger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
+				break
+			}
+			rawData = rawData[12:]
+			alwaysAccum[alwaysAccumServiceId] = alwaysAccumServiceGas
+		}
+
+		if accumErr != nil {
+			input.Registers[7] = OOB
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
 		}
 	}
 
