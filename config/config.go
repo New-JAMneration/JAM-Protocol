@@ -41,7 +41,59 @@ type config struct {
 	FolderWise bool
 }
 
+func DefaultConfig() config {
+	return config{
+		Log: struct {
+			Level string `json:"level"`
+		}{
+			Level: "DEBUG",
+		},
+		Const: struct {
+			ValidatorsCount         int `json:"validators_count"`
+			CoresCount              int `json:"cores_count"`
+			EpochLength             int `json:"epoch_length"`
+			SlotSubmissionEnd       int `json:"slot_submission_end"`
+			MaxTicketsPerBlock      int `json:"max_tickets_per_block"`
+			TicketsPerValidator     int `json:"tickets_per_validator"`
+			ValidatorsSuperMajority int `json:"validators_super_majority"`
+			AvailBitfieldBytes      int `json:"avail_bitfield_bytes"`
+		}{
+			ValidatorsCount:         6,
+			CoresCount:              2,
+			EpochLength:             12,
+			SlotSubmissionEnd:       10,
+			MaxTicketsPerBlock:      3,
+			TicketsPerValidator:     3,
+			ValidatorsSuperMajority: 5,
+			AvailBitfieldBytes:      1,
+		},
+		Redis: struct {
+			Address  string `json:"address"`
+			Port     int    `json:"port"`
+			Password string `json:"password"`
+		}{
+			Address:  "localhost",
+			Port:     6379,
+			Password: "password",
+		},
+		Info: struct {
+			FuzzVersion  uint8  `json:"fuzz_version"`
+			FuzzFeatures uint32 `json:"fuzz_features"`
+			JamVersion   string `json:"jam_version"`
+			AppVersion   string `json:"app_version"`
+			Name         string `json:"name"`
+		}{
+			FuzzVersion:  1,
+			FuzzFeatures: 2,
+			JamVersion:   "0.7.0",
+			AppVersion:   "0.1.0",
+			Name:         "new_jamneration",
+		},
+	}
+}
+
 func InitConfig(configPath string, mode string) error {
+	Config = DefaultConfig()
 	if err := loadConfig(configPath); err != nil {
 		panic(err)
 	}
@@ -60,24 +112,29 @@ func InitConfig(configPath string, mode string) error {
 }
 
 func loadConfig(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("can't open config file: %w", err)
-	}
-	defer file.Close()
+	// If the config file exists, load it
+	if _, err := os.Stat(path); err == nil {
+		file, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("can't open config file: %w", err)
+		}
+		defer file.Close()
 
-	bytes, err := io.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("can't read config file: %w", err)
-	}
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			return fmt.Errorf("can't read config file: %w", err)
+		}
 
-	if err := json.Unmarshal(bytes, &Config); err != nil {
-		return fmt.Errorf("can't parse config file: %w", err)
+		if err := json.Unmarshal(bytes, &Config); err != nil {
+			return fmt.Errorf("can't parse config file: %w", err)
+		}
+	} else {
+		// config file does not exist, use default config
+		fmt.Println("Config file not found, using default configuration")
 	}
 
 	initLog()
 	initJamScaleRegistry()
-
 	return nil
 }
 
