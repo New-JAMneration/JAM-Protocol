@@ -27,6 +27,12 @@ const (
 	BadSignature                                       // 21
 	WorkReportTooBig                                   // 22
 	BannedValidator                                    // 23
+	LookupAnchorNotRecent                              // 24
+	MissingWorkResults                                 // 25
+
+	// 26 is not align to asn.1, since there is MissingWorkResults
+	// define TooManyWrokResults to check work reports validation
+	TooManyWorkResults // 26
 )
 
 var ReportsErrorMap = map[string]types.ErrorCode{
@@ -54,6 +60,9 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
 	"banned_validator":                BannedValidator,
+	"lookup_anchor_not_recent":        LookupAnchorNotRecent,
+	"missing_work_results":            MissingWorkResults,
+	"too_many_work_results":           TooManyWorkResults,
 }
 
 // This map provides human-readable messages following the fuzz-proto examples
@@ -82,4 +91,7 @@ var ReportsErrorCodeMessages = map[types.ErrorCode]string{
 	BadSignature:                "bad signature",
 	WorkReportTooBig:            "work report too big",
 	BannedValidator:             "banned validator",
+	LookupAnchorNotRecent:       "lookup anchor not recent",
+	MissingWorkResults:          "missing work results",
+	TooManyWorkResults:          "too many work results",
 }
