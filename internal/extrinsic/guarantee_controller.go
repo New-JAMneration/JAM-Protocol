@@ -1,7 +1,6 @@
 package extrinsic
 
 import (
-	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -275,28 +274,24 @@ func (g *GuaranteeController) ValidateContexts() error {
 		}
 	}
 
-	encoder := types.NewEncoder()
-	// 11.35
-	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
-	for _, context := range contexts {
-		foundMatch := false
-		for _, ancestorHeader := range ancestorHeaders {
-			headerSerial, err := encoder.Encode(&ancestorHeader)
+	// 11.35   ancestors currently not maintained
+	// current implement: get header from redis and check timeslot over MaxLookupAge(L)
+	blocks := store.GetInstance().GetBlocks()
+	if len(blocks) > 1 {
+		for _, context := range contexts {
+			ancestorBlock, err := store.GetInstance().GetBlockByHash(context.LookupAnchor)
 			if err != nil {
-				return err
+				errCode := ReportsErrorCode.LookupAnchorNotRecent
+				return &errCode
 			}
 
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(headerSerial) == types.OpaqueHash(context.LookupAnchor) {
-				foundMatch = true
-				break
+			ancestorTimeSlot := ancestorBlock.Header.Slot
+			if headerTimeSlot-ancestorTimeSlot > types.TimeSlot(types.MaxLookupAge) || ancestorTimeSlot != context.LookupAnchorSlot {
+				errCode := ReportsErrorCode.LookupAnchorNotRecent
+				return &errCode
 			}
-		}
-		if !foundMatch {
-			// return errors.New("invalid_context")
-			log.Println("invalid_context")
 		}
 	}
-
 	return nil
 }
 

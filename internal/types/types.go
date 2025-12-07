@@ -504,7 +504,11 @@ type WorkReport struct {
 
 func (w *WorkReport) Validate() error {
 	if len(w.Results) < 1 || len(w.Results) > MaximumWorkItems {
-		return fmt.Errorf("WorkReport Results must have items between 1 and %v, but got %v", MaximumWorkItems, len(w.Results))
+		return fmt.Errorf("missing_work_results")
+	}
+
+	if len(w.Results) > MaximumWorkItems {
+		return fmt.Errorf("too_many_work_results")
 	}
 
 	return nil
@@ -993,7 +997,7 @@ type ReportGuarantee struct {
 
 func (r *ReportGuarantee) Validate() error {
 	if err := r.Report.Validate(); err != nil {
-		log.Println("report validation failed: %w", err)
+		return err
 	}
 
 	if len(r.Signatures) < 2 {
