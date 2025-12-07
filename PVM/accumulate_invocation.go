@@ -30,6 +30,16 @@ func Psi_A(
 		}
 	}
 
+	// s = e
+	var balances uint64
+	for _, v := range operandOrDeferTransfers {
+		if v.DeferredTransfer != nil {
+			balances += uint64(v.DeferredTransfer.Balance)
+		}
+	}
+	s.ServiceInfo.Balance += types.U64(balances)
+	partialState.ServiceAccounts[serviceId] = s
+
 	// (9.4) E(↕m, c) = ap[ac]
 	// Get actual code (c)
 	codeHash := s.ServiceInfo.CodeHash
@@ -44,15 +54,6 @@ func Psi_A(
 			StorageKeyVal:     storageKeyVal,
 		}
 	}
-
-	// s = e
-	var balances uint64
-	for _, v := range operandOrDeferTransfers {
-		if v.DeferredTransfer != nil {
-			balances += uint64(v.DeferredTransfer.Balance)
-		}
-	}
-	s.ServiceInfo.Balance += types.U64(balances)
 
 	// if c = ∅ or |c| > W_C
 	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {

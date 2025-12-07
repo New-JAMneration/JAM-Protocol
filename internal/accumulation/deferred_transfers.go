@@ -101,7 +101,7 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	for serviceId, sumOfGasUsed := range sumOfGasUsedMap {
 		numOfWorkReportsAccumulated := types.U64(len(getWorkResultByService(serviceId, n)))
 
-		if numOfWorkReportsAccumulated == 0 {
+		if numOfWorkReportsAccumulated+types.U64(sumOfGasUsed) == 0 {
 			continue // skip, N(S) = []
 		}
 
