@@ -171,6 +171,12 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 
 func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	publicKey := priorState.Kappa[header.AuthorIndex].Bandersnatch
+
+	var ringSetBytes []byte
+	for _, validator := range priorState.Kappa {
+		ringSetBytes = append(ringSetBytes, validator.Bandersnatch[:]...)
+	}
+
 	seal := header.Seal
 	var message types.ByteSequence // message: []
 	var context types.ByteSequence
@@ -178,13 +184,14 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	handler, _ := CreateVRFHandler(publicKey)
 	vrfOutput, _ := handler.VRFIetfOutput(seal[:])
 	context = append(context, types.ByteSequence(vrfOutput)...) // Y(Hs)
-	verifier, err := vrf.NewVerifier(publicKey[:], 1)
+	verifier, err := vrf.NewVerifier(ringSetBytes, uint(len(priorState.Kappa)))
+
 	defer verifier.Free()
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
 	signature := header.EntropySource[:] // Hv
-	_, err = verifier.IETFVerify(context, message, signature, 0)
+	_, err = verifier.IETFVerify(context, message, signature, uint(header.AuthorIndex))
 	if err != nil {
 		errCode := SafroleErrorCode.VrfEntropyInvalid
 		return &errCode
