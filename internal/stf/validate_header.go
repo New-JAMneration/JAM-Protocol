@@ -24,7 +24,7 @@ func ValidateHeader(header types.Header, state *types.State) error {
 	// NOTE: There is currently no official error code defined for this case.
 	// We may need to update this once the spec updates.
 	if header.AuthorIndex >= types.ValidatorIndex(len(state.Kappa)) {
-		errCode := SafroleErrorCode.UnexpectedAuthor
+		errCode := SafroleErrorCode.AuthorIndexOutOfRange
 		return &errCode
 	}
 	return nil
