@@ -57,6 +57,7 @@ build-target:
 # The command use docker to build the release target binary
 .PHONY: release-target
 release-target:
+	git submodule update --init pkg/Rust-VRF
 	bash ./scripts/release.sh $(VERSION_GP) $(VERSION_TARGET)
 
 # The command use docker to run the release target binary
