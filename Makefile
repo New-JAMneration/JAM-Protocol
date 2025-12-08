@@ -59,6 +59,7 @@ build-target:
 release-target:
 	bash ./scripts/release.sh $(VERSION_GP) $(VERSION_TARGET)
 
+# The command use docker to run the release target binary
 .PHONY: run-release-target
 run-release-target:
-	export USE_MINI_REDIS=true; ./build/new-jamneration-target /tmp/jam_target.sock
+	bash ./scripts/run_release.sh
