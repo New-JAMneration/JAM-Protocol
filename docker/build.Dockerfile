@@ -15,10 +15,10 @@ RUN cargo clean && \
 
 # Second stage: use golang image to build the main project
 FROM golang:1.23-alpine AS go-builder
-WORKDIR /
+WORKDIR /app
 COPY . .
 # Copy the built Rust library from the previous stage
-COPY --from=rust-builder /pkg/Rust-VRF/vrf-func-ffi/target/x86_64-unknown-linux-musl/release/libbandersnatch_vrfs_ffi.a /pkg/Rust-VRF/vrf-func-ffi/target/release/
+COPY --from=rust-builder /pkg/Rust-VRF/vrf-func-ffi/target/x86_64-unknown-linux-musl/release/libbandersnatch_vrfs_ffi.a /app/pkg/Rust-VRF/vrf-func-ffi/target/release/
 
 RUN apk add --no-cache musl-dev build-base tar zip
 
@@ -29,6 +29,7 @@ ARG GOARCH=amd64
 ARG OUTPUT=new-jamneration-target
 
 # Build the Go project with CGO enabled for static linking
+RUN go mod tidy
 RUN CGO_ENABLED=1 CC=gcc GOOS=${GOOS} GOARCH=${GOARCH} \
     go build -ldflags "-s -w -linkmode external -extldflags '-static -O3' -X main.GP_VERSION=${GP_VERSION} -X main.TARGET_VERSION=${TARGET_VERSION}" \
     -o ./build/${OUTPUT} ./cmd/fuzz
@@ -41,4 +42,4 @@ RUN cd build && \
 # Final stage: put the binary in a minimal image
 FROM alpine:latest
 WORKDIR /
-COPY --from=go-builder /build /build
+COPY --from=go-builder /app/build /build
