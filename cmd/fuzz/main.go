@@ -153,6 +153,8 @@ func main() {
 		fmt.Printf("[GP Version]: %s, [Target Version]: %s \n", GP_VERSION, TARGET_VERSION)
 	}
 
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
+
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		fmt.Printf("error: %v\n", err)
 		os.Exit(1)
