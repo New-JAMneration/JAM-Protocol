@@ -1,0 +1,23 @@
+# Go build artifacts
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Common
+.git
+.gitignore
+*.log
+*.md
+*.env
+
+build/
+pkg/test_data/

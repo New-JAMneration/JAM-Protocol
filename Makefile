@@ -1,3 +1,7 @@
+# The version variables are read from the VERSION_GP and VERSION_TARGET files
+VERSION_GP := $(shell cat VERSION_GP)
+VERSION_TARGET := $(shell cat VERSION_TARGET)
+
 .PHONY: run
 run:
 	go run ./cmd/node
@@ -39,3 +43,22 @@ lint-fix:
 .PHONY: fmt
 fmt:
 	go fmt ./...
+
+.PHONY: run-target
+run-target:
+	export USE_MINI_REDIS=true; go run ./cmd/fuzz/ /tmp/jam_target.sock
+
+# The command build the target binary locally
+# For release builds, use `make release-target` instead
+.PHONY: build-target
+build-target:
+	go build -ldflags "-X 'main.GP_VERSION=$(VERSION_GP)' -X 'main.TARGET_VERSION=$(VERSION_TARGET)'" -o ./build/new-jamneration-target ./cmd/fuzz
+
+# The command use docker to build the release target binary
+.PHONY: release-target
+release-target:
+	bash ./scripts/release.sh $(VERSION_GP) $(VERSION_TARGET)
+
+.PHONY: run-release-target
+run-release-target:
+	export USE_MINI_REDIS=true; ./build/new-jamneration-target /tmp/jam_target.sock

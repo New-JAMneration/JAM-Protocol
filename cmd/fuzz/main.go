@@ -33,7 +33,8 @@ var (
 	}
 
 	socketAddrArg = &cli.StringArg{
-		Name: "socket-addr",
+		Name:  "socket-addr",
+		Value: "/tmp/jam_target.sock",
 	}
 
 	jsonFileArg = &cli.StringArg{
@@ -51,11 +52,17 @@ var (
 	}
 )
 
+var (
+	GP_VERSION     string
+	TARGET_VERSION string
+)
+
 var cmd = cli.Command{
-	Name:        "fuzz",
-	Usage:       "JAM Fuzz Testing Server",
-	Description: `JAM Fuzz Testing Server`,
+	Name:        "new-jamneration-target",
+	Usage:       "New-JAMneration Fuzz Target",
+	Description: `New-JAMneration Fuzz Target`,
 	Authors:     []any{"New JAMneration"},
+	Version:     fmt.Sprintf("[GP Version]: %s, [Target Version]: %s", GP_VERSION, TARGET_VERSION),
 	Action:      serve,
 	ArgsUsage:   "<socket-addr>",
 	Arguments: []cli.Argument{
@@ -138,6 +145,14 @@ var (
 )
 
 func main() {
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, "--help")
+	}
+
+	cli.VersionPrinter = func(c *cli.Command) {
+		fmt.Printf("[GP Version]: %s, [Target Version]: %s \n", GP_VERSION, TARGET_VERSION)
+	}
+
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		fmt.Printf("error: %v\n", err)
 		os.Exit(1)
