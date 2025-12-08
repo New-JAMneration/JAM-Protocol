@@ -34,4 +34,5 @@ var SafroleErrorCodeMessages = map[types.ErrorCode]string{
 	InvalidTicketsMark:    "invalid tickets mark",
 	InvalidOffenderMarker: "invalid offender marker",
 	UnexpectedAuthor:      "unexpected author", // matches fuzz-proto example
+	AuthorIndexOutOfRange: "author index is out of range",
 }
