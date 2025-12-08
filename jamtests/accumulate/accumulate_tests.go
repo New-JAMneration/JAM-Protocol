@@ -13,6 +13,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // ANSI color codes
@@ -884,8 +885,8 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Validate accumulated reports (passed by implementing sort)
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated)
+	if !cmp.Equal(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty())
 		log.Printf(Red+"Accumulated reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
 		return fmt.Errorf("accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
 	}
