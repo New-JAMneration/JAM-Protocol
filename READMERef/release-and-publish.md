@@ -11,6 +11,7 @@ You can update the release version in the following files:
 
 ### Prerequisite
 
+- Git
 - Docker
 
 ### Build with Makefile
