@@ -171,6 +171,7 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 	mode := cmd.String(modeFlag.Name)
 
 	config.InitConfig(configPath, mode)
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
 	server, err := fuzz.NewFuzzServer("unix", socketAddr)
 	if err != nil {
@@ -195,6 +196,7 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 	mode := cmd.String(modeFlag.Name)
 
 	config.InitConfig(configPath, mode)
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
