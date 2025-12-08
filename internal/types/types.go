@@ -503,7 +503,7 @@ type WorkReport struct {
 }
 
 func (w *WorkReport) Validate() error {
-	if len(w.Results) < 1 || len(w.Results) > MaximumWorkItems {
+	if len(w.Results) < 1 {
 		return fmt.Errorf("missing_work_results")
 	}
 
