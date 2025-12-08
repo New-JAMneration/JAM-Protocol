@@ -9,4 +9,4 @@ docker run \
   -u $(id -u):$(id -g) \
   -v ./build/new-jamneration-target:/new-jamneration-target \
   -v /tmp:/tmp \
-  run-new-jamneration-target /tmp/jam_target.sock
+  run-release-new-jamneration-target /tmp/jam_target.sock
