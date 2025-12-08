@@ -42,23 +42,6 @@ type config struct {
 }
 
 func DefaultConfig() config {
-	jamVersion := "unknown"
-	appVersion := "unknown"
-
-	if _, err := os.Stat("VERSION_GP"); err == nil {
-		versionBytes, err := os.ReadFile("VERSION_GP")
-		if err == nil {
-			jamVersion = string(versionBytes)
-		}
-	}
-
-	if _, err := os.Stat("VERSION_TARGET"); err == nil {
-		versionBytes, err := os.ReadFile("VERSION_TARGET")
-		if err == nil {
-			appVersion = string(versionBytes)
-		}
-	}
-
 	return config{
 		Log: struct {
 			Level string `json:"level"`
@@ -102,8 +85,8 @@ func DefaultConfig() config {
 		}{
 			FuzzVersion:  1,
 			FuzzFeatures: 2,
-			JamVersion:   jamVersion,
-			AppVersion:   appVersion,
+			JamVersion:   "0.7.0",
+			AppVersion:   "0.1.0",
 			Name:         "new_jamneration",
 		},
 	}
@@ -126,6 +109,11 @@ func InitConfig(configPath string, mode string) error {
 		return fmt.Errorf("invalid mode: %s", mode)
 	}
 	return nil
+}
+
+func UpdateVersion(jamVersion, appVersion string) {
+	Config.Info.JamVersion = jamVersion
+	Config.Info.AppVersion = appVersion
 }
 
 func loadConfig(path string) error {
