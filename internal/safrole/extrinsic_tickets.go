@@ -3,7 +3,6 @@ package safrole
 
 import (
 	"bytes"
-	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -44,23 +43,23 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // (6.31)
 // VerifyTicketsProof verifies the proof of the tickets
 // If the proof is valid, return the ticket bodies
-func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
+func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
-	gammaK := s.GetPosteriorStates().GetGammaK()
-	if len(gammaK) != types.ValidatorsCount {
-		log.Printf("Gamma K size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
-	}
-	ring := []byte{}
-	for _, validator := range gammaK {
-		ring = append(ring, []byte(validator.Bandersnatch[:])...)
-	}
-	ringSize := uint(len(gammaK))
+	// gammaK := s.GetPosteriorStates().GetGammaK()
+	// if len(gammaK) != types.ValidatorsCount {
+	// 	log.Printf("Gamma K size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
+	// }
+	// ring := []byte{}
+	// for _, validator := range gammaK {
+	// 	ring = append(ring, []byte(validator.Bandersnatch[:])...)
+	// }
+	// ringSize := uint(len(gammaK))
 
-	verifier, err := vrf.NewVerifier(ring, ringSize)
-	if err != nil {
-		log.Printf("Failed to create verifier: %v\n", err)
-	}
-	defer verifier.Free()
+	// verifier, err := vrf.NewVerifier(ring, ringSize)
+	// if err != nil {
+	// 	log.Printf("Failed to create verifier: %v\n", err)
+	// }
+	// defer verifier.Free()
 
 	newTickets := types.TicketsAccumulator{}
 	posteriorEta := s.GetPosteriorStates().GetEta()
@@ -69,7 +68,7 @@ func VerifyTicketsProof(tickets types.TicketsExtrinsic) (types.TicketsAccumulato
 		context := createSignatureContext(types.JamTicketSeal, posteriorEta[2], ticket.Attempt)
 		message := []byte{}
 		signature := ticket.Signature[:]
-		output, verifyErr := verifier.RingVerify(context, message, signature)
+		output, verifyErr := ringVerifier.RingVerify(context, message, signature)
 
 		if verifyErr != nil {
 			err := SafroleErrorCode.BadTicketProof
@@ -211,7 +210,7 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 
 // (6.34)
 // create gamma_a'(New ticket accumulator)
-func CreateNewTicketAccumulator() *types.ErrorCode {
+func CreateNewTicketAccumulator(ringVerifier *vrf.Verifier) *types.ErrorCode {
 	// 1. Verify the epoch tail
 	// 2. Verify the attempt of the tickets
 	// 3. Verify the tickets proof (return the new tickets)
@@ -241,7 +240,7 @@ func CreateNewTicketAccumulator() *types.ErrorCode {
 	}
 
 	// (6.31) Verify the tickets proof
-	newTickets, err := VerifyTicketsProof(extrinsicTickets)
+	newTickets, err := VerifyTicketsProof(ringVerifier, extrinsicTickets)
 	if err != nil {
 		// Extrinsic tickets proof is invalid
 		return err

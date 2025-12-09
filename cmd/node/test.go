@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -32,9 +33,9 @@ var testCmd = &cli.Command{
 	Description: `Run tests for the JAM Protocol. 
 You can specify the test type (jam-test-vectors, jamtestnet, trace), mode (safrole, assurances, etc.), and size (tiny, full).
 For example:
-  jam test --type jam-test-vectors --mode safrole --size tiny
-  jam test --type jamtestnet --mode assurances
-  jam test --type trace --mode safrole`,
+  go run ./cmd/node test --type jam-test-vectors --mode safrole --size tiny
+  go run ./cmd/node test --type jamtestnet --mode assurances
+  go run ./cmd/node test --type trace --mode safrole`,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:        "type",
@@ -44,7 +45,7 @@ For example:
 		},
 		&cli.StringFlag{
 			Name:        "mode",
-			Usage:       "Test mode (safrole, assurances, preimages, disputes, history, accumulate, authorizations, statistics, reports, fallback (for trace)), preimages-trace, storage-trace",
+			Usage:       "Test mode (accumulate, assurances, authorizations, disputes, history, preimages, reports, safrole, statistics, \nfallback, fuzzy, preimages, preimages_light, safrole, storage, storage_light)",
 			Value:       "safrole",
 			Destination: &testMode,
 		},
@@ -137,7 +138,7 @@ For example:
 				var state types.State
 				var block types.Block
 
-				if testFile.Name[:7] == "genesis" {
+				if strings.Contains(testFile.Name, "genesis") { // genesis file
 					var genesis jamteststrace.Genesis
 					err := reader.ReadFile(testFile.Data, &genesis)
 					if err != nil {
@@ -173,11 +174,11 @@ For example:
 		}
 
 		for idx, testFile := range testFiles {
-			/*
-				if testFile.Name[:7] == "genesis" || testFile.Name[:8] != "00000003" {
-					continue
-				}
-			*/
+			// We've already set the genesis block, state
+			if testType == "trace" && strings.Contains(testFile.Name, "genesis") {
+				continue
+			}
+
 			log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
 			if testType == "trace" {
 				// post-state update to pre-state, tau_prime+1
@@ -262,7 +263,11 @@ func validateTestMode(mode testdata.TestMode) error {
 	case testdata.SafroleMode, testdata.AssurancesMode, testdata.PreimagesMode,
 		testdata.DisputesMode, testdata.HistoryMode, testdata.AccumulateMode,
 		testdata.AuthorizationsMode, testdata.StatisticsMode, testdata.ReportsMode,
-		testdata.FallbackMode, testdata.PreimageLightMode, testdata.StorageLightMode, testdata.StorageMode:
+		testdata.FallbackMode,      // trace
+		testdata.PreimageLightMode, // trace
+		testdata.StorageLightMode,  // trace
+		testdata.StorageMode,       // trace
+		testdata.FuzzyMode:         // trace
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)

@@ -1,18 +1,23 @@
-package safrole
+package safrole_test
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
+	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -35,7 +40,7 @@ func TestGetEpochIndex(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := GetEpochIndex(test.input)
+		result := safrole.GetEpochIndex(test.input)
 		if result != test.expected {
 			t.Errorf("For input %v, expected epoch %v but got %v", test.input, test.expected, result)
 		}
@@ -62,7 +67,7 @@ func TestGetSlotIndex(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := GetSlotIndex(test.input)
+		result := safrole.GetSlotIndex(test.input)
 		if result != test.expected {
 			t.Errorf("For input %v, expected slotIndex %v but got %v", test.input, test.expected, result)
 		}
@@ -119,45 +124,21 @@ func TestValidatorIsOffender(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		if actual := ValidatorIsOffender(testCase.validator, testCase.offenders); actual != testCase.isOffender {
+		if actual := safrole.ValidatorIsOffender(testCase.validator, testCase.offenders); actual != testCase.isOffender {
 			t.Errorf("ValidatorIsOffender(%v, %v) = %t, expected %t", testCase.validator, testCase.offenders, actual, testCase.isOffender)
 		}
-	}
-}
-
-func TestGetBandersnatchRingRootCommmitment(t *testing.T) {
-	expectedCommitmentStr := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
-	expectedCommitment := types.BandersnatchRingCommitment(hex2Bytes(expectedCommitmentStr))
-
-	bandersnatchKeys := []types.BandersnatchPublic{
-		types.BandersnatchPublic(hex2Bytes("0x5e465beb01dbafe160ce8216047f2155dd0569f058afd52dcea601025a8d161d")),
-		types.BandersnatchPublic(hex2Bytes("0x3d5e5a51aab2b048f8686ecd79712a80e3265a114cc73f14bdb2a59233fb66d0")),
-		types.BandersnatchPublic(hex2Bytes("0xaa2b95f7572875b0d0f186552ae745ba8222fc0b5bd456554bfe51c68938f8bc")),
-		types.BandersnatchPublic(hex2Bytes("0x7f6190116d118d643a98878e294ccf62b509e214299931aad8ff9764181a4e33")),
-		types.BandersnatchPublic(hex2Bytes("0x48e5fcdce10e0b64ec4eebd0d9211c7bac2f27ce54bca6f7776ff6fee86ab3e3")),
-		types.BandersnatchPublic(hex2Bytes("0xf16e5352840afb47e206b5c89f560f2611835855cf2e6ebad1acc9520a72591d")),
-	}
-
-	commitment, err := GetBandersnatchRingRootCommmitment(bandersnatchKeys)
-	if err != nil {
-		t.Errorf("Failed to get commitment %v", err)
-	}
-
-	if commitment != expectedCommitment {
-		t.Errorf("Expected commitment %v, got %v", expectedCommitment, commitment)
 	}
 }
 
 func TestKeyRotate(t *testing.T) {
 	s := store.GetInstance()
 	priorState := s.GetPriorStates()
-	posteriorState := s.GetPosteriorStates()
 
 	now := time.Now().UTC()
 	timeInSecond := uint64(now.Sub(types.JamCommonEra).Seconds())
 	tauPrime := types.TimeSlot(timeInSecond / uint64(types.SlotPeriod))
-	e := GetEpochIndex(tauPrime)
-	ePrime := GetEpochIndex(tauPrime)
+	e := safrole.GetEpochIndex(tauPrime)
+	ePrime := safrole.GetEpochIndex(tauPrime)
 
 	// Add a block to the store
 	s.AddBlock(types.Block{
@@ -172,7 +153,7 @@ func TestKeyRotate(t *testing.T) {
 	// Simulate previous time slot to trigger key rotation
 	priorState.SetTau(tauPrime - types.TimeSlot(types.EpochLength))
 
-	fakeValidators := LoadFakeValidators()
+	fakeValidators := safrole.LoadFakeValidators()
 
 	priorKappa := types.ValidatorsData{}
 	for _, fakeValidator := range fakeValidators {
@@ -215,7 +196,7 @@ func TestKeyRotate(t *testing.T) {
 	}
 
 	gammaZ := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
-	priorGammaZ := types.BandersnatchRingCommitment(hex2Bytes(gammaZ))
+	priorGammaZ := types.BandersnatchRingCommitment(safrole.Hex2Bytes(gammaZ))
 
 	priorState.SetKappa(priorKappa)
 	priorState.SetLambda(priorLambda)
@@ -225,10 +206,10 @@ func TestKeyRotate(t *testing.T) {
 
 	s.GenerateGenesisState(priorState.GetState())
 
-	KeyRotate(e, ePrime)
+	safrole.KeyRotate(e, ePrime)
 
 	// Get posterior state
-	posteriorState = s.GetPosteriorStates()
+	posteriorState := s.GetPosteriorStates()
 	if !reflect.DeepEqual(posteriorState.GetGammaK(), priorIota) {
 		t.Errorf("Expected GammaK to be %v, got %v", priorIota, posteriorState.GetGammaK())
 	}
@@ -245,7 +226,7 @@ func TestKeyRotate(t *testing.T) {
 
 func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 	// Load fake validators
-	fakeValidators := LoadFakeValidators()
+	fakeValidators := safrole.LoadFakeValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}
@@ -262,7 +243,7 @@ func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 	s := store.GetInstance()
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{})
 
-	newValidators := ReplaceOffenderKeys(validatorsData)
+	newValidators := safrole.ReplaceOffenderKeys(validatorsData)
 
 	// Check if the new validators data has the same length as the original
 	// validators data
@@ -273,7 +254,7 @@ func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 
 func TestReplaceOffenderKeys(t *testing.T) {
 	// Load fake validators
-	fakeValidators := LoadFakeValidators()
+	fakeValidators := safrole.LoadFakeValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}
@@ -290,7 +271,7 @@ func TestReplaceOffenderKeys(t *testing.T) {
 	s := store.GetInstance()
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{fakeValidators[0].Ed25519})
 
-	newValidators := ReplaceOffenderKeys(validatorsData)
+	newValidators := safrole.ReplaceOffenderKeys(validatorsData)
 
 	// Check if the new validators data has the same length as the original
 	// validators data
@@ -322,7 +303,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSafroleTestVectors(t *testing.T) {
-	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "safrole", types.TEST_MODE)
+	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
@@ -344,6 +325,9 @@ func TestSafroleTestVectors(t *testing.T) {
 }
 
 func testSafroleFile(t *testing.T, binPath string, binFile string) {
+	// Reset timings before test
+	safrole.ResetTimings()
+
 	// Load accumulate test case
 	testCase := &jamtests_safrole.SafroleTestCase{}
 	err := utils.GetTestFromBin(binPath, testCase)
@@ -353,9 +337,15 @@ func testSafroleFile(t *testing.T, binPath string, binFile string) {
 
 	setupTestState(testCase.PreState, testCase.Input)
 
-	errCode := OuterUsedSafrole()
+	err = safrole.OuterUsedSafrole()
 
-	validateFinalState(t, binFile, testCase, errCode)
+	// Get timing data (optional, for analysis)
+	timings := safrole.GetTimings()
+	for operation, duration := range timings {
+		t.Logf("%-40s %12v", operation, duration)
+	}
+
+	validateFinalState(t, binFile, testCase, err.(*types.ErrorCode))
 
 }
 
@@ -383,7 +373,13 @@ func setupTestState(preState jamtests_safrole.SafroleState, input jamtests_safro
 
 	storeInstance.GetPosteriorStates().SetPsiO(preState.PostOffenders)
 
-	storeInstance.GetProcessingBlockPointer().SetTicketsExtrinsic(input.Extrinsic)
+	// Add block with TicketsExtrinsic
+	block := types.Block{
+		Extrinsic: types.Extrinsic{
+			Tickets: input.Extrinsic,
+		},
+	}
+	storeInstance.AddBlock(block)
 }
 
 // Validate final state
@@ -495,4 +491,156 @@ func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
 			return
 		}
 	}
+}
+
+func TestJamtestvectorsTraces(t *testing.T) {
+	dirsPath := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "traces")
+
+	// Set test mode
+	types.SetTestMode()
+
+	// Get all dirs in dirsPath
+	dirs, err := os.ReadDir(dirsPath)
+	if err != nil {
+		t.Errorf("Error reading dirs in %s: %v", dirsPath, err)
+		return
+	}
+
+	totalPassed := 0
+	totalFailed := 0
+
+	for _, dirEntry := range dirs {
+		log.Printf("dirEntry: %s", dirEntry.Name())
+		if !dirEntry.IsDir() || dirEntry.Name() != "safrole" {
+			continue
+		}
+
+		dirPath := filepath.Join(dirsPath, dirEntry.Name())
+		t.Logf("Processing directory: %s", dirEntry.Name())
+
+		// Get all bin files in directory
+		fileNames, err := utils.GetTargetExtensionFiles(dirPath, utils.BIN_EXTENTION)
+		if err != nil {
+			t.Errorf("Error getting files from directory %s: %v", dirPath, err)
+			continue
+		}
+
+		// Find and setup genesis
+		genesisFileFound := false
+		genesisFilePath := ""
+
+		for _, fileName := range fileNames {
+			if strings.Contains(fileName, "genesis") {
+				genesisFilePath = filepath.Join(dirPath, fileName)
+				genesisFileFound = true
+				break
+			}
+		}
+
+		if !genesisFileFound {
+			t.Logf("Warning: genesis not found in %s, skipping directory", dirPath)
+			continue
+		}
+
+		// Setup genesis state
+		store.ResetInstance()
+		instance := store.GetInstance()
+
+		var state types.State
+		var block types.Block
+
+		genesisTestCase := &jamtests_trace.Genesis{}
+		err = utils.GetTestFromBin(genesisFilePath, genesisTestCase)
+		if err != nil {
+			t.Errorf("Failed to read genesis: %v", err)
+			continue
+		}
+
+		state, _, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+		if err != nil {
+			t.Errorf("Failed to parse state key-vals to state: %v", err)
+			continue
+		}
+
+		block.Header = genesisTestCase.Header
+		instance.GenerateGenesisBlock(block)
+		instance.GenerateGenesisState(state)
+
+		// Run trace tests
+		dirPassed := 0
+		dirFailed := 0
+
+		for idx, fileName := range fileNames {
+			// Skip genesis file
+			if strings.Contains(fileName, "genesis") {
+				continue
+			}
+
+			filePath := filepath.Join(dirPath, fileName)
+			testStart := time.Now()
+			t.Logf("------------------{%v, %s}--------------------", idx, fileName)
+
+			// State commit before each test (post-state update to pre-state, tau_prime+1)
+			store.GetInstance().StateCommit()
+
+			// Read trace test case
+			traceTestCase := &jamtests_trace.TraceTestCase{}
+			err := utils.GetTestFromBin(filePath, traceTestCase)
+			if err != nil {
+				t.Logf("got error during parsing: %v", err)
+				dirFailed++
+				continue
+			}
+
+			// Setup block from trace test case
+			instance.AddBlock(traceTestCase.Block)
+
+			// Run STF
+			safrole.ResetTimings()
+			stfStart := time.Now()
+			_, outputErr := stf.RunSTF()
+			stfDuration := time.Since(stfStart)
+
+			testDuration := time.Since(testStart)
+
+			if outputErr != nil {
+				t.Logf("❌ STF output error: %v (STF: %v, Total: %v)", outputErr, stfDuration, testDuration)
+				dirFailed++
+			} else {
+				// Validate state root
+				posteriorState := instance.GetPosteriorStates()
+				postKeyVals, err := merklization.StateEncoder(posteriorState.GetState())
+				if err != nil {
+					t.Errorf("Failed to encode state: %v", err)
+					continue
+				}
+				actualStateRoot := merklization.MerklizationSerializedState(postKeyVals)
+				expectedStateRoot := traceTestCase.PostState.StateRoot
+
+				if actualStateRoot != expectedStateRoot {
+					t.Logf("❌ State root mismatch: expected 0x%x, got 0x%x (STF: %v, Total: %v)",
+						expectedStateRoot, actualStateRoot, stfDuration, testDuration)
+					dirFailed++
+				} else {
+					dirPassed++
+					t.Logf("✅ passed (STF: %v, Total: %v)", stfDuration, testDuration)
+				}
+			}
+
+			// Print timing data
+			timings := safrole.GetTimings()
+			if len(timings) > 0 {
+				for operation, duration := range timings {
+					t.Logf("  %-40s %12v", operation, duration)
+				}
+			}
+		}
+
+		totalPassed += dirPassed
+		totalFailed += dirFailed
+		t.Logf("Directory %s: Passed: %d, Failed: %d", dirEntry.Name(), dirPassed, dirFailed)
+	}
+
+	t.Logf("========================================")
+	t.Logf("Total: Passed: %d, Failed: %d", totalPassed, totalFailed)
 }

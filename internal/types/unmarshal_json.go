@@ -1659,6 +1659,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		Bless       U32                      `json:"bless"`      // Manager
 		Assign      []U32                    `json:"assign"`     // AlterPhi
 		Designate   U32                      `json:"designate"`  // AlterIota
+		CreateAcct  U32                      `json:"register"`   // XR
 		AlwaysAccum []AlwaysAccumulateMapDTO `json:"always_acc"` // AutoAccumulateGasLimits
 	}
 
@@ -1672,7 +1673,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		p.Assign[i] = ServiceId(id)
 	}
 	p.Designate = ServiceId(temp.Designate)
-
+	p.CreateAcct = ServiceId(temp.CreateAcct)
 	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
 		p.AlwaysAccum[entry.ServiceId] = entry.Gas

@@ -93,7 +93,7 @@ var TinyValidators = FakeValidators{
 	},
 }
 
-func hex2Bytes(hexString string) []byte {
+func Hex2Bytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
 		fmt.Printf("failed to decode hex string: %v\n", err)
@@ -130,12 +130,12 @@ func MapFakeValidators(fakeValidatorDTOs FakeValidatorDTOs) FakeValidators {
 
 	for _, fakeValidatorDTO := range fakeValidatorDTOs {
 		fakeValidators = append(fakeValidators, FakeValidator{
-			Bandersnatch:        types.BandersnatchPublic(hex2Bytes(fakeValidatorDTO.Bandersnatch)),
-			Ed25519:             types.Ed25519Public(hex2Bytes(fakeValidatorDTO.Ed25519)),
-			BLS:                 types.BlsPublic(hex2Bytes(fakeValidatorDTO.BLS)),
-			BandersnatchPrivate: BandersnatchPrivate(hex2Bytes(fakeValidatorDTO.BandersnatchPrivate)),
-			Ed25519Private:      Ed25519Private(hex2Bytes(fakeValidatorDTO.Ed25519Private)),
-			BlsPrivate:          BlsPrivate(hex2Bytes(fakeValidatorDTO.BlsPrivate)),
+			Bandersnatch:        types.BandersnatchPublic(Hex2Bytes(fakeValidatorDTO.Bandersnatch)),
+			Ed25519:             types.Ed25519Public(Hex2Bytes(fakeValidatorDTO.Ed25519)),
+			BLS:                 types.BlsPublic(Hex2Bytes(fakeValidatorDTO.BLS)),
+			BandersnatchPrivate: BandersnatchPrivate(Hex2Bytes(fakeValidatorDTO.BandersnatchPrivate)),
+			Ed25519Private:      Ed25519Private(Hex2Bytes(fakeValidatorDTO.Ed25519Private)),
+			BlsPrivate:          BlsPrivate(Hex2Bytes(fakeValidatorDTO.BlsPrivate)),
 		})
 	}
 
