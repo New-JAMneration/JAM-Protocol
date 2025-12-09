@@ -1,6 +1,7 @@
 # JAM Protocol Implemetation
 
 ![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/workflows/Go%20Format%20Check/badge.svg)
+[![Release](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml)
 
 ## Documentation
 
