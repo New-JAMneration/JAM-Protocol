@@ -55,12 +55,13 @@ build-target:
 	go build -ldflags "-X 'main.GP_VERSION=$(VERSION_GP)' -X 'main.TARGET_VERSION=$(VERSION_TARGET)'" -o ./build/new-jamneration-target ./cmd/fuzz
 
 # The command use docker to build the release target binary
+# It will copy the built binary to ./build/new-jamneration-target
 .PHONY: release-target
 release-target:
 	git submodule update --init pkg/Rust-VRF
 	bash ./scripts/release.sh $(VERSION_GP) $(VERSION_TARGET)
 
-# The command use docker to run the release target binary
+# The command run the release target binary in a docker container
 .PHONY: run-release-target
 run-release-target:
 	bash ./scripts/run_release.sh
