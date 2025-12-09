@@ -1,5 +1,11 @@
 # Release and publish
 
+## Overview
+
+We have Github action to build the release binary automatically when we create a new tag.  
+When you create a new tag which follows our tag format `v*.*.*.*`, the Github action will be triggered to build the release binary and upload it to our release repository.  
+If you find the Github action fails or you want to build and publish the release binary manually, you can follow the steps below.
+
 ## Build the release binary
 
 Please verify the version you intend to release.  

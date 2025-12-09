@@ -1,8 +1,6 @@
-# You can build and copy the binary out of the Docker container with the following commands:
-# docker build --build-arg GP_VERSION=0.7.0 --build-arg TARGET_VERSION=0.1.0 --build-arg OUTPUT=new-jamneration-target -t build-new-jamneration-target -f docker/build.Dockerfile .
-# docker create --name tempcontainer build-new-jamneration-target
-# docker cp tempcontainer:/build ./build
-# docker rm tempcontainer
+# You can run the built binary in a Docker container with the following commands:
+# docker build --build-arg GP_VERSION=0.7.0 --build-arg TARGET_VERSION=0.1.0 --build-arg OUTPUT=new-jamneration-target -t new-jamneration-target -f docker/Dockerfile .
+# docker run --rm -u $(id -u):$(id -g) -v /tmp:/tmp new-jamneration-target /tmp/jam_target.sock
 
 # First stage: use rust image to build the Rust library
 FROM rust:latest AS rust-builder
@@ -43,3 +41,7 @@ RUN cd build && \
 FROM alpine:latest
 WORKDIR /
 COPY --from=go-builder /app/build /build
+
+ENV USE_MINI_REDIS=true
+
+ENTRYPOINT ["/build/new-jamneration-target"]
