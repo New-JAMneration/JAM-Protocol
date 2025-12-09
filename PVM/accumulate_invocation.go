@@ -238,6 +238,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		ImportServiceId:   result,
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
+		ServiceBlobs:      make(map[types.OpaqueHash]types.ServiceBlob),
 		StorageKeyVal:     storageKeyVal,
 	}
 }
