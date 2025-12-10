@@ -511,7 +511,7 @@ func TestJamtestvectorsTraces(t *testing.T) {
 
 	for _, dirEntry := range dirs {
 		log.Printf("dirEntry: %s", dirEntry.Name())
-		if !dirEntry.IsDir() || dirEntry.Name() != "safrole" {
+		if !dirEntry.IsDir() || dirEntry.Name() != "safrole" { // Modify to run other traces
 			continue
 		}
 

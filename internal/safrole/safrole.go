@@ -226,7 +226,6 @@ func OuterUsedSafrole() *types.ErrorCode {
 	var (
 		err            error
 		s              = store.GetInstance()
-		header         = s.GetLatestBlock().Header
 		tau            = s.GetPriorStates().GetTau()
 		tauPrime       = s.GetPosteriorStates().GetTau()
 		e, m           = R(tau)
@@ -253,37 +252,30 @@ func OuterUsedSafrole() *types.ErrorCode {
 		log.Println("keyRotateErr:", err)
 	}
 
+	// (GP 6.17) // This will be used to write H_v to new header
+	// UpdateHeaderEntropy()
+
+	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
+	measureTimeNoErrSafrole("UpdateSlotKeySequence", func() {
+		UpdateSlotKeySequence(e, ePrime, m)
+	})
+
 	// After KeyRotate, gammaK and kappa are updated
 	var (
 		postGammaK = s.GetPosteriorStates().GetGammaK()
 		postKappa  = s.GetPosteriorStates().GetKappa()
 	)
 
-	// Create ring verifier (gammaK)
-	gammaKRing := []byte{}
-	for _, validator := range postGammaK {
-		gammaKRing = append(gammaKRing, []byte(validator.Bandersnatch[:])...)
-	}
-	var gammaKRingVerifier *vrf.Verifier
-	err = measureTimeSafrole("New gammaK ring verifier", func() error {
-		gammaKRingVerifier, err = vrf.NewVerifier(gammaKRing, uint(len(postGammaK)))
-		return err
-	})
+	gammaKVerifier, kappaVerifier, err := store.GetVerifiers(ePrime, postGammaK, postKappa)
 	if err != nil {
-		log.Println("Failed to create ring verifier:", err)
-		return nil
+		log.Println("error creating verifiers:", err)
 	}
-	if gammaKRingVerifier == nil {
-		log.Println("ring verifier is nil")
-		return nil
-	}
-	defer gammaKRingVerifier.Free()
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
 		var commitment []byte
 		err = measureTimeSafrole("GetCommitment(GammaZ)", func() error {
-			commitment, err = gammaKRingVerifier.GetCommitment()
+			commitment, err = gammaKVerifier.GetCommitment()
 			return err
 		})
 		if err != nil || len(commitment) == 0 {
@@ -293,34 +285,6 @@ func OuterUsedSafrole() *types.ErrorCode {
 		}
 	}
 
-	// IETF verifier for author Kappa[authorIndex]
-	kappaRing := []byte{}
-	for _, validator := range postKappa {
-		kappaRing = append(kappaRing, []byte(validator.Bandersnatch[:])...)
-	}
-	var kappaVerifier *vrf.Verifier
-	err = measureTimeSafrole("New kappa ring verifier", func() error {
-		kappaVerifier, err = vrf.NewVerifier(kappaRing, uint(len(postKappa)))
-		return err
-	})
-	if err != nil {
-		log.Println("Failed to create verifier:", err)
-		return nil
-	}
-	if kappaVerifier == nil {
-		log.Println("Failed to create verifier for author key")
-		return nil
-	}
-	defer kappaVerifier.Free()
-
-	// (GP 6.17) // This will be used to write H_v to new header
-	// UpdateHeaderEntropy()
-
-	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
-	measureTimeNoErrSafrole("UpdateSlotKeySequence", func() {
-		UpdateSlotKeySequence(e, ePrime, m)
-	})
-
 	// (GP 6.22)
 	err = measureTimeSafrole("UpdateEtaPrime0", func() error {
 		return UpdateEtaPrime0(kappaVerifier)
@@ -329,30 +293,11 @@ func OuterUsedSafrole() *types.ErrorCode {
 		log.Println("UpdateEtaPrime0Err:", err)
 	}
 
-	postState := s.GetPosteriorStates().GetState()
-
-	var HsErrCode *types.ErrorCode
-	measureTimeNoErrSafrole("ValidateHeaderSeal", func() {
-		HsErrCode = ValidateHeaderSeal(kappaVerifier, header, &postState)
-	})
-	if HsErrCode != nil {
-		return HsErrCode
-	}
-
-	var HeErrCode *types.ErrorCode
-	measureTimeNoErrSafrole("ValidateHeaderEntropy", func() {
-		HeErrCode = ValidateHeaderEntropy(kappaVerifier, header, &postState)
-	})
-
-	if HeErrCode != nil {
-		return HeErrCode
-	}
-
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
 	var HtErrCode *types.ErrorCode
 	measureTimeNoErrSafrole("CreateNewTicketAccumulator", func() {
-		HtErrCode = CreateNewTicketAccumulator(gammaKRingVerifier)
+		HtErrCode = CreateNewTicketAccumulator(gammaKVerifier)
 	})
 	if HtErrCode != nil {
 		return HtErrCode

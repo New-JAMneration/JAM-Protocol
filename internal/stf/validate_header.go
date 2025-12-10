@@ -4,6 +4,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 // TODO: Align the official errorCode
@@ -27,14 +28,12 @@ func ValidateNonVRFHeader(header types.Header, state *types.State) error {
 	return nil
 }
 
-// func ValidateHeaderVrf(verifier *vrf.Verifier, header types.Header, state *types.State) error {
-// 	err := safrole.ValidateHeaderSeal(verifier, header, state)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = safrole.ValidateHeaderEntropy(verifier, header, state)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func ValidateHeaderVrf(verifier *vrf.Verifier, header types.Header, state *types.State) error {
+	if err := safrole.ValidateHeaderSeal(verifier, header, state); err != nil {
+		return err
+	}
+	if err := safrole.ValidateHeaderEntropy(verifier, header, state); err != nil {
+		return err
+	}
+	return nil
+}
