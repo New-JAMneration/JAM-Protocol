@@ -50,6 +50,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 				return types.StateRoot{}, fmt.Errorf("failed to restore block and state after parent mismatch: %w", err)
 			}
 		}
+	} else {
+		// Reset RingVerifiy
+		storeInstance.ResetRingVerify()
 	}
 
 	// Get the latest state root

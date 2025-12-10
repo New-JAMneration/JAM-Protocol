@@ -11,6 +11,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
 var (
@@ -30,6 +31,7 @@ type Store struct {
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	unmatchedKeyVals           types.StateKeyVals
+	ringVerifier               *vrf.Verifier // Placeholder for RingVerifier
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -46,6 +48,7 @@ func GetInstance() *Store {
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			unmatchedKeyVals:           types.StateKeyVals{},
+			ringVerifier:               nil,
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -403,6 +406,18 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	s.AddBlock(block)
 
 	return nil
+}
+
+func (s *Store) SetRingVerifier(verifier *vrf.Verifier) {
+	s.ringVerifier = verifier
+}
+
+func (s *Store) GetRingVerifier() *vrf.Verifier {
+	return s.ringVerifier
+}
+
+func (s *Store) ResetRingVerify() {
+	s.ringVerifier = nil
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

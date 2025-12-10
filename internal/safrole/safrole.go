@@ -125,21 +125,41 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 	return nil
 }
 
+func createRingWithValidators(validators types.ValidatorsData) ([]byte, error) {
+	ring := []byte{}
+	for _, validator := range validators {
+		ring = append(ring, []byte(validator.Bandersnatch[:])...)
+	}
+	return ring, nil
+}
+
+func createRingVerifier(validators types.ValidatorsData) (*vrf.Verifier, error) {
+	ring, err := createRingWithValidators(validators)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ring: %v", err)
+	}
+
+	ringVerifier, err := vrf.NewVerifier(ring, uint(len(validators)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create verifier: %v", err)
+	}
+
+	return ringVerifier, nil
+}
+
 // Outer Safrole function
 // I made this function return ErrorCode only
 func OuterUsedSafrole() *types.ErrorCode {
-
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
-		errCode           *types.ErrorCode
-		err               error
-		s                 = store.GetInstance()
-		header            = s.GetLatestBlock().Header
-		headerAuthorIndex = header.AuthorIndex
-		tau               = s.GetPriorStates().GetTau()
-		tauPrime          = s.GetPosteriorStates().GetTau()
-		e, m              = R(tau)
-		ePrime, _         = R(tauPrime)
+		errCode   *types.ErrorCode
+		err       error
+		s         = store.GetInstance()
+		header    = s.GetLatestBlock().Header
+		tau       = s.GetPriorStates().GetTau()
+		tauPrime  = s.GetPosteriorStates().GetTau()
+		e, m      = R(tau)
+		ePrime, _ = R(tauPrime)
 	)
 
 	// prior time slot must be less than posterior time slot
@@ -155,27 +175,19 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// This function will update GammaK, GammaZ, Lambda, Kappa
 	KeyRotate(e, ePrime)
 
-	// After KeyRotate, gammaK and kappa are updated
-	var (
-		postGammaK = s.GetPosteriorStates().GetGammaK()
-		postKappa  = s.GetPosteriorStates().GetKappa()
-	)
-
-	// Create ring verifier (gammaK)
-	ring := []byte{}
-	for _, validator := range postGammaK {
-		ring = append(ring, []byte(validator.Bandersnatch[:])...)
-	}
-	var ringVerifier *vrf.Verifier
-	ringVerifier, err = vrf.NewVerifier(ring, uint(len(postGammaK)))
-	if err != nil {
-		log.Println("Failed to create verifier:", err)
-		return nil
-	}
-	defer ringVerifier.Free()
+	ringVerifier := s.GetRingVerifier()
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
+		postGammaK := s.GetPosteriorStates().GetGammaK()
+		ringVerifier, err = createRingVerifier(postGammaK)
+		if err != nil {
+			log.Println("Failed to create ring verifier:", err)
+		}
+
+		// Set the ring verifier in store
+		s.SetRingVerifier(ringVerifier)
+
 		var commitment []byte
 		commitment, err = ringVerifier.GetCommitment()
 		if err != nil {
@@ -185,19 +197,6 @@ func OuterUsedSafrole() *types.ErrorCode {
 		}
 	}
 
-	// IETF verifier for author Kappa[authorIndex]
-	var verifier *vrf.Verifier
-	verifier, err = vrf.NewVerifier(postKappa[headerAuthorIndex].Bandersnatch[:], 0)
-	if err != nil {
-		log.Println("Failed to create verifier:", err)
-		return nil
-	}
-	if verifier == nil {
-		log.Println("Failed to create verifier for author key")
-		return nil
-	}
-	defer verifier.Free()
-
 	// (GP 6.17) // This will be used to write H_v to new header
 	// UpdateHeaderEntropy()
 
@@ -205,21 +204,33 @@ func OuterUsedSafrole() *types.ErrorCode {
 	UpdateSlotKeySequence(e, ePrime, m)
 
 	// (GP 6.22)
-	UpdateEtaPrime0(verifier)
+	UpdateEtaPrime0()
 
 	postState := s.GetPosteriorStates().GetState()
-	errCode = ValidateHeaderSeal(verifier, header, &postState)
+	errCode = ValidateHeaderSeal(header, &postState)
 	if errCode != nil {
 		return errCode
 	}
 
-	errCode = ValidateHeaderEntropy(verifier, header)
+	errCode = ValidateHeaderEntropy(header)
 	if errCode != nil {
 		return errCode
 	}
 
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
+	if ringVerifier == nil {
+		// Create ring verifier if not exist
+		postGammaK := s.GetPosteriorStates().GetGammaK()
+		ringVerifier, err = createRingVerifier(postGammaK)
+		if err != nil {
+			log.Println("Failed to create ring verifier:", err)
+		}
+
+		// Set the ring verifier in store
+		s.SetRingVerifier(ringVerifier)
+	}
+
 	errCode = CreateNewTicketAccumulator(ringVerifier)
 	if errCode != nil {
 		return errCode
