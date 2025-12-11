@@ -270,10 +270,9 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 			Hash:   hash.Blake2bHash(serviceblob.Blob),
 			Length: types.U32(len(serviceblob.Blob)),
 		}
-		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; found && len(timeSlotSet) > 0 {
+		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; !found || (found && len(timeSlotSet) > 0) {
 			continue
 		}
-
 		tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
 		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
