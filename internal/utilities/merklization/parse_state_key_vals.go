@@ -768,7 +768,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 			// }
 			continue
 		}
-		// a_s: Storage
+		// a_s: Storage or unmatched lookup
 		exp := v.ExpectedValue
 		act := v.ActualValue
 		if len(exp) > 8 {
@@ -777,7 +777,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 		if len(act) > 8 {
 			act = act[:8]
 		}
-		logger.ColorDebug("serviceID %d state key 0x%x is storage diff: %v", serviceId, v.Key, cmp.Diff(exp, act))
+		logger.ColorDebug("serviceID %d state key 0x%x is storage or unmatched lookup diff: %v", serviceId, v.Key, cmp.Diff(exp, act))
 	}
 	return nil
 }
