@@ -55,8 +55,9 @@ type (
 	}
 
 	SetState struct {
-		Header types.Header
-		State  types.StateKeyVals
+		Header   types.Header
+		State    types.StateKeyVals
+		Ancestry types.Ancestry
 	}
 
 	GetState types.HeaderHash
@@ -297,6 +298,10 @@ func (m *SetState) Encode(e *types.Encoder) error {
 		return err
 	}
 
+	if err := m.Ancestry.Encode(e); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -306,6 +311,10 @@ func (m *SetState) Decode(d *types.Decoder) error {
 	}
 
 	if err := m.State.Decode(d); err != nil {
+		return err
+	}
+
+	if err := m.Ancestry.Decode(d); err != nil {
 		return err
 	}
 

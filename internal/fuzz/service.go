@@ -15,7 +15,7 @@ import (
 type FuzzService interface {
 	Handshake(PeerInfo) (PeerInfo, error)
 	ImportBlock(types.Block) (types.StateRoot, error)
-	SetState(types.Header, types.StateKeyVals) (types.StateRoot, error)
+	SetState(types.Header, types.StateKeyVals, types.Ancestry) (types.StateRoot, error)
 	GetState(types.HeaderHash) (types.StateKeyVals, error)
 }
 
@@ -111,7 +111,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	return latestStateRoot, nil
 }
 
-func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
+func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancenstry types.Ancestry) (types.StateRoot, error) {
 	// Build context for logging
 	headerHash, _ := hash.ComputeBlockHeaderHash(header)
 	hashStr := hex.EncodeToString(headerHash[:])

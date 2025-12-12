@@ -3122,3 +3122,30 @@ func (l *LastAccOut) Encode(e *Encoder) error {
 
 	return nil
 }
+
+func (ai *AncestryItem) Encode(e *Encoder) error {
+	if err := ai.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err := ai.HeaderHash.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Ancestry) Encode(e *Encoder) error {
+	err := e.EncodeLength(uint64(len(*a)))
+	if err != nil {
+		return err
+	}
+
+	for _, item := range *a {
+		if err := item.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

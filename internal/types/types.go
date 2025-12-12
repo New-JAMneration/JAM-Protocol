@@ -1698,3 +1698,10 @@ func Some[T any](v T) *T {
 }
 
 type HashSegmentMap map[OpaqueHash]OpaqueHash
+
+type AncestryItem struct {
+	Slot       TimeSlot
+	HeaderHash HeaderHash
+}
+
+type Ancestry []AncestryItem

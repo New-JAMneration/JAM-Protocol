@@ -158,7 +158,7 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 }
 
 func (s *FuzzServer) handleSetState(m Message) (Message, error) {
-	stateRoot, err := s.Service.SetState(m.SetState.Header, m.SetState.State)
+	stateRoot, err := s.Service.SetState(m.SetState.Header, m.SetState.State, m.SetState.Ancestry)
 	if err != nil {
 		return Message{}, err
 	}

@@ -3421,3 +3421,39 @@ func (l *LastAccOut) Decode(d *Decoder) error {
 
 	return nil
 }
+
+func (ai *AncestryItem) Decode(d *Decoder) error {
+	if err := ai.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	if err := ai.HeaderHash.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Ancestry) Decode(d *Decoder) error {
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// The length should not exceed the maximum lookup age
+	if length > uint64(MaxLookupAge) {
+		return fmt.Errorf("ancestry length %d exceeds maximum lookup age %d", length, MaxLookupAge)
+	}
+
+	*a = make(Ancestry, length)
+
+	for i := uint64(0); i < length; i++ {
+		var item AncestryItem
+		if err := item.Decode(d); err != nil {
+			return err
+		}
+		(*a)[i] = item
+	}
+
+	return nil
+}
