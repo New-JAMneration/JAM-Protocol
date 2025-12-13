@@ -253,6 +253,13 @@ func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
 
 func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
+	// Version
+	serviceAccount.ServiceInfo.Version = types.ServiceInfoVersion
+	encodedVersion, err := encoder.Encode(&serviceAccount.ServiceInfo.Version)
+	if err != nil {
+		return nil
+	}
+	output = append(output, encodedVersion...)
 	// a_c
 	encodedCodeHash, err := encoder.Encode(&serviceAccount.ServiceInfo.CodeHash)
 	if err != nil {
@@ -379,7 +386,22 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	return stateKeyVal
 }
 
-func encodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
+func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.StateKey {
+	encoder := types.NewEncoder()
+
+	encodeLength := 4
+	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
+	part_2 := key.Hash
+
+	h := make(types.ByteSequence, len(part_1)+len(part_2))
+	copy(h, part_1)
+	copy(h[encodeLength:], part_2[:])
+
+	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	return serviceWrapper.StateKeyConstruct()
+}
+
+func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
 	encoder := types.NewEncoder()
 
 	encodeLength := 4
@@ -548,7 +570,7 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	// delta 4
 	for id, account := range state.Delta {
 		for key, val := range account.LookupDict {
-			stateKeyVal := encodeDelta4KeyVal(id, key, val)
+			stateKeyVal := EncodeDelta4KeyVal(id, key, val)
 			encoded = append(encoded, stateKeyVal)
 		}
 	}

@@ -90,7 +90,7 @@ func AppendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types
 	p = { ((g_w)s)h ↦ ((g_w)s)e | g ∈ EG }
 */
 func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
-	var reports []types.ReportedWorkPackage
+	reports := make([]types.ReportedWorkPackage, 0, len(eg))
 	// Create a map from eg.Report.PackageSpec.Hash to eg.Report.PackageSpec.ExportsRoot
 	for _, eg := range eg {
 		report := types.ReportedWorkPackage{
@@ -110,14 +110,10 @@ func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPacka
 /*
 	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
 */
-func NewItem(workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
+func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
 	zeroHash := types.StateRoot{}
-	encoder := types.NewEncoder()
-	head := store.GetInstance().GetLatestBlock().Header
-	headser, _ := encoder.Encode(&head)
-	hashed := hash.Blake2bHash(headser)
 	item = types.BlockInfo{
-		HeaderHash: types.HeaderHash(hashed),
+		HeaderHash: headerHash,
 		BeefyRoot:  accumulationResultMmr,
 		StateRoot:  zeroHash,
 		Reported:   workReportHash,
@@ -165,15 +161,27 @@ func STFBetaHDagger2BetaHPrime() error {
 		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
 		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
 		block         = s.GetLatestBlock()
+		encoder       = types.NewEncoder()
 	)
+	// calculate beefyBeltPrime(β′_B) and commitment(b) from lastAccOut
 	serializedLastAccOut, err := serLastAccOut(lastAccOut)
 	if err != nil {
 		return err
 	}
 	merkleRoot := lastAccOutRoot(serializedLastAccOut)
 	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
+
+	// calculate workReportHash(p) from guarantees
 	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-	item := NewItem(workReportHash, commitment)
+
+	// calculate header hash(h)
+	headser, _ := encoder.Encode(&block.Header)
+	hashed := hash.Blake2bHash(headser)
+
+	// build item n = (h, b, s, p)
+	item := NewItem(types.HeaderHash(hashed), workReportHash, commitment)
+
+	// add item n to beta^prime
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store
@@ -183,29 +191,28 @@ func STFBetaHDagger2BetaHPrime() error {
 }
 
 // STF β′_H ≺ (H, EG, β†_H, C) (4.7)
+// BeefyBelt updated in Dump() and set Commitment to store
+// HeaderHash is hash of block's header, not the parent HeaderHash
 func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	var (
 		s             = store.GetInstance()
 		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
-		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
-		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
 		block         = s.GetLatestBlock()
+		// (b)
+		commitment = s.GetIntermediateStates().GetMmrCommitment()
 	)
 
-	var merkleRoot types.OpaqueHash
-	for _, accumulatedServiceHash := range lastAccOut {
-		merkleRoot = accumulatedServiceHash.Hash
-	}
-
-	log.Printf("mmr peaks before append: %v", beefyBelt.Peaks)
-	beefyBeltPrime, commitment := AppendAndCommitMmr(beefyBelt, merkleRoot)
-	log.Printf("mmr peaks after append: %v", beefyBeltPrime.Peaks)
+	// calculate workReportHash(p) from guarantees
 	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
-	item := NewItem(workReportHash, commitment)
+
+	// build item n = (h, b, s, p)
+	// Note: block.Header.Parent is actually the header hash
+	item := NewItem(block.Header.Parent, workReportHash, commitment)
+
+	// add item n to beta^prime
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
-	// Set beta_B^prime and beta_H^prime to store
-	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	// Set beta_H^prime to store
 	s.GetPosteriorStates().SetBetaH(historyPrime)
 	return nil
 }

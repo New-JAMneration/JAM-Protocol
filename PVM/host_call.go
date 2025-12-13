@@ -91,11 +91,11 @@ type GeneralArgs struct {
 }
 
 type AccumulateArgs struct {
-	ResultContextX ResultContext
-	ResultContextY ResultContext
-	Timeslot       types.TimeSlot
-	Eta            types.Entropy   // italic n / eta_0, used in fetch
-	Operands       []types.Operand // o, used in fetch
+	ResultContextX            ResultContext
+	ResultContextY            ResultContext
+	Timeslot                  types.TimeSlot
+	Eta                       types.Entropy                     // italic n / eta_0, used in fetch
+	OperandOrDeferredTransfer []types.OperandOrDeferredTransfer // o, used in fetch
 }
 
 type RefineArgs struct {
@@ -120,7 +120,6 @@ type HostCallArgs struct {
 	GeneralArgs
 	AccumulateArgs
 	RefineArgs
-	OnTransferArgs
 	Program
 }
 
@@ -574,18 +573,18 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 		v = &val
 	case 14:
-		if len(input.Addition.Operands) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
 			break
 		}
 
 		var buffer []byte
-		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.Operands))))
+		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfer))))
 		if err != nil {
 			logger.Errorf("fetch host-call case 14 encode uint error: %v", err)
 			break
 		}
 
-		for _, o := range input.Addition.Operands {
+		for _, o := range input.Addition.OperandOrDeferredTransfer {
 			var bytes []byte
 			bytes, err = encoder.Encode(&o)
 			if err != nil {
@@ -597,57 +596,18 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		v = &buffer
 	case 15:
-		if len(input.Addition.Operands) == 0 {
+		if len(input.Addition.OperandOrDeferredTransfer) == 0 {
 			break
 		}
 
 		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.Operands)) {
+		if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfer)) {
 			break
 		}
 
-		val, err = encoder.Encode(&input.Addition.Operands[w11])
+		val, err = encoder.Encode(&input.Addition.OperandOrDeferredTransfer[w11])
 		if err != nil {
 			logger.Errorf("fetch host-call case 15 encode error: %v", err)
-		}
-		v = &val
-	case 16:
-		if len(input.Addition.DeferredTransfer) == 0 {
-			break
-		}
-
-		var buffer []byte
-		buffer, err = encoder.EncodeUint(uint64(len(input.Addition.DeferredTransfer)))
-		if err != nil {
-			logger.Errorf("fetch host-call case 16 encode uint error: %v", err)
-			break
-		}
-
-		for _, t := range input.Addition.DeferredTransfer {
-			var bytes []byte
-			bytes, err = encoder.Encode(&t)
-			if err != nil {
-				logger.Errorf("fetch host-call case 16 encode error: %v", err)
-				break
-			}
-
-			buffer = append(buffer, bytes...)
-		}
-
-		v = &buffer
-	case 17:
-		if len(input.Addition.DeferredTransfer) == 0 {
-			break
-		}
-
-		w11 := input.Registers[11]
-		if w11 >= uint64(len(input.Addition.DeferredTransfer)) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.DeferredTransfer[w11])
-		if err != nil {
-			logger.Errorf("fetch host-call case 17 encode error: %v", err)
 		}
 		v = &val
 	}
@@ -1769,7 +1729,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	m, a, v, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
+	m, a, v, r, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
 
 	// if N_{a...+4C} not readable
 	offset := uint64(4 * types.CoresCount)
@@ -1783,13 +1743,9 @@ func bless(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	// \mathbb{a}
-	rawData := input.Memory.Read(a, offset)
-	var assignData types.ServiceIdList
-	decoder := types.NewDecoder()
-	assignErr := decoder.Decode(rawData, &assignData)
-	if assignErr != nil {
-		logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
+
+	offset = uint64(12 * n)
+	if !isReadable(o, offset, input.Memory) && n != 0 { // not readable, return
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -1799,8 +1755,14 @@ func bless(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	offset = uint64(12 * n)
-	if !isReadable(o, offset, input.Memory) && n != 0 { // not readable, return
+
+	// \mathbb{a}
+	rawData := input.Memory.Read(a, offset)
+	var assignData types.ServiceIdList
+	decoder := types.NewDecoder()
+	assignErr := decoder.Decode(rawData, &assignData)
+	if assignErr != nil {
+		logger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -1846,22 +1808,10 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if x_s ≠ (x_u)_m
-	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Bless {
-		input.Registers[7] = HUH
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// (m, v) \not in N_s
+	// (m, v, r) \not in N_s
 	limit := uint64(1 << 32)
 
-	if m >= limit || v >= limit {
+	if m >= limit || v >= limit || r >= limit {
 		input.Registers[7] = WHO
 
 		return OmegaOutput{
@@ -2063,7 +2013,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	o, l, g, m, f := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11]
+	o, l, g, m, f, i := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
 
 	offset := uint64(32)
 	// if c = ∇
@@ -2147,14 +2097,52 @@ func new(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	// otherwise if x_s = (x_e)r and i < S and i \in K((x_e)_d)
+	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)]
+	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex && exists {
+		input.Registers[7] = FULL
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	// the remaining condition will new a service, so pre-update service info
+	s.ServiceInfo.Balance = newBalance
+
+	// otherwise if x_s = (x_e)_r and i < S
+	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
+		// reg[7] = i
+		input.Registers[7] = i
+		// d = { (i -> a) }
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)] = a
+		// d = { (x_s -> s) }
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
+		if serviceID == *input.Addition.GeneralArgs.ServiceId { // update general args
+			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = s
+			*input.Addition.GeneralArgs.ServiceAccount = s
+		}
+
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
 	// otherwise
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 
-	s.ServiceInfo.Balance = newBalance
 	// reg[7] = x_i
 	input.Registers[7] = uint64(importServiceID)
 	// i* = check(i)
-	iStar := check((1<<8)+(importServiceID-(1<<8)+42)%(1<<32-1<<9), input.Addition.ResultContextX.PartialState.ServiceAccounts)
+	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	input.Addition.ResultContextX.ImportServiceId = iStar
 	// mathbb{d} : x_i -> a
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
@@ -2401,12 +2389,11 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupDataLength := len(lookupData)
 
 	if lookupDataLength == 2 {
-		if lookupData[1] < timeslot-types.TimeSlot(types.UnreferencedPreimageTimeslots) {
+		if int(lookupData[1]) < int(timeslot)-int(types.TimeSlot(types.UnreferencedPreimageTimeslots)) {
 			if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
 				input.Registers[7] = OK
 
@@ -2543,6 +2530,24 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	timeslot := input.Addition.Timeslot
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		// check lookupItem from key-val
+		var timeSlotSet types.TimeSlotSet
+		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
+		if lookupTimeSlotSet != nil {
+			decoder := types.NewDecoder()
+			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+			if err != nil {
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(PANIC, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			a.LookupDict[lookupKey] = timeSlotSet
+		}
+
 		lookupData, lookupDataExists := a.LookupDict[lookupKey]
 		itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
 
@@ -2647,6 +2652,24 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
+		// check lookupItem from key-val
+		var timeSlotSet types.TimeSlotSet
+		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
+		if lookupTimeSlotSet != nil {
+			decoder := types.NewDecoder()
+			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+			if err != nil {
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(PANIC, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			a.LookupDict[lookupKey] = timeSlotSet
+		}
+
 		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
 			lookupDataLength := len(lookupData)
 			itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
@@ -2747,6 +2770,7 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	opaqueHash := types.OpaqueHash(h)
 	input.Addition.ResultContextX.Exception = &opaqueHash
 	// copy(input.Addition.ResultContextX.Exception[:], h)
+	input.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -2786,16 +2810,16 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	// i = mu_o...+z
 	i := input.Memory.Read(o, z)
 
-	// s* = s or s = omega_7
-	var sStar types.ServiceId
+	// s = x_s or s = omega_7
+	var s types.ServiceId
 	if input.Registers[7] == 0xffffffffffffffff {
-		sStar = input.Addition.ResultContextX.ServiceId
+		s = input.Addition.ResultContextX.ServiceId
 	} else {
-		sStar = types.ServiceId(input.Registers[7])
+		s = types.ServiceId(input.Registers[7])
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d
-	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(sStar)]
+	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[s]
 	if !accountExists {
 		// otherwise if a = nil
 		input.Registers[7] = WHO
@@ -2813,6 +2837,24 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		Length: types.U32(z),
 	}
 
+	// check lookupItem from key-val
+	var timeSlotSet types.TimeSlotSet
+	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, s, lookupKey)
+	if lookupTimeSlotSet != nil {
+		decoder := types.NewDecoder()
+		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
+		if err != nil {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(PANIC, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+		account.LookupDict[lookupKey] = timeSlotSet
+	}
+
 	// otherwise if a_l[H(i), z] not in []
 	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists && len(lookupData) != 0 {
 		input.Registers[7] = HUH
@@ -2826,12 +2868,12 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	}
 
 	serviceBlob := types.ServiceBlob{
-		ServiceID: sStar,
+		ServiceID: s,
 		Blob:      i,
 	}
 
 	encoder := types.NewEncoder()
-	serialized, _ := encoder.Encode(&sStar)
+	serialized, _ := encoder.Encode(&s)
 	encoded, _ := encoder.Encode(&i)
 	serialized = append(serialized, encoded...)
 	hashKey := hash.Blake2bHash(serialized)
@@ -2922,16 +2964,16 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 			return serviceID
 		}
 
-		serviceID = (serviceID-(1<<8)+1)%(1<<32-1<<9) + (1 << 8)
+		serviceID = (serviceID-types.MinimumServiceIndex+1)%(1<<32-(1<<8)-types.MinimumServiceIndex) + types.MinimumServiceIndex
 	}
 }
 
-// 0.7.0 later, fuzzer needs to recover state, storage cannot be recover,
-// Thus, needs to check storage from KeyVal
+// 0.7.0 later, fuzzer (forks) needs to recover state, storage, part of lookupData cannot be recover,
+// Thus, needs to check storage, part of lookupData from KeyVal
 // return storage val and add storage state into ResultContextX
-func getStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
+func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for _, v := range *storageKeyVal {
+	for _, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
 			return &v.Value
 		}
@@ -2940,19 +2982,36 @@ func getStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.Ser
 	return nil
 }
 
-func removeStorageFromKeyVal(storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) {
+func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for k, v := range *storageKeyVal {
+	for k, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
-			logger.Debugf("remove key: 0x%x\n", requestedStorageStateKey.Key)
-			if k < len(*storageKeyVal)-1 { // not the last index
-				*storageKeyVal = append((*storageKeyVal)[:k], (*storageKeyVal)[k+1:]...)
-				return
+			logger.Debugf("remove storage key: 0x%x\n", requestedStorageStateKey.Key)
+			if k < len(*keyVal)-1 { // not the last index
+				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
 			} else {
-				*storageKeyVal = (*storageKeyVal)[:k]
+				*keyVal = (*keyVal)[:k]
 			}
+			return
 		}
 	}
+}
+
+func getLookupItemFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, lookupKey types.LookupMetaMapkey) []byte {
+	lookupStateKey := merklization.EncodeDelta4Key(serviceID, lookupKey)
+	for k, v := range *keyVal {
+		if v.Key == lookupStateKey {
+			// remove from key-val
+			if k < len(*keyVal)-1 { // not the last index
+				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
+			} else {
+				*keyVal = (*keyVal)[:k]
+			}
+			return v.Value
+		}
+	}
+
+	return nil
 }
 
 func derefernceOrNil[T any](p *T) any {

@@ -12,7 +12,6 @@ func UpdateAccumlate() error {
 	if err != nil {
 		return err
 	}
-
 	// 12.3
 	err = accumulation.DeferredTransfers()
 	if err != nil {

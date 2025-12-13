@@ -16,4 +16,23 @@ const (
 	InvalidTicketsMark                           // 10 InvalidTicketsMark
 	InvalidOffenderMarker                        // 11 InvalidOffenderMarker
 	UnexpectedAuthor                             // 12 Block author is not the expected one
+	AuthorIndexOutOfRange                        // 13 Author index is out of range (temporary, waiting for official code)
 )
+
+// This map provides human-readable messages following the fuzz-proto examples
+var SafroleErrorCodeMessages = map[types.ErrorCode]string{
+	BadSlot:               "timeslot value must be strictly monotonic",
+	UnexpectedTicket:      "received a ticket while in epoch's tail",
+	BadTicketOrder:        "tickets must be sorted",
+	BadTicketProof:        "invalid ticket ring proof",
+	BadTicketAttempt:      "invalid ticket attempt value",
+	Reserved:              "reserved",
+	DuplicateTicket:       "found a ticket duplicate",
+	VrfSealInvalid:        "BadSealSignature", // matches fuzz-proto example
+	VrfEntropyInvalid:     "vrf entropy invalid",
+	InvalidEpochMark:      "invalid epoch mark",
+	InvalidTicketsMark:    "invalid tickets mark",
+	InvalidOffenderMarker: "invalid offender marker",
+	UnexpectedAuthor:      "unexpected author", // matches fuzz-proto example
+	AuthorIndexOutOfRange: "author index is out of range",
+}

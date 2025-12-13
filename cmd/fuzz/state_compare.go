@@ -9,7 +9,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
@@ -73,41 +72,13 @@ func logImportBlockDiff(client *fuzz.FuzzClient, headerHash types.HeaderHash, ex
 
 	logger.ColorYellow("[GetState][Response] %d different key-val: ", len(diffs))
 	nullStateRoot := types.StateRoot{}
-
-	for _, v := range diffs {
-		if actualRoot == nullStateRoot || expectedRoot == nullStateRoot || len(actualStateKeyVal) == 0 {
-			break
-		}
-
-		if state, keyExists := jamtests.KeyValMap[v.Key]; keyExists {
-			logger.ColorYellow("state: %s, key: %v", state, v.Key)
-			if len(v.ActualValue) > 256 || len(v.ExpectedValue) > 256 {
-				logger.ColorDebug("value too big, only check diff")
-			} else {
-				logger.ColorDebug("actualVal: %+v", v.ActualValue)
-				logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-			}
-			continue
-		}
-
-		if v.Key[0] == byte(255) {
-			serviceID, err := merklization.DecodeServiceIdFromType2(v.Key)
-			if err != nil {
-				return fmt.Errorf("fuzzer DecodeServiceIdFromType2 error: %w", err)
-			}
-			logger.ColorYellow("service: %d", serviceID)
-			logger.ColorDebug("actualVal: %+v", v.ActualValue)
-			logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-			continue
-		}
-
-		logger.ColorYellow("other state key: 0x%x", v.Key)
-		if len(v.ActualValue) > 256 || len(v.ExpectedValue) > 256 {
-			logger.ColorDebug("value too big, check json file")
-		} else {
-			logger.ColorDebug("actualVal: %+v", v.ActualValue)
-			logger.ColorDebug("expectVal: %+v", v.ExpectedValue)
-		}
+	if actualRoot == nullStateRoot || expectedRoot == nullStateRoot || len(actualStateKeyVal) == 0 {
+		logger.ColorYellow("[GetState][Response] nil state root, imply protocol error")
+		return nil // no diffs
+	}
+	err = merklization.DebugStateKeyValsDiff(diffs)
+	if err != nil {
+		return fmt.Errorf("fuzzer DebugStateKeyValsDiff error: %w", err)
 	}
 
 	return nil

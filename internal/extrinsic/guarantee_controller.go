@@ -1,7 +1,6 @@
 package extrinsic
 
 import (
-	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
@@ -53,7 +52,7 @@ func (g *GuaranteeController) Sort() error {
 		return nil
 	}
 
-	err := SortUniqueSignatures(g.Guarantees[0].Signatures)
+	err := CheckSignaturesAreSorted(g.Guarantees[0].Signatures)
 	if err != nil {
 		// not_sorted_guarantors
 		return err
@@ -63,7 +62,7 @@ func (g *GuaranteeController) Sort() error {
 			err := ReportsErrorCode.OutOfOrderGuarantee
 			return &err
 		}
-		err := SortUniqueSignatures(g.Guarantees[i].Signatures)
+		err := CheckSignaturesAreSorted(g.Guarantees[i].Signatures)
 		if err != nil {
 			// "not_sorted_guarantors"
 			return err
@@ -72,13 +71,15 @@ func (g *GuaranteeController) Sort() error {
 	return nil
 }
 
-func SortUniqueSignatures(signatures []types.ValidatorSignature) error {
+// SortSignatures sorts the signatures in ascending order of ValidatorIndex
+func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 	if len(signatures) == 0 {
 		return nil
 	}
 
 	for i := 0; i < len(signatures)-1; i++ {
-		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
+		if signatures[i].ValidatorIndex > signatures[i+1].ValidatorIndex {
+			// return errors.New("not_sorted_or_unique_guarantors")
 			err := ReportsErrorCode.NotSortedOrUniqueGuarantors
 			return &err
 		}
@@ -134,7 +135,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 				err := ReportsErrorCode.WrongAssignment
 				return &err
 			}
-			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex][:]
+			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
 			if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
 				err := ReportsErrorCode.BadSignature
 				return &err
@@ -273,28 +274,24 @@ func (g *GuaranteeController) ValidateContexts() error {
 		}
 	}
 
-	encoder := types.NewEncoder()
-	// 11.35
-	ancestorHeaders := store.GetInstance().GetAncestorHeaders()
-	for _, context := range contexts {
-		foundMatch := false
-		for _, ancestorHeader := range ancestorHeaders {
-			headerSerial, err := encoder.Encode(&ancestorHeader)
+	// 11.35   ancestors currently not maintained
+	// current implement: get header from redis and check timeslot over MaxLookupAge(L)
+	blocks := store.GetInstance().GetBlocks()
+	if len(blocks) > 1 {
+		for _, context := range contexts {
+			ancestorBlock, err := store.GetInstance().GetBlockByHash(context.LookupAnchor)
 			if err != nil {
-				return err
+				errCode := ReportsErrorCode.LookupAnchorNotRecent
+				return &errCode
 			}
 
-			if context.LookupAnchorSlot == ancestorHeader.Slot && hash.Blake2bHash(headerSerial) == types.OpaqueHash(context.LookupAnchor) {
-				foundMatch = true
-				break
+			ancestorTimeSlot := ancestorBlock.Header.Slot
+			if headerTimeSlot-ancestorTimeSlot > types.TimeSlot(types.MaxLookupAge) || ancestorTimeSlot != context.LookupAnchorSlot {
+				errCode := ReportsErrorCode.LookupAnchorNotRecent
+				return &errCode
 			}
-		}
-		if !foundMatch {
-			// return errors.New("invalid_context")
-			log.Println("invalid_context")
 		}
 	}
-
 	return nil
 }
 
@@ -501,7 +498,7 @@ func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, erro
 	}
 
 	for _, sig := range guarantee.Signatures {
-		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex])
+		guarantors = append(guarantors, guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519)
 	}
 
 	return guarantors, nil

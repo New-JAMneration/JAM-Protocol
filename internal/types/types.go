@@ -119,6 +119,7 @@ type (
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
 // GP 0.6.7
 type ServiceInfo struct {
+	Version              U8         `json:"version,omitempty"`                // new in v0.7.1
 	DepositOffset        U64        `json:"deposit_offset,omitempty"`         // a_f
 	CodeHash             OpaqueHash `json:"code_hash,omitempty"`              // a_c
 	Balance              U64        `json:"balance,omitempty"`                // a_b
@@ -502,8 +503,12 @@ type WorkReport struct {
 }
 
 func (w *WorkReport) Validate() error {
-	if len(w.Results) < 1 || len(w.Results) > MaximumWorkItems {
-		return fmt.Errorf("WorkReport Results must have items between 1 and %v, but got %v", MaximumWorkItems, len(w.Results))
+	if len(w.Results) < 1 {
+		return fmt.Errorf("missing_work_results")
+	}
+
+	if len(w.Results) > MaximumWorkItems {
+		return fmt.Errorf("too_many_work_results")
 	}
 
 	return nil
@@ -628,20 +633,18 @@ func (c CoresStatistics) Validate() error {
 	return nil
 }
 
-// v0.6.4 (13.7)
+// v0.7.1 (13.7)
 type ServiceActivityRecord struct {
-	ProvidedCount      U16 `json:"provided_count,omitempty"`
-	ProvidedSize       U32 `json:"provided_size,omitempty"`
-	RefinementCount    U32 `json:"refinement_count,omitempty"`
-	RefinementGasUsed  Gas `json:"refinement_gas_used,omitempty"`
-	Imports            U32 `json:"imports,omitempty"`
-	Exports            U32 `json:"exports,omitempty"`
-	ExtrinsicSize      U32 `json:"extrinsic_size,omitempty"`
-	ExtrinsicCount     U32 `json:"extrinsic_count,omitempty"`
-	AccumulateCount    U32 `json:"accumulate_count,omitempty"`
-	AccumulateGasUsed  Gas `json:"accumulate_gas_used,omitempty"`
-	OnTransfersCount   U32 `json:"on_transfers_count,omitempty"`
-	OnTransfersGasUsed Gas `json:"on_transfers_gas_used,omitempty"`
+	ProvidedCount     U16 `json:"provided_count,omitempty"`
+	ProvidedSize      U32 `json:"provided_size,omitempty"`
+	RefinementCount   U32 `json:"refinement_count,omitempty"`
+	RefinementGasUsed Gas `json:"refinement_gas_used,omitempty"`
+	Imports           U32 `json:"imports,omitempty"`
+	Exports           U32 `json:"exports,omitempty"`
+	ExtrinsicSize     U32 `json:"extrinsic_size,omitempty"`
+	ExtrinsicCount    U32 `json:"extrinsic_count,omitempty"`
+	AccumulateCount   U32 `json:"accumulate_count,omitempty"`
+	AccumulateGasUsed Gas `json:"accumulate_gas_used,omitempty"`
 }
 
 type ServicesStatistics map[ServiceId]ServiceActivityRecord
@@ -994,7 +997,7 @@ type ReportGuarantee struct {
 
 func (r *ReportGuarantee) Validate() error {
 	if err := r.Report.Validate(); err != nil {
-		log.Println("report validation failed: %w", err)
+		return err
 	}
 
 	if len(r.Signatures) < 2 {
@@ -1441,6 +1444,7 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 }
 
 // (12.14) deferred transfer
+// X = deferred-transfer
 type DeferredTransfer struct {
 	SenderID   ServiceId `json:"senderid"`
 	ReceiverID ServiceId `json:"receiverid"`
@@ -1476,15 +1480,16 @@ type AlwaysAccumulateMapDTO struct {
 }
 
 type Privileges struct {
-	Bless       ServiceId           `json:"bless"`      // Manager
-	Assign      ServiceIdList       `json:"assign"`     // AlterPhi
-	Designate   ServiceId           `json:"designate"`  // AlterIota
-	AlwaysAccum AlwaysAccumulateMap `json:"always_acc"` // AutoAccumulateGasLimits
+	Bless       ServiceId           `json:"chi_m"` // XM
+	Designate   ServiceId           `json:"chi_v"` // XV
+	CreateAcct  ServiceId           `json:"chi_r"` // XR
+	Assign      ServiceIdList       `json:"chi_a"` // XA
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
 }
 
 type AccumulateRoot OpaqueHash
 
-// (12.13)
+// (12.16) S
 type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
@@ -1492,6 +1497,7 @@ type PartialStateSet struct {
 	Bless           ServiceId           // m
 	Assign          ServiceIdList       // a
 	Designate       ServiceId           // v
+	CreateAcct      ServiceId           // r
 	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
@@ -1505,7 +1511,7 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		for preimageKey, preimageVal := range originAccount.PreimageLookup {
 			copiedPreimage := make(ByteSequence, len(preimageVal))
 			copy(copiedPreimage, preimageVal)
-			copiedAccount.PreimageLookup[preimageKey] = preimageVal
+			copiedAccount.PreimageLookup[preimageKey] = copiedPreimage
 		}
 		copiedAccount.LookupDict = make(LookupMetaMapEntry)
 		for k, v := range originAccount.LookupDict {
@@ -1514,9 +1520,9 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		}
 		copiedAccount.StorageDict = make(Storage)
 		for storageKey, storageVal := range originAccount.StorageDict {
-			copiedPreimage := make(ByteSequence, len(storageVal))
-			copy(copiedPreimage, storageVal)
-			copiedAccount.StorageDict[storageKey] = storageVal
+			copiedStorage := make(ByteSequence, len(storageVal))
+			copy(copiedStorage, storageVal)
+			copiedAccount.StorageDict[storageKey] = copiedStorage
 		}
 
 		copiedServiceAccounts[serviceID] = copiedAccount
@@ -1576,7 +1582,12 @@ type Operand struct {
 	AuthOutput     ByteSequence    // t
 }
 
-// (12.15) U
+type OperandOrDeferredTransfer struct {
+	Operand          *Operand          // U
+	DeferredTransfer *DeferredTransfer // X
+}
+
+// (12.17) U
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
@@ -1605,8 +1616,8 @@ type GasAndNumAccumulatedReports struct {
 	NumAccumulatedReports U64
 }
 
-// (12.23)
-// I: accumulation statistics
+// (12.26)
+// S: accumulation statistics
 // dictionary<serviceId, (gas used, the number of work-reports accumulated)>
 type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
 
@@ -1615,11 +1626,6 @@ type NumDeferredTransfersAndTotalGasUsed struct {
 	NumDeferredTransfers U64
 	TotalGasUsed         Gas
 }
-
-// (12.29)
-// X: deferred-transfers statistics
-// dictionary<destination service index, (the number of deferred-transfers, total gas used)>
-type DeferredTransfersStatistics map[ServiceId]NumDeferredTransfersAndTotalGasUsed
 
 type AuditReport struct {
 	CoreID      CoreIndex

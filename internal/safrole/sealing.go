@@ -192,17 +192,27 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) error {
 	return nil
 }
 
-func ValidateByBandersnatchs(header types.Header, priorState *types.State) error {
-	publicKey := priorState.Kappa[header.AuthorIndex].Bandersnatch
+func ValidateByBandersnatchs(header types.Header, state *types.State) error {
+	gammaSKeys := state.Gamma.GammaS.Keys
+	index := uint(header.Slot) % uint(len(gammaSKeys))
+
+	expectedPublicKey := gammaSKeys[index]
+	actualPublicKey := state.Kappa[header.AuthorIndex].Bandersnatch
+
+	if expectedPublicKey != actualPublicKey {
+		errCode := SafroleErrorCode.UnexpectedAuthor
+		return &errCode
+	}
+
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		return err
 	}
 	var context types.ByteSequence
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
-	context = append(context, types.ByteSequence(priorState.Eta[3][:])...)
+	context = append(context, types.ByteSequence(state.Eta[3][:])...)
 	signature := header.Seal[:]
-	verifier, _ := vrf.NewVerifier(publicKey[:], 1)
+	verifier, _ := vrf.NewVerifier(actualPublicKey[:], 1)
 	defer verifier.Free()
 	_, err = verifier.IETFVerify(context, message, signature, 0)
 	if err != nil {
@@ -238,7 +248,6 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 		return fmt.Errorf("failed to create verifier: %w", err)
 	}
 	_, err = verifier.IETFVerify(context, message, signature, 0)
-
 	if err != nil {
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
@@ -247,35 +256,13 @@ func ValidateByTickets(header types.Header, state *types.State) error {
 	return nil
 }
 
-func tryValidateSeal(header types.Header, state *types.State, idx types.ValidatorIndex) error {
-	// override author index
-	header.AuthorIndex = idx
-
+func ValidateHeaderSeal(header types.Header, state *types.State) error {
 	gammaS := state.Gamma.GammaS
 	if len(gammaS.Tickets) > 0 {
 		return ValidateByTickets(header, state)
 	} else {
 		return ValidateByBandersnatchs(header, state)
 	}
-}
-
-func ValidateHeaderSeal(header types.Header, state *types.State) error {
-	if tryValidateSeal(header, state, header.AuthorIndex) == nil {
-		return nil
-	}
-	// Check for wrong author cases
-	for i := 0; i < len(state.Kappa); i++ {
-		if i == int(header.AuthorIndex) {
-			continue
-		}
-		if tryValidateSeal(header, state, types.ValidatorIndex(i)) == nil {
-			errCode := SafroleErrorCode.UnexpectedAuthor
-			return &errCode
-		}
-	}
-
-	errCode := SafroleErrorCode.VrfSealInvalid
-	return &errCode
 }
 
 // NO REFERENCES

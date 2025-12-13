@@ -1,15 +1,16 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
@@ -31,7 +32,8 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
-	storageKeyVals             types.StateKeyVals
+	preStateUnmatchedKeyVals   types.StateKeyVals
+	postStateUnmatchedKeyVals  types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -50,7 +52,8 @@ func GetInstance() *Store {
 			posteriorStates:            NewPosteriorStates(),
 			ancestorHeaders:            NewAncestorHeaders(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
-			storageKeyVals:             types.StateKeyVals{},
+			preStateUnmatchedKeyVals:   types.StateKeyVals{},
+			postStateUnmatchedKeyVals:  types.StateKeyVals{},
 		}
 		log.Println("🚀 Store initialized")
 	})
@@ -71,7 +74,8 @@ func ResetInstance() {
 		posteriorStates:            NewPosteriorStates(),
 		ancestorHeaders:            NewAncestorHeaders(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
-		storageKeyVals:             types.StateKeyVals{},
+		preStateUnmatchedKeyVals:   types.StateKeyVals{},
+		postStateUnmatchedKeyVals:  types.StateKeyVals{},
 	}
 	log.Println("🚀 Store reset")
 }
@@ -250,14 +254,16 @@ func (s *Store) StateCommit() {
 	blocks := s.GetBlocks()
 	if len(blocks) == 0 {
 		posterState := s.GetPosteriorStates().GetState()
+		postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
 		s.GetPriorStates().SetState(posterState)
+		s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
 		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 		return
 	}
 
 	latestBlock := s.GetLatestBlock()
 
-	blockHeaderHash, err := computeBlockHeaderHash(latestBlock.Header)
+	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
 		log.Printf("StateCommit: failed to encode header: %v", err)
 	} else {
@@ -292,8 +298,13 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 		return fmt.Errorf("failed to encode state: %w", err)
 	}
 
-	storageKeyVals := s.GetStorageKeyVals()
-	fullStateKeyVals := append(storageKeyVals, serializedState...)
+	unmatchedKeyVals := s.GetPostStateUnmatchedKeyVals()
+	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
+
+	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
+	sort.Slice(fullStateKeyVals, func(i, j int) bool {
+		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
+	})
 
 	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
 
@@ -315,13 +326,21 @@ func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.Sta
 	return s.repo.GetStateDataByHeaderHash(s.repo.Database(), blockHeaderHash)
 }
 
-// StorageKeyVals
-func (s *Store) GetStorageKeyVals() types.StateKeyVals {
-	return s.storageKeyVals
+// UnmatchedKeyVals
+func (s *Store) GetPriorStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.preStateUnmatchedKeyVals
 }
 
-func (s *Store) SetStorageKeyVals(storageKeyVals types.StateKeyVals) {
-	s.storageKeyVals = storageKeyVals
+func (s *Store) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.preStateUnmatchedKeyVals = unmatchedKeyVals
+}
+
+func (s *Store) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
+	return s.postStateUnmatchedKeyVals
+}
+
+func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
+	s.postStateUnmatchedKeyVals = unmatchedKeyVals
 }
 
 // GetGenesisBlock retrieves the genesis block from the store.
@@ -388,13 +407,13 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	}
 
 	// Restore state and storage key-vals
-	state, storageKeyVal, err := merklization.StateKeyValsToState(stateKeyVals)
+	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return err
 	}
 
 	s.GetPriorStates().SetState(state)
-	s.SetStorageKeyVals(storageKeyVal)
+	s.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
 
 	// Restore block
 	s.CleanupBlock()

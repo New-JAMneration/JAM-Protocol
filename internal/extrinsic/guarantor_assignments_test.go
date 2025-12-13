@@ -82,9 +82,21 @@ func TestNewGuranatorAssignments(t *testing.T) {
 
 	// Optionally check if the public keys match the dummyValidators
 	for i, pubKey := range gAssignments.PublicKeys {
-		if pubKey != dummyValidators[i].Ed25519 {
+		if pubKey.Ed25519 != dummyValidators[i].Ed25519 {
 			t.Errorf("mismatch in public key at index %d.\nExpected: %v\nGot:      %v",
 				i, dummyValidators[i].Ed25519, pubKey)
+		}
+		if pubKey.Bandersnatch != dummyValidators[i].Bandersnatch {
+			t.Errorf("mismatch in bandersnatch key at index %d.\nExpected: %v\nGot:      %v",
+				i, dummyValidators[i].Bandersnatch, pubKey.Bandersnatch)
+		}
+		if pubKey.Bls != dummyValidators[i].Bls {
+			t.Errorf("mismatch in bls key at index %d.\nExpected: %v\nGot:      %v",
+				i, dummyValidators[i].Bls, pubKey.Bls)
+		}
+		if pubKey.Metadata != dummyValidators[i].Metadata {
+			t.Errorf("mismatch in metadata at index %d.\nExpected: %v\nGot:      %v",
+				i, dummyValidators[i].Metadata, pubKey.Metadata)
 		}
 	}
 }
@@ -125,10 +137,10 @@ func TestGStarLambda(t *testing.T) {
 	// So expected entropy is dummyEta[3] = [32]byte{0x04}
 	// and expected validators set is dummyLambda.
 
-	if gStarVal.PublicKeys[0] != dummyLambda[0].Ed25519 {
+	if gStarVal.PublicKeys[0].Ed25519 != dummyLambda[0].Ed25519 {
 		t.Errorf("expected G* to use lambda's public key[0], got something else")
 	}
-	if gStarVal.PublicKeys[1] != dummyLambda[1].Ed25519 {
+	if gStarVal.PublicKeys[1].Ed25519 != dummyLambda[1].Ed25519 {
 		t.Errorf("expected G* to use lambda's public key[1], got something else")
 	}
 
@@ -176,10 +188,10 @@ func TestGStarKappa(t *testing.T) {
 	// So expected entropy is dummyEta[2] = [32]byte{0x03}
 	// and expected validators set is dummyLambda.
 
-	if gStarVal.PublicKeys[0] != dummyKappa[0].Ed25519 {
+	if gStarVal.PublicKeys[0].Ed25519 != dummyKappa[0].Ed25519 {
 		t.Errorf("expected G* to use lambda's public key[0], got something else")
 	}
-	if gStarVal.PublicKeys[1] != dummyKappa[1].Ed25519 {
+	if gStarVal.PublicKeys[1].Ed25519 != dummyKappa[1].Ed25519 {
 		t.Errorf("expected G* to use lambda's public key[1], got something else")
 	}
 
@@ -217,10 +229,10 @@ func TestGFunc(t *testing.T) {
 	// act
 	gVal, _ := GFunc(nil)
 
-	if gVal.PublicKeys[0] != dummyKappa[0].Ed25519 {
+	if gVal.PublicKeys[0].Ed25519 != dummyKappa[0].Ed25519 {
 		t.Errorf("expected G to use kappa's public key[0], got something else")
 	}
-	if gVal.PublicKeys[1] != dummyKappa[1].Ed25519 {
+	if gVal.PublicKeys[1].Ed25519 != dummyKappa[1].Ed25519 {
 		t.Errorf("expected G to use kappa's public key[1], got something else")
 	}
 

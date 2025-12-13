@@ -20,8 +20,10 @@
     "password": "password"
   },
   "info": {
-    "name": "New-JAMneration",
-    "app_version": "1.0.0",
-    "jam_version": "0.7.0"
+    "fuzz_version": 1,
+    "fuzz_features": 2,
+    "jam_version": "0.7.0",
+    "app_version": "0.1.25",
+    "name": "polkajam"
   }
 }

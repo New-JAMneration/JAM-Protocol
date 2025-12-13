@@ -27,6 +27,12 @@ const (
 	BadSignature                                       // 21
 	WorkReportTooBig                                   // 22
 	BannedValidator                                    // 23
+	LookupAnchorNotRecent                              // 24
+	MissingWorkResults                                 // 25
+
+	// 26 is not align to asn.1, since there is MissingWorkResults
+	// define TooManyWrokResults to check work reports validation
+	TooManyWorkResults // 26
 )
 
 var ReportsErrorMap = map[string]types.ErrorCode{
@@ -54,4 +60,38 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"bad_signature":                   BadSignature,
 	"work_report_too_big":             WorkReportTooBig,
 	"banned_validator":                BannedValidator,
+	"lookup_anchor_not_recent":        LookupAnchorNotRecent,
+	"missing_work_results":            MissingWorkResults,
+	"too_many_work_results":           TooManyWorkResults,
+}
+
+// This map provides human-readable messages following the fuzz-proto examples
+var ReportsErrorCodeMessages = map[types.ErrorCode]string{
+	BadCoreIndex:                "bad core index for work report",      // matches fuzz-proto example
+	FutureReportSlot:            "report refers to slot in the future", // matches fuzz-proto example
+	ReportEpochBeforeLast:       "report epoch before last",
+	InsufficientGuarantees:      "insufficient guarantees",
+	OutOfOrderGuarantee:         "out of order guarantee",
+	NotSortedOrUniqueGuarantors: "not sorted or unique guarantors",
+	WrongAssignment:             "wrong core assignment", // matches fuzz-proto example
+	CoreEngaged:                 "core engaged",
+	AnchorNotRecent:             "anchor not recent",
+	BadServiceId:                "bad service id",
+	BadCodeHash:                 "bad code hash",
+	DependencyMissing:           "dependency missing",
+	DuplicatePackage:            "duplicate package",
+	BadStateRoot:                "bad state root",
+	BadBeefyMmrRoot:             "bad beefy mmr root",
+	CoreUnauthorized:            "code unauthorized", // matches fuzz-proto example
+	BadValidatorIndex:           "bad validator index",
+	WorkReportGasTooHigh:        "work report gas too high",
+	ServiceItemGasTooLow:        "service item gas too low",
+	TooManyDependencies:         "too many dependencies",
+	SegmentRootLookupInvalid:    "segment root lookup invalid",
+	BadSignature:                "bad signature",
+	WorkReportTooBig:            "work report too big",
+	BannedValidator:             "banned validator",
+	LookupAnchorNotRecent:       "lookup anchor not recent",
+	MissingWorkResults:          "missing work results",
+	TooManyWorkResults:          "too many work results",
 }

@@ -46,7 +46,7 @@ func (r *RedisBackend) SetHashSegmentMapWithLimit(wpHash, segmentRoot types.Opaq
 	dict[timestamp+"_"+hex.EncodeToString(wpHash[:])] = hex.EncodeToString(segmentRoot[:])
 
 	if len(dict) > 8 {
-		var keys []string
+		keys := make([]string, 0, len(dict))
 		for k := range dict {
 			keys = append(keys, k)
 		}
