@@ -2869,7 +2869,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if a_l[H(i), z] not in []
-	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; lookupDataExists && len(lookupData) != 0 {
+	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
 		input.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
