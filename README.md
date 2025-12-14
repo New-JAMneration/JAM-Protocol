@@ -1,6 +1,7 @@
 # JAM Protocol Implemetation
 
 ![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/workflows/Go%20Format%20Check/badge.svg)
+[![Release](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml)
 
 ## Documentation
 
@@ -39,6 +40,7 @@ make build
 ### Test jam-test-vectors
 
 Run single test:
+
 ```bash
 make test-jam-test-vectors mode=safrole size=full
 ```
@@ -48,6 +50,7 @@ make test-jam-test-vectors-trace mode=safrole
 ```
 
 Run all:
+
 ```bash
 make test-jam-test-vectors
 ```
@@ -55,6 +58,10 @@ make test-jam-test-vectors
 ```bash
 make test-jam-test-vectors-trace
 ```
+
+## Release and Publish
+
+You can find the release and publish guide [here](./READMERef/release-and-publish.md).
 
 ## Rust Submodule Guide
 
@@ -85,4 +92,3 @@ Before creating a pull request, please **rebase** (*instead of merging*) your br
 Also, follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket’s issue.
 
 ![ARPm9rD](https://github.com/user-attachments/assets/6514346b-e691-45da-bd2d-bec332d89d88)
-

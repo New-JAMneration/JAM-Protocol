@@ -33,7 +33,8 @@ var (
 	}
 
 	socketAddrArg = &cli.StringArg{
-		Name: "socket-addr",
+		Name:  "socket-addr",
+		Value: "/tmp/jam_target.sock",
 	}
 
 	jsonFileArg = &cli.StringArg{
@@ -51,11 +52,17 @@ var (
 	}
 )
 
+var (
+	GP_VERSION     string
+	TARGET_VERSION string
+)
+
 var cmd = cli.Command{
-	Name:        "fuzz",
-	Usage:       "JAM Fuzz Testing Server",
-	Description: `JAM Fuzz Testing Server`,
+	Name:        "new-jamneration-target",
+	Usage:       "New-JAMneration Fuzz Target",
+	Description: `New-JAMneration Fuzz Target`,
 	Authors:     []any{"New JAMneration"},
+	Version:     fmt.Sprintf("[GP Version]: %s, [Target Version]: %s", GP_VERSION, TARGET_VERSION),
 	Action:      serve,
 	ArgsUsage:   "<socket-addr>",
 	Arguments: []cli.Argument{
@@ -138,6 +145,34 @@ var (
 )
 
 func main() {
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, "--help")
+	}
+
+	cli.VersionPrinter = func(c *cli.Command) {
+		fmt.Printf("[GP Version]: %s, [Target Version]: %s \n", GP_VERSION, TARGET_VERSION)
+	}
+
+	if GP_VERSION == "" {
+		// Read the VERSION_GP file to get the GP version
+		data, err := os.ReadFile("VERSION_GP")
+		if err != nil {
+			log.Fatalf("error reading GP version file: %v", err)
+		}
+		GP_VERSION = strings.TrimSpace(string(data))
+	}
+
+	if TARGET_VERSION == "" {
+		// Read the VERSION_TARGET file to get the Target version
+		data, err := os.ReadFile("VERSION_TARGET")
+		if err != nil {
+			log.Fatalf("error reading Target version file: %v", err)
+		}
+		TARGET_VERSION = strings.TrimSpace(string(data))
+	}
+
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
+
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		fmt.Printf("error: %v\n", err)
 		os.Exit(1)
@@ -154,6 +189,7 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 	mode := cmd.String(modeFlag.Name)
 
 	config.InitConfig(configPath, mode)
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
 	server, err := fuzz.NewFuzzServer("unix", socketAddr)
 	if err != nil {
@@ -178,6 +214,7 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 	mode := cmd.String(modeFlag.Name)
 
 	config.InitConfig(configPath, mode)
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
