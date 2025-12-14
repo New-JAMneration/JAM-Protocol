@@ -2,6 +2,7 @@ package accumulation
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -367,7 +368,6 @@ type singleResult struct {
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
-
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
 	b := make(map[types.AccumulatedServiceHash]bool)
@@ -508,7 +508,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		singleOutput, err := runSingleReplaceService(input.PartialStateSet.Designate)
 		if err != nil {
 			return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
-
 		}
 		iPrime = singleOutput.PartialStateSet.ValidatorKeys
 	}
@@ -618,6 +617,10 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			g += deferredTransfer.GasLimit
 		}
 	}
+
+	sort.Slice(iT, func(i, j int) bool {
+		return iT[i].SenderID < iT[j].SenderID
+	})
 
 	//  iT ⌢ iU
 	var pvmItems []types.OperandOrDeferredTransfer
