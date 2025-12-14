@@ -313,8 +313,10 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
+	ancestry := types.Ancestry{}
+
 	// Send set_state request
-	stateRoot, err := client.SetState(requestData.Header, requestData.State)
+	stateRoot, err := client.SetState(requestData.Header, requestData.State, ancestry)
 	if err != nil {
 		return fmt.Errorf("error sending set_state request: %w", err)
 	}
@@ -534,24 +536,54 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
-		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+		expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
 		if err != nil {
-			return fmt.Errorf("error parsing pre_state state_root: %w", err)
+			return fmt.Errorf("error parsing post_state state_root: %w", err)
+		}
+
+		recentBlocksKeyVal := types.StateKeyVal{}
+		for _, kv := range testData.PreState.KeyVals {
+			if len(kv.Key) > 0 && kv.Key[0] == 0x03 {
+				recentBlocksKeyVal = kv
+				break
+			}
+		}
+
+		// Decode the recent history value
+		decoder := types.NewDecoder()
+		recentBlocks := &types.RecentBlocks{}
+		err = decoder.Decode(recentBlocksKeyVal.Value, recentBlocks)
+		if err != nil {
+			return fmt.Errorf("error decoding recent blocks from post_state: %w", err)
+		}
+
+		// Create ancestry from recent blocks
+		ancestry := types.Ancestry{}
+		for index, blockInfo := range recentBlocks.History {
+			// Calculate the mock slot for each ancestry item
+			mockSlot := testData.Block.Header.Slot - types.TimeSlot(len(recentBlocks.History)-index)
+
+			ancestry = append(ancestry, types.AncestryItem{
+				Slot:       mockSlot,
+				HeaderHash: blockInfo.HeaderHash,
+			})
 		}
 
 		// Print Sending SetState
 		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", testData.Block.Header.Parent)
-		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
+		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostState.KeyVals, ancestry)
+		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPostStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %w", err)
 		}
 
-		if actualPreStateRoot != expectedPreStateRoot {
+		if actualPostStateRoot != expectedPostStateRoot {
 			logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
-				expectedPreStateRoot, actualPreStateRoot)
+				expectedPostStateRoot, actualPostStateRoot)
 			mismatchCount++
 		}
+
+		return nil // Skip ImportBlock if SetState is performed
 	}
 	/*
 		Step 2: ImportBlock
@@ -621,8 +653,10 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 		return fmt.Errorf("error parsing state state_root: %w", err)
 	}
 
+	ancestory := types.Ancestry{}
+
 	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", genesisData.Header.Parent)
-	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals)
+	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals, ancestory)
 	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %w", err)

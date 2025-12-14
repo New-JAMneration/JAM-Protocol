@@ -31,6 +31,7 @@ type Store struct {
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	preStateUnmatchedKeyVals   types.StateKeyVals
 	postStateUnmatchedKeyVals  types.StateKeyVals
+	ancestry                   types.Ancestry
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -48,6 +49,7 @@ func GetInstance() *Store {
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			preStateUnmatchedKeyVals:   types.StateKeyVals{},
 			postStateUnmatchedKeyVals:  types.StateKeyVals{},
+			ancestry:                   types.Ancestry{},
 		}
 		logger.Debug("🚀 Store initialized")
 	})
@@ -67,6 +69,7 @@ func ResetInstance() {
 		posteriorCurrentValidators: NewPosteriorValidators(),
 		preStateUnmatchedKeyVals:   types.StateKeyVals{},
 		postStateUnmatchedKeyVals:  types.StateKeyVals{},
+		ancestry:                   types.Ancestry{},
 	}
 	logger.Debug("🚀 Store reset")
 }
@@ -240,16 +243,6 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 
 // post-state update to pre-state
 func (s *Store) StateCommit() {
-	blocks := s.GetBlocks()
-	if len(blocks) == 0 {
-		posterState := s.GetPosteriorStates().GetState()
-		postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
-		s.GetPriorStates().SetState(posterState)
-		s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
-		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
-		return
-	}
-
 	latestBlock := s.GetLatestBlock()
 
 	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
@@ -273,6 +266,12 @@ func (s *Store) StateCommit() {
 		} else {
 			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
+
+		// Add to ancestry
+		s.AppendAncestryItem(types.AncestryItem{
+			HeaderHash: blockHeaderHash,
+			Slot:       latestBlock.Header.Slot,
+		})
 	}
 
 	posterState := s.GetPosteriorStates().GetState()
@@ -416,8 +415,21 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	// Restore block
 	s.CleanupBlock()
 	s.AddBlock(block)
+	s.SetAncestry(types.Ancestry{})
 
 	return nil
+}
+
+func (s *Store) GetAncestry() types.Ancestry {
+	return s.ancestry
+}
+
+func (s *Store) SetAncestry(ancestry types.Ancestry) {
+	s.ancestry = ancestry
+}
+
+func (s *Store) AppendAncestryItem(item types.AncestryItem) {
+	s.ancestry = append(s.ancestry, item)
 }
 
 // // ServiceAccountDerivatives (This is tmp used waiting for more testvector to verify)

@@ -8,6 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/hdevalence/ed25519consensus"
 )
 
@@ -242,6 +243,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
 	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
 	headerTimeSlot := store.GetInstance().GetLatestBlock().Header.Slot
+	logger.Debugf("Header Time Slot: %d", headerTimeSlot)
 
 	for _, context := range contexts {
 		recentAnchorMatch := false
@@ -275,24 +277,53 @@ func (g *GuaranteeController) ValidateContexts() error {
 	}
 
 	// 11.35   ancestors currently not maintained
-	// current implement: get header from redis and check timeslot over MaxLookupAge(L)
-	blocks := store.GetInstance().GetBlocks()
-	if len(blocks) > 1 {
-		for _, context := range contexts {
-			ancestorBlock, err := store.GetInstance().GetBlockByHash(context.LookupAnchor)
-			if err != nil {
-				errCode := ReportsErrorCode.LookupAnchorNotRecent
-				return &errCode
-			}
+	ancestry := store.GetInstance().GetAncestry()
+	for _, item := range ancestry {
+		logger.Debugf("Ancestry Item - HeaderHash: %x, Slot: %d", item.HeaderHash, item.Slot)
+	}
 
-			ancestorTimeSlot := ancestorBlock.Header.Slot
-			if headerTimeSlot-ancestorTimeSlot > types.TimeSlot(types.MaxLookupAge) || ancestorTimeSlot != context.LookupAnchorSlot {
-				errCode := ReportsErrorCode.LookupAnchorNotRecent
-				return &errCode
+	if len(ancestry) > 0 {
+		// Check the ancestry for each context
+		for _, context := range contexts {
+			logger.Debugf("Validating context with LookupAnchor: %x and LookupAnchorSlot: %d", context.LookupAnchor, context.LookupAnchorSlot)
+
+			anchorTimeCondition := lookupAnchorTimeCondition(context, headerTimeSlot)
+			logger.Debugf("Anchor Time Condition: %v", anchorTimeCondition)
+			anchorHashCondition := lookupAnchorHashCondition(context, ancestry)
+			logger.Debugf("Anchor Hash Condition: %v", anchorHashCondition)
+
+			if !anchorTimeCondition {
+				logger.Debugf("Anchor time condition failed")
+				err := ReportsErrorCode.LookupAnchorNotRecent
+				return &err
+			}
+			if !anchorHashCondition {
+				logger.Debugf("Anchor hash condition failed")
+				err := ReportsErrorCode.LookupAnchorNotRecent
+				return &err
 			}
 		}
 	}
+
 	return nil
+}
+
+func lookupAnchorTimeCondition(context types.RefineContext, headerTimeSlot types.TimeSlot) bool {
+	logger.Debugf("Checking LookupAnchorSlot: %d against HeaderTimeSlot: %d with MaxLookupAge: %d", context.LookupAnchorSlot, headerTimeSlot, types.MaxLookupAge)
+	if int(context.LookupAnchorSlot) >= (int(headerTimeSlot) - types.MaxLookupAge) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func lookupAnchorHashCondition(context types.RefineContext, ancestry types.Ancestry) bool {
+	for _, item := range ancestry {
+		if item.HeaderHash == context.LookupAnchor {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateWorkPackageHashes | Eq. 11.36-11.38

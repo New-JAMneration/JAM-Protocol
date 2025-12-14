@@ -39,7 +39,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	epoch := slot / uint32(types.EpochLength)
 	ctx := logger.FormatContext(hashStr, slot, epoch, "ImportBlock")
 	logger.Debugf("%s Processing...", ctx)
-
 	// Get the latest block
 	storeInstance := store.GetInstance()
 
@@ -111,7 +110,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	return latestStateRoot, nil
 }
 
-func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancenstry types.Ancestry) (types.StateRoot, error) {
+func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancestry types.Ancestry) (types.StateRoot, error) {
 	// Build context for logging
 	headerHash, _ := hash.ComputeBlockHeaderHash(header)
 	hashStr := hex.EncodeToString(headerHash[:])
@@ -127,6 +126,9 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
+	// Add ancestry
+	storeInstance.SetAncestry(ancestry)
+
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		logger.Errorf("%s failed to convert state keyvals: %v", ctx, err)
@@ -140,13 +142,11 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	stateRoot := m.MerklizationSerializedState(append(unmatchedKeyVals, serializedState...))
 
-	if header.Parent == (types.HeaderHash{}) {
-		// Use the header to store the mapping
-		block := types.Block{
-			Header: header,
-		}
-		storeInstance.AddBlock(block)
+	block := types.Block{
+		Header: header,
 	}
+	storeInstance.AddBlock(block)
+
 	// Commit the state
 	storeInstance.StateCommit()
 
