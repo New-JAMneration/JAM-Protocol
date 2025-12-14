@@ -2,13 +2,11 @@ package stf
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	AssurancesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
@@ -159,18 +157,11 @@ func RunSTF() (bool, error) {
 	}
 	postState := st.GetPosteriorStates().GetState()
 
-	ePrime, _ := safrole.R(header.Slot)
-
-	_, kappaVerifier, err := store.GetVerifiers(ePrime, postState.Gamma.GammaK, postState.Kappa)
-	if err != nil {
-		log.Println("error creating verifiers:", err)
-	}
-
 	err = measureTime("ValidateHeaderSeal", func() error {
-		return ValidateHeaderVrf(kappaVerifier, header, &postState)
+		return ValidateHeaderVrf(header, &postState)
 	})
 	if err != nil {
-		return isProtocolError(err), fmt.Errorf("validate header seal error: %v", err)
+		return isProtocolError(err), fmt.Errorf("%v", err)
 	}
 
 	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
@@ -178,7 +169,7 @@ func RunSTF() (bool, error) {
 		return ValidateNonVRFHeader(header, &priorState)
 	})
 	if err != nil {
-		return isProtocolError(err), fmt.Errorf("header validate error: %v", err)
+		return isProtocolError(err), fmt.Errorf("%v", err)
 	}
 
 	// Update Assurances

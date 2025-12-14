@@ -225,6 +225,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
 		err            error
+		ringVerifier   *vrf.Verifier
 		s              = store.GetInstance()
 		tau            = s.GetPriorStates().GetTau()
 		tauPrime       = s.GetPosteriorStates().GetTau()
@@ -263,19 +264,21 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// After KeyRotate, gammaK and kappa are updated
 	var (
 		postGammaK = s.GetPosteriorStates().GetGammaK()
-		postKappa  = s.GetPosteriorStates().GetKappa()
 	)
 
-	gammaKVerifier, kappaVerifier, err := store.GetVerifiers(ePrime, postGammaK, postKappa)
-	if err != nil {
-		log.Println("error creating verifiers:", err)
-	}
+	measureTimeNoErrSafrole("GetVerifier", func() {
+		ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
+		if err != nil {
+			// This error should not happen
+			log.Println("error creating verifiers:", err)
+		}
+	})
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
 		var commitment []byte
 		err = measureTimeSafrole("GetCommitment(GammaZ)", func() error {
-			commitment, err = gammaKVerifier.GetCommitment()
+			commitment, err = ringVerifier.GetCommitment()
 			return err
 		})
 		if err != nil || len(commitment) == 0 {
@@ -287,7 +290,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// (GP 6.22)
 	err = measureTimeSafrole("UpdateEtaPrime0", func() error {
-		return UpdateEtaPrime0(kappaVerifier)
+		return UpdateEtaPrime0()
 	})
 	if err != nil {
 		log.Println("UpdateEtaPrime0Err:", err)
@@ -297,23 +300,29 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
 	var HtErrCode *types.ErrorCode
 	measureTimeNoErrSafrole("CreateNewTicketAccumulator", func() {
-		HtErrCode = CreateNewTicketAccumulator(gammaKVerifier)
+		HtErrCode = CreateNewTicketAccumulator(ringVerifier)
 	})
 	if HtErrCode != nil {
 		return HtErrCode
 	}
 	// (GP 6.28)
-	CreateWinningTickets(e, ePrime, m, mPrime)
+	measureTimeNoErrSafrole("CreateWinningTickets", func() {
+		CreateWinningTickets(e, ePrime, m, mPrime)
+	})
 
-	// --- sealing.go (GP 6.15~6.24) --- //
-	err = SealingHeader()
-	if err != nil {
-		log.Println("SealingHeaderErr:", err)
-	}
+	// // --- sealing.go (GP 6.15~6.24) --- //
+	// err = measureTimeSafrole("SealingHeader", func() error {
+	// 	return SealingHeader()
+	// })
+	// if err != nil {
+	// 	log.Println("SealingHeaderErr:", err)
+	// }
 
 	// --- markers.go (GP 6.27, 6.28) --- //
 	// (GP 6.27)
-	CreateEpochMarker(e, ePrime)
+	measureTimeNoErrSafrole("CreateEpochMarker", func() {
+		CreateEpochMarker(e, ePrime)
+	})
 
 	return nil
 }

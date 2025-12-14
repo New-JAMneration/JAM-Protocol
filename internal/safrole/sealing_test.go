@@ -61,7 +61,7 @@ func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 		t.Fatalf("Failed to create verifier: %v", err)
 	}
 	defer verifier.Free()
-	errCode := ValidateHeaderSeal(verifier, trace.Block.Header, &State)
+	errCode := ValidateHeaderSeal(trace.Block.Header, &State)
 	if errCode != nil {
 		t.Fatalf("ValidateHeaderSeal failed: %v", errCode)
 	}

@@ -27,6 +27,19 @@ test-jam-test-vectors:
 		done; \
 	fi
 
+.PHONY: test-jam-test-vectors-trace
+test-jam-test-vectors-trace:
+	@if [ -n "$(mode)" ]; then \
+		echo "Testing trace $(mode)..."; \
+		export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+	else \
+		MODES="fallback safrole preimages_light preimages storage_light storage"; \
+		for mode in $$MODES; do \
+			echo "Testing trace $$mode..."; \
+			export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$$mode"; \
+			echo ""; \
+		done; \
+	fi
 
 .PHONY: lint
 lint:

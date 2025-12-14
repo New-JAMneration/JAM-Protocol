@@ -9,82 +9,69 @@ import (
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
-// TODO: rename gammaKVerifier to ringVerifier and remove kappaVerifier
-type RingVerifier struct {
-	mu             sync.RWMutex
-	CurrentEpoch   types.TimeSlot
-	gammaKVerifier *vrf.Verifier
-	kappaVerifier  *vrf.Verifier
+type ringVerifierCache struct {
+	sync.RWMutex
+	epoch types.TimeSlot
+	*vrf.Verifier
 }
 
-// Global verifier cache (similar to globalStore pattern)
-var ringVerifierCache = &RingVerifier{
-	CurrentEpoch: types.TimeSlot(0),
-}
+var cache = &ringVerifierCache{}
 
 // ClearVerifierCache clears all cached verifiers (for testing or cleanup)
 func ClearVerifierCache() {
-	ringVerifierCache.mu.Lock()
-	defer ringVerifierCache.mu.Unlock()
-	if ringVerifierCache.gammaKVerifier != nil {
-		ringVerifierCache.gammaKVerifier.Free()
-		ringVerifierCache.gammaKVerifier = nil
-	}
-	if ringVerifierCache.kappaVerifier != nil {
-		ringVerifierCache.kappaVerifier.Free()
-		ringVerifierCache.kappaVerifier = nil
-	}
-	ringVerifierCache.CurrentEpoch = types.TimeSlot(0)
+	cache.Lock()
+	defer cache.Unlock()
+	cache.Free()
 }
 
-func GetVerifiers(epoch types.TimeSlot, gammaK, kappa types.ValidatorsData) (*vrf.Verifier, *vrf.Verifier, error) {
-	ringVerifierCache.mu.Lock()
-	defer ringVerifierCache.mu.Unlock()
+func (c *ringVerifierCache) Free() {
+	if c.Verifier != nil {
+		c.Verifier.Free()
+		c.Verifier = nil
+	}
+	c.epoch = 0
+}
 
+func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifier, error) {
+	if len(gammaK) != types.ValidatorsCount {
+		return nil, fmt.Errorf("gammaK size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
+	}
+
+	// First path: read lock
 	// Try to get both cached verifiers
-	if ringVerifierCache.CurrentEpoch == epoch &&
-		ringVerifierCache.gammaKVerifier != nil &&
-		ringVerifierCache.kappaVerifier != nil {
-		return ringVerifierCache.gammaKVerifier, ringVerifierCache.kappaVerifier, nil
+	cache.RLock()
+	if cache.epoch == epoch && cache.Verifier != nil {
+		cache.RUnlock()
+		return cache.Verifier, nil
+	}
+	cache.RUnlock()
+
+	// Second path: write lock
+	cache.Lock()
+	defer cache.Unlock()
+
+	// Double check
+	if cache.epoch == epoch && cache.Verifier != nil {
+		return cache.Verifier, nil
 	}
 
 	// epoch transition or not initialized: free old verifiers
-	if ringVerifierCache.gammaKVerifier != nil {
-		ringVerifierCache.gammaKVerifier.Free()
-		ringVerifierCache.gammaKVerifier = nil
-	}
-	if ringVerifierCache.kappaVerifier != nil {
-		ringVerifierCache.kappaVerifier.Free()
-		ringVerifierCache.kappaVerifier = nil
-	}
+	cache.Free()
 
-	// create gammaK verifier
-	if len(gammaK) != types.ValidatorsCount {
-		return nil, nil, fmt.Errorf("gammaK size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
-	}
-	gammaKRing := []byte{}
+	// create ring verifier
+	keySize := len(types.BandersnatchPublic{})
+	ring := make([]byte, 0, len(gammaK)*keySize)
 	for _, v := range gammaK {
-		gammaKRing = append(gammaKRing, []byte(v.Bandersnatch[:])...)
-	}
-	gammaKVerifier, err := vrf.NewVerifier(gammaKRing, uint(len(gammaK)))
-	if err != nil {
-		return nil, nil, err
+		ring = append(ring, v.Bandersnatch[:]...)
 	}
 
-	// create kappa verifier
-	kappaRing := []byte{}
-	for _, v := range kappa {
-		kappaRing = append(kappaRing, []byte(v.Bandersnatch[:])...)
-	}
-	kappaVerifier, err := vrf.NewVerifier(kappaRing, uint(len(kappa)))
+	ringVerifier, err := vrf.NewVerifier(ring, uint(len(gammaK)))
 	if err != nil {
-		gammaKVerifier.Free()
-		return nil, nil, err
+		return nil, fmt.Errorf("failed to create ring verifier: %w", err)
 	}
 
 	// update cache and return
-	ringVerifierCache.CurrentEpoch = epoch
-	ringVerifierCache.gammaKVerifier = gammaKVerifier
-	ringVerifierCache.kappaVerifier = kappaVerifier
-	return gammaKVerifier, kappaVerifier, nil
+	cache.epoch = epoch
+	cache.Verifier = ringVerifier
+	return ringVerifier, nil
 }
