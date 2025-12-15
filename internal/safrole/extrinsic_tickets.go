@@ -45,21 +45,6 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
-	// gammaK := s.GetPosteriorStates().GetGammaK()
-	// if len(gammaK) != types.ValidatorsCount {
-	// 	log.Printf("Gamma K size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
-	// }
-	// ring := []byte{}
-	// for _, validator := range gammaK {
-	// 	ring = append(ring, []byte(validator.Bandersnatch[:])...)
-	// }
-	// ringSize := uint(len(gammaK))
-
-	// verifier, err := vrf.NewVerifier(ring, ringSize)
-	// if err != nil {
-	// 	log.Printf("Failed to create verifier: %v\n", err)
-	// }
-	// defer verifier.Free()
 
 	newTickets := types.TicketsAccumulator{}
 	posteriorEta := s.GetPosteriorStates().GetEta()
