@@ -325,9 +325,6 @@ func TestSafroleTestVectors(t *testing.T) {
 }
 
 func testSafroleFile(t *testing.T, binPath string, binFile string) {
-	// Reset timings before test
-	safrole.ResetTimings()
-
 	// Load accumulate test case
 	testCase := &jamtests_safrole.SafroleTestCase{}
 	err := utils.GetTestFromBin(binPath, testCase)
@@ -337,16 +334,13 @@ func testSafroleFile(t *testing.T, binPath string, binFile string) {
 
 	setupTestState(testCase.PreState, testCase.Input)
 
-	err = safrole.OuterUsedSafrole()
+	// Measure time for OuterUsedSafrole
+	start := time.Now()
+	errCode := safrole.OuterUsedSafrole()
+	duration := time.Since(start)
+	t.Logf("OuterUsedSafrole took: %v", duration)
 
-	// Get timing data (optional, for analysis)
-	timings := safrole.GetTimings()
-	for operation, duration := range timings {
-		t.Logf("%-40s %12v", operation, duration)
-	}
-
-	validateFinalState(t, binFile, testCase, err.(*types.ErrorCode))
-
+	validateFinalState(t, binFile, testCase, errCode)
 }
 
 // Setup test state
@@ -595,8 +589,7 @@ func TestJamtestvectorsTraces(t *testing.T) {
 			// Setup block from trace test case
 			instance.AddBlock(traceTestCase.Block)
 
-			// Run STF
-			safrole.ResetTimings()
+			// Run STF with time measurement
 			stfStart := time.Now()
 			_, outputErr := stf.RunSTF()
 			stfDuration := time.Since(stfStart)
@@ -624,14 +617,6 @@ func TestJamtestvectorsTraces(t *testing.T) {
 				} else {
 					dirPassed++
 					t.Logf("✅ passed (STF: %v, Total: %v)", stfDuration, testDuration)
-				}
-			}
-
-			// Print timing data
-			timings := safrole.GetTimings()
-			if len(timings) > 0 {
-				for operation, duration := range timings {
-					t.Logf("  %-40s %12v", operation, duration)
 				}
 			}
 		}

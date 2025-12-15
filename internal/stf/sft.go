@@ -2,9 +2,6 @@ package stf
 
 import (
 	"fmt"
-	"os"
-	"sync"
-	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -15,86 +12,6 @@ import (
 	ReportsErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	SafroleErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 )
-
-// timingCollector collects timing data without printing by default
-type timingCollector struct {
-	timings map[string]time.Duration
-	mu      sync.RWMutex
-	enabled bool
-	print   bool
-}
-
-var globalTiming = &timingCollector{
-	timings: make(map[string]time.Duration),
-	enabled: true,
-	print:   os.Getenv("ENABLE_TIMING_PRINT") == "true", // Only print if env var is set
-}
-
-// GetTimings returns a copy of all collected timings (for testing)
-func GetTimings() map[string]time.Duration {
-	globalTiming.mu.RLock()
-	defer globalTiming.mu.RUnlock()
-
-	result := make(map[string]time.Duration)
-	for k, v := range globalTiming.timings {
-		result[k] = v
-	}
-	return result
-}
-
-// ResetTimings clears all collected timings (useful for tests)
-func ResetTimings() {
-	globalTiming.mu.Lock()
-	defer globalTiming.mu.Unlock()
-	globalTiming.timings = make(map[string]time.Duration)
-}
-
-// measureTime measures execution time without printing by default
-func measureTime(operation string, fn func() error) error {
-	if !globalTiming.enabled {
-		return fn()
-	}
-
-	start := time.Now()
-	err := fn()
-	duration := time.Since(start)
-
-	globalTiming.mu.Lock()
-	globalTiming.timings[operation] = duration
-	globalTiming.mu.Unlock()
-
-	// Only print if explicitly enabled via environment variable
-	if globalTiming.print {
-		if err != nil {
-			fmt.Printf("⏱️  %-40s took: %12v (ERROR: %v)\n", operation, duration, err)
-		} else {
-			fmt.Printf("⏱️  %-40s took: %12v\n", operation, duration)
-		}
-	}
-
-	return err
-}
-
-// measureTimeNoError measures execution time without printing by default
-func measureTimeNoError(operation string, fn func()) {
-	if !globalTiming.enabled {
-		fn()
-		return
-	}
-
-	start := time.Now()
-	fn()
-	duration := time.Since(start)
-
-	globalTiming.mu.Lock()
-	globalTiming.timings[operation] = duration
-	globalTiming.mu.Unlock()
-
-	// Only print if explicitly enabled via environment variable
-	if globalTiming.print {
-		fmt.Printf("⏱️  %-40s took: %12v\n", operation, duration)
-	}
-}
 
 // TODO: Implement the following functions to handle state transitions
 // Each function should update the corresponding state in the data store
@@ -111,18 +28,6 @@ func isProtocolError(err error) bool {
 }
 
 func RunSTF() (bool, error) {
-	totalStart := time.Now()
-	defer func() {
-		totalDuration := time.Since(totalStart)
-		globalTiming.mu.Lock()
-		globalTiming.timings["RunSTF(TOTAL)"] = totalDuration
-		globalTiming.mu.Unlock()
-		// Only print if explicitly enabled via environment variable
-		if globalTiming.print {
-			fmt.Printf("\n⏱️  %-40s Total STF took: %12v\n", "RunSTF", totalDuration)
-		}
-	}()
-
 	var (
 		err        error
 		st         = store.GetInstance()
@@ -134,99 +39,75 @@ func RunSTF() (bool, error) {
 	st.GetPosteriorStates().SetTau(header.Slot)
 
 	// update BetaH, GP 0.6.7 formula 4.6
-	measureTimeNoError("STFBetaH2BetaHDagger", func() {
-		recent_history.STFBetaH2BetaHDagger()
-	})
+	recent_history.STFBetaH2BetaHDagger()
 
 	// Update Disputes
-	err = measureTime("UpdateDisputes", func() error {
-		return UpdateDisputes()
-	})
+	err = UpdateDisputes()
 	if err != nil {
 		errorMessage := DisputesErrorCodes.DisputesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	// Update Safrole
-	err = measureTime("UpdateSafrole", func() error {
-		return UpdateSafrole()
-	})
+	err = UpdateSafrole()
 	if err != nil {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 	postState := st.GetPosteriorStates().GetState()
 
-	err = measureTime("ValidateHeaderSeal", func() error {
-		return ValidateHeaderVrf(header, &postState)
-	})
+	err = ValidateHeaderVrf(header, &postState)
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("%v", err)
 	}
 
 	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
-	err = measureTime("ValidateNonVRFHeader", func() error {
-		return ValidateNonVRFHeader(header, &priorState)
-	})
+	err = ValidateNonVRFHeader(header, &priorState)
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("%v", err)
 	}
 
 	// Update Assurances
-	err = measureTime("UpdateAssurances", func() error {
-		return UpdateAssurances()
-	})
+	err = UpdateAssurances()
 	if err != nil {
 		errorMessage := AssurancesErrorCodes.AssurancesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	// Update Reports
-	err = measureTime("UpdateReports", func() error {
-		return UpdateReports()
-	})
+	err = UpdateReports()
 	if err != nil {
 		errorMessage := ReportsErrorCodes.ReportsErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	// Update Accumlate
-	err = measureTime("UpdateAccumlate", func() error {
-		return UpdateAccumlate()
-	})
+	err = UpdateAccumlate()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("accumulate error: %v", err)
 	}
 
 	// Update History (beta^dagger -> beta^prime)
-	err = measureTime("STFBetaHDagger2BetaHPrime", func() error {
-		return recent_history.STFBetaHDagger2BetaHPrime()
-	})
+	err = recent_history.STFBetaHDagger2BetaHPrime()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update history error: %v", err)
 	}
 
 	// Update Preimages
-	err = measureTime("UpdatePreimages", func() error {
-		return UpdatePreimages()
-	})
+	err = UpdatePreimages()
 	if err != nil {
 		errorMessage := PreimagesErrorCodes.PreimagesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	// Update Authorization
-	err = measureTime("UpdateAuthorizations", func() error {
-		return UpdateAuthorizations()
-	})
+	err = UpdateAuthorizations()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("authorization error: %v", err)
 	}
 
 	// Update Statistics
-	err = measureTime("UpdateStatistics", func() error {
-		return UpdateStatistics()
-	})
+	err = UpdateStatistics()
 	if err != nil {
 		return isProtocolError(err), fmt.Errorf("statistics error: %v", err)
 	}

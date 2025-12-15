@@ -3,95 +3,13 @@ package safrole
 import (
 	"fmt"
 	"log"
-	"maps"
-	"os"
 	"slices"
-	"sync"
-	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
-
-// timingCollector collects timing data without printing by default
-type timingCollector struct {
-	timings map[string]time.Duration
-	mu      sync.RWMutex
-	enabled bool
-	print   bool
-}
-
-var globalTiming = &timingCollector{
-	timings: make(map[string]time.Duration),
-	enabled: true,
-	print:   os.Getenv("ENABLE_TIMING_PRINT") == "true", // Only print if env var is set
-}
-
-// GetTimings returns a copy of all collected timings (for testing)
-func GetTimings() map[string]time.Duration {
-	globalTiming.mu.RLock()
-	defer globalTiming.mu.RUnlock()
-
-	result := make(map[string]time.Duration)
-	maps.Copy(result, globalTiming.timings)
-
-	return result
-}
-
-// ResetTimings clears all collected timings (useful for tests)
-func ResetTimings() {
-	globalTiming.mu.Lock()
-	defer globalTiming.mu.Unlock()
-	globalTiming.timings = make(map[string]time.Duration)
-}
-
-func measureTimeSafrole(operation string, fn func() error) error {
-	if !globalTiming.enabled {
-		return fn()
-	}
-
-	start := time.Now()
-	err := fn()
-	duration := time.Since(start)
-
-	globalTiming.mu.Lock()
-	globalTiming.timings[operation] = duration
-	globalTiming.mu.Unlock()
-
-	// Only print if explicitly enabled via environment variable
-	if globalTiming.print {
-		if err != nil {
-			log.Printf("⏱️  %-35s took: %10v (ERROR: %v)", operation, duration, err)
-		} else {
-			log.Printf("⏱️  %-35s took: %10v", operation, duration)
-		}
-	}
-
-	return err
-}
-
-// measureTimeNoErrSafrole measures execution time of a function without error return
-func measureTimeNoErrSafrole(operation string, fn func()) {
-	if !globalTiming.enabled {
-		fn()
-		return
-	}
-
-	start := time.Now()
-	fn()
-	duration := time.Since(start)
-
-	globalTiming.mu.Lock()
-	globalTiming.timings[operation] = duration
-	globalTiming.mu.Unlock()
-
-	// Only print if explicitly enabled via environment variable
-	if globalTiming.print {
-		log.Printf("⏱️  %-35s took: %10v", operation, duration)
-	}
-}
 
 // GetEpochIndex returns the epoch index of the most recent block't timeslot
 // \tau : The most recent block't timeslot
@@ -210,18 +128,6 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 // Outer Safrole function
 // I made this function return ErrorCode only
 func OuterUsedSafrole() *types.ErrorCode {
-	totalStart := time.Now()
-	defer func() {
-		totalDuration := time.Since(totalStart)
-		globalTiming.mu.Lock()
-		globalTiming.timings["OuterUsedSafrole(TOTAL)"] = totalDuration
-		globalTiming.mu.Unlock()
-		// Only print if explicitly enabled via environment variable
-		if globalTiming.print {
-			fmt.Printf("\n⏱️  %-40s Total Safrole took: %12v\n", "OuterUsedSafrole(TOTAL)", totalDuration)
-		}
-	}()
-
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
 		err            error
@@ -238,17 +144,15 @@ func OuterUsedSafrole() *types.ErrorCode {
 		errCode := SafroleErrorCode.BadSlot
 		return &errCode
 	}
+
 	// --- STEP 2 Update Entropy123 --- //
 	// (GP 6.23)
-	measureTimeNoErrSafrole("UpdateEntropy", func() {
-		UpdateEntropy(e, ePrime)
-	})
+	UpdateEntropy(e, ePrime)
+
 	// --- STEP 3 safrole.go (GP 6.2, 6.13, 6.14) --- //
 	// (6.2, 6.13, 6.14)
 	// This function will update GammaK, GammaZ, Lambda, Kappa
-	err = measureTimeSafrole("KeyRotate", func() error {
-		return KeyRotate(e, ePrime)
-	})
+	err = KeyRotate(e, ePrime)
 	if err != nil {
 		log.Println("keyRotateErr:", err)
 	}
@@ -257,30 +161,20 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// UpdateHeaderEntropy()
 
 	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
-	measureTimeNoErrSafrole("UpdateSlotKeySequence", func() {
-		UpdateSlotKeySequence(e, ePrime, m)
-	})
+	UpdateSlotKeySequence(e, ePrime, m)
 
 	// After KeyRotate, gammaK and kappa are updated
-	var (
-		postGammaK = s.GetPosteriorStates().GetGammaK()
-	)
+	postGammaK := s.GetPosteriorStates().GetGammaK()
 
-	measureTimeNoErrSafrole("GetVerifier", func() {
-		ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
-		if err != nil {
-			// This error should not happen
-			log.Println("error creating verifiers:", err)
-		}
-	})
+	ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
+	if err != nil {
+		// This error should not happen
+		log.Println("error creating verifiers:", err)
+	}
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
-		var commitment []byte
-		err = measureTimeSafrole("GetCommitment(GammaZ)", func() error {
-			commitment, err = ringVerifier.GetCommitment()
-			return err
-		})
+		commitment, err := ringVerifier.GetCommitment()
 		if err != nil || len(commitment) == 0 {
 			log.Println("Failed to get commitment:", err)
 		} else {
@@ -289,40 +183,30 @@ func OuterUsedSafrole() *types.ErrorCode {
 	}
 
 	// (GP 6.22)
-	err = measureTimeSafrole("UpdateEtaPrime0", func() error {
-		return UpdateEtaPrime0()
-	})
+	err = UpdateEtaPrime0()
 	if err != nil {
 		log.Println("UpdateEtaPrime0Err:", err)
 	}
 
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-	var HtErrCode *types.ErrorCode
-	measureTimeNoErrSafrole("CreateNewTicketAccumulator", func() {
-		HtErrCode = CreateNewTicketAccumulator(ringVerifier)
-	})
+	HtErrCode := CreateNewTicketAccumulator(ringVerifier)
 	if HtErrCode != nil {
 		return HtErrCode
 	}
+
 	// (GP 6.28)
-	measureTimeNoErrSafrole("CreateWinningTickets", func() {
-		CreateWinningTickets(e, ePrime, m, mPrime)
-	})
+	CreateWinningTickets(e, ePrime, m, mPrime)
 
 	// // --- sealing.go (GP 6.15~6.24) --- //
-	// err = measureTimeSafrole("SealingHeader", func() error {
-	// 	return SealingHeader()
-	// })
+	// err = SealingHeader()
 	// if err != nil {
 	// 	log.Println("SealingHeaderErr:", err)
 	// }
 
 	// --- markers.go (GP 6.27, 6.28) --- //
 	// (GP 6.27)
-	measureTimeNoErrSafrole("CreateEpochMarker", func() {
-		CreateEpochMarker(e, ePrime)
-	})
+	CreateEpochMarker(e, ePrime)
 
 	return nil
 }
