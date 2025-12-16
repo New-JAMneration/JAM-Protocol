@@ -38,6 +38,13 @@ func RunSTF() (bool, error) {
 	// Update timeslot
 	st.GetPosteriorStates().SetTau(header.Slot)
 
+	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
+	err = ValidateNonVRFHeader(header, &priorState)
+	if err != nil {
+		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
+		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
+	}
+
 	// update BetaH, GP 0.6.7 formula 4.6
 	recent_history.STFBetaH2BetaHDagger()
 
@@ -56,15 +63,11 @@ func RunSTF() (bool, error) {
 	}
 	postState := st.GetPosteriorStates().GetState()
 
+	// After keyRotate
 	err = ValidateHeaderVrf(header, &postState)
 	if err != nil {
-		return isProtocolError(err), fmt.Errorf("%v", err)
-	}
-
-	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
-	err = ValidateNonVRFHeader(header, &priorState)
-	if err != nil {
-		return isProtocolError(err), fmt.Errorf("%v", err)
+		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
+		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
 	// Update Assurances
