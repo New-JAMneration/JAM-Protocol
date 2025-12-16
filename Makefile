@@ -14,20 +14,28 @@ build:
 test:
 	go test $(args) ./...
 
+# Test defaults (matching cmd/node/test.go)
+size ?= tiny
+type ?= jam-test-vectors
+format ?= binary
+
 .PHONY: test-jam-test-vectors
 test-jam-test-vectors:
-	@if [ -n "$(mode)" ] && [ -n "$(size)" ]; then \
-	    echo "Testing $(mode) ($(size))..."; \
-	    export USE_MINI_REDIS=true; go run ./cmd/node test --mode "$(mode)" --size "$(size)"; \
+	@if [ -n "$(mode)" ]; then \
+	    echo "Testing $(mode) (size=$(size), type=$(type), format=$(format))..."; \
+	    export USE_MINI_REDIS=true; \
+	    export PVM_LOG=$(PVM_LOG); \
+	    export LOG_LEVEL=$(LOG_LEVEL); \
+	    go run ./cmd/node test --mode $(mode) --size $(size) --type $(type) --format $(format); \
 	else \
 		MODES="safrole assurances preimages disputes history accumulate authorizations statistics reports"; \
-		SIZES="tiny full"; \
-		for mode in $$MODES; do \
-			for size in $$SIZES; do \
-				echo "Testing $$mode ($$size)..."; \
-				export USE_MINI_REDIS=true; go run ./cmd/node test --mode "$$mode" --size "$$size"; \
-				echo ""; \
-			done; \
+		for m in $$MODES; do \
+			echo "Testing $$m (size=$(size))..."; \
+			export USE_MINI_REDIS=true; \
+			export PVM_LOG=$(PVM_LOG); \
+			export LOG_LEVEL=$(LOG_LEVEL); \
+			go run ./cmd/node test --mode "$$m" --size "$(size)" --type "$(type)" --format "$(format)"; \
+			echo ""; \
 		done; \
 	fi
 
@@ -59,7 +67,10 @@ fmt:
 
 .PHONY: run-target
 run-target:
-	export USE_MINI_REDIS=true; go run ./cmd/fuzz/ /tmp/jam_target.sock
+	export USE_MINI_REDIS=true; \
+	export PVM_LOG=$(PVM_LOG); \
+	export LOG_LEVEL=$(LOG_LEVEL); \
+	go run ./cmd/fuzz/ /tmp/jam_target.sock
 
 # The command build the target binary locally
 # For release builds, use `make release-target` instead

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -157,7 +156,7 @@ func main() {
 		// Read the VERSION_GP file to get the GP version
 		data, err := os.ReadFile("VERSION_GP")
 		if err != nil {
-			log.Fatalf("error reading GP version file: %v", err)
+			logger.Fatalf("error reading GP version file: %v", err)
 		}
 		GP_VERSION = strings.TrimSpace(string(data))
 	}
@@ -166,7 +165,7 @@ func main() {
 		// Read the VERSION_TARGET file to get the Target version
 		data, err := os.ReadFile("VERSION_TARGET")
 		if err != nil {
-			log.Fatalf("error reading Target version file: %v", err)
+			logger.Fatalf("error reading Target version file: %v", err)
 		}
 		TARGET_VERSION = strings.TrimSpace(string(data))
 	}
@@ -233,12 +232,12 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending request: %v", err)
 	}
 
-	log.Println("received handshake response:")
-	log.Printf("  fuzz-version: %d\n", resp.FuzzVersion)
-	log.Printf("  fuzz-features: %d\n", resp.FuzzFeatures)
-	log.Printf("  jam-version: %v\n", resp.JamVersion)
-	log.Printf("  app-version: %v\n", resp.AppVersion)
-	log.Printf("  app-name: %s\n", resp.AppName)
+	logger.Info("received handshake response:")
+	logger.Infof("  fuzz-version: %d", resp.FuzzVersion)
+	logger.Infof("  fuzz-features: %d", resp.FuzzFeatures)
+	logger.Infof("  jam-version: %v", resp.JamVersion)
+	logger.Infof("  app-version: %v", resp.AppVersion)
+	logger.Infof("  app-name: %s", resp.AppName)
 
 	return nil
 }
@@ -255,7 +254,7 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		logger.Fatalf("error creating client: %v", err)
 	}
 	defer client.Close()
 
@@ -278,7 +277,7 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending import_block request: %v", errorMessage.Error)
 	}
 
-	log.Printf("import_block successful, state root: %x\n", stateRoot)
+	logger.Infof("import_block successful, state root: %x", stateRoot)
 
 	return nil
 }
@@ -320,7 +319,7 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending set_state request: %v", err)
 	}
 
-	log.Printf("set_state successful, state root: %x\n", stateRoot)
+	logger.Infof("set_state successful, state root: %x", stateRoot)
 
 	return nil
 }
@@ -381,7 +380,7 @@ func getState(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending get_state request: %v", err)
 	}
 
-	log.Printf("get_state successful, retrieved %d key-value pairs\n", len(state))
+	logger.Infof("get_state successful, retrieved %d key-value pairs", len(state))
 
 	return nil
 }
@@ -459,7 +458,7 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no JSON files found in the specified folder")
 	}
 
-	log.Printf("Found %d JSON files to test\n", len(jsonFiles))
+	logger.Infof("Found %d JSON files to test", len(jsonFiles))
 
 	successCount := 0
 	failureCount := 0
@@ -469,7 +468,7 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("error doing handshake: %v", err)
 	}
-	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
+	logger.Infof("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
 	for _, jsonFile := range jsonFiles {
 		var setStateRequired bool
@@ -528,7 +527,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	if err := json.Unmarshal(data, &testData); err != nil {
 		return fmt.Errorf("error parsing JSON: %v", err)
 	}
-	log.Println("File:", jsonFile)
+	logger.Info("File:", jsonFile)
 
 	/*
 		Step 1: Initialization (SetState) to the pre_state
@@ -615,7 +614,7 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 		return fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	fmt.Println("File: ", jsonFile)
+	logger.Info("File:", jsonFile)
 
 	expectedStateRoot, err := parseStateRoot(genesisData.State.StateRoot)
 	if err != nil {

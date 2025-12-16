@@ -8,6 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type FuzzService interface {
@@ -30,6 +31,14 @@ func (s *FuzzServiceStub) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 }
 
 func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error) {
+	// Set logging context for this block
+	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
+	if err != nil {
+		return types.StateRoot{}, err
+	}
+	logger.SetContext(headerHash, block.Header.Slot)
+	defer logger.ClearContext()
+
 	// Get the latest block
 	storeInstance := store.GetInstance()
 
@@ -67,19 +76,26 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	storeInstance.AddBlock(block)
+
 	// Run the STF and get the state root
 	isProtocolError, err := stf.RunSTF()
 	if err != nil {
 		if !isProtocolError {
+			// Runtime error: unexpected bug, should terminate the program
+			// Note: We return the error here, caller (server) should decide to close connection
+			// If this is a standalone node, caller should call logger.Fatal()
+			logger.Errorf("STF runtime error (unexpected bug): %v", err)
 			return types.StateRoot{}, fmt.Errorf("STF runtime error: %v", err)
 		}
+		// Protocol error: block is invalid, but node should continue
+		logger.ProtocolErrorf("block invalid: %v", err)
 		return block.Header.ParentStateRoot, err
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
 	serializedState, err = m.StateEncoder(latestState)
 	if err != nil {
-		fmt.Printf("state encoder error: %v\n", err)
+		logger.Errorf("state encoder error: %v", err)
 		return types.StateRoot{}, err
 	}
 	storageKeyVal = storeInstance.GetPostStateUnmatchedKeyVals()

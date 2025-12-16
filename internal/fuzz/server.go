@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // TODO
@@ -47,7 +47,7 @@ func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
 		// Clean up Unix socket file when server stops
 		if unixAddr, ok := s.Listener.Addr().(*net.UnixAddr); ok {
 			if err := os.Remove(unixAddr.Name); err != nil && !os.IsNotExist(err) {
-				log.Printf("warning: failed to remove socket file %s: %v", unixAddr.Name, err)
+				logger.Warnf("failed to remove socket file %s: %v", unixAddr.Name, err)
 			}
 		}
 	}()
@@ -59,7 +59,7 @@ func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
 		default:
 			conn, err := s.Listener.Accept()
 			if err != nil {
-				log.Printf("error while accepting connection: %v", err)
+				logger.Warnf("[fuzz-server] error accepting connection: %v", err)
 				continue
 			}
 
@@ -79,12 +79,12 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 			var req, resp Message
 			_, err := req.ReadFrom(conn)
 			if err == io.EOF {
-				log.Printf("[fuzz-server] connection closed")
+				logger.Debugf("[fuzz-server] connection closed")
 				return
 			}
 
 			if err != nil {
-				log.Printf("[fuzz-server] error while reading requests, err: %v", err)
+				logger.Errorf("[fuzz-server] error reading request: %v", err)
 				return
 			}
 
@@ -102,19 +102,19 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 			}
 
 			if err != nil {
-				log.Printf("[fuzz-server] error processing request[%v]: %v", req.Type, err)
+				logger.Errorf("[fuzz-server] error processing request[%v]: %v", req.Type, err)
 				return
 			}
 
 			respBytes, err := resp.MarshalBinary()
 			if err != nil {
-				log.Printf("[fuzz-server] error marshaling response: %v", err)
+				logger.Errorf("[fuzz-server] error marshaling response: %v", err)
 				return
 			}
 
 			_, err = conn.Write(respBytes)
 			if err != nil {
-				log.Printf("[fuzz-server] error writing response: %v", err)
+				logger.Errorf("[fuzz-server] error writing response: %v", err)
 				continue
 			}
 		}
@@ -174,7 +174,7 @@ func (s *FuzzServer) handleSetState(m Message) (Message, error) {
 func (s *FuzzServer) handleGetState(m Message) (Message, error) {
 	stateKeyVals, err := s.Service.GetState(types.HeaderHash(*m.GetState))
 	if err != nil {
-		log.Printf("[fuzz-server][GetState] error: %v", err)
+		logger.Errorf("[fuzz-server][GetState] error: %v", err)
 	}
 
 	payload := State(stateKeyVals)

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -62,7 +61,7 @@ func testStepFolder(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no step files found in the specified folder")
 	}
 
-	log.Printf("Found %d step files to process\n", len(stepFiles))
+	logger.Infof("Found %d step files to process", len(stepFiles))
 
 	successCount := 0
 	failureCount := 0
@@ -77,7 +76,7 @@ func testStepFolder(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	log.Printf("Summary: %d passed, %d failed\n", successCount, failureCount)
+	logger.Infof("Summary: %d passed, %d failed", successCount, failureCount)
 	return nil
 }
 

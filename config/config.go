@@ -14,7 +14,10 @@ var Config config
 
 type config struct {
 	Log struct {
-		Level string `json:"level"`
+		Level    string `json:"level"`
+		Color    bool   `json:"color"`
+		ShowLine bool   `json:"show_line"`
+		PVM      bool   `json:"pvm"`
 	} `json:"log"`
 	Const struct {
 		ValidatorsCount         int `json:"validators_count"`
@@ -44,9 +47,15 @@ type config struct {
 func DefaultConfig() config {
 	return config{
 		Log: struct {
-			Level string `json:"level"`
+			Level    string `json:"level"`
+			Color    bool   `json:"color"`
+			ShowLine bool   `json:"show_line"`
+			PVM      bool   `json:"pvm"`
 		}{
-			Level: "DEBUG",
+			Level:    "DEBUG", // Default: show all logs
+			Color:    true,    // Default: colored output
+			ShowLine: true,    // Default: logging enabled
+			PVM:      false,   // Default: PVM logging disabled
 		},
 		Const: struct {
 			ValidatorsCount         int `json:"validators_count"`
@@ -135,7 +144,7 @@ func loadConfig(path string) error {
 		}
 	} else {
 		// config file does not exist, use default config
-		fmt.Println("Config file not found, using default configuration")
+		logger.Warn("Config file not found, using default configuration")
 	}
 
 	initLog()
@@ -155,7 +164,39 @@ func initJamConst() {
 }
 
 func initLog() {
-	logger.SetLevel(Config.Log.Level)
+	// Environment variable overrides first (before logger is configured)
+	pvmEnv := os.Getenv("PVM_LOG")
+	levelEnv := os.Getenv("LOG_LEVEL")
+	colorEnv := os.Getenv("LOG_COLOR")
+
+	// Config file settings
+	logLevel := Config.Log.Level
+	if levelEnv != "" {
+		logLevel = levelEnv
+	}
+	logger.SetLevel(logLevel)
+
+	logColor := Config.Log.Color
+	if colorEnv != "" {
+		logColor = colorEnv == "true" || colorEnv == "1"
+	}
+	logger.SetColor(logColor)
+
+	logger.SetShowLine(Config.Log.ShowLine)
+
+	pvmEnabled := Config.Log.PVM
+	if pvmEnv != "" {
+		pvmEnabled = pvmEnv == "true" || pvmEnv == "1"
+	}
+	logger.SetPVMShowLine(pvmEnabled)
+
+	// Log environment variable detection after logger is configured
+	if pvmEnv != "" {
+		logger.Infof("🔧 PVM_LOG=%s (PVM logging %s)", pvmEnv, map[bool]string{true: "enabled", false: "disabled"}[pvmEnabled])
+	}
+	if levelEnv != "" {
+		logger.Infof("🔧 LOG_LEVEL=%s", levelEnv)
+	}
 }
 
 func initJamScaleRegistry() {
