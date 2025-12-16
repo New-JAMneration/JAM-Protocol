@@ -16,6 +16,7 @@ const (
 	InvalidTicketsMark                           // 10 InvalidTicketsMark
 	InvalidOffenderMarker                        // 11 InvalidOffenderMarker
 	UnexpectedAuthor                             // 12 Block author is not the expected one
+	AuthorIndexOutOfRange                        // 13 Author index is out of range (temporary, waiting for official code)
 )
 
 // This map provides human-readable messages following the fuzz-proto examples
@@ -33,4 +34,5 @@ var SafroleErrorCodeMessages = map[types.ErrorCode]string{
 	InvalidTicketsMark:    "invalid tickets mark",
 	InvalidOffenderMarker: "invalid offender marker",
 	UnexpectedAuthor:      "unexpected author", // matches fuzz-proto example
+	AuthorIndexOutOfRange: "author index is out of range",
 }

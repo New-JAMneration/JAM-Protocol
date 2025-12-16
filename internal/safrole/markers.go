@@ -67,7 +67,7 @@ func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeS
 	}
 }
 
-func ValidateHeaderEpochMark(header types.Header, state *types.State) error {
+func ValidateHeaderEpochMark(header types.Header, state *types.State) *types.ErrorCode {
 	tau := state.Tau
 	e, _ := R(tau)
 
@@ -104,7 +104,7 @@ func ValidateHeaderEpochMark(header types.Header, state *types.State) error {
 	return nil
 }
 
-func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
+func ValidateHeaderTicketsMark(header types.Header, state *types.State) *types.ErrorCode {
 	tau := state.Tau
 	e, m := R(tau)
 
@@ -149,7 +149,7 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) error {
 	return nil
 }
 
-func ValidateHeaderOffenderMarker(header types.Header) error {
+func ValidateHeaderOffenderMarker(header types.Header, state *types.State) *types.ErrorCode {
 	block := store.GetInstance().GetLatestBlock()
 	if block.Header.Slot != header.Slot {
 		// Not the latest block, skip validation

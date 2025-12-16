@@ -128,18 +128,15 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 // Outer Safrole function
 // I made this function return ErrorCode only
 func OuterUsedSafrole() *types.ErrorCode {
-
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
-		errCode           *types.ErrorCode
-		err               error
-		s                 = store.GetInstance()
-		header            = s.GetLatestBlock().Header
-		headerAuthorIndex = header.AuthorIndex
-		tau               = s.GetPriorStates().GetTau()
-		tauPrime          = s.GetPosteriorStates().GetTau()
-		e, m              = R(tau)
-		ePrime, _         = R(tauPrime)
+		err            error
+		ringVerifier   *vrf.Verifier
+		s              = store.GetInstance()
+		tau            = s.GetPriorStates().GetTau()
+		tauPrime       = s.GetPosteriorStates().GetTau()
+		e, m           = R(tau)
+		ePrime, mPrime = R(tauPrime)
 	)
 
 	// prior time slot must be less than posterior time slot
@@ -147,56 +144,18 @@ func OuterUsedSafrole() *types.ErrorCode {
 		errCode := SafroleErrorCode.BadSlot
 		return &errCode
 	}
+
 	// --- STEP 2 Update Entropy123 --- //
 	// (GP 6.23)
 	UpdateEntropy(e, ePrime)
+
 	// --- STEP 3 safrole.go (GP 6.2, 6.13, 6.14) --- //
 	// (6.2, 6.13, 6.14)
 	// This function will update GammaK, GammaZ, Lambda, Kappa
-	KeyRotate(e, ePrime)
-
-	// After KeyRotate, gammaK and kappa are updated
-	var (
-		postGammaK = s.GetPosteriorStates().GetGammaK()
-		postKappa  = s.GetPosteriorStates().GetKappa()
-	)
-
-	// Create ring verifier (gammaK)
-	ring := []byte{}
-	for _, validator := range postGammaK {
-		ring = append(ring, []byte(validator.Bandersnatch[:])...)
-	}
-	var ringVerifier *vrf.Verifier
-	ringVerifier, err = vrf.NewVerifier(ring, uint(len(postGammaK)))
+	err = KeyRotate(e, ePrime)
 	if err != nil {
-		log.Println("Failed to create verifier:", err)
-		return nil
+		log.Println("keyRotateErr:", err)
 	}
-	defer ringVerifier.Free()
-
-	// Update GammaZ commitment (gammaZ)
-	if ePrime > e {
-		var commitment []byte
-		commitment, err = ringVerifier.GetCommitment()
-		if err != nil {
-			log.Println("Failed to get commitment:", err)
-		} else {
-			s.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
-		}
-	}
-
-	// IETF verifier for author Kappa[authorIndex]
-	var verifier *vrf.Verifier
-	verifier, err = vrf.NewVerifier(postKappa[headerAuthorIndex].Bandersnatch[:], 0)
-	if err != nil {
-		log.Println("Failed to create verifier:", err)
-		return nil
-	}
-	if verifier == nil {
-		log.Println("Failed to create verifier for author key")
-		return nil
-	}
-	defer verifier.Free()
 
 	// (GP 6.17) // This will be used to write H_v to new header
 	// UpdateHeaderEntropy()
@@ -204,30 +163,42 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
 	UpdateSlotKeySequence(e, ePrime, m)
 
-	// (GP 6.22)
-	UpdateEtaPrime0(verifier)
+	// After KeyRotate, gammaK and kappa are updated
+	postGammaK := s.GetPosteriorStates().GetGammaK()
 
-	postState := s.GetPosteriorStates().GetState()
-	errCode = ValidateHeaderSeal(verifier, header, &postState)
-	if errCode != nil {
-		return errCode
+	ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
+	if err != nil {
+		// This error should not happen
+		log.Println("error creating verifiers:", err)
 	}
 
-	errCode = ValidateHeaderEntropy(verifier, header)
-	if errCode != nil {
-		return errCode
+	// Update GammaZ commitment (gammaZ)
+	if ePrime > e {
+		commitment, err := ringVerifier.GetCommitment()
+		if err != nil || len(commitment) == 0 {
+			log.Println("Failed to get commitment:", err)
+		} else {
+			s.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
+		}
+	}
+
+	// (GP 6.22)
+	err = UpdateEtaPrime0()
+	if err != nil {
+		log.Println("UpdateEtaPrime0Err:", err)
 	}
 
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-	errCode = CreateNewTicketAccumulator(ringVerifier)
-	if errCode != nil {
-		return errCode
+	HtErrCode := CreateNewTicketAccumulator(ringVerifier)
+	if HtErrCode != nil {
+		return HtErrCode
 	}
-	// (GP 6.28)
-	// CreateWinningTickets(e, ePrime, m, mPrime)
 
-	// --- sealing.go (GP 6.15~6.24) --- //
+	// (GP 6.28)
+	CreateWinningTickets(e, ePrime, m, mPrime)
+
+	// // --- sealing.go (GP 6.15~6.24) --- //
 	// err = SealingHeader()
 	// if err != nil {
 	// 	log.Println("SealingHeaderErr:", err)
@@ -235,7 +206,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// --- markers.go (GP 6.27, 6.28) --- //
 	// (GP 6.27)
-	// CreateEpochMarker(e, ePrime)
+	CreateEpochMarker(e, ePrime)
 
 	return nil
 }

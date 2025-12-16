@@ -54,6 +54,7 @@ func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrins
 		message := []byte{}
 		signature := ticket.Signature[:]
 		output, verifyErr := ringVerifier.RingVerify(context, message, signature)
+
 		if verifyErr != nil {
 			err := SafroleErrorCode.BadTicketProof
 			return nil, &err

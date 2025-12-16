@@ -50,6 +50,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 				return types.StateRoot{}, fmt.Errorf("failed to restore block and state after parent mismatch: %w", err)
 			}
 		}
+	} else {
+		// Initialize the ring verifier cache
+		store.ClearVerifierCache()
 	}
 
 	// Get the latest state root
@@ -91,6 +94,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
 	// Reset State and Blocks
+	store.ClearVerifierCache()
 	store.ResetInstance()
 
 	// Set State
