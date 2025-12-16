@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
+	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
 	jamtestnet "github.com/New-JAMneration/JAM-Protocol/testdata/jam_testnet"
@@ -73,37 +74,35 @@ For example:
 		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
-		// Validate inputs
+		// Initialize config (reads environment variables like PVM_LOG)
+		config.InitConfig(configPath, testSize)
+
+		// Validate inputs (these are user input errors, use Fatal)
 		if err := validateTestType(testType); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			logger.Fatal(err) // Fatal already calls os.Exit(1)
 		}
 
 		mode := testdata.TestMode(testMode)
 		if err := validateTestMode(mode); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			logger.Fatal(err)
 		}
 
 		dataFormat, err := validateTestFormat(testFileFormat)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			logger.Fatal(err)
 		}
 
 		// Create reader and runner
 		reader, runner, err := createReaderAndRunner(testType, mode, testdata.TestSize(testSize), dataFormat)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			logger.Fatal(err)
 		}
 
 		// Read test data
 		var testFiles []testdata.TestData
 		testFiles, err = reader.ReadTestData()
 		if err != nil {
-			fmt.Printf("Error reading test data: %v\n", err)
-			os.Exit(1)
+			logger.Fatalf("Error reading test data: %v", err)
 		}
 
 		// Print results
@@ -111,7 +110,7 @@ For example:
 		if testType == "jam-test-vectors" {
 			msg += fmt.Sprintf("(size: %s) ", testSize)
 		}
-		log.Println(msg)
+		logger.Info(msg)
 
 		passed := 0
 		failed := 0
@@ -144,7 +143,7 @@ For example:
 		}
 
 		for idx, testFile := range testFiles {
-			log.Printf("------------------{%v, %s}--------------------", idx+1, testFile.Name)
+			logger.Infof("------------------{%v, %s}--------------------", idx+1, testFile.Name)
 			if testType == "trace" {
 				// post-state update to pre-state, tau_prime+1
 				store.GetInstance().StateCommit()
@@ -152,7 +151,7 @@ For example:
 
 			data, err := reader.ParseTestData(testFile.Data)
 			if err != nil {
-				log.Printf("got error during parsing: %v", err)
+				logger.Errorf("got error during parsing: %v", err)
 				failed++
 				continue
 			}
@@ -164,23 +163,23 @@ For example:
 				expectedErr := data.ExpectError()
 				if expectedErr != nil {
 					if outputErr == nil {
-						fmt.Printf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
+						logger.Errorf("Test %s failed: expected error %v but got none\n", testFile.Name, expectedErr)
 						failed++
 					}
 					if outputErr.Error() != expectedErr.Error() {
-						fmt.Printf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
+						logger.Errorf("Test %s failed: expected error %v but got %v\n", testFile.Name, expectedErr, outputErr)
 						failed++
 					} else {
-						fmt.Printf("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
+						logger.Infof("Test %s passed: expected: %v, got: %v\n", testFile.Name, expectedErr, outputErr)
 						passed++
 					}
 					// Check the error message
 				} else {
 					if outputErr != nil {
-						fmt.Printf("Test %s failed: expected no error but got %v\n", testFile.Name, outputErr)
+						logger.Errorf("Test %s failed: expected no error but got %v\n", testFile.Name, outputErr)
 						failed++
 					} else {
-						log.Printf("Test %s passed", testFile.Name)
+						logger.Infof("Test %s passed", testFile.Name)
 						passed++
 					}
 				}
@@ -188,25 +187,25 @@ For example:
 				// type = trace
 				// stf occurs error
 				if outputErr != nil {
-					log.Printf("stf output error %v:", outputErr)
+					logger.Errorf("stf output error %v:", outputErr)
 					priorState := store.GetInstance().GetPriorStates().GetState()
 					store.GetInstance().GetPosteriorStates().SetState(priorState)
 				}
 
 				err := data.Validate()
 				if err != nil {
-					log.Printf("state root validate error: %v", err)
+					logger.Errorf("state root validate error: %v", err)
 					failed++
 					break
 				}
 				passed++
-				log.Printf("passed\n")
+				logger.Infof("passed\n")
 
 			}
 		}
 
-		log.Printf("----------------------------------------")
-		log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+		logger.Info("----------------------------------------")
+		logger.Infof("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
 
 		return nil
 	},

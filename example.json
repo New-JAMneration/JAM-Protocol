@@ -1,6 +1,9 @@
 {
   "log": {
-    "level": "debug"
+    "level": "DEBUG",
+    "color": true,
+    "show_line": true,
+    "pvm": false
   },
   "const": {
     "validators_count": 6,

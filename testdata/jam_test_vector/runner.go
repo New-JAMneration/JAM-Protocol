@@ -2,9 +2,9 @@ package jamtestvector
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 )
 
@@ -61,7 +61,7 @@ func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
 		if err == nil {
 			return fmt.Errorf("expected error but got none")
 		}
-		log.Printf("Test passed (expected error: %v)", expectedErr)
+		logger.Debugf("Test passed (expected error: %v)", expectedErr)
 	} else {
 		if err != nil {
 			return fmt.Errorf("unexpected error: %v", err)
@@ -70,7 +70,7 @@ func (r *JamTestVectorsRunner) Run(data interface{}, runSTF bool) error {
 		if err != nil {
 			return err
 		}
-		log.Println("Test passed")
+		logger.Debug("Test passed")
 	}
 
 	return nil
