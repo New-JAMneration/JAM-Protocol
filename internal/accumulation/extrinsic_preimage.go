@@ -106,7 +106,7 @@ func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMe
 
 // v0.7.0 (12.39, 12.40)  for all: E_P: Y(δ, s, H(d), |d|)
 // Validate Preimage Extrinsics with prior state service preimage and lookupDict
-func validatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState, keyVals *types.StateKeyVals) *types.ErrorCode {
+func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState, keyVals *types.StateKeyVals) *types.ErrorCode {
 	// If eps is empty, return empty slice
 	if len(eps) == 0 {
 		return nil
@@ -233,8 +233,9 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 	keyVals := s.GetPostStateUnmatchedKeyVals()
 	tauPrime := s.GetPosteriorStates().GetTau()
+
 	// validate E_P and prior state service preimage, lookupDict
-	err := validatePreimageExtrinsics(eps, delta, &keyVals)
+	err := ValidatePreimageExtrinsics(eps, delta, &keyVals)
 	if err != nil {
 		return err
 	}
