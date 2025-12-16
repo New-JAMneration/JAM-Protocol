@@ -45,10 +45,18 @@ Run single test:
 make test-jam-test-vectors mode=safrole size=full
 ```
 
+```bash
+make test-jam-test-vectors-trace mode=safrole
+```
+
 Run all:
 
 ```bash
 make test-jam-test-vectors
+```
+
+```bash
+make test-jam-test-vectors-trace
 ```
 
 ## Release and Publish

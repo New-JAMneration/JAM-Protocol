@@ -28,33 +28,25 @@ func isProtocolError(err error) bool {
 }
 
 func RunSTF() (bool, error) {
-	var err error
-	st := store.GetInstance()
+	var (
+		err        error
+		st         = store.GetInstance()
+		priorState = st.GetPriorStates().GetState()
+		header     = st.GetLatestBlock().Header
+	)
 
 	// Update timeslot
-	st.GetPosteriorStates().SetTau(st.GetLatestBlock().Header.Slot)
+	st.GetPosteriorStates().SetTau(header.Slot)
 
-	// update BetaH, GP 0.6.7 formula 4.6
-	recent_history.STFBetaH2BetaHDagger()
-	priorState := st.GetPriorStates().GetState()
-
-	block := st.GetLatestBlock()
-	header := block.Header
-
-	err = ValidateHeader(header, &priorState)
+	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
+	err = ValidateNonVRFHeader(header, &priorState)
 	if err != nil {
-		// INFO: Now, we use Safrole error codes for all header validation errors.
-		// If needed, we should manage the error codes for header validation separately.
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
-	err = ValidateBlock(block)
-	if err != nil {
-		// TODO: Implement proper block error codes
-		errorMessage := ""
-		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
-	}
+	// update BetaH, GP 0.6.7 formula 4.6
+	recent_history.STFBetaH2BetaHDagger()
 
 	// Update Disputes
 	err = UpdateDisputes()
@@ -69,10 +61,10 @@ func RunSTF() (bool, error) {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
+	postState := st.GetPosteriorStates().GetState()
 
-	// Validate Header Vrf(seal, entropy)
-	stateForHeaderValidate := st.GetPosteriorStates().GetState()
-	err = ValidateHeaderVrf(header, &stateForHeaderValidate)
+	// After keyRotate
+	err = ValidateHeaderVrf(header, &postState)
 	if err != nil {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return isProtocolError(err), fmt.Errorf("%v", errorMessage)
@@ -99,8 +91,8 @@ func RunSTF() (bool, error) {
 	}
 
 	// Update History (beta^dagger -> beta^prime)
-	// err = UpdateHistory()
-	if err = recent_history.STFBetaHDagger2BetaHPrime(); err != nil {
+	err = recent_history.STFBetaHDagger2BetaHPrime()
+	if err != nil {
 		return isProtocolError(err), fmt.Errorf("update history error: %v", err)
 	}
 
