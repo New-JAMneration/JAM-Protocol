@@ -111,11 +111,7 @@ func validatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.Servic
 	if len(eps) == 0 {
 		return nil
 	}
-	// 12.39
-	err := validateSortUnique(eps)
-	if err != nil {
-		return err
-	}
+
 	// 12.40
 	for _, ep := range eps {
 		preimageHash := hash.Blake2bHash(ep.Blob)
@@ -125,6 +121,12 @@ func validatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.Servic
 			errCode := PreimageErrorCode.PreimageUnneeded
 			return &errCode
 		}
+	}
+
+	// 12.39
+	err := validateSortUnique(eps)
+	if err != nil {
+		return err
 	}
 	return nil
 }
