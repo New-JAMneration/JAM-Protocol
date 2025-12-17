@@ -277,6 +277,8 @@ func (s *Store) StateCommit() {
 
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
+	postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
+	s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
@@ -410,7 +412,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 
 	s.GetPriorStates().SetState(state)
 	s.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
-
+	s.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
 	// Restore block
 	s.CleanupBlock()
 	s.AddBlock(block)
