@@ -2,8 +2,6 @@ package PVM
 
 import (
 	"fmt"
-
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type (
@@ -51,21 +49,21 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 
 	allocateMemorySegment(&mem, readOnlyStart, readOnlyEnd, o, MemoryReadOnly)
 	allocateMemorySegment(&mem, readOnlyEnd, readOnlyPadding, nil, MemoryReadOnly) // Padding
-	logger.PVMDebugf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x", readOnlyStart, readOnlyEnd, readOnlyPadding)
+	pvmLogger.Debugf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x", readOnlyStart, readOnlyEnd, readOnlyPadding)
 
 	allocateMemorySegment(&mem, readWriteStart, readWriteEnd, w, MemoryReadWrite)
 	allocateMemorySegment(&mem, readWriteEnd, readWritePadding, nil, MemoryReadWrite) // Padding
-	logger.PVMDebugf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x", readWriteStart, readWriteEnd, readWritePadding)
+	pvmLogger.Debugf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x", readWriteStart, readWriteEnd, readWritePadding)
 
 	allocateStack(&mem, stackStart, stackEnd)
-	logger.PVMDebugf("Memory Map     stack : 0x%08x  0x%08x", stackStart, stackEnd)
+	pvmLogger.Debugf("Memory Map     stack : 0x%08x  0x%08x", stackStart, stackEnd)
 
 	allocateMemorySegment(&mem, argumentStart, argumentEnd, a, MemoryReadOnly)
 	allocateMemorySegment(&mem, argumentEnd, argumentPadding, nil, MemoryReadOnly) // Padding
-	logger.PVMDebugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
+	pvmLogger.Debugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
 
 	// allocateMemorySegment(&mem, heapStart, heapEnd, nil, MemoryReadWrite)
-	// logger.PVMDebugf("Heap pointer : 0x%08x", heapStart)
+	// pvmLogger.Debugf("Heap pointer : 0x%08x", heapStart)
 
 	// Registers initialization
 	var regs Registers

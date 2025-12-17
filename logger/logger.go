@@ -1,14 +1,11 @@
 package logger
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // =============================================================================
@@ -57,93 +54,121 @@ var levelStrings = []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
 // Logger Configuration
 // =============================================================================
 
+// Logger represents a named logger instance
 type Logger struct {
-	level       LogLevel
-	mu          sync.Mutex
-	showLine    bool
-	useColor    bool
-	timeFormat  string
-	pvmShowLine bool // Separate control for PVM logs
+	name       string
+	level      LogLevel
+	mu         sync.Mutex
+	enabled    bool
+	useColor   bool
+	timeFormat string
 }
 
-var (
-	defaultLogger *Logger
-	once          sync.Once
-)
-
-// Context for step tracking (headerHash, [slot, epoch])
-var (
-	HeaderHash  string
-	Slot        types.TimeSlot
-	Epoch       types.TimeSlot
-	hasContext  bool
-	currentStep string
-)
+// LoggerConfig holds configuration for a logger
+type LoggerConfig struct {
+	Level      string `json:"level"`
+	Enabled    bool   `json:"enabled"`
+	Color      bool   `json:"color"`
+	TimeFormat string `json:"time_format"` // Optional: if empty, uses global default
+}
 
 // =============================================================================
-// Initialization
+// Logger Registry (manages named loggers)
 // =============================================================================
 
-func Init(level LogLevel) error {
-	var err error
-	once.Do(func() {
-		defaultLogger, err = newLogger(level)
-	})
-	return err
-}
-
-func newLogger(level LogLevel) (*Logger, error) {
-	return &Logger{
-		level:       level,
-		showLine:    true,           // Enable logging by default
-		useColor:    true,           // Enable colors by default
-		timeFormat:  "15:04:05.000", // Short format: HH:MM:SS.ms, optional: MM-DD HH:MM:SS
-		pvmShowLine: false,          // PVM logging disabled by default
-	}, nil
-}
-
-func getLogger() *Logger {
-	if defaultLogger == nil {
-		_ = Init(DEBUG)
+var (
+	loggers      = make(map[string]*Logger)
+	loggersMutex sync.RWMutex
+	globalConfig = struct {
+		timeFormat string
+	}{
+		timeFormat: "15:04:05.000",
 	}
-	return defaultLogger
+)
+
+// GetLogger returns a logger by name, creating it if it doesn't exist
+// Usage:
+//
+//	logger := logger.GetLogger("pvm")
+//	logger.Debug("message")
+func GetLogger(name string) *Logger {
+	loggersMutex.RLock()
+	if l, exists := loggers[name]; exists {
+		loggersMutex.RUnlock()
+		return l
+	}
+	loggersMutex.RUnlock()
+
+	// Create new logger with defaults
+	loggersMutex.Lock()
+	defer loggersMutex.Unlock()
+
+	// Double-check after acquiring write lock
+	if l, exists := loggers[name]; exists {
+		return l
+	}
+
+	l := &Logger{
+		name:       name,
+		level:      DEBUG,
+		enabled:    name == "main", // Only main logger enabled by default
+		useColor:   true,
+		timeFormat: globalConfig.timeFormat,
+	}
+	loggers[name] = l
+	return l
+}
+
+// ConfigureLogger configures a named logger
+func ConfigureLogger(name string, cfg LoggerConfig) {
+	l := GetLogger(name)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.enabled = cfg.Enabled
+	l.useColor = cfg.Color
+	l.level = parseLevel(cfg.Level)
+}
+
+// parseLevel converts string to LogLevel
+func parseLevel(levelStr string) LogLevel {
+	switch strings.ToUpper(levelStr) {
+	case "DEBUG":
+		return DEBUG
+	case "INFO":
+		return INFO
+	case "WARN":
+		return WARN
+	case "ERROR":
+		return ERROR
+	case "FATAL":
+		return FATAL
+	default:
+		return DEBUG
+	}
 }
 
 // =============================================================================
-// Context Management (headerHash, slot, step)
+// Default Logger (backward compatibility)
 // =============================================================================
 
-// SetContext sets the current block context for logging
-// Epoch is auto-calculated: epoch = slot / EpochLength
-// Format: [headerHash[:8]|slot:epoch] or [headerHash[:8]|slot:epoch|step]
-func SetContext(headerHash types.HeaderHash, slot types.TimeSlot) {
-	HeaderHash = hex.EncodeToString(headerHash[:])
-	Slot = slot
-	Epoch = slot / types.TimeSlot(types.EpochLength)
-	hasContext = true
+func getDefaultLogger() *Logger {
+	return GetLogger("main")
 }
 
-// ClearContext clears the current block context
-func ClearContext() {
-	HeaderHash = ""
-	Slot = 0
-	Epoch = 0
-	hasContext = false
-	currentStep = ""
-}
-
-// SetStep sets the current processing step (e.g., "safrole", "disputes", "accumulate")
-func SetStep(step string) {
-	currentStep = step
+// Initialize default logger on package load
+func init() {
+	l := GetLogger("main")
+	l.enabled = true
 }
 
 // =============================================================================
-// Core Logging Function
+// Logger Methods
 // =============================================================================
 
 func (l *Logger) log(level LogLevel, format string, args ...interface{}) {
-	// FATAL always logs regardless of level or showLine flag
-	if level != FATAL && (level < l.level || !l.showLine) {
+	// FATAL always logs regardless of level or enabled flag
+	if level != FATAL && (level < l.level || !l.enabled) {
 		return
 	}
 
@@ -159,35 +184,23 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) {
 		message = format
 	}
 
-	// Build context prefix: [hash|slot:epoch|step] or [hash|slot:epoch]
-	contextPrefix := ""
-	if hasContext {
-		hashStr := HeaderHash
-		if len(HeaderHash) > 8 {
-			hashStr = HeaderHash[:8]
-		}
-		if currentStep != "" {
-			contextPrefix = fmt.Sprintf("[%s|(%d:%d)|%s] ", hashStr, Slot, Epoch, currentStep)
-		} else {
-			contextPrefix = fmt.Sprintf("[%s|(%d:%d)] ", hashStr, Slot, Epoch)
-		}
-	} else if currentStep != "" {
-		contextPrefix = fmt.Sprintf("[%s] ", currentStep)
+	// Build prefix with logger name (except for "main")
+	prefix := ""
+	if l.name != "main" {
+		prefix = fmt.Sprintf("[%s] ", strings.ToUpper(l.name))
 	}
 
 	// Format output with or without color
 	levelStr := levelStrings[level]
 	if l.useColor {
 		color := levelColors[level]
-		// Color the level tag
 		coloredLevel := fmt.Sprintf("%s[%s]%s", color, levelStr, Reset)
-		// Color context in cyan
-		if contextPrefix != "" {
-			contextPrefix = fmt.Sprintf("%s%s%s", Cyan, contextPrefix, Reset)
+		if prefix != "" {
+			prefix = fmt.Sprintf("%s%s%s", Gray, prefix, Reset)
 		}
-		fmt.Printf("%s %s %s%s\n", timestamp, coloredLevel, contextPrefix, message)
+		fmt.Printf("%s %s %s%s\n", timestamp, coloredLevel, prefix, message)
 	} else {
-		fmt.Printf("%s [%s] %s%s\n", timestamp, levelStr, contextPrefix, message)
+		fmt.Printf("%s [%s] %s%s\n", timestamp, levelStr, prefix, message)
 	}
 
 	if level == FATAL {
@@ -195,329 +208,229 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) {
 	}
 }
 
-// =============================================================================
-// Standard Log Functions (DEBUG, INFO, WARN)
-// =============================================================================
-
-func Debug(args ...interface{}) {
-	getLogger().log(DEBUG, strings.TrimSpace(fmt.Sprint(args...)))
+// Debug logs a debug message
+func (l *Logger) Debug(args ...interface{}) {
+	l.log(DEBUG, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Debugf(format string, args ...interface{}) {
-	getLogger().log(DEBUG, format, args...)
+// Debugf logs a formatted debug message
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	l.log(DEBUG, format, args...)
 }
 
-func Info(args ...interface{}) {
-	getLogger().log(INFO, strings.TrimSpace(fmt.Sprint(args...)))
+// Info logs an info message
+func (l *Logger) Info(args ...interface{}) {
+	l.log(INFO, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Infof(format string, args ...interface{}) {
-	getLogger().log(INFO, format, args...)
+// Infof logs a formatted info message
+func (l *Logger) Infof(format string, args ...interface{}) {
+	l.log(INFO, format, args...)
 }
 
-func Warn(args ...interface{}) {
-	getLogger().log(WARN, strings.TrimSpace(fmt.Sprint(args...)))
+// Warn logs a warning message
+func (l *Logger) Warn(args ...interface{}) {
+	l.log(WARN, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Warnf(format string, args ...interface{}) {
-	getLogger().log(WARN, format, args...)
+// Warnf logs a formatted warning message
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	l.log(WARN, format, args...)
 }
 
-// =============================================================================
-// Error Functions
-// =============================================================================
-
-func Error(args ...interface{}) {
-	getLogger().log(ERROR, strings.TrimSpace(fmt.Sprint(args...)))
+// Error logs an error message
+func (l *Logger) Error(args ...interface{}) {
+	l.log(ERROR, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func Errorf(format string, args ...interface{}) {
-	getLogger().log(ERROR, format, args...)
+// Errorf logs a formatted error message
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	l.log(ERROR, format, args...)
 }
 
-// =============================================================================
-// Protocol Error Functions
-// Use for protocol-level errors (block invalid) - logs error but DOES NOT exit
-// =============================================================================
-
-func ProtocolError(args ...interface{}) {
-	l := getLogger()
-	msg := strings.TrimSpace(fmt.Sprint(args...))
-	if l.useColor {
-		l.log(ERROR, "%s[PROTOCOL]%s %s", Magenta, Reset, msg)
-	} else {
-		l.log(ERROR, "[PROTOCOL] "+msg)
-	}
+// Fatal logs a fatal message and exits
+func (l *Logger) Fatal(args ...interface{}) {
+	l.log(FATAL, strings.TrimSpace(fmt.Sprint(args...)))
 }
 
-func ProtocolErrorf(format string, args ...interface{}) {
-	l := getLogger()
-	msg := fmt.Sprintf(format, args...)
-	if l.useColor {
-		l.log(ERROR, "%s[PROTOCOL]%s %s", Magenta, Reset, msg)
-	} else {
-		l.log(ERROR, "[PROTOCOL] "+msg)
-	}
-}
-
-// ProtocolErrorWithCode logs a protocol error with its error code
-func ProtocolErrorWithCode(errCode interface{}, message string) {
-	l := getLogger()
-	if l.useColor {
-		l.log(ERROR, "%s[PROTOCOL]%s %v: %s", Magenta, Reset, errCode, message)
-	} else {
-		l.log(ERROR, fmt.Sprintf("[PROTOCOL] %v: %s", errCode, message))
-	}
+// Fatalf logs a formatted fatal message and exits
+func (l *Logger) Fatalf(format string, args ...interface{}) {
+	l.log(FATAL, format, args...)
 }
 
 // =============================================================================
-// Fatal Functions
-// Use for unexpected runtime errors - logs error and EXITS the program
+// Logger Configuration Methods
 // =============================================================================
 
-func Fatal(args ...interface{}) {
-	getLogger().log(FATAL, strings.TrimSpace(fmt.Sprint(args...)))
-}
-
-func Fatalf(format string, args ...interface{}) {
-	getLogger().log(FATAL, format, args...)
-}
-
-// =============================================================================
-// Step Functions
-// Use for tracking processing steps with (headerHash, slot) context
-// =============================================================================
-
-func StepStart(step string) {
-	SetStep(step)
-	getLogger().log(INFO, fmt.Sprintf("Starting %s", step))
-}
-
-func StepEnd(step string) {
-	getLogger().log(INFO, fmt.Sprintf("Completed %s", step))
-	SetStep("")
-}
-
-func StepProtocolError(step string, err error) {
-	SetStep(step)
-	ProtocolErrorf("%s failed: %v", step, err)
-}
-
-func StepFatal(step string, err error) {
-	SetStep(step)
-	getLogger().log(FATAL, fmt.Sprintf("%s fatal error: %v", step, err))
-}
-
-// =============================================================================
-// PVM Logger Functions (Separate Control)
-// =============================================================================
-
-func PVMDebug(args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := strings.TrimSpace(fmt.Sprint(args...))
-	if l.useColor {
-		l.log(DEBUG, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(DEBUG, "[PVM] "+msg)
-	}
-}
-
-func PVMDebugf(format string, args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	if l.useColor {
-		l.log(DEBUG, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(DEBUG, "[PVM] "+msg)
-	}
-}
-
-func PVMInfo(args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := strings.TrimSpace(fmt.Sprint(args...))
-	if l.useColor {
-		l.log(INFO, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(INFO, "[PVM] "+msg)
-	}
-}
-
-func PVMInfof(format string, args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	if l.useColor {
-		l.log(INFO, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(INFO, "[PVM] "+msg)
-	}
-}
-
-func PVMError(args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := strings.TrimSpace(fmt.Sprint(args...))
-	if l.useColor {
-		l.log(ERROR, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(ERROR, "[PVM] "+msg)
-	}
-}
-
-func PVMErrorf(format string, args ...interface{}) {
-	l := getLogger()
-	if !l.pvmShowLine {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	if l.useColor {
-		l.log(ERROR, "%s[PVM]%s %s", Gray, Reset, msg)
-	} else {
-		l.log(ERROR, "[PVM] "+msg)
-	}
-}
-
-// =============================================================================
-// Configuration Functions
-// =============================================================================
-
-func SetLevel(levelStr string) {
-	l := getLogger()
+// SetLevel sets the log level
+func (l *Logger) SetLevel(levelStr string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
-	var level LogLevel
-	switch strings.ToUpper(levelStr) {
-	case "DEBUG":
-		level = DEBUG
-	case "INFO":
-		level = INFO
-	case "WARN":
-		level = WARN
-	case "ERROR":
-		level = ERROR
-	case "FATAL":
-		level = FATAL
-	default:
-		level = INFO
-	}
-	l.level = level
+	l.level = parseLevel(levelStr)
 }
 
-// Enable enables logging output
-func Enable() {
-	l := getLogger()
+// Enable enables the logger
+func (l *Logger) Enable() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.showLine = true
+	l.enabled = true
 }
 
-// Disable disables logging output (except FATAL which always logs)
-func Disable() {
-	l := getLogger()
+// Disable disables the logger
+func (l *Logger) Disable() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.showLine = false
+	l.enabled = false
 }
 
-// SetShowLine sets whether logging is enabled
-func SetShowLine(show bool) {
-	l := getLogger()
+// SetEnabled sets whether the logger is enabled
+func (l *Logger) SetEnabled(enabled bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.showLine = show
+	l.enabled = enabled
 }
 
-// IsShowLine returns whether logging is currently enabled
-func IsShowLine() bool {
-	l := getLogger()
+// IsEnabled returns whether the logger is enabled
+func (l *Logger) IsEnabled() bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.showLine
-}
-
-// EnableColor enables colored output
-func EnableColor() {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.useColor = true
-}
-
-// DisableColor disables colored output
-func DisableColor() {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.useColor = false
+	return l.enabled
 }
 
 // SetColor sets whether to use colored output
-func SetColor(enabled bool) {
-	l := getLogger()
+func (l *Logger) SetColor(enabled bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.useColor = enabled
 }
 
-// SetTimeFormat sets the time format for log timestamps
-// Common formats:
-//   - "15:04:05"       - HH:MM:SS
-//   - "15:04:05.000"   - HH:MM:SS.ms (default)
-//   - "01-02 15:04:05" - MM-DD HH:MM:SS
-//   - time.RFC3339    - Full ISO format
-func SetTimeFormat(format string) {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.timeFormat = format
+// =============================================================================
+// Package-Level Functions (backward compatibility with logger.Debug(), etc.)
+// =============================================================================
+
+func Debug(args ...interface{}) {
+	getDefaultLogger().Debug(args...)
+}
+
+func Debugf(format string, args ...interface{}) {
+	getDefaultLogger().Debugf(format, args...)
+}
+
+func Info(args ...interface{}) {
+	getDefaultLogger().Info(args...)
+}
+
+func Infof(format string, args ...interface{}) {
+	getDefaultLogger().Infof(format, args...)
+}
+
+func Warn(args ...interface{}) {
+	getDefaultLogger().Warn(args...)
+}
+
+func Warnf(format string, args ...interface{}) {
+	getDefaultLogger().Warnf(format, args...)
+}
+
+func Error(args ...interface{}) {
+	getDefaultLogger().Error(args...)
+}
+
+func Errorf(format string, args ...interface{}) {
+	getDefaultLogger().Errorf(format, args...)
+}
+
+func Fatal(args ...interface{}) {
+	getDefaultLogger().Fatal(args...)
+}
+
+func Fatalf(format string, args ...interface{}) {
+	getDefaultLogger().Fatalf(format, args...)
 }
 
 // =============================================================================
-// PVM Logger Configuration
+// Package-Level Configuration Functions (backward compatibility)
 // =============================================================================
 
-// EnablePVM enables PVM logging
-func EnablePVM() {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pvmShowLine = true
+// SetLevel sets the default logger's level
+func SetLevel(levelStr string) {
+	getDefaultLogger().SetLevel(levelStr)
 }
 
-// DisablePVM disables PVM logging
-func DisablePVM() {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pvmShowLine = false
+// Enable enables the default logger
+func Enable() {
+	getDefaultLogger().Enable()
 }
 
-// SetPVMShowLine sets whether PVM logging is enabled
-func SetPVMShowLine(show bool) {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.pvmShowLine = show
+// Disable disables the default logger
+func Disable() {
+	getDefaultLogger().Disable()
 }
 
-// IsPVMEnabled returns whether PVM logging is enabled
-func IsPVMEnabled() bool {
-	l := getLogger()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.pvmShowLine
+// SetEnabled sets whether the default logger is enabled
+func SetEnabled(enabled bool) {
+	getDefaultLogger().SetEnabled(enabled)
+}
+
+// IsEnabled returns whether the default logger is enabled
+func IsEnabled() bool {
+	return getDefaultLogger().IsEnabled()
+}
+
+// SetColor sets whether the default logger uses colored output
+func SetColor(enabled bool) {
+	getDefaultLogger().SetColor(enabled)
+}
+
+// EnableColor enables colored output for the default logger
+func EnableColor() {
+	getDefaultLogger().SetColor(true)
+}
+
+// DisableColor disables colored output for the default logger
+func DisableColor() {
+	getDefaultLogger().SetColor(false)
+}
+
+// =============================================================================
+// Context Formatting Helpers
+// =============================================================================
+
+// BlockContext holds block context information for logging
+type BlockContext struct {
+	HeaderHash string // First 8 chars of hex-encoded header hash
+	Slot       uint32
+	Epoch      uint32
+	Method     string // Optional: current method/step name
+}
+
+// String returns the formatted context string: [hash|slot:epoch] or [hash|slot:epoch|method]
+func (c BlockContext) String() string {
+	hash := c.HeaderHash
+	if len(hash) > 8 {
+		hash = hash[:8]
+	}
+	if c.Method != "" {
+		return fmt.Sprintf("[%s|(%d:%d)|%s]", hash, c.Slot, c.Epoch, c.Method)
+	}
+	return fmt.Sprintf("[%s|(%d:%d)]", hash, c.Slot, c.Epoch)
+}
+
+// FormatContext creates a formatted context prefix string
+// Usage: logger.Debugf("%s Processing block", logger.FormatContext(hash, slot, epoch, ""))
+func FormatContext(headerHash string, slot, epoch uint32, method string) string {
+	hash := headerHash
+	if len(hash) > 8 {
+		hash = hash[:8]
+	}
+	if method != "" {
+		return fmt.Sprintf("[%s|(%d:%d)|%s]", hash, slot, epoch, method)
+	}
+	return fmt.Sprintf("[%s|(%d:%d)]", hash, slot, epoch)
+}
+
+// FormatContextWithMethod creates a formatted context prefix with method name
+// Usage: logger.Debugf("%s Processing", logger.FormatContextWithMethod(hash, slot, epoch, "ImportBlock"))
+func FormatContextWithMethod(headerHash string, slot, epoch uint32, method string) string {
+	return FormatContext(headerHash, slot, epoch, method)
 }
