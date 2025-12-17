@@ -1,5 +1,7 @@
 package PVM
 
+import "github.com/New-JAMneration/JAM-Protocol/logger"
+
 // Memory related constants
 const (
 	ZA = 2       // PVM dynamic address alignment factor.
@@ -9,6 +11,9 @@ const (
 )
 
 var (
+	// PVM logger instance
+	pvmLogger = logger.GetLogger("pvm")
+
 	// instruction counter
 	instrCount = 0
 

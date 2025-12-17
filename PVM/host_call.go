@@ -12,7 +12,6 @@ import (
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // OperationType Enum
@@ -165,12 +164,12 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		omega_result := omega(input)
 		var pvmExit *PVMExitReason
 		if !errors.As(omega_result.ExitReason, &pvmExit) {
-			logger.PVMErrorf("%s host-call error : %v",
+			pvmLogger.Errorf("%s host-call error : %v",
 				hostCallName[input.Operation], omega_result.ExitReason)
 			return
 		}
 		omega_reason := omega_result.ExitReason.(*PVMExitReason)
-		logger.PVMDebugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
+		pvmLogger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
 			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
 		if omega_reason.Reason == PAGE_FAULT {
 			psi_result.Counter = uint32(pcPrime)
@@ -349,7 +348,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			getPtr(types.U32(types.SlotSubmissionEnd)),                // Y
 		)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 0 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 0 encode error: %v", err)
 			break
 		}
 		v = &val
@@ -359,7 +358,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		}
 		val, err = encoder.Encode(&input.Addition.Eta)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 1 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 1 encode error: %v", err)
 		}
 		v = &val
 	case 2:
@@ -369,7 +368,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.AuthOutput)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 2 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 2 encode error: %v", err)
 		}
 		v = &val
 	case 3:
@@ -389,7 +388,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.Extrinsics[w11][w12])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 3 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 3 encode error: %v", err)
 		}
 		v = &val
 	case 4:
@@ -412,7 +411,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.Extrinsics[i][w11])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 4 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 4 encode error: %v", err)
 		}
 		v = &val
 	case 5:
@@ -432,7 +431,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.ImportSegments[w11][w12])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 5 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 5 encode error: %v", err)
 		}
 		v = &val
 	case 6:
@@ -454,7 +453,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.ImportSegments[i][w11])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 6 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 6 encode error: %v", err)
 		}
 		v = &val
 	case 7:
@@ -464,7 +463,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.WorkPackage)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 7 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 7 encode error: %v", err)
 		}
 		v = &val
 	case 8:
@@ -475,20 +474,20 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		var encoded []byte
 		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthCodeHash)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 8 encode WorkPackage AuthCodeHash error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthCodeHash error: %v", err)
 			break
 		}
 		encoded = append(encoded, val...)
 
 		val, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.AuthorizerConfig)))
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig length error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig length error: %v", err)
 		}
 		encoded = append(encoded, val...)
 
 		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthorizerConfig)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig error: %v", err)
 		}
 		encoded = append(encoded, val...)
 
@@ -500,7 +499,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.WorkPackage.Authorization)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 9 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 9 encode error: %v", err)
 		}
 		v = &val
 	case 10:
@@ -510,7 +509,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.WorkPackage.Context)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 10 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 10 encode error: %v", err)
 		}
 		v = &val
 	case 11:
@@ -521,7 +520,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		var buffer []byte
 		buffer, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.Items)))
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 11 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 11 encode error: %v", err)
 			break
 		}
 
@@ -529,7 +528,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			var sw []byte
 			sw, err = S(encoder, w)
 			if err != nil {
-				logger.PVMErrorf("fetch host-call case 11 S func error: %v", err)
+				pvmLogger.Errorf("fetch host-call case 11 S func error: %v", err)
 				break
 			}
 
@@ -549,7 +548,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = S(encoder, input.Addition.WorkPackage.Items[w11])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 12 S func error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 12 S func error: %v", err)
 		}
 		v = &val
 	case 13:
@@ -564,7 +563,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.WorkPackage.Items[w11].Payload)
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 13 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 13 encode error: %v", err)
 		}
 		v = &val
 	case 14:
@@ -575,7 +574,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 		var buffer []byte
 		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfers))))
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 14 encode uint error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 14 encode uint error: %v", err)
 			break
 		}
 
@@ -583,7 +582,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			var bytes []byte
 			bytes, err = encoder.Encode(&o)
 			if err != nil {
-				logger.PVMErrorf("fetch host-call case 14 encode error: %v", err)
+				pvmLogger.Errorf("fetch host-call case 14 encode error: %v", err)
 				break
 			}
 			buffer = append(buffer, bytes...)
@@ -602,7 +601,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 		val, err = encoder.Encode(&input.Addition.OperandOrDeferredTransfers[w11])
 		if err != nil {
-			logger.PVMErrorf("fetch host-call case 15 encode error: %v", err)
+			pvmLogger.Errorf("fetch host-call case 15 encode error: %v", err)
 		}
 		v = &val
 	}
@@ -968,7 +967,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 				Addition:     input.Addition,
 			}
 		}
-		logger.PVMDebugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
+		pvmLogger.Debugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
 		// update items, octets
 		a.ServiceInfo.Items = newItems
 		a.ServiceInfo.Bytes = newOctets
@@ -1584,13 +1583,13 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// decode gas
 	err := decoder.Decode(data[:8], &gas)
 	if err != nil {
-		logger.PVMErrorf("host-call function \"invoke\" decode gas error : %v", err)
+		pvmLogger.Errorf("host-call function \"invoke\" decode gas error : %v", err)
 	}
 	// decode registers
 	for i := uint64(1); i < offset/8; i++ {
 		err = decoder.Decode(data[8*i:8*(i+1)], &w[i-1])
 		if err != nil {
-			logger.PVMErrorf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
+			pvmLogger.Errorf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
 	// psi
@@ -1733,7 +1732,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	assignErr := decoder.Decode(rawData, &assignData)
 	if assignErr != nil {
-		logger.PVMErrorf("host-call function \"bless\" decode assignData error : %v", assignErr)
+		pvmLogger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
@@ -1768,12 +1767,12 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		alwaysAccumRawData := rawData[:12]
 		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
 		if accumErr != nil {
-			logger.PVMErrorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
+			pvmLogger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
 			break
 		}
 		accumErr = decoder.Decode(alwaysAccumRawData[4:], &alwaysAccumServiceGas)
 		if accumErr != nil {
-			logger.PVMErrorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
+			pvmLogger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
 			break
 		}
 		rawData = rawData[12:]
@@ -1879,7 +1878,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, &authQueue)
 	if err != nil {
-		logger.PVMErrorf("host-call function \"assign\" decode error : %v", err)
+		pvmLogger.Errorf("host-call function \"assign\" decode error : %v", err)
 	}
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
@@ -1941,7 +1940,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(rawData, &validatorsData)
 	if err != nil {
-		logger.PVMErrorf("host-call function \"designate\" decode validatorsData error : %v", err)
+		pvmLogger.Errorf("host-call function \"designate\" decode validatorsData error : %v", err)
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
@@ -2028,14 +2027,14 @@ func new(input OmegaInput) (output OmegaOutput) {
 	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !sExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		logger.PVMDebugf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	var cDecoded types.U32
 	decoder := types.NewDecoder()
 	err := decoder.Decode(c, &cDecoded)
 	if err != nil {
-		logger.PVMErrorf("host-call function \"new\" decode error %v: ", err)
+		pvmLogger.Errorf("host-call function \"new\" decode error %v: ", err)
 	}
 
 	// new an account
@@ -2186,7 +2185,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 		*input.Addition.GeneralArgs.ServiceAccount = serviceAccount
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		logger.PVMDebugf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"upgrade\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -2292,7 +2291,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
 	} else {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		logger.PVMDebugf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	// for v0.7.2 & v0.7.1 jam-test-vectors --->
 	/*
@@ -2416,7 +2415,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				}
 			}
 			// according GP, no need to check the service exists => it should in ServiceAccountState
-			logger.PVMDebugf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
+			pvmLogger.Debugf("host-call function \"eject\" serviceID : %d not in ServiceAccount state", serviceID)
 		}
 	}
 
@@ -2465,7 +2464,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !accountExists {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
-		logger.PVMDebugf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
 	var timeSlotSet types.TimeSlotSet
@@ -2634,7 +2633,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a // update general args
 		*input.Addition.GeneralArgs.ServiceAccount = a
 	} else {
-		logger.PVMDebugf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -2754,7 +2753,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			input.Registers[7] = HUH
 		}
 	} else {
-		logger.PVMDebugf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
+		pvmLogger.Debugf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
@@ -2950,7 +2949,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
 	if level > 4 {
-		logger.PVMErrorf("logHostCall level not supported")
+		pvmLogger.Errorf("logHostCall level not supported")
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       input.Gas, // newGas   // v0.7.2
@@ -2971,7 +2970,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
 	}
-	logger.PVMDebugf("%v", logMsg)
+	pvmLogger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas, // newGas   // v0.7.2
@@ -3026,7 +3025,7 @@ func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.Service
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
 	for k, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
-			logger.PVMDebugf("remove storage key: 0x%x\n", requestedStorageStateKey.Key)
+			pvmLogger.Debugf("remove storage key: 0x%x\n", requestedStorageStateKey.Key)
 			if k < len(*keyVal)-1 { // not the last index
 				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
 			} else {

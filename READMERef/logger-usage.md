@@ -5,12 +5,11 @@ This document describes how to use the logger package in JAM-Protocol.
 ## Table of Contents
 
 - [Log Levels](#log-levels)
-- [Allowed Usage](#allowed-usage)
-- [Forbidden Usage](#forbidden-usage)
-- [Environment Variables](#environment-variables)
-- [Config File](#config-file)
+- [Basic Usage](#basic-usage)
+- [Named Loggers](#named-loggers)
 - [PVM Logger](#pvm-logger)
-- [Context Logging](#context-logging)
+- [Config File](#config-file)
+- [Forbidden Usage](#forbidden-usage)
 - [Error Handling Strategy](#error-handling-strategy)
 - [Quick Reference](#quick-reference)
 
@@ -20,17 +19,20 @@ This document describes how to use the logger package in JAM-Protocol.
 
 | Level | Function | Description |
 |-------|----------|-------------|
-| `DEBUG` | `logger.Debug()`, `logger.Debugf()` | Development debug messages, detailed execution info |
-| `INFO` | `logger.Info()`, `logger.Infof()` | General execution info, important state changes |
-| `WARN` | `logger.Warn()`, `logger.Warnf()` | Warning messages, expected anomalies |
-| `ERROR` | `logger.Error()`, `logger.Errorf()` | Error messages, issues that need investigation |
-| `FATAL` | `logger.Fatal()`, `logger.Fatalf()` | Critical errors, program terminates (`os.Exit(1)`) |
+| `DEBUG` | `logger.Debug()`, `logger.Debugf()` | Development debug messages |
+| `INFO` | `logger.Info()`, `logger.Infof()` | General execution info |
+| `WARN` | `logger.Warn()`, `logger.Warnf()` | Warning messages |
+| `ERROR` | `logger.Error()`, `logger.Errorf()` | Error messages |
+| `FATAL` | `logger.Fatal()`, `logger.Fatalf()` | Critical errors (program exits) |
 
 ---
 
-## Allowed Usage
+## Basic Usage
 
-### ✅ Basic Logging
+### Standard Logging
+
+```go
+import "github.com/New-JAMneration/JAM-Protocol/logger"
 
 // Debug: detailed execution info
 logger.Debug("🚀 Store initialized")
@@ -41,18 +43,18 @@ logger.Info("Test passed")
 logger.Infof("Total: %d, Passed: %d", total, passed)
 
 // Warn: expected anomalies
-logger.Warn("Config file not found, using default configuration")
+logger.Warn("Config file not found")
 logger.Warnf("Service %d not in state", serviceID)
 
-// Error: issues that need investigation (program continues)
+// Error: issues that need investigation
 logger.Errorf("Failed to index block: %v", err)
 
 // Fatal: critical errors, program terminates
-logger.Fatal(err)  // No need to call os.Exit(1) after this
+logger.Fatal(err)  // Calls os.Exit(1)
 logger.Fatalf("Cannot start: %v", err)
 ```
 
-### ✅ Creating Errors for Return
+### Creating Errors for Return
 
 ```go
 import "fmt"
@@ -74,104 +76,60 @@ func ProcessData(data []byte) error {
 
 ---
 
-## Forbidden Usage
+## Named Loggers
 
-### ❌ Do NOT use standard `log` package
+You can create named logger instances with independent configuration.
+
+### Creating a Named Logger
 
 ```go
-// ❌ WRONG
-log.Println("message")
-log.Printf("msg: %v", x)
-log.Fatal(err)
+// Get or create a named logger
+myLogger := logger.GetLogger("mymodule")
 
-// ✅ CORRECT
-logger.Info("message")
-logger.Infof("msg: %v", x)
-logger.Fatal(err)
+// Use it like the default logger
+myLogger.Debug("Starting module")
+myLogger.Infof("Processing %d items", count)
+myLogger.Errorf("Error: %v", err)
 ```
 
-### ❌ Do NOT use `fmt.Print` for logging
+### Output Format
 
-```go
-// ❌ WRONG
-fmt.Println("debug info")
-fmt.Printf("error: %v\n", err)
+Named loggers (except "main") include their name in the output:
 
-// ✅ CORRECT
-logger.Debug("debug info")
-logger.Errorf("error: %v", err)
+```
+15:07:32.373 [DEBUG] [MYMODULE] Starting module
+15:07:32.374 [INFO] [MYMODULE] Processing 100 items
 ```
 
-### ❌ Do NOT call `os.Exit` after `logger.Fatal`
+The main logger has no prefix:
 
-```go
-// ❌ WRONG - redundant os.Exit
-logger.Fatal(err)
-os.Exit(1)  // This line will never execute
-
-// ✅ CORRECT
-logger.Fatal(err)  // Already calls os.Exit(1)
 ```
-
-### ❌ Do NOT use `log` for PVM code
-
-```go
-// ❌ WRONG in PVM code
-log.Printf("instruction: %s", opcode)
-
-// ✅ CORRECT in PVM code
-logger.PVMDebugf("instruction: %s", opcode)
+15:07:32.373 [DEBUG] Starting application
 ```
 
 ---
 
-## Environment Variables
+## PVM Logger
 
-Control logging behavior via environment variables (higher priority than config file):
+PVM (Polka Virtual Machine) has its own named logger that can be independently enabled/disabled.
 
-### PVM_LOG
+### Usage in PVM Code
 
-Enable/disable PVM logging:
+```go
+// PVM package already has pvmLogger defined in const.go:
+// var pvmLogger = logger.GetLogger("pvm")
 
-```bash
-# Enable PVM logging
-PVM_LOG=true make test-jam-test-vectors mode=accumulate
-PVM_LOG=1 make run-target
-
-# Disable PVM logging (default)
-PVM_LOG=false make test-jam-test-vectors mode=accumulate
+// Use directly in PVM code:
+pvmLogger.Debug("Memory initialized")
+pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, opcode)
+pvmLogger.Errorf("Decode error: %v", err)
 ```
 
-### LOG_LEVEL
+### Output Format
 
-Set log level (case-insensitive):
-
-```bash
-# All of these work
-LOG_LEVEL=DEBUG make test-jam-test-vectors mode=safrole
-LOG_LEVEL=debug make test-jam-test-vectors mode=safrole
-LOG_LEVEL=Debug make test-jam-test-vectors mode=safrole
-
-# Available levels: DEBUG, INFO, WARN, ERROR
-LOG_LEVEL=INFO make test-jam-test-vectors mode=safrole
 ```
-
-### LOG_COLOR
-
-Enable/disable colored output:
-
-```bash
-# Disable colors (useful for log files)
-LOG_COLOR=false make test-jam-test-vectors mode=safrole
-
-# Enable colors (default)
-LOG_COLOR=true make test-jam-test-vectors mode=safrole
-```
-
-### Combined Usage
-
-```bash
-PVM_LOG=true LOG_LEVEL=DEBUG make test-jam-test-vectors mode=accumulate
+15:07:32.373 [DEBUG] [PVM] Memory initialized
+15:07:32.374 [DEBUG] [PVM] [123]: pc: 45, load_u32, r1 = 0x1234
 ```
 
 ---
@@ -185,7 +143,7 @@ Configure logging in `config.json`:
   "log": {
     "level": "DEBUG",
     "color": true,
-    "show_line": true,
+    "enabled": true,
     "pvm": false
   }
 }
@@ -193,101 +151,66 @@ Configure logging in `config.json`:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `level` | `"DEBUG"` | Log level: DEBUG, INFO, WARN, ERROR |
+| `level` | `"DEBUG"` | Log level: DEBUG, INFO, WARN, ERROR (case-insensitive) |
 | `color` | `true` | Enable colored output |
-| `show_line` | `true` | Enable logging |
-| `pvm` | `false` | Enable PVM logging |
+| `enabled` | `true` | Enable main logger |
+| `pvm` | `false` | Enable PVM logger |
 
-### Priority
+### Programmatic Configuration
 
-```
-Environment Variable > config.json > Default Value
+```go
+// Configure a named logger
+logger.ConfigureLogger("pvm", logger.LoggerConfig{
+    Level:   "DEBUG",
+    Enabled: true,
+    Color:   true,
+})
+
+// Or use individual methods
+logger.SetLevel("DEBUG")
+logger.SetColor(true)
+logger.SetEnabled(true)
 ```
 
 ---
 
-## PVM Logger
+## Forbidden Usage
 
-PVM-related logs use separate `logger.PVM*` functions, controlled by `PVM_LOG` or config.
-
-### Usage
+### Do NOT use standard `log` package
 
 ```go
-// PVM-specific logger (controlled by PVM_LOG)
-logger.PVMDebug("Memory initialized")
-logger.PVMDebugf("[%d]: pc: %d, %s", instrCount, pc, opcode)
-logger.PVMErrorf("Decode error: %v", err)
+// WRONG
+log.Println("message")
+log.Printf("msg: %v", x)
+log.Fatal(err)
 
-// Fatal is NOT controlled by PVM_LOG (always prints)
-logger.Fatalf("Critical PVM error: %v", err)
+// CORRECT
+logger.Info("message")
+logger.Infof("msg: %v", x)
+logger.Fatal(err)
 ```
 
-### When to Use
-
-| Type | Function |
-|------|----------|
-| Instruction execution trace | `logger.PVMDebugf()` |
-| Host-call execution | `logger.PVMDebugf()` |
-| Memory map info | `logger.PVMDebugf()` |
-| Decode errors | `logger.PVMErrorf()` |
-| Critical errors (terminate) | `logger.Fatalf()` |
-
-### Example Output
-
-When `PVM_LOG=true`:
-
-```
-15:07:32.373 [PVM] [DEBUG] Memory Map RO data: 0x00001000 0x00002000
-15:07:32.374 [PVM] [DEBUG] [123]: pc: 45, load_u32, r1 = 0x1234
-15:07:32.375 [PVM] [DEBUG] [124]: pc: 50, add32, r2 = r1 + r3
-```
-
----
-
-## Context Logging
-
-Add block context (headerHash, slot, epoch) to log messages.
-
-### Usage
+### Do NOT use `fmt.Print` for logging
 
 ```go
-// Set context (epoch is auto-calculated: epoch = slot / EpochLength)
-logger.SetContext(headerHash, slot)
-defer logger.ClearContext()
+// WRONG
+fmt.Println("debug info")
+fmt.Printf("error: %v\n", err)
 
-// Optional: set processing step
-logger.SetStep("safrole")
-
-// All subsequent logs will include context
-logger.Info("Processing block")
+// CORRECT
+logger.Debug("debug info")
+logger.Errorf("error: %v", err)
 ```
 
-### Output Format
-
-```
-[headerHash[:8]|(slot:epoch)]        - without step
-[headerHash[:8]|(slot:epoch)|step]   - with step
-```
-
-### Example
+### Do NOT call `os.Exit` after `logger.Fatal`
 
 ```go
-func (s *Service) ImportBlock(block *types.Block) error {
-    headerHash, _ := hash.ComputeBlockHeaderHash(block.Header)
-    
-    logger.SetContext(headerHash, block.Header.Slot)
-    defer logger.ClearContext()
-    
-    logger.SetStep("initialize")
-    logger.Debug("Starting block import")
-    // Output: 15:07:32.373 [DEBUG] [a1b2c3d4|(123:10)|initialize] Starting block import
-    
-    logger.SetStep("safrole")
-    logger.Debug("Processing safrole")
-    // Output: 15:07:32.380 [DEBUG] [a1b2c3d4|(123:10)|safrole] Processing safrole
-    
-    return nil
-}
+// WRONG - redundant os.Exit
+logger.Fatal(err)
+os.Exit(1)  // Never executes
+
+// CORRECT
+logger.Fatal(err)  // Already calls os.Exit(1)
 ```
 
 ---
@@ -296,83 +219,45 @@ func (s *Service) ImportBlock(block *types.Block) error {
 
 ### Error Categories
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│  Protocol Error (types.ErrorCode)                              │
-│  ─────────────────────────────────────────────────────────────  │
-│  • Block validation failure (expected error)                   │
-│  • Program continues, returns error code                       │
-│  • Use: return &types.ErrorCode{}                              │
-├────────────────────────────────────────────────────────────────┤
-│  Runtime Error                                                 │
-│  ─────────────────────────────────────────────────────────────  │
-│  • Program bug, unexpected error                               │
-│  • Needs investigation and fix                                 │
-│  • Use: logger.Errorf() + return err                           │
-├────────────────────────────────────────────────────────────────┤
-│  Fatal Error                                                   │
-│  ─────────────────────────────────────────────────────────────  │
-│  • Unrecoverable critical error                                │
-│  • Program terminates                                          │
-│  • Use: logger.Fatalf()                                        │
-└────────────────────────────────────────────────────────────────┘
-```
+| Category | Description | Action |
+|----------|-------------|--------|
+| **Protocol Error** | Block validation failure (expected) | Log + return error code |
+| **Runtime Error** | Unexpected bug | Log + return error |
+| **Fatal Error** | Unrecoverable | Log + exit |
 
-### Patterns
-
-#### Pattern 1: Log + Return (Recommended)
+### Pattern: Log + Return
 
 ```go
 func ProcessData(data []byte) error {
     result, err := decode(data)
     if err != nil {
-        logger.Errorf("Decode failed: %v", err)  // Log for debugging
-        return fmt.Errorf("decode error: %w", err)  // Return for handling
+        logger.Errorf("Decode failed: %v", err)  // Log
+        return fmt.Errorf("decode error: %w", err)  // Return
     }
     return nil
 }
 ```
 
-#### Pattern 2: Protocol Error (Block Validation)
+### Pattern: Protocol Error
 
 ```go
 func ValidateBlock(block Block) *types.ErrorCode {
     if block.Slot < 0 {
+        logger.Errorf("[PROTOCOL] invalid slot: %d", block.Slot)
         errCode := ErrorCodes.BadSlot
-        return &errCode  // Expected error, no logging needed
+        return &errCode
     }
     return nil
 }
 ```
 
-#### Pattern 3: Fatal (Unrecoverable)
+### Pattern: Fatal Error
 
 ```go
 func Initialize() {
     config, err := loadConfig()
     if err != nil {
-        logger.Fatalf("Cannot load config: %v", err)  // Program terminates
-    }
-}
-```
-
-### STF Error Handling
-
-```go
-// stf.RunSTF() returns (isProtocol bool, err error)
-//
-// isProtocol=true,  err!=nil  → Protocol error (block invalid, continue)
-// isProtocol=false, err!=nil  → Runtime error (bug, investigate)
-// isProtocol=false, err==nil  → Success
-
-isProtocol, err := stf.RunSTF()
-if err != nil {
-    if isProtocol {
-        logger.ProtocolErrorf("Block invalid: %v", err)
-        // Continue processing next block
-    } else {
-        logger.Errorf("Unexpected error: %v", err)
-        // Runtime error, needs investigation
+        logger.Fatalf("Cannot load config: %v", err)
     }
 }
 ```
@@ -381,33 +266,58 @@ if err != nil {
 
 ## Quick Reference
 
+### When to Use Which
+
 | Scenario | Use |
 |----------|-----|
 | General message | `logger.Info()` |
 | Detailed debug | `logger.Debug()` |
 | Expected warning | `logger.Warn()` |
 | Error (investigate) | `logger.Errorf()` + `return err` |
-| Critical error (terminate) | `logger.Fatalf()` |
-| PVM trace | `logger.PVMDebugf()` |
+| Critical (terminate) | `logger.Fatalf()` |
+| PVM trace | `pvmLogger.Debugf()` (in PVM package) |
 | Create error | `fmt.Errorf()` |
-| Protocol error | `return &types.ErrorCode{}` |
+| Protocol error | `logger.Errorf("[PROTOCOL] ...")` + `return &ErrorCode{}` |
 
-### Programmatic Configuration
+### Logger Instance Methods
 
 ```go
-// Set log level
-logger.SetLevel("DEBUG")  // DEBUG, INFO, WARN, ERROR
+l := logger.GetLogger("mymodule")
 
-// Set color
+l.Debug(args...)
+l.Debugf(format, args...)
+l.Info(args...)
+l.Infof(format, args...)
+l.Warn(args...)
+l.Warnf(format, args...)
+l.Error(args...)
+l.Errorf(format, args...)
+l.Fatal(args...)
+l.Fatalf(format, args...)
+
+l.SetLevel("DEBUG")
+l.SetEnabled(true)
+l.SetColor(true)
+l.Enable()
+l.Disable()
+l.IsEnabled()
+```
+
+### Package-Level Functions (Default Logger)
+
+```go
+logger.Debug(args...)
+logger.Debugf(format, args...)
+logger.Info(args...)
+logger.Infof(format, args...)
+logger.Warn(args...)
+logger.Warnf(format, args...)
+logger.Error(args...)
+logger.Errorf(format, args...)
+logger.Fatal(args...)
+logger.Fatalf(format, args...)
+
+logger.SetLevel("DEBUG")
+logger.SetEnabled(true)
 logger.SetColor(true)
-logger.SetColor(false)
-
-// Set PVM logging
-logger.SetPVMShowLine(true)
-logger.SetPVMShowLine(false)
-
-// Set context
-logger.SetContext(headerHash, slot)
-logger.ClearContext()
-logger.SetStep("safrole")
 ```

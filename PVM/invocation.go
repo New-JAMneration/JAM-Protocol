@@ -3,8 +3,6 @@ package PVM
 import (
 	"errors"
 	"fmt"
-
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // per-instruction based of (A.1) ψ_1,
@@ -47,7 +45,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	opcodeData := instructionData.isOpcode(pc)
 	// check gas
 	if gas < 0 {
-		// logger.PVMDebugf("service out-of-gas: required %d, but only %d", instrCount, gas)
+		// pvmLogger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
 		return PVMExitTuple(OUT_OF_GAS, nil), pc, gas, registers, memory
 	}
 	gas -= 1
@@ -73,7 +71,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	reason := exitReason.(*PVMExitReason).Reason
 	switch reason {
 	case PANIC, HALT:
-		// logger.PVMDebugf("   gas: %d", gas)
+		// pvmLogger.Debugf("   gas: %d", gas)
 		return exitReason, 0, gas, registers, memory
 	case HOST_CALL:
 		return exitReason, pc + skipLength + 1, gas, registers, memory
@@ -99,14 +97,14 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 	// decode instructions in a block
 	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
 	if err != nil {
-		logger.PVMErrorf("DecodeInstructionBlock error : %v", err)
+		pvmLogger.Errorf("DecodeInstructionBlock error : %v", err)
 		return err, 0, Gas(gas), reg, mem
 	}
 	/*
 		//check block gas then execute
 		// check gas, currently each instruction gas = 1, so only check instrCount
 		if Gas(gas) < Gas(blockInstrCount) {
-			logger.PVMDebugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)
+			pvmLogger.Debugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)
 			return PVMExitTuple(OUT_OF_GAS, nil), pc, Gas(gas), reg, mem
 		}
 	*/
@@ -116,7 +114,7 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 		if program.Bitmasks.IsStartOfBasicBlock(pc) {
 			// charge gas
 			// gasPrime -= Gas(blockInstrCount)
-			logger.PVMDebugf("    charge gas : %d -> %d", gas, gasPrime)
+			pvmLogger.Debugf("    charge gas : %d -> %d", gas, gasPrime)
 		}
 	*/
 	// execute instructions in the block
@@ -146,13 +144,13 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	for {
 		// check pc is not out of range and avoid infinit-loop
 		if pc > ProgramCounter(len(instructionData)) {
-			// logger.PVMDebugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
+			// pvmLogger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 
 		// check opcode is valid after computing with skip
 		if !instructionData.isOpcodeValid(pc) {
-			// logger.PVMDebugf("PVM panic: decode program failed: opcode invalid")
+			// pvmLogger.Debugf("PVM panic: decode program failed: opcode invalid")
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 

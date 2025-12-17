@@ -5,7 +5,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 func getRegModIndex(instructionCode []byte, pc ProgramCounter) uint8 {
@@ -81,7 +80,7 @@ func decodeOneRegisterAndOneImmediate(instructionCode []byte, pc ProgramCounter,
 	immediateData := instructionCode[pc+2 : pc+2+lX]
 	immediate, _, err := ReadUintSignExtended(immediateData, len(immediateData))
 	if err != nil {
-		logger.Errorf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
+		pvmLogger.Errorf("opcode %s at instruction %d deserialize vy raise error : %s", zeta[opcode(instructionCode[pc])], pc, err)
 		return 0, 0, err
 	}
 

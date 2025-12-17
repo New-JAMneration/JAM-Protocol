@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -123,7 +122,7 @@ For example:
 			// parse genesis data
 			genesis, err := reader.ParseGenesis(genesisFile.Data)
 			if err != nil {
-				log.Panicf("error parsing genesis: %v", err)
+				logger.Fatalf("error parsing genesis: %v", err)
 			}
 
 			genesisBlock := types.Block{
@@ -132,7 +131,7 @@ For example:
 
 			state, keyVals, err := m.StateKeyValsToState(genesis.State.KeyVals)
 			if err != nil {
-				log.Fatalf("Failed to parse state key-vals to state: %v", err)
+				logger.Fatalf("Failed to parse state key-vals to state: %v", err)
 			}
 
 			store.GetInstance().SetPriorStateUnmatchedKeyVals(keyVals)
