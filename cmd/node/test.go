@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
-	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
 	jamtestnet "github.com/New-JAMneration/JAM-Protocol/testdata/jam_testnet"
@@ -45,7 +43,7 @@ For example:
 		},
 		&cli.StringFlag{
 			Name:        "mode",
-			Usage:       "Test mode (accumulate, assurances, authorizations, disputes, history, preimages, reports, safrole, statistics, \nfallback, fuzzy, preimages, preimages_light, safrole, storage, storage_light)",
+			Usage:       "Test mode (accumulate, assurances, authorizations, disputes, history, preimages, reports, safrole, statistics, \nfallback, fuzzy, fuzzy_light, preimages, preimages_light, safrole, storage, storage_light)",
 			Value:       "safrole",
 			Destination: &testMode,
 		},
@@ -119,67 +117,34 @@ For example:
 		failed := 0
 
 		if testType == "trace" {
+			// get genesis file, genesis will be sorted at last
+			genesisFile := testFiles[len(testFiles)-1]
+			testFiles = testFiles[:len(testFiles)-1]
 
-			genesisFileFound := false
-			var ext string
-			if dataFormat == "json" {
-				ext = ".json"
-			} else {
-				ext = ".bin"
+			// parse genesis data
+			genesis, err := reader.ParseGenesis(genesisFile.Data)
+			if err != nil {
+				log.Panicf("error parsing genesis: %v", err)
 			}
 
-			// get genesis
-			for _, testFile := range testFiles {
-				if testFile.Name != testGenesis+ext {
-					continue
-				}
-
-				genesisFileFound = true
-				var state types.State
-				var block types.Block
-
-				if strings.Contains(testFile.Name, "genesis") { // genesis file
-					var genesis jamteststrace.Genesis
-					err := reader.ReadFile(testFile.Data, &genesis)
-					if err != nil {
-						log.Panicf("Failed to Read genesis: %v", err)
-					}
-					state, _, err = merklization.StateKeyValsToState(genesis.State.KeyVals)
-					if err != nil {
-						log.Panicf("Failed to parse state key-vals to state: %v", err)
-					}
-					block.Header = genesis.Header
-				} else {
-					var genesis jamteststrace.TraceTestCase
-					err := reader.ReadFile(testFile.Data, &genesis)
-					if err != nil {
-						log.Panicf("Failed to Read genesis: %v", err)
-					}
-					state, _, err = merklization.StateKeyValsToState(genesis.PostState.KeyVals)
-					if err != nil {
-						log.Panicf("Failed to parse state key-vals to state: %v", err)
-					}
-					block.Header = genesis.Block.Header
-					log.Println("genesis : ", testFile.Name)
-				}
-
-				instance := store.GetInstance()
-				instance.GenerateGenesisBlock(block)
-				instance.GenerateGenesisState(state)
+			genesisBlock := types.Block{
+				Header: genesis.Header,
 			}
 
-			if !genesisFileFound {
-				log.Panicf("genesis file not found")
+			state, keyVals, err := m.StateKeyValsToState(genesis.State.KeyVals)
+			if err != nil {
+				log.Fatalf("Failed to parse state key-vals to state: %v", err)
 			}
+
+			store.GetInstance().SetPriorStateUnmatchedKeyVals(keyVals)
+
+			instance := store.GetInstance()
+			instance.GenerateGenesisBlock(genesisBlock)
+			instance.GenerateGenesisState(state)
 		}
 
 		for idx, testFile := range testFiles {
-			// We've already set the genesis block, state
-			if testType == "trace" && strings.Contains(testFile.Name, "genesis") {
-				continue
-			}
-
-			log.Printf("------------------{%v, %s}--------------------", idx, testFile.Name)
+			log.Printf("------------------{%v, %s}--------------------", idx+1, testFile.Name)
 			if testType == "trace" {
 				// post-state update to pre-state, tau_prime+1
 				store.GetInstance().StateCommit()
@@ -224,28 +189,25 @@ For example:
 				// stf occurs error
 				if outputErr != nil {
 					log.Printf("stf output error %v:", outputErr)
+					priorState := store.GetInstance().GetPriorStates().GetState()
+					store.GetInstance().GetPosteriorStates().SetState(priorState)
+				}
+
+				err := data.Validate()
+				if err != nil {
+					log.Printf("state root validate error: %v", err)
 					failed++
 					break
-				} else {
-					err := data.Validate()
-					if err != nil {
-						log.Printf("state root validate error: %v", err)
-						failed++
-						break
-					}
-					passed++
-					log.Printf("passed\n")
 				}
+				passed++
+				log.Printf("passed\n")
+
 			}
 		}
 
 		log.Printf("----------------------------------------")
-		if testType == "trace" {
-			// -1 : genesis file
-			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles)-1, passed, failed)
-		} else {
-			log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
-		}
+		log.Printf("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+
 		return nil
 	},
 }
@@ -267,7 +229,8 @@ func validateTestMode(mode testdata.TestMode) error {
 		testdata.PreimageLightMode, // trace
 		testdata.StorageLightMode,  // trace
 		testdata.StorageMode,       // trace
-		testdata.FuzzyMode:         // trace
+		testdata.FuzzyMode,         // trace
+		testdata.FuzzyLightMode:    // trace
 		return nil
 	default:
 		return fmt.Errorf("invalid test mode '%s'", mode)
