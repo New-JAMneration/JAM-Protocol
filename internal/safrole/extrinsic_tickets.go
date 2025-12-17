@@ -8,6 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
@@ -45,25 +46,41 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
 	s := store.GetInstance()
-
-	newTickets := types.TicketsAccumulator{}
 	posteriorEta := s.GetPosteriorStates().GetEta()
+
+	// Prepare batch items for verification
+	items := make([]vrf.VerifyItem, 0, len(tickets))
 	for _, ticket := range tickets {
-		// print eta3 hex string
 		context := createSignatureContext(types.JamTicketSeal, posteriorEta[2], ticket.Attempt)
 		message := []byte{}
 		signature := ticket.Signature[:]
-		output, verifyErr := ringVerifier.RingVerify(context, message, signature)
 
-		if verifyErr != nil {
-			err := SafroleErrorCode.BadTicketProof
-			return nil, &err
+		items = append(items, vrf.VerifyItem{
+			Context:   context,
+			Message:   message,
+			Signature: signature,
+		})
+	}
+
+	// Perform batch verification
+	results, err := ringVerifier.RingVerifyBatch(items)
+	if err != nil {
+		logger.Errorf("Failed to verify tickets proof: %v", err)
+		e := SafroleErrorCode.BadTicketProof
+		return nil, &e
+	}
+
+	// Collect verified tickets
+	newTickets := make(types.TicketsAccumulator, 0, len(tickets))
+	for i, result := range results {
+		if result.Error != nil {
+			e := SafroleErrorCode.BadTicketProof
+			return nil, &e
 		}
 
-		// If the proof is valid, append the ticket body to the new tickets
 		newTickets = append(newTickets, types.TicketBody{
-			Id:      types.TicketId(output),
-			Attempt: ticket.Attempt,
+			Id:      types.TicketId(result.Output),
+			Attempt: tickets[i].Attempt,
 		})
 	}
 
