@@ -777,7 +777,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 	serviceID := *input.Addition.GeneralArgs.ServiceId
 	delta := *input.Addition.GeneralArgs.ServiceAccountState
-
 	var sStar uint64
 	// assign s*
 	if input.Registers[7] == 0xffffffffffffffff {
@@ -824,7 +823,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 	storageRawKey := input.Memory.Read(ko, kz)
 	v, exists := a.StorageDict[string(storageRawKey)]
 	storageValueFromKeyVal := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-
 	// v = nil
 	if !exists {
 		if storageValueFromKeyVal == nil { // check storage state key-val
@@ -1028,21 +1026,23 @@ func info(input OmegaInput) (output OmegaOutput) {
 	delta := *input.Addition.ServiceAccountState
 
 	var a types.ServiceAccount
-	var empty bool
-	empty = true
 	if input.Registers[7] == 0xffffffffffffffff {
-		value, exist := delta[types.ServiceId(serviceID)]
-		if exist {
-			a = value
-			empty = false
-		}
+		a = delta[serviceID]
 	} else {
 		value, exist := delta[types.ServiceId(input.Registers[7])]
 		if exist {
 			a = value
-			empty = false
+		} else {
+			// v = nil , l = 0 -> don't need to check writeable
+			input.Registers[7] = NONE
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(CONTINUE, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
 		}
-
 	}
 
 	minBalance := service_account.CalcThresholdBalance(a.ServiceInfo.Items, a.ServiceInfo.Bytes, a.ServiceInfo.DepositOffset)
@@ -1100,18 +1100,6 @@ func info(input OmegaInput) (output OmegaOutput) {
 		input.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(PANIC, nil),
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
-	}
-
-	// if a is nil => v = nil
-	if empty {
-		input.Registers[7] = NONE
-		return OmegaOutput{
-			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
@@ -2122,7 +2110,6 @@ func new(input OmegaInput) (output OmegaOutput) {
 			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = s
 			*input.Addition.GeneralArgs.ServiceAccount = s
 		}
-
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -2214,17 +2201,35 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 
 // transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
+	// v0.7.1 fuzz/traces --->
+
 	newGas := input.Gas - 10 - Gas(input.Registers[9])
-	if newGas < 0 || uint64(input.Gas) < input.Registers[9] { // the second condition is to avoid int64(reg[9]) < 0
+	if newGas < 0 || uint64(input.Gas) < (input.Registers[9]+10) { // the second condition is to avoid int64(reg[9]) < 0
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-			NewGas:       0,
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
 		}
 	}
 
+	// ---> v0.7.1 fuzz/traces
+
+	// for v0.7.2 & v0.7.1 jam-test-vectors --->
+	/*
+		newGas := input.Gas - 10
+		if newGas < 0 {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+	*/
+	//  ---> v0.7.2
 	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(o, uint64(types.TransferMemoSize), input.Memory) { // not readable, return
 		input.Registers[7] = OOB
@@ -2241,7 +2246,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
 		// not exist
 		input.Registers[7] = WHO
-
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -2251,7 +2255,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		}
 	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
 		input.Registers[7] = LOW
-
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -2266,7 +2269,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
 		if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) { //  check b underflow
 			input.Registers[7] = CASH
-
 			return OmegaOutput{
 				ExitReason:   PVMExitTuple(CONTINUE, nil),
 				NewGas:       newGas,
@@ -2293,7 +2295,20 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
 		log.Printf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-
+	// for v0.7.2 & v0.7.1 jam-test-vectors --->
+	/*
+		if uint64(newGas) < input.Registers[9] {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+				NewGas:       0,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+		newGas -= Gas(input.Registers[9])
+	*/
+	// ---> v0.7.2
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -2918,6 +2933,19 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
+	// for v0.7.2 & v0.7.1 jam-test-vectors need to update Gas while return
+	/*
+		newGas := input.Gas - 10
+		if newGas < 0 {
+			return OmegaOutput{
+				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+				NewGas:       newGas,
+				NewRegisters: input.Registers,
+				NewMemory:    input.Memory,
+				Addition:     input.Addition,
+			}
+		}
+	*/
 	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
@@ -2926,7 +2954,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		logger.Errorf("logHostCall level not supported")
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       input.Gas,
+			NewGas:       input.Gas, // newGas   // v0.7.2
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -2947,7 +2975,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	logger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas,
+		NewGas:       input.Gas, // newGas   // v0.7.2
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
