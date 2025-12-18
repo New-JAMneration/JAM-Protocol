@@ -158,15 +158,17 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 	return nil
 }
 
-func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState, keyVals *types.StateKeyVals) (types.PreimagesExtrinsic, types.ServiceAccountState) {
+func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, types.ServiceAccountState) {
 	j := 0
+	keyVals := store.GetInstance().GetPostStateUnmatchedKeyVals()
+	copiedKeyVals := keyVals.DeepCopy()
 	for i, ep := range eps {
 		// Calculate preimage hash and length
 		preimageHash := hash.Blake2bHash(ep.Blob)
 		preimageLength := types.U32(len(ep.Blob))
 
 		// Check if the preimage should be integrated
-		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength, keyVals, true) {
+		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength, &copiedKeyVals, true) {
 			eps[j] = eps[i]
 			j++
 
@@ -179,6 +181,7 @@ func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccou
 		}
 
 	}
+	store.GetInstance().SetPostStateUnmatchedKeyVals(copiedKeyVals)
 	eps = eps[:j]
 	return eps, d
 }
@@ -230,7 +233,7 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	delta := s.GetPriorStates().GetDelta()
 	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
 	priorKeyVals := s.GetPriorStateUnmatchedKeyVals()
-	postKeyVals := s.GetPostStateUnmatchedKeyVals()
+
 	tauPrime := s.GetPosteriorStates().GetTau()
 	// validate E_P and prior state service preimage, lookupDict
 	err := validatePreimageExtrinsics(eps, delta, &priorKeyVals)
@@ -239,7 +242,7 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	}
 
 	// Filter preimage extrinsics, integrate lookup keyvals into dict
-	filteredEps, updatedLookupServiceAccount := filterPreimageExtrinsics(eps, deltaDoubleDagger, &postKeyVals)
+	filteredEps, updatedLookupServiceAccount := filterPreimageExtrinsics(eps, deltaDoubleDagger)
 
 	// Update deltaDoubleDagger with filtered preimages
 	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, updatedLookupServiceAccount, tauPrime)
