@@ -295,7 +295,7 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 	}
 
 	unmatchedKeyVals := s.GetPostStateUnmatchedKeyVals()
-	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
+	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
 
 	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
 	sort.Slice(fullStateKeyVals, func(i, j int) bool {
