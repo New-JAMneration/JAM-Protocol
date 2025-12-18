@@ -49,7 +49,7 @@ func RunSTF() (bool, error) {
 	st.GetPosteriorStates().SetTau(header.Slot)
 
 	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
-	err = ValidateNonVRFHeader(header, &priorState)
+	err = ValidateNonVRFHeader(header, &priorState, extrinsic)
 	if err != nil {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
