@@ -129,25 +129,22 @@ func (v *Version) ReadFrom(reader io.Reader) (int64, error) {
 
 func (m *ErrorMessage) MarshalBinary() ([]byte, error) {
 	var buffer []byte
-	buffer = append(buffer, uint8(len(m.Error)))
+	buffer = append(buffer, compactEncode(uint64(len(m.Error)))...)
 	buffer = append(buffer, []byte(m.Error)...)
 	return buffer, nil
 }
 
 func (m *ErrorMessage) UnmarshalBinary(data []byte) error {
-	buffer := bytes.NewBuffer(data)
-	l, err := buffer.ReadByte()
-	if err != nil {
-		return err
+	length, bytesRead := compactDecode(data)
+	if bytesRead == 0 {
+		return fmt.Errorf("failed to decode compact length")
 	}
 
-	errorBuffer := make([]byte, uint8(l))
-	_, err = io.ReadFull(buffer, errorBuffer)
-	if err != nil {
-		return err
+	if len(data) < bytesRead+int(length) {
+		return fmt.Errorf("data too short for error message")
 	}
 
-	m.Error = string(errorBuffer)
+	m.Error = string(data[bytesRead : bytesRead+int(length)])
 
 	return nil
 }
@@ -221,7 +218,7 @@ func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	// Append size of app name
-	buffer = append(buffer, uint8(len(m.AppName)))
+	buffer = append(buffer, compactEncode(uint64(len(m.AppName)))...)
 	buffer = append(buffer, []byte(m.AppName)...)
 
 	return buffer, nil
@@ -260,11 +257,16 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	l, err := buffer.ReadByte()
-	if err != nil {
-		return err
+	remainingData := buffer.Bytes()
+	nameLength, bytesRead := compactDecode(remainingData)
+	if bytesRead == 0 {
+		return fmt.Errorf("failed to decode compact length for app name")
 	}
-	nameBuffer := make([]byte, uint8(l))
+
+	// skip the already read compact length bytes
+	buffer.Next(bytesRead)
+
+	nameBuffer := make([]byte, nameLength)
 	_, err = io.ReadFull(buffer, nameBuffer)
 	if err != nil {
 		return err
