@@ -44,6 +44,7 @@ var cmd = &cli.Command{
 			Name:        "chain",
 			Usage:       "Path to chainspec JSON",
 			Destination: &chainPath,
+			// example cmd line: --chain cmd/node/test_data/dev.chainspec.json
 		},
 	},
 	Commands: []*cli.Command{
