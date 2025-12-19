@@ -73,7 +73,7 @@ For example:
 		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
-		// Initialize config (reads environment variables like PVM_LOG)
+		// Initialize config
 		config.InitConfig(configPath, testSize)
 
 		// Validate inputs (these are user input errors, use Fatal)
