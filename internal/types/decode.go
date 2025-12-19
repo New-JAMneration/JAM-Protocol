@@ -3420,3 +3420,106 @@ func (l *LastAccOut) Decode(d *Decoder) error {
 
 	return nil
 }
+
+func (pp *ProtocolParameters) Decode(d *Decoder) error {
+	if err := pp.BI.Decode(d); err != nil {
+		return fmt.Errorf("pp.BI: %w", err)
+	}
+	if err := pp.BL.Decode(d); err != nil {
+		return fmt.Errorf("pp.BL: %w", err)
+	}
+	if err := pp.BS.Decode(d); err != nil {
+		return fmt.Errorf("pp.BS: %w", err)
+	}
+	if err := pp.C.Decode(d); err != nil {
+		return fmt.Errorf("pp.C: %w", err)
+	}
+	if err := pp.D.Decode(d); err != nil {
+		return fmt.Errorf("pp.D: %w", err)
+	}
+	if err := pp.E.Decode(d); err != nil {
+		return fmt.Errorf("pp.E: %w", err)
+	}
+	if err := pp.GA.Decode(d); err != nil {
+		return fmt.Errorf("pp.GA: %w", err)
+	}
+	if err := pp.GI.Decode(d); err != nil {
+		return fmt.Errorf("pp.GI: %w", err)
+	}
+	if err := pp.GR.Decode(d); err != nil {
+		return fmt.Errorf("pp.GR: %w", err)
+	}
+	if err := pp.GT.Decode(d); err != nil {
+		return fmt.Errorf("pp.GT: %w", err)
+	}
+	if err := pp.H.Decode(d); err != nil {
+		return fmt.Errorf("pp.H: %w", err)
+	}
+	if err := pp.I.Decode(d); err != nil {
+		return fmt.Errorf("pp.I: %w", err)
+	}
+	if err := pp.J.Decode(d); err != nil {
+		return fmt.Errorf("pp.J: %w", err)
+	}
+	if err := pp.K.Decode(d); err != nil {
+		return fmt.Errorf("pp.K: %w", err)
+	}
+	if err := pp.L.Decode(d); err != nil {
+		return fmt.Errorf("pp.L: %w", err)
+	}
+	if err := pp.N.Decode(d); err != nil {
+		return fmt.Errorf("pp.N: %w", err)
+	}
+	if err := pp.O.Decode(d); err != nil {
+		return fmt.Errorf("pp.O: %w", err)
+	}
+	if err := pp.P.Decode(d); err != nil {
+		return fmt.Errorf("pp.P: %w", err)
+	}
+	if err := pp.Q.Decode(d); err != nil {
+		return fmt.Errorf("pp.Q: %w", err)
+	}
+	if err := pp.R.Decode(d); err != nil {
+		return fmt.Errorf("pp.R: %w", err)
+	}
+	if err := pp.T.Decode(d); err != nil {
+		return fmt.Errorf("pp.T: %w", err)
+	}
+	if err := pp.U.Decode(d); err != nil {
+		return fmt.Errorf("pp.U: %w", err)
+	}
+	if err := pp.V.Decode(d); err != nil {
+		return fmt.Errorf("pp.V: %w", err)
+	}
+	if err := pp.WA.Decode(d); err != nil {
+		return fmt.Errorf("pp.WA: %w", err)
+	}
+	if err := pp.WB.Decode(d); err != nil {
+		return fmt.Errorf("pp.WB: %w", err)
+	}
+	if err := pp.WC.Decode(d); err != nil {
+		return fmt.Errorf("pp.WC: %w", err)
+	}
+	if err := pp.WE.Decode(d); err != nil {
+		return fmt.Errorf("pp.WE: %w", err)
+	}
+	if err := pp.WM.Decode(d); err != nil {
+		return fmt.Errorf("pp.WM: %w", err)
+	}
+	if err := pp.WP.Decode(d); err != nil {
+		return fmt.Errorf("pp.WP: %w", err)
+	}
+	if err := pp.WR.Decode(d); err != nil {
+		return fmt.Errorf("pp.WR: %w", err)
+	}
+	if err := pp.WT.Decode(d); err != nil {
+		return fmt.Errorf("pp.WT: %w", err)
+	}
+	if err := pp.WX.Decode(d); err != nil {
+		return fmt.Errorf("pp.WX: %w", err)
+	}
+	if err := pp.Y.Decode(d); err != nil {
+		return fmt.Errorf("pp.Y: %w", err)
+	}
+	return nil
+}

@@ -449,3 +449,8 @@ func (r *RedisBackend) GetStateByBlockHash(
 
 	return r.GetStateData(ctx, *stateRoot)
 }
+
+// get raw bytes for debugging purposes
+func (r *RedisBackend) DebugGetBytes(ctx context.Context, key string) ([]byte, error) {
+	return r.client.Get(key)
+}

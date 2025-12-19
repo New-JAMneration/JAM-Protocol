@@ -1698,3 +1698,128 @@ func Some[T any](v T) *T {
 }
 
 type HashSegmentMap map[OpaqueHash]OpaqueHash
+
+type ProtocolParameters struct {
+	BI U64 // B_I
+	BL U64 // B_L
+	BS U64 // B_S
+	C  U16 // C
+	D  U32 // D
+	E  U32 // E
+	GA U64 // G_A
+	GI U64 // G_I
+	GR U64 // G_R
+	GT U64 // G_T
+	H  U16 // H
+	I  U16 // I
+	J  U16 // J
+	K  U16 // K
+	L  U32 // L
+	N  U16 // N
+	O  U16 // O
+	P  U16 // P
+	Q  U16 // Q
+	R  U16 // R
+	T  U16 // T
+	U  U16 // U
+	V  U16 // V
+	WA U32 // W_A
+	WB U32 // W_B
+	WC U32 // W_C
+	WE U32 // W_E
+	WM U32 // W_M
+	WP U32 // W_P
+	WR U32 // W_R
+	WT U32 // W_T
+	WX U32 // W_X
+	Y  U32 // Y
+}
+
+// ProtocolParamSnapshot and SnapshotProtocolParams() are for log and debugging purpose
+type ProtocolParamSnapshot struct {
+	// will not change by chainspec now
+	BI uint64 `json:"B_I"` // AdditionalMinBalancePerItem
+	BL uint64 `json:"B_L"` // AdditionalMinBalancePerOctet
+	BS uint64 `json:"B_S"` // BasicMinBalance
+	GA uint64 `json:"G_A"` // MaxAccumulateGas
+	GI uint64 `json:"G_I"` // IsAuthorizedGas
+	H  uint16 `json:"H"`   // MaxBlocksHistory
+	I  uint16 `json:"I"`   // MaximumWorkItems
+	J  uint16 `json:"J"`   // MaximumDependencyItems
+	O  uint16 `json:"O"`   // AuthPoolMaxSize
+	P  uint16 `json:"P"`   // SlotPeriod
+	Q  uint16 `json:"Q"`   // AuthQueueSize
+	T  uint16 `json:"T"`   // MaxExtrinsics
+	U  uint16 `json:"U"`   // WorkReportTimeout
+	WA uint32 `json:"W_A"` // MaxIsAuthorizedCodeSize
+	WB uint32 `json:"W_B"` // MaxTotalSize
+	WC uint32 `json:"W_C"` // MaxServiceCodeSize
+	WM uint32 `json:"W_M"` // MaxImportCount
+	WR uint32 `json:"W_R"` // WorkReportOutputBlobsMaximumSize
+	WT uint32 `json:"W_T"` // TransferMemoSize
+	WX uint32 `json:"W_X"` // MaxExportCount
+
+	// will change by chainspec now
+	C  uint16 `json:"C"`   // CoresCount
+	D  uint32 `json:"D"`   // UnreferencedPreimageTimeslots
+	E  uint32 `json:"E"`   // EpochLength
+	GR uint64 `json:"G_R"` // MaxRefineGas
+	GT uint64 `json:"G_T"` // TotalGas
+	K  uint16 `json:"K"`   // MaxTicketsPerBlock
+	L  uint32 `json:"L"`   // MaxLookupAge
+	N  uint16 `json:"N"`   // TicketsPerValidator
+	R  uint16 `json:"R"`   // RotationPeriod
+	V  uint16 `json:"V"`   // ValidatorsCount
+	WE uint32 `json:"W_E"` // ECBasicSize
+	WP uint32 `json:"W_P"` // ECPiecesPerSegment
+	Y  uint32 `json:"Y"`   // SlotSubmissionEnd
+}
+
+func SnapshotProtocolParams() ProtocolParamSnapshot {
+	return ProtocolParamSnapshot{
+		// const
+		BI: uint64(AdditionalMinBalancePerItem),
+		BL: uint64(AdditionalMinBalancePerOctet),
+		BS: uint64(BasicMinBalance),
+		GA: uint64(MaxAccumulateGas),
+		GI: uint64(IsAuthorizedGas),
+		H:  uint16(MaxBlocksHistory),
+		I:  uint16(MaximumWorkItems),
+		J:  uint16(MaximumDependencyItems),
+		O:  uint16(AuthPoolMaxSize),
+		P:  uint16(SlotPeriod),
+		Q:  uint16(AuthQueueSize),
+		T:  uint16(MaxExtrinsics),
+		U:  uint16(WorkReportTimeout),
+		WA: uint32(MaxIsAuthorizedCodeSize),
+		WB: uint32(MaxTotalSize),
+		WC: uint32(MaxServiceCodeSize),
+		WM: uint32(MaxImportCount),
+		WR: uint32(WorkReportOutputBlobsMaximumSize),
+		WT: uint32(TransferMemoSize),
+		WX: uint32(MaxExportCount),
+
+		// var
+		C:  uint16(CoresCount),
+		D:  uint32(UnreferencedPreimageTimeslots),
+		E:  uint32(EpochLength),
+		GR: uint64(MaxRefineGas),
+		GT: uint64(TotalGas),
+		K:  uint16(MaxTicketsPerBlock),
+		L:  uint32(MaxLookupAge),
+		N:  uint16(TicketsPerValidator),
+		R:  uint16(RotationPeriod),
+		V:  uint16(ValidatorsCount),
+		WE: uint32(ECBasicSize),
+		WP: uint32(ECPiecesPerSegment),
+		Y:  uint32(SlotSubmissionEnd),
+	}
+}
+
+func (s ProtocolParamSnapshot) JSON() string {
+	b, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"error":"marshal snapshot: %v"}`, err)
+	}
+	return string(b)
+}
