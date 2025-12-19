@@ -1,10 +1,15 @@
 package store
 
 import (
+	"context"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 var (
@@ -23,6 +28,8 @@ type Store struct {
 	posteriorStates            *PosteriorStates
 	ancestorHeaders            *AncestorHeaders
 	posteriorCurrentValidators *PosteriorCurrentValidators
+	preStateUnmatchedKeyVals   types.StateKeyVals
+	postStateUnmatchedKeyVals  types.StateKeyVals
 }
 
 // GetInstance returns the singleton instance of Store.
@@ -235,3 +242,67 @@ func (s *Store) StateCommit() {
 // func (s *Store) GetServiceAccountDerivatives() *ServiceAccountDerivatives {
 // 	return s.serviceAccountDerivatives
 // }
+
+func BuildStateRootInputKeyValsAndRoot(
+	stateKeyVals types.StateKeyVals,
+) (merkleInputKeyVals types.StateKeyVals, stateRoot types.StateRoot, err error) {
+	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
+	if err != nil {
+		return nil, types.StateRoot{}, fmt.Errorf("StateKeyValsToState: %w", err)
+	}
+
+	serializedState, err := m.StateEncoder(state)
+	if err != nil {
+		return nil, types.StateRoot{}, fmt.Errorf("StateEncoder: %w", err)
+	}
+
+	merkleInputKeyVals = make(types.StateKeyVals, 0, len(unmatchedKeyVals)+len(serializedState))
+	merkleInputKeyVals = append(merkleInputKeyVals, unmatchedKeyVals...)
+	merkleInputKeyVals = append(merkleInputKeyVals, serializedState...)
+
+	stateRoot = m.MerklizationSerializedState(merkleInputKeyVals)
+	return merkleInputKeyVals, stateRoot, nil
+}
+
+func (s *Store) SeedGenesisToBackend(
+	ctx context.Context,
+	genesisHeader types.Header,
+	stateKeyVals types.StateKeyVals,
+) (genesisBlockHash types.HeaderHash, genesisStateRoot types.StateRoot, err error) {
+
+	h, err := hash.ComputeBlockHeaderHash(genesisHeader)
+	if err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("compute genesis header hash: %w", err)
+	}
+	genesisBlockHash = types.HeaderHash(h)
+
+	merkleInputKeyVals, stateRoot, err := BuildStateRootInputKeyValsAndRoot(stateKeyVals)
+	if err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("build merkle input + state root: %w", err)
+	}
+	genesisStateRoot = stateRoot
+
+	// check if non-zero since genesisHeader.ParentStateRoot can be zero
+	zero := types.StateRoot{}
+	if genesisHeader.ParentStateRoot != zero && genesisStateRoot != genesisHeader.ParentStateRoot {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf(
+			"genesis state root mismatch: computed=0x%s header.ParentStateRoot=0x%s",
+			hex.EncodeToString(genesisStateRoot[:]),
+			hex.EncodeToString(genesisHeader.ParentStateRoot[:]),
+		)
+	}
+
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	if err := redisBackend.StoreStateData(ctx, genesisStateRoot, merkleInputKeyVals); err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_data: %w", err)
+	}
+	if err := redisBackend.StoreStateRootByBlockHash(ctx, genesisBlockHash, genesisStateRoot); err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_root mapping: %w", err)
+	}
+
+	return genesisBlockHash, genesisStateRoot, nil
+}
