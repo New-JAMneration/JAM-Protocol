@@ -11,13 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"maps"
 	"os"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
@@ -168,7 +168,7 @@ type AvailabilityAssignments []AvailabilityAssignmentsItem
 
 func (assignments AvailabilityAssignments) Validate() error {
 	if len(assignments) != CoresCount {
-		return fmt.Errorf("AvailabilityAssignments must have exactly %v items, but got %v", CoresCount, len(assignments))
+		return fmt.Errorf("AvailabilityAssignments length %d is not equal to CoresCount %d", len(assignments), CoresCount)
 	}
 	return nil
 }
@@ -211,7 +211,7 @@ type AuthPool []AuthorizerHash
 // (8.1) AuthPool and AuthQueue
 func (a AuthPool) Validate() error {
 	if len(a) > AuthPoolMaxSize {
-		return fmt.Errorf("AuthPool exceeds max-auth-pool-size limit of %v", AuthPoolMaxSize)
+		return fmt.Errorf("AuthPool length %d is greater than AuthPoolMaxSize %d", len(a), AuthPoolMaxSize)
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
 	if len(a) != CoresCount {
-		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %v", CoresCount)
+		return fmt.Errorf("AuthPools length %d is not equal to CoresCount %d", len(a), CoresCount)
 	}
 
 	for _, pool := range a {
@@ -251,7 +251,7 @@ type AuthQueue []AuthorizerHash
 func (a AuthQueue) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != AuthQueueSize {
-		return fmt.Errorf("length of authQueue %v exceeds max-auth-queue-size limit of %v", len(a), AuthQueueSize)
+		return fmt.Errorf("AuthQueue length %d is not equal to AuthQueueSize %d", len(a), AuthQueueSize)
 	}
 	return nil
 }
@@ -261,7 +261,7 @@ type AuthQueues []AuthQueue
 func (a AuthQueues) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != CoresCount {
-		return fmt.Errorf("length of authQueues %v exceeds cores limit of %v", len(a), CoresCount)
+		return fmt.Errorf("AuthQueues length %d is not equal to CoresCount %d", len(a), CoresCount)
 	}
 
 	for _, queue := range a {
@@ -343,7 +343,7 @@ func (w *WorkPackage) ScaleEncode() ([]byte, error) {
 func (wp *WorkPackage) Validate() error {
 	// v0.6.3 (14.2)
 	if len(wp.Items) < 1 || len(wp.Items) > MaximumWorkItems {
-		return fmt.Errorf("WorkPackage must have items between 1 and %v, but got %v", MaximumWorkItems, len(wp.Items))
+		return fmt.Errorf("WorkPackage items length %d is not between 1 and %d", len(wp.Items), MaximumWorkItems)
 	}
 
 	totalSize := len(wp.Authorization) + len(wp.AuthorizerConfig)
@@ -368,22 +368,22 @@ func (wp *WorkPackage) Validate() error {
 
 	// total size check (14.5)
 	if totalSize > MaxTotalSize {
-		return fmt.Errorf("total size exceeds %v bytes", MaxTotalSize)
+		return fmt.Errorf("total size %d is greater than MaxTotalSize %d", totalSize, MaxTotalSize)
 	}
 
 	// import segment count check （14.4)
 	if totalImportSegments > MaxImportCount {
-		return fmt.Errorf("total import segments exceed %d", MaxImportCount)
+		return fmt.Errorf("total import segments %d is greater than MaxImportCount %d", totalImportSegments, MaxImportCount)
 	}
 
 	// export segment count check (14.4)
 	if totalExportSegments > MaxExportCount {
-		return fmt.Errorf("total export segments exceed %d", MaxExportCount)
+		return fmt.Errorf("total export segments %d is greater than MaxExportCount %d", totalExportSegments, MaxExportCount)
 	}
 
 	// extrinsics count check (14.4)
 	if totalExtrinsics > MaxExtrinsics {
-		return fmt.Errorf("total extrinsics exceed %v", MaxExtrinsics)
+		return fmt.Errorf("total extrinsics %d is greater than MaxExtrinsics %d", totalExtrinsics, MaxExtrinsics)
 	}
 
 	// gas limit check (14.7)
@@ -394,10 +394,10 @@ func (wp *WorkPackage) Validate() error {
 	}
 
 	if totalRefineGas > Gas(MaxRefineGas) {
-		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
+		return fmt.Errorf("refine gas limit %d is greater than MaxRefineGas %d", totalRefineGas, MaxRefineGas)
 	}
 	if totalAccumulateGas > MaxAccumulateGas {
-		return fmt.Errorf("accumulate gas limit exceeds %s", fmt.Sprintf("%d", MaxAccumulateGas))
+		return fmt.Errorf("accumulate gas limit %d is greater than MaxAccumulateGas %d", totalAccumulateGas, MaxAccumulateGas)
 	}
 
 	return nil
@@ -504,11 +504,11 @@ type WorkReport struct {
 
 func (w *WorkReport) Validate() error {
 	if len(w.Results) < 1 {
-		return fmt.Errorf("missing_work_results")
+		return errors.New("missing_work_results")
 	}
 
 	if len(w.Results) > MaximumWorkItems {
-		return fmt.Errorf("too_many_work_results")
+		return errors.New("too_many_work_results")
 	}
 
 	return nil
@@ -518,7 +518,7 @@ func (w *WorkReport) Validate() error {
 func (w *WorkReport) ValidateLookupDictAndPrerequisites() error {
 	if len(w.SegmentRootLookup)+len(w.Context.Prerequisites) > MaximumDependencyItems {
 		// return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", MaximumDependencyItems, len(w.SegmentRootLookup)+len(w.Context.Prerequisites))
-		return fmt.Errorf("too_many_dependencies")
+		return errors.New("too_many_dependencies")
 	}
 	return nil
 }
@@ -533,7 +533,7 @@ func (w *WorkReport) ValidateOutputSize() error {
 	}
 
 	if totalSize > WorkReportOutputBlobsMaximumSize {
-		return fmt.Errorf("work_report_too_big")
+		return errors.New("work_report_too_big")
 	}
 	return nil
 }
@@ -581,7 +581,7 @@ type BlocksHistory []BlockInfo
 
 func (b BlocksHistory) Validate() error {
 	if len(b) > MaxBlocksHistory {
-		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %v", MaxBlocksHistory)
+		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(b), MaxBlocksHistory)
 	}
 	return nil
 }
@@ -607,7 +607,7 @@ type ValidatorsStatistics []ValidatorActivityRecord
 
 func (a ValidatorsStatistics) Validate() error {
 	if len(a) != ValidatorsCount {
-		return fmt.Errorf("ActivityRecords must have %v activity record", ValidatorsCount)
+		return fmt.Errorf("ActivityRecords length %d is not equal to ValidatorsCount %d", len(a), ValidatorsCount)
 	}
 	return nil
 }
@@ -628,7 +628,7 @@ type CoresStatistics []CoreActivityRecord
 
 func (c CoresStatistics) Validate() error {
 	if len(c) != CoresCount {
-		return fmt.Errorf("CoresStatisitics must have %v core activity record", CoresCount)
+		return fmt.Errorf("CoresStatisitics length %d is not equal to CoresCount %d", len(c), CoresCount)
 	}
 	return nil
 }
@@ -679,7 +679,7 @@ type TicketsAccumulator []TicketBody
 
 func (t TicketsAccumulator) Validate() error {
 	if len(t) > EpochLength {
-		return fmt.Errorf("TicketsAccumulator exceeds maximum size of %v", EpochLength)
+		return fmt.Errorf("TicketsAccumulator length %d is greater than EpochLength %d", len(t), EpochLength)
 	}
 	return nil
 }
@@ -691,11 +691,11 @@ type TicketsOrKeys struct {
 
 func (t TicketsOrKeys) Validate() error {
 	if len(t.Tickets) > 0 && len(t.Tickets) != EpochLength {
-		return fmt.Errorf("TicketsOrKeys Tickets must have size %v", EpochLength)
+		return fmt.Errorf("TicketsOrKeys Tickets length %d is not equal to EpochLength %d", len(t.Tickets), EpochLength)
 	}
 
 	if len(t.Keys) > 0 && len(t.Keys) != EpochLength {
-		return fmt.Errorf("TicketsOrKeys Keys must have size %v", EpochLength)
+		return fmt.Errorf("TicketsOrKeys Keys length %d is not equal to EpochLength %d", len(t.Keys), EpochLength)
 	}
 	return nil
 }
@@ -705,7 +705,7 @@ type TicketsExtrinsic []TicketEnvelope
 
 func (t *TicketsExtrinsic) Validate() error {
 	if len(*t) > MaxTicketsPerBlock {
-		return fmt.Errorf("TicketsExtrinsic exceeds maximum size of %v", MaxTicketsPerBlock)
+		return fmt.Errorf("TicketsExtrinsic length %d is greater than MaxTicketsPerBlock %d", len(*t), MaxTicketsPerBlock)
 	}
 
 	return nil
@@ -746,7 +746,7 @@ type Verdict struct {
 
 func (v Verdict) Validate() error {
 	if len(v.Votes) != ValidatorsSuperMajority {
-		return fmt.Errorf("verdict Votes must have size %v", ValidatorsSuperMajority)
+		return fmt.Errorf("verdict Votes length %d is not equal to ValidatorsSuperMajority %d", len(v.Votes), ValidatorsSuperMajority)
 	}
 	return nil
 }
@@ -902,7 +902,7 @@ func MakeBitfieldFromHexString(hexStr string) (Bitfield, error) {
 
 func MakeBitfieldFromByteSlice(bytes []byte) (Bitfield, error) {
 	if len(bytes) != AvailBitfieldBytes {
-		return Bitfield{}, fmt.Errorf("Bitfield must have size %v bytes", AvailBitfieldBytes)
+		return Bitfield{}, fmt.Errorf("Bitfield length %d is not equal to AvailBitfieldBytes %d", len(bytes), AvailBitfieldBytes)
 	}
 
 	bitfield := make(Bitfield, CoresCount)
@@ -940,7 +940,7 @@ func (bf Bitfield) GetBit(index int) byte {
 
 func (bf Bitfield) Validate() error {
 	if len(bf) != CoresCount {
-		return fmt.Errorf("Bitfield must have size %v", CoresCount)
+		return fmt.Errorf("Bitfield length %d is not equal to CoresCount %d", len(bf), CoresCount)
 	}
 
 	return nil
@@ -951,7 +951,7 @@ type AssurancesExtrinsic []AvailAssurance
 
 func (a *AssurancesExtrinsic) Validate() error {
 	if len(*a) > ValidatorsCount {
-		return fmt.Errorf("AssurancesExtrinsic exceeds maximum size of %v validators", ValidatorsCount)
+		return fmt.Errorf("AssurancesExtrinsic length %d is greater than ValidatorsCount %d", len(*a), ValidatorsCount)
 	}
 	return nil
 }
@@ -1005,7 +1005,7 @@ func (r *ReportGuarantee) Validate() error {
 	}
 
 	if len(r.Signatures) > 3 {
-		log.Println("too_many_guarantees")
+		logger.Warn("too_many_guarantees")
 	}
 
 	for _, sig := range r.Signatures {
@@ -1041,11 +1041,11 @@ type GuaranteesExtrinsic []ReportGuarantee
 // (11.23)
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
-		return fmt.Errorf("Len of guaranteesExtrinsic %v exceeds maximum size of %v cores", len(*g), CoresCount)
+		return fmt.Errorf("GuaranteesExtrinsic length %d is greater than CoresCount %d", len(*g), CoresCount)
 	}
 	for i, report := range *g {
 		if err := report.Validate(); err != nil {
-			return fmt.Errorf("eg's report[%v] validation failed: %w", i, err)
+			return fmt.Errorf("GuaranteesExtrinsic report[%d] validation failed: %w", i, err)
 		}
 	}
 	return nil
@@ -1083,7 +1083,7 @@ type EpochMark struct {
 
 func (e EpochMark) Validate() error {
 	if len(e.Validators) != ValidatorsCount {
-		return fmt.Errorf("EpochMark Validators exceeds maximum size of %v", ValidatorsCount)
+		return fmt.Errorf("EpochMark Validators length %d is not equal to ValidatorsCount %d", len(e.Validators), ValidatorsCount)
 	}
 
 	return nil
@@ -1093,7 +1093,7 @@ type TicketsMark []TicketBody
 
 func (t TicketsMark) Validate() error {
 	if len(t) != EpochLength {
-		return fmt.Errorf("TicketsMark must have exactly %v tickets", EpochLength)
+		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(t), EpochLength)
 	}
 	return nil
 }
@@ -1273,20 +1273,20 @@ type InputWrapper[T any] struct {
 func ParseData[t any](fileName string) (InputWrapper[t], error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		fmt.Printf("Error opening file %s: %v\n", fileName, err)
+		logger.Errorf("Error opening file %s: %v", fileName, err)
 		return InputWrapper[t]{}, err
 	}
 	defer file.Close()
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		fmt.Printf("Error reading file: %s: %v\n", fileName, err)
+		logger.Errorf("Error reading file: %s: %v", fileName, err)
 		return InputWrapper[t]{}, err
 	}
 	var wrapper InputWrapper[t]
 	err = json.Unmarshal(bytes, &wrapper)
 	if err != nil {
-		fmt.Printf("Error unmarshalling JSON:: %v\n", err)
+		logger.Errorf("Error unmarshalling JSON:: %v", err)
 	}
 	return wrapper, nil
 }
@@ -1300,7 +1300,7 @@ func DecodeJSONByte(input []byte) []byte {
 func hexToBytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
-		fmt.Printf("failed to decode hex string: %v", err)
+		logger.Errorf("failed to decode hex string: %v", err)
 	}
 	return bytes
 }
@@ -1345,12 +1345,12 @@ func parseNormalByteArray(data []byte, size int) ([]byte, error) {
 			return arr, err
 		}
 		if len(arr) != size {
-			return nil, fmt.Errorf("invalid length: expected 32 bytes, got %v", len(arr))
+			return nil, fmt.Errorf("invalid length: expected %d bytes, got %d", size, len(arr))
 		}
 		return arr, nil
 	}
 
-	return nil, fmt.Errorf("invalid format for parseNormalByteArray")
+	return nil, fmt.Errorf("invalid format for parseNormalByteArray: expected %d bytes, got %d", size, len(data))
 }
 
 func (o *OpaqueHash) UnmarshalJSON(data []byte) error {

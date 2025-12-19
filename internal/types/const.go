@@ -1,9 +1,10 @@
 package types
 
 import (
-	"log"
 	"os"
 	"time"
+
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var TEST_MODE = "tiny"
@@ -11,23 +12,23 @@ var TEST_MODE = "tiny"
 func SetTestMode() {
 	TEST_MODE = os.Getenv("TEST_MODE")
 	if TEST_MODE == "tiny" {
-		log.Println("⚙️  Tiny mode activated")
+		logger.Info("⚙️  Tiny mode activated")
 		SetTinyMode()
 		return
 	}
 
 	if TEST_MODE == "full" {
-		log.Println("⚙️  Full mode activated")
+		logger.Info("⚙️  Full mode activated")
 		SetFullMode()
 		return
 	}
 
-	log.Println("⚙️  Default(Tiny) mode activated")
+	logger.Info("⚙️  Default(Tiny) mode activated")
 	SetTinyMode()
 }
 
 func SetTinyMode() {
-	log.Println("⚙️  Tiny mode activated")
+	logger.Info("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
 	ValidatorsCount = 6     // V
 	CoresCount = 2          // C
@@ -47,7 +48,7 @@ func SetTinyMode() {
 }
 
 func SetFullMode() {
-	log.Println("⚙️  Full mode activated")
+	logger.Info("⚙️  Full mode activated")
 	TEST_MODE = "full"
 	ValidatorsCount = 1023  // V
 	CoresCount = 341        // C

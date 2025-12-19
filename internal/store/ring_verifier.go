@@ -34,7 +34,7 @@ func (c *ringVerifierCache) Free() {
 
 func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifier, error) {
 	if len(gammaK) != types.ValidatorsCount {
-		return nil, fmt.Errorf("gammaK size %v is not equal to validators count %v", len(gammaK), types.ValidatorsCount)
+		return nil, fmt.Errorf("gammaK size %d is not equal to validators count %d", len(gammaK), types.ValidatorsCount)
 	}
 
 	// First path: read lock

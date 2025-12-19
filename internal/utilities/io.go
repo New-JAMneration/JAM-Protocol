@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 /*
@@ -53,13 +53,13 @@ func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
 func GetBytesFromFile(filename string) ([]byte, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file %s: %w", filename, err)
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
+		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
 	}
 
 	return data, nil
@@ -68,14 +68,14 @@ func GetBytesFromFile(filename string) ([]byte, error) {
 func GetTestFromBin[T any](filename string, jamtests_case *T) error {
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %v", err)
+		return fmt.Errorf("failed to read file %s: %w", filename, err)
 	}
 
 	// Decode the binary data
 	decoder := types.NewDecoder()
 	err = decoder.Decode(data, jamtests_case)
 	if err != nil {
-		return fmt.Errorf("failed to decode binary data: %v", err)
+		return fmt.Errorf("failed to decode binary data from file %s: %w", filename, err)
 	}
 
 	// Return the decoded data
@@ -86,13 +86,13 @@ func GetTestFromJson[T any](filename string) (T, error) {
 	var jamtests_case T
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return jamtests_case, fmt.Errorf("failed to read file: %v", err)
+		return jamtests_case, fmt.Errorf("failed to read file %s: %w", filename, err)
 	}
 
 	// Decode the json data
 	err = json.Unmarshal(data, &jamtests_case)
 	if err != nil {
-		return jamtests_case, fmt.Errorf("failed to decode json data: %v", err)
+		return jamtests_case, fmt.Errorf("failed to decode json data from file %s: %w", filename, err)
 	}
 
 	// Return the decoded data
@@ -103,7 +103,7 @@ func TestDecodeJamTestNetState(t *testing.T) {
 	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
-		log.Println("⚠️  jamtestnet state test cases only support tiny mode")
+		logger.Warn("⚠️  jamtestnet state test cases only support tiny mode")
 	}
 
 	dirNames := []string{
@@ -147,10 +147,10 @@ func TestDecodeJamTestNetState(t *testing.T) {
 
 			// Compare the two structs
 			if !reflect.DeepEqual(state, jsonData) {
-				log.Printf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				logger.Errorf("❌ [%s] [%s] %s", types.TEST_MODE, dirName, file)
 				t.Errorf("Error: %v", err)
 			} else {
-				log.Printf("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
+				logger.Infof("✅ [%s] [%s] %s", types.TEST_MODE, dirName, file)
 			}
 		}
 	}
@@ -210,11 +210,11 @@ func HexToOpaqueHash(hexStr string) ([32]byte, error) {
 	// decode hex string
 	bytes, err := hex.DecodeString(hexStr)
 	if err != nil {
-		return [32]byte{}, fmt.Errorf("failed to decode hex: %v", err)
+		return [32]byte{}, fmt.Errorf("failed to decode hex string %s: %w", hexStr, err)
 	}
 
 	if len(bytes) != 32 {
-		return [32]byte{}, fmt.Errorf("invalid length: expected 32 bytes, got %d", len(bytes))
+		return [32]byte{}, fmt.Errorf("invalid length: expected 32 bytes, got %d for hex string %s", len(bytes), hexStr)
 	}
 
 	var result [32]byte

@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type Discriminator struct {
@@ -41,7 +42,7 @@ func EmptyOrPair(input interface{}) (int, any) {
 		}
 		// check all the fields in struct
 		for i := 0; i < value.NumField(); i++ {
-			fmt.Println(value.Field(i).Kind())
+			logger.Debugf("%v", value.Field(i).Kind())
 			f := value.Field(i)
 			if f.Kind() == reflect.Slice && f.Len() != 0 {
 				return 1, input
@@ -56,7 +57,7 @@ func EmptyOrPair(input interface{}) (int, any) {
 					return 1, input
 				}
 			} else {
-				err := fmt.Errorf("input type is not supported currently")
+				err := fmt.Errorf("input type %s is not supported currently", value.Field(i).Kind())
 				return 2, err
 			}
 		}
@@ -74,7 +75,7 @@ func EmptyOrPair(input interface{}) (int, any) {
 			return 0, nil
 		}
 	default:
-		err := fmt.Errorf("input type is not supported ")
+		err := fmt.Errorf("input type %s is not supported", value.Kind())
 		return 2, err
 	}
 	return 1, input

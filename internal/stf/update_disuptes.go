@@ -5,7 +5,7 @@ import (
 )
 
 func UpdateDisputes() error {
-	// log.Println("Update Disputes")
+	// logger.Debug("Update Disputes")
 
 	_, err := extrinsic.Disputes()
 	if err != nil {

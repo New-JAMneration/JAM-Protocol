@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -139,7 +140,7 @@ func decodeOneRegisterOneImmediateAndOneOffset(instructionCode []byte, pc Progra
 // A.5.9
 func decodeTwoRegisters(instructionCode []byte, pc ProgramCounter) (rD uint8, rA uint8, err error) {
 	if int(pc+1) >= len(instructionCode) {
-		return 0, 0, fmt.Errorf("pc out of bound")
+		return 0, 0, errors.New("pc out of bound")
 	}
 	rD = getRegModIndex(instructionCode, pc)
 	rA = getRegFloorIndex(instructionCode, pc)
@@ -204,7 +205,7 @@ func decodeTwoRegistersAndTwoImmediates(instructionCode []byte, pc ProgramCounte
 // A.5.13
 func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, rB uint8, rD uint8, err error) {
 	if int(pc+2) >= len(instructionCode) {
-		return 0, 0, 0, fmt.Errorf("pc out of bound")
+		return 0, 0, 0, errors.New("pc out of bound")
 	}
 	rA = getRegModIndex(instructionCode, pc)
 	rB = getRegFloorIndex(instructionCode, pc)

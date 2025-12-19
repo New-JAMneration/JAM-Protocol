@@ -2,7 +2,7 @@ package extrinsic
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -36,7 +36,7 @@ func (d *DisputeController) ValidateFaults() error {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == good {
 			if !faultMap[types.WorkReportHash(report.ReportHash)] {
-				return fmt.Errorf("not_enough_faults")
+				return errors.New("not_enough_faults")
 			}
 		}
 	}
@@ -55,7 +55,7 @@ func (d *DisputeController) ValidateCulprits() error {
 	for _, report := range d.VerdictController.VerdictSumSequence {
 		if report.PositiveJudgmentsSum == bad {
 			if culpritMap[types.WorkReportHash(report.ReportHash)] < 2 {
-				return fmt.Errorf("not_enough_culprits")
+				return errors.New("not_enough_culprits")
 			}
 		}
 	}
@@ -90,7 +90,7 @@ func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequen
 		} else if verdict.PositiveJudgmentsSum == types.ValidatorsCount*1/3 {
 			updates.Wonky = append(updates.Wonky, types.WorkReportHash(verdict.ReportHash))
 		} else {
-			return types.DisputesRecords{}, fmt.Errorf("bad_vote_split")
+			return types.DisputesRecords{}, errors.New("bad_vote_split")
 		}
 	}
 	return updates, nil

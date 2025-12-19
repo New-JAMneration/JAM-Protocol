@@ -1,6 +1,7 @@
 package work_package
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
@@ -39,12 +40,12 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 	for _, spec := range specs {
 		length := int(spec.Len)
 		if curr+length > len(data) {
-			return nil, fmt.Errorf("extrinsic length overflow")
+			return nil, errors.New("extrinsic length overflow")
 		}
 
 		extracted := data[curr : curr+length]
 		if hash.Blake2bHash(extracted) != spec.Hash {
-			return nil, fmt.Errorf("extrinsic hash mismatch")
+			return nil, errors.New("extrinsic hash mismatch")
 		}
 
 		result[spec.Hash] = append([]byte(nil), extracted...)
@@ -52,7 +53,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 	}
 
 	if curr != len(data) {
-		return nil, fmt.Errorf("data remains after extrinsics parsed")
+		return nil, errors.New("data remains after extrinsics parsed")
 	}
 
 	return result, nil

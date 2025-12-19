@@ -27,7 +27,7 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 	}
 }
 
-var ErrNotImplemented = fmt.Errorf("instruction not implemented")
+var ErrNotImplemented = errors.New("instruction not implemented")
 
 // (v.0.7.1 A.6, A.7) SingleStepStateTransition
 func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable,
@@ -85,8 +85,8 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	// iota' = iota + 1 +skip(iota)
 	newPC += skipLength + 1
 	// detailed instruction print
-	// log.Printf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], gas, registers)
-	// log.Printf("       gas : %d -> %d", gas+gasDelta, gas)
+	// logger.Debugf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], gas, registers)
+	// logger.Debugf("       gas : %d -> %d", gas+gasDelta, gas)
 
 	return exitReason, newPC, gas, registers, memory
 }

@@ -88,7 +88,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 			// Note: We return the error here, caller (server) should decide to close connection
 			// If this is a standalone node, caller should call logger.Fatal()
 			logger.Errorf("%s STF runtime error (unexpected bug): %v", ctx, err)
-			return types.StateRoot{}, fmt.Errorf("STF runtime error: %v", err)
+			return types.StateRoot{}, fmt.Errorf("STF runtime error: %w", err)
 		}
 		// Protocol error: block is invalid, but node should continue
 		logger.Errorf("%s [PROTOCOL] block invalid: %v", ctx, err)

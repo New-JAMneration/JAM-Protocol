@@ -2,13 +2,13 @@ package stf
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"log"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // This function is only used for stf test-vector
 // For traces, we call sub-functions separately for stf order in "stf/sft.go"
 func UpdateHistory() error {
-	log.Println("Update History")
+	logger.Debug("Update History")
 
 	// Start test STFBeta2BetaDagger (4.6)
 	// We update (4.6) at the beginning of STF

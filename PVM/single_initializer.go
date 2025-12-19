@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -25,7 +26,7 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 		return nil, Registers{}, Memory{}, err
 	}
 	if 5*ZZ+uint64(Z(len(o)))+uint64(Z(len(w)+int(z)*int(ZP)+int(s)+ZI)) > 1<<32 {
-		return nil, Registers{}, Memory{}, fmt.Errorf("Memory layout calculations failed")
+		return nil, Registers{}, Memory{}, errors.New("memory layout calculations failed")
 	}
 
 	// Memory layout calculations
@@ -165,10 +166,10 @@ func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
 		return 0, data, nil
 	}
 	if numBytes > 8 || numBytes < 0 {
-		return 0, data, fmt.Errorf("invalid number of octets to read")
+		return 0, data, fmt.Errorf("invalid number of octets to read: got %d", numBytes)
 	}
 	if len(data) < numBytes {
-		return 0, data, fmt.Errorf("not enough data to read a uint")
+		return 0, data, fmt.Errorf("not enough data to read a uint: got %d", len(data))
 	}
 
 	var result uint64
@@ -205,7 +206,7 @@ func ReadIntFixed(data []byte, numBytes int) (int64, []byte, error) {
 
 func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	if uint64(len(data)) < numBytes {
-		return nil, data, fmt.Errorf("not enough data to read %d bytes", numBytes)
+		return nil, data, fmt.Errorf("not enough data to read %d bytes: got %d", numBytes, len(data))
 	}
 
 	return data[:numBytes], data[numBytes:], nil

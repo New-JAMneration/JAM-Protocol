@@ -31,7 +31,7 @@ func NewWorkReportController(workReport *types.WorkReport) *WorkReportController
 // ValidateWorkItemsNumbers checks if the number of work items is between 1 and 4 | Eq. 11.2
 func (w *WorkReportController) ValidateWorkItemsNumbers() error {
 	if len(w.WorkReport.Results) < 1 || len(w.WorkReport.Results) > types.MaximumWorkItems {
-		return fmt.Errorf("WorkReport Results must have between 1 and 4 items, but got %d", len(w.WorkReport.Results))
+		return fmt.Errorf("WorkReport Results must have between 1 and %d items, but got %d", types.MaximumWorkItems, len(w.WorkReport.Results))
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (w *WorkReportController) ValidateOutputSize() error {
 	}
 
 	if totalSize > types.WorkReportOutputBlobsMaximumSize {
-		return fmt.Errorf("total size exceeds %d bytes", types.WorkReportOutputBlobsMaximumSize)
+		return fmt.Errorf("total size %d is greater than WorkReportOutputBlobsMaximumSize %d", totalSize, types.WorkReportOutputBlobsMaximumSize)
 	}
 	return nil
 }

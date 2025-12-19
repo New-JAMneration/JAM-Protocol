@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
 
@@ -1381,7 +1382,7 @@ func (i *ImportSpec) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ImportSpec")
 
 	if d.HashSegmentMap == nil {
-		return fmt.Errorf("please set the HashSegmentMap to the decoder")
+		return errors.New("please set the HashSegmentMap to the decoder")
 	}
 
 	// Check the input is H or H⊞
