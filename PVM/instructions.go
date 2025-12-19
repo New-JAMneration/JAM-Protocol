@@ -341,18 +341,24 @@ var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registe
 }
 
 // opcode 0
+//
+//lint:ignore ST1008 error naming here is intentional
 func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(PANIC, nil), pc, reg, mem
 }
 
 // opcode 1
+//
+//lint:ignore ST1008 error naming here is intentional
 func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
 // opcode 10
+//
+//lint:ignore ST1008 error naming here is intentional
 func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	lX := min(4, int(skipLength))
 
@@ -376,6 +382,8 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 20
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA := min(12, (int(instructionCode[pc+1]) % 16))
 	// zeta_{iota+2,...,+8}
@@ -390,6 +398,8 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 30
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -408,6 +418,8 @@ func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 31
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -426,6 +438,8 @@ func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 32
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -444,6 +458,8 @@ func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 33
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -461,6 +477,8 @@ func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 40
+//
+//lint:ignore ST1008 error naming here is intentional
 func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	vX, err := decodeOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
@@ -479,6 +497,8 @@ func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 }
 
 // opcode 50
+//
+//lint:ignore ST1008 error naming here is intentional
 func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -505,6 +525,8 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 51
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -518,6 +540,8 @@ func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 52
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -543,6 +567,8 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 53
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -574,6 +600,8 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 54
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -599,6 +627,8 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 55
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -628,6 +658,8 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 56
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -654,6 +686,8 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 57
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -684,6 +718,8 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 58
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -710,6 +746,8 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 59
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -729,6 +767,8 @@ func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 60
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -747,6 +787,8 @@ func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 61
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -765,6 +807,8 @@ func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 62
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -783,6 +827,8 @@ func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 70
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -801,6 +847,8 @@ func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 71
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -819,6 +867,8 @@ func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 72
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -837,6 +887,8 @@ func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 73
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -855,6 +907,8 @@ func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode in [80, 90]
+//
+//lint:ignore ST1008 error naming here is intentional
 func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
@@ -903,6 +957,8 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 }
 
 // opcode 100
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -916,6 +972,8 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 101
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -950,6 +1008,8 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 }
 
 // opcode 102
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -974,6 +1034,8 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 103
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -998,6 +1060,8 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 104
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1023,6 +1087,8 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 }
 
 // opcode 105
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1048,6 +1114,8 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 }
 
 // opcode 106
+//
+//lint:ignore ST1008 error naming here is intentional
 func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1073,6 +1141,8 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 }
 
 // opcode 107
+//
+//lint:ignore ST1008 error naming here is intentional
 func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1098,6 +1168,8 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 }
 
 // opcode 108
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1115,6 +1187,8 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 109
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1132,6 +1206,8 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 110
+//
+//lint:ignore ST1008 error naming here is intentional
 func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1146,6 +1222,8 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 111
+//
+//lint:ignore ST1008 error naming here is intentional
 func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
@@ -1165,6 +1243,8 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 120
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1185,6 +1265,8 @@ func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 121
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1205,6 +1287,8 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 122
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1225,6 +1309,8 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 123
+//
+//lint:ignore ST1008 error naming here is intentional
 func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1246,6 +1332,8 @@ func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 124
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1272,6 +1360,8 @@ func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 125
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1297,6 +1387,8 @@ func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 126
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1322,6 +1414,8 @@ func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 127
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1342,11 +1436,13 @@ func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 	}
 
 	reg[rA] = uint64(int16(memVal))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
+	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], RegName[rB], formatInt(vX), uint32(reg[rB]+vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
 // opcode 128
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1372,6 +1468,8 @@ func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 129
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1399,6 +1497,8 @@ func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 130
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1426,6 +1526,8 @@ func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 131
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1444,6 +1546,8 @@ func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 132
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1458,6 +1562,8 @@ func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 133
+//
+//lint:ignore ST1008 error naming here is intentional
 func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1472,6 +1578,8 @@ func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 134
+//
+//lint:ignore ST1008 error naming here is intentional
 func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1481,11 +1589,13 @@ func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 
 	reg[rA] = reg[rB] | vX
 	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s | %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
-		RegName[rA], RegName[rB], vX, reg[rA])
+		RegName[rA], RegName[rB], formatInt(vX), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
 // opcode 135
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1505,6 +1615,8 @@ func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 136
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1523,6 +1635,8 @@ func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 137
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1541,6 +1655,8 @@ func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 138
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1561,6 +1677,8 @@ func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 139
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1581,6 +1699,8 @@ func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 140
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1596,6 +1716,8 @@ func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 141
+//
+//lint:ignore ST1008 error naming here is intentional
 func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1615,6 +1737,8 @@ func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 142
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1633,6 +1757,8 @@ func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 143
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1651,6 +1777,8 @@ func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 144
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1670,6 +1798,8 @@ func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 145
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1689,6 +1819,8 @@ func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 146
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1704,6 +1836,8 @@ func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 147
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1724,6 +1858,8 @@ func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 148
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1744,6 +1880,8 @@ func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 149
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1758,6 +1896,8 @@ func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 150
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1772,6 +1912,8 @@ func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 }
 
 // opcode 151
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1791,6 +1933,8 @@ func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 152
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1810,6 +1954,8 @@ func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 153
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1824,6 +1970,8 @@ func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 154
+//
+//lint:ignore ST1008 error naming here is intentional
 func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1838,6 +1986,8 @@ func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 }
 
 // opcode 155
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1852,6 +2002,8 @@ func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 156
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1866,6 +2018,8 @@ func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 157
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1880,6 +2034,8 @@ func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 }
 
 // opcode 158
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1896,6 +2052,8 @@ func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 159
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1912,6 +2070,8 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode 160
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1934,6 +2094,8 @@ func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 }
 
 // opcode 161
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1956,6 +2118,8 @@ func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 }
 
 // opcode in [170, 175]
+//
+//lint:ignore ST1008 error naming here is intentional
 func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
@@ -1997,6 +2161,8 @@ func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 180
+//
+//lint:ignore ST1008 error naming here is intentional
 func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, vY, err := decodeTwoRegistersAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
@@ -2024,6 +2190,8 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 }
 
 // opcode 190
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2043,6 +2211,8 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 191
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2064,6 +2234,8 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 192
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2083,6 +2255,8 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 193
+//
+//lint:ignore ST1008 error naming here is intentional
 func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2111,6 +2285,8 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 194
+//
+//lint:ignore ST1008 error naming here is intentional
 func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2134,6 +2310,8 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 195
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2159,6 +2337,8 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 196
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2181,6 +2361,8 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 197
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2200,6 +2382,8 @@ func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 198
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2221,6 +2405,8 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 199
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2239,6 +2425,8 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 200
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2254,6 +2442,8 @@ func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 201
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2269,6 +2459,8 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 202
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2284,6 +2476,8 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 203
+//
+//lint:ignore ST1008 error naming here is intentional
 func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2303,6 +2497,8 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 204
+//
+//lint:ignore ST1008 error naming here is intentional
 func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2324,6 +2520,8 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 205
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2343,6 +2541,8 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 206
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2362,6 +2562,8 @@ func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 207
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2377,6 +2579,8 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 208
+//
+//lint:ignore ST1008 error naming here is intentional
 func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2392,6 +2596,8 @@ func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 209
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2407,6 +2613,8 @@ func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 }
 
 // opcode 210
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2422,6 +2630,8 @@ func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 }
 
 // opcode 211
+//
+//lint:ignore ST1008 error naming here is intentional
 func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2437,6 +2647,8 @@ func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 }
 
 // opcode 212
+//
+//lint:ignore ST1008 error naming here is intentional
 func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2452,6 +2664,8 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 }
 
 // opcode 213
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2476,6 +2690,8 @@ func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 214
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2492,6 +2708,8 @@ func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 215
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2519,6 +2737,8 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 }
 
 // opcode 216
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2538,6 +2758,8 @@ func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 217
+//
+//lint:ignore ST1008 error naming here is intentional
 func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2557,6 +2779,8 @@ func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 218
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2577,6 +2801,8 @@ func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 219
+//
+//lint:ignore ST1008 error naming here is intentional
 func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2597,6 +2823,8 @@ func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 220
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2612,6 +2840,8 @@ func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 221
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2633,6 +2863,8 @@ func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 222
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2648,6 +2880,8 @@ func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 223
+//
+//lint:ignore ST1008 error naming here is intentional
 func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2669,6 +2903,8 @@ func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 224
+//
+//lint:ignore ST1008 error naming here is intentional
 func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2684,6 +2920,8 @@ func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 }
 
 // opcode 225
+//
+//lint:ignore ST1008 error naming here is intentional
 func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2699,6 +2937,8 @@ func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 }
 
 // opcode 226
+//
+//lint:ignore ST1008 error naming here is intentional
 func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2714,6 +2954,8 @@ func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 }
 
 // opcode 227
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2730,6 +2972,8 @@ func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 }
 
 // opcode 228
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2750,6 +2994,8 @@ func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 }
 
 // opcode 229
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
@@ -2766,6 +3012,8 @@ func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 }
 
 // opcode 230
+//
+//lint:ignore ST1008 error naming here is intentional
 func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
