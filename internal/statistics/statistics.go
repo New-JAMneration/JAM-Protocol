@@ -69,7 +69,7 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 				guarantor, _ = extrinsicPackage.GStarFunc(nil)
 			}
 		}
-		fmt.Printf("guarantor: %+v\n", guarantor.PublicKeys)
+		logger.Debugf("guarantor: %+v", guarantor.PublicKeys)
 		reportersSet := make(map[types.Ed25519Public]bool)
 		for _, guarantorKey := range guarantor.PublicKeys {
 			// H_bar: start at index 32 (6.10,GP 0.7.0)
@@ -81,7 +81,7 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 			for _, signature := range guarantee.Signatures {
 				if exists := reportersSet[types.Ed25519Public(signature.Signature[32:])]; !exists {
 					reportersSet[types.Ed25519Public(signature.Signature[32:])] = true
-					fmt.Println("statistics.ValsCurr[signature.ValidatorIndex].Guarantees++: ", signature.ValidatorIndex, "  ", statistics.ValsCurr[signature.ValidatorIndex].Guarantees, "->", statistics.ValsCurr[signature.ValidatorIndex].Guarantees+1)
+					logger.Debugf("statistics.ValsCurr[signature.ValidatorIndex].Guarantees++: %v -> %v", signature.ValidatorIndex, statistics.ValsCurr[signature.ValidatorIndex].Guarantees+1)
 					statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
 				}
 			}

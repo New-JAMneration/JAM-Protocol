@@ -113,7 +113,7 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 		s.GetPosteriorStates().SetLambda(priorState.GetKappa())
 		// z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
 		// if zErr != nil {
-		// 	return fmt.Errorf("error updating Bandersnatch key root: %v", zErr)
+		// 	return fmt.Errorf("error updating Bandersnatch key root: %w", zErr)
 		// }
 		// s.GetPosteriorStates().SetGammaZ(z)
 	} else {

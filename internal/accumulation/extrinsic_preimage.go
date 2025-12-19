@@ -3,7 +3,6 @@ package accumulation
 import (
 	"bytes"
 	"errors"
-	"log"
 	"maps"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -11,6 +10,7 @@ import (
 	PreimageErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/preimages"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 /*
@@ -32,7 +32,7 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	account, isInAccount := d[s]
 	if !isInAccount || account.PreimageLookup == nil || account.LookupDict == nil {
 		// If account does not exist or maps are uninitialized, return false
-		// log.Println("ServiceAccount not found or maps are uninitialized")
+		// logger.Warn("ServiceAccount not found or maps are uninitialized")
 		return false
 	}
 
@@ -134,13 +134,13 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 	// If eps is not sorted, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i-1].Requester > eps[i].Requester {
-			// log.Println("eps is not sorted by Requester")
+			// logger.Errorf("eps is not sorted by Requester")
 			errCode := PreimageErrorCode.PrimagesNotSortedUnique
 			return &errCode
 		}
 
 		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) > 0 {
-			// log.Println("eps.Requester is not sorted by Blob")
+			// logger.Errorf("eps.Requester is not sorted by Blob")
 			errCode := PreimageErrorCode.PrimagesNotSortedUnique
 			return &errCode
 		}
@@ -149,7 +149,7 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 	// If eps have duplicates, return error
 	for i := 1; i < len(eps); i++ {
 		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {
-			// log.Println("eps have duplicates")
+			// logger.Errorf("eps have duplicates")
 			errCode := PreimageErrorCode.PrimagesNotSortedUnique
 			return &errCode
 		}
@@ -247,7 +247,7 @@ func ProcessPreimageExtrinsics() *types.ErrorCode {
 	// Update deltaDoubleDagger with filtered preimages
 	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, updatedLookupServiceAccount, tauPrime)
 	if UpdateErr != nil {
-		log.Println("UpdateDeltaWithExtrinsicPreimageErr:", UpdateErr)
+		logger.Errorf("UpdateDeltaWithExtrinsicPreimageErr: %v", UpdateErr)
 	}
 
 	// Update new double-dagger to posterior state

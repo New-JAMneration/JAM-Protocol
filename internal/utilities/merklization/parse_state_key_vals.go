@@ -29,7 +29,7 @@ var debugMode = false
 
 func cLog(color string, string string) {
 	if debugMode {
-		fmt.Printf("%s%s%s\n", color, string, Reset)
+		logger.Debugf("%s%s%s", color, string, Reset)
 	}
 }
 
@@ -693,11 +693,11 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 			// detailed state struct, except service-related
 			act, err := SingleKeyValToState(v.Key, v.ActualValue)
 			if err != nil {
-				return fmt.Errorf("failed to SingleKeyValToState actual: %v", err)
+				return fmt.Errorf("failed to SingleKeyValToState actual from state key 0x%x: %w", v.Key, err)
 			}
 			exp, err := SingleKeyValToState(v.Key, v.ExpectedValue)
 			if err != nil {
-				return fmt.Errorf("failed to SingleKeyValToState expected: %v", err)
+				return fmt.Errorf("failed to SingleKeyValToState expected from state key 0x%x: %w", v.Key, err)
 			}
 			diff := cmp.Diff(exp, act)
 			logger.ColorDebug("state %s exp/act diff: %+v", state, diff)
@@ -705,15 +705,15 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 		} else if IsServiceInfoKey(v.Key) { // Type 2: C(255, s), ServiceInfo
 			serviceID, err := DecodeServiceIdFromType2(v.Key)
 			if err != nil {
-				return fmt.Errorf("DecodeServiceIdFromType2 error: %v", err)
+				return fmt.Errorf("failed to decode service ID from state key 0x%x by type 2: %w", v.Key, err)
 			}
 			act, err := DecodeServiceInfo(v.ActualValue)
 			if err != nil {
-				return fmt.Errorf("failed to decode actual service info: %w", err)
+				return fmt.Errorf("failed to decode actual service info from state key 0x%x: %w", v.Key, err)
 			}
 			exp, err := DecodeServiceInfo(v.ExpectedValue)
 			if err != nil {
-				return fmt.Errorf("failed to decode expected service info: %w", err)
+				return fmt.Errorf("failed to decode expected service info from state key 0x%x: %w", v.Key, err)
 			}
 			diff := cmp.Diff(exp, act)
 			logger.ColorDebug("ServiceID %d Info exp/act diff: %+v", serviceID, diff)
@@ -721,7 +721,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 		} else { // Rest of the keys are service-related (type3)
 			serviceId, err := DecodeServiceIdFromType3(v.Key)
 			if err != nil {
-				return fmt.Errorf("failed to decode service ID from type 3: %w", err)
+				return fmt.Errorf("failed to decode service ID from state key 0x%x by type 3: %w", v.Key, err)
 			}
 			// a_p: Preimage
 			if isPreimage, _ := IsPreimage(v.Key, v.ExpectedValue); isPreimage {
@@ -751,7 +751,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 	for _, v := range unmatchedStateKeyVals { // a_l, a_s
 		serviceId, err := DecodeServiceIdFromType3(v.Key)
 		if err != nil {
-			return fmt.Errorf("failed to decode service ID from type 3: %w", err)
+			return fmt.Errorf("failed to decode service ID from state key 0x%x by type 3: %w", v.Key, err)
 		}
 		// a_l: Lookup
 		// Find the lookup state key in unmatchedStateKeyVals

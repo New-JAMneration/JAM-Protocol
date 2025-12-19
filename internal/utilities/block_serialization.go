@@ -1,10 +1,9 @@
 package utilities
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 func SerializeByteSequence(input []byte) (output types.ByteSequence) {
@@ -580,7 +579,7 @@ func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequ
 			}
 		}
 	} else {
-		fmt.Println("Map size expected to be 1")
+		logger.Errorf("Map size expected to be 1")
 	}
 	return output
 }

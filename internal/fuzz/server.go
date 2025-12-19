@@ -22,7 +22,7 @@ func NewFuzzServer(network, address string) (*FuzzServer, error) {
 	// For Unix sockets, remove the socket file if it exists
 	if network == "unix" {
 		if err := os.Remove(address); err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to remove existing socket file: %v", err)
+			return nil, fmt.Errorf("failed to remove existing socket file: %w", err)
 		}
 	}
 

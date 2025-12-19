@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
@@ -109,7 +108,6 @@ func SetupJAMProtocol() {
 
 func main() {
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		fmt.Printf("error: %v", err)
-		os.Exit(1)
+		logger.Fatalf("error: %v", err)
 	}
 }
