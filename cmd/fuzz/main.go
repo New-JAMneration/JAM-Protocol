@@ -277,7 +277,7 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending import_block request: %v", errorMessage.Error)
 	}
 
-	logger.Infof("import_block successful, state root: %x", stateRoot)
+	logger.Infof("import_block successful, state root: 0x%x", stateRoot)
 
 	return nil
 }
@@ -319,7 +319,7 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("error sending set_state request: %w", err)
 	}
 
-	logger.Infof("set_state successful, state root: %x", stateRoot)
+	logger.Infof("set_state successful, state root: 0x%x", stateRoot)
 
 	return nil
 }
@@ -571,10 +571,10 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
 	if err != nil {
-		logger.ColorYellow("[ImportBlock][Response] error= %w", err)
+		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
 		return err
 	} else if errorMessage != nil {
-		logger.ColorYellow("[ImportBlock][Response] error message= %w", errorMessage.Error)
+		logger.ColorYellow("[ImportBlock][Response] error message= %v", errorMessage.Error)
 	} else {
 		logger.ColorYellow("[ImportBlock][Response] state_root= 0x%x", actualPostStateRoot)
 	}
