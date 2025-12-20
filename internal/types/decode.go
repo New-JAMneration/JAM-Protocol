@@ -3421,6 +3421,16 @@ func (l *LastAccOut) Decode(d *Decoder) error {
 	return nil
 }
 
+// Decode decodes ProtocolParameters from binary format.
+// Field order follows Gray Paper 0.7.2 B.6 fetch host call encoding:
+//
+//	E8(BI), E8(BL), E8(BS), E2(C), E4(D), E4(E), E8(GA),
+//	E8(GI), E8(GR), E8(GT), E2(H), E2(I), E2(J), E2(K),
+//	E4(L), E2(N), E2(O), E2(P), E2(Q), E2(R), E2(T), E2(U),
+//	E2(V), E4(WA), E4(WB), E4(WC), E4(WE), E4(WM),
+//	E4(WP), E4(WR), E4(WT), E4(WX), E4(Y)
+//
+// Where E2 = U16, E4 = U32, E8 = U64 (little-endian).
 func (pp *ProtocolParameters) Decode(d *Decoder) error {
 	if err := pp.BI.Decode(d); err != nil {
 		return fmt.Errorf("pp.BI: %w", err)
