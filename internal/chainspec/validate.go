@@ -1,6 +1,9 @@
 package chainspec
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func (cs *ChainSpec) Validate() error {
 	if cs == nil {
@@ -18,15 +21,23 @@ func (cs *ChainSpec) Validate() error {
 		}
 	}
 
+	if strings.TrimSpace(cs.GenesisHeader) == "" {
+		return fmt.Errorf("chainspec: genesis_header is required")
+	}
+
 	if _, err := parseHexString(cs.GenesisHeader); err != nil {
 		return fmt.Errorf("chainspec: genesis_header: %w", err)
+	}
+
+	if strings.TrimSpace(cs.ProtocolParamsHex) == "" {
+		return fmt.Errorf("chainspec: protocol_parameters is required")
 	}
 
 	if _, err := parseHexString(cs.ProtocolParamsHex); err != nil {
 		return fmt.Errorf("chainspec: protocol_parameters: %w", err)
 	}
 
-	if cs.GenesisState == nil {
+	if len(cs.GenesisState) == 0 {
 		return fmt.Errorf("chainspec: genesis_state is required")
 	}
 
