@@ -37,10 +37,12 @@ func IsProtocolError(err error) bool {
 //   - (false, nil):   Success - block processed successfully
 func RunSTF() (bool, error) {
 	var (
-		err        error
-		st         = store.GetInstance()
-		priorState = st.GetPriorStates().GetState()
-		header     = st.GetLatestBlock().Header
+		err              error
+		st               = store.GetInstance()
+		priorState       = st.GetPriorStates().GetState()
+		header           = st.GetLatestBlock().Header
+		extrinsic        = st.GetLatestBlock().Extrinsic
+		unmatchedKeyVals = st.GetPriorStateUnmatchedKeyVals()
 	)
 
 	// Update timeslot
@@ -75,6 +77,29 @@ func RunSTF() (bool, error) {
 	err = ValidateHeaderVrf(header, &postState)
 	if err != nil {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
+		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
+	}
+
+	// Validate extrinsic
+	err = ValidateExtrinsic(extrinsic, &priorState, unmatchedKeyVals)
+	if err != nil {
+		var errorMessage string
+		// Determine the error message based on the type of error
+		if ec, ok := err.(*types.ErrorCode); ok {
+			if msg, exists := PreimagesErrorCodes.PreimagesErrorCodeMessages[*ec]; exists {
+				errorMessage = msg
+			} else if msg, exists := AssurancesErrorCodes.AssurancesErrorCodeMessages[*ec]; exists {
+				errorMessage = msg
+			} else if msg, exists := ReportsErrorCodes.ReportsErrorCodeMessages[*ec]; exists {
+				errorMessage = msg
+			} else if msg, exists := DisputesErrorCodes.DisputesErrorCodeMessages[*ec]; exists {
+				errorMessage = msg
+			} else if msg, exists := SafroleErrorCodes.SafroleErrorCodeMessages[*ec]; exists {
+				errorMessage = msg
+			} else {
+				errorMessage = fmt.Sprintf("runtime error: %v", err)
+			}
+		}
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
 
