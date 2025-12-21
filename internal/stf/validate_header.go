@@ -48,14 +48,14 @@ func ValidateHeaderVrf(header types.Header, state *types.State) error {
 	return nil
 }
 
-func validateExtrinsicHash(header types.Header, extrinsics types.Extrinsic) *types.ErrorCode {
+func validateExtrinsicHash(header types.Header, extrinsics types.Extrinsic) error {
 	headerController := HeaderController.NewHeaderController()
 	err := headerController.CreateExtrinsicHash(extrinsics)
 	if err != nil {
-		fmt.Println("Error creating extrinsic hash:", err)
+		return fmt.Errorf("failed to create extrinsic hash: %v", err)
 	}
 
-	extrinsicHash := store.GetInstance().GetProcessingBlockPointer().GetExtrinsicHash()
+	extrinsicHash := store.GetInstance().GetLatestBlock().Header.ExtrinsicHash
 
 	if extrinsicHash != header.ExtrinsicHash {
 		errCode := SafroleErrorCode.InvalidExtrinsicHash
