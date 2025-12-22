@@ -38,7 +38,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	slot := uint32(block.Header.Slot) % uint32(types.EpochLength)
 	epoch := slot / uint32(types.EpochLength)
 	ctx := logger.FormatContext(hashStr, slot, epoch, "ImportBlock")
-	logger.Debugf("%s Processing...", ctx)
+	// logger.Debugf("%s Processing...", ctx)
+	logger.Debugf("[ImportBlock] slot: %d, headerHash: 0x%x", block.Header.Slot, headerHash)
+
 	// Get the latest block
 	storeInstance := store.GetInstance()
 
@@ -52,8 +54,26 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		}
 		latestBlockHash := types.HeaderHash(hash.Blake2bHash(encodedLatestHeader))
 
+		// // latestBlockHash not in ancestry, restore the block and state
+		// canFound := false
+		// for _, ancestor := range storeInstance.GetAncestry() {
+		// 	if latestBlockHash == ancestor.HeaderHash {
+		// 		canFound = true
+		// 		break
+		// 	}
+		// }
+		//
+		// if !canFound {
+		// 	logger.Debugf("%s latest block hash not in ancestry, trying to restore block and state", ctx)
+		// 	err := storeInstance.RestoreBlockAndState(block.Header.Parent)
+		// 	if err != nil {
+		// 		return types.StateRoot{}, fmt.Errorf("failed to restore block and state after latest block hash not in ancestry: %w", err)
+		// 	}
+		// }
+
 		if latestBlockHash != block.Header.Parent {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
+			logger.Debugf("%s latestBlockHash: 0x%x, block.Header.Parent: 0x%x", ctx, latestBlockHash, block.Header.Parent)
 			// Try the restore block and state
 			err := storeInstance.RestoreBlockAndState(block.Header.Parent)
 			if err != nil {
@@ -117,7 +137,8 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	slot := uint32(header.Slot) % uint32(types.EpochLength)
 	epoch := slot / uint32(types.EpochLength)
 	ctx := logger.FormatContext(hashStr, slot, epoch, "SetState")
-	logger.Debugf("%s Processing...", ctx)
+	// logger.Debugf("%s Processing...", ctx)
+	logger.Debugf("[SetState] slot: %d, headerHash: 0x%x", header.Slot, headerHash)
 
 	// Reset State and Blocks
 	store.ClearVerifierCache()
@@ -126,8 +147,8 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
-	// Add ancestry
-	storeInstance.SetAncestry(ancestry)
+	// Clean ancestry
+	storeInstance.ClearAncestry()
 
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
@@ -142,13 +163,37 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	stateRoot := m.MerklizationSerializedState(append(unmatchedKeyVals, serializedState...))
 
-	block := types.Block{
-		Header: header,
+	// Create ancestry from recent blocks
+	for index, blockInfo := range state.Beta.History {
+		fmt.Printf("header hash in ancestry: 0x%x\n", blockInfo.HeaderHash)
+
+		// Calculate the mock slot for each ancestry item
+		mockSlot := header.Slot - types.TimeSlot(len(state.Beta.History)-index)
+
+		ancestry = append(ancestry, types.AncestryItem{
+			Slot:       mockSlot,
+			HeaderHash: blockInfo.HeaderHash,
+		})
 	}
-	storeInstance.AddBlock(block)
+
+	storeInstance.AppendAncestry(ancestry)
+
+	if header.Parent == (types.HeaderHash{}) {
+		// Use the header to store the mapping
+		block := types.Block{
+			Header: header,
+		}
+		storeInstance.AddBlock(block)
+	}
+
+	// block := types.Block{
+	// 	Header: header,
+	// }
+	// storeInstance.AddBlock(block)
 
 	// Commit the state
-	storeInstance.StateCommit()
+	// storeInstance.StateCommit()
+	storeInstance.InitializedStateCommit(header)
 
 	logger.Infof("%s Init completed, header hash: 0x%x, state root: 0x%x", ctx, headerHash, stateRoot)
 	return stateRoot, nil

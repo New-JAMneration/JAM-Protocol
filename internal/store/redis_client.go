@@ -53,7 +53,7 @@ func (r *RedisClient) PutWithTTL(key string, value []byte, ttl time.Duration) er
 
 // Get fetches the value at a given key. Returns nil if key does not exist.
 func (r *RedisClient) Get(key string) ([]byte, error) {
-	logger.Debugf("GET key=%s", key)
+	// logger.Debugf("GET key=%s", key)
 
 	val, err := r.client.Get(key).Bytes()
 	if err != nil {
