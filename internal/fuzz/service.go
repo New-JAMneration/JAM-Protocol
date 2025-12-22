@@ -105,13 +105,23 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	serializedState = append(postUnmatchedKeyVals, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
+	// Append current block header to ancestry on successful import
+	currentAncestryItem := types.Ancestry{
+		{
+		Slot:       block.Header.Slot,
+		HeaderHash: headerHash,
+		},
+	}
+	storeInstance.AppendAncestry(currentAncestryItem)
+	logger.Debugf("%s Added block to ancestry: slot=%d, hash=0x%x", ctx, block.Header.Slot, headerHash[:8])
+
 	// Commit the state and persist the state to Redis
 	storeInstance.StateCommit()
 
 	return latestStateRoot, nil
 }
 
-func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancenstry types.Ancestry) (types.StateRoot, error) {
+func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancestry types.Ancestry) (types.StateRoot, error) {
 	// Build context for logging
 	headerHash, _ := hash.ComputeBlockHeaderHash(header)
 	hashStr := hex.EncodeToString(headerHash[:])
@@ -127,6 +137,12 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// Set State
 	storeInstance := store.GetInstance()
 
+	// Append ancestry if provided
+	if len(ancestry) > 0 {
+		storeInstance.AppendAncestry(ancestry)
+		logger.Debugf("%s Appended %d ancestry items", ctx, len(ancestry))
+	}
+
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		logger.Errorf("%s failed to convert state keyvals: %v", ctx, err)
@@ -140,13 +156,20 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	stateRoot := m.MerklizationSerializedState(append(unmatchedKeyVals, serializedState...))
 
-	if header.Parent == (types.HeaderHash{}) {
-		// Use the header to store the mapping
-		block := types.Block{
-			Header: header,
-		}
-		storeInstance.AddBlock(block)
+	block := types.Block{
+		Header: header,
 	}
+	storeInstance.AddBlock(block)
+
+	// Add current header to ancestry
+	currentAncestryItem := types.Ancestry{
+		{
+			Slot:       header.Slot,
+			HeaderHash: headerHash,
+		},
+	}
+	storeInstance.AppendAncestry(currentAncestryItem)
+
 	// Commit the state
 	storeInstance.StateCommit()
 

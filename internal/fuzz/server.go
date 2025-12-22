@@ -140,6 +140,7 @@ func (s *FuzzServer) handleImportBlock(m Message) (Message, error) {
 		if strings.Contains(err.Error(), "STF runtime error") {
 			return Message{}, err
 		}
+		logger.ColorYellow("[fuzz-server][ImportBlock] protocol error: %v", err)
 		// 2. protocol error → return ErrorMessage
 		return Message{
 			Type: MessageType_ErrorMessage,

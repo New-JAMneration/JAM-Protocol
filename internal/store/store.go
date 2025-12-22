@@ -27,7 +27,7 @@ type Store struct {
 	priorStates                *PriorStates
 	intermediateStates         *IntermediateStates
 	posteriorStates            *PosteriorStates
-	ancestorHeaders            *AncestorHeaders
+	ancestry                   *AncestryStore
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	preStateUnmatchedKeyVals   types.StateKeyVals
 	postStateUnmatchedKeyVals  types.StateKeyVals
@@ -44,7 +44,7 @@ func GetInstance() *Store {
 			priorStates:                NewPriorStates(),
 			intermediateStates:         NewIntermediateStates(),
 			posteriorStates:            NewPosteriorStates(),
-			ancestorHeaders:            NewAncestorHeaders(),
+			ancestry:                   NewAncestryStore(),
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			preStateUnmatchedKeyVals:   types.StateKeyVals{},
 			postStateUnmatchedKeyVals:  types.StateKeyVals{},
@@ -63,7 +63,7 @@ func ResetInstance() {
 		priorStates:                NewPriorStates(),
 		intermediateStates:         NewIntermediateStates(),
 		posteriorStates:            NewPosteriorStates(),
-		ancestorHeaders:            NewAncestorHeaders(),
+		ancestry:                   NewAncestryStore(),
 		posteriorCurrentValidators: NewPosteriorValidators(),
 		preStateUnmatchedKeyVals:   types.StateKeyVals{},
 		postStateUnmatchedKeyVals:  types.StateKeyVals{},
@@ -214,14 +214,36 @@ func (s *Store) GenerateGenesisState(state types.State) {
 	logger.Debug("🚀 Genesis state generated")
 }
 
-// AncestorHeaders
+// Ancestry methods (replaces AncestorHeaders)
 
+// AddAncestorHeader is a convenience method that converts Header to AncestryItem and adds it.
 func (s *Store) AddAncestorHeader(header types.Header) {
-	s.ancestorHeaders.AddHeader(header)
+	headerHash, err := hash.ComputeBlockHeaderHash(header)
+	if err != nil {
+		logger.Errorf("AddAncestorHeader: failed to compute header hash: %v", err)
+		return
+	}
+	s.AppendAncestry(types.Ancestry{
+		{
+			Slot:       header.Slot,
+			HeaderHash: headerHash,
+		},
+	})
 }
 
-func (s *Store) GetAncestorHeaders() []types.Header {
-	return s.ancestorHeaders.GetHeaders()
+// AppendAncestry appends ancestry items to the store.
+func (s *Store) AppendAncestry(ancestry types.Ancestry) {
+	s.ancestry.AppendAncestry(ancestry)
+}
+
+// GetAncestry returns the current ancestry.
+func (s *Store) GetAncestry() types.Ancestry {
+	return s.ancestry.GetAncestry()
+}
+
+// ClearAncestry clears all ancestry from the store.
+func (s *Store) ClearAncestry() {
+	s.ancestry.Clear()
 }
 
 // PosteriorCurrentValidators
@@ -240,15 +262,6 @@ func (s *Store) GetPosteriorCurrentValidatorByIndex(index types.ValidatorIndex) 
 
 // post-state update to pre-state
 func (s *Store) StateCommit() {
-	blocks := s.GetBlocks()
-	if len(blocks) == 0 {
-		posterState := s.GetPosteriorStates().GetState()
-		postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
-		s.GetPriorStates().SetState(posterState)
-		s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
-		s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
-		return
-	}
 
 	latestBlock := s.GetLatestBlock()
 
@@ -273,6 +286,14 @@ func (s *Store) StateCommit() {
 		} else {
 			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
+
+		// Add to ancestry
+		s.AppendAncestry(types.Ancestry{
+			{
+				Slot:       latestBlock.Header.Slot,
+				HeaderHash: blockHeaderHash,
+			},
+		})
 	}
 
 	posterState := s.GetPosteriorStates().GetState()
@@ -416,6 +437,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	// Restore block
 	s.CleanupBlock()
 	s.AddBlock(block)
+	s.ClearAncestry()
 
 	return nil
 }

@@ -305,8 +305,9 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 
 	// Parse JSON data into header and state structures
 	var requestData struct {
-		Header types.Header       `json:"header"`
-		State  types.StateKeyVals `json:"state"`
+		Header   types.Header       `json:"header"`
+		State    types.StateKeyVals `json:"state"`
+		Ancestry types.Ancestry     `json:"ancestry"`
 	}
 
 	if err := json.Unmarshal(data, &requestData); err != nil {
@@ -314,7 +315,7 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Send set_state request
-	stateRoot, err := client.SetState(requestData.Header, requestData.State)
+	stateRoot, err := client.SetState(requestData.Header, requestData.State, requestData.Ancestry)
 	if err != nil {
 		return fmt.Errorf("error sending set_state request: %w", err)
 	}
@@ -534,24 +535,57 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
-		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+		expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
 		if err != nil {
-			return fmt.Errorf("error parsing pre_state state_root: %w", err)
+			return fmt.Errorf("error parsing post_state state_root: %w", err)
+		}
+
+		decoder := types.NewDecoder()
+		recentBlocks := &types.RecentBlocks{}
+		recentBlocksKeyVal := types.StateKeyVal{}
+		for _, kv := range testData.PreState.KeyVals {
+			if len(kv.Key) > 0 && kv.Key[0] == 0x03 {
+				recentBlocksKeyVal = kv
+				// Decode the recent history value
+				err = decoder.Decode(recentBlocksKeyVal.Value, recentBlocks)
+				if err != nil {
+					logger.Debugf("error decoding recent blocks: %v", err)
+					continue
+				}
+				break
+			}
+		}
+
+		// Create ancestry from recent blocks
+		ancestry := types.Ancestry{}
+		for index, blockInfo := range recentBlocks.History {
+			// Calculate the mock slot for each ancestry item
+			mockSlot := testData.Block.Header.Slot - types.TimeSlot(len(recentBlocks.History)-index)
+
+			ancestry = append(ancestry, types.AncestryItem{
+				Slot:       mockSlot,
+				HeaderHash: blockInfo.HeaderHash,
+			})
 		}
 
 		// Print Sending SetState
-		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", testData.Block.Header.Parent)
-		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
-		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
+		blockHeaderHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
+		if err != nil {
+			return fmt.Errorf("error computing block header hash: %w", err)
+		}
+		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", blockHeaderHash)
+		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostState.KeyVals, ancestry)
+		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPostStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %w", err)
 		}
 
-		if actualPreStateRoot != expectedPreStateRoot {
+		if actualPostStateRoot != expectedPostStateRoot {
 			logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
-				expectedPreStateRoot, actualPreStateRoot)
+				expectedPostStateRoot, actualPostStateRoot)
 			mismatchCount++
 		}
+		return nil // Skip ImportBlock if SetState is performed
 	}
 	/*
 		Step 2: ImportBlock
@@ -622,7 +656,8 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 	}
 
 	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", genesisData.Header.Parent)
-	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals)
+	// Genesis state does not have ancestry
+	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals, types.Ancestry{})
 	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %w", err)
