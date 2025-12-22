@@ -108,8 +108,8 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Append current block header to ancestry on successful import
 	currentAncestryItem := types.Ancestry{
 		{
-		Slot:       block.Header.Slot,
-		HeaderHash: headerHash,
+			Slot:       block.Header.Slot,
+			HeaderHash: headerHash,
 		},
 	}
 	storeInstance.AppendAncestry(currentAncestryItem)
