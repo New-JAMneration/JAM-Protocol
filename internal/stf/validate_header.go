@@ -3,11 +3,10 @@ package stf
 import (
 	"fmt"
 
-	HeaderController "github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
 // TODO: Align the official errorCode
@@ -48,16 +47,15 @@ func ValidateHeaderVrf(header types.Header, state *types.State) error {
 	return nil
 }
 
-func validateExtrinsicHash(header types.Header, extrinsics types.Extrinsic) error {
-	headerController := HeaderController.NewHeaderController()
-	err := headerController.CreateExtrinsicHash(extrinsics)
+func validateExtrinsicHash(header types.Header, extrinsic types.Extrinsic) error {
+	actualExtrinsicHash, err := utilities.CreateExtrinsicHash(extrinsic)
 	if err != nil {
 		return fmt.Errorf("failed to create extrinsic hash: %v", err)
 	}
 
-	extrinsicHash := store.GetInstance().GetLatestBlock().Header.ExtrinsicHash
+	expectedExtrinsicHash := header.ExtrinsicHash
 
-	if extrinsicHash != header.ExtrinsicHash {
+	if actualExtrinsicHash != expectedExtrinsicHash {
 		errCode := SafroleErrorCode.InvalidExtrinsicHash
 		return &errCode
 	}
