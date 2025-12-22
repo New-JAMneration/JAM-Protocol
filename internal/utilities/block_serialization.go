@@ -284,6 +284,54 @@ func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.Byt
 	return output, nil
 }
 
+func CreateExtrinsicHash(extrinsic types.Extrinsic) (extrinsicHash types.OpaqueHash, err error) {
+	// Encode the extrinsic elements
+	encodedTicketsExtrinsic, err := EncodeExtrinsicTickets(extrinsic.Tickets)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedPreimagesExtrinsic, err := EncodeExtrinsicPreimages(extrinsic.Preimages)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedGuaranteesExtrinsic, err := EncodeExtrinsicGuarantees(extrinsic.Guarantees)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedAssurancesExtrinsic, err := EncodeExtrinsicAssurances(extrinsic.Assurances)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedDisputesExtrinsic, err := EncodeExtrinsicDisputes(extrinsic.Disputes)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	// Hash encoded elements
+	encodedTicketsHash := hash.Blake2bHash(encodedTicketsExtrinsic)
+	encodedPreimagesHash := hash.Blake2bHash(encodedPreimagesExtrinsic)
+	encodedGuaranteesHash := hash.Blake2bHash(encodedGuaranteesExtrinsic)
+	encodedAssurancesHash := hash.Blake2bHash(encodedAssurancesExtrinsic)
+	encodedDisputesHash := hash.Blake2bHash(encodedDisputesExtrinsic)
+
+	// Concatenate the encoded elements
+	encodedHash := types.ByteSequence{}
+	encodedHash = append(encodedHash, types.ByteSequence(encodedTicketsHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedPreimagesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedGuaranteesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedAssurancesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedDisputesHash[:])...)
+
+	// Hash the encoded elements
+	extrinsicHash = hash.Blake2bHash(encodedHash)
+
+	return extrinsicHash, nil
+}
+
 // (C.22)
 func HeaderSerialization(header types.Header) (output types.ByteSequence, err error) {
 	// Encode the header
