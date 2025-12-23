@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 const maxInt = int(^uint(0) >> 1)
 
@@ -18,8 +21,20 @@ func assignIntFromU32(name string, v uint32) (int, error) {
 	return int(v), nil
 }
 
+var (
+	applyOnce sync.Once
+	applyErr  error
+)
+
 // TODO: overwrite all value by chainspec ProtocolParameters
 func ApplyProtocolParameters(pp ProtocolParameters) error {
+	applyOnce.Do(func() {
+		applyErr = applyProtocolParametersImpl(pp)
+	})
+	return applyErr
+}
+
+func applyProtocolParametersImpl(pp ProtocolParameters) error {
 	// all const must match chainspec ProtocolParameters
 	if uint64(pp.BI) != uint64(AdditionalMinBalancePerItem) {
 		return fmt.Errorf("pp.B_I mismatch: got %d want %d", uint64(pp.BI), AdditionalMinBalancePerItem)
