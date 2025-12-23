@@ -412,6 +412,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		mu.Unlock()
 		singleParam.ServiceId = s
+		// Use singleflight to deduplicate SingleServiceAccumulation per service.
+		// The key(string) is used as identifier deduplicate calls.
 		v, err, _ := sf.Do(fmt.Sprintf("%d", s), func() (any, error) {
 			out, err := SingleServiceAccumulation(singleParam)
 			return out, err
