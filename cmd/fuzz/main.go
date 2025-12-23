@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,14 +150,14 @@ func main() {
 	}
 
 	cli.VersionPrinter = func(c *cli.Command) {
-		fmt.Printf("[GP Version]: %s, [Target Version]: %s \n", GP_VERSION, TARGET_VERSION)
+		logger.Infof("[GP Version]: %s, [Target Version]: %s", GP_VERSION, TARGET_VERSION)
 	}
 
 	if GP_VERSION == "" {
 		// Read the VERSION_GP file to get the GP version
 		data, err := os.ReadFile("VERSION_GP")
 		if err != nil {
-			log.Fatalf("error reading GP version file: %v", err)
+			logger.Fatalf("error reading GP version file: %v", err)
 		}
 		GP_VERSION = strings.TrimSpace(string(data))
 	}
@@ -166,7 +166,7 @@ func main() {
 		// Read the VERSION_TARGET file to get the Target version
 		data, err := os.ReadFile("VERSION_TARGET")
 		if err != nil {
-			log.Fatalf("error reading Target version file: %v", err)
+			logger.Fatalf("error reading Target version file: %v", err)
 		}
 		TARGET_VERSION = strings.TrimSpace(string(data))
 	}
@@ -174,15 +174,14 @@ func main() {
 	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		fmt.Printf("error: %v\n", err)
-		os.Exit(1)
+		logger.Fatalf("error: %v", err)
 	}
 }
 
 func serve(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("serve requires a socket path argument")
+		return errors.New("serve requires a socket path argument")
 	}
 
 	configPath := cmd.String(configPathFlag.Name)
@@ -193,12 +192,12 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 
 	server, err := fuzz.NewFuzzServer("unix", socketAddr)
 	if err != nil {
-		return fmt.Errorf("error creating server: %v", err)
+		return fmt.Errorf("error creating server: %w", err)
 	}
 
 	err = server.ListenAndServe(ctx)
 	if err != nil {
-		return fmt.Errorf("error running server: %v", err)
+		return fmt.Errorf("error running server: %w", err)
 	}
 
 	return nil
@@ -207,7 +206,7 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 func handshake(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("handshake requires a socket path argument")
+		return errors.New("handshake requires a socket path argument")
 	}
 
 	configPath := cmd.String(configPathFlag.Name)
@@ -218,27 +217,27 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		return fmt.Errorf("error creating client: %v", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 	defer client.Close()
 
 	var info fuzz.PeerInfo
 
 	if err := info.FromConfig(); err != nil {
-		return fmt.Errorf("error reading config: %v", err)
+		return fmt.Errorf("error reading config: %w", err)
 	}
 
 	resp, err := client.Handshake(info)
 	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
+		return fmt.Errorf("error sending request: %w", err)
 	}
 
-	log.Println("received handshake response:")
-	log.Printf("  fuzz-version: %d\n", resp.FuzzVersion)
-	log.Printf("  fuzz-features: %d\n", resp.FuzzFeatures)
-	log.Printf("  jam-version: %v\n", resp.JamVersion)
-	log.Printf("  app-version: %v\n", resp.AppVersion)
-	log.Printf("  app-name: %s\n", resp.AppName)
+	logger.Info("received handshake response:")
+	logger.Infof("  fuzz-version: %d", resp.FuzzVersion)
+	logger.Infof("  fuzz-features: %d", resp.FuzzFeatures)
+	logger.Infof("  jam-version: %v", resp.JamVersion)
+	logger.Infof("  app-version: %v", resp.AppVersion)
+	logger.Infof("  app-name: %s", resp.AppName)
 
 	return nil
 }
@@ -246,16 +245,16 @@ func handshake(ctx context.Context, cmd *cli.Command) error {
 func importBlock(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("import_block requires a socket path argument")
+		return errors.New("import_block requires a socket path argument")
 	}
 	jsonFile := cmd.StringArg(jsonFileArg.Name)
 	if jsonFile == "" {
-		return fmt.Errorf("import_block requires a json file path argument")
+		return errors.New("import_block requires a json file path argument")
 	}
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		log.Fatalf("error creating client: %v\n", err)
+		logger.Fatalf("error creating client: %v", err)
 	}
 	defer client.Close()
 
@@ -267,18 +266,18 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 	// Parse JSON data into Block structure
 	var block types.Block
 	if err := json.Unmarshal(data, &block); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	// Send import_block request
 	stateRoot, errorMessage, err := client.ImportBlock(block)
 	if err != nil {
-		return fmt.Errorf("error sending import_block request: %v", err)
+		return fmt.Errorf("error sending import_block request: %w", err)
 	} else if errorMessage != nil {
 		return fmt.Errorf("error sending import_block request: %v", errorMessage.Error)
 	}
 
-	log.Printf("import_block successful, state root: %x\n", stateRoot)
+	logger.Infof("import_block successful, state root: 0x%x", stateRoot)
 
 	return nil
 }
@@ -286,22 +285,22 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 func setState(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("set_state requires a socket path argument")
+		return errors.New("set_state requires a socket path argument")
 	}
 	jsonFile := cmd.StringArg(jsonFileArg.Name)
 	if jsonFile == "" {
-		return fmt.Errorf("set_state requires a json file path argument")
+		return errors.New("set_state requires a json file path argument")
 	}
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		return fmt.Errorf("error creating client: %v", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 	defer client.Close()
 
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		return fmt.Errorf("error reading JSON file: %v", err)
+		return fmt.Errorf("error reading JSON file: %w", err)
 	}
 
 	// Parse JSON data into header and state structures
@@ -311,16 +310,16 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if err := json.Unmarshal(data, &requestData); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	// Send set_state request
 	stateRoot, err := client.SetState(requestData.Header, requestData.State)
 	if err != nil {
-		return fmt.Errorf("error sending set_state request: %v", err)
+		return fmt.Errorf("error sending set_state request: %w", err)
 	}
 
-	log.Printf("set_state successful, state root: %x\n", stateRoot)
+	logger.Infof("set_state successful, state root: 0x%x", stateRoot)
 
 	return nil
 }
@@ -328,22 +327,22 @@ func setState(ctx context.Context, cmd *cli.Command) error {
 func getState(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("get_state requires a socket path argument")
+		return errors.New("get_state requires a socket path argument")
 	}
 	jsonFile := cmd.StringArg(jsonFileArg.Name)
 	if jsonFile == "" {
-		return fmt.Errorf("get_state requires a json file path argument")
+		return errors.New("get_state requires a json file path argument")
 	}
 
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		return fmt.Errorf("error creating client: %v", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 	defer client.Close()
 
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		return fmt.Errorf("error reading JSON file: %v", err)
+		return fmt.Errorf("error reading JSON file: %w", err)
 	}
 
 	// Parse JSON data into header hash
@@ -352,7 +351,7 @@ func getState(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if err := json.Unmarshal(data, &requestData); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	// Parse header hash from hex string
@@ -366,7 +365,7 @@ func getState(ctx context.Context, cmd *cli.Command) error {
 	var headerHash types.HeaderHash
 	hashBytes, err := hex.DecodeString(headerHashStr)
 	if err != nil {
-		return fmt.Errorf("error parsing header hash: %v", err)
+		return fmt.Errorf("error parsing header hash: %w", err)
 	}
 
 	if len(hashBytes) != 32 {
@@ -378,10 +377,10 @@ func getState(ctx context.Context, cmd *cli.Command) error {
 	// Send get_state request
 	state, err := client.GetState(headerHash)
 	if err != nil {
-		return fmt.Errorf("error sending get_state request: %v", err)
+		return fmt.Errorf("error sending get_state request: %w", err)
 	}
 
-	log.Printf("get_state successful, retrieved %d key-value pairs\n", len(state))
+	logger.Infof("get_state successful, retrieved %d key-value pairs", len(state))
 
 	return nil
 }
@@ -402,18 +401,18 @@ type TestData struct {
 func testFolder(ctx context.Context, cmd *cli.Command) error {
 	socketAddr := cmd.StringArg(socketAddrArg.Name)
 	if socketAddr == "" {
-		return fmt.Errorf("test_folder requires a socket path argument")
+		return errors.New("test_folder requires a socket path argument")
 	}
 	folderPath := cmd.StringArg(folderPathArg.Name)
 	if folderPath == "" {
-		return fmt.Errorf("test_folder requires a json file path argument")
+		return errors.New("test_folder requires a json file path argument")
 	}
 	config.Config.FolderWise = cmd.Bool(folderWiseArg.Name)
 
 	// Connect to server
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
-		return fmt.Errorf("error creating client: %v", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 	defer client.Close()
 
@@ -452,14 +451,14 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("error walking directory: %v", err)
+		return fmt.Errorf("error walking directory: %w", err)
 	}
 
 	if len(jsonFiles) == 0 {
-		return fmt.Errorf("no JSON files found in the specified folder")
+		return errors.New("no JSON files found in the specified folder")
 	}
 
-	log.Printf("Found %d JSON files to test\n", len(jsonFiles))
+	logger.Infof("Found %d JSON files to test", len(jsonFiles))
 
 	successCount := 0
 	failureCount := 0
@@ -467,9 +466,9 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	// Do the handshake
 	info, err := client.Handshake(fuzz.PeerInfo{AppName: "Fuzz-Test"})
 	if err != nil {
-		return fmt.Errorf("error doing handshake: %v", err)
+		return fmt.Errorf("error doing handshake: %w", err)
 	}
-	log.Printf("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s\n", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
+	logger.Infof("handshake successful, fuzz-version: %d, fuzz-features: %d, jam-version: %v, app-version: %v, app-name: %s", info.FuzzVersion, info.FuzzFeatures, info.JamVersion, info.AppVersion, info.AppName)
 
 	for _, jsonFile := range jsonFiles {
 		var setStateRequired bool
@@ -499,7 +498,7 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired bool) error {
 	data, err := os.ReadFile(jsonFile)
 	if err != nil {
-		return fmt.Errorf("error reading JSON file: %v", err)
+		return fmt.Errorf("error reading JSON file: %w", err)
 	}
 
 	var probe struct {
@@ -508,7 +507,7 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired 
 	}
 
 	if err := json.Unmarshal(data, &probe); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	if len(probe.PreState) > 0 {
@@ -519,16 +518,16 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired 
 		return testGenesisFixture(client, jsonFile, data)
 	}
 
-	return fmt.Errorf("unknown fixture format")
+	return errors.New("unknown fixture format")
 }
 
 func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, setStateRequired bool) error {
 	mismatchCount := 0
 	var testData TestData
 	if err := json.Unmarshal(data, &testData); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
-	log.Println("File:", jsonFile)
+	logger.ColorBlue("File: %s", jsonFile)
 
 	/*
 		Step 1: Initialization (SetState) to the pre_state
@@ -537,7 +536,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
 		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
 		if err != nil {
-			return fmt.Errorf("error parsing pre_state state_root: %v", err)
+			return fmt.Errorf("error parsing pre_state state_root: %w", err)
 		}
 
 		// Print Sending SetState
@@ -545,7 +544,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals)
 		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
 		if err != nil {
-			return fmt.Errorf("SetState failed: %v", err)
+			return fmt.Errorf("SetState failed: %w", err)
 		}
 
 		if actualPreStateRoot != expectedPreStateRoot {
@@ -559,13 +558,13 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	*/
 	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
 	if err != nil {
-		return fmt.Errorf("error parsing post_state state_root: %v", err)
+		return fmt.Errorf("error parsing post_state state_root: %w", err)
 	}
 
 	// Print Sending ImportBlock
 	blockHeaderHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
 	if err != nil {
-		return fmt.Errorf("error computing block header hash: %v", err)
+		return fmt.Errorf("error computing block header hash: %w", err)
 	}
 	logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHash)
 
@@ -612,26 +611,26 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 	}
 
 	if err := json.Unmarshal(data, &genesisData); err != nil {
-		return fmt.Errorf("error parsing JSON: %v", err)
+		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
-	fmt.Println("File: ", jsonFile)
+	logger.ColorBlue("File: %s", jsonFile)
 
 	expectedStateRoot, err := parseStateRoot(genesisData.State.StateRoot)
 	if err != nil {
-		return fmt.Errorf("error parsing state state_root: %v", err)
+		return fmt.Errorf("error parsing state state_root: %w", err)
 	}
 
 	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", genesisData.Header.Parent)
 	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals)
 	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
 	if err != nil {
-		return fmt.Errorf("SetState failed: %v", err)
+		return fmt.Errorf("SetState failed: %w", err)
 	}
 
 	if actualStateRoot != expectedStateRoot {
 		logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x", expectedStateRoot, actualStateRoot)
-		return fmt.Errorf("state_root mismatch")
+		return errors.New("state_root mismatch")
 	}
 
 	return nil

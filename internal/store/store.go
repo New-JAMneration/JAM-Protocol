@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var (
@@ -49,7 +49,7 @@ func GetInstance() *Store {
 			preStateUnmatchedKeyVals:   types.StateKeyVals{},
 			postStateUnmatchedKeyVals:  types.StateKeyVals{},
 		}
-		log.Println("🚀 Store initialized")
+		logger.Debug("🚀 Store initialized")
 	})
 	return globalStore
 }
@@ -68,13 +68,13 @@ func ResetInstance() {
 		preStateUnmatchedKeyVals:   types.StateKeyVals{},
 		postStateUnmatchedKeyVals:  types.StateKeyVals{},
 	}
-	log.Println("🚀 Store reset")
+	logger.Debug("🚀 Store reset")
 }
 
 func (s *Store) AddBlock(block types.Block) {
 	s.unfinalizedBlocks.AddBlock(block)
 	if err := s.persistBlockMapping(block); err != nil {
-		log.Printf("AddBlock: failed to index block: %v", err)
+		logger.Errorf("AddBlock: failed to index block: %v", err)
 	}
 }
 
@@ -103,7 +103,7 @@ func (s *Store) GenerateGenesisBlock(block types.Block) {
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
 	if err := s.persistBlockMapping(block); err != nil {
-		log.Printf("GenerateGenesisBlock: failed to index block: %v", err)
+		logger.Errorf("GenerateGenesisBlock: failed to index block: %v", err)
 	}
 }
 
@@ -211,7 +211,7 @@ func (s *Store) GetPosteriorStates() *PosteriorStates {
 
 func (s *Store) GenerateGenesisState(state types.State) {
 	s.posteriorStates.GenerateGenesisState(state)
-	log.Println("🚀 Genesis state generated")
+	logger.Debug("🚀 Genesis state generated")
 }
 
 // AncestorHeaders
@@ -254,29 +254,31 @@ func (s *Store) StateCommit() {
 
 	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
-		log.Printf("StateCommit: failed to encode header: %v", err)
+		logger.Errorf("StateCommit: failed to encode header: %v", err)
 	} else {
 		posteriorState := s.GetPosteriorStates().GetState()
 
 		// Persist state for block
 		err = s.PersistStateForBlock(blockHeaderHash, posteriorState)
 		if err != nil {
-			log.Printf("StateCommit: failed to persist state: %v", err)
+			logger.Errorf("StateCommit: failed to persist state: %v", err)
 		} else {
-			log.Printf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+			logger.Debugf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
 		}
 
 		// Persist block mapping
 		err = s.persistBlockMapping(latestBlock)
 		if err != nil {
-			log.Printf("StateCommit: failed to persist block: %v", err)
+			logger.Errorf("StateCommit: failed to persist block: %v", err)
 		} else {
-			log.Printf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
+			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
 	}
 
 	posterState := s.GetPosteriorStates().GetState()
 	s.GetPriorStates().SetState(posterState)
+	postUnmatchedKeyVal := s.GetPostStateUnmatchedKeyVals()
+	s.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
 	s.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
@@ -293,7 +295,7 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 	}
 
 	unmatchedKeyVals := s.GetPostStateUnmatchedKeyVals()
-	fullStateKeyVals := append(unmatchedKeyVals, serializedState...)
+	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
 
 	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
 	sort.Slice(fullStateKeyVals, func(i, j int) bool {
@@ -410,7 +412,7 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 
 	s.GetPriorStates().SetState(state)
 	s.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
-
+	s.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
 	// Restore block
 	s.CleanupBlock()
 	s.AddBlock(block)

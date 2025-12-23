@@ -1738,7 +1738,7 @@ func (s *StateKey) UnmarshalJSON(data []byte) error {
 	}
 
 	if len(decoded) != len(StateKey{}) {
-		return fmt.Errorf("decoded length %d does not match expected length %d", len(decoded), len(StateKey{}))
+		return fmt.Errorf("decoded length %d is not equal to expected length %d", len(decoded), len(StateKey{}))
 	}
 
 	copy(s[:], decoded)
@@ -1762,7 +1762,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		// key
 		decodedKey, err := hex.DecodeString(kv.Key[2:])
 		if err != nil {
-			return fmt.Errorf("failed to decode hex string: %w", err)
+			return fmt.Errorf("failed to decode hex string for key %s: %w", kv.Key, err)
 		}
 
 		(*s)[i].Key = StateKey(decodedKey)
@@ -1770,7 +1770,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		// value
 		decodedValue, err := hex.DecodeString(kv.Value[2:])
 		if err != nil {
-			return fmt.Errorf("failed to decode hex string: %w", err)
+			return fmt.Errorf("failed to decode hex string for value %s from key %s: %w", kv.Value, kv.Key, err)
 		}
 
 		if len(decodedValue) == 0 {

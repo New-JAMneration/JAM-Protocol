@@ -12,13 +12,13 @@ import (
 func GetBytesFromFile(filename string) ([]byte, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	return data, nil
@@ -29,7 +29,7 @@ func DecodeBlockFromBin(data []byte) (*types.Block, error) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(data, block)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode block: %v", err)
+		return nil, fmt.Errorf("failed to decode block: %w", err)
 	}
 
 	return block, nil
@@ -40,7 +40,7 @@ func DecodeStateFromBin(data []byte) (*types.State, error) {
 	decoder := types.NewDecoder()
 	err := decoder.Decode(data, state)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode state: %v", err)
+		return nil, fmt.Errorf("failed to decode state: %w", err)
 	}
 
 	return state, nil
@@ -52,7 +52,7 @@ func GetGenesisBlock() (*types.Block, error) {
 	filename := types.GenesisBlockPath
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	return DecodeBlockFromBin(data)
@@ -64,7 +64,7 @@ func GetGenesisState() (*types.State, error) {
 	filename := types.GenesisStatePath
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	return DecodeStateFromBin(data)
@@ -75,7 +75,7 @@ func GetGenesisState() (*types.State, error) {
 func GetGenesisBlockFromBinFile(filename string) (*types.Block, error) {
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	return DecodeBlockFromBin(data)
@@ -86,7 +86,7 @@ func GetGenesisBlockFromBinFile(filename string) (*types.Block, error) {
 func GetGenesisBlockFromJson(filename string) (*types.Block, error) {
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	// Unmarshal the JSON data
@@ -104,7 +104,7 @@ func GetGenesisBlockFromJson(filename string) (*types.Block, error) {
 func GetGenesisStateFromBinFile(filename string) (*types.State, error) {
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	return DecodeStateFromBin(data)
@@ -115,7 +115,7 @@ func GetGenesisStateFromBinFile(filename string) (*types.State, error) {
 func GetGenesisStateFromJson(filename string) (*types.State, error) {
 	data, err := GetBytesFromFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get bytes from file: %v", err)
+		return nil, fmt.Errorf("failed to get bytes from file: %w", err)
 	}
 
 	// Unmarshal the JSON data

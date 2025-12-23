@@ -3,7 +3,6 @@ package recent_history
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -11,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	merkle "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var maxBlocksHistory = types.MaxBlocksHistory
@@ -52,7 +52,7 @@ func serLastAccOut(lastAccOut types.LastAccOut) ([]types.ByteSequence, error) {
 		enc := types.NewEncoder()
 		data, err := enc.Encode(&lastAccOut[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode lastAccOut[%d]: %v", i, err)
+			return nil, fmt.Errorf("failed to encode lastAccOut[%d]: %w", i, err)
 		}
 		output = append(output, data)
 	}
@@ -144,9 +144,9 @@ func STFBetaH2BetaHDagger() {
 		beta  = s.GetPriorStates().GetBeta()
 		block = s.GetLatestBlock()
 	)
-	// log.Printf("Latest block got by (4.6): %+v", block)
+	// logger.Debugf("Latest block got by (4.6): %+v", block)
 	if beta.History.Validate() != nil {
-		log.Fatalf("beta.History.Validate() failed: %v", beta.History.Validate())
+		logger.Errorf("beta.History.Validate() failed: %v", beta.History.Validate())
 	}
 	betaDagger := History2HistoryDagger(beta.History, block.Header.ParentStateRoot)
 

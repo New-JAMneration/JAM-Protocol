@@ -34,7 +34,7 @@ func (s *TraceTestCase) Validate() error {
 	if stateRoot != s.PostState.StateRoot {
 		err := s.CmpKeyVal(stateRoot)
 		if err != nil {
-			return fmt.Errorf("compare key-val error: %v", err)
+			return fmt.Errorf("compare key-val error: %w", err)
 		}
 	}
 
@@ -44,17 +44,17 @@ func (s *TraceTestCase) Validate() error {
 func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) error {
 	keyVals, err := m.StateEncoder(store.GetInstance().GetPosteriorStates().GetState())
 	if err != nil {
-		return fmt.Errorf("state encode keyVals failed: %v", err)
+		return fmt.Errorf("state encode keyVals failed: %w", err)
 	}
 
 	keyValDiffs, err := m.GetStateKeyValsDiff(s.PostState.KeyVals, keyVals)
 	if err != nil {
-		return fmt.Errorf("get state keyValsDiff failed: %v", err)
+		return fmt.Errorf("get state keyValsDiff failed: %w", err)
 	}
 
 	err = m.DebugStateKeyValsDiff(keyValDiffs)
 	if err != nil {
-		return fmt.Errorf("debug state keyValsDiffs failed: %v", err)
+		return fmt.Errorf("debug state keyValsDiffs failed: %w", err)
 	}
 
 	return nil

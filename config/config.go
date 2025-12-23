@@ -14,7 +14,11 @@ var Config config
 
 type config struct {
 	Log struct {
-		Level string `json:"level"`
+		Level      string `json:"level"`
+		Color      bool   `json:"color"`
+		Enabled    bool   `json:"enabled"`
+		PVM        bool   `json:"pvm"`
+		TimeFormat string `json:"time_format"` // Optional: time format for log timestamps
 	} `json:"log"`
 	Const struct {
 		ValidatorsCount         int `json:"validators_count"`
@@ -44,9 +48,17 @@ type config struct {
 func DefaultConfig() config {
 	return config{
 		Log: struct {
-			Level string `json:"level"`
+			Level      string `json:"level"`
+			Color      bool   `json:"color"`
+			Enabled    bool   `json:"enabled"`
+			PVM        bool   `json:"pvm"`
+			TimeFormat string `json:"time_format"`
 		}{
-			Level: "DEBUG",
+			Level:      "DEBUG",        // Default: show all logs
+			Color:      true,           // Default: colored output
+			Enabled:    true,           // Default: logging enabled
+			PVM:        false,          // Default: PVM logging disabled
+			TimeFormat: "15:04:05.000", // Default: HH:MM:SS.ms format
 		},
 		Const: struct {
 			ValidatorsCount         int `json:"validators_count"`
@@ -135,7 +147,7 @@ func loadConfig(path string) error {
 		}
 	} else {
 		// config file does not exist, use default config
-		fmt.Println("Config file not found, using default configuration")
+		logger.Warn("Config file not found, using default configuration")
 	}
 
 	initLog()
@@ -155,7 +167,75 @@ func initJamConst() {
 }
 
 func initLog() {
-	logger.SetLevel(Config.Log.Level)
+	// Configure main logger from config file
+	logger.ConfigureLogger("main", logger.LoggerConfig{
+		Level:      Config.Log.Level,
+		Enabled:    Config.Log.Enabled,
+		Color:      Config.Log.Color,
+		TimeFormat: Config.Log.TimeFormat, // Optional: per-logger override
+	})
+
+	// Configure PVM logger from config file
+	logger.ConfigureLogger("pvm", logger.LoggerConfig{
+		Level:      Config.Log.Level, // Use same level as main
+		Enabled:    Config.Log.PVM,
+		Color:      Config.Log.Color,
+		TimeFormat: Config.Log.TimeFormat, // Optional: per-logger override
+	})
+}
+
+// InitLogConfig loads ONLY the `log` section from the given config file and
+// configures the loggers. Other sections (const/redis/info/...) are ignored.
+// If the file does not exist or `log` is missing, defaults from DefaultConfig
+// are used.
+func InitLogConfig(path string) {
+	// Start from defaults
+	cfg := DefaultConfig()
+
+	// Try to read just the `log` section from the file (if it exists)
+	if _, err := os.Stat(path); err == nil {
+		file, err := os.Open(path)
+		if err == nil {
+			defer file.Close()
+
+			bytes, err := io.ReadAll(file)
+			if err == nil {
+				// Local struct that only cares about `log`
+				var partial struct {
+					Log struct {
+						Level      string `json:"level"`
+						Color      bool   `json:"color"`
+						Enabled    bool   `json:"enabled"`
+						PVM        bool   `json:"pvm"`
+						TimeFormat string `json:"time_format"`
+					} `json:"log"`
+				}
+
+				if err := json.Unmarshal(bytes, &partial); err == nil {
+					// Override defaults only for log section
+					cfg.Log = partial.Log
+				}
+			}
+		}
+	}
+
+	// Apply to global Config.Log so other code can read it if needed
+	Config.Log = cfg.Log
+
+	// Configure loggers based on cfg.Log
+	logger.ConfigureLogger("main", logger.LoggerConfig{
+		Level:      cfg.Log.Level,
+		Enabled:    cfg.Log.Enabled,
+		Color:      cfg.Log.Color,
+		TimeFormat: cfg.Log.TimeFormat,
+	})
+
+	logger.ConfigureLogger("pvm", logger.LoggerConfig{
+		Level:      cfg.Log.Level,
+		Enabled:    cfg.Log.PVM,
+		Color:      cfg.Log.Color,
+		TimeFormat: cfg.Log.TimeFormat,
+	})
 }
 
 func initJamScaleRegistry() {

@@ -2,6 +2,7 @@ package keystore
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -93,7 +94,7 @@ func (r *RedisKeyStore) Get(t KeyType, pubKey []byte) (KeyPair, error) {
 		return nil, err
 	}
 	if encoded == nil {
-		return nil, fmt.Errorf("key not found")
+		return nil, errors.New("key not found")
 	}
 	privBytes, err := hex.DecodeString(string(encoded))
 	if err != nil {

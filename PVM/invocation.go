@@ -3,8 +3,6 @@ package PVM
 import (
 	"errors"
 	"fmt"
-
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // per-instruction based of (A.1) ψ_1,
@@ -29,7 +27,7 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 	}
 }
 
-var ErrNotImplemented = fmt.Errorf("instruction not implemented")
+var ErrNotImplemented = errors.New("instruction not implemented")
 
 // (v.0.7.1 A.6, A.7) SingleStepStateTransition
 func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable,
@@ -47,7 +45,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	opcodeData := instructionData.isOpcode(pc)
 	// check gas
 	if gas < 0 {
-		// logger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
+		// pvmLogger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
 		return PVMExitTuple(OUT_OF_GAS, nil), pc, gas, registers, memory
 	}
 	gas -= 1
@@ -73,7 +71,7 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	reason := exitReason.(*PVMExitReason).Reason
 	switch reason {
 	case PANIC, HALT:
-		// logger.Debugf("   gas: %d", gas)
+		// pvmLogger.Debugf("   gas: %d", gas)
 		return exitReason, 0, gas, registers, memory
 	case HOST_CALL:
 		return exitReason, pc + skipLength + 1, gas, registers, memory
@@ -87,8 +85,8 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	// iota' = iota + 1 +skip(iota)
 	newPC += skipLength + 1
 	// detailed instruction print
-	// log.Printf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], gas, registers)
-	// log.Printf("       gas : %d -> %d", gas+gasDelta, gas)
+	// logger.Debugf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], gas, registers)
+	// logger.Debugf("       gas : %d -> %d", gas+gasDelta, gas)
 
 	return exitReason, newPC, gas, registers, memory
 }
@@ -99,14 +97,14 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 	// decode instructions in a block
 	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
 	if err != nil {
-		logger.Errorf("DecodeInstructionBlock error : %v", err)
+		pvmLogger.Errorf("DecodeInstructionBlock error : %v", err)
 		return err, 0, Gas(gas), reg, mem
 	}
 	/*
 		//check block gas then execute
 		// check gas, currently each instruction gas = 1, so only check instrCount
 		if Gas(gas) < Gas(blockInstrCount) {
-			logger.Debugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)
+			pvmLogger.Debugf("service out-of-gas: required %d, but only %d", blockInstrCount, gas)
 			return PVMExitTuple(OUT_OF_GAS, nil), pc, Gas(gas), reg, mem
 		}
 	*/
@@ -116,7 +114,7 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 		if program.Bitmasks.IsStartOfBasicBlock(pc) {
 			// charge gas
 			// gasPrime -= Gas(blockInstrCount)
-			logger.Debugf("    charge gas : %d -> %d", gas, gasPrime)
+			pvmLogger.Debugf("    charge gas : %d -> %d", gas, gasPrime)
 		}
 	*/
 	// execute instructions in the block
@@ -146,13 +144,13 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	for {
 		// check pc is not out of range and avoid infinit-loop
 		if pc > ProgramCounter(len(instructionData)) {
-			// logger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
+			// pvmLogger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 
 		// check opcode is valid after computing with skip
 		if !instructionData.isOpcodeValid(pc) {
-			// logger.Debugf("PVM panic: decode program failed: opcode invalid")
+			// pvmLogger.Debugf("PVM panic: decode program failed: opcode invalid")
 			return pc, 0, PVMExitTuple(PANIC, nil)
 		}
 

@@ -156,7 +156,7 @@ type AvailabilityAssignment struct {
 
 func (a AvailabilityAssignment) Validate() error {
 	if err := a.Report.Validate(); err != nil {
-		return fmt.Errorf("AvailabilityAssignment Report validation failed: %v", err)
+		return fmt.Errorf("AvailabilityAssignment Report validation failed: %w", err)
 	}
 
 	if a.Timeout == 0 {

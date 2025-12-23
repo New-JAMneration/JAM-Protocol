@@ -8,6 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -580,7 +581,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		qPrime = make(types.AuthQueues, types.CoresCount)
 		if len(input.PartialStateSet.Assign) != types.CoresCount {
-			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+			logger.Warnf("input.PartialStateSet.Assign length does not match types.CoresCount")
 		}
 
 		// For each core c, parallelize compute q′c
