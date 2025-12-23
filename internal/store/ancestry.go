@@ -41,6 +41,31 @@ func (a *AncestryStore) AppendAncestry(newAncestry types.Ancestry) {
 	}
 }
 
+// KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.
+// If the headerHash is not found, it clears all ancestry.
+func (a *AncestryStore) KeepAncestryUpTo(headerHash types.HeaderHash) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Find the index of the headerHash in ancestry
+	foundIdx := -1
+	for i := len(a.ancestry) - 1; i >= 0; i-- {
+		if a.ancestry[i].HeaderHash == headerHash {
+			foundIdx = i
+			break
+		}
+	}
+
+	if foundIdx == -1 {
+		// HeaderHash not found, clear all ancestry
+		a.ancestry = make(types.Ancestry, 0, types.MaxLookupAge)
+		return
+	}
+
+	// Keep only items up to and including the found index
+	a.ancestry = a.ancestry[:foundIdx+1]
+}
+
 // GetAncestry returns the current ancestry.
 // Returns a copy to prevent external modification.
 func (a *AncestryStore) GetAncestry() types.Ancestry {

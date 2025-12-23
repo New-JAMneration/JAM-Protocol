@@ -535,9 +535,9 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
-		expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
 		if err != nil {
-			return fmt.Errorf("error parsing post_state state_root: %w", err)
+			return fmt.Errorf("error parsing pre_state state_root: %w", err)
 		}
 
 		decoder := types.NewDecoder()
@@ -550,6 +550,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 				err = decoder.Decode(recentBlocksKeyVal.Value, recentBlocks)
 				if err != nil {
 					logger.Debugf("error decoding recent blocks: %v", err)
+					// Service related key might be misleaded as recent blocks
 					continue
 				}
 				break
@@ -569,23 +570,18 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		}
 
 		// Print Sending SetState
-		blockHeaderHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
-		if err != nil {
-			return fmt.Errorf("error computing block header hash: %w", err)
-		}
-		logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", blockHeaderHash)
-		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostState.KeyVals, ancestry)
-		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPostStateRoot)
+		logger.ColorGreen("[SetState][Request] state_root= 0x%x", expectedPreStateRoot)
+		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals, ancestry)
+		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %w", err)
 		}
 
-		if actualPostStateRoot != expectedPostStateRoot {
+		if actualPreStateRoot != expectedPreStateRoot {
 			logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
-				expectedPostStateRoot, actualPostStateRoot)
+				expectedPreStateRoot, actualPreStateRoot)
 			mismatchCount++
 		}
-		return nil // Skip ImportBlock if SetState is performed
 	}
 	/*
 		Step 2: ImportBlock
@@ -596,11 +592,11 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	}
 
 	// Print Sending ImportBlock
-	blockHeaderHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
+	headerHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
 	if err != nil {
-		return fmt.Errorf("error computing block header hash: %w", err)
+		return fmt.Errorf("error computing header hash: %w", err)
 	}
-	logger.ColorGreen("[ImportBlock][Request] block_header_hash= 0x%x", blockHeaderHash)
+	logger.ColorGreen("[ImportBlock][Request] header_hash= 0x%x...", headerHash[:8])
 
 	// Print ImportBlock Response
 	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
@@ -616,7 +612,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	mismatch, err := compareImportBlockState(importBlockCompareInput{
 		Client:            client,
 		Block:             testData.Block,
-		BlockHeaderHash:   types.HeaderHash(blockHeaderHash),
+		BlockHeaderHash:   types.HeaderHash(headerHash),
 		ExpectedStateRoot: expectedPostStateRoot,
 		ActualStateRoot:   actualPostStateRoot,
 		ExpectedPostState: testData.PostState.KeyVals,
@@ -655,10 +651,14 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 		return fmt.Errorf("error parsing state state_root: %w", err)
 	}
 
-	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", genesisData.Header.Parent)
+	headerHash, err := hash.ComputeBlockHeaderHash(genesisData.Header)
+	if err != nil {
+		return fmt.Errorf("error computing header hash: %w", err)
+	}
+	logger.ColorGreen("[SetState][Request] genesis header_hash= 0x%x and state_root= 0x%x", headerHash[:8], expectedStateRoot)
 	// Genesis state does not have ancestry
 	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals, types.Ancestry{})
-	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
+	logger.ColorYellow("[SetState][Response] genesis state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %w", err)
 	}
