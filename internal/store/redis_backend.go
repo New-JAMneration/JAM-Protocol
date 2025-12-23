@@ -371,3 +371,86 @@ func (r *RedisBackend) GetSegmentErasureMap(segmentRoot types.OpaqueHash) (types
 	copy(erasureRoot[:], val)
 	return erasureRoot, nil
 }
+
+// State Storage Functions
+
+func (r *RedisBackend) StoreStateRootByBlockHash(
+	ctx context.Context,
+	blockHash types.HeaderHash,
+	stateRoot types.StateRoot,
+) error {
+	key := fmt.Sprintf("state_root:%s", hex.EncodeToString(blockHash[:]))
+	return r.client.Put(key, stateRoot[:])
+}
+
+func (r *RedisBackend) GetStateRootByBlockHash(
+	ctx context.Context,
+	blockHash types.HeaderHash,
+) (*types.StateRoot, error) {
+	key := fmt.Sprintf("state_root:%s", hex.EncodeToString(blockHash[:]))
+	data, err := r.client.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, fmt.Errorf("state root not found for block %x", blockHash)
+	}
+
+	var stateRoot types.StateRoot
+	copy(stateRoot[:], data)
+	return &stateRoot, nil
+}
+
+func (r *RedisBackend) StoreStateData(
+	ctx context.Context,
+	stateRoot types.StateRoot,
+	stateKeyVals types.StateKeyVals,
+) error {
+	key := fmt.Sprintf("state_data:%s", hex.EncodeToString(stateRoot[:]))
+
+	data, err := r.encoder.Encode(&stateKeyVals)
+	if err != nil {
+		return fmt.Errorf("failed to encode state data: %w", err)
+	}
+
+	return r.client.Put(key, data)
+}
+
+func (r *RedisBackend) GetStateData(
+	ctx context.Context,
+	stateRoot types.StateRoot,
+) (types.StateKeyVals, error) {
+	key := fmt.Sprintf("state_data:%s", hex.EncodeToString(stateRoot[:]))
+	data, err := r.client.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, fmt.Errorf("state data not found for state root %x", stateRoot)
+	}
+
+	var stateKeyVals types.StateKeyVals
+	err = r.decoder.Decode(data, &stateKeyVals)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode state data: %w", err)
+	}
+
+	return stateKeyVals, nil
+}
+
+func (r *RedisBackend) GetStateByBlockHash(
+	ctx context.Context,
+	blockHash types.HeaderHash,
+) (types.StateKeyVals, error) {
+	stateRoot, err := r.GetStateRootByBlockHash(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.GetStateData(ctx, *stateRoot)
+}
+
+// get raw bytes for debugging purposes
+func (r *RedisBackend) DebugGetBytes(ctx context.Context, key string) ([]byte, error) {
+	return r.client.Get(key)
+}
