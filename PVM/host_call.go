@@ -53,12 +53,6 @@ const (
 	LogOp        = OperationType(100)
 )
 
-type HistoryState struct {
-	PreviousGas       Gas
-	PreviousRegisters Registers
-	PreviousMemory    PageMap
-}
-
 type OmegaInput struct {
 	Operation OperationType // operation type
 	Gas       Gas           // gas counter
