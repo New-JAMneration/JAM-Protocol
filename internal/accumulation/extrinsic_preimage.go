@@ -106,7 +106,7 @@ func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMe
 
 // v0.7.0 (12.39, 12.40)  for all: E_P: Y(δ, s, H(d), |d|)
 // Validate Preimage Extrinsics with prior state service preimage and lookupDict
-func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState, keyVals *types.StateKeyVals) *types.ErrorCode {
+func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState, keyVals *types.StateKeyVals) error {
 	// If eps is empty, return empty slice
 	if len(eps) == 0 {
 		return nil
@@ -228,7 +228,7 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 // ProcessPreimageExtrinsics is the main unified function for handling preimage extrinsics
 // It combines filtering and delta state updates in a single call for external use
 // v0.7.0 (12.38-12.43)
-func ProcessPreimageExtrinsics() *types.ErrorCode {
+func ProcessPreimageExtrinsics() error {
 	// Get store instance and required states
 	s := store.GetInstance()
 	eps := s.GetLatestBlock().Extrinsic.Preimages

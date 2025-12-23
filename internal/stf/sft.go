@@ -3,6 +3,7 @@ package stf
 import (
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -130,7 +131,7 @@ func RunSTF() (bool, error) {
 	}
 
 	// Update Preimages
-	err = UpdatePreimages()
+	err = accumulation.ProcessPreimageExtrinsics()
 	if err != nil {
 		errorMessage := PreimagesErrorCodes.PreimagesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
