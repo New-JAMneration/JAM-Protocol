@@ -3,10 +3,12 @@ package accumulation
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"golang.org/x/sync/singleflight"
 )
 
 // (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
@@ -394,27 +396,71 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	singleInput.WorkReports = r
 	singleInput.AlwaysAccumulateMap = f
 
-	cache := make(map[types.ServiceId]singleResult)
-
 	// Helper to run single service accumulation for a given service ID
 	// ∆(s) ≡ ∆1(e, t, r, f, s)
-	runSingleReplaceService := func(s types.ServiceId) (SingleServiceAccumulationOutput, error) {
-		if res, ok := cache[s]; ok {
-			return res.out, res.err
+	var (
+		sf    singleflight.Group
+		mu    sync.Mutex
+		cache = make(map[types.ServiceId]SingleServiceAccumulationOutput)
+	)
+	runSingleReplaceService := func(s types.ServiceId, singleParam SingleServiceAccumulationInput) (SingleServiceAccumulationOutput, error) {
+		mu.Lock()
+		if out, ok := cache[s]; ok {
+			mu.Unlock()
+			return out, nil
 		}
-		singleInput.ServiceId = s
-		out, err := SingleServiceAccumulation(singleInput)
-		cache[s] = singleResult{out: out, err: err}
-		return out, err
+		mu.Unlock()
+		singleParam.ServiceId = s
+		v, err, _ := sf.Do(fmt.Sprintf("%d", s), func() (any, error) {
+			out, err := SingleServiceAccumulation(singleParam)
+			return out, err
+		})
+		if err != nil {
+			return SingleServiceAccumulationOutput{}, err
+		}
+
+		out := v.(SingleServiceAccumulationOutput)
+
+		mu.Lock()
+		cache[s] = out
+		mu.Unlock()
+
+		return out, nil
 	}
 
 	// p: output service blobs collection
 	var p types.ServiceBlobs
-	for service_id := range s {
-		singleOutput, err := runSingleReplaceService(service_id)
-		if err != nil {
-			fmt.Println("SingleServiceAccumulation failed:", err)
+	// For each service in s, run single service accumulation in parallel
+	{
+		var wg sync.WaitGroup
+		errCh := make(chan error, types.CoresCount)
+		for serviceId := range s {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := runSingleReplaceService(serviceId, singleInput)
+				if err != nil {
+					errCh <- fmt.Errorf("single service accumulation for service %d failed: %w", serviceId, err)
+					return
+				}
+			}()
 		}
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			return output, err
+		}
+	}
+	// Process results from each service
+	for service_id := range s {
+		singleOutput, ok := cache[service_id]
+		if !ok {
+			singleOutput, err = runSingleReplaceService(service_id, singleInput)
+			if err != nil {
+				return output, fmt.Errorf("single service accumulation for service %d failed: %w", service_id, err)
+			}
+		}
+
 		// u = [(s, ∆(s)u) S s <− s]
 		var gasUse types.ServiceGasUsed
 		gasUse.ServiceId = service_id
@@ -464,7 +510,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		p = append(p, singleOutput.ServiceBlobs...)
 	}
 
-	singleOutput, err := runSingleReplaceService(input.PartialStateSet.Bless)
+	singleOutput, err := runSingleReplaceService(input.PartialStateSet.Bless, singleInput)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for bless failed: %w", err)
 	}
@@ -479,24 +525,40 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	if len(a) != types.CoresCount {
 		return output, fmt.Errorf("input.PartialStateSet.Assign length does not match types.CoresCount")
 	}
-	for c := range types.CoresCount {
-		singleOutput, err := runSingleReplaceService(a[c])
-		if err != nil {
-			return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+	// For each core c, parallelize compute a′c
+	{
+		var wg sync.WaitGroup
+		errCh := make(chan error, types.CoresCount)
+		for c := range types.CoresCount {
+			c := c
+			serviceId := a[c]
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				singleOutput, err := runSingleReplaceService(serviceId, singleInput)
+				if err != nil {
+					errCh <- fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+					return
+				}
+				aPrime[c] = R(serviceId, eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
+			}()
 		}
-		aPrime[c] = R(a[c], eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
+		wg.Wait()
+		close(errCh)
+		for err := range errCh {
+			return output, err
+		}
 	}
-
 	// v' = R(v, e∗v , (∆(v)e)v )
 	var vPrime, rPrime types.ServiceId
-	singleOutput, err = runSingleReplaceService(input.PartialStateSet.Designate)
+	singleOutput, err = runSingleReplaceService(input.PartialStateSet.Designate, singleInput)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
 	}
 	vPrime = R(input.PartialStateSet.Designate, eStar.Designate, singleOutput.PartialStateSet.Designate)
 
 	// r′ = R(r, e∗r , (∆(r)e)r)
-	singleOutput, err = runSingleReplaceService(input.PartialStateSet.CreateAcct)
+	singleOutput, err = runSingleReplaceService(input.PartialStateSet.CreateAcct, singleInput)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for createacct failed: %w", err)
 	}
@@ -505,7 +567,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// i′ = (∆(v)e)i
 	var iPrime types.ValidatorsData
 	{
-		singleOutput, err := runSingleReplaceService(input.PartialStateSet.Designate)
+		singleOutput, err := runSingleReplaceService(input.PartialStateSet.Designate, singleInput)
 		if err != nil {
 			return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
 		}
@@ -520,14 +582,34 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		if len(input.PartialStateSet.Assign) != types.CoresCount {
 			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
 		}
-		for c, serviceId := range input.PartialStateSet.Assign {
-			singleOutput, err := runSingleReplaceService(serviceId)
-			if err != nil {
-				return output, fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
-			}
-			qPrime[c] = singleOutput.PartialStateSet.Authorizers[c]
-		}
 
+		// For each core c, parallelize compute q′c
+		{
+			var wg sync.WaitGroup
+			errCh := make(chan error, types.CoresCount)
+			for c, serviceId := range input.PartialStateSet.Assign {
+				c := c
+				serviceId := serviceId
+
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					singleOutput, err := runSingleReplaceService(serviceId, singleInput)
+					if err != nil {
+						errCh <- fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
+						return
+					}
+					qPrime[c] = singleOutput.PartialStateSet.Authorizers[c]
+				}()
+			}
+			wg.Wait()
+			close(errCh)
+
+			for err := range errCh {
+				return output, err
+			}
+		}
 	}
 
 	// (d ∪ n) ∖ m
