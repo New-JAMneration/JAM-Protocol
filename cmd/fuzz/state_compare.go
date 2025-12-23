@@ -41,7 +41,7 @@ func compareImportBlockState(input importBlockCompareInput) (bool, error) {
 	// Build context with block info for Diff
 	hashStr := hex.EncodeToString(headerHash[:])
 	slot := uint32(input.Block.Header.Slot) % uint32(types.EpochLength)
-	epoch := slot / uint32(types.EpochLength)
+	epoch := uint32(input.Block.Header.Slot) / uint32(types.EpochLength)
 	diffCtx := logger.FormatContext(hashStr, slot, epoch, "Diff")
 
 	if err := logImportBlockDiffWithContext(input.Client, headerHash, input.ExpectedStateRoot, input.ActualStateRoot, input.ExpectedPostState, diffCtx); err != nil {
