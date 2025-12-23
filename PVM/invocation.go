@@ -73,8 +73,8 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 	case PANIC, HALT:
 		// pvmLogger.Debugf("   gas: %d", gas)
 		return exitReason, 0, gas, registers, memory
-	case HOST_CALL:
-		return exitReason, pc + skipLength + 1, gas, registers, memory
+	case HOST_CALL: // host-call: newPC = pc
+		return exitReason, newPC, gas, registers, memory
 	}
 
 	if pc != newPC {

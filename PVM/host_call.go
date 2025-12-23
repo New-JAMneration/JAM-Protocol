@@ -150,46 +150,46 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		psi_result.Reg = regPrime
 		psi_result.Ram = memPrime
 		psi_result.Addition = addition
-	} else if reason.Reason == HOST_CALL {
-		var input OmegaInput
-		input.Operation = OperationType(*reason.HostCall)
-		input.Gas = gasPrime
-		input.Registers = regPrime
-		input.Memory = ram
-		input.Addition = addition
-		omega := omegas[input.Operation]
-		if omega == nil {
+		return
+	}
+	//reason.Reason == HOST_CALL
+	var input OmegaInput
+	input.Operation = OperationType(*reason.HostCall)
+	input.Gas = gasPrime
+	input.Registers = regPrime
+	input.Memory = ram
+	input.Addition = addition
+	omega := omegas[input.Operation]
+	if omega == nil {
+		if gasPrime < 0 {
+			omega = hostCallOutOfGas
+		} else {
 			omega = hostCallException
 		}
-		omega_result := omega(input)
-		var pvmExit *PVMExitReason
-		if !errors.As(omega_result.ExitReason, &pvmExit) {
-			pvmLogger.Errorf("%s host-call error : %v",
-				hostCallName[input.Operation], omega_result.ExitReason)
-			return
-		}
-		omega_reason := omega_result.ExitReason.(*PVMExitReason)
-		pvmLogger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
-			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
-		if omega_reason.Reason == PAGE_FAULT {
-			psi_result.Counter = uint32(pcPrime)
-			psi_result.Gas = gasPrime
-			psi_result.Reg = regPrime
-			psi_result.Ram = memPrime
-			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
-			psi_result.Addition = addition
-		} else if omega_reason.Reason == CONTINUE {
-			return HostCall(program, pcPrime, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
-		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
-			psi_result.ExitReason = omega_result.ExitReason
-			psi_result.Counter = uint32(pcPrime)
-			psi_result.Gas = omega_result.NewGas
-			psi_result.Reg = omega_result.NewRegisters
-			psi_result.Ram = omega_result.NewMemory
-			psi_result.Addition = omega_result.Addition
-		}
 	}
-	return
+	omega_result := omega(input)
+	var pvmExit *PVMExitReason
+	if !errors.As(omega_result.ExitReason, &pvmExit) {
+		pvmLogger.Errorf("%s host-call error : %v",
+			hostCallName[input.Operation], omega_result.ExitReason)
+		return
+	}
+	omega_reason := omega_result.ExitReason.(*PVMExitReason)
+	pvmLogger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
+		hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+	switch omega_reason.Reason {
+	case CONTINUE:
+		skipLength := ProgramCounter(skip(int(pcPrime), program.Bitmasks))
+		return HostCall(program, pcPrime+skipLength+1, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+	default: // PANIC, OUT_OF_GAS, HALT
+		psi_result.ExitReason = omega_result.ExitReason
+		psi_result.Counter = uint32(pcPrime)
+		psi_result.Gas = omega_result.NewGas
+		psi_result.Reg = omega_result.NewRegisters
+		psi_result.Ram = omega_result.NewMemory
+		psi_result.Addition = omega_result.Addition
+		return
+	}
 }
 
 func getPtr[T any](v T) *T { return &v }
@@ -262,6 +262,17 @@ func hostCallException(input OmegaInput) (output OmegaOutput) {
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       input.Gas - 10,
+		NewRegisters: input.Registers,
+		NewMemory:    input.Memory,
+		Addition:     input.Addition,
+	}
+}
+
+// 0.7.2
+func hostCallOutOfGas(input OmegaInput) (output OmegaOutput) {
+	return OmegaOutput{
+		ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+		NewGas:       input.Gas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
@@ -471,27 +482,8 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			break
 		}
 
-		var encoded []byte
-		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthCodeHash)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthCodeHash error: %v", err)
-			break
-		}
-		encoded = append(encoded, val...)
-
-		val, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.AuthorizerConfig)))
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig length error: %v", err)
-		}
-		encoded = append(encoded, val...)
-
-		val, err = encoder.Encode(&input.Addition.WorkPackage.AuthorizerConfig)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 8 encode WorkPackage AuthorizerConfig error: %v", err)
-		}
-		encoded = append(encoded, val...)
-
-		v = &encoded
+		vF := []byte(input.Addition.WorkPackage.AuthorizerConfig)
+		v = &vF
 	case 9:
 		if input.Addition.WorkPackage == nil {
 			break
@@ -1623,7 +1615,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	tmp := input.Addition.IntegratedPVMMap[n]
 	tmp.Memory = uPrime
 	if c.(*PVMExitReason).Reason == HOST_CALL {
-		tmp.PC = pcPrime + 1
+		tmp.PC = pcPrime + 1 + ProgramCounter(skip(int(pcPrime), input.Addition.Program.Bitmasks))
 	} else {
 		tmp.PC = pcPrime
 	}
@@ -2199,10 +2191,8 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 
 // transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
-	// v0.7.1 fuzz/traces --->
-
-	newGas := input.Gas - 10 - Gas(input.Registers[9])
-	if newGas < 0 || uint64(input.Gas) < (input.Registers[9]+10) { // the second condition is to avoid int64(reg[9]) < 0
+	newGas := input.Gas - 10
+	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
 			NewGas:       newGas,
@@ -2212,22 +2202,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// ---> v0.7.1 fuzz/traces
-
-	// for v0.7.2 & v0.7.1 jam-test-vectors --->
-	/*
-		newGas := input.Gas - 10
-		if newGas < 0 {
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
-		}
-	*/
-	//  ---> v0.7.2
 	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
 	if !isReadable(o, uint64(types.TransferMemoSize), input.Memory) { // not readable, return
 		input.Registers[7] = OOB
@@ -2293,20 +2267,19 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		// according GP, no need to check the service exists => it should in ServiceAccountState
 		pvmLogger.Debugf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
-	// for v0.7.2 & v0.7.1 jam-test-vectors --->
-	/*
-		if uint64(newGas) < input.Registers[9] {
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-				NewGas:       0,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
+
+	// l = reg[9]
+	if uint64(newGas) < l {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       0,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
-		newGas -= Gas(input.Registers[9])
-	*/
-	// ---> v0.7.2
+	}
+	newGas -= Gas(input.Registers[9])
+
 	input.Registers[7] = OK
 
 	return OmegaOutput{
@@ -2931,19 +2904,18 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	// for v0.7.2 & v0.7.1 jam-test-vectors need to update Gas while return
-	/*
-		newGas := input.Gas - 10
-		if newGas < 0 {
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
+
+	newGas := input.Gas - 10
+	if newGas < 0 {
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
 		}
-	*/
+	}
+
 	level := input.Registers[7]
 	message := input.Memory.Read(input.Registers[10], input.Registers[11])
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
@@ -2952,7 +2924,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		pvmLogger.Errorf("logHostCall level not supported")
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
-			NewGas:       input.Gas, // newGas   // v0.7.2
+			NewGas:       newGas,
 			NewRegisters: input.Registers,
 			NewMemory:    input.Memory,
 			Addition:     input.Addition,
@@ -2973,7 +2945,7 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	pvmLogger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
-		NewGas:       input.Gas, // newGas   // v0.7.2
+		NewGas:       newGas,
 		NewRegisters: input.Registers,
 		NewMemory:    input.Memory,
 		Addition:     input.Addition,
