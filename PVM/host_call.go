@@ -135,7 +135,14 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		exitReason, pcPrime, gasPrime, regPrime, memPrime = SingleStepInvoke(program, pc, Gas(gas), reg, ram)
 	}
 
-	reason := exitReason.(*PVMExitReason)
+	var reason *PVMExitReason
+
+	if errors.As(exitReason, &reason) {
+		reason = exitReason.(*PVMExitReason)
+	} else {
+		psi_result.ExitReason = reason
+		return
+	}
 
 	if reason.Reason == HALT || reason.Reason == PANIC || reason.Reason == OUT_OF_GAS || reason.Reason == PAGE_FAULT {
 		psi_result.ExitReason = PVMExitTuple(reason.Reason, nil)
@@ -162,8 +169,7 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		}
 	}
 	omega_result := omega(input)
-	var pvmExit *PVMExitReason
-	if !errors.As(omega_result.ExitReason, &pvmExit) {
+	if !errors.As(omega_result.ExitReason, &reason) {
 		pvmLogger.Errorf("%s host-call error : %v",
 			hostCallName[input.Operation], omega_result.ExitReason)
 		return
@@ -2272,7 +2278,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 			Addition:     input.Addition,
 		}
 	}
-	newGas -= Gas(input.Registers[9])
+	newGas -= Gas(l)
 
 	input.Registers[7] = OK
 
