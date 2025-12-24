@@ -414,16 +414,16 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// ∆(s) ≡ ∆1(e, t, r, f, s)
 	var (
 		sf    singleflight.Group
-		mu    sync.Mutex
+		mu    sync.RWMutex
 		cache = make(map[types.ServiceId]SingleServiceAccumulationOutput)
 	)
 	runSingleReplaceService := func(s types.ServiceId, singleParam SingleServiceAccumulationInput) (SingleServiceAccumulationOutput, error) {
-		mu.Lock()
+		mu.RLock()
 		if out, ok := cache[s]; ok {
 			mu.Unlock()
 			return out, nil
 		}
-		mu.Unlock()
+		mu.RUnlock()
 
 		localParam := singleParam.CloneForService(s)
 		// Use singleflight to deduplicate SingleServiceAccumulation per service.
@@ -439,7 +439,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		out := v.(SingleServiceAccumulationOutput)
 
-		mu.Lock()
+		mu.RLock()
 		cache[s] = out
 		mu.Unlock()
 
