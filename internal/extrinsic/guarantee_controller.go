@@ -242,15 +242,18 @@ func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
 	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
 	headerTimeSlot := store.GetInstance().GetLatestBlock().Header.Slot
-
+	// ∀x ∈ x ∶ ∃y ∈ β†H ∶ xa = yh ∧ xs = ys ∧ xb = yb (11.33)
 	for _, context := range contexts {
 		recentAnchorMatch := false
 		stateRootMatch := false
 		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
+			// xa = yh
 			if context.Anchor == blockInfo.HeaderHash {
 				recentAnchorMatch = true
+				// xs = ys
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
+				// xb = yb
 				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.BeefyRoot)
 				break
 			}
@@ -268,30 +271,41 @@ func (g *GuaranteeController) ValidateContexts() error {
 			return &err
 		}
 
-		if int(context.LookupAnchorSlot) < int(headerTimeSlot)-types.MaxLookupAge {
+		// ∀x ∈ x ∶ xt ≥ HT − L (11.34)
+		timeDiff := headerTimeSlot - context.LookupAnchorSlot
+		if types.TimeSlot(types.MaxLookupAge) < timeDiff {
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
 	}
 
 	// 11.35   ancestors currently not maintained
-	// current implement: get header from redis and check timeslot over MaxLookupAge(L)
-	blocks := store.GetInstance().GetBlocks()
-	if len(blocks) > 1 {
+	ancestry := store.GetInstance().GetAncestry()
+
+	if len(ancestry) > 0 {
+		// ∀x ∈ x ∶ ∃h ∈ A ∶ hT = xt ∧ H(h) = xl (11.35)
 		for _, context := range contexts {
-			ancestorBlock, err := store.GetInstance().GetBlockByHash(context.LookupAnchor)
-			if err != nil {
-				errCode := ReportsErrorCode.LookupAnchorNotRecent
-				return &errCode
+			// logger.Debugf("Validating context with LookupAnchor: %x and LookupAnchorSlot: %d", context.LookupAnchor, context.LookupAnchorSlot)
+
+			anchorHashCondition := false
+			for _, item := range ancestry {
+				cond1 := item.Slot == context.LookupAnchorSlot
+				// logger.Debugf("Cond1: %v for item.Slot: %d and context.LookupAnchorSlot: %d", cond1, item.Slot, context.LookupAnchorSlot)
+				cond2 := item.HeaderHash == context.LookupAnchor
+				// logger.Debugf("Cond2: %v for item.HeaderHash: %x and context.LookupAnchor: %x", cond2, item.HeaderHash, context.LookupAnchor)
+				if cond1 && cond2 {
+					anchorHashCondition = true
+					break
+				}
 			}
 
-			ancestorTimeSlot := ancestorBlock.Header.Slot
-			if headerTimeSlot-ancestorTimeSlot > types.TimeSlot(types.MaxLookupAge) || ancestorTimeSlot != context.LookupAnchorSlot {
-				errCode := ReportsErrorCode.LookupAnchorNotRecent
-				return &errCode
+			if !anchorHashCondition {
+				err := ReportsErrorCode.LookupAnchorNotRecent
+				return &err
 			}
 		}
 	}
+
 	return nil
 }
 

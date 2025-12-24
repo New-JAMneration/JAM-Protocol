@@ -97,7 +97,7 @@ func DefaultConfig() config {
 		}{
 			FuzzVersion:  1,
 			FuzzFeatures: 2,
-			JamVersion:   "0.7.0",
+			JamVersion:   "0.7.1",
 			AppVersion:   "0.1.0",
 			Name:         "new_jamneration",
 		},

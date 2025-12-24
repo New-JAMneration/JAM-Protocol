@@ -3,6 +3,7 @@ package stf
 import (
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -49,10 +50,13 @@ func RunSTF() (bool, error) {
 	st.GetPosteriorStates().SetTau(header.Slot)
 
 	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
-	err = ValidateNonVRFHeader(header, &priorState, extrinsic)
-	if err != nil {
-		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
-		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
+	// For non-genesis blocks, validate the header
+	if header.Parent != (types.HeaderHash{}) {
+		err = ValidateNonVRFHeader(header, &priorState, extrinsic)
+		if err != nil {
+			errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
+			return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
+		}
 	}
 
 	// update BetaH, GP 0.6.7 formula 4.6
@@ -130,7 +134,7 @@ func RunSTF() (bool, error) {
 	}
 
 	// Update Preimages
-	err = UpdatePreimages()
+	err = accumulation.ProcessPreimageExtrinsics()
 	if err != nil {
 		errorMessage := PreimagesErrorCodes.PreimagesErrorCodeMessages[*err.(*types.ErrorCode)]
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)

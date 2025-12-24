@@ -92,10 +92,11 @@ func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMess
 	return types.StateRoot(*resp.StateRoot), nil, nil
 }
 
-func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals) (types.StateRoot, error) {
+func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals, ancestry types.Ancestry) (types.StateRoot, error) {
 	payload := SetState{
-		Header: header,
-		State:  state,
+		Header:   header,
+		State:    state,
+		Ancestry: ancestry,
 	}
 
 	req := Message{
