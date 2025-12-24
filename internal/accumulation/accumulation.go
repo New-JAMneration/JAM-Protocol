@@ -377,6 +377,7 @@ func (in SingleServiceAccumulationInput) CloneForService(s types.ServiceId) Sing
 	out.DeferredTransfers = slices.Clone(in.DeferredTransfers)
 	out.WorkReports = slices.Clone(in.WorkReports)
 	out.AlwaysAccumulateMap = maps.Clone(in.AlwaysAccumulateMap)
+	out.UnmatchedKeyVals = store.GetInstance().GetPostStateUnmatchedKeyVals()
 	return out
 }
 
@@ -420,14 +421,14 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	runSingleReplaceService := func(s types.ServiceId, singleParam SingleServiceAccumulationInput) (SingleServiceAccumulationOutput, error) {
 		mu.RLock()
 		if out, ok := cache[s]; ok {
-			mu.Unlock()
+			mu.RUnlock()
 			return out, nil
 		}
-		mu.RUnlock()
-
 		localParam := singleParam.CloneForService(s)
+		mu.RUnlock()
 		// Use singleflight to deduplicate SingleServiceAccumulation per service.
 		// The key(string) is used as identifier deduplicate calls.
+
 		identifier := fmt.Sprintf("%d", s)
 		v, err, _ := sf.Do(identifier, func() (any, error) {
 			out, err := SingleServiceAccumulation(localParam)
@@ -441,7 +442,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		mu.RLock()
 		cache[s] = out
-		mu.Unlock()
+		store.GetInstance().SetPostStateUnmatchedKeyVals(out.UnmatchedKeyVals)
+		mu.RUnlock()
 
 		return out, nil
 	}
@@ -737,9 +739,9 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
 
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
-	storageKeyVal := store.GetInstance().GetPostStateUnmatchedKeyVals()
+	storageKeyVal := input.UnmatchedKeyVals
+
 	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
-	store.GetInstance().SetPostStateUnmatchedKeyVals(pvmResult.StorageKeyVal)
 
 	// Collect PVM results as output
 	{
@@ -748,6 +750,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 		output.GasUsed = pvmResult.Gas
 		output.PartialStateSet = pvmResult.PartialStateSet
 		output.ServiceBlobs = pvmResult.ServiceBlobs
+		output.UnmatchedKeyVals = pvmResult.StorageKeyVal
 	}
 	return output, nil
 }
