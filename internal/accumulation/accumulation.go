@@ -2,6 +2,8 @@ package accumulation
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"sync"
 
@@ -367,6 +369,17 @@ type singleResult struct {
 	err error
 }
 
+// Deep copy single service accumulation input for goroutine parallelization
+func (in SingleServiceAccumulationInput) CloneForService(s types.ServiceId) SingleServiceAccumulationInput {
+	out := in
+	out.ServiceId = s
+	out.PartialStateSet = in.PartialStateSet.DeepCopy()
+	out.DeferredTransfers = slices.Clone(in.DeferredTransfers)
+	out.WorkReports = slices.Clone(in.WorkReports)
+	out.AlwaysAccumulateMap = maps.Clone(in.AlwaysAccumulateMap)
+	return out
+}
+
 // (12.17) ∆∗ parallelized accumulation function
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
@@ -411,11 +424,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			return out, nil
 		}
 		mu.Unlock()
-		singleParam.ServiceId = s
+
+		localParam := singleParam.CloneForService(s)
 		// Use singleflight to deduplicate SingleServiceAccumulation per service.
 		// The key(string) is used as identifier deduplicate calls.
-		v, err, _ := sf.Do(fmt.Sprintf("%d", s), func() (any, error) {
-			out, err := SingleServiceAccumulation(singleParam)
+		identifier := fmt.Sprintf("%d", s)
+		v, err, _ := sf.Do(identifier, func() (any, error) {
+			out, err := SingleServiceAccumulation(localParam)
 			return out, err
 		})
 		if err != nil {
@@ -436,7 +451,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// For each service in s, run single service accumulation in parallel
 	{
 		var wg sync.WaitGroup
-		errCh := make(chan error, types.CoresCount)
+		errCh := make(chan error)
 		for serviceId := range s {
 			wg.Add(1)
 			go func() {
@@ -531,7 +546,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// For each core c, parallelize compute a′c
 	{
 		var wg sync.WaitGroup
-		errCh := make(chan error, types.CoresCount)
+		errCh := make(chan error)
 		for c := range types.CoresCount {
 			c := c
 			serviceId := a[c]
@@ -589,7 +604,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		// For each core c, parallelize compute q′c
 		{
 			var wg sync.WaitGroup
-			errCh := make(chan error, types.CoresCount)
+			errCh := make(chan error)
 			for c, serviceId := range input.PartialStateSet.Assign {
 				c := c
 				serviceId := serviceId
