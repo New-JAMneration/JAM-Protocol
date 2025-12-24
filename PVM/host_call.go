@@ -2904,7 +2904,6 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-
 	newGas := input.Gas - 10
 	if newGas < 0 {
 		return OmegaOutput{
