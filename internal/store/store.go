@@ -474,6 +474,10 @@ func (s *Store) RestoreBlockAndState(blockHeaderHash types.HeaderHash) error {
 	// Keep only ancestry up to the restored headerHash (fallback point)
 	s.KeepAncestryUpTo(blockHeaderHash)
 
+	// Clear verifier cache when restoring to a different state point
+	// as the epoch may have changed
+	ClearVerifierCache()
+
 	return nil
 }
 
