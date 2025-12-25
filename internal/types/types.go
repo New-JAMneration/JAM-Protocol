@@ -413,7 +413,7 @@ const (
 	WorkExecResultOutOfGas                          = "out-of-gas"
 	WorkExecResultPanic                             = "panic"
 	WorkExecResultBadExports                        = "bad-exports"
-	WorkExecResultReportOversize                    = "report-oversize"
+	WorkExecResultReportOversize                    = "output-oversize"
 	WorkExecResultBadCode                           = "bad-code"
 	WorkExecResultCodeOversize                      = "code-oversize"
 )
@@ -1704,42 +1704,44 @@ type AncestryItem struct {
 	HeaderHash HeaderHash
 }
 
-type Ancestry []AncestryItem
-type ProtocolParameters struct {
-	BI U64 // B_I
-	BL U64 // B_L
-	BS U64 // B_S
-	C  U16 // C
-	D  U32 // D
-	E  U32 // E
-	GA U64 // G_A
-	GI U64 // G_I
-	GR U64 // G_R
-	GT U64 // G_T
-	H  U16 // H
-	I  U16 // I
-	J  U16 // J
-	K  U16 // K
-	L  U32 // L
-	N  U16 // N
-	O  U16 // O
-	P  U16 // P
-	Q  U16 // Q
-	R  U16 // R
-	T  U16 // T
-	U  U16 // U
-	V  U16 // V
-	WA U32 // W_A
-	WB U32 // W_B
-	WC U32 // W_C
-	WE U32 // W_E
-	WM U32 // W_M
-	WP U32 // W_P
-	WR U32 // W_R
-	WT U32 // W_T
-	WX U32 // W_X
-	Y  U32 // Y
-}
+type (
+	Ancestry           []AncestryItem
+	ProtocolParameters struct {
+		BI U64 // B_I
+		BL U64 // B_L
+		BS U64 // B_S
+		C  U16 // C
+		D  U32 // D
+		E  U32 // E
+		GA U64 // G_A
+		GI U64 // G_I
+		GR U64 // G_R
+		GT U64 // G_T
+		H  U16 // H
+		I  U16 // I
+		J  U16 // J
+		K  U16 // K
+		L  U32 // L
+		N  U16 // N
+		O  U16 // O
+		P  U16 // P
+		Q  U16 // Q
+		R  U16 // R
+		T  U16 // T
+		U  U16 // U
+		V  U16 // V
+		WA U32 // W_A
+		WB U32 // W_B
+		WC U32 // W_C
+		WE U32 // W_E
+		WM U32 // W_M
+		WP U32 // W_P
+		WR U32 // W_R
+		WT U32 // W_T
+		WX U32 // W_X
+		Y  U32 // Y
+	}
+)
 
 // ProtocolParamSnapshot and SnapshotProtocolParams() are for log and debugging purpose
 type ProtocolParamSnapshot struct {
