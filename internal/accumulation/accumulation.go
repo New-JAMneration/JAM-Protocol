@@ -440,10 +440,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		out := v.(SingleServiceAccumulationOutput)
 
-		mu.RLock()
+		mu.Lock()
 		cache[s] = out
 		store.GetInstance().SetPostStateUnmatchedKeyVals(out.UnmatchedKeyVals)
-		mu.RUnlock()
+		mu.Unlock()
 
 		return out, nil
 	}
