@@ -298,8 +298,11 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 		return fmt.Errorf("error parsing target response: %w", err)
 	}
 
+	// Use block's ParentStateRoot as priorStateRoot for protocol error fallback
+	priorStateRoot := fuzzerMsg.ImportBlock.Header.ParentStateRoot
+	
 	if targetMsg.Error != "" {
-		_, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock)
+		_, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock, priorStateRoot)
 		if err != nil {
 			return fmt.Errorf("ImportBlock failed: %w", err)
 		}
@@ -320,7 +323,7 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 		return fmt.Errorf("error parsing expected state_root: %w", err)
 	}
 
-	actualStateRoot, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock)
+	actualStateRoot, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock, priorStateRoot)
 	if err != nil {
 		return fmt.Errorf("ImportBlock failed: %w", err)
 	}

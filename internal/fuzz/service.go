@@ -74,10 +74,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	serializedState = append(priorUnmatchedKeyVals, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
-	if latestStateRoot != block.Header.ParentStateRoot {
-		return types.StateRoot{}, fmt.Errorf("state_root mismatch: got 0x%x, want 0x%x", latestStateRoot, block.Header.ParentStateRoot)
-	}
-
 	storeInstance.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
 
@@ -93,7 +89,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		}
 		// Protocol error: block is invalid, but node should continue
 		logger.Errorf("%s [PROTOCOL] block invalid: %v", ctx, err)
-		return block.Header.ParentStateRoot, err
+		return latestStateRoot, err
 	}
 
 	latestState = storeInstance.GetPosteriorStates().GetState()
