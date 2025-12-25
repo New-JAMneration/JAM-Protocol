@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 // TODO: Align the official errorCode
@@ -21,6 +23,17 @@ func ValidateNonVRFHeader(header types.Header, priorState *types.State, extrinsi
 
 	if err := validateExtrinsicHash(header, extrinsic); err != nil {
 		return err
+	}
+
+	// H_R
+	storeInstance := store.GetInstance()
+	unmatchedKeyVals := storeInstance.GetPriorStateUnmatchedKeyVals()
+	serializedState, _ := m.StateEncoder(*priorState)
+	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
+	priorStateRoot := m.MerklizationSerializedState(fullStateKeyVals)
+	if header.ParentStateRoot != priorStateRoot {
+		errCode := SafroleErrorCode.InvalidParentStateRoot
+		return &errCode
 	}
 
 	// Validate author_index out of range.

@@ -270,7 +270,8 @@ func importBlock(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Send import_block request
-	stateRoot, errorMessage, err := client.ImportBlock(block)
+	// Use block's ParentStateRoot as priorStateRoot for protocol error fallback
+	stateRoot, errorMessage, err := client.ImportBlock(block, block.Header.ParentStateRoot)
 	if err != nil {
 		return fmt.Errorf("error sending import_block request: %w", err)
 	} else if errorMessage != nil {
@@ -530,15 +531,15 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	}
 	logger.ColorBlue("File: %s", jsonFile)
 
+	expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing pre_state state_root: %w", err)
+	}
 	/*
 		Step 1: Initialization (SetState) to the pre_state
 	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
-		expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
-		if err != nil {
-			return fmt.Errorf("error parsing pre_state state_root: %w", err)
-		}
 
 		decoder := types.NewDecoder()
 		recentBlocks := &types.RecentBlocks{}
@@ -599,7 +600,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	logger.ColorGreen("[ImportBlock][Request] header_hash= 0x%x...", headerHash[:8])
 
 	// Print ImportBlock Response
-	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block)
+	actualPostStateRoot, errorMessage, err := client.ImportBlock(testData.Block, expectedPreStateRoot)
 	if err != nil {
 		logger.ColorYellow("[ImportBlock][Response] error= %v", err)
 		return err
