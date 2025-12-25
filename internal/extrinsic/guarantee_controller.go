@@ -78,7 +78,7 @@ func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 	}
 
 	for i := 0; i < len(signatures)-1; i++ {
-		if signatures[i].ValidatorIndex > signatures[i+1].ValidatorIndex {
+		if signatures[i].ValidatorIndex >= signatures[i+1].ValidatorIndex {
 			// return errors.New("not_sorted_or_unique_guarantors")
 			err := ReportsErrorCode.NotSortedOrUniqueGuarantors
 			return &err
