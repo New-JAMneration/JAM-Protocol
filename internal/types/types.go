@@ -175,12 +175,12 @@ func (assignments AvailabilityAssignments) Validate() error {
 
 // v0.6.3 (11.4) Refine Context $\mathbb{X}$
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash
-	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root
-	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root
-	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot
-	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages
+	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash a
+	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root s
+	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root b
+	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash l
+	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot t
+	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages p
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {
@@ -570,10 +570,10 @@ type ReportedWorkPackage struct {
 }
 
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
-	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`
-	StateRoot  StateRoot             `json:"state_root,omitempty"`
-	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
+	HeaderHash HeaderHash            `json:"header_hash,omitempty"` // h
+	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`  // b
+	StateRoot  StateRoot             `json:"state_root,omitempty"`  // s
+	Reported   []ReportedWorkPackage `json:"reported,omitempty"`    // p
 }
 
 // (7.2) GP 0.6.7

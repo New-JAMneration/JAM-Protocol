@@ -245,8 +245,9 @@ func processPeerInfo(client *fuzz.FuzzClient, fuzzerData, targetData []byte) err
 func processInitialize(client *fuzz.FuzzClient, fuzzerData, targetData []byte) error {
 	var fuzzerMsg struct {
 		Initialize struct {
-			Header types.Header       `json:"header"`
-			State  types.StateKeyVals `json:"state"`
+			Header   types.Header       `json:"header"`
+			State    types.StateKeyVals `json:"state"`
+			Ancestry types.Ancestry     `json:"ancestry"`
 		} `json:"initialize"`
 	}
 	if err := json.Unmarshal(fuzzerData, &fuzzerMsg); err != nil {
@@ -266,7 +267,7 @@ func processInitialize(client *fuzz.FuzzClient, fuzzerData, targetData []byte) e
 	}
 
 	logger.ColorGreen("[SetState][Request] block_header_hash= 0x%x", fuzzerMsg.Initialize.Header.Parent)
-	actualStateRoot, err := client.SetState(fuzzerMsg.Initialize.Header, fuzzerMsg.Initialize.State)
+	actualStateRoot, err := client.SetState(fuzzerMsg.Initialize.Header, fuzzerMsg.Initialize.State, fuzzerMsg.Initialize.Ancestry)
 	logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %w", err)

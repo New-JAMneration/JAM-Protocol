@@ -171,14 +171,15 @@ func (h *HeaderController) CreateBlockSeal(blockSeal types.BandersnatchVrfSignat
 	h.Store.GetProcessingBlockPointer().SetSeal(blockSeal)
 }
 
-// GetParentHeader returns all ancestor headers.
+// GetAncestorHeaders returns all ancestor headers as Ancestry type.
 // (5.3) A
-func (h *HeaderController) GetAncestorHeaders() []types.Header {
+func (h *HeaderController) GetAncestorHeaders() types.Ancestry {
 	s := store.GetInstance()
-	return s.GetAncestorHeaders()
+	return s.GetAncestry()
 }
 
 // AddAncestorHeader adds the header to the ancestor headers.
+// It converts Header to AncestryItem internally.
 func (h *HeaderController) AddAncestorHeader(header types.Header) {
 	s := store.GetInstance()
 	s.AddAncestorHeader(header)
