@@ -7,6 +7,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
+	"github.com/google/go-cmp/cmp"
 )
 
 // CreateEpochMarker creates the epoch marker
@@ -67,16 +69,16 @@ func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeS
 	}
 }
 
-func ValidateHeaderEpochMark(header types.Header, state *types.State) *types.ErrorCode {
-	tau := state.Tau
-	e, _ := R(tau)
-
-	tauPrime := header.Slot
-	ePrime, _ := R(tauPrime)
+// ValidateHeaderEpochMark validates the epoch mark in the header
+// Returns an error code if validation fails, nil otherwise
+func ValidateHeaderEpochMark(header types.Header, priorState *types.State, posteriorState *types.State) *types.ErrorCode {
+	e, _ := R(priorState.Tau)
+	ePrime, _ := R(header.Slot)
 
 	em := header.EpochMark
 	shouldHave := ePrime > e
 
+	// Early return: if epoch hasn't changed, epoch mark must be nil
 	if !shouldHave {
 		if em != nil {
 			errCode := SafroleErrorCode.InvalidEpochMark
@@ -85,20 +87,42 @@ func ValidateHeaderEpochMark(header types.Header, state *types.State) *types.Err
 		return nil
 	}
 
+	// Early return: if epoch changed, epoch mark must be present
 	if em == nil {
 		errCode := SafroleErrorCode.InvalidEpochMark
 		return &errCode
 	}
 
-	eta := state.Eta
-	if em.Entropy != eta[0] || em.TicketsEntropy != eta[1] {
+	// Validate entropy fields
+	if em.Entropy != priorState.Eta[0] || em.TicketsEntropy != priorState.Eta[1] {
 		errCode := SafroleErrorCode.InvalidEpochMark
 		return &errCode
 	}
 
+	// Validate validators count
 	if types.ValidatorsCount > 0 && len(em.Validators) != types.ValidatorsCount {
 		errCode := SafroleErrorCode.InvalidEpochMark
 		return &errCode
+	}
+
+	// Validate validators match postState.Gamma.GammaK
+	// Check bounds before accessing postState.Gamma.GammaK
+	if len(posteriorState.Gamma.GammaK) != len(em.Validators) {
+		errCode := SafroleErrorCode.InvalidEpochMark
+		return &errCode
+	}
+
+	for i := range em.Validators {
+		expectedValidator := posteriorState.Gamma.GammaK[i]
+		actualValidator := em.Validators[i]
+
+		// Compare both keys in a single check for better readability
+		if !bytes.Equal(actualValidator.Bandersnatch[:], expectedValidator.Bandersnatch[:]) ||
+			!bytes.Equal(actualValidator.Ed25519[:], expectedValidator.Ed25519[:]) {
+			logger.Debugf("ValidateHeaderEpochMark, validator %d mismatch: %v", i, cmp.Diff(expectedValidator, actualValidator))
+			errCode := SafroleErrorCode.InvalidEpochMark
+			return &errCode
+		}
 	}
 
 	return nil

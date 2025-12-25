@@ -10,16 +10,12 @@ import (
 )
 
 // TODO: Align the official errorCode
-func ValidateNonVRFHeader(header types.Header, state *types.State, extrinsic types.Extrinsic) error {
-	if err := safrole.ValidateHeaderEpochMark(header, state); err != nil {
+func ValidateNonVRFHeader(header types.Header, priorState *types.State, extrinsic types.Extrinsic) error {
+	if err := safrole.ValidateHeaderTicketsMark(header, priorState); err != nil {
 		return err
 	}
 
-	if err := safrole.ValidateHeaderTicketsMark(header, state); err != nil {
-		return err
-	}
-
-	if err := safrole.ValidateHeaderOffenderMarker(header, state); err != nil {
+	if err := safrole.ValidateHeaderOffenderMarker(header, priorState); err != nil {
 		return err
 	}
 
@@ -30,18 +26,21 @@ func ValidateNonVRFHeader(header types.Header, state *types.State, extrinsic typ
 	// Validate author_index out of range.
 	// NOTE: There is currently no official error code defined for this case.
 	// We may need to update this once the spec updates.
-	if header.AuthorIndex >= types.ValidatorIndex(len(state.Kappa)) {
+	if header.AuthorIndex >= types.ValidatorIndex(len(priorState.Kappa)) {
 		errCode := SafroleErrorCode.AuthorIndexOutOfRange
 		return &errCode
 	}
 	return nil
 }
 
-func ValidateHeaderVrf(header types.Header, state *types.State) error {
-	if err := safrole.ValidateHeaderSeal(header, state); err != nil {
+func ValidateHeaderVrf(header types.Header, priorState *types.State, posteriorState *types.State) error {
+	if err := safrole.ValidateHeaderEpochMark(header, priorState, posteriorState); err != nil {
 		return err
 	}
-	if err := safrole.ValidateHeaderEntropy(header, state); err != nil {
+	if err := safrole.ValidateHeaderSeal(header, posteriorState); err != nil {
+		return err
+	}
+	if err := safrole.ValidateHeaderEntropy(header, posteriorState); err != nil {
 		return err
 	}
 	return nil

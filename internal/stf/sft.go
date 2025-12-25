@@ -78,7 +78,7 @@ func RunSTF() (bool, error) {
 	postState := st.GetPosteriorStates().GetState()
 
 	// After keyRotate
-	err = ValidateHeaderVrf(header, &postState)
+	err = ValidateHeaderVrf(header, &priorState, &postState)
 	if err != nil {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
