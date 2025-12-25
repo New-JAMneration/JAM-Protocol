@@ -1659,6 +1659,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		Bless       U32                      `json:"bless"`      // Manager
 		Assign      []U32                    `json:"assign"`     // AlterPhi
 		Designate   U32                      `json:"designate"`  // AlterIota
+		CreateAcct  U32                      `json:"register"`   // XR
 		AlwaysAccum []AlwaysAccumulateMapDTO `json:"always_acc"` // AutoAccumulateGasLimits
 	}
 
@@ -1672,7 +1673,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		p.Assign[i] = ServiceId(id)
 	}
 	p.Designate = ServiceId(temp.Designate)
-
+	p.CreateAcct = ServiceId(temp.CreateAcct)
 	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
 		p.AlwaysAccum[entry.ServiceId] = entry.Gas
@@ -1737,7 +1738,7 @@ func (s *StateKey) UnmarshalJSON(data []byte) error {
 	}
 
 	if len(decoded) != len(StateKey{}) {
-		return fmt.Errorf("decoded length %d does not match expected length %d", len(decoded), len(StateKey{}))
+		return fmt.Errorf("decoded length %d is not equal to expected length %d", len(decoded), len(StateKey{}))
 	}
 
 	copy(s[:], decoded)
@@ -1761,7 +1762,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		// key
 		decodedKey, err := hex.DecodeString(kv.Key[2:])
 		if err != nil {
-			return fmt.Errorf("failed to decode hex string: %w", err)
+			return fmt.Errorf("failed to decode hex string for key %s: %w", kv.Key, err)
 		}
 
 		(*s)[i].Key = StateKey(decodedKey)
@@ -1769,7 +1770,7 @@ func (s *StateKeyVals) UnmarshalJSON(data []byte) error {
 		// value
 		decodedValue, err := hex.DecodeString(kv.Value[2:])
 		if err != nil {
-			return fmt.Errorf("failed to decode hex string: %w", err)
+			return fmt.Errorf("failed to decode hex string for value %s from key %s: %w", kv.Value, kv.Key, err)
 		}
 
 		if len(decodedValue) == 0 {

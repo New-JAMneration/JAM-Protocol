@@ -3,7 +3,6 @@ package recent_history
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
@@ -11,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	merkle "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var maxBlocksHistory = types.MaxBlocksHistory
@@ -46,15 +46,15 @@ func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.St
 /*
 	s = [ E_4(s) ⌢ E(h) | (s, h) <− θ′ ]
 */
-func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
-	newEncoder := types.NewEncoder()
-	var output types.ByteSequence
-	for _, accumulatedServiceHash := range lastAccOut {
-		data, err := newEncoder.Encode(&accumulatedServiceHash)
+func serLastAccOut(lastAccOut types.LastAccOut) ([]types.ByteSequence, error) {
+	output := make([]types.ByteSequence, 0, len(lastAccOut))
+	for i := 0; i < len(lastAccOut); i++ {
+		enc := types.NewEncoder()
+		data, err := enc.Encode(&lastAccOut[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode accumulatedServiceHash: %v", err)
+			return nil, fmt.Errorf("failed to encode lastAccOut[%d]: %w", i, err)
 		}
-		output = append(output, data...)
+		output = append(output, data)
 	}
 
 	return output, nil
@@ -64,8 +64,8 @@ func serLastAccOut(lastAccOut types.LastAccOut) (types.ByteSequence, error) {
 /*
 	MB ( s, HK )
 */
-func lastAccOutRoot(serializedLastAccOut types.ByteSequence) types.OpaqueHash {
-	return merkle.Mb([]types.ByteSequence{serializedLastAccOut}, hash.KeccakHash)
+func lastAccOutRoot(serializedLastAccOut []types.ByteSequence) types.OpaqueHash {
+	return merkle.Mb(serializedLastAccOut, hash.KeccakHash)
 }
 
 // Append lastAccOutRoot to mmr and form commitment (7.7) GP 0.6.7
@@ -90,7 +90,7 @@ func AppendAndCommitMmr(beefyBelt types.Mmr, merkleRoot types.OpaqueHash) (types
 	p = { ((g_w)s)h ↦ ((g_w)s)e | g ∈ EG }
 */
 func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPackage {
-	var reports []types.ReportedWorkPackage
+	reports := make([]types.ReportedWorkPackage, 0, len(eg))
 	// Create a map from eg.Report.PackageSpec.Hash to eg.Report.PackageSpec.ExportsRoot
 	for _, eg := range eg {
 		report := types.ReportedWorkPackage{
@@ -144,9 +144,9 @@ func STFBetaH2BetaHDagger() {
 		beta  = s.GetPriorStates().GetBeta()
 		block = s.GetLatestBlock()
 	)
-	// log.Printf("Latest block got by (4.6): %+v", block)
+	// logger.Debugf("Latest block got by (4.6): %+v", block)
 	if beta.History.Validate() != nil {
-		log.Fatalf("beta.History.Validate() failed: %v", beta.History.Validate())
+		logger.Errorf("beta.History.Validate() failed: %v", beta.History.Validate())
 	}
 	betaDagger := History2HistoryDagger(beta.History, block.Header.ParentStateRoot)
 

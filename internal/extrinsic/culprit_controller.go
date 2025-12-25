@@ -2,11 +2,11 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"fmt"
+	"errors"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // CulpritController is a struct that contains a slice of Culprit
@@ -61,12 +61,12 @@ func (c *CulpritController) VerifyCulpritSignature() error {
 
 	for _, culprit := range c.Culprits {
 		if _, ok := validKeySet[culprit.Key]; !ok {
-			return fmt.Errorf("bad_guarantor_key")
+			return errors.New("bad_guarantor_key")
 		}
 		msg := []byte(types.JamGuarantee)
 		msg = append(msg, culprit.Target[:]...)
-		if !ed25519.Verify(culprit.Key[:], msg, culprit.Signature[:]) {
-			return fmt.Errorf("bad_signature")
+		if !ed25519consensus.Verify(culprit.Key[:], msg, culprit.Signature[:]) {
+			return errors.New("bad_signature")
 		}
 	}
 	return nil
@@ -83,7 +83,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 
 	for _, report := range c.Culprits {
 		if !checkMap[report.Target] {
-			return fmt.Errorf("culprits_verdict_not_bad")
+			return errors.New("culprits_verdict_not_bad")
 		}
 	}
 	return nil
@@ -104,7 +104,7 @@ func (c *CulpritController) ExcludeOffenders() error {
 
 	for i := 0; i < length; i++ { // culprit index
 		if excludeMap[c.Culprits[i].Key] {
-			return fmt.Errorf("offender_already_reported")
+			return errors.New("offender_already_reported")
 		}
 	}
 	return nil
@@ -131,7 +131,7 @@ func (c *CulpritController) CheckUnique() error {
 	result := make([]types.Culprit, 0)
 	for _, culprit := range c.Culprits {
 		if uniqueKeyMap[culprit.Key] {
-			return fmt.Errorf("culprits_not_sorted_unique")
+			return errors.New("culprits_not_sorted_unique")
 		}
 		uniqueKeyMap[culprit.Key] = true
 		result = append(result, culprit)
@@ -143,7 +143,7 @@ func (c *CulpritController) CheckUnique() error {
 func (v *CulpritController) CheckSorted() error {
 	for i := 1; i < len(v.Culprits); i++ {
 		if bytes.Compare(v.Culprits[i-1].Key[:], v.Culprits[i].Key[:]) > 0 {
-			return fmt.Errorf("culprits_not_sorted_unique")
+			return errors.New("culprits_not_sorted_unique")
 		}
 	}
 

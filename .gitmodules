@@ -10,6 +10,6 @@
 [submodule "pkg/test_data/instruction"]
 	path = pkg/test_data/instruction
 	url = https://github.com/koute/jamtestvectors.git
-[submodule "pkg/test_data/host_function"]
-	path = pkg/test_data/host_function
-	url = git@github.com:mtsay-jamneration/jamtestvectors.git
+[submodule "pkg/test_data/jam-conformance"]
+	path = pkg/test_data/jam-conformance
+	url = git@github.com:davxy/jam-conformance.git

@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type RedisBackend struct {
@@ -146,7 +146,7 @@ func (r *RedisBackend) SetGenesisBlock(ctx context.Context, block *types.Block) 
 	if err := r.client.Put(key, data); err != nil {
 		return fmt.Errorf("failed to store genesis block: %w", err)
 	}
-	log.Printf("Genesis block stored with key %s", key)
+	logger.Debugf("Genesis block stored with key %s", key)
 	return nil
 }
 
@@ -265,7 +265,7 @@ func (r *RedisBackend) SetHashSegmentMapWithLimit(wpHash, segmentRoot types.Opaq
 	dict[timestamp+"_"+hex.EncodeToString(wpHash[:])] = hex.EncodeToString(segmentRoot[:])
 
 	if len(dict) > 8 {
-		var keys []string
+		keys := make([]string, 0, len(dict))
 		for k := range dict {
 			keys = append(keys, k)
 		}
@@ -299,7 +299,7 @@ func (r *RedisBackend) SetHashSegmentMapWithLimit(wpHash, segmentRoot types.Opaq
 }
 
 func (r *RedisBackend) SetHashSegmentMap(ctx context.Context, hashSegmentMap map[string]string) error {
-	fmt.Println("Set Hash Segment Map")
+	logger.Debug("Set Hash Segment Map")
 	key := "segment_dict"
 	encoded, err := json.Marshal(hashSegmentMap)
 	if err != nil {
@@ -313,7 +313,7 @@ func (r *RedisBackend) SetHashSegmentMap(ctx context.Context, hashSegmentMap map
 }
 
 func (r *RedisBackend) GetHashSegmentMap() (map[types.OpaqueHash]types.OpaqueHash, error) {
-	fmt.Println("Get Hash Segment Map")
+	logger.Debug("Get Hash Segment Map")
 	key := "segment_dict"
 	result := make(map[types.OpaqueHash]types.OpaqueHash)
 
@@ -393,7 +393,7 @@ func (r *RedisBackend) GetStateRootByBlockHash(
 		return nil, err
 	}
 	if data == nil {
-		return nil, fmt.Errorf("state root not found for block %x", blockHash)
+		return nil, fmt.Errorf("state root not found for block 0x%x", blockHash)
 	}
 
 	var stateRoot types.StateRoot
@@ -426,7 +426,7 @@ func (r *RedisBackend) GetStateData(
 		return nil, err
 	}
 	if data == nil {
-		return nil, fmt.Errorf("state data not found for state root %x", stateRoot)
+		return nil, fmt.Errorf("state data not found for state root 0x%x", stateRoot)
 	}
 
 	var stateKeyVals types.StateKeyVals

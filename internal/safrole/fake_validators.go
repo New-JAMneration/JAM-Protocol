@@ -3,11 +3,11 @@ package safrole
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
@@ -93,10 +93,10 @@ var TinyValidators = FakeValidators{
 	},
 }
 
-func hex2Bytes(hexString string) []byte {
+func Hex2Bytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
-		fmt.Printf("failed to decode hex string: %v\n", err)
+		logger.Errorf("failed to decode hex string: %v", err)
 	}
 	return bytes
 }
@@ -105,21 +105,21 @@ func LoadRawFakeValidators() FakeValidatorDTOs {
 	// Open the JSON file
 	file, err := os.Open("./internal/input/validator/fake_validators.json")
 	if err != nil {
-		fmt.Printf("Error opening file: %v\n", err)
+		logger.Errorf("Error opening file: %v", err)
 	}
 	defer file.Close()
 
 	// Read the file content
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
+		logger.Errorf("Error reading file: %v", err)
 	}
 
 	// Unmarshal the JSON data
 	var fakeValidatorDTOs FakeValidatorDTOs
 	err = json.Unmarshal(byteValue, &fakeValidatorDTOs)
 	if err != nil {
-		fmt.Printf("Error unmarshalling JSON: %v\n", err)
+		logger.Errorf("Error unmarshalling JSON: %v", err)
 	}
 
 	return fakeValidatorDTOs
@@ -130,12 +130,12 @@ func MapFakeValidators(fakeValidatorDTOs FakeValidatorDTOs) FakeValidators {
 
 	for _, fakeValidatorDTO := range fakeValidatorDTOs {
 		fakeValidators = append(fakeValidators, FakeValidator{
-			Bandersnatch:        types.BandersnatchPublic(hex2Bytes(fakeValidatorDTO.Bandersnatch)),
-			Ed25519:             types.Ed25519Public(hex2Bytes(fakeValidatorDTO.Ed25519)),
-			BLS:                 types.BlsPublic(hex2Bytes(fakeValidatorDTO.BLS)),
-			BandersnatchPrivate: BandersnatchPrivate(hex2Bytes(fakeValidatorDTO.BandersnatchPrivate)),
-			Ed25519Private:      Ed25519Private(hex2Bytes(fakeValidatorDTO.Ed25519Private)),
-			BlsPrivate:          BlsPrivate(hex2Bytes(fakeValidatorDTO.BlsPrivate)),
+			Bandersnatch:        types.BandersnatchPublic(Hex2Bytes(fakeValidatorDTO.Bandersnatch)),
+			Ed25519:             types.Ed25519Public(Hex2Bytes(fakeValidatorDTO.Ed25519)),
+			BLS:                 types.BlsPublic(Hex2Bytes(fakeValidatorDTO.BLS)),
+			BandersnatchPrivate: BandersnatchPrivate(Hex2Bytes(fakeValidatorDTO.BandersnatchPrivate)),
+			Ed25519Private:      Ed25519Private(Hex2Bytes(fakeValidatorDTO.Ed25519Private)),
+			BlsPrivate:          BlsPrivate(Hex2Bytes(fakeValidatorDTO.BlsPrivate)),
 		})
 	}
 
@@ -157,16 +157,15 @@ func CreateVRFHandler(bandersnatchKey types.BandersnatchPublic) (*vrf.Handler, e
 	fakeValidators := LoadTinyValidators()
 	var private BandersnatchPrivate
 	for _, bandersnatch := range fakeValidators {
-		// fmt.Println(bandersnatchKey)
-		// fmt.Println(bandersnatch.Bandersnatch)
+		// logger.Debug(bandersnatch.Bandersnatch)
 		if bandersnatch.Bandersnatch == bandersnatchKey {
 			private = bandersnatch.BandersnatchPrivate
 			// proverIdx = uint(idx)
-			// fmt.Println("SUCCESS")
+			// logger.Debug("SUCCESS")
 		}
 	}
 	skBytes := private[:]
-	// fmt.Println(skBytes)
+	// logger.Debug(skBytes)
 	// Use input bandersnatch keys to create the ring
 	ringBytes := []byte{}
 	ringSize := uint(1)

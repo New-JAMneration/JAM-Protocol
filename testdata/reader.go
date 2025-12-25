@@ -39,6 +39,8 @@ const (
 	StorageMode       TestMode = "storage"
 	StorageLightMode  TestMode = "storage_light"
 	PreimageLightMode TestMode = "preimages_light"
+	FuzzyMode         TestMode = "fuzzy"
+	FuzzyLightMode    TestMode = "fuzzy_light"
 )
 
 // TestSize represents the size of the test data
@@ -231,7 +233,7 @@ func (r *TestDataReader) ParseTestData(data []byte) (result Testable, err error)
 		return nil, fmt.Errorf("work in progress: %s", r.dataType)
 	case "trace":
 		switch r.mode {
-		case SafroleMode, FallbackMode, ReportsMode, PreimagesMode, PreimageLightMode, StorageMode, StorageLightMode:
+		case SafroleMode, FallbackMode, ReportsMode, PreimagesMode, PreimageLightMode, StorageMode, StorageLightMode, FuzzyMode, FuzzyLightMode:
 			var traceTestCase jamteststrace.TraceTestCase
 			if err := r.ReadFile(data, &traceTestCase); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal/decode trace test data: %v", err)
@@ -267,4 +269,13 @@ func (r *TestDataReader) ReadFile(data []byte, result interface{}) error {
 	}
 
 	return nil
+}
+
+func (r *TestDataReader) ParseGenesis(data []byte) (*jamteststrace.Genesis, error) {
+	var genesis jamteststrace.Genesis
+	if err := r.ReadFile(data, &genesis); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal/decode reports test data: %v", err)
+	}
+
+	return &genesis, nil
 }

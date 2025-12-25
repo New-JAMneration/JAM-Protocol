@@ -2,10 +2,12 @@ package accumulation
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
@@ -14,6 +16,15 @@ import (
 // This function extracts all known (past) accumulated WorkPackageHashes.
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	xi := store.GetInstance().GetPriorStates().GetXi() // Retrieve ξ
+
+	// Pre-calculate total size to avoid multiple memory reallocations
+	totalSize := 0
+	for _, history := range xi {
+		totalSize += len(history)
+	}
+
+	output = make([]types.WorkPackageHash, 0, totalSize)
+
 	for _, history := range xi {
 		output = append(output, history...) // Form ©ξ ≡ union over ξ
 	}
@@ -143,6 +154,8 @@ func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkRepor
 // the mapping function P which extracts the corresponding work-package hashes from a set of work-reports
 
 func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHash) {
+	// Pre-allocate with exact capacity to avoid memory reallocations
+	output = make([]types.WorkPackageHash, 0, len(w))
 	for _, workReport := range w {
 		output = append(output, workReport.PackageSpec.Hash)
 	}
@@ -166,7 +179,16 @@ func UpdateAccumulatableWorkReports() {
 	Wbang := store.GetIntermediateStates().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
-	var composedQueue types.ReadyQueueItem
+	// Pre-calculate total capacity for composedQueue to avoid multiple reallocations
+	composedQueueCapacity := len(WQ)
+	for _, record := range theta[m:] {
+		composedQueueCapacity += len(record)
+	}
+	for _, record := range theta[:m] {
+		composedQueueCapacity += len(record)
+	}
+	composedQueue := make(types.ReadyQueueItem, 0, composedQueueCapacity)
+
 	for _, record := range theta[m:] {
 		composedQueue = append(composedQueue, record...)
 	}
@@ -347,7 +369,6 @@ type singleResult struct {
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
-
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
 	b := make(map[types.AccumulatedServiceHash]bool)
@@ -393,7 +414,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range s {
 		singleOutput, err := runSingleReplaceService(service_id)
 		if err != nil {
-			fmt.Println("SingleServiceAccumulation failed:", err)
+			logger.Errorf("SingleServiceAccumulation failed: %v", err)
 		}
 		// u = [(s, ∆(s)u) S s <− s]
 		var gasUse types.ServiceGasUsed
@@ -488,7 +509,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		singleOutput, err := runSingleReplaceService(input.PartialStateSet.Designate)
 		if err != nil {
 			return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
-
 		}
 		iPrime = singleOutput.PartialStateSet.ValidatorKeys
 	}
@@ -499,7 +519,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		qPrime = make(types.AuthQueues, types.CoresCount)
 		if len(input.PartialStateSet.Assign) != types.CoresCount {
-			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+			logger.Warnf("input.PartialStateSet.Assign length does not match types.CoresCount")
 		}
 		for c, serviceId := range input.PartialStateSet.Assign {
 			singleOutput, err := runSingleReplaceService(serviceId)
@@ -514,7 +534,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// (d ∪ n) ∖ m
 	// d′ = P ((d ∪ n) ∖ m, ⋃ ∆(s)p)
 	//	    		         s∈s
-	dPrime, err := I(merge(d, n, m), p)
+	dPrime, err := Provide(merge(d, n, m), p)
 	if err != nil {
 		return output, fmt.Errorf("failed to provide service accounts: %w", err)
 	}
@@ -599,6 +619,10 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 		}
 	}
 
+	sort.Slice(iT, func(i, j int) bool {
+		return iT[i].SenderID < iT[j].SenderID
+	})
+
 	//  iT ⌢ iU
 	var pvmItems []types.OperandOrDeferredTransfer
 	for _, deferredTransfer := range iT {
@@ -613,8 +637,10 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	// η0: entropy used by Ψₐ
 	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
 
-	// ΨA(e, τ′, s, g, iT ⌢ iU )
-	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0)
+	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
+	storageKeyVal := store.GetInstance().GetPostStateUnmatchedKeyVals()
+	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
+	store.GetInstance().SetPostStateUnmatchedKeyVals(pvmResult.StorageKeyVal)
 
 	// Collect PVM results as output
 	{

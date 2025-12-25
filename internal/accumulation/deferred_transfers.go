@@ -3,6 +3,7 @@ package accumulation
 import (
 	"bytes"
 	"slices"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -60,11 +61,20 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	store := store.GetInstance()
 	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
-	output := []types.WorkResult{}
-
+	// First pass: count matching results to determine exact capacity
+	count := 0
 	for _, workReport := range accumulatableWorkReports[:n] {
-		workResult := workReport.Results
-		for _, result := range workResult {
+		for _, result := range workReport.Results {
+			if result.ServiceId == s {
+				count++
+			}
+		}
+	}
+
+	// Second pass: append results to a pre-allocated slice
+	output := make([]types.WorkResult, 0, count)
+	for _, workReport := range accumulatableWorkReports[:n] {
+		for _, result := range workReport.Results {
 			if result.ServiceId == s {
 				output = append(output, result)
 			}
@@ -267,6 +277,14 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		// append accumulatedServiceHash to lastAccOut
 		thetaPrime = append(thetaPrime, accumulatedServiceHash)
 	}
+
+	sort.Slice(thetaPrime, func(i, j int) bool {
+		if thetaPrime[i].ServiceId != thetaPrime[j].ServiceId {
+			return thetaPrime[i].ServiceId < thetaPrime[j].ServiceId
+		}
+		return bytes.Compare(thetaPrime[i].Hash[:], thetaPrime[j].Hash[:]) < 0
+	})
+
 	store.GetPosteriorStates().SetLastAccOut(thetaPrime)
 
 	return output, nil

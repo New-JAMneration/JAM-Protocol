@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
 )
@@ -190,7 +191,7 @@ func (em *EpochMark) Encode(e *Encoder) error {
 
 	// Validators
 	if len(em.Validators) != int(ValidatorsCount) {
-		return fmt.Errorf("Validators length is not equal to ValidatorCount")
+		return fmt.Errorf("validators length %d is not equal to ValidatorCount %d", len(em.Validators), ValidatorsCount)
 	}
 
 	for _, validator := range em.Validators {
@@ -246,7 +247,7 @@ func (tm *TicketsMark) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding TicketsMark")
 
 	if len(*tm) != int(EpochLength) {
-		return fmt.Errorf("TicketsMark length is not equal to EpochLength")
+		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(*tm), EpochLength)
 	}
 
 	for _, ticketBody := range *tm {
@@ -721,7 +722,7 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 
 	// Check the size of map
 	if len(*w) != 1 {
-		return fmt.Errorf("WorkExecResult size is not equal to 1")
+		return errors.New("WorkExecResult size is not equal to 1")
 	}
 
 	var key WorkExecResultType
@@ -785,7 +786,7 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("WorkExecResultType is not valid")
+		return errors.New("WorkExecResultType is not valid")
 	}
 }
 
@@ -1085,7 +1086,7 @@ func (v *Verdict) Encode(e *Encoder) error {
 
 	// Votes
 	if len(v.Votes) != int(ValidatorsSuperMajority) {
-		return fmt.Errorf("Votes length is not equal to ValidatorsSuperMajority")
+		return fmt.Errorf("Votes length %d is not equal to ValidatorsSuperMajority %d", len(v.Votes), ValidatorsSuperMajority)
 	}
 
 	for _, vote := range v.Votes {
@@ -1664,7 +1665,7 @@ func (c *CoresStatistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding CoresStatistics")
 
 	if len(*c) != CoresCount {
-		return fmt.Errorf("CoresStatistics length is not equal to CoresCount")
+		return fmt.Errorf("CoresStatistics length %d is not equal to CoresCount %d", len(*c), CoresCount)
 	}
 
 	for _, record := range *c {
@@ -1759,7 +1760,7 @@ func (v *ValidatorsData) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ValidatorsData")
 
 	if len(*v) != int(ValidatorsCount) {
-		return fmt.Errorf("ValidatorsData length is not equal to ValidatorsCount")
+		return fmt.Errorf("ValidatorsData length %d is not equal to ValidatorsCount %d", len(*v), ValidatorsCount)
 	}
 
 	for _, validator := range *v {
@@ -1776,7 +1777,7 @@ func (e *EntropyBuffer) Encode(enc *Encoder) error {
 	cLog(Cyan, "Encoding EntropyBuffer")
 
 	if len(*e) != int(4) {
-		return fmt.Errorf("EntropyBuffer length is not equal to 4")
+		return errors.New("EntropyBuffer length is not equal to 4")
 	}
 
 	for _, entropy := range *e {
@@ -1825,11 +1826,11 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 	// if tickets is nil, append 0 to the buffer, else append 1
 
 	if t.Tickets == nil && t.Keys == nil {
-		return fmt.Errorf("Tickets and Keys are both nil")
+		return errors.New("tickets and keys are both nil")
 	}
 
 	if t.Tickets != nil && t.Keys != nil {
-		return fmt.Errorf("Tickets and Keys are both not nil")
+		return errors.New("tickets and keys are both not nil")
 	}
 
 	// Tickets
@@ -1839,7 +1840,7 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 
 		// Encode Tickets
 		if len(t.Tickets) != EpochLength {
-			return fmt.Errorf("Tickets length is not equal to EpochLength")
+			return fmt.Errorf("tickets length %d is not equal to EpochLength %d", len(t.Tickets), EpochLength)
 		}
 
 		for _, ticketBody := range t.Tickets {
@@ -1857,7 +1858,7 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 
 		// Encode Keys
 		if len(t.Keys) != EpochLength {
-			return fmt.Errorf("Keys length is not equal to EpochLength")
+			return fmt.Errorf("keys length %d is not equal to EpochLength %d", len(t.Keys), EpochLength)
 		}
 
 		for _, key := range t.Keys {
@@ -1892,7 +1893,7 @@ func (a *AvailabilityAssignments) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AvailabilityAssignments")
 
 	if len(*a) != int(CoresCount) {
-		return fmt.Errorf("AvailabilityAssignments length is not equal to CoresCount")
+		return fmt.Errorf("AvailabilityAssignments length %d is not equal to CoresCount %d", len(*a), CoresCount)
 	}
 
 	for _, item := range *a {
@@ -2002,7 +2003,7 @@ func (bh *BlocksHistory) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding BlocksHistory")
 
 	if len(*bh) > int(MaxBlocksHistory) {
-		return fmt.Errorf("BlocksHistory length is greater than BlocksHistoryLength")
+		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(*bh), MaxBlocksHistory)
 	}
 
 	if err := e.EncodeLength(uint64(len(*bh))); err != nil {
@@ -2050,7 +2051,7 @@ func (ap *AuthPool) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AuthPool")
 
 	if len(*ap) > int(AuthPoolMaxSize) {
-		return fmt.Errorf("AuthPool length is greater than AuthPoolMaxSize")
+		return fmt.Errorf("AuthPool length %d is greater than AuthPoolMaxSize %d", len(*ap), AuthPoolMaxSize)
 	}
 
 	if err := e.EncodeLength(uint64(len(*ap))); err != nil {
@@ -2072,7 +2073,7 @@ func (ap *AuthPools) Encode(e *Encoder) error {
 
 	// CoresCount
 	if len(*ap) != int(CoresCount) {
-		return fmt.Errorf("AuthPools length is not equal to CoresCount")
+		return fmt.Errorf("AuthPools length %d is not equal to CoresCount %d", len(*ap), CoresCount)
 	}
 
 	for _, authPool := range *ap {
@@ -2224,7 +2225,7 @@ func (aq *AuthQueue) Encode(e *Encoder) error {
 
 	// AuthQueueSize
 	if len(*aq) != int(AuthQueueSize) {
-		return fmt.Errorf("AuthQueue length is not equal to AuthQueueSize")
+		return fmt.Errorf("AuthQueue length %d is not equal to AuthQueueSize %d", len(*aq), AuthQueueSize)
 	}
 
 	for _, authorizerHash := range *aq {
@@ -2242,7 +2243,7 @@ func (aq *AuthQueues) Encode(e *Encoder) error {
 
 	// CoresCount
 	if len(*aq) != int(CoresCount) {
-		return fmt.Errorf("AuthQueues length is not equal to CoresCount")
+		return fmt.Errorf("AuthQueues length %d is not equal to CoresCount %d", len(*aq), CoresCount)
 	}
 
 	for _, authQueue := range *aq {
@@ -2299,7 +2300,7 @@ func (rq *ReadyQueue) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ReadyQueue")
 
 	if len(*rq) != int(EpochLength) {
-		return fmt.Errorf("ReadyQueue length is not equal to EpochLength")
+		return fmt.Errorf("ReadyQueue length %d is not equal to EpochLength %d", len(*rq), EpochLength)
 	}
 
 	for _, readyQueueItem := range *rq {
@@ -2333,7 +2334,7 @@ func (aq *AccumulatedQueue) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AccumulateQueue")
 
 	if len(*aq) != int(EpochLength) {
-		return fmt.Errorf("AccumulateQueue length is not equal to EpochLength")
+		return fmt.Errorf("AccumulateQueue length %d is not equal to EpochLength %d", len(*aq), EpochLength)
 	}
 
 	for _, accumulatedQueueItem := range *aq {
@@ -2882,11 +2883,11 @@ func (o *OperandOrDeferredTransfer) Encode(e *Encoder) error {
 
 	// if operand is nil, append 0 to the buffer, else append 1
 	if o.Operand == nil && o.DeferredTransfer == nil {
-		return fmt.Errorf("Operand and DeferredTransfer are both nil")
+		return errors.New("Operand and DeferredTransfer are both nil")
 	}
 
 	if o.Operand != nil && o.DeferredTransfer != nil {
-		return fmt.Errorf("Operand and DeferredTransfer are both not nil")
+		return errors.New("Operand and DeferredTransfer are both not nil")
 	}
 
 	// Operand
@@ -3115,6 +3116,33 @@ func (l *LastAccOut) Encode(e *Encoder) error {
 	for _, accumulatedServiceHash := range *l {
 		// AccumulatedServiceHash
 		if err := accumulatedServiceHash.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ai *AncestryItem) Encode(e *Encoder) error {
+	if err := ai.Slot.Encode(e); err != nil {
+		return err
+	}
+
+	if err := ai.HeaderHash.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Ancestry) Encode(e *Encoder) error {
+	err := e.EncodeLength(uint64(len(*a)))
+	if err != nil {
+		return err
+	}
+
+	for _, item := range *a {
+		if err := item.Encode(e); err != nil {
 			return err
 		}
 	}

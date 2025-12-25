@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
 
@@ -1381,7 +1382,7 @@ func (i *ImportSpec) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ImportSpec")
 
 	if d.HashSegmentMap == nil {
-		return fmt.Errorf("please set the HashSegmentMap to the decoder")
+		return errors.New("please set the HashSegmentMap to the decoder")
 	}
 
 	// Check the input is H or H⊞
@@ -2311,43 +2312,43 @@ func (s *ServiceInfo) Decode(d *Decoder) error {
 	}
 
 	if err = s.CodeHash.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode code hash: %w", err)
 	}
 
 	if err = s.Balance.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode balance: %w", err)
 	}
 
 	if err = s.MinItemGas.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode min item gas: %w", err)
 	}
 
 	if err = s.MinMemoGas.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode min memo gas: %w", err)
 	}
 
 	if err = s.Bytes.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode bytes: %w", err)
 	}
 
 	if err = s.DepositOffset.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode deposit offset: %w", err)
 	}
 
 	if err = s.Items.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode items: %w", err)
 	}
 
 	if err = s.CreationSlot.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode creation slot: %w", err)
 	}
 
 	if err = s.LastAccumulationSlot.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode last accumulation slot: %w", err)
 	}
 
 	if err = s.ParentService.Decode(d); err != nil {
-		return err
+		return fmt.Errorf("failed to decode parent service: %w", err)
 	}
 
 	return nil
@@ -3418,6 +3419,41 @@ func (l *LastAccOut) Decode(d *Decoder) error {
 	// Assign the decoded slice to the receiver
 	*l = lastAccOut
 
+	return nil
+}
+
+func (ai *AncestryItem) Decode(d *Decoder) error {
+	if err := ai.Slot.Decode(d); err != nil {
+		return err
+	}
+
+	if err := ai.HeaderHash.Decode(d); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Ancestry) Decode(d *Decoder) error {
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+
+	// The length should not exceed the maximum lookup age
+	if length > uint64(MaxLookupAge) {
+		return fmt.Errorf("ancestry length %d exceeds maximum lookup age %d", length, MaxLookupAge)
+	}
+
+	*a = make(Ancestry, length)
+
+	for i := uint64(0); i < length; i++ {
+		var item AncestryItem
+		if err := item.Decode(d); err != nil {
+			return err
+		}
+		(*a)[i] = item
+	}
 	return nil
 }
 

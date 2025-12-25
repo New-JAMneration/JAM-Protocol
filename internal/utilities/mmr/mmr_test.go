@@ -1,4 +1,4 @@
-package mmr
+package mmr_test
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/mmr"
 	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
 )
 
@@ -20,14 +21,14 @@ func HelperFromM(mmrPeak types.MmrPeak) types.OpaqueHash {
 }
 func TestNewMMR(t *testing.T) {
 	t.Run("nil hash function returns nil MMR", func(t *testing.T) {
-		m := NewMMR(nil)
+		m := mmr.NewMMR(nil)
 		if m != nil {
 			t.Errorf("expected nil MMR when hashFn is nil, got %v", m)
 		}
 	})
 
 	t.Run("valid hash function returns non-nil MMR", func(t *testing.T) {
-		m := NewMMR(hash.Blake2bHash)
+		m := mmr.NewMMR(hash.Blake2bHash)
 		if m == nil {
 			t.Errorf("expected non-nil MMR, got nil")
 		}
@@ -38,7 +39,7 @@ func TestMMR_Replace(t *testing.T) {
 	hashA := hash.Blake2bHash([]byte("A"))
 	hashB := hash.Blake2bHash([]byte("B"))
 
-	m := NewMMR(hash.Blake2bHash)
+	m := mmr.NewMMR(hash.Blake2bHash)
 	if m == nil {
 		t.Fatal("failed to create MMR")
 	}
@@ -66,7 +67,7 @@ func TestMMR_Replace(t *testing.T) {
 }
 
 func TestMMR_AppendOne(t *testing.T) {
-	m := NewMMR(hash.Blake2bHash)
+	m := mmr.NewMMR(hash.Blake2bHash)
 	if m == nil {
 		t.Fatal("failed to create MMR")
 	}
@@ -118,7 +119,7 @@ func TestImportMmr(t *testing.T) {
 	}
 
 	// 4. Convert the external Mmr to your internal MMR.
-	myMmr := MmrWrapper(extMmr, hash.Blake2bHash)
+	myMmr := mmr.MmrWrapper(extMmr, hash.Blake2bHash)
 	if myMmr == nil {
 		t.Fatalf("Expected non-nil MMR, got nil")
 	}
@@ -205,7 +206,7 @@ func TestMMR_Serialize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &MMR{Peaks: tt.peaks}
+			m := &mmr.MMR{Peaks: tt.peaks}
 
 			// Call Serialize
 			actual := m.Serialize()
@@ -221,16 +222,8 @@ func TestMMR_Serialize(t *testing.T) {
 // TestSuperPeak exercises the MMR.SuperPeak function.
 func TestSuperPeak(t *testing.T) {
 	// Create a simple MMR instance that uses Keccak as its hashing function.
-	newTestMMR := func() *MMR {
-		return &MMR{
-			Peaks: []types.MmrPeak{},
-			// If your MMR normally uses m.hashFn, just wrap hash.KeccakHash here:
-			// i.e., hashFn: func(input types.ByteSequence) types.OpaqueHash { ... }
-			hashFn: func(input types.ByteSequence) types.OpaqueHash {
-				h := hash.Blake2bHash(input)
-				return h
-			},
-		}
+	newTestMMR := func() *mmr.MMR {
+		return mmr.NewMMR(hash.KeccakHash)
 	}
 
 	t.Run("no peaks", func(t *testing.T) {
@@ -312,7 +305,7 @@ func TestSuperPeak(t *testing.T) {
 
 func TestMMR_AppendOne_Comprehensive(t *testing.T) {
 	t.Run("appending nil data returns original peaks", func(t *testing.T) {
-		m := NewMMR(hash.Blake2bHash)
+		m := mmr.NewMMR(hash.Blake2bHash)
 		if m == nil {
 			t.Fatal("failed to create MMR")
 		}
@@ -330,7 +323,7 @@ func TestMMR_AppendOne_Comprehensive(t *testing.T) {
 	})
 
 	t.Run("appending empty data adds a peak", func(t *testing.T) {
-		m := NewMMR(hash.Blake2bHash)
+		m := mmr.NewMMR(hash.Blake2bHash)
 		if m == nil {
 			t.Fatal("failed to create MMR")
 		}
@@ -347,7 +340,7 @@ func TestMMR_AppendOne_Comprehensive(t *testing.T) {
 	})
 
 	t.Run("appending data to empty MMR creates single peak", func(t *testing.T) {
-		m := NewMMR(hash.Blake2bHash)
+		m := mmr.NewMMR(hash.Blake2bHash)
 		if m == nil {
 			t.Fatal("failed to create MMR")
 		}
@@ -365,7 +358,7 @@ func TestMMR_AppendOne_Comprehensive(t *testing.T) {
 	})
 
 	t.Run("observe appending behavior with multiple values", func(t *testing.T) {
-		m := NewMMR(hash.Blake2bHash)
+		m := mmr.NewMMR(hash.Blake2bHash)
 		if m == nil {
 			t.Fatal("failed to create MMR")
 		}
@@ -416,11 +409,11 @@ func TestMMR_TinyVectors_AppendAndRoot(t *testing.T) {
 		}
 
 		// Build or wrap pre_state MMR
-		var m *MMR
+		var m *mmr.MMR
 		if len(tv.PreState.Beta.Mmr.Peaks) == 0 {
-			m = NewMMR(hash.KeccakHash)
+			m = mmr.NewMMR(hash.KeccakHash)
 		} else {
-			m = NewMMRFromPeaks(tv.PreState.Beta.Mmr.Peaks, hash.KeccakHash)
+			m = mmr.NewMMRFromPeaks(tv.PreState.Beta.Mmr.Peaks, hash.KeccakHash)
 		}
 
 		// Append accumulate_root from input

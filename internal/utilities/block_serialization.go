@@ -1,10 +1,9 @@
 package utilities
 
 import (
-	"fmt"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 func SerializeByteSequence(input []byte) (output types.ByteSequence) {
@@ -283,6 +282,54 @@ func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.Byt
 	output = append(output, encodedDisputes...)
 
 	return output, nil
+}
+
+func CreateExtrinsicHash(extrinsic types.Extrinsic) (extrinsicHash types.OpaqueHash, err error) {
+	// Encode the extrinsic elements
+	encodedTicketsExtrinsic, err := EncodeExtrinsicTickets(extrinsic.Tickets)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedPreimagesExtrinsic, err := EncodeExtrinsicPreimages(extrinsic.Preimages)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedGuaranteesExtrinsic, err := EncodeExtrinsicGuarantees(extrinsic.Guarantees)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedAssurancesExtrinsic, err := EncodeExtrinsicAssurances(extrinsic.Assurances)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	encodedDisputesExtrinsic, err := EncodeExtrinsicDisputes(extrinsic.Disputes)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+
+	// Hash encoded elements
+	encodedTicketsHash := hash.Blake2bHash(encodedTicketsExtrinsic)
+	encodedPreimagesHash := hash.Blake2bHash(encodedPreimagesExtrinsic)
+	encodedGuaranteesHash := hash.Blake2bHash(encodedGuaranteesExtrinsic)
+	encodedAssurancesHash := hash.Blake2bHash(encodedAssurancesExtrinsic)
+	encodedDisputesHash := hash.Blake2bHash(encodedDisputesExtrinsic)
+
+	// Concatenate the encoded elements
+	encodedHash := types.ByteSequence{}
+	encodedHash = append(encodedHash, types.ByteSequence(encodedTicketsHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedPreimagesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedGuaranteesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedAssurancesHash[:])...)
+	encodedHash = append(encodedHash, types.ByteSequence(encodedDisputesHash[:])...)
+
+	// Hash the encoded elements
+	extrinsicHash = hash.Blake2bHash(encodedHash)
+
+	return extrinsicHash, nil
 }
 
 // (C.22)
@@ -580,7 +627,7 @@ func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequ
 			}
 		}
 	} else {
-		fmt.Println("Map size expected to be 1")
+		logger.Errorf("Map size expected to be 1")
 	}
 	return output
 }

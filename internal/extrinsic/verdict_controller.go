@@ -2,14 +2,14 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"fmt"
+	"errors"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // VerdictWrapper is a struct that contains a Verdict
@@ -59,7 +59,7 @@ func (v *VerdictWrapper) VerifySignature() error {
 
 	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
 	if v.Verdict.Age != a && v.Verdict.Age != a-1 {
-		return fmt.Errorf("bad_judgement_age")
+		return errors.New("bad_judgement_age")
 	}
 
 	var k types.ValidatorsData
@@ -78,7 +78,7 @@ func (v *VerdictWrapper) VerifySignature() error {
 
 	for i := 0; i < VoteNum; i++ {
 		if int(v.Verdict.Votes[i].Index) >= len(k) {
-			return fmt.Errorf("bad_guarantor_key")
+			return errors.New("bad_guarantor_key")
 		}
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
 		var message []byte
@@ -90,13 +90,13 @@ func (v *VerdictWrapper) VerifySignature() error {
 
 		message = append(message, target...)
 
-		if !ed25519.Verify(publicKey, message, v.Verdict.Votes[i].Signature[:]) {
+		if !ed25519consensus.Verify(publicKey, message, v.Verdict.Votes[i].Signature[:]) {
 			invalidVotes = append(invalidVotes, i)
 		}
 	}
 
 	if len(invalidVotes) > 0 {
-		return fmt.Errorf("bad_signature")
+		return errors.New("bad_signature")
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (v *VerdictController) CheckUnique() error {
 
 	for _, v := range v.Verdicts {
 		if uniqueMap[v.Verdict.Target] {
-			return fmt.Errorf("verdicts_not_sorted_unique")
+			return errors.New("verdicts_not_sorted_unique")
 		}
 		uniqueMap[v.Verdict.Target] = true
 		result = append(result, v)
@@ -135,7 +135,7 @@ func (v *VerdictController) CheckUnique() error {
 		votesResult := make([]types.Judgement, 0)
 		for _, vote := range v.Verdict.Votes {
 			if uniqueJudgementMap[vote.Index] {
-				return fmt.Errorf("judgements_not_sorted_unique")
+				return errors.New("judgements_not_sorted_unique")
 			}
 			uniqueJudgementMap[vote.Index] = true
 			votesResult = append(votesResult, vote)
@@ -149,7 +149,7 @@ func (v *VerdictController) CheckSorted() error {
 	// Check if Verdicts are sorted by target
 	for i := 1; i < len(v.Verdicts); i++ {
 		if CompareOpaqueHash(v.Verdicts[i-1].Verdict.Target, v.Verdicts[i].Verdict.Target) > 0 {
-			return fmt.Errorf("verdicts_not_sorted_unique")
+			return errors.New("verdicts_not_sorted_unique")
 		}
 	}
 
@@ -157,7 +157,7 @@ func (v *VerdictController) CheckSorted() error {
 	for _, verdict := range v.Verdicts {
 		votes := VoteWrapper(verdict.Verdict.Votes)
 		if !sort.IsSorted(&votes) {
-			return fmt.Errorf("judgements_not_sorted_unique")
+			return errors.New("judgements_not_sorted_unique")
 		}
 	}
 
@@ -224,7 +224,7 @@ func (v *VerdictController) SetDisjoint() error {
 
 	for _, v := range v.Verdicts {
 		if uniqueMap[v.Verdict.Target] {
-			return fmt.Errorf("already_judged")
+			return errors.New("already_judged")
 		}
 	}
 	return nil

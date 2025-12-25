@@ -41,7 +41,7 @@ func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 		return fmt.Errorf("state_root mismatch: got %x, want %x", tr.Store.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot)
 	}
 
-	err := stf.RunSTF()
+	_, err := stf.RunSTF()
 	if err != nil {
 		return err
 	}

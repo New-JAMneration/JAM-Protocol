@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
 	"go.uber.org/automaxprocs/maxprocs"
 )
@@ -178,13 +178,12 @@ func SetupJAMProtocol(chainPath string) {
 
 	s.GenerateGenesisBlock(genesisBlock)
 
-	log.Println("Genesis block parent header hash:")
-	log.Printf("0x%s\n", hex.EncodeToString(s.GetBlocks()[0].Header.Parent[:]))
+	logger.Info("Genesis block parent header hash:")
+	logger.Infof("0x%s", hex.EncodeToString(s.GetBlocks()[0].Header.Parent[:]))
 }
 
 func main() {
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		fmt.Printf("error: %v", err)
-		os.Exit(1)
+		logger.Fatalf("error: %v", err)
 	}
 }

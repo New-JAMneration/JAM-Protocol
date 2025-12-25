@@ -74,19 +74,6 @@ func (a *AssuranceErrorCode) Error() string {
 		return "nil"
 	}
 
-	switch *a {
-	case BadAttestationParent:
-		return "bad_attestation_parent"
-	case BadValidatorIndex:
-		return "bad_validator_index"
-	case CoreNotEngaged:
-		return "core_engaged"
-	case BadSignature:
-		return "invalid_signature"
-	case NotSortedOrUniqueAssurers:
-		return "not_sorted_or_unique_assurers"
-	}
-
 	return fmt.Sprintf("%v", *a)
 }
 

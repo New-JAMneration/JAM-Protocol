@@ -1,6 +1,7 @@
 package work_package
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
@@ -39,12 +40,12 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 	for _, spec := range specs {
 		length := int(spec.Len)
 		if curr+length > len(data) {
-			return nil, fmt.Errorf("extrinsic length overflow")
+			return nil, errors.New("extrinsic length overflow")
 		}
 
 		extracted := data[curr : curr+length]
 		if hash.Blake2bHash(extracted) != spec.Hash {
-			return nil, fmt.Errorf("extrinsic hash mismatch")
+			return nil, errors.New("extrinsic hash mismatch")
 		}
 
 		result[spec.Hash] = append([]byte(nil), extracted...)
@@ -52,7 +53,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 	}
 
 	if curr != len(data) {
-		return nil, fmt.Errorf("data remains after extrinsics parsed")
+		return nil, errors.New("data remains after extrinsics parsed")
 	}
 
 	return result, nil
@@ -119,8 +120,8 @@ func WorkReportCompute(
 		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
 	}
 
-	var results []types.WorkResult
-	var exports [][]types.ExportSegment
+	results := make([]types.WorkResult, 0, len(workPackage.Items))
+	exports := make([][]types.ExportSegment, 0, len(workPackage.Items))
 
 	rSum := 0
 	for j, item := range workPackage.Items {
@@ -360,7 +361,7 @@ func PadToMultiple(x []byte, n int) []byte {
 }
 
 func convertMapToLookup(m map[types.OpaqueHash]types.OpaqueHash) types.SegmentRootLookup {
-	var lookup types.SegmentRootLookup
+	lookup := make(types.SegmentRootLookup, 0, len(m))
 	for wpHash, segmentRoot := range m {
 		lookup = append(lookup, types.SegmentRootLookupItem{
 			WorkPackageHash: types.WorkPackageHash(wpHash),

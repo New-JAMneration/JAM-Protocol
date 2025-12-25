@@ -2,11 +2,11 @@ package service_account
 
 import (
 	"fmt"
-	"log"
 
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // (9.4) This function was integrated into HistoricalLookup function
@@ -23,7 +23,7 @@ func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (m
 	// if we can't fetch metadata and code, then validate function should return error
 	err = ValidatePreimageLookupDict(account)
 	if err != nil {
-		log.Printf("ValidatePreimageLookupDict failed and you'll get nil return")
+		logger.Error("ValidatePreimageLookupDict failed and you'll get nil return")
 		return nil, nil, err
 	}
 	// default is empty
@@ -35,13 +35,13 @@ func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code
 	decoder := types.NewDecoder()
 	err = decoder.Decode(bytes, &metaCode)
 	if err != nil {
-		log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
+		logger.Errorf("Failed to deserialize code and metadata: %v, return nil\n", err)
 		return nil, nil, err
 	}
 	/*
 		if metaCode.Metadata != nil {
 			// print metadata
-			log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
+			logger.Debugf("Metadata of fetched code is %v\n", metaCode.Metadata)
 		}
 	*/
 	return metaCode.Metadata, metaCode.Code, nil
@@ -55,10 +55,10 @@ func ValidatePreimageLookupDict(account types.ServiceAccount) error {
 		// // h = H(p)
 		preimageHash := hash.Blake2bHash(utils.ByteSequenceWrapper{Value: preimage}.Serialize())
 		if codeHash != preimageHash {
-			return fmt.Errorf("\nCodeHash: %v \nshould equal to PreimageHash: %v", codeHash, preimageHash)
+			return fmt.Errorf("\nCodeHash: 0x%x \nshould equal to PreimageHash: 0x%x", codeHash, preimageHash)
 		}
 		if !existsInLookupDict(account, codeHash, preimage) {
-			return fmt.Errorf("\nCodeHash: %v, Preimage: %v not found in LookupDict keysize", codeHash, preimage)
+			return fmt.Errorf("\nCodeHash: 0x%x, Preimage: 0x%x not found in LookupDict keysize", codeHash, preimage)
 		}
 	}
 	return nil
@@ -134,7 +134,7 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	/*
 		∀a ∈ V(δ) ∶
 		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
-		⎪ a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	32 + |x| ]
+		⎪ a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	34 + |x| ]
 		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
 		⎩
 	*/
@@ -164,7 +164,7 @@ func CalcKeys(account types.ServiceAccount) types.U32 {
 // a_o: calculate total number of octets(datas) used in storage
 func CalcOctets(account types.ServiceAccount) types.U64 {
 	/*
-		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	32 + |x| ]
+		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	34 + |x| ]
 	*/
 	// calculate all (81 + preiamge lookup length in keysize)
 	keyContribution := 0
@@ -191,5 +191,19 @@ func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 		// result < 0
 		return 0
 	}
-	return aF
+	return storage
+}
+
+/*
+	a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
+	a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	34 + |x| ]
+*/
+// compute how many items a_i(keys) and a_o(ocetes) the lookupItem has
+func CalcLookupItemfootprint(lookupItem types.LookupMetaMapkey) (types.U32, types.U64) {
+	return 2, 81 + types.U64(lookupItem.Length)
+}
+
+// compute how many items a_i(keys) and a_o(ocetes) the storageItem has
+func CalcStorageItemfootprint(storageRawKey string, storageData types.ByteSequence) (types.U32, types.U64) {
+	return 1, 34 + types.U64(len(storageRawKey)) + types.U64(len(storageData))
 }

@@ -23,7 +23,7 @@ func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, error) {
 	}
 
 	if len(bitmaskData) != int(bitmaskSize) {
-		return nil, fmt.Errorf("bitmask has incorrect size")
+		return nil, fmt.Errorf("bitmask has incorrect size: expected %d, got %d", bitmaskSize, len(bitmaskData))
 	}
 
 	bitmask := make(Bitmask, instSize)
@@ -92,29 +92,29 @@ func DeBlobProgramCode(data []byte) (_ Program, exitReason error) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableSize ReadUintVariable error: %v", err)
+		return Program{}, fmt.Errorf("jumpTableSize ReadUintVariable error: %w", err)
 	}
 
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableLength ReadUintFixed error: %v", err)
+		return Program{}, fmt.Errorf("jumpTableLength ReadUintFixed error: %w", err)
 	}
 	// E_(|c|) : size of instructions
 	instSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return Program{}, fmt.Errorf("instSize ReadUintVariable error: %v", err)
+		return Program{}, fmt.Errorf("instSize ReadUintVariable error: %w", err)
 	}
 
 	if jumpTableLength*jumpTableSize >= 1<<32 {
-		return Program{}, fmt.Errorf("jump table size %d bits exceed litmit", jumpTableLength*jumpTableSize)
+		return Program{}, fmt.Errorf("jump table size %d bits exceed litmit of 32 bits", jumpTableLength*jumpTableSize)
 		// panic("the jump table's size is supposed to be at most 32 bits")
 	}
 
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
 	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableData ReadBytes error: %v", err)
+		return Program{}, fmt.Errorf("jumpTableData ReadBytes error: %w", err)
 	}
 
 	instructions := data[:instSize]

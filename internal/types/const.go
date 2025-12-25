@@ -1,9 +1,10 @@
 package types
 
 import (
-	"log"
 	"os"
 	"time"
+
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var TEST_MODE = "tiny"
@@ -11,23 +12,23 @@ var TEST_MODE = "tiny"
 func SetTestMode() {
 	TEST_MODE = os.Getenv("TEST_MODE")
 	if TEST_MODE == "tiny" {
-		log.Println("⚙️  Tiny mode activated")
+		logger.Info("⚙️  Tiny mode activated")
 		SetTinyMode()
 		return
 	}
 
 	if TEST_MODE == "full" {
-		log.Println("⚙️  Full mode activated")
+		logger.Info("⚙️  Full mode activated")
 		SetFullMode()
 		return
 	}
 
-	log.Println("⚙️  Default(Tiny) mode activated")
+	logger.Info("⚙️  Default(Tiny) mode activated")
 	SetTinyMode()
 }
 
 func SetTinyMode() {
-	log.Println("⚙️  Tiny mode activated")
+	logger.Info("⚙️  Tiny mode activated")
 	TEST_MODE = "tiny"
 	ValidatorsCount = 6     // V
 	CoresCount = 2          // C
@@ -43,10 +44,11 @@ func SetTinyMode() {
 	MaxRefineGas = 1_000_000_000       // G_R
 	ECPiecesPerSegment = 1026
 	ECBasicSize = 4
+	MaxLookupAge = 24 // L
 }
 
 func SetFullMode() {
-	log.Println("⚙️  Full mode activated")
+	logger.Info("⚙️  Full mode activated")
 	TEST_MODE = "full"
 	ValidatorsCount = 1023  // V
 	CoresCount = 341        // C
@@ -62,6 +64,7 @@ func SetFullMode() {
 	MaxRefineGas = 5_000_000_000                              // G_R
 	ECPiecesPerSegment = 6
 	ECBasicSize = 684
+	MaxLookupAge = 14400 // L
 }
 
 // changeable constants depends on chainspec
@@ -89,7 +92,7 @@ var (
 	MaxRefineGas                  = 1_000_000_000 // G_R v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	ECPiecesPerSegment            = 1026          // W_P: The number of erasure-coded pieces in a segment
 	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
-	MaxLookupAge                  = 14400         // L
+	MaxLookupAge                  = 24            // L
 	// --- end ProtocolParameters ---
 
 	// ValidatorsSuperMajority represents the required majority of validators.

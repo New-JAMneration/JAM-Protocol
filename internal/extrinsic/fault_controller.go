@@ -2,11 +2,11 @@ package extrinsic
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"fmt"
+	"errors"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/hdevalence/ed25519consensus"
 )
 
 // FaultController is a struct that contains a slice of Fault
@@ -61,7 +61,7 @@ func (f *FaultController) VerifyFaultSignature() error {
 
 	for _, vote := range f.Faults {
 		if _, ok := validKeySet[vote.Key]; !ok {
-			return fmt.Errorf("bad_auditor_key")
+			return errors.New("bad_auditor_key")
 		}
 		var msg []byte
 		if vote.Vote {
@@ -71,8 +71,8 @@ func (f *FaultController) VerifyFaultSignature() error {
 		}
 		msg = append(msg, vote.Target[:]...)
 
-		if !ed25519.Verify(vote.Key[:], msg, vote.Signature[:]) {
-			return fmt.Errorf("bad_signature")
+		if !ed25519consensus.Verify(vote.Key[:], msg, vote.Signature[:]) {
+			return errors.New("bad_signature")
 		}
 	}
 	return nil
@@ -101,7 +101,7 @@ func (f *FaultController) VerifyReportHashValidty() error {
 		inGood := goodMap[f.Faults[i].Target] && !badMap[f.Faults[i].Target]
 		inBad := !goodMap[f.Faults[i].Target] && badMap[f.Faults[i].Target]
 		if (vote && inGood) || (!vote && inBad) {
-			return fmt.Errorf("fault_verdict_wrong")
+			return errors.New("fault_verdict_wrong")
 		}
 	}
 	return nil
@@ -119,7 +119,7 @@ func (f *FaultController) ExcludeOffenders() error {
 	length := len(f.Faults)
 	for i := 0; i < length; i++ { // culprit index
 		if excludeMap[f.Faults[i].Key] {
-			return fmt.Errorf("offender_already_reported")
+			return errors.New("offender_already_reported")
 		}
 	}
 	return nil
@@ -145,7 +145,7 @@ func (f *FaultController) CheckUnique() error {
 	uniqueFaults := make([]types.Fault, 0)
 	for _, fault := range f.Faults {
 		if uniqueMap[fault.Key] {
-			return fmt.Errorf("faults_not_sorted_unique")
+			return errors.New("faults_not_sorted_unique")
 		}
 		uniqueMap[fault.Key] = true
 		uniqueFaults = append(uniqueFaults, fault)
@@ -157,7 +157,7 @@ func (f *FaultController) CheckUnique() error {
 func (f *FaultController) CheckSorted() error {
 	for i := 1; i < len(f.Faults); i++ {
 		if bytes.Compare(f.Faults[i-1].Key[:], f.Faults[i].Key[:]) > 0 {
-			return fmt.Errorf("faults_not_sorted_unique")
+			return errors.New("faults_not_sorted_unique")
 		}
 	}
 	return nil

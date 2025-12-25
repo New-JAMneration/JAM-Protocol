@@ -1,6 +1,8 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // (4.4)
 type State struct {
@@ -119,4 +121,23 @@ func (AccumulatedQueue AccumulatedQueue) Validate() error {
 		return fmt.Errorf("AccumulatedQueue must have exactly %d items, but got %d", EpochLength, len(AccumulatedQueue))
 	}
 	return nil
+}
+
+var KeyValMap = map[StateKey]string{
+	{1}:  "alpha",
+	{2}:  "varphi",
+	{3}:  "beta",
+	{4}:  "gamma",
+	{5}:  "psi",
+	{6}:  "eta",
+	{7}:  "iota",
+	{8}:  "kappa",
+	{9}:  "lambda",
+	{10}: "rho",
+	{11}: "tau",
+	{12}: "chi",
+	{13}: "pi",
+	{14}: "theta",
+	{15}: "xi",
+	{16}: "vartheta",
 }

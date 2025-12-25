@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Set git credentials for submodules
+        run: git config --global url."https://${{ secrets.TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Init & Update specific submodule
+        run: git submodule update --init pkg/Rust-VRF
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Release
+        run: make release-target
+
+      - name: Get Tag Name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Read versions
+        id: version
+        run: |
+          echo "VERSION_GP=$(cat VERSION_GP)" >> $GITHUB_ENV
+          echo "VERSION_TARGET=$(cat VERSION_TARGET)" >> $GITHUB_ENV
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          files: |
+            build/new-jamneration-target-linux-amd64-${{ env.VERSION_GP }}.tar.gz
+            build/new-jamneration-target-linux-amd64-${{ env.VERSION_GP }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Create Release in Target Repo
+        run: |
+          gh release create "${{ env.TAG_NAME }}" \
+            build/new-jamneration-target-linux-amd64-${{ env.VERSION_GP }}.tar.gz \
+            build/new-jamneration-target-linux-amd64-${{ env.VERSION_GP }}.zip \
+            --repo "${{ github.repository_owner }}/new-jamneration-release" \
+            --title "${{ env.TAG_NAME }}" \
+            --notes "$(echo -e "jam version: ${VERSION_GP}\napp version: ${VERSION_TARGET}\n")"
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
