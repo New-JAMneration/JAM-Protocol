@@ -17,7 +17,6 @@ func Psi_M(
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
-	instrCount = 0
 	programCode, registers, memory, err := SingleInitializer(code, argument)
 	// Y(p) = nil
 	if err != nil {
@@ -44,7 +43,7 @@ func Psi_M(
 
 	addition.Program = program
 
-	g, v, a := R(gas, HostCall(program, counter, gas, registers, memory, omegas, addition))
+	g, v, a := R(gas, HostCall(program, counter, gas, registers, memory, omegas, addition, 0))
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,

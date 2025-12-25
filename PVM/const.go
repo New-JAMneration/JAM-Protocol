@@ -14,9 +14,6 @@ var (
 	// PVM logger instance
 	pvmLogger = logger.GetLogger("pvm")
 
-	// instruction counter
-	instrCount = 0
-
 	// log print as hex or dec, default: dec
 	instrLogFormat = "dec"
 

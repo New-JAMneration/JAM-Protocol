@@ -12,7 +12,8 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 	var exitReason error
 
 	exitReason, pcPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
-		program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
+		//program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
+		program, pc, gas, reg, mem)
 	if exitReason == ErrNotImplemented {
 		return exitReason, pcPrime, gasPrime, registersPrime, memoryPrime
 	}
@@ -30,19 +31,18 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 var ErrNotImplemented = errors.New("instruction not implemented")
 
 // (v.0.7.1 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable,
-	pc ProgramCounter, gas Gas, registers Registers, memory Memory) (
+func SingleStepStateTransition(program Program, pc ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
 	// check program-counter exceed blob length
-	if int(pc) >= len(instructionData) {
+	if int(pc) >= len(program.InstructionData) {
 		return PVMExitTuple(PANIC, nil), pc, gas, registers, memory
 	}
 
 	var exitReason error
 
 	// (v0.7.1  A.19) check opcode validity
-	opcodeData := instructionData.isOpcode(pc)
+	opcodeData := program.InstructionData.isOpcode(pc)
 	// check gas
 	if gas < 0 {
 		// pvmLogger.Debugf("service out-of-gas: required %d, but only %d", instrCount, gas)
@@ -55,13 +55,13 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 		return ErrNotImplemented, pc, gas, registers, memory
 	}
 	// (v0.7.1  A.20) l = skip(iota)
-	skipLength := ProgramCounter(skip(int(pc), bitmask))
+	skipLength := ProgramCounter(skip(int(pc), program.Bitmasks))
 
-	exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](instructionData, pc, skipLength, registers, memory, jumpTable, bitmask)
+	exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](program.InstructionData, pc, skipLength, registers, memory, program.JumpTable, program.Bitmasks, program.InstrCount)
 	// update PVM states
 	registers = registersPrime
 	memory = memoryPrime
-	instrCount++
+	program.InstrCount++
 	// logger.Debug("gasPrime, regPrime: ", gas, registersPrime)
 	var pvmExit *PVMExitReason
 	if !errors.As(exitReason, &pvmExit) && exitReason != nil {
@@ -118,7 +118,7 @@ func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 		}
 	*/
 	// execute instructions in the block
-	pc, regPrime, memPrime, gasPrime, exitReason := ExecuteInstructions(program.InstructionData, program.Bitmasks, program.JumpTable, pc, pcPrime, reg, mem, gas)
+	pc, regPrime, memPrime, gasPrime, exitReason := ExecuteInstructions(program, pc, pcPrime, reg, mem, gas)
 
 	var pvmExit *PVMExitReason
 	if !errors.As(exitReason, &pvmExit) {
@@ -165,20 +165,20 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 }
 
 // execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
-func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) {
+func ExecuteInstructions(program Program, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) {
 	// no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
 	for pc <= pcPrime {
 		if gas < 1 {
 			return pc, registers, memory, gas, PVMExitTuple(OUT_OF_GAS, nil)
 		}
-		opcodeData := instructionData[pc]
-		skipLength := ProgramCounter(skip(int(pc), bitmask))
+		opcodeData := program.InstructionData[pc]
+		skipLength := ProgramCounter(skip(int(pc), program.Bitmasks))
 
-		exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](instructionData, pc, skipLength, registers, memory, jumpTable, bitmask)
+		exitReason, newPC, registersPrime, memoryPrime := execInstructions[opcodeData](program.InstructionData, pc, skipLength, registers, memory, program.JumpTable, program.Bitmasks, program.InstrCount)
 
 		registers = registersPrime
 		memory = memoryPrime
-		instrCount++
+		program.InstrCount++
 		gas -= 1
 		// logger.Debug("gasPrime: ", gas)
 		var pvmExit *PVMExitReason
