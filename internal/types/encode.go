@@ -770,7 +770,7 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 			return err
 		}
 		return nil
-	case "report-oversize":
+	case "output-oversize":
 		if _, err := e.buf.Write([]byte{4}); err != nil {
 			return err
 		}
