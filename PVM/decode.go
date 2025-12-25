@@ -214,6 +214,9 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 }
 
 func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
+	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
+		return PVMExitTuple(PANIC, memIndex)
+	}
 	vX := uint32(memIndex)
 	pageNum := vX / ZP
 	pageIndex := memIndex % ZP
@@ -248,6 +251,9 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 }
 
 func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
+	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
+		return 0, PVMExitTuple(PANIC, vx)
+	}
 	vX := uint32(vx)
 
 	pageNum := vX / ZP

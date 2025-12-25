@@ -71,6 +71,7 @@ func SetFullMode() {
 
 // tiny
 var (
+	// --- ProtocolParameters ---
 	// ValidatorsCount (V) represents the total number of validators.
 	ValidatorsCount = 6
 	// CoresCount (C) represents the number of cores.
@@ -86,16 +87,18 @@ var (
 	// RotationPeriod (R) represents the rotation period of validator-core assignments, in timeslots.
 	RotationPeriod = 4
 
-	// ValidatorsSuperMajority represents the required majority of validators.
-	ValidatorsSuperMajority = 5
-	// AvailBitfieldBytes represents the number of bytes in the availability bitfield.
-	AvailBitfieldBytes            = 1
 	UnreferencedPreimageTimeslots = 32
 	TotalGas                      = 20_000_000    // G_T  , davxy-spec : max_block_gas
 	MaxRefineGas                  = 1_000_000_000 // G_R v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	ECPiecesPerSegment            = 1026          // W_P: The number of erasure-coded pieces in a segment
 	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
 	MaxLookupAge                  = 24            // L
+	// --- end ProtocolParameters ---
+
+	// ValidatorsSuperMajority represents the required majority of validators.
+	ValidatorsSuperMajority = 5
+	// AvailBitfieldBytes represents the number of bytes in the availability bitfield.
+	AvailBitfieldBytes = 1
 )
 
 var ServiceInfoVersion = U8(0)
@@ -103,14 +106,21 @@ var JamCommonEra = time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 // permanent constants
 const (
+	// --- ProtocolParameters ---
 	AdditionalMinBalancePerItem  = 10  // B_I
 	AdditionalMinBalancePerOctet = 1   // B_L
 	BasicMinBalance              = 100 // B_S
 
 	// Time-related constants
 	SlotPeriod       = 6
-	TranchePeriod    = 8 // A
 	MaxBlocksHistory = 8 // H: Size of recent history, in blocks
+
+	// Pool and queue sizes
+	AuthPoolMaxSize = 8  // O: Maximum number of items in authorizations pool
+	AuthQueueSize   = 80 // Q: Maximum number of items in authorizations queue
+	// --- end ProtocolParameters ---
+
+	TranchePeriod = 8 // A
 
 	// JAM protocol identifiers
 	JamEntropy      = "jam_entropy"       // XE
@@ -123,14 +133,11 @@ const (
 	JamGuarantee    = "jam_guarantee"
 	JamAnnounce     = "jam_announce" // XI
 	JamAudit        = "jam_audit"    // XU
-
-	// Pool and queue sizes
-	AuthPoolMaxSize = 8  // O: Maximum number of items in authorizations pool
-	AuthQueueSize   = 80 // Q: Maximum number of items in authorizations queue
 )
 
 // work item constants
 const (
+	// --- ProtocolParameters ---
 	MaximumWorkItems                 = 16        // I (graypaper 0.6.3)
 	MaximumDependencyItems           = 8         // J
 	WorkReportTimeout                = 5         // U
@@ -140,18 +147,31 @@ const (
 
 // work package constants
 const (
-	MaxTotalSize = 13_794_305 // W_B = W_M*(W_G + 1 + 32*int(math.Ceil(math.Log2(float64(W_T))))) + 4096 + 1 (14.6,14.7)
+	MaxTotalSize     = 13_791_360 // W_B = W_M * W_F + 4096 + 64 + 64 (14.7)
+	SegmentFootprint = 4488       // W_F = W_G + 32 * math.Ceil(math.Log2(float64(W_M))	(14.6)
 	// MaxRefineGas            = 5_000_000_000 // G_R v0.6.4
 	MaxAccumulateGas = 10_000_000 // G_A v0.6.4
 	IsAuthorizedGas  = 50_000_000 // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
 	// TotalGas                = 3_500_000_000 // G_T v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
 	MaxImportCount          = 3072      // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
 	MaxExportCount          = 3072      // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
-	SegmentSize             = 4104      // W_G = 4104: The size of a segment in octets
 	MaxExtrinsics           = 128       // T (14.4). graypaper 0.6.3
 	MaxServiceCodeSize      = 4_000_000 // W_C v0.6.4
 	MaxIsAuthorizedCodeSize = 64_000    // W_A v0.6.6 The maximum size of is-authorized code in octets
-	AccumulateQueueSize     = 1024      // S v0.6.6 The maxixum number of entries in the accumulation queue
+	// --- end ProtocolParameters ---
+
+	AccumulateQueueSize = 1024 // S v0.6.6 The maxixum number of entries in the accumulation queue
+	SegmentSize         = 4104 // W_G = 4104: The size of a segment in octets
+)
+
+// PVM constants
+const (
+	// --- ProtocolParameters ---
+	TransferMemoSize = 128 // W_T
+	// --- end ProtocolParameters ---
+
+	LookupAnchorMaxAge  = 14400 // L
+	MinimumServiceIndex = 65536 // S (GP 0.7.1)
 )
 
 // erasure coding constants
@@ -165,13 +185,6 @@ const (
 const (
 	GenesisBlockPath = "../../pkg/test_data/jamtestnet/chainspecs/blocks/genesis-tiny.bin"
 	GenesisStatePath = "../../pkg/test_data/jamtestnet/chainspecs/state_snapshots/genesis-tiny.bin"
-)
-
-// PVM constants
-const (
-	TransferMemoSize    = 128   // W_T
-	LookupAnchorMaxAge  = 14400 // L
-	MinimumServiceIndex = 65536 // S (GP 0.7.1)
 )
 
 // Auditing (17.16)
