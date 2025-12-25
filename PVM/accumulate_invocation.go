@@ -299,6 +299,7 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	for k, v := range origin.ServiceBlobs {
 		var copiedServiceBlob types.ServiceBlob
 		copiedServiceBlob.ServiceID = v.ServiceID
+		copiedServiceBlob.Blob = make([]byte, len(v.Blob))
 		copy(copiedServiceBlob.Blob, v.Blob)
 		copiedServiceBlobs[k] = copiedServiceBlob
 	}
