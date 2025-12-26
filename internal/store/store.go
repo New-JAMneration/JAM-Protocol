@@ -519,7 +519,6 @@ func (s *Store) SeedGenesisToBackend(
 	genesisHeader types.Header,
 	stateKeyVals types.StateKeyVals,
 ) (genesisBlockHash types.HeaderHash, genesisStateRoot types.StateRoot, err error) {
-
 	h, err := hash.ComputeBlockHeaderHash(genesisHeader)
 	if err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("compute genesis header hash: %w", err)

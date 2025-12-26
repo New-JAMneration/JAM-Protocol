@@ -300,7 +300,7 @@ func processImportBlock(client *fuzz.FuzzClient, fuzzerData, targetData []byte) 
 
 	// Use block's ParentStateRoot as priorStateRoot for protocol error fallback
 	priorStateRoot := fuzzerMsg.ImportBlock.Header.ParentStateRoot
-	
+
 	if targetMsg.Error != "" {
 		_, errorMessage, err := client.ImportBlock(fuzzerMsg.ImportBlock, priorStateRoot)
 		if err != nil {
