@@ -18,6 +18,7 @@ package statistics
 import (
 	"math"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -94,6 +95,42 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 		}
 	*/
 
+	var guarantor extrinsic.GuranatorAssignments
+
+	for _, guarantee := range guarantees {
+		left := int(tau) / types.RotationPeriod
+		right := int(guarantee.Slot) / types.RotationPeriod
+
+		if left == right {
+			guarantor, _ = extrinsic.GFunc(nil)
+		} else {
+			guarantor, _ = extrinsic.GStarFunc(nil)
+		}
+	}
+
+	reportersSet := make(map[types.Ed25519Public]bool)
+
+	for _, guarantee := range guarantees {
+		// r, t, a
+		a := guarantee.Signatures
+
+		for _, signature := range a {
+			v := signature.ValidatorIndex
+
+			// Get ed25519 from guarantor(k)
+			k := guarantor.PublicKeys[v].Ed25519
+			reportersSet[k] = true
+		}
+	}
+
+	// kappa'_v ∈ G
+	for index, validator := range validators {
+		// check the validator in the reporter set
+		if _, exists := reportersSet[validator.Ed25519]; exists {
+			statistics.ValsCurr[index].Guarantees++
+		}
+	}
+
 	// (13.5) π′V [v]g ≡ a[v]g + (κ′v ∈ G)
 	// Formula: update validator g-count if κ′v (guarantor for slot v) is in Reporters set G.
 	// Current implementation: increment Guarantees once per unique validatorIndex present in signatures.
@@ -103,15 +140,15 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 	// suggests just follow the formula "add +1 if κ′v ∈ G", not per report.
 	// Revisit if JAM spec or test vectors update the definition.
 
-	ValidatorSetFromG := make(map[types.ValidatorIndex]struct{})
-	for _, guarantee := range guarantees {
-		for _, signature := range guarantee.Signatures {
-			if _, exists := ValidatorSetFromG[signature.ValidatorIndex]; !exists {
-				ValidatorSetFromG[signature.ValidatorIndex] = struct{}{}
-				statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
-			}
-		}
-	}
+	// ValidatorSetFromG := make(map[types.ValidatorIndex]struct{})
+	// for _, guarantee := range guarantees {
+	// 	for _, signature := range guarantee.Signatures {
+	// 		if _, exists := ValidatorSetFromG[signature.ValidatorIndex]; !exists {
+	// 			ValidatorSetFromG[signature.ValidatorIndex] = struct{}{}
+	// 			statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
+	// 		}
+	// 	}
+	// }
 }
 
 // a: The number of availability assurances made by the validator.
