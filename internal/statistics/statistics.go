@@ -96,6 +96,7 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 	*/
 
 	var guarantor extrinsic.GuranatorAssignments
+	reportersSet := make(map[types.Ed25519Public]bool)
 
 	for _, guarantee := range guarantees {
 		left := int(tau) / types.RotationPeriod
@@ -106,23 +107,33 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 		} else {
 			guarantor, _ = extrinsic.GStarFunc(nil)
 		}
-	}
 
-	reportersSet := make(map[types.Ed25519Public]bool)
+		guarantorSlice := make(map[types.ValidatorIndex]bool, 3)
+		for _, v := range guarantee.Signatures {
+			guarantorSlice[v.ValidatorIndex] = true
+		}
 
-	for _, guarantee := range guarantees {
-		// r, t, a
-		a := guarantee.Signatures
-
-		for _, signature := range a {
-			v := signature.ValidatorIndex
-
-			// Get ed25519 from guarantor(k)
-			k := guarantor.PublicKeys[v].Ed25519
-			reportersSet[k] = true
+		for k, v := range guarantor.PublicKeys {
+			//reportersSet[v.Ed25519] = true
+			if _, ok := guarantorSlice[types.ValidatorIndex(k)]; ok {
+				reportersSet[v.Ed25519] = true
+			}
 		}
 	}
+	/*
+		for _, guarantee := range guarantees {
+			// r, t, a
+			a := guarantee.Signatures
 
+			for _, signature := range a {
+				v := signature.ValidatorIndex
+
+				// Get ed25519 from guarantor(k)
+				k := guarantor.PublicKeys[v].Ed25519
+				reportersSet[k] = true
+			}
+		}
+	*/
 	// kappa'_v ∈ G
 	for index, validator := range validators {
 		// check the validator in the reporter set
