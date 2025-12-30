@@ -57,7 +57,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 			return types.StateRoot{}, fmt.Errorf("error computing latest block hash: %w", err)
 		}
 
-		if latestBlockHash != block.Header.Parent {
+		if latestBlockHash != block.Header.Parent && latestBlockHash != headerHash {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
 			// Try the restore block and state
 			err := storeInstance.RestoreBlockAndState(block.Header.Parent)
@@ -137,32 +137,26 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 		return types.StateRoot{}, err
 	}
 
-	storeInstance.GetPriorStates().SetState(state)
-	// store storage key-val into global variable
-	storeInstance.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
-	storeInstance.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
-
 	// For genesis SetState (from genesis.json), we *do* want to persist the
 	// header (w/o validation) and state to Redis so that later ImportBlock
 	// calls can restore using the genesis header hash via RestoreBlockAndState.
-	isGenesis := header.Parent == (types.HeaderHash{})
-	if isGenesis {
-		// Prepare posterior state to match the initialized state.
-		storeInstance.GetPosteriorStates().SetState(state)
 
-		// Add the genesis block to the in-memory block list.
-		genesisBlock := types.Block{
-			Header: header,
-		}
-		storeInstance.AddBlock(genesisBlock)
+	// Prepare posterior state to match the initialized state.
+	storeInstance.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
+	storeInstance.GetPosteriorStates().SetState(state)
 
-		// Persist block + state to Redis and record ancestry via StateCommit.
-		storeInstance.StateCommit()
-	} else {
-		// Empty posterior state
-		posteriorStates := store.NewPosteriorStates()
-		storeInstance.GetPosteriorStates().SetState(posteriorStates.GetState())
+	// Add the genesis block to the in-memory block list.
+	genesisBlock := types.Block{
+		Header: header,
 	}
+	storeInstance.AddBlock(genesisBlock)
+
+	// Persist block + state to Redis and record ancestry via StateCommit.
+	storeInstance.StateCommit()
+
+	// Empty posterior state
+	posteriorStates := store.NewPosteriorStates()
+	storeInstance.GetPosteriorStates().SetState(posteriorStates.GetState())
 
 	serializedState, _ := m.StateEncoder(state)
 
