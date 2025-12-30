@@ -297,15 +297,13 @@ func (s *Store) StateCommit() {
 			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
 
-		// Add to ancestry (avoid duplicating the latest header if it's already the last item)
-		currentItem := types.AncestryItem{
-			Slot:       latestBlock.Header.Slot,
-			HeaderHash: blockHeaderHash,
-		}
 		existingAncestry := s.GetAncestry()
-		if len(existingAncestry) == 0 {
-			s.AppendAncestry(types.Ancestry{currentItem})
-		} else {
+		if len(existingAncestry) > 0 {
+			// Add to ancestry (avoid duplicating the latest header if it's already the last item)
+			currentItem := types.AncestryItem{
+				Slot:       latestBlock.Header.Slot,
+				HeaderHash: blockHeaderHash,
+			}
 			last := existingAncestry[len(existingAncestry)-1]
 			if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
 				s.AppendAncestry(types.Ancestry{currentItem})
@@ -372,7 +370,7 @@ func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.Sta
 
 // UnmatchedKeyVals
 func (s *Store) GetPriorStateUnmatchedKeyVals() types.StateKeyVals {
-	return s.preStateUnmatchedKeyVals
+	return s.preStateUnmatchedKeyVals.DeepCopy()
 }
 
 func (s *Store) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
@@ -380,7 +378,7 @@ func (s *Store) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVal
 }
 
 func (s *Store) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
-	return s.postStateUnmatchedKeyVals
+	return s.postStateUnmatchedKeyVals.DeepCopy()
 }
 
 func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {

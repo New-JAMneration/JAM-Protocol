@@ -535,8 +535,13 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	if err != nil {
 		return fmt.Errorf("error parsing pre_state state_root: %w", err)
 	}
+
+	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+	if err != nil {
+		return fmt.Errorf("error parsing post_state state_root: %w", err)
+	}
 	/*
-		Step 1: Initialization (SetState) to the pre_state
+		Step 1: Initialization (SetState) to the post_state
 	*/
 	// folder-wise: only when the data is the first data will do SetState
 	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
@@ -544,7 +549,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		decoder := types.NewDecoder()
 		recentBlocks := &types.RecentBlocks{}
 		recentBlocksKeyVal := types.StateKeyVal{}
-		for _, kv := range testData.PreState.KeyVals {
+		for _, kv := range testData.PostState.KeyVals {
 			if len(kv.Key) > 0 && kv.Key[0] == 0x03 {
 				recentBlocksKeyVal = kv
 				// Decode the recent history value
@@ -571,23 +576,25 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		}
 
 		// Print Sending SetState
-		logger.ColorGreen("[SetState][Request] state_root= 0x%x", expectedPreStateRoot)
-		actualPreStateRoot, err := client.SetState(testData.Block.Header, testData.PreState.KeyVals, ancestry)
-		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPreStateRoot)
+		// NOTE: default ancestry is empty, cause the current test-data is not provided with ancestry
+		logger.ColorGreen("[SetState][Request] state_root= 0x%x", expectedPostStateRoot)
+		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostState.KeyVals, types.Ancestry{})
+		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPostStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %w", err)
 		}
 
-		if actualPreStateRoot != expectedPreStateRoot {
+		if actualPostStateRoot != expectedPostStateRoot {
 			logger.ColorBlue("[SetState][Check] state_root mismatch: expected 0x%x, got 0x%x",
-				expectedPreStateRoot, actualPreStateRoot)
+				expectedPostStateRoot, actualPostStateRoot)
 			mismatchCount++
 		}
+		return nil
 	}
 	/*
 		Step 2: ImportBlock
 	*/
-	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+	expectedPostStateRoot, err = parseStateRoot(testData.PostState.StateRoot)
 	if err != nil {
 		return fmt.Errorf("error parsing post_state state_root: %w", err)
 	}
