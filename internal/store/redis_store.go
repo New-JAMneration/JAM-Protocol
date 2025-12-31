@@ -21,7 +21,6 @@ var (
 
 func GetRedisBackend() (*RedisBackend, error) {
 	redisInitOnce.Do(func() {
-		var err error
 		redisConfig := config.Config.Redis
 		client := NewRedisClient(redisConfig.Address, redisConfig.Password, redisConfig.Port)
 		if err := client.Ping(); err != nil {
@@ -44,7 +43,7 @@ func GetRedisBackend() (*RedisBackend, error) {
 
 		globalRedisBackend = NewRedisBackend(client)
 		genesisBlock := genGenesisBlock()
-		err = globalRedisBackend.SetGenesisBlock(context.Background(), genesisBlock)
+		err := globalRedisBackend.SetGenesisBlock(context.Background(), genesisBlock)
 		if err != nil {
 			logger.Errorf("failed to set genesis block in Redis: %v", err)
 			return
