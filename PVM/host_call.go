@@ -12,6 +12,7 @@ import (
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // OperationType Enum
@@ -121,7 +122,7 @@ type Psi_H_ReturnType struct {
 }
 
 // JIT version of (A.34) Ψ_H
-func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
+func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs, instrCount uint64,
 ) (psi_result Psi_H_ReturnType) {
 	var exitReason error
 	var pcPrime ProgramCounter
@@ -167,6 +168,33 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		} else {
 			omega = hostCallException
 		}
+		omega_result := omega(input)
+		var pvmExit *PVMExitReason
+		if !errors.As(omega_result.ExitReason, &pvmExit) {
+			logger.Errorf("%s host-call error : %v",
+				hostCallName[input.Operation], omega_result.ExitReason)
+			return
+		}
+		omega_reason := omega_result.ExitReason.(*PVMExitReason)
+		logger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
+			hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+		if omega_reason.Reason == PAGE_FAULT {
+			psi_result.Counter = uint32(pcPrime)
+			psi_result.Gas = gasPrime
+			psi_result.Reg = regPrime
+			psi_result.Ram = memPrime
+			psi_result.ExitReason = PVMExitTuple(PAGE_FAULT, *omega_reason.FaultAddr)
+			psi_result.Addition = addition
+		} else if omega_reason.Reason == CONTINUE {
+			return HostCall(program, pcPrime, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition, instrCount)
+		} else if omega_reason.Reason == PANIC || omega_reason.Reason == OUT_OF_GAS || omega_reason.Reason == HALT {
+			psi_result.ExitReason = omega_result.ExitReason
+			psi_result.Counter = uint32(pcPrime)
+			psi_result.Gas = omega_result.NewGas
+			psi_result.Reg = omega_result.NewRegisters
+			psi_result.Ram = omega_result.NewMemory
+			psi_result.Addition = omega_result.Addition
+		}
 	}
 	omega_result := omega(input)
 	if !errors.As(omega_result.ExitReason, &reason) {
@@ -176,11 +204,11 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 	}
 	omega_reason := omega_result.ExitReason.(*PVMExitReason)
 	pvmLogger.Debugf("%s host-call return: %s, gas : %d -> %d\nRegisters: %v\n",
-		hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters)
+		hostCallName[input.Operation], omega_reason, gasPrime, omega_result.NewGas, omega_result.NewRegisters, instrCount)
 	switch omega_reason.Reason {
 	case CONTINUE:
 		skipLength := ProgramCounter(skip(int(pcPrime), program.Bitmasks))
-		return HostCall(program, pcPrime+skipLength+1, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+		return HostCall(program, pcPrime+skipLength+1, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition, instrCount)
 	default: // PANIC, OUT_OF_GAS, HALT
 		psi_result.ExitReason = omega_result.ExitReason
 		psi_result.Counter = uint32(pcPrime)
