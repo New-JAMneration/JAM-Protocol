@@ -37,6 +37,7 @@ type SingleServiceAccumulationInput struct {
 	WorkReports         []types.WorkReport        // r   a sequence of work-reports
 	AlwaysAccumulateMap types.AlwaysAccumulateMap // f   a dictionary of privileged always-accumulate services
 	ServiceId           types.ServiceId           // s   a service index
+	UnmatchedKeyVals    types.StateKeyVals        // storage key-value pairs that were not matched yet
 }
 
 type SingleServiceAccumulationOutput struct {
@@ -45,4 +46,5 @@ type SingleServiceAccumulationOutput struct {
 	AccumulationOutput *types.OpaqueHash        // a possible accumulation-output
 	GasUsed            types.Gas                // the actual PVM gas used
 	ServiceBlobs       types.ServiceBlobs       // a hash service pair of the accumulated service
+	UnmatchedKeyVals   types.StateKeyVals       // storage key-value pairs that were not matched yet
 }
