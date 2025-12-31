@@ -78,9 +78,10 @@ func isBasicBlockTerminationInstruction(opcode byte) bool {
 
 // type BasicBlock [][]byte // each sequence is a instruction
 type Program struct {
-	InstructionData []byte    // c , includes opcodes & instruction variables
-	Bitmasks        Bitmask   // k
-	JumpTable       JumpTable // j, z, |j|
+	InstructionData ProgramCode // c , includes opcodes & instruction variables
+	Bitmasks        Bitmask     // k
+	JumpTable       JumpTable   // j, z, |j|
+	InstrCount      uint64
 }
 
 func (p *Program) RunHostCallFunc(operationType OperationType) Omega {
