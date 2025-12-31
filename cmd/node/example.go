@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
 )
 
 var exampleCmd = &cli.Command{
 	Name: "example",
 	Action: func(ctx context.Context, cli *cli.Command) error {
-		fmt.Println("hello world")
+		logger.Info("hello world")
 		return nil
 	},
 }

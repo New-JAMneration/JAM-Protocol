@@ -5,7 +5,7 @@ import (
 )
 
 func UpdateAccumlate() error {
-	// log.Println("Update Accumlate")
+	// logger.Debug("Update Accumlate")
 
 	// 12.1, 12.2
 	err := accumulation.ProcessAccumulation()

@@ -18,6 +18,7 @@ package statistics
 import (
 	"math"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -57,59 +58,36 @@ func UpdatePreimageOctetStatistics(statistics *types.Statistics, authorIndex typ
 // We note that the Ed25519 key of each validator whose
 // signature is in a credential is placed in the reporters set R.
 func UpdateReportStatistics(statistics *types.Statistics, guarantees types.GuaranteesExtrinsic, tau types.TimeSlot, validators types.ValidatorsData) {
-	// Check if the author is in the reporters set R.
-	// If the author is in the reporters set R, then update the statistics.
-	/*
-		var guarantor extrinsicPackage.GuranatorAssignments
+	var guarantor extrinsic.GuranatorAssignments
+	reportersSet := make(map[types.Ed25519Public]bool)
 
-		for _, guarantee := range guarantees {
-			if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
-				guarantor, _ = extrinsicPackage.GFunc(nil)
-			} else {
-				guarantor, _ = extrinsicPackage.GStarFunc(nil)
-			}
-		}
-		fmt.Printf("guarantor: %+v\n", guarantor.PublicKeys)
-		reportersSet := make(map[types.Ed25519Public]bool)
-		for _, guarantorKey := range guarantor.PublicKeys {
-			// H_bar: start at index 32 (6.10,GP 0.7.0)
-			reportersSet[guarantorKey] = true
-		}
-
-		// compute k (11.26, GP 0.7.0)
-		for _, guarantee := range guarantees {
-			for _, signature := range guarantee.Signatures {
-				if exists := reportersSet[types.Ed25519Public(signature.Signature[32:])]; !exists {
-					reportersSet[types.Ed25519Public(signature.Signature[32:])] = true
-					fmt.Println("statistics.ValsCurr[signature.ValidatorIndex].Guarantees++: ", signature.ValidatorIndex, "  ", statistics.ValsCurr[signature.ValidatorIndex].Guarantees, "->", statistics.ValsCurr[signature.ValidatorIndex].Guarantees+1)
-					statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
-				}
-			}
-		}
-	*/
-	/*
-		validatorSet := make(map[types.Ed25519Public]bool)
-		for _, validator := range validators {
-			validatorSet[validator.Ed25519] = true
-		}
-	*/
-
-	// (13.5) π′V [v]g ≡ a[v]g + (κ′v ∈ G)
-	// Formula: update validator g-count if κ′v (guarantor for slot v) is in Reporters set G.
-	// Current implementation: increment Guarantees once per unique validatorIndex present in signatures.
-	//
-	// Discussion Note:
-	// There was debate whether multiple guarantees in the same slot should increment more than once.
-	// suggests just follow the formula "add +1 if κ′v ∈ G", not per report.
-	// Revisit if JAM spec or test vectors update the definition.
-
-	ValidatorSetFromG := make(map[types.ValidatorIndex]struct{})
 	for _, guarantee := range guarantees {
-		for _, signature := range guarantee.Signatures {
-			if _, exists := ValidatorSetFromG[signature.ValidatorIndex]; !exists {
-				ValidatorSetFromG[signature.ValidatorIndex] = struct{}{}
-				statistics.ValsCurr[signature.ValidatorIndex].Guarantees++
+		left := int(tau) / types.RotationPeriod
+		right := int(guarantee.Slot) / types.RotationPeriod
+
+		if left == right {
+			guarantor, _ = extrinsic.GFunc(nil)
+		} else {
+			guarantor, _ = extrinsic.GStarFunc(nil)
+		}
+
+		guarantorSlice := make(map[types.ValidatorIndex]bool, 3)
+		for _, v := range guarantee.Signatures {
+			guarantorSlice[v.ValidatorIndex] = true
+		}
+
+		for k, v := range guarantor.PublicKeys {
+			if _, ok := guarantorSlice[types.ValidatorIndex(k)]; ok {
+				reportersSet[v.Ed25519] = true
 			}
+		}
+	}
+
+	// kappa'_v ∈ G
+	for index, validator := range validators {
+		// check the validator in the reporter set
+		if _, exists := reportersSet[validator.Ed25519]; exists {
+			statistics.ValsCurr[index].Guarantees++
 		}
 	}
 }

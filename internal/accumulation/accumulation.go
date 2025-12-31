@@ -2,10 +2,12 @@ package accumulation
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
@@ -367,7 +369,6 @@ type singleResult struct {
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
-
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
 	b := make(map[types.AccumulatedServiceHash]bool)
@@ -413,7 +414,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	for service_id := range s {
 		singleOutput, err := runSingleReplaceService(service_id)
 		if err != nil {
-			fmt.Println("SingleServiceAccumulation failed:", err)
+			logger.Errorf("SingleServiceAccumulation failed: %v", err)
 		}
 		// u = [(s, ∆(s)u) S s <− s]
 		var gasUse types.ServiceGasUsed
@@ -508,7 +509,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		singleOutput, err := runSingleReplaceService(input.PartialStateSet.Designate)
 		if err != nil {
 			return output, fmt.Errorf("single service accumulation for designate failed: %w", err)
-
 		}
 		iPrime = singleOutput.PartialStateSet.ValidatorKeys
 	}
@@ -519,7 +519,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		qPrime = make(types.AuthQueues, types.CoresCount)
 		if len(input.PartialStateSet.Assign) != types.CoresCount {
-			fmt.Println("Warning: input.PartialStateSet.Assign length does not match types.CoresCount")
+			logger.Warnf("input.PartialStateSet.Assign length does not match types.CoresCount")
 		}
 		for c, serviceId := range input.PartialStateSet.Assign {
 			singleOutput, err := runSingleReplaceService(serviceId)
@@ -618,6 +618,10 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 			g += deferredTransfer.GasLimit
 		}
 	}
+
+	sort.Slice(iT, func(i, j int) bool {
+		return iT[i].SenderID < iT[j].SenderID
+	})
 
 	//  iT ⌢ iU
 	var pvmItems []types.OperandOrDeferredTransfer

@@ -44,26 +44,29 @@ type StorageMapEntry struct {
 	Value types.ByteSequence `json:"value"`
 }
 
-type PreimagesMapEntry struct {
+type PreimagesBlobMapEntry struct {
 	Hash types.OpaqueHash   `json:"hash"`
 	Blob types.ByteSequence `json:"blob"`
 }
-
-type PreimagesStatusMapEntry struct {
-	Hash   types.OpaqueHash  `json:"hash"`
-	Status types.TimeSlotSet `json:"status"`
+type PreimagesRequestsMapKey struct {
+	Hash   types.OpaqueHash `json:"hash"`
+	Length types.U32        `json:"length"`
+}
+type PreimagesRequestsMapEntry struct {
+	Key   PreimagesRequestsMapKey `json:"key"`
+	Value types.TimeSlotSet       `json:"value"`
 }
 
-type Account struct {
-	Service         types.ServiceInfo         `json:"service"`
-	Storage         []StorageMapEntry         `json:"storage"`
-	PreimagesBlob   []PreimagesMapEntry       `json:"preimages_blob"`
-	PreimagesStatus []PreimagesStatusMapEntry `json:"preimages_status"`
+type ServiceAccount struct {
+	Service           types.ServiceInfo           `json:"service"`
+	Storage           []StorageMapEntry           `json:"storage"`
+	PreimagesBlob     []PreimagesBlobMapEntry     `json:"preimage_blobs"`
+	PreimagesRequests []PreimagesRequestsMapEntry `json:"preimage_requests"`
 }
 
 type AccountsMapEntry struct {
 	Id   types.ServiceId `json:"id"`
-	Data Account         `json:"data"`
+	Data ServiceAccount  `json:"data"`
 }
 
 type AccumulateState struct {
@@ -192,7 +195,7 @@ func (s *StorageMapEntry) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
+func (p *PreimagesBlobMapEntry) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Hash string `json:"hash,omitempty"`
 		Blob string `json:"blob,omitempty"`
@@ -220,14 +223,14 @@ func (p *PreimagesMapEntry) UnmarshalJSON(data []byte) error {
 }
 
 // Unmarshal json Account
-func (a *Account) UnmarshalJSON(data []byte) error {
+func (a *ServiceAccount) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling Account")
 
 	var temp struct {
-		Service         types.ServiceInfo         `json:"service"`
-		Storage         []StorageMapEntry         `json:"storage"`
-		PreimagesBlob   []PreimagesMapEntry       `json:"preimages_blob"`
-		PreimagesStatus []PreimagesStatusMapEntry `json:"preimages_status"`
+		Service           types.ServiceInfo           `json:"service"`
+		Storage           []StorageMapEntry           `json:"storage"`
+		PreimagesBlob     []PreimagesBlobMapEntry     `json:"preimage_blobs"`
+		PreimagesRequests []PreimagesRequestsMapEntry `json:"preimage_requests"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -248,10 +251,10 @@ func (a *Account) UnmarshalJSON(data []byte) error {
 		a.PreimagesBlob = nil
 	}
 
-	if len(temp.PreimagesStatus) != 0 {
-		a.PreimagesStatus = temp.PreimagesStatus
+	if len(temp.PreimagesRequests) != 0 {
+		a.PreimagesRequests = temp.PreimagesRequests
 	} else {
-		a.PreimagesStatus = nil
+		a.PreimagesRequests = nil
 	}
 
 	return nil
@@ -263,7 +266,7 @@ func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
 
 	var temp struct {
 		Id   types.ServiceId `json:"id"`
-		Data Account         `json:"data"`
+		Data ServiceAccount  `json:"data"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -355,7 +358,7 @@ func (s *StorageMapEntry) Decode(d *types.Decoder) error {
 }
 
 // PreimagesMapEntry
-func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
+func (p *PreimagesBlobMapEntry) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = p.Hash.Decode(d); err != nil {
@@ -370,14 +373,14 @@ func (p *PreimagesMapEntry) Decode(d *types.Decoder) error {
 }
 
 // PreimagesMapEntry
-func (p *PreimagesStatusMapEntry) Decode(d *types.Decoder) error {
+func (p *PreimagesRequestsMapKey) Decode(d *types.Decoder) error {
 	var err error
 
 	if err = p.Hash.Decode(d); err != nil {
 		return err
 	}
 
-	if err = p.Status.Decode(d); err != nil {
+	if err = p.Length.Decode(d); err != nil {
 		return err
 	}
 
@@ -385,7 +388,7 @@ func (p *PreimagesStatusMapEntry) Decode(d *types.Decoder) error {
 }
 
 // Account
-func (a *Account) Decode(d *types.Decoder) error {
+func (a *ServiceAccount) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding Account")
 	var err error
 
@@ -418,7 +421,7 @@ func (a *Account) Decode(d *types.Decoder) error {
 	if preimageBlobLength == 0 {
 		a.PreimagesBlob = nil
 	} else {
-		a.PreimagesBlob = make([]PreimagesMapEntry, preimageBlobLength)
+		a.PreimagesBlob = make([]PreimagesBlobMapEntry, preimageBlobLength)
 		for i := uint64(0); i < preimageBlobLength; i++ {
 			if err = a.PreimagesBlob[i].Decode(d); err != nil {
 				return err
@@ -426,21 +429,35 @@ func (a *Account) Decode(d *types.Decoder) error {
 		}
 	}
 
-	preimageStatusLength, err := d.DecodeLength()
+	preimageRequtestLength, err := d.DecodeLength()
 	if err != nil {
 		return err
 	}
 
-	if preimageStatusLength == 0 {
-		a.PreimagesStatus = nil
+	if preimageRequtestLength == 0 {
+		a.PreimagesRequests = nil
 	} else {
-		a.PreimagesStatus = make([]PreimagesStatusMapEntry, preimageStatusLength)
-		for i := uint64(0); i < preimageStatusLength; i++ {
-			if err = a.PreimagesStatus[i].Decode(d); err != nil {
+		a.PreimagesRequests = make([]PreimagesRequestsMapEntry, preimageRequtestLength)
+		for i := uint64(0); i < preimageRequtestLength; i++ {
+			if err = a.PreimagesRequests[i].Decode(d); err != nil {
 				return err
 			}
 		}
 	}
+	return nil
+}
+
+func (a *PreimagesRequestsMapEntry) Decode(d *types.Decoder) error {
+	var err error
+
+	if err = a.Key.Decode(d); err != nil {
+		return err
+	}
+
+	if err = a.Value.Decode(d); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -577,7 +594,7 @@ func (s *StorageMapEntry) Encode(e *types.Encoder) error {
 }
 
 // PreimagesMapEntry
-func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
+func (p *PreimagesBlobMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding PreimagesMapEntry")
 	var err error
 
@@ -592,24 +609,8 @@ func (p *PreimagesMapEntry) Encode(e *types.Encoder) error {
 	return nil
 }
 
-// PreimagesMapEntry
-func (p *PreimagesStatusMapEntry) Encode(e *types.Encoder) error {
-	cLog(Cyan, "Encoding PreimagesMapEntry")
-	var err error
-
-	if err = p.Hash.Encode(e); err != nil {
-		return err
-	}
-
-	if err = p.Status.Encode(e); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Account
-func (a *Account) Encode(e *types.Encoder) error {
+func (a *ServiceAccount) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding Account")
 	var err error
 
@@ -640,14 +641,42 @@ func (a *Account) Encode(e *types.Encoder) error {
 	}
 
 	// Preimages
-	if err = e.EncodeLength(uint64(len(a.PreimagesStatus))); err != nil {
+	if err = e.EncodeLength(uint64(len(a.PreimagesRequests))); err != nil {
 		return err
 	}
 
-	for _, preimage := range a.PreimagesStatus {
+	for _, preimage := range a.PreimagesRequests {
 		if err = preimage.Encode(e); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (p PreimagesRequestsMapEntry) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = p.Key.Encode(e); err != nil {
+		return err
+	}
+
+	if err = p.Value.Encode(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *PreimagesRequestsMapKey) Encode(e *types.Encoder) error {
+	var err error
+
+	if err = p.Hash.Encode(e); err != nil {
+		return err
+	}
+
+	if err = p.Length.Encode(e); err != nil {
+		return err
 	}
 
 	return nil
@@ -775,12 +804,12 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 		}
 
 		// Fill PreimageStatus
-		for _, preimage := range delta.Data.PreimagesStatus {
+		for _, preimage := range delta.Data.PreimagesRequests {
 			key := types.LookupMetaMapkey{
-				Hash:   preimage.Hash,
-				Length: types.U32(len(serviceAccount.PreimageLookup[preimage.Hash])),
+				Hash:   preimage.Key.Hash,
+				Length: preimage.Key.Length,
 			}
-			serviceAccount.LookupDict[key] = preimage.Status
+			serviceAccount.LookupDict[key] = preimage.Value
 		}
 
 		// Fill Storage

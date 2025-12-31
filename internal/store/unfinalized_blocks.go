@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 type UnfinalizedBlocks struct {
@@ -23,6 +24,35 @@ func (b *UnfinalizedBlocks) AddBlock(block types.Block) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.blocks = append(b.blocks, block)
+}
+
+// KeepBlocksUpTo keeps only blocks up to and including the specified headerHash.
+// If the headerHash is not found, it clears all blocks.
+func (b *UnfinalizedBlocks) KeepBlocksUpTo(headerHash types.HeaderHash) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Find the index of the headerHash in blocks
+	foundIdx := -1
+	for i := len(b.blocks) - 1; i >= 0; i-- {
+		blockHeaderHash, err := hash.ComputeBlockHeaderHash(b.blocks[i].Header)
+		if err != nil {
+			continue
+		}
+		if blockHeaderHash == headerHash {
+			foundIdx = i
+			break
+		}
+	}
+
+	if foundIdx == -1 {
+		// HeaderHash not found, clear all blocks
+		b.blocks = make([]types.Block, 0)
+		return
+	}
+
+	// Keep only blocks up to and including the found index
+	b.blocks = b.blocks[:foundIdx+1]
 }
 
 // Get all ancient blocks

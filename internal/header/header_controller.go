@@ -57,49 +57,11 @@ func (h *HeaderController) CreateParentHeaderHash(parentHeader types.Header) err
 // (5.4), (5.5), (5.6)
 // H_x: extrinsic hash
 func (h *HeaderController) CreateExtrinsicHash(extrinsic types.Extrinsic) error {
-	// Encode the extrinsic elements
-	encodedTicketsExtrinsic, err := utilities.EncodeExtrinsicTickets(extrinsic.Tickets)
+	extrinsicHash, err := utilities.CreateExtrinsicHash(extrinsic)
 	if err != nil {
 		return err
 	}
 
-	encodedPreimagesExtrinsic, err := utilities.EncodeExtrinsicPreimages(extrinsic.Preimages)
-	if err != nil {
-		return err
-	}
-
-	encodedGuaranteesExtrinsic, err := utilities.EncodeExtrinsicGuarantees(extrinsic.Guarantees)
-	if err != nil {
-		return err
-	}
-
-	encodedAssurancesExtrinsic, err := utilities.EncodeExtrinsicAssurances(extrinsic.Assurances)
-	if err != nil {
-		return err
-	}
-
-	encodedDisputesExtrinsic, err := utilities.EncodeExtrinsicDisputes(extrinsic.Disputes)
-	if err != nil {
-		return err
-	}
-
-	// Hash encoded elements
-	encodedTicketsHash := hash.Blake2bHash(encodedTicketsExtrinsic)
-	encodedPreimagesHash := hash.Blake2bHash(encodedPreimagesExtrinsic)
-	encodedGuaranteesHash := hash.Blake2bHash(encodedGuaranteesExtrinsic)
-	encodedAssurancesHash := hash.Blake2bHash(encodedAssurancesExtrinsic)
-	encodedDisputesHash := hash.Blake2bHash(encodedDisputesExtrinsic)
-
-	// Concatenate the encoded elements
-	encodedHash := types.ByteSequence{}
-	encodedHash = append(encodedHash, types.ByteSequence(encodedTicketsHash[:])...)
-	encodedHash = append(encodedHash, types.ByteSequence(encodedPreimagesHash[:])...)
-	encodedHash = append(encodedHash, types.ByteSequence(encodedGuaranteesHash[:])...)
-	encodedHash = append(encodedHash, types.ByteSequence(encodedAssurancesHash[:])...)
-	encodedHash = append(encodedHash, types.ByteSequence(encodedDisputesHash[:])...)
-
-	// Hash the encoded elements
-	extrinsicHash := hash.Blake2bHash(encodedHash)
 	h.Store.GetProcessingBlockPointer().SetExtrinsicHash(extrinsicHash)
 
 	return nil
@@ -209,14 +171,15 @@ func (h *HeaderController) CreateBlockSeal(blockSeal types.BandersnatchVrfSignat
 	h.Store.GetProcessingBlockPointer().SetSeal(blockSeal)
 }
 
-// GetParentHeader returns all ancestor headers.
+// GetAncestorHeaders returns all ancestor headers as Ancestry type.
 // (5.3) A
-func (h *HeaderController) GetAncestorHeaders() []types.Header {
+func (h *HeaderController) GetAncestorHeaders() types.Ancestry {
 	s := store.GetInstance()
-	return s.GetAncestorHeaders()
+	return s.GetAncestry()
 }
 
 // AddAncestorHeader adds the header to the ancestor headers.
+// It converts Header to AncestryItem internally.
 func (h *HeaderController) AddAncestorHeader(header types.Header) {
 	s := store.GetInstance()
 	s.AddAncestorHeader(header)

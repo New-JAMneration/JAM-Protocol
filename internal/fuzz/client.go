@@ -36,7 +36,7 @@ func (c *FuzzClient) makeRequest(req Message) (Message, error) {
 
 	_, err = c.conn.Write(reqBytes)
 	if err != nil {
-		err = fmt.Errorf("error writing request: %v. Please check the server logs.", err)
+		err = fmt.Errorf("error writing request: %w. Please check the server logs", err)
 		return Message{}, err
 	}
 
@@ -68,7 +68,7 @@ func (c *FuzzClient) Handshake(peerInfo PeerInfo) (PeerInfo, error) {
 	return *resp.PeerInfo, nil
 }
 
-func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMessage, error) {
+func (c *FuzzClient) ImportBlock(block types.Block, priorStateRoot types.StateRoot) (types.StateRoot, *ErrorMessage, error) {
 	payload := ImportBlock(block)
 
 	req := Message{
@@ -82,7 +82,7 @@ func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMess
 	}
 
 	if resp.Type == MessageType_ErrorMessage {
-		return block.Header.ParentStateRoot, resp.Error, nil
+		return priorStateRoot, resp.Error, nil
 	}
 
 	if resp.Type != MessageType_StateRoot {
@@ -92,10 +92,11 @@ func (c *FuzzClient) ImportBlock(block types.Block) (types.StateRoot, *ErrorMess
 	return types.StateRoot(*resp.StateRoot), nil, nil
 }
 
-func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals) (types.StateRoot, error) {
+func (c *FuzzClient) SetState(header types.Header, state types.StateKeyVals, ancestry types.Ancestry) (types.StateRoot, error) {
 	payload := SetState{
-		Header: header,
-		State:  state,
+		Header:   header,
+		State:    state,
+		Ancestry: ancestry,
 	}
 
 	req := Message{

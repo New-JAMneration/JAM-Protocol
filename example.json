@@ -1,6 +1,10 @@
 {
   "log": {
-    "level": "debug"
+    "level": "DEBUG",
+    "color": true,
+    "enabled": true,
+    "pvm": false,
+    "time_format": "15:04:05.000"
   },
   "const": {
     "validators_count": 6,
@@ -22,8 +26,8 @@
   "info": {
     "fuzz_version": 1,
     "fuzz_features": 2,
-    "jam_version": "0.7.0",
-    "app_version": "0.1.25",
-    "name": "polkajam"
+    "jam_version": "0.7.1",
+    "app_version": "0.2.0",
+    "name": "new_jamneration"
   }
 }

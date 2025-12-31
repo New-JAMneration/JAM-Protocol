@@ -1,9 +1,8 @@
 package PVM
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type (
@@ -27,7 +26,7 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 		return nil, Registers{}, Memory{}, err
 	}
 	if 5*ZZ+uint64(Z(len(o)))+uint64(Z(len(w)+int(z)*int(ZP)+int(s)+ZI)) > 1<<32 {
-		return nil, Registers{}, Memory{}, fmt.Errorf("Memory layout calculations failed")
+		return nil, Registers{}, Memory{}, errors.New("memory layout calculations failed")
 	}
 
 	// Memory layout calculations
@@ -51,21 +50,21 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 
 	allocateMemorySegment(&mem, readOnlyStart, readOnlyEnd, o, MemoryReadOnly)
 	allocateMemorySegment(&mem, readOnlyEnd, readOnlyPadding, nil, MemoryReadOnly) // Padding
-	logger.Debugf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x", readOnlyStart, readOnlyEnd, readOnlyPadding)
+	pvmLogger.Debugf("Memory Map   RO data : 0x%08x  0x%08x  0x%08x", readOnlyStart, readOnlyEnd, readOnlyPadding)
 
 	allocateMemorySegment(&mem, readWriteStart, readWriteEnd, w, MemoryReadWrite)
 	allocateMemorySegment(&mem, readWriteEnd, readWritePadding, nil, MemoryReadWrite) // Padding
-	logger.Debugf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x", readWriteStart, readWriteEnd, readWritePadding)
+	pvmLogger.Debugf("Memory Map   RW data : 0x%08x  0x%08x  0x%08x", readWriteStart, readWriteEnd, readWritePadding)
 
 	allocateStack(&mem, stackStart, stackEnd)
-	logger.Debugf("Memory Map     stack : 0x%08x  0x%08x", stackStart, stackEnd)
+	pvmLogger.Debugf("Memory Map     stack : 0x%08x  0x%08x", stackStart, stackEnd)
 
 	allocateMemorySegment(&mem, argumentStart, argumentEnd, a, MemoryReadOnly)
 	allocateMemorySegment(&mem, argumentEnd, argumentPadding, nil, MemoryReadOnly) // Padding
-	logger.Debugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
+	pvmLogger.Debugf("Memory Map arguments : 0x%08x  0x%08x  0x%08x", argumentStart, argumentEnd, argumentPadding)
 
 	// allocateMemorySegment(&mem, heapStart, heapEnd, nil, MemoryReadWrite)
-	// logger.Debugf("Heap pointer : 0x%08x", heapStart)
+	// pvmLogger.Debugf("Heap pointer : 0x%08x", heapStart)
 
 	// Registers initialization
 	var regs Registers
@@ -167,10 +166,10 @@ func ReadUintFixed(data []byte, numBytes int) (uint64, []byte, error) {
 		return 0, data, nil
 	}
 	if numBytes > 8 || numBytes < 0 {
-		return 0, data, fmt.Errorf("invalid number of octets to read")
+		return 0, data, fmt.Errorf("invalid number of octets to read: got %d", numBytes)
 	}
 	if len(data) < numBytes {
-		return 0, data, fmt.Errorf("not enough data to read a uint")
+		return 0, data, fmt.Errorf("not enough data to read a uint: got %d", len(data))
 	}
 
 	var result uint64
@@ -207,7 +206,7 @@ func ReadIntFixed(data []byte, numBytes int) (int64, []byte, error) {
 
 func ReadBytes(data []byte, numBytes uint64) ([]byte, []byte, error) {
 	if uint64(len(data)) < numBytes {
-		return nil, data, fmt.Errorf("not enough data to read %d bytes", numBytes)
+		return nil, data, fmt.Errorf("not enough data to read %d bytes: got %d", numBytes, len(data))
 	}
 
 	return data[:numBytes], data[numBytes:], nil

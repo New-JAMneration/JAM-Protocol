@@ -2,11 +2,11 @@ package service_account
 
 import (
 	"fmt"
-	"log"
 
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // (9.4) This function was integrated into HistoricalLookup function
@@ -23,7 +23,7 @@ func FetchCodeByHash(account types.ServiceAccount, codeHash types.OpaqueHash) (m
 	// if we can't fetch metadata and code, then validate function should return error
 	err = ValidatePreimageLookupDict(account)
 	if err != nil {
-		log.Printf("ValidatePreimageLookupDict failed and you'll get nil return")
+		logger.Error("ValidatePreimageLookupDict failed and you'll get nil return")
 		return nil, nil, err
 	}
 	// default is empty
@@ -35,13 +35,13 @@ func DecodeMetaCode(bytes types.ByteSequence) (metadata types.ByteSequence, code
 	decoder := types.NewDecoder()
 	err = decoder.Decode(bytes, &metaCode)
 	if err != nil {
-		log.Printf("Failed to deserialize code and metadata: %v, return nil\n", err)
+		logger.Errorf("Failed to deserialize code and metadata: %v, return nil\n", err)
 		return nil, nil, err
 	}
 	/*
 		if metaCode.Metadata != nil {
 			// print metadata
-			log.Printf("Metadata of fetched code is %v\n", metaCode.Metadata)
+			logger.Debugf("Metadata of fetched code is %v\n", metaCode.Metadata)
 		}
 	*/
 	return metaCode.Metadata, metaCode.Code, nil
@@ -55,10 +55,10 @@ func ValidatePreimageLookupDict(account types.ServiceAccount) error {
 		// // h = H(p)
 		preimageHash := hash.Blake2bHash(utils.ByteSequenceWrapper{Value: preimage}.Serialize())
 		if codeHash != preimageHash {
-			return fmt.Errorf("\nCodeHash: %v \nshould equal to PreimageHash: %v", codeHash, preimageHash)
+			return fmt.Errorf("\nCodeHash: 0x%x \nshould equal to PreimageHash: 0x%x", codeHash, preimageHash)
 		}
 		if !existsInLookupDict(account, codeHash, preimage) {
-			return fmt.Errorf("\nCodeHash: %v, Preimage: %v not found in LookupDict keysize", codeHash, preimage)
+			return fmt.Errorf("\nCodeHash: 0x%x, Preimage: 0x%x not found in LookupDict keysize", codeHash, preimage)
 		}
 	}
 	return nil

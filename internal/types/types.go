@@ -11,13 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"maps"
 	"os"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
@@ -168,19 +168,19 @@ type AvailabilityAssignments []AvailabilityAssignmentsItem
 
 func (assignments AvailabilityAssignments) Validate() error {
 	if len(assignments) != CoresCount {
-		return fmt.Errorf("AvailabilityAssignments must have exactly %v items, but got %v", CoresCount, len(assignments))
+		return fmt.Errorf("AvailabilityAssignments length %d is not equal to CoresCount %d", len(assignments), CoresCount)
 	}
 	return nil
 }
 
 // v0.6.3 (11.4) Refine Context $\mathbb{X}$
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash
-	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root
-	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root
-	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot
-	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages
+	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash a
+	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root s
+	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root b
+	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash l
+	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot t
+	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages p
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {
@@ -211,7 +211,7 @@ type AuthPool []AuthorizerHash
 // (8.1) AuthPool and AuthQueue
 func (a AuthPool) Validate() error {
 	if len(a) > AuthPoolMaxSize {
-		return fmt.Errorf("AuthPool exceeds max-auth-pool-size limit of %v", AuthPoolMaxSize)
+		return fmt.Errorf("AuthPool length %d is greater than AuthPoolMaxSize %d", len(a), AuthPoolMaxSize)
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ type AuthPools []AuthPool
 
 func (a AuthPools) Validate() error {
 	if len(a) != CoresCount {
-		return fmt.Errorf("AuthPools exceeds max-auth-pools limit of %v", CoresCount)
+		return fmt.Errorf("AuthPools length %d is not equal to CoresCount %d", len(a), CoresCount)
 	}
 
 	for _, pool := range a {
@@ -251,7 +251,7 @@ type AuthQueue []AuthorizerHash
 func (a AuthQueue) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != AuthQueueSize {
-		return fmt.Errorf("length of authQueue %v exceeds max-auth-queue-size limit of %v", len(a), AuthQueueSize)
+		return fmt.Errorf("AuthQueue length %d is not equal to AuthQueueSize %d", len(a), AuthQueueSize)
 	}
 	return nil
 }
@@ -261,7 +261,7 @@ type AuthQueues []AuthQueue
 func (a AuthQueues) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
 	if len(a) != CoresCount {
-		return fmt.Errorf("length of authQueues %v exceeds cores limit of %v", len(a), CoresCount)
+		return fmt.Errorf("AuthQueues length %d is not equal to CoresCount %d", len(a), CoresCount)
 	}
 
 	for _, queue := range a {
@@ -343,7 +343,7 @@ func (w *WorkPackage) ScaleEncode() ([]byte, error) {
 func (wp *WorkPackage) Validate() error {
 	// v0.6.3 (14.2)
 	if len(wp.Items) < 1 || len(wp.Items) > MaximumWorkItems {
-		return fmt.Errorf("WorkPackage must have items between 1 and %v, but got %v", MaximumWorkItems, len(wp.Items))
+		return fmt.Errorf("WorkPackage items length %d is not between 1 and %d", len(wp.Items), MaximumWorkItems)
 	}
 
 	totalSize := len(wp.Authorization) + len(wp.AuthorizerConfig)
@@ -355,7 +355,7 @@ func (wp *WorkPackage) Validate() error {
 		totalSize += len(item.Payload)
 
 		totalImportSegments += len(item.ImportSegments)
-		totalSize += len(item.ImportSegments) * SegmentSize
+		totalSize += len(item.ImportSegments) * SegmentFootprint
 
 		for _, extrinsic := range item.Extrinsic {
 			totalSize += int(extrinsic.Len)
@@ -368,22 +368,22 @@ func (wp *WorkPackage) Validate() error {
 
 	// total size check (14.5)
 	if totalSize > MaxTotalSize {
-		return fmt.Errorf("total size exceeds %v bytes", MaxTotalSize)
+		return fmt.Errorf("total size %d is greater than MaxTotalSize %d", totalSize, MaxTotalSize)
 	}
 
 	// import segment count check （14.4)
 	if totalImportSegments > MaxImportCount {
-		return fmt.Errorf("total import segments exceed %d", MaxImportCount)
+		return fmt.Errorf("total import segments %d is greater than MaxImportCount %d", totalImportSegments, MaxImportCount)
 	}
 
 	// export segment count check (14.4)
 	if totalExportSegments > MaxExportCount {
-		return fmt.Errorf("total export segments exceed %d", MaxExportCount)
+		return fmt.Errorf("total export segments %d is greater than MaxExportCount %d", totalExportSegments, MaxExportCount)
 	}
 
 	// extrinsics count check (14.4)
 	if totalExtrinsics > MaxExtrinsics {
-		return fmt.Errorf("total extrinsics exceed %v", MaxExtrinsics)
+		return fmt.Errorf("total extrinsics %d is greater than MaxExtrinsics %d", totalExtrinsics, MaxExtrinsics)
 	}
 
 	// gas limit check (14.7)
@@ -394,10 +394,10 @@ func (wp *WorkPackage) Validate() error {
 	}
 
 	if totalRefineGas > Gas(MaxRefineGas) {
-		return fmt.Errorf("refine gas limit exceeds %s", fmt.Sprintf("%d", uint64(MaxRefineGas)))
+		return fmt.Errorf("refine gas limit %d is greater than MaxRefineGas %d", totalRefineGas, MaxRefineGas)
 	}
 	if totalAccumulateGas > MaxAccumulateGas {
-		return fmt.Errorf("accumulate gas limit exceeds %s", fmt.Sprintf("%d", MaxAccumulateGas))
+		return fmt.Errorf("accumulate gas limit %d is greater than MaxAccumulateGas %d", totalAccumulateGas, MaxAccumulateGas)
 	}
 
 	return nil
@@ -413,7 +413,7 @@ const (
 	WorkExecResultOutOfGas                          = "out-of-gas"
 	WorkExecResultPanic                             = "panic"
 	WorkExecResultBadExports                        = "bad-exports"
-	WorkExecResultReportOversize                    = "report-oversize"
+	WorkExecResultReportOversize                    = "output-oversize"
 	WorkExecResultBadCode                           = "bad-code"
 	WorkExecResultCodeOversize                      = "code-oversize"
 )
@@ -504,11 +504,11 @@ type WorkReport struct {
 
 func (w *WorkReport) Validate() error {
 	if len(w.Results) < 1 {
-		return fmt.Errorf("missing_work_results")
+		return errors.New("missing_work_results")
 	}
 
 	if len(w.Results) > MaximumWorkItems {
-		return fmt.Errorf("too_many_work_results")
+		return errors.New("too_many_work_results")
 	}
 
 	return nil
@@ -518,7 +518,7 @@ func (w *WorkReport) Validate() error {
 func (w *WorkReport) ValidateLookupDictAndPrerequisites() error {
 	if len(w.SegmentRootLookup)+len(w.Context.Prerequisites) > MaximumDependencyItems {
 		// return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", MaximumDependencyItems, len(w.SegmentRootLookup)+len(w.Context.Prerequisites))
-		return fmt.Errorf("too_many_dependencies")
+		return errors.New("too_many_dependencies")
 	}
 	return nil
 }
@@ -533,7 +533,7 @@ func (w *WorkReport) ValidateOutputSize() error {
 	}
 
 	if totalSize > WorkReportOutputBlobsMaximumSize {
-		return fmt.Errorf("work_report_too_big")
+		return errors.New("work_report_too_big")
 	}
 	return nil
 }
@@ -570,10 +570,10 @@ type ReportedWorkPackage struct {
 }
 
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
-	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`
-	StateRoot  StateRoot             `json:"state_root,omitempty"`
-	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
+	HeaderHash HeaderHash            `json:"header_hash,omitempty"` // h
+	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`  // b
+	StateRoot  StateRoot             `json:"state_root,omitempty"`  // s
+	Reported   []ReportedWorkPackage `json:"reported,omitempty"`    // p
 }
 
 // (7.2) GP 0.6.7
@@ -581,7 +581,7 @@ type BlocksHistory []BlockInfo
 
 func (b BlocksHistory) Validate() error {
 	if len(b) > MaxBlocksHistory {
-		return fmt.Errorf("BlocksHistory exceeds max-blocks-history limit of %v", MaxBlocksHistory)
+		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(b), MaxBlocksHistory)
 	}
 	return nil
 }
@@ -607,7 +607,7 @@ type ValidatorsStatistics []ValidatorActivityRecord
 
 func (a ValidatorsStatistics) Validate() error {
 	if len(a) != ValidatorsCount {
-		return fmt.Errorf("ActivityRecords must have %v activity record", ValidatorsCount)
+		return fmt.Errorf("ActivityRecords length %d is not equal to ValidatorsCount %d", len(a), ValidatorsCount)
 	}
 	return nil
 }
@@ -628,7 +628,7 @@ type CoresStatistics []CoreActivityRecord
 
 func (c CoresStatistics) Validate() error {
 	if len(c) != CoresCount {
-		return fmt.Errorf("CoresStatisitics must have %v core activity record", CoresCount)
+		return fmt.Errorf("CoresStatisitics length %d is not equal to CoresCount %d", len(c), CoresCount)
 	}
 	return nil
 }
@@ -679,7 +679,7 @@ type TicketsAccumulator []TicketBody
 
 func (t TicketsAccumulator) Validate() error {
 	if len(t) > EpochLength {
-		return fmt.Errorf("TicketsAccumulator exceeds maximum size of %v", EpochLength)
+		return fmt.Errorf("TicketsAccumulator length %d is greater than EpochLength %d", len(t), EpochLength)
 	}
 	return nil
 }
@@ -691,11 +691,11 @@ type TicketsOrKeys struct {
 
 func (t TicketsOrKeys) Validate() error {
 	if len(t.Tickets) > 0 && len(t.Tickets) != EpochLength {
-		return fmt.Errorf("TicketsOrKeys Tickets must have size %v", EpochLength)
+		return fmt.Errorf("TicketsOrKeys Tickets length %d is not equal to EpochLength %d", len(t.Tickets), EpochLength)
 	}
 
 	if len(t.Keys) > 0 && len(t.Keys) != EpochLength {
-		return fmt.Errorf("TicketsOrKeys Keys must have size %v", EpochLength)
+		return fmt.Errorf("TicketsOrKeys Keys length %d is not equal to EpochLength %d", len(t.Keys), EpochLength)
 	}
 	return nil
 }
@@ -705,7 +705,7 @@ type TicketsExtrinsic []TicketEnvelope
 
 func (t *TicketsExtrinsic) Validate() error {
 	if len(*t) > MaxTicketsPerBlock {
-		return fmt.Errorf("TicketsExtrinsic exceeds maximum size of %v", MaxTicketsPerBlock)
+		return fmt.Errorf("TicketsExtrinsic length %d is greater than MaxTicketsPerBlock %d", len(*t), MaxTicketsPerBlock)
 	}
 
 	return nil
@@ -746,7 +746,7 @@ type Verdict struct {
 
 func (v Verdict) Validate() error {
 	if len(v.Votes) != ValidatorsSuperMajority {
-		return fmt.Errorf("verdict Votes must have size %v", ValidatorsSuperMajority)
+		return fmt.Errorf("verdict Votes length %d is not equal to ValidatorsSuperMajority %d", len(v.Votes), ValidatorsSuperMajority)
 	}
 	return nil
 }
@@ -902,7 +902,7 @@ func MakeBitfieldFromHexString(hexStr string) (Bitfield, error) {
 
 func MakeBitfieldFromByteSlice(bytes []byte) (Bitfield, error) {
 	if len(bytes) != AvailBitfieldBytes {
-		return Bitfield{}, fmt.Errorf("Bitfield must have size %v bytes", AvailBitfieldBytes)
+		return Bitfield{}, fmt.Errorf("Bitfield length %d is not equal to AvailBitfieldBytes %d", len(bytes), AvailBitfieldBytes)
 	}
 
 	bitfield := make(Bitfield, CoresCount)
@@ -940,7 +940,7 @@ func (bf Bitfield) GetBit(index int) byte {
 
 func (bf Bitfield) Validate() error {
 	if len(bf) != CoresCount {
-		return fmt.Errorf("Bitfield must have size %v", CoresCount)
+		return fmt.Errorf("Bitfield length %d is not equal to CoresCount %d", len(bf), CoresCount)
 	}
 
 	return nil
@@ -951,7 +951,7 @@ type AssurancesExtrinsic []AvailAssurance
 
 func (a *AssurancesExtrinsic) Validate() error {
 	if len(*a) > ValidatorsCount {
-		return fmt.Errorf("AssurancesExtrinsic exceeds maximum size of %v validators", ValidatorsCount)
+		return fmt.Errorf("AssurancesExtrinsic length %d is greater than ValidatorsCount %d", len(*a), ValidatorsCount)
 	}
 	return nil
 }
@@ -1005,7 +1005,7 @@ func (r *ReportGuarantee) Validate() error {
 	}
 
 	if len(r.Signatures) > 3 {
-		log.Println("too_many_guarantees")
+		logger.Warn("too_many_guarantees")
 	}
 
 	for _, sig := range r.Signatures {
@@ -1041,11 +1041,11 @@ type GuaranteesExtrinsic []ReportGuarantee
 // (11.23)
 func (g *GuaranteesExtrinsic) Validate() error {
 	if len(*g) > CoresCount {
-		return fmt.Errorf("Len of guaranteesExtrinsic %v exceeds maximum size of %v cores", len(*g), CoresCount)
+		return fmt.Errorf("GuaranteesExtrinsic length %d is greater than CoresCount %d", len(*g), CoresCount)
 	}
 	for i, report := range *g {
 		if err := report.Validate(); err != nil {
-			return fmt.Errorf("eg's report[%v] validation failed: %w", i, err)
+			return fmt.Errorf("GuaranteesExtrinsic report[%d] validation failed: %w", i, err)
 		}
 	}
 	return nil
@@ -1083,7 +1083,7 @@ type EpochMark struct {
 
 func (e EpochMark) Validate() error {
 	if len(e.Validators) != ValidatorsCount {
-		return fmt.Errorf("EpochMark Validators exceeds maximum size of %v", ValidatorsCount)
+		return fmt.Errorf("EpochMark Validators length %d is not equal to ValidatorsCount %d", len(e.Validators), ValidatorsCount)
 	}
 
 	return nil
@@ -1093,7 +1093,7 @@ type TicketsMark []TicketBody
 
 func (t TicketsMark) Validate() error {
 	if len(t) != EpochLength {
-		return fmt.Errorf("TicketsMark must have exactly %v tickets", EpochLength)
+		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(t), EpochLength)
 	}
 	return nil
 }
@@ -1273,20 +1273,20 @@ type InputWrapper[T any] struct {
 func ParseData[t any](fileName string) (InputWrapper[t], error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		fmt.Printf("Error opening file %s: %v\n", fileName, err)
+		logger.Errorf("Error opening file %s: %v", fileName, err)
 		return InputWrapper[t]{}, err
 	}
 	defer file.Close()
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		fmt.Printf("Error reading file: %s: %v\n", fileName, err)
+		logger.Errorf("Error reading file: %s: %v", fileName, err)
 		return InputWrapper[t]{}, err
 	}
 	var wrapper InputWrapper[t]
 	err = json.Unmarshal(bytes, &wrapper)
 	if err != nil {
-		fmt.Printf("Error unmarshalling JSON:: %v\n", err)
+		logger.Errorf("Error unmarshalling JSON:: %v", err)
 	}
 	return wrapper, nil
 }
@@ -1300,7 +1300,7 @@ func DecodeJSONByte(input []byte) []byte {
 func hexToBytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString[2:])
 	if err != nil {
-		fmt.Printf("failed to decode hex string: %v", err)
+		logger.Errorf("failed to decode hex string: %v", err)
 	}
 	return bytes
 }
@@ -1345,12 +1345,12 @@ func parseNormalByteArray(data []byte, size int) ([]byte, error) {
 			return arr, err
 		}
 		if len(arr) != size {
-			return nil, fmt.Errorf("invalid length: expected 32 bytes, got %v", len(arr))
+			return nil, fmt.Errorf("invalid length: expected %d bytes, got %d", size, len(arr))
 		}
 		return arr, nil
 	}
 
-	return nil, fmt.Errorf("invalid format for parseNormalByteArray")
+	return nil, fmt.Errorf("invalid format for parseNormalByteArray: expected %d bytes, got %d", size, len(data))
 }
 
 func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
@@ -1698,3 +1698,136 @@ func Some[T any](v T) *T {
 }
 
 type HashSegmentMap map[OpaqueHash]OpaqueHash
+
+type AncestryItem struct {
+	Slot       TimeSlot
+	HeaderHash HeaderHash
+}
+
+type (
+	Ancestry           []AncestryItem
+	ProtocolParameters struct {
+		BI U64 // B_I
+		BL U64 // B_L
+		BS U64 // B_S
+		C  U16 // C
+		D  U32 // D
+		E  U32 // E
+		GA U64 // G_A
+		GI U64 // G_I
+		GR U64 // G_R
+		GT U64 // G_T
+		H  U16 // H
+		I  U16 // I
+		J  U16 // J
+		K  U16 // K
+		L  U32 // L
+		N  U16 // N
+		O  U16 // O
+		P  U16 // P
+		Q  U16 // Q
+		R  U16 // R
+		T  U16 // T
+		U  U16 // U
+		V  U16 // V
+		WA U32 // W_A
+		WB U32 // W_B
+		WC U32 // W_C
+		WE U32 // W_E
+		WM U32 // W_M
+		WP U32 // W_P
+		WR U32 // W_R
+		WT U32 // W_T
+		WX U32 // W_X
+		Y  U32 // Y
+	}
+)
+
+// ProtocolParamSnapshot and SnapshotProtocolParams() are for log and debugging purpose
+type ProtocolParamSnapshot struct {
+	// will not change by chainspec now
+	BI uint64 `json:"B_I"` // AdditionalMinBalancePerItem
+	BL uint64 `json:"B_L"` // AdditionalMinBalancePerOctet
+	BS uint64 `json:"B_S"` // BasicMinBalance
+	GA uint64 `json:"G_A"` // MaxAccumulateGas
+	GI uint64 `json:"G_I"` // IsAuthorizedGas
+	H  uint16 `json:"H"`   // MaxBlocksHistory
+	I  uint16 `json:"I"`   // MaximumWorkItems
+	J  uint16 `json:"J"`   // MaximumDependencyItems
+	O  uint16 `json:"O"`   // AuthPoolMaxSize
+	P  uint16 `json:"P"`   // SlotPeriod
+	Q  uint16 `json:"Q"`   // AuthQueueSize
+	T  uint16 `json:"T"`   // MaxExtrinsics
+	U  uint16 `json:"U"`   // WorkReportTimeout
+	WA uint32 `json:"W_A"` // MaxIsAuthorizedCodeSize
+	WB uint32 `json:"W_B"` // MaxTotalSize
+	WC uint32 `json:"W_C"` // MaxServiceCodeSize
+	WM uint32 `json:"W_M"` // MaxImportCount
+	WR uint32 `json:"W_R"` // WorkReportOutputBlobsMaximumSize
+	WT uint32 `json:"W_T"` // TransferMemoSize
+	WX uint32 `json:"W_X"` // MaxExportCount
+
+	// will change by chainspec now
+	C  uint16 `json:"C"`   // CoresCount
+	D  uint32 `json:"D"`   // UnreferencedPreimageTimeslots
+	E  uint32 `json:"E"`   // EpochLength
+	GR uint64 `json:"G_R"` // MaxRefineGas
+	GT uint64 `json:"G_T"` // TotalGas
+	K  uint16 `json:"K"`   // MaxTicketsPerBlock
+	L  uint32 `json:"L"`   // MaxLookupAge
+	N  uint16 `json:"N"`   // TicketsPerValidator
+	R  uint16 `json:"R"`   // RotationPeriod
+	V  uint16 `json:"V"`   // ValidatorsCount
+	WE uint32 `json:"W_E"` // ECBasicSize
+	WP uint32 `json:"W_P"` // ECPiecesPerSegment
+	Y  uint32 `json:"Y"`   // SlotSubmissionEnd
+}
+
+func SnapshotProtocolParams() ProtocolParamSnapshot {
+	return ProtocolParamSnapshot{
+		// const
+		BI: uint64(AdditionalMinBalancePerItem),
+		BL: uint64(AdditionalMinBalancePerOctet),
+		BS: uint64(BasicMinBalance),
+		GA: uint64(MaxAccumulateGas),
+		GI: uint64(IsAuthorizedGas),
+		H:  uint16(MaxBlocksHistory),
+		I:  uint16(MaximumWorkItems),
+		J:  uint16(MaximumDependencyItems),
+		O:  uint16(AuthPoolMaxSize),
+		P:  uint16(SlotPeriod),
+		Q:  uint16(AuthQueueSize),
+		T:  uint16(MaxExtrinsics),
+		U:  uint16(WorkReportTimeout),
+		WA: uint32(MaxIsAuthorizedCodeSize),
+		WB: uint32(MaxTotalSize),
+		WC: uint32(MaxServiceCodeSize),
+		WM: uint32(MaxImportCount),
+		WR: uint32(WorkReportOutputBlobsMaximumSize),
+		WT: uint32(TransferMemoSize),
+		WX: uint32(MaxExportCount),
+
+		// var
+		C:  uint16(CoresCount),
+		D:  uint32(UnreferencedPreimageTimeslots),
+		E:  uint32(EpochLength),
+		GR: uint64(MaxRefineGas),
+		GT: uint64(TotalGas),
+		K:  uint16(MaxTicketsPerBlock),
+		L:  uint32(MaxLookupAge),
+		N:  uint16(TicketsPerValidator),
+		R:  uint16(RotationPeriod),
+		V:  uint16(ValidatorsCount),
+		WE: uint32(ECBasicSize),
+		WP: uint32(ECPiecesPerSegment),
+		Y:  uint32(SlotSubmissionEnd),
+	}
+}
+
+func (s ProtocolParamSnapshot) JSON() string {
+	b, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return fmt.Sprintf(`{"error":"marshal snapshot: %v"}`, err)
+	}
+	return string(b)
+}

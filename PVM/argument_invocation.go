@@ -67,6 +67,9 @@ func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArg
 		if isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
 			start := uint64(Psi_H_Return.Reg[7])
 			length := uint64(Psi_H_Return.Reg[8])
+			if length == 0 {
+				return Gas(u), nil, Psi_H_Return.Addition
+			}
 
 			value, ok := readRAM(start, length, Psi_H_Return.Ram)
 			if !ok {

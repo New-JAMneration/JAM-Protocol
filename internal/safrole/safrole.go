@@ -2,12 +2,12 @@ package safrole
 
 import (
 	"fmt"
-	"log"
 	"slices"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
@@ -74,13 +74,13 @@ func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPub
 
 	verifier, err := vrf.NewVerifier(ringBytes, ringSize)
 	if err != nil {
-		fmt.Printf("Failed to create verifier: %v\n", err)
+		return types.BandersnatchRingCommitment{}, fmt.Errorf("failed to create verifier: %w", err)
 	}
 	defer verifier.Free()
 
-	commitment, commitmentErr := verifier.GetCommitment()
-	if commitmentErr != nil {
-		fmt.Printf("Failed to get commitment %v\n", commitmentErr)
+	commitment, err := verifier.GetCommitment()
+	if err != nil {
+		return types.BandersnatchRingCommitment{}, fmt.Errorf("failed to get commitment: %w", err)
 	}
 
 	return types.BandersnatchRingCommitment(commitment), nil
@@ -98,31 +98,6 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 	return GetBandersnatchRingRootCommmitment(bandersnatchKeys)
 }
 
-// keyRotation rotates the keys, it updates the state with the new Safrole state
-// Equation (6.13)
-/*
-func keyRotation(t types.TimeSlot, tPrime types.TimeSlot, safroleState types.State) (newSafroleState types.State) {
-	e := GetEpochIndex(t)
-	ePrime := GetEpochIndex(tPrime)
-
-	if ePrime > e {
-		// New epoch
-		newSafroleState.Gamma.GammaK = ReplaceOffenderKeys(safroleState.Iota)
-		newSafroleState.Kappa = safroleState.Gamma.GammaK
-		newSafroleState.Lambda = safroleState.Kappa
-		z, zErr := UpdateBandersnatchKeyRoot(safroleState.Gamma.GammaK)
-		if zErr != nil {
-			fmt.Printf("Error updating Bandersnatch key root: %v\n", zErr)
-			return
-		}
-		newSafroleState.Gamma.GammaZ = z
-		return newSafroleState
-	} else {
-		// Same epoch
-		return safroleState
-	}
-}
-*/
 // KeyRotate rotates the keys
 // Update the state with the new Safrole state
 // (6.13)
@@ -136,11 +111,11 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
 		s.GetPosteriorStates().SetKappa(priorState.GetGammaK())
 		s.GetPosteriorStates().SetLambda(priorState.GetKappa())
-		z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
-		if zErr != nil {
-			return fmt.Errorf("error updating Bandersnatch key root: %v", zErr)
-		}
-		s.GetPosteriorStates().SetGammaZ(z)
+		// z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
+		// if zErr != nil {
+		// 	return fmt.Errorf("error updating Bandersnatch key root: %w", zErr)
+		// }
+		// s.GetPosteriorStates().SetGammaZ(z)
 	} else {
 		s.GetPosteriorStates().SetGammaK(priorState.GetGammaK())
 		s.GetPosteriorStates().SetKappa(priorState.GetKappa())
@@ -153,10 +128,11 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 // Outer Safrole function
 // I made this function return ErrorCode only
 func OuterUsedSafrole() *types.ErrorCode {
-	s := store.GetInstance()
-
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
+		err            error
+		ringVerifier   *vrf.Verifier
+		s              = store.GetInstance()
 		tau            = s.GetPriorStates().GetTau()
 		tauPrime       = s.GetPosteriorStates().GetTau()
 		e, m           = R(tau)
@@ -168,6 +144,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 		errCode := SafroleErrorCode.BadSlot
 		return &errCode
 	}
+
 	// --- STEP 2 Update Entropy123 --- //
 	// (GP 6.23)
 	UpdateEntropy(e, ePrime)
@@ -175,15 +152,9 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// --- STEP 3 safrole.go (GP 6.2, 6.13, 6.14) --- //
 	// (6.2, 6.13, 6.14)
 	// This function will update GammaK, GammaZ, Lambda, Kappa
-	err := KeyRotate(e, ePrime)
+	err = KeyRotate(e, ePrime)
 	if err != nil {
-		log.Println("keyRotateErr:", err)
-	}
-
-	// (GP 6.22)
-	err = UpdateEtaPrime0()
-	if err != nil {
-		log.Println("UpdateEtaPrime0Err:", err)
+		logger.Errorf("KeyRotate error: %v", err)
 	}
 
 	// (GP 6.17) // This will be used to write H_v to new header
@@ -192,20 +163,46 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
 	UpdateSlotKeySequence(e, ePrime, m)
 
+	// After KeyRotate, gammaK and kappa are updated
+	postGammaK := s.GetPosteriorStates().GetGammaK()
+
+	ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
+	if err != nil {
+		// This error should not happen
+		logger.Errorf("error creating verifiers: %v", err)
+	}
+
+	// Update GammaZ commitment (gammaZ)
+	if ePrime > e {
+		commitment, err := ringVerifier.GetCommitment()
+		if err != nil || len(commitment) == 0 {
+			logger.Errorf("Failed to get commitment: %v", err)
+		} else {
+			s.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
+		}
+	}
+
+	// (GP 6.22)
+	err = UpdateEtaPrime0()
+	if err != nil {
+		logger.Errorf("UpdateEtaPrime0Err: %v", err)
+	}
+
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-	EtErrCode := CreateNewTicketAccumulator()
-	if EtErrCode != nil {
-		return EtErrCode
+	HtErrCode := CreateNewTicketAccumulator(ringVerifier)
+	if HtErrCode != nil {
+		return HtErrCode
 	}
+
 	// (GP 6.28)
 	CreateWinningTickets(e, ePrime, m, mPrime)
 
-	// --- sealing.go (GP 6.15~6.24) --- //
-	err = SealingHeader()
-	if err != nil {
-		log.Println("SealingHeaderErr:", err)
-	}
+	// // --- sealing.go (GP 6.15~6.24) --- //
+	// err = SealingHeader()
+	// if err != nil {
+	// 	logger.Errorf("SealingHeader error: %v", err)
+	// }
 
 	// --- markers.go (GP 6.27, 6.28) --- //
 	// (GP 6.27)

@@ -173,8 +173,8 @@ func TestGetStateKeyValsDiff(t *testing.T) {
 	}
 }
 
-func TestFuzzReports070Trace(t *testing.T) {
-	dirsPath := filepath.Join("..", "..", "..", "pkg", "test_data", "jam-conformance", "fuzz-reports", "0.7.0", "traces")
+func TestFuzzReportsTrace(t *testing.T) {
+	dirsPath := filepath.Join("..", "..", "..", "pkg", "test_data", "jam-conformance", "fuzz-reports", "0.7.1", "traces")
 
 	// Get all dirs in dirsPath
 	dirs, err := os.ReadDir(dirsPath)

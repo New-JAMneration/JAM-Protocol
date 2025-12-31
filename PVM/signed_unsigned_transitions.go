@@ -11,7 +11,7 @@ import (
 func UnsignedToSigned(a uint64, n uint) (int64, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return 0, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return 0, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	bitSize := 8 * n                      // 8n
@@ -20,7 +20,7 @@ func UnsignedToSigned(a uint64, n uint) (int64, error) {
 
 	// input should be in the range of [0, 2^(8n)-1]
 	if a >= maxValue {
-		return 0, fmt.Errorf("UnsignedToSigned: a >= 2^(8n)")
+		return 0, fmt.Errorf("UnsignedToSigned: a >= 2^(8n): got %d", a)
 	}
 
 	if a < signBit {
@@ -34,7 +34,7 @@ func UnsignedToSigned(a uint64, n uint) (int64, error) {
 func SignedToUnsigned(a int64, n uint) (uint64, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return 0, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return 0, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	bitSize := 8 * n
@@ -45,7 +45,7 @@ func SignedToUnsigned(a int64, n uint) (uint64, error) {
 	upperBound := int64(maxValue) >> 1
 
 	if (a < lowerBound) || (a >= upperBound) {
-		return 0, fmt.Errorf("SignedToUnsigned: input: %d out of range (%d ~ %d)", a, lowerBound, upperBound)
+		return 0, fmt.Errorf("SignedToUnsigned: input: %d out of range (%d ~ %d): got %d", a, lowerBound, upperBound, a)
 	}
 
 	return (maxValue + uint64(a)) % maxValue, nil
@@ -56,7 +56,7 @@ func SignedToUnsigned(a int64, n uint) (uint64, error) {
 func UnsignedToBits(x uint64, n uint) ([]bool, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return nil, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return nil, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	bitSize := int(8 * n)
@@ -64,7 +64,7 @@ func UnsignedToBits(x uint64, n uint) ([]bool, error) {
 	// input should be in the range of [0, 2^(8n)-1]
 	maxValue := uint64(1)<<uint(bitSize) - 1
 	if x > maxValue {
-		return nil, fmt.Errorf("UnsignedToBits: x >= 2^(8n)")
+		return nil, fmt.Errorf("UnsignedToBits: x >= 2^(8n): got %d", x)
 	}
 
 	y := make([]bool, bitSize) // make a slice of bool with length bitSize
@@ -82,7 +82,7 @@ func UnsignedToBits(x uint64, n uint) ([]bool, error) {
 func BitsToUnsigned(x []bool, n uint) (uint64, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return 0, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return 0, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	var y uint64
@@ -90,7 +90,7 @@ func BitsToUnsigned(x []bool, n uint) (uint64, error) {
 	bitsLength := len(x)
 
 	if bitsLength != int(8*n) {
-		return 0, fmt.Errorf("BitsToUnsigned: len(x) != 8n")
+		return 0, fmt.Errorf("BitsToUnsigned: len(x) != 8n: got %d", bitsLength)
 	}
 
 	for i, bit := range x {
@@ -109,7 +109,7 @@ func BitsToUnsigned(x []bool, n uint) (uint64, error) {
 func ReverseUnsignedToBits(x uint64, n uint) ([]bool, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return nil, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return nil, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	bitSize := int(8 * n)
@@ -117,7 +117,7 @@ func ReverseUnsignedToBits(x uint64, n uint) ([]bool, error) {
 	// input should be in the range of [0, 2^(8n)-1]
 	maxValue := uint64(1) << uint(bitSize)
 	if x >= maxValue {
-		return nil, fmt.Errorf("ReverseUnsignedToBits: x >= 2^(8n)")
+		return nil, fmt.Errorf("ReverseUnsignedToBits: x >= 2^(8n): got %d", x)
 	}
 
 	y := make([]bool, bitSize) // make a slice of bool with length bitSize
@@ -135,13 +135,13 @@ func ReverseUnsignedToBits(x uint64, n uint) ([]bool, error) {
 func ReverseBitsToUnsigned(x []bool, n uint) (uint64, error) {
 	// n should be in the range of 1 ~ 8
 	if n < 1 || n > 8 {
-		return 0, fmt.Errorf("n should be in the range of 1 ~ 8")
+		return 0, fmt.Errorf("n should be in the range of 1 ~ 8: got %d", n)
 	}
 
 	var y uint64
 
 	if len(x) != int(8*n) {
-		return 0, fmt.Errorf("ReverseBitsToUnsigned: len(x) != 8n")
+		return 0, fmt.Errorf("ReverseBitsToUnsigned: len(x) != 8n: got %d", len(x))
 	}
 
 	for i, bit := range x {
@@ -157,7 +157,7 @@ func ReverseBitsToUnsigned(x []bool, n uint) (uint64, error) {
 // A.16 SignExtend
 func SignExtend(n int, x uint64) (uint64, error) {
 	if n < 0 || n > 8 || n == 5 || n == 6 || n == 7 {
-		return 0, fmt.Errorf("invalid byte count")
+		return 0, fmt.Errorf("invalid byte count: got %d", n)
 	}
 	// mask immediate
 	mask := ^uint64(0)
@@ -172,7 +172,7 @@ func SignExtend(n int, x uint64) (uint64, error) {
 		}
 
 		if x >= (1 << (8 * n)) {
-			return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes", x, 8*n)
+			return 0, fmt.Errorf("x (%d) exceeds the maximum value for %d bytes: got %d", x, 8*n, x)
 		}
 
 		if n == 8 || n == 0 {

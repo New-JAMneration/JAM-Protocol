@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // ANSI color codes
@@ -26,7 +28,7 @@ var debugMode = false
 
 func cLog(color string, string string) {
 	if debugMode {
-		fmt.Printf("%s%s%s\n", color, string, Reset)
+		logger.Debugf("%s%s%s", color, string, Reset)
 	}
 }
 
@@ -192,7 +194,7 @@ func (d *Decoder) IdentifyLength(byteValue byte) (uint8, error) {
 		return 8, nil
 	}
 
-	return 0, fmt.Errorf("Failed to identify length: %v", byteValue)
+	return 0, fmt.Errorf("failed to identify length: %d", byteValue)
 }
 
 func (d *Decoder) DecodeInteger() (uint64, error) {

@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/go-redis/redis"
 )
 
@@ -43,7 +43,7 @@ func (r *RedisClient) Put(key string, value []byte) error {
 }
 
 func (r *RedisClient) PutWithTTL(key string, value []byte, ttl time.Duration) error {
-	log.Printf("PUT key=%s value(hex)=%s ttl=%v", key, hex.EncodeToString(value), ttl)
+	logger.Debugf("PUT key=%s value(hex)=%s ttl=%v", key, hex.EncodeToString(value), ttl)
 	err := r.client.Set(key, value, ttl).Err()
 	if err != nil {
 		return fmt.Errorf("PutWithTTL failed: %w", err)
@@ -53,7 +53,7 @@ func (r *RedisClient) PutWithTTL(key string, value []byte, ttl time.Duration) er
 
 // Get fetches the value at a given key. Returns nil if key does not exist.
 func (r *RedisClient) Get(key string) ([]byte, error) {
-	log.Printf("GET key=%s", key)
+	logger.Debugf("GET key=%s", key)
 
 	val, err := r.client.Get(key).Bytes()
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *RedisClient) Exists(key string) (bool, error) {
 
 // Delete removes a given key from Redis.
 func (r *RedisClient) Delete(key string) error {
-	fmt.Printf("DELETE key=%s\n", key)
+	logger.Debugf("DELETE key=%s", key)
 
 	err := r.client.Del(key).Err()
 	if err != nil {
@@ -134,7 +134,7 @@ func (r *RedisClient) DeleteBlock(ctx context.Context, slot types.TimeSlot) erro
 func (r *RedisClient) SAdd(key string, members ...[]byte) error {
 	// For logging/tracing:
 	for _, m := range members {
-		log.Printf("SADD key=%s member(hex)=%s", key, hex.EncodeToString(m))
+		logger.Debugf("SADD key=%s member(hex)=%s", key, hex.EncodeToString(m))
 	}
 
 	// Convert []byte members to interface{}
@@ -153,7 +153,7 @@ func (r *RedisClient) SAdd(key string, members ...[]byte) error {
 // SRem removes one or more members from a Redis set.
 func (r *RedisClient) SRem(key string, members ...[]byte) error {
 	for _, m := range members {
-		log.Printf("SREM key=%s member(hex)=%s", key, hex.EncodeToString(m))
+		logger.Debugf("SREM key=%s member(hex)=%s", key, hex.EncodeToString(m))
 	}
 
 	interfaceVals := make([]interface{}, len(members))
@@ -170,7 +170,7 @@ func (r *RedisClient) SRem(key string, members ...[]byte) error {
 
 // SMembers retrieves all members of a Redis set, returning them as [][]byte.
 func (r *RedisClient) SMembers(key string) ([][]byte, error) {
-	log.Printf("SMEMBERS key=%s", key)
+	logger.Debugf("SMEMBERS key=%s", key)
 
 	strVals, err := r.client.SMembers(key).Result()
 	if err != nil {
@@ -188,7 +188,7 @@ func (r *RedisClient) SMembers(key string) ([][]byte, error) {
 
 // SIsMember checks if a given member is in the set at key.
 func (r *RedisClient) SIsMember(key string, member []byte) (bool, error) {
-	log.Printf("SISMEMBER key=%s member(hex)=%s", key, hex.EncodeToString(member))
+	logger.Debugf("SISMEMBER key=%s member(hex)=%s", key, hex.EncodeToString(member))
 
 	ok, err := r.client.SIsMember(key, member).Result()
 	if err != nil {

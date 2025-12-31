@@ -8,11 +8,11 @@ import (
 
 // (B.8) Ψ_A
 func Psi_A(
-	partialState types.PartialStateSet,
-	timeslot types.TimeSlot,
-	serviceId types.ServiceId,
-	gas types.Gas,
-	operandOrDeferTransfers []types.OperandOrDeferredTransfer,
+	partialState types.PartialStateSet, // e
+	timeslot types.TimeSlot, // t
+	serviceId types.ServiceId, // s
+	gas types.Gas, // g
+	operandOrDeferTransfers []types.OperandOrDeferredTransfer, // i
 	eta types.Entropy,
 	storageKeyVal types.StateKeyVals,
 ) (
@@ -20,21 +20,6 @@ func Psi_A(
 ) {
 	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
-		return Psi_A_ReturnType{
-			PartialStateSet:   partialState,
-			DeferredTransfers: []types.DeferredTransfer{},
-			Result:            nil,
-			Gas:               0,
-			ServiceBlobs:      []types.ServiceBlob{},
-			StorageKeyVal:     storageKeyVal,
-		}
-	}
-
-	// (9.4) E(↕m, c) = ap[ac]
-	// Get actual code (c)
-	codeHash := s.ServiceInfo.CodeHash
-	_, code, err := service_account.FetchCodeByHash(s, codeHash)
-	if err != nil {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
 			DeferredTransfers: []types.DeferredTransfer{},
@@ -53,6 +38,22 @@ func Psi_A(
 		}
 	}
 	s.ServiceInfo.Balance += types.U64(balances)
+	partialState.ServiceAccounts[serviceId] = s
+
+	// (9.4) E(↕m, c) = ap[ac]
+	// Get actual code (c)
+	codeHash := s.ServiceInfo.CodeHash
+	_, code, err := service_account.FetchCodeByHash(s, codeHash)
+	if err != nil {
+		return Psi_A_ReturnType{
+			PartialStateSet:   partialState,
+			DeferredTransfers: []types.DeferredTransfer{},
+			Result:            nil,
+			Gas:               0,
+			ServiceBlobs:      []types.ServiceBlob{},
+			StorageKeyVal:     storageKeyVal,
+		}
+	}
 
 	// if c = ∅ or |c| > W_C
 	if !ok || len(code) == 0 || len(code) > types.MaxServiceCodeSize {
@@ -125,11 +126,11 @@ func Psi_A(
 		},
 		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX:            I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
-			ResultContextY:            I(partialState, serviceId, timeslot, eta, &storageKeyVal),
-			Eta:                       eta,
-			OperandOrDeferredTransfer: operandOrDeferTransfers,
-			Timeslot:                  timeslot,
+			ResultContextX:             I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
+			ResultContextY:             I(partialState, serviceId, timeslot, eta, &storageKeyVal),
+			Eta:                        eta,
+			OperandOrDeferredTransfers: operandOrDeferTransfers,
+			Timeslot:                   timeslot,
 		},
 	}
 
@@ -237,6 +238,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceId, ht types.T
 		ImportServiceId:   result,
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
+		ServiceBlobs:      make(map[types.OpaqueHash]types.ServiceBlob),
 		StorageKeyVal:     storageKeyVal,
 	}
 }
@@ -297,6 +299,7 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	for k, v := range origin.ServiceBlobs {
 		var copiedServiceBlob types.ServiceBlob
 		copiedServiceBlob.ServiceID = v.ServiceID
+		copiedServiceBlob.Blob = make([]byte, len(v.Blob))
 		copy(copiedServiceBlob.Blob, v.Blob)
 		copiedServiceBlobs[k] = copiedServiceBlob
 	}

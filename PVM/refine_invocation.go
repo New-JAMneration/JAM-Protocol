@@ -1,8 +1,6 @@
 package PVM
 
 import (
-	"log"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -95,7 +93,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// E(m, c)
 	_, code, err := service_account.DecodeMetaCode(lookupData)
 	if err != nil {
-		log.Fatalf("refine invoke (Psi_R) decode metaCode error : %v", err)
+		pvmLogger.Fatalf("refine invoke (Psi_R) decode metaCode error : %v", err)
 	}
 
 	F := Omegas{}
