@@ -8,7 +8,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func tearDown() {

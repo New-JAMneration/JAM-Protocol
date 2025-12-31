@@ -40,7 +40,6 @@ func GetRedisBackend() (*RedisBackend, error) {
 				return
 			}
 		}
-
 		globalRedisBackend = NewRedisBackend(client)
 		genesisBlock := genGenesisBlock()
 		err := globalRedisBackend.SetGenesisBlock(context.Background(), genesisBlock)
