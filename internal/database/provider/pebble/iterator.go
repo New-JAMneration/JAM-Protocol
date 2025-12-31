@@ -27,8 +27,12 @@ func (db *pebbleDB) NewIterator(prefix []byte, start []byte) (database.Iterator,
 		return nil // no upper-bound
 	}
 
+	lowerBound := make([]byte, 0, len(prefix)+len(start))
+	lowerBound = append(lowerBound, prefix...)
+	lowerBound = append(lowerBound, start...)
+
 	iter, err := db.inner.NewIter(&pebble.IterOptions{
-		LowerBound: append(prefix, start...),
+		LowerBound: lowerBound,
 		UpperBound: keyUpperBound(prefix),
 	})
 	if err != nil {

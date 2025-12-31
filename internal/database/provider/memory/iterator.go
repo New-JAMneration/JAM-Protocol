@@ -20,14 +20,16 @@ func (db *memoryDB) NewIterator(prefix []byte, start []byte) (database.Iterator,
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
-	prefixString := string(prefix)
-	startString := string(append(prefix, start...))
+	buf := make([]byte, 0, len(prefix)+len(start))
+	buf = append(buf, prefix...)
+	buf = append(buf, start...)
+	startString := string(buf)
 
 	var keys []string
 
 	// Collect all keys in the range [start, end)
 	for key := range db.data {
-		if !strings.HasPrefix(key, prefixString) {
+		if !strings.HasPrefix(key, startString) {
 			continue
 		}
 		if strings.Compare(key, startString) >= 0 {
