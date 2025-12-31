@@ -186,7 +186,7 @@ func abs(x int64) int64 {
 }
 
 // input: instructionCode, programCounter, skipLength, registers, memory
-var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask) (error, ProgramCounter, Registers, Memory){
+var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registers, Memory, JumpTable, Bitmask, uint64) (error, ProgramCounter, Registers, Memory){
 	// A.5.1 Instructiopns without Arguments
 	0: instTrap,
 	1: instFallthrough,
@@ -343,7 +343,7 @@ var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registe
 // opcode 0
 //
 //lint:ignore ST1008 error naming here is intentional
-func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(PANIC, nil), pc, reg, mem
 }
@@ -351,7 +351,7 @@ func instTrap(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 // opcode 1
 //
 //lint:ignore ST1008 error naming here is intentional
-func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -359,7 +359,7 @@ func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 10
 //
 //lint:ignore ST1008 error naming here is intentional
-func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	lX := min(4, int(skipLength))
 
 	// zeta_{iota+1,...,lX}
@@ -384,7 +384,7 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 20
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA := min(12, (int(instructionCode[pc+1]) % 16))
 	// zeta_{iota+2,...,+8}
 	instLength := instructionCode[pc+2 : pc+10]
@@ -400,7 +400,7 @@ func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 30
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmU8 decodeTwoImmediates error: %v", err)
@@ -420,7 +420,7 @@ func instStoreImmU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 31
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmU16 decodeTwoImmediates error: %v", err)
@@ -440,7 +440,7 @@ func instStoreImmU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 32
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmU32 decodeTwoImmediates error: %v", err)
@@ -460,7 +460,7 @@ func instStoreImmU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 33
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	vx, vy, err := decodeTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmU64 decodeTwoImmediates error: %v", err)
@@ -479,7 +479,7 @@ func instStoreImmU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 40
 //
 //lint:ignore ST1008 error naming here is intentional
-func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	vX, err := decodeOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instJump decodeOneOffset error: %v", err)
@@ -499,7 +499,7 @@ func instJump(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 // opcode 50
 //
 //lint:ignore ST1008 error naming here is intentional
-func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instJumpInd decodeOneRegisterAndOneImmediate error: %v", err)
@@ -527,7 +527,7 @@ func instJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 51
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadImm decodeOneRegisterAndOneImmediate error: %v", err)
@@ -542,7 +542,7 @@ func instLoadImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 52
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadU8 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -569,7 +569,7 @@ func instLoadU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 53
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI8 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -602,7 +602,7 @@ func instLoadI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 54
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadU16 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -629,7 +629,7 @@ func instLoadU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 55
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI16 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -660,7 +660,7 @@ func instLoadI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 56
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadU32 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -688,7 +688,7 @@ func instLoadU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 57
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI32 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -720,7 +720,7 @@ func instLoadI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 58
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadU64 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -748,7 +748,7 @@ func instLoadU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 59
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreU8 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -769,7 +769,7 @@ func instStoreU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 60
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreU16 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -789,7 +789,7 @@ func instStoreU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 61
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreU32 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -809,7 +809,7 @@ func instStoreU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 62
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, err := decodeOneRegisterAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreU64 decodeOneRegisterAndOneImmediate error: %v", err)
@@ -829,7 +829,7 @@ func instStoreU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 70
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmIndU8 decodeOneRegisterAndTwoImmediates error: %v", err)
@@ -849,7 +849,7 @@ func instStoreImmIndU8(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 71
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmIndU16 decodeOneRegisterAndTwoImmediates error: %v", err)
@@ -869,7 +869,7 @@ func instStoreImmIndU16(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 72
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmIndU32 decodeOneRegisterAndTwoImmediates error: %v", err)
@@ -889,7 +889,7 @@ func instStoreImmIndU32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 73
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreImmIndU64 decodeOneRegisterAndTwoImmediates error: %v", err)
@@ -909,7 +909,7 @@ func instStoreImmIndU64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode in [80, 90]
 //
 //lint:ignore ST1008 error naming here is intentional
-func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instImmediateBranch decodeOneRegisterOneImmediateAndOneOffset error: %v", err)
@@ -959,7 +959,7 @@ func instImmediateBranch(instructionCode []byte, pc ProgramCounter, skipLength P
 // opcode 100
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMoveReg decodeTwoRegisters error: %v", err)
@@ -974,7 +974,7 @@ func instMoveReg(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 101
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMoveReg decodeTwoRegisters error: %v", err)
@@ -1010,7 +1010,7 @@ func instSbrk(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 // opcode 102
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instCountSetBits64 decodeTwoRegisters error: %v", err)
@@ -1036,7 +1036,7 @@ func instCountSetBits64(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 103
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instCountSetBits32 decodeTwoRegisters error: %v", err)
@@ -1062,7 +1062,7 @@ func instCountSetBits32(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 104
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instLeadingZeroBits64 decodeTwoRegisters error: %v", err)
@@ -1089,7 +1089,7 @@ func instLeadingZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength
 // opcode 105
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instLeadingZeroBits32 decodeTwoRegisters error: %v", err)
@@ -1116,7 +1116,7 @@ func instLeadingZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength
 // opcode 106
 //
 //lint:ignore ST1008 error naming here is intentional
-func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instTrailZeroBits64 decodeTwoRegisters error: %v", err)
@@ -1143,7 +1143,7 @@ func instTrailZeroBits64(instructionCode []byte, pc ProgramCounter, skipLength P
 // opcode 107
 //
 //lint:ignore ST1008 error naming here is intentional
-func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instTrailZeroBits32 decodeTwoRegisters error: %v", err)
@@ -1170,7 +1170,7 @@ func instTrailZeroBits32(instructionCode []byte, pc ProgramCounter, skipLength P
 // opcode 108
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSignExtend8 decodeTwoRegisters error: %v", err)
@@ -1189,7 +1189,7 @@ func instSignExtend8(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 109
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSignExtend16 decodeTwoRegisters error: %v", err)
@@ -1208,7 +1208,7 @@ func instSignExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 110
 //
 //lint:ignore ST1008 error naming here is intentional
-func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instZeroExtend16 decodeTwoRegisters error: %v", err)
@@ -1224,7 +1224,7 @@ func instZeroExtend16(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 111
 //
 //lint:ignore ST1008 error naming here is intentional
-func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rD, rA, err := decodeTwoRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instReverseBytes decodeTwoRegisters error: %v", err)
@@ -1245,7 +1245,7 @@ func instReverseBytes(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 120
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreIndU8 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1267,7 +1267,7 @@ func instStoreIndU8(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 121
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreIndU16 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1289,7 +1289,7 @@ func instStoreIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 122
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreIndU32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1311,7 +1311,7 @@ func instStoreIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 123
 //
 //lint:ignore ST1008 error naming here is intentional
-func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instStoreIndU64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1334,7 +1334,7 @@ func instStoreIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 124
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndU8 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1362,7 +1362,7 @@ func instLoadIndU8(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 125
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndI8 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1389,7 +1389,7 @@ func instLoadIndI8(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 126
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndU16 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1416,7 +1416,7 @@ func instLoadIndU16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 127
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndI16 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1443,7 +1443,7 @@ func instLoadIndI16(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 128
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndU32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1470,7 +1470,7 @@ func instLoadIndU32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 129
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndI32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1499,7 +1499,7 @@ func instLoadIndI32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 130
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadIndU64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1528,7 +1528,7 @@ func instLoadIndU64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 131
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instAddImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1548,7 +1548,7 @@ func instAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 132
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instAndImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1564,7 +1564,7 @@ func instAndImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 133
 //
 //lint:ignore ST1008 error naming here is intentional
-func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instXORImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1580,7 +1580,7 @@ func instXORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 134
 //
 //lint:ignore ST1008 error naming here is intentional
-func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instORImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1596,7 +1596,7 @@ func instORImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 135
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instMulImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1617,7 +1617,7 @@ func instMulImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 136
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSetLtUImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1637,7 +1637,7 @@ func instSetLtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 137
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSetLtSImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1657,7 +1657,7 @@ func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 138
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloLImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1679,7 +1679,7 @@ func instShloLImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 139
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloRImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1701,7 +1701,7 @@ func instShloRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 140
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSharRImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1718,7 +1718,7 @@ func instSharRImm32(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 141
 //
 //lint:ignore ST1008 error naming here is intentional
-func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instNegAddImm32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1739,7 +1739,7 @@ func instNegAddImm32(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 142
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSetGtUImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1759,7 +1759,7 @@ func instSetGtUImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 143
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSetGtSImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1779,7 +1779,7 @@ func instSetGtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 144
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloLImmAlt32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1800,7 +1800,7 @@ func instShloLImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 145
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloRImmAlt32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1821,7 +1821,7 @@ func instShloRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 146
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSharRImmAlt32 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1838,7 +1838,7 @@ func instSharRImmAlt32(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 147
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instCmovIzImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1860,7 +1860,7 @@ func instCmovIzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 148
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instCmovNzImm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1882,7 +1882,7 @@ func instCmovNzImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 149
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instAddImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1898,7 +1898,7 @@ func instAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 150
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instMulImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1914,7 +1914,7 @@ func instMulImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramC
 // opcode 151
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloLImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1935,7 +1935,7 @@ func instShloLImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 152
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloRImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1956,7 +1956,7 @@ func instShloRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 153
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSharRImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1972,7 +1972,7 @@ func instSharRImm64(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 154
 //
 //lint:ignore ST1008 error naming here is intentional
-func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instNegAddImm64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -1988,7 +1988,7 @@ func instNegAddImm64(instructionCode []byte, pc ProgramCounter, skipLength Progr
 // opcode 155
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloLImmAlt64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2004,7 +2004,7 @@ func instShloLImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 156
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instShloRImmAlt64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2020,7 +2020,7 @@ func instShloRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 157
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instSharRImmAlt64 decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2036,7 +2036,7 @@ func instSharRImmAlt64(instructionCode []byte, pc ProgramCounter, skipLength Pro
 // opcode 158
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instRotR64Imm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2054,7 +2054,7 @@ func instRotR64Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 159
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instRotR64ImmAlt decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2072,7 +2072,7 @@ func instRotR64ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode 160
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instRotR32Imm decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2096,7 +2096,7 @@ func instRotR32Imm(instructionCode []byte, pc ProgramCounter, skipLength Program
 // opcode 161
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneImmediate(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instRotR32ImmAlt decodeTwoRegistersAndOneImmediate error: %v", err)
@@ -2120,7 +2120,7 @@ func instRotR32ImmAlt(instructionCode []byte, pc ProgramCounter, skipLength Prog
 // opcode in [170, 175]
 //
 //lint:ignore ST1008 error naming here is intentional
-func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(instructionCode, pc, skipLength)
 	if err != nil {
 		return err, pc, reg, mem
@@ -2163,7 +2163,7 @@ func instBranch(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 180
 //
 //lint:ignore ST1008 error naming here is intentional
-func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, vX, vY, err := decodeTwoRegistersAndTwoImmediates(instructionCode, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instLoadImmJumpInd decodeTwoRegistersAndTwoImmediates error: %v", err)
@@ -2192,7 +2192,7 @@ func instLoadImmJumpInd(instructionCode []byte, pc ProgramCounter, skipLength Pr
 // opcode 190
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instAdd32 decodeThreeRegisters error: %v", err)
@@ -2213,7 +2213,7 @@ func instAdd32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 191
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSub32 decodeThreeRegisters error: %v", err)
@@ -2236,7 +2236,7 @@ func instSub32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 192
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMul32 decodeThreeRegisters error: %v", err)
@@ -2257,7 +2257,7 @@ func instMul32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 193
 //
 //lint:ignore ST1008 error naming here is intentional
-func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instDivU32 decodeThreeRegisters error: %v", err)
@@ -2287,7 +2287,7 @@ func instDivU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 194
 //
 //lint:ignore ST1008 error naming here is intentional
-func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instDivS32 decodeThreeRegisters error: %v", err)
@@ -2312,7 +2312,7 @@ func instDivS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 195
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRemU32 decodeThreeRegisters error: %v", err)
@@ -2339,7 +2339,7 @@ func instRemU32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 196
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRemS32 decodeThreeRegisters error: %v", err)
@@ -2363,7 +2363,7 @@ func instRemS32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 197
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instShloL32 decodeThreeRegisters error: %v", err)
@@ -2384,7 +2384,7 @@ func instShloL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 198
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instShloR32 decodeThreeRegisters error: %v", err)
@@ -2407,7 +2407,7 @@ func instShloR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 199
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSharR32 decodeThreeRegisters error: %v", err)
@@ -2427,7 +2427,7 @@ func instSharR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 200
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instAdd64 decodeThreeRegisters error: %v", err)
@@ -2444,7 +2444,7 @@ func instAdd64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 201
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSub64 decodeThreeRegisters error: %v", err)
@@ -2461,7 +2461,7 @@ func instSub64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 202
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMul64 decodeThreeRegisters error: %v", err)
@@ -2478,7 +2478,7 @@ func instMul64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 203
 //
 //lint:ignore ST1008 error naming here is intentional
-func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instDivU64 decodeThreeRegisters error: %v", err)
@@ -2499,7 +2499,7 @@ func instDivU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 204
 //
 //lint:ignore ST1008 error naming here is intentional
-func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instDivS64 decodeThreeRegisters error: %v", err)
@@ -2522,7 +2522,7 @@ func instDivS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 205
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRemU64 decodeThreeRegisters error:%v", err)
@@ -2543,7 +2543,7 @@ func instRemU64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 206
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRemS64 decodeThreeRegisters error:%v", err)
@@ -2564,7 +2564,7 @@ func instRemS64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 207
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instShloL64 decodeThreeRegisters error:%v", err)
@@ -2581,7 +2581,7 @@ func instShloL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 208
 //
 //lint:ignore ST1008 error naming here is intentional
-func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instShloR64 decodeThreeRegisters error:%v", err)
@@ -2598,7 +2598,7 @@ func instShloR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 209
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSharR64 decodeThreeRegisters error:%v", err)
@@ -2615,7 +2615,7 @@ func instSharR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCo
 // opcode 210
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instAnd decodeThreeRegisters error:%v", err)
@@ -2632,7 +2632,7 @@ func instAnd(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 // opcode 211
 //
 //lint:ignore ST1008 error naming here is intentional
-func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instXor decodeThreeRegisters error:%v", err)
@@ -2649,7 +2649,7 @@ func instXor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 // opcode 212
 //
 //lint:ignore ST1008 error naming here is intentional
-func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instOr decodeThreeRegisters error:%v", err)
@@ -2666,7 +2666,7 @@ func instOr(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter
 // opcode 213
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMulUpperSS decodeThreeRegisters error:%v", err)
@@ -2692,7 +2692,7 @@ func instMulUpperSS(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 214
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMulUpperUU decodeThreeRegisters error:%v", err)
@@ -2710,7 +2710,7 @@ func instMulUpperUU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 215
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMulUpperSU decodeThreeRegisters error:%v", err)
@@ -2739,7 +2739,7 @@ func instMulUpperSU(instructionCode []byte, pc ProgramCounter, skipLength Progra
 // opcode 216
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSetLtU decodeThreeRegisters error:%v", err)
@@ -2760,7 +2760,7 @@ func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 217
 //
 //lint:ignore ST1008 error naming here is intentional
-func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instSetLts decodeThreeRegisters error:%v", err)
@@ -2781,7 +2781,7 @@ func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 218
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instCmovIz decodeThreeRegisters error:%v", err)
@@ -2803,7 +2803,7 @@ func instCmovIz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 219
 //
 //lint:ignore ST1008 error naming here is intentional
-func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instCmovNz decodeThreeRegisters error:%v", err)
@@ -2825,7 +2825,7 @@ func instCmovNz(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 220
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRotL64 decodeThreeRegisters error:%v", err)
@@ -2842,7 +2842,7 @@ func instRotL64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 221
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRotL32 decodeThreeRegisters error:%v", err)
@@ -2865,7 +2865,7 @@ func instRotL32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 222
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRotR64 decodeThreeRegisters error:%v", err)
@@ -2882,7 +2882,7 @@ func instRotR64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 223
 //
 //lint:ignore ST1008 error naming here is intentional
-func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instRotR32 decodeThreeRegisters error:%v", err)
@@ -2905,7 +2905,7 @@ func instRotR32(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 224
 //
 //lint:ignore ST1008 error naming here is intentional
-func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instAndInv decodeThreeRegisters error:%v", err)
@@ -2922,7 +2922,7 @@ func instAndInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 // opcode 225
 //
 //lint:ignore ST1008 error naming here is intentional
-func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instOrInv decodeThreeRegisters error:%v", err)
@@ -2939,7 +2939,7 @@ func instOrInv(instructionCode []byte, pc ProgramCounter, skipLength ProgramCoun
 // opcode 226
 //
 //lint:ignore ST1008 error naming here is intentional
-func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instXnor decodeThreeRegisters error:%v", err)
@@ -2956,7 +2956,7 @@ func instXnor(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 // opcode 227
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMax decodeThreeRegisters error:%v", err)
@@ -2974,7 +2974,7 @@ func instMax(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 // opcode 228
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMaxU decodeThreeRegisters error:%v", err)
@@ -2996,7 +2996,7 @@ func instMaxU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCount
 // opcode 229
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf(" decodeThreeRegisters error:%v", err)
@@ -3014,7 +3014,7 @@ func instMin(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounte
 // opcode 230
 //
 //lint:ignore ST1008 error naming here is intentional
-func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+func instMinU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask, instrCount uint64) (error, ProgramCounter, Registers, Memory) {
 	rA, rB, rD, err := decodeThreeRegisters(instructionCode, pc)
 	if err != nil {
 		pvmLogger.Errorf("instMinU decodeThreeRegisters error:%v", err)

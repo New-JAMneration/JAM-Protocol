@@ -121,7 +121,7 @@ type Psi_H_ReturnType struct {
 }
 
 // JIT version of (A.34) Ψ_H
-func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs,
+func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs, instrCount uint64,
 ) (psi_result Psi_H_ReturnType) {
 	var exitReason error
 	var pcPrime ProgramCounter
@@ -180,7 +180,7 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 	switch omega_reason.Reason {
 	case CONTINUE:
 		skipLength := ProgramCounter(skip(int(pcPrime), program.Bitmasks))
-		return HostCall(program, pcPrime+skipLength+1, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition)
+		return HostCall(program, pcPrime+skipLength+1, types.Gas(omega_result.NewGas), omega_result.NewRegisters, omega_result.NewMemory, omegas, omega_result.Addition, instrCount)
 	default: // PANIC, OUT_OF_GAS, HALT
 		psi_result.ExitReason = omega_result.ExitReason
 		psi_result.Counter = uint32(pcPrime)
