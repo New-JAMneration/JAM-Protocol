@@ -16,13 +16,11 @@ func (db *redisDB) NewBatch() database.Batch {
 }
 
 func (b *batch) Put(key, value []byte) error {
-	b.pipeline.Set(string(key), value, 0)
-	return nil
+	return b.pipeline.Set(string(key), value, 0).Err()
 }
 
 func (b *batch) Delete(key []byte) error {
-	b.pipeline.Del(string(key))
-	return nil
+	return b.pipeline.Del(string(key)).Err()
 }
 
 func (b *batch) Commit() error {
