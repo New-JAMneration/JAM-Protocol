@@ -26,7 +26,7 @@ func (e *Encoder) Encode(v interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return e.buf.Bytes(), nil
+	return bytes.Clone(e.buf.Bytes()), nil
 }
 
 func (e *Encoder) EncodeMany(vs ...any) ([]byte, error) {
