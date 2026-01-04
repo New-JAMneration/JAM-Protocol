@@ -8,6 +8,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -21,6 +23,8 @@ var (
 
 // Store represents a thread-safe global state container
 type Store struct {
+	repo *repository.Repository
+
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
 	finalizedIndex             map[types.HeaderHash]bool
@@ -38,7 +42,10 @@ type Store struct {
 // If the instance doesn't exist, it creates one.
 func GetInstance() *Store {
 	initOnce.Do(func() {
+		db := memory.NewDatabase()
+		repo := repository.NewRepository(db)
 		globalStore = &Store{
+			repo:                       repo,
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
 			finalizedIndex:             make(map[types.HeaderHash]bool),
 			processingBlock:            NewProcessingBlock(),
@@ -57,7 +64,10 @@ func GetInstance() *Store {
 
 func ResetInstance() {
 	// reset globalStore
+	db := memory.NewDatabase()
+	repo := repository.NewRepository(db)
 	globalStore = &Store{
+		repo:                       repo,
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
 		finalizedIndex:             make(map[types.HeaderHash]bool),
 		processingBlock:            NewProcessingBlock(),
@@ -104,13 +114,14 @@ func (s *Store) GetProcessingBlockPointer() *ProcessingBlock {
 	return s.processingBlock
 }
 
-func (s *Store) GenerateGenesisBlock(block types.Block) {
+func (s *Store) GenerateGenesisBlock(block types.Block) error {
 	s.unfinalizedBlocks.GenerateGenesisBlock(block)
 	// Genesis block is always finalized
 	s.finalizedIndex[block.Header.Parent] = true
 	if err := s.persistBlockMapping(block); err != nil {
 		logger.Errorf("GenerateGenesisBlock: failed to index block: %v", err)
 	}
+	return nil
 }
 
 // Finalized Blocks Management
@@ -290,7 +301,7 @@ func (s *Store) StateCommit() {
 		}
 
 		// Persist block mapping
-		err = s.persistBlockMapping(latestBlock)
+		err = s.repo.SaveBlock(s.repo.Database(), &latestBlock)
 		if err != nil {
 			logger.Errorf("StateCommit: failed to persist block: %v", err)
 		} else {
@@ -322,11 +333,6 @@ func (s *Store) StateCommit() {
 
 // PersistStateForBlock persists the state for a given block to Redis
 func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state types.State) error {
-	redisBackend, err := GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get redis backend: %w", err)
-	}
-
 	serializedState, err := m.StateEncoder(state)
 	if err != nil {
 		return fmt.Errorf("failed to encode state: %w", err)
@@ -342,14 +348,12 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 
 	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
 
-	ctx := context.Background()
-
-	err = redisBackend.StoreStateRootByBlockHash(ctx, blockHeaderHash, stateRoot)
+	err = s.repo.SaveStateRootByHeaderHash(s.repo.Database(), blockHeaderHash, stateRoot)
 	if err != nil {
 		return fmt.Errorf("failed to store state root mapping: %w", err)
 	}
 
-	err = redisBackend.StoreStateData(ctx, stateRoot, fullStateKeyVals)
+	err = s.repo.SaveStateData(s.repo.Database(), stateRoot, fullStateKeyVals)
 	if err != nil {
 		return fmt.Errorf("failed to store state data: %w", err)
 	}
@@ -359,13 +363,7 @@ func (s *Store) PersistStateForBlock(blockHeaderHash types.HeaderHash, state typ
 
 // GetStateByBlockHash retrieves state data for a given block from Redis
 func (s *Store) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
-	redisBackend, err := GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get redis backend: %w", err)
-	}
-
-	ctx := context.Background()
-	return redisBackend.GetStateByBlockHash(ctx, blockHeaderHash)
+	return s.repo.GetStateDataByHeaderHash(s.repo.Database(), blockHeaderHash)
 }
 
 // UnmatchedKeyVals
@@ -385,19 +383,35 @@ func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals
 	s.postStateUnmatchedKeyVals = unmatchedKeyVals
 }
 
-func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
-	redisBackend, err := GetRedisBackend()
+// GetGenesisBlock retrieves the genesis block from the store.
+// This function panics if the genesis block does not exist, as it is assumed to always be present.
+// TODO: This is because respecting the current implementation usage of `GenerateGenesisBlock`, but later should ensure genesis block exist at store initialization.
+func (s *Store) GetGenesisBlock() types.Block {
+	headerHash, err := s.repo.GetCanonicalHash(s.repo.Database(), 0)
 	if err != nil {
-		return types.Block{}, fmt.Errorf("failed to get redis backend: %w", err)
+		// This is coding error, genesis block must exist.
+		// Store instance without genesis block should never happen.
+		panic(fmt.Sprintf("genesis block must exist, failed to retrieve genesis block hash: %v", err))
 	}
 
-	ctx := context.Background()
-	block, err := redisBackend.GetBlockByHash(ctx, types.OpaqueHash(headerHash))
+	block, err := s.repo.GetBlock(s.repo.Database(), headerHash, 0)
+	if err != nil {
+		// This is coding error, genesis block must exist.
+		// Store instance without genesis block should never happen.
+		panic(fmt.Sprintf("genesis block must exist, failed to retrieve genesis block: %v", err))
+	}
+	return *block
+}
+
+func (s *Store) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
+	timeSlot, err := s.repo.GetHeaderTimeSlot(s.repo.Database(), headerHash)
 	if err != nil {
 		return types.Block{}, err
 	}
-	if block == nil {
-		return types.Block{}, fmt.Errorf("block not found for hash 0x%x", headerHash[:8])
+
+	block, err := s.repo.GetBlock(s.repo.Database(), headerHash, timeSlot)
+	if err != nil {
+		return types.Block{}, err
 	}
 
 	return *block, nil
@@ -420,6 +434,15 @@ func (s *Store) persistBlockMapping(block types.Block) error {
 	}
 
 	return nil
+}
+
+func computeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
+	encoder := types.NewEncoder()
+	encodedHeader, err := encoder.Encode(&header)
+	if err != nil {
+		return types.HeaderHash{}, err
+	}
+	return types.HeaderHash(hash.Blake2bHash(encodedHeader)), nil
 }
 
 func (s *Store) GetBlockAndState(blockHeaderHash types.HeaderHash) (types.Block, types.StateKeyVals, error) {
