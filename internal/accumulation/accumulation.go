@@ -739,7 +739,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
 	storageKeyVal := input.UnmatchedKeyVals
 	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
-	store.GetInstance().SetPostStateUnmatchedKeyVals(pvmResult.StorageKeyVal)
+	// Note: SetPostStateUnmatchedKeyVals is called in runSingleReplaceService with mutex protection
+	// to avoid data race when SingleServiceAccumulation is called concurrently
 
 	// Collect PVM results as output
 	{
