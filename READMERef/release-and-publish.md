@@ -3,8 +3,10 @@
 ## Overview
 
 We have Github action to build the release binary automatically when we create a new tag.  
-When you create a new tag which follows our tag format `v*.*.*.*`, the Github action will be triggered to build the release binary and upload it to our release repository.  
+When you create a new tag which follows our tag format `v*.*.*.*`, the Github action will be triggered to build the release binary and upload it to [our release repository](https://github.com/New-JAMneration/new-jamneration-release).  
 If you find the Github action fails or you want to build and publish the release binary manually, you can follow the steps below.
+
+> :warning: If the token expired, please create a new token with `repo` scope and update the secret `TOKEN` in the repository settings.
 
 ## Build the release binary
 
@@ -119,4 +121,8 @@ cd scripts
 python target.py get new_jamneration
 # Run the new target to verify it works correctly
 python target.py run --no-docker new_jamneration
+
+# or run with docker
+# However, you maybe need to set a correct CPU set for your docker environment
+# python target.py run new_jamneration
 ```
