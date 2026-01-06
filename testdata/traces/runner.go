@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
@@ -14,14 +14,14 @@ import (
 var genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")))
 
 type TraceRunner struct {
-	// Store is the global protocol store. The runner mutates it between traces.
-	Store *store.Store
+	// Store is the global protocol blockchain. The runner mutates it between traces.
+	Store *blockchain.Store
 }
 
 // NewTraceRunner constructs a TraceRunner with sane defaults.
 func NewTraceRunner() *TraceRunner {
 	return &TraceRunner{
-		Store: store.GetInstance(),
+		Store: blockchain.GetInstance(),
 	}
 }
 

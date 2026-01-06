@@ -4,7 +4,7 @@ package safrole
 import (
 	"bytes"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -14,7 +14,7 @@ import (
 // CreateEpochMarker creates the epoch marker
 // (6.27)
 func CreateEpochMarker(e types.TimeSlot, ePrime types.TimeSlot) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	if ePrime > e {
 		// New epoch, create epoch marker
@@ -50,7 +50,7 @@ func CreateEpochMarker(e types.TimeSlot, ePrime types.TimeSlot) {
 // CreateWinningTickets creates the winning tickets
 // (6.28)
 func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeSlot, mPrime types.TimeSlot) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	gammaA := s.GetPriorStates().GetGammaA()
 
@@ -174,7 +174,7 @@ func ValidateHeaderTicketsMark(header types.Header, state *types.State) *types.E
 }
 
 func ValidateHeaderOffenderMarker(header types.Header, state *types.State) *types.ErrorCode {
-	block := store.GetInstance().GetLatestBlock()
+	block := blockchain.GetInstance().GetLatestBlock()
 	if block.Header.Slot != header.Slot {
 		// Not the latest block, skip validation
 		return nil

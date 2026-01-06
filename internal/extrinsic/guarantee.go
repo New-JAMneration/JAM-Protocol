@@ -1,12 +1,10 @@
 package extrinsic
 
-import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
-)
+import "github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 
 func Guarantee() error {
 	// for test
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// GP 0.6.6 Eqs
 	guarantees := NewGuaranteeController()

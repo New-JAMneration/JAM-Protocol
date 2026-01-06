@@ -2,13 +2,13 @@ package stf
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 )
 
 // This only used by jam-test-vectors
 // For production, please use stf.go instead
 func UpdatePreimages() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	delta := s.GetPriorStates().GetDelta()
 	unmatchedKeyVals := s.GetPriorStateUnmatchedKeyVals()
 	eps := s.GetLatestBlock().Extrinsic.Preimages

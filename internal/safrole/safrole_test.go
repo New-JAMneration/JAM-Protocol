@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -131,7 +131,7 @@ func TestValidatorIsOffender(t *testing.T) {
 }
 
 func TestKeyRotate(t *testing.T) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	priorState := s.GetPriorStates()
 
 	now := time.Now().UTC()
@@ -240,7 +240,7 @@ func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 	}
 
 	// Set posterior state offenders to empty
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{})
 
 	newValidators := safrole.ReplaceOffenderKeys(validatorsData)
@@ -268,7 +268,7 @@ func TestReplaceOffenderKeys(t *testing.T) {
 	}
 
 	// Set posterior state offenders to the first validator
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	s.GetPosteriorStates().SetPsiO(types.OffendersMark{fakeValidators[0].Ed25519})
 
 	newValidators := safrole.ReplaceOffenderKeys(validatorsData)
@@ -345,8 +345,8 @@ func testSafroleFile(t *testing.T, binPath string, binFile string) {
 
 // Setup test state
 func setupTestState(preState jamtests_safrole.SafroleState, input jamtests_safrole.SafroleInput) {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	storeInstance.GetPriorStates().SetTau(preState.Tau)
 	storeInstance.GetProcessingBlockPointer().SetSlot(input.Slot)
@@ -381,7 +381,7 @@ func validateFinalState(t *testing.T, binFile string,
 	testCase *jamtests_safrole.SafroleTestCase,
 	errCode *types.ErrorCode,
 ) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	ourEpochMarker := s.GetProcessingBlockPointer().GetEpochMark()
 	ourTicketsMark := s.GetProcessingBlockPointer().GetTicketsMark()
@@ -446,7 +446,7 @@ func validateFinalState(t *testing.T, binFile string,
 }
 
 func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 	posteriorState := storeInstance.GetPosteriorStates()
 
 	checks := []struct {
@@ -537,8 +537,8 @@ func TestJamtestvectorsTraces(t *testing.T) {
 		}
 
 		// Setup genesis state
-		store.ResetInstance()
-		instance := store.GetInstance()
+		blockchain.ResetInstance()
+		instance := blockchain.GetInstance()
 
 		var state types.State
 		var block types.Block
@@ -575,7 +575,7 @@ func TestJamtestvectorsTraces(t *testing.T) {
 			t.Logf("------------------{%v, %s}--------------------", idx, fileName)
 
 			// State commit before each test (post-state update to pre-state, tau_prime+1)
-			store.GetInstance().StateCommit()
+			blockchain.GetInstance().StateCommit()
 
 			// Read trace test case
 			traceTestCase := &jamtests_trace.TraceTestCase{}

@@ -6,7 +6,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -319,8 +319,8 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	// Set up test input state
 	mockEgs := make(types.GuaranteesExtrinsic, 0, len(a.Input.Auths))
@@ -362,7 +362,7 @@ func (a *AuthorizationTestCase) ExpectError() error {
 }
 
 func (a *AuthorizationTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	// Get output state
 	outputAlpha := storeInstance.GetPosteriorStates().GetAlpha()

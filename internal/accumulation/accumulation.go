@@ -8,18 +8,18 @@ import (
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"golang.org/x/sync/singleflight"
 )
 
-// (12.1) ξ ∈ ⟦{H}⟧_E: store.Xi
+// (12.1) ξ ∈ ⟦{H}⟧_E: blockchain.Xi
 
 // (12.2) ©ξ ≡ ⋃x∈ξ
 // This function extracts all known (past) accumulated WorkPackageHashes.
 func GetAccumulatedHashes() (output []types.WorkPackageHash) {
-	xi := store.GetInstance().GetPriorStates().GetXi() // Retrieve ξ
+	xi := blockchain.GetInstance().GetPriorStates().GetXi() // Retrieve ξ
 
 	// Pre-calculate total size to avoid multiple memory reallocations
 	totalSize := 0
@@ -35,7 +35,7 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	return output
 }
 
-// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: store.theta
+// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: blockchain.theta
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
 // This function identifies and stores work reports that are immediately
@@ -45,7 +45,7 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 //
 // These work reports are independent and can be accumulated without waiting.
 func UpdateImmediatelyAccumulateWorkReports() {
-	intermediateState := store.GetInstance().GetIntermediateStates()
+	intermediateState := blockchain.GetInstance().GetIntermediateStates()
 	availableReports := intermediateState.GetAvailableWorkReports()
 
 	var accumulatableReports []types.WorkReport
@@ -62,7 +62,7 @@ func UpdateImmediatelyAccumulateWorkReports() {
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
 // Get all workreport with dependency, and store in QueuedWorkReports
 func UpdateQueuedWorkReports() {
-	intermediateState := store.GetInstance().GetIntermediateStates()
+	intermediateState := blockchain.GetInstance().GetIntermediateStates()
 	availableReports := intermediateState.GetAvailableWorkReports()
 	var reportsWithDependency types.ReadyQueueItem
 	for _, report := range availableReports {
@@ -170,7 +170,7 @@ func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHa
 // (12.11) W∗ ≡ W! ⌢ Q(q)
 // (12.12) q = E(ϑm... ⌢ ϑ...m ⌢ WQ, P (W!))
 func UpdateAccumulatableWorkReports() {
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 
 	// (12.10) Get current slot index 'm'
 	slot := store.GetLatestBlock().Header.Slot
@@ -377,7 +377,7 @@ func (in SingleServiceAccumulationInput) CloneForService(s types.ServiceId) Sing
 	out.DeferredTransfers = slices.Clone(in.DeferredTransfers)
 	out.WorkReports = slices.Clone(in.WorkReports)
 	out.AlwaysAccumulateMap = maps.Clone(in.AlwaysAccumulateMap)
-	out.UnmatchedKeyVals = store.GetInstance().GetPostStateUnmatchedKeyVals()
+	out.UnmatchedKeyVals = blockchain.GetInstance().GetPostStateUnmatchedKeyVals()
 	return out
 }
 
@@ -441,7 +441,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		mu.Lock()
 		cache[s] = out
-		store.GetInstance().SetPostStateUnmatchedKeyVals(out.UnmatchedKeyVals)
+		blockchain.GetInstance().SetPostStateUnmatchedKeyVals(out.UnmatchedKeyVals)
 		mu.Unlock()
 
 		return out, nil
@@ -640,7 +640,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// Set posterior state
 	{
-		store := store.GetInstance()
+		store := blockchain.GetInstance()
 		store.GetPosteriorStates().SetChi(types.Privileges{
 			Bless:       mPrime,
 			Assign:      aPrime,
@@ -731,10 +731,10 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 		pvmItems = append(pvmItems, types.OperandOrDeferredTransfer{Operand: &operand, DeferredTransfer: nil})
 	}
 	// τ′: Posterior validator state used by Ψₐ
-	tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
+	tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
 
 	// η0: entropy used by Ψₐ
-	eta0 := store.GetInstance().GetPosteriorStates().GetState().Eta[0]
+	eta0 := blockchain.GetInstance().GetPosteriorStates().GetState().Eta[0]
 
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
 	storageKeyVal := input.UnmatchedKeyVals

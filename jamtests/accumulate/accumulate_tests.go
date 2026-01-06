@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -826,8 +826,8 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
-	store.ResetInstance()
-	s := store.GetInstance()
+	blockchain.ResetInstance()
+	s := blockchain.GetInstance()
 
 	// Set time slot
 	s.GetPriorStates().SetTau(a.PreState.Slot)
@@ -881,7 +881,7 @@ func (a *AccumulateTestCase) ExpectError() error {
 }
 
 func (a *AccumulateTestCase) Validate() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	// Validate time slot
 	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
 		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, s.GetPosteriorStates().GetTau())

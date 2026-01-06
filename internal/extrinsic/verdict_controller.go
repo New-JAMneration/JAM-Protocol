@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -55,7 +55,7 @@ func NewVerdictController() *VerdictController {
 // currently return []int to check the test, it might change after connect other components in Ch.10
 func (v *VerdictWrapper) VerifySignature() error {
 
-	state := store.GetInstance().GetPriorStates()
+	state := blockchain.GetInstance().GetPriorStates()
 
 	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
 	if v.Verdict.Age != a && v.Verdict.Age != a-1 {
@@ -205,7 +205,7 @@ func (v *VoteWrapper) Swap(i, j int) {
 func (v *VerdictController) SetDisjoint() error {
 	// not in psi_g, psi_b, psi_w
 	// if in psi_g, psi_b, psi_w, remove it (probably duplicate submit verdict)
-	states := store.GetInstance().GetPriorStates()
+	states := blockchain.GetInstance().GetPriorStates()
 	psiGood := states.GetPsiG()
 	psiBad := states.GetPsiB()
 	psiWonky := states.GetPsiW()
@@ -250,7 +250,7 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 
 // ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
-	priorStatesRho := store.GetInstance().GetPriorStates().GetRho()
+	priorStatesRho := blockchain.GetInstance().GetPriorStates().GetRho()
 	clearReports := make(map[types.OpaqueHash]bool)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
@@ -266,5 +266,5 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			priorStatesRho[i] = nil
 		}
 	}
-	store.GetInstance().GetIntermediateStates().SetRhoDagger(priorStatesRho)
+	blockchain.GetInstance().GetIntermediateStates().SetRhoDagger(priorStatesRho)
 }

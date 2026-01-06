@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -15,13 +15,13 @@ import (
 // This controller is used to manage the header.
 // You can use this controller to create a header.
 type HeaderController struct {
-	Store *store.Store
+	Store *blockchain.Store
 }
 
 // NewHeaderController creates a new HeaderController.
 func NewHeaderController() *HeaderController {
 	return &HeaderController{
-		Store: store.GetInstance(),
+		Store: blockchain.GetInstance(),
 	}
 }
 
@@ -134,7 +134,7 @@ func (h *HeaderController) GetAuthorBandersnatchKey(header types.Header) types.B
 	authorIndex := header.AuthorIndex
 
 	// Get the posterior current validator set
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get the validator by index
 	validator := s.GetPosteriorCurrentValidatorByIndex(authorIndex)
@@ -174,13 +174,13 @@ func (h *HeaderController) CreateBlockSeal(blockSeal types.BandersnatchVrfSignat
 // GetAncestorHeaders returns all ancestor headers as Ancestry type.
 // (5.3) A
 func (h *HeaderController) GetAncestorHeaders() types.Ancestry {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	return s.GetAncestry()
 }
 
 // AddAncestorHeader adds the header to the ancestor headers.
 // It converts Header to AncestryItem internally.
 func (h *HeaderController) AddAncestorHeader(header types.Header) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	s.AddAncestorHeader(header)
 }

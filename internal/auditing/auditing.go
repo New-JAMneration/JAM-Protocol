@@ -4,9 +4,9 @@ import (
 	"crypto/ed25519"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -20,7 +20,7 @@ import (
 //
 // CollectAuditReportCandidates constructs the audit report candidates Q (formula 17.1 ~ 17.2).
 func CollectAuditReportCandidates() []*types.WorkReport {
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 
 	// ρ(rho): Current assignment map (per core)
 	rho := store.GetPriorStates().GetRho()
@@ -52,7 +52,7 @@ func CollectAuditReportCandidates() []*types.WorkReport {
 // GenerateValidatorAuditSeed computes the initial audit seed s0 for a validator, following Formula (17.3)-(17.4).
 // Returns the VRF output (s0) as BandersnatchVrfSignature.
 func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature, error) {
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 	priorStates := store.GetPriorStates()
 
 	entropyHash, err := ComputeAuthorEntropyVrfOutput() // Y(Hᵥ): VRF output of block author's entropy
@@ -95,7 +95,7 @@ func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.Band
 //
 // Returns a list of AuditReports
 func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 
 	// Get initial audit seed s0 (17.3)
 	s0, err := GenerateValidatorAuditSeed(validatorIndex)
@@ -144,11 +144,11 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 // (17.8) let n = (T − P ⋅ Ht) / A
 // GetTranchIndex computes tranche index from wall-clock time and block slot
 func GetTranchIndex() types.U64 {
-	T := types.U64(header.GetCurrentTimeInSecond())                            // T current time (seconds)
-	Ht := types.U64(store.GetInstance().GetProcessingBlockPointer().GetSlot()) // Ht slot number from block header
-	P := types.U64(types.SlotPeriod)                                           // P: seconds per slot
-	A := types.U64(types.TranchePeriod)                                        // A: seconds per tranche
-	n := (T - P*Ht) / A                                                        // n = (T - P ⋅ Ht) / A
+	T := types.U64(header.GetCurrentTimeInSecond())                                 // T current time (seconds)
+	Ht := types.U64(blockchain.GetInstance().GetProcessingBlockPointer().GetSlot()) // Ht slot number from block header
+	P := types.U64(types.SlotPeriod)                                                // P: seconds per slot
+	A := types.U64(types.TranchePeriod)                                             // A: seconds per tranche
+	n := (T - P*Ht) / A                                                             // n = (T - P ⋅ Ht) / A
 	return n
 }
 
@@ -178,7 +178,7 @@ func BuildAnnouncement(
 	XI := types.ByteSequence(types.JamAnnounce[:])
 
 	// Get H(H): hash of the intermediate header
-	header := store.GetInstance().GetProcessingBlockPointer().GetHeader()
+	header := blockchain.GetInstance().GetProcessingBlockPointer().GetHeader()
 	serializedHeader, err := utilities.HeaderSerialization(header)
 	if err != nil {
 		return types.Ed25519Signature{}, err
@@ -248,9 +248,9 @@ func ClassifyJudgments(
 // GetYHv computes the VRF output Y(Hᵥ) using the block author's key and the block header's entropy source.
 func ComputeAuthorEntropyVrfOutput() ([]byte, error) {
 	// Compute Y(Hᵥ) — entropy hashed by block author's key
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 	priorStates := store.GetPriorStates()
-	header := store.GetProcessingBlockPointer().GetHeader()
+	header := blockchain.GetInstance().GetProcessingBlockPointer().GetHeader()
 	authorKey := priorStates.GetKappa()[header.AuthorIndex].Bandersnatch
 	authorVRF, err := safrole.CreateVRFHandler(authorKey)
 	if err != nil {
@@ -277,7 +277,7 @@ func ComputeAnForValidator(
 ) ([]types.AuditReport, error) {
 	var an []types.AuditReport
 
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 	priorStates := store.GetPriorStates()
 
 	// Y(Hᵥ): VRF output of block author's entropy
@@ -389,7 +389,7 @@ func BuildJudgements(
 		context = append(context, hashW[:]...)                       // Xe(w) ⌢ H(w)
 
 		// Sign the message
-		validator_key := store.GetInstance().GetPriorStates().GetKappa()[validator_index].Ed25519
+		validator_key := blockchain.GetInstance().GetPriorStates().GetKappa()[validator_index].Ed25519
 		signature := ed25519.Sign(validator_key[:], context)
 		auditReports[index].Signature = types.Ed25519Signature(signature)
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -402,8 +402,8 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 }
 
 func (a *AssuranceTestCase) Dump() error {
-	store.ResetInstance()
-	s := store.GetInstance()
+	blockchain.ResetInstance()
+	s := blockchain.GetInstance()
 
 	// Add block
 
@@ -441,7 +441,7 @@ func (a *AssuranceTestCase) ExpectError() error {
 }
 
 func (a *AssuranceTestCase) Validate() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// kappa is not updated during assurance so there is no point in comparing the value of kappa to match the expected value.
 

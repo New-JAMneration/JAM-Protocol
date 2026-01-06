@@ -9,8 +9,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -77,8 +77,8 @@ func TestPreimageTestVectors(t *testing.T) {
 		}
 
 		// Get store instance and required states
-		store.ResetInstance()
-		s := store.GetInstance()
+		blockchain.ResetInstance()
+		s := blockchain.GetInstance()
 
 		block := types.Block{
 			Header: types.Header{
@@ -182,8 +182,8 @@ func testAccumulateFile(t *testing.T, binPath string) {
 
 // Setup test state
 func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests_accumulate.AccumulateInput) {
-	store.ResetInstance()
-	s := store.GetInstance()
+	blockchain.ResetInstance()
+	s := blockchain.GetInstance()
 
 	// Set time slot
 	s.GetPriorStates().SetTau(preState.Slot)
@@ -220,7 +220,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 
 // Validate final state
 func validateFinalState(t *testing.T, expectedState jamtests_accumulate.AccumulateState) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Validate time slot (passed)
 	if s.GetPosteriorStates().GetTau() != expectedState.Slot {

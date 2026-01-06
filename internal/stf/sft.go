@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	AssurancesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
 	DisputesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
@@ -39,7 +39,7 @@ func IsProtocolError(err error) bool {
 func RunSTF() (bool, error) {
 	var (
 		err              error
-		st               = store.GetInstance()
+		st               = blockchain.GetInstance()
 		priorState       = st.GetPriorStates().GetState()
 		header           = st.GetLatestBlock().Header
 		extrinsic        = st.GetLatestBlock().Extrinsic

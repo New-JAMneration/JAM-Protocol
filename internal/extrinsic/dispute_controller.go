@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -64,7 +64,7 @@ func (d *DisputeController) ValidateCulprits() error {
 
 // UpdatePsiGBW updates the PsiG, PsiB, and PsiW | Eq. 10.16, 17, 18
 func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) error {
-	priorPsi := store.GetInstance().GetPriorStates().GetPsi()
+	priorPsi := blockchain.GetInstance().GetPriorStates().GetPsi()
 	updateVerdicts, err := CompareVerdictsWithPsi(priorPsi, newVerdicts)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) error {
 	posteriorPsiG := UpdatePsiG(priorPsi, updateVerdicts)
 	posteriorPsiB := UpdatePsiB(priorPsi, updateVerdicts)
 	posteriorPsiW := UpdatePsiW(priorPsi, updateVerdicts)
-	posteriorState := store.GetInstance().GetPosteriorStates()
+	posteriorState := blockchain.GetInstance().GetPosteriorStates()
 	posteriorState.SetPsiG(posteriorPsiG)
 	posteriorState.SetPsiB(posteriorPsiB)
 	posteriorState.SetPsiW(posteriorPsiW)
@@ -132,7 +132,7 @@ func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHa
 
 // UpdatePsiO updates the PsiO | Eq. 10.19
 func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.Fault) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	priorPsi := s.GetPriorStates().GetPsi()
 
 	offenderMap := make(map[types.Ed25519Public]bool, len(priorPsi.Offenders))

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -43,7 +43,7 @@ func ValidatorIsOffender(validator types.Validator, offendersMark types.Offender
 // Equation (6.14) Phi(k)
 func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 	// Get offendersMark (Psi_O) from posterior state
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	posteriorState := s.GetPosteriorStates()
 	offendersMark := posteriorState.GetPsiO()
 
@@ -102,7 +102,7 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 // Update the state with the new Safrole state
 // (6.13)
 func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get prior state
 	priorState := s.GetPriorStates()
@@ -132,7 +132,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	var (
 		err            error
 		ringVerifier   *vrf.Verifier
-		s              = store.GetInstance()
+		s              = blockchain.GetInstance()
 		tau            = s.GetPriorStates().GetTau()
 		tauPrime       = s.GetPosteriorStates().GetTau()
 		e, m           = R(tau)
@@ -166,7 +166,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// After KeyRotate, gammaK and kappa are updated
 	postGammaK := s.GetPosteriorStates().GetGammaK()
 
-	ringVerifier, err = store.GetVerifier(ePrime, postGammaK)
+	ringVerifier, err = blockchain.GetVerifier(ePrime, postGammaK)
 	if err != nil {
 		// This error should not happen
 		logger.Errorf("error creating verifiers: %v", err)

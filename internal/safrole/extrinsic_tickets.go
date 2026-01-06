@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -17,7 +17,7 @@ import (
 // tickets.
 // Return error code: UnexpectedTicket
 func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get current time slot index
 	tauPrime := s.GetPosteriorStates().GetTau()
@@ -45,7 +45,7 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // VerifyTicketsProof verifies the proof of the tickets
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	posteriorEta := s.GetPosteriorStates().GetEta()
 
 	// Prepare batch items for verification
@@ -191,7 +191,7 @@ func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.Ticke
 
 // (6.34)
 func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get previous time slot index
 	tau := s.GetPriorStates().GetTau()
@@ -225,7 +225,7 @@ func CreateNewTicketAccumulator(ringVerifier *vrf.Verifier) *types.ErrorCode {
 	// 10. Set the new ticket accumulator to the posterior state
 
 	// Get extrinsic tickets
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	extrinsicTickets := s.GetLatestBlock().Extrinsic.Tickets
 
 	// (6.30) Verify the epoch tail

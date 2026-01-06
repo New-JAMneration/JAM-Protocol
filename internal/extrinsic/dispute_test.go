@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 )
@@ -91,7 +91,7 @@ func TestDisputes(t *testing.T) {
 			t.Errorf("Error loading disputes test case: %v", err)
 			return
 		}
-		s := store.GetInstance()
+		s := blockchain.GetInstance()
 		s.GetPriorStates().SetKappa(disputesTestCase.PreState.Kappa)
 		s.GetPriorStates().SetLambda(disputesTestCase.PreState.Lambda)
 		s.GetPriorStates().SetRho(disputesTestCase.PreState.Rho)
@@ -140,8 +140,8 @@ func TestDisputes(t *testing.T) {
 }
 
 func copyPriorToPosterior() {
-	priorState := store.GetInstance().GetPriorStates()
-	posteriorState := store.GetInstance().GetPosteriorStates()
+	priorState := blockchain.GetInstance().GetPriorStates()
+	posteriorState := blockchain.GetInstance().GetPosteriorStates()
 	posteriorState.SetPsiG(priorState.GetPsiG())
 	posteriorState.SetPsiB(priorState.GetPsiB())
 	posteriorState.SetPsiW(priorState.GetPsiW())

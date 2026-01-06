@@ -7,8 +7,8 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -707,8 +707,8 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 }
 
 func (r *ReportsTestCase) Dump() error {
-	store.ResetInstance()
-	s := store.GetInstance()
+	blockchain.ResetInstance()
+	s := blockchain.GetInstance()
 
 	// Guarantee Input : extrinsics, slot, known_packages
 	// set slot, guarantee extrinsics
@@ -820,7 +820,7 @@ func (r *ReportsTestCase) Validate() error {
 	}
 
 	// check state (guarantee only transits Rho Prime)
-	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	rhoPrime := blockchain.GetInstance().GetPosteriorStates().GetRho()
 	if !reflect.DeepEqual(rhoPrime, r.PostState.AvailAssignments) {
 		return fmt.Errorf("AvailabilityAssignment (Rho Prime) mismatch")
 	}
@@ -837,7 +837,7 @@ func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
 	outputData.Reported = make([]ReportedPackage, 0)
 	outputData.Reporters = make([]types.Ed25519Public, 0)
 
-	rhoPrime := store.GetInstance().GetPosteriorStates().GetRho()
+	rhoPrime := blockchain.GetInstance().GetPosteriorStates().GetRho()
 	for _, report := range rhoPrime {
 		if report == nil {
 			continue

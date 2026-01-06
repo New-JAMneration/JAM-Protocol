@@ -1,4 +1,4 @@
-package store
+package blockchain
 
 import (
 	"sync"
@@ -20,7 +20,7 @@ func NewAncestryStore() *AncestryStore {
 	}
 }
 
-// AppendAncestry appends ancestry items to the store.
+// AppendAncestry appends ancestry items to the blockchain.
 // It maintains a maximum length of MaxLookupAge.
 func (a *AncestryStore) AppendAncestry(newAncestry types.Ancestry) {
 	if len(newAncestry) == 0 {

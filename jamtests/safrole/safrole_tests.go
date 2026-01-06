@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/google/go-cmp/cmp"
@@ -546,8 +546,8 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 }
 
 func (s *SafroleTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
 	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
@@ -595,7 +595,7 @@ func (s *SafroleTestCase) ExpectError() error {
 }
 
 func (s *SafroleTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 	// Set eta^prime_0 here
 	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
 	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))

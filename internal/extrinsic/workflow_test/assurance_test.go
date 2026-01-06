@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	assurance "github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
 )
@@ -79,7 +79,7 @@ func TestAssurances(t *testing.T) {
 			t.Errorf("Error loading assurance test case: %v", err)
 			return
 		}
-		s := store.GetInstance()
+		s := blockchain.GetInstance()
 		GenerateBlockForHeader(assurancesTestCase.Input)
 		s.GetPriorStates().SetKappa(assurancesTestCase.PreState.CurrValidators)
 		s.GetPriorStates().SetRho(assurancesTestCase.PreState.AvailAssignments)
@@ -108,7 +108,7 @@ func TestAssurances(t *testing.T) {
 }
 
 func GenerateBlockForHeader(input jamtests.AssuranceInput) {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	header := types.Header{Slot: input.Slot, Parent: input.Parent}
 	block := types.Block{Header: header}

@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -46,7 +46,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	logger.Debugf("%s Processing...", ctx)
 
 	// Get the latest block
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	blocks := storeInstance.GetBlocks()
 	if len(blocks) > 0 {
@@ -118,11 +118,11 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	logger.Debugf("%s Processing...", ctx)
 
 	// Reset State and Blocks
-	store.ClearVerifierCache()
-	store.ResetInstance()
+	blockchain.ClearVerifierCache()
+	blockchain.ResetInstance()
 
 	// Set State
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	// Append ancestry if provided
 	if len(ancestry) > 0 {
@@ -155,7 +155,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	storeInstance.StateCommit()
 
 	// Empty posterior state
-	posteriorStates := store.NewPosteriorStates()
+	posteriorStates := blockchain.NewPosteriorStates()
 	storeInstance.GetPosteriorStates().SetState(posteriorStates.GetState())
 
 	serializedState, _ := m.StateEncoder(state)
@@ -171,7 +171,7 @@ func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyV
 	hashStr := hex.EncodeToString(headerHash[:])
 	slot := uint32(0)
 	epoch := uint32(0)
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 	// Try to get block to extract slot/epoch
 	block, err := storeInstance.GetBlockByHash(headerHash)
 	if err == nil {

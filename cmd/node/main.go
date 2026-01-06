@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
@@ -80,11 +80,11 @@ func SetupJAMProtocol(chainPath string) {
 	log.SetOutput(os.Stdout)
 	log.Println("🚀 Start JAM Protocol")
 
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	ctx := context.Background()
 
 	if chainPath != "" {
-		spec, err := store.GetChainSpecFromJson(chainPath)
+		spec, err := blockchain.GetChainSpecFromJson(chainPath)
 		if err != nil {
 			log.Fatalf("failed to load chainspec: %v", err)
 		}
@@ -104,7 +104,7 @@ func SetupJAMProtocol(chainPath string) {
 			log.Fatalf("failed to decode genesis_header hex: %v", err)
 		}
 
-		hdr, err := store.DecodeHeaderFromBin(hdrBytes)
+		hdr, err := blockchain.DecodeHeaderFromBin(hdrBytes)
 		if err != nil {
 			log.Fatalf("failed to decode genesis_header bytes: %v", err)
 		}

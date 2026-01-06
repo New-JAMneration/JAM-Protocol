@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -387,8 +387,8 @@ func (d *DisputeOutput) IsError() bool {
 
 // TODO: Implement the Dump method
 func (d *DisputeTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	storeInstance.GetPriorStates().SetPsi(d.PreState.Psi)
 	storeInstance.GetPriorStates().SetRho(d.PreState.Rho)
@@ -423,7 +423,7 @@ func (d *DisputeTestCase) ExpectError() error {
 }
 
 func (d *DisputeTestCase) Validate() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	if !reflect.DeepEqual(s.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
 		diff := cmp.Diff(s.GetPosteriorStates().GetPsi(), d.PostState.Psi)
 		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)

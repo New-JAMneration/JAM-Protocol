@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	merkle "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
@@ -140,7 +140,7 @@ func AddItem2BetaHPrime(historyDagger types.BlocksHistory, item types.BlockInfo)
 // STF β†_H ≺ (H, β_H) (4.6)
 func STFBetaH2BetaHDagger() {
 	var (
-		s     = store.GetInstance()
+		s     = blockchain.GetInstance()
 		beta  = s.GetPriorStates().GetBeta()
 		block = s.GetLatestBlock()
 	)
@@ -156,7 +156,7 @@ func STFBetaH2BetaHDagger() {
 // STF β′_H ≺ (H, EG, β†_H, C) (4.7)
 func STFBetaHDagger2BetaHPrime() error {
 	var (
-		s             = store.GetInstance()
+		s             = blockchain.GetInstance()
 		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
 		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
 		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
@@ -195,7 +195,7 @@ func STFBetaHDagger2BetaHPrime() error {
 // HeaderHash is hash of block's header, not the parent HeaderHash
 func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	var (
-		s             = store.GetInstance()
+		s             = blockchain.GetInstance()
 		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
 		block         = s.GetLatestBlock()
 		// (b)

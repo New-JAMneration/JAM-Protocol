@@ -3,7 +3,7 @@ package authorization
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
@@ -63,7 +63,7 @@ func STFAlpha2AlphaPrime(slot types.TimeSlot, guarantees types.GuaranteesExtrins
 // - α: prior authorization pool (alpha)
 func Authorization() error {
 	// Load state
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	block := s.GetLatestBlock()
 	slot := block.Header.Slot
 	guarantees := block.Extrinsic.Guarantees

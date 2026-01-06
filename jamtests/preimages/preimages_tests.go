@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -670,8 +670,8 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 }
 
 func (p *PreimageTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	inputDelta := make(types.ServiceAccountState)
 	for _, delta := range p.PreState.Accounts {
@@ -730,7 +730,7 @@ func (p *PreimageTestCase) ExpectError() error {
 }
 
 func (p *PreimageTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 	inputDelta := storeInstance.GetPriorStates().GetDelta()
 	outputDelta := storeInstance.GetPosteriorStates().GetDelta()
 

@@ -1,4 +1,4 @@
-package store
+package blockchain
 
 import (
 	"bytes"
@@ -9,7 +9,8 @@ import (
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -23,7 +24,7 @@ var (
 
 // Store represents a thread-safe global state container
 type Store struct {
-	repo *repository.Repository
+	repo *store.Repository
 
 	// INFO: Add more fields here
 	unfinalizedBlocks          *UnfinalizedBlocks
@@ -43,7 +44,7 @@ type Store struct {
 func GetInstance() *Store {
 	initOnce.Do(func() {
 		db := memory.NewDatabase()
-		repo := repository.NewRepository(db)
+		repo := store.NewRepository(db)
 		globalStore = &Store{
 			repo:                       repo,
 			unfinalizedBlocks:          NewUnfinalizedBlocks(),
@@ -65,7 +66,7 @@ func GetInstance() *Store {
 func ResetInstance() {
 	// reset globalStore
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 	globalStore = &Store{
 		repo:                       repo,
 		unfinalizedBlocks:          NewUnfinalizedBlocks(),
@@ -248,7 +249,7 @@ func (s *Store) AddAncestorHeader(header types.Header) {
 	})
 }
 
-// AppendAncestry appends ancestry items to the store.
+// AppendAncestry appends ancestry items to the blockchain.
 func (s *Store) AppendAncestry(ancestry types.Ancestry) {
 	s.ancestry.AppendAncestry(ancestry)
 }
@@ -263,7 +264,7 @@ func (s *Store) GetAncestry() types.Ancestry {
 	return s.ancestry.GetAncestry()
 }
 
-// ClearAncestry clears all ancestry from the store.
+// ClearAncestry clears all ancestry from the blockchain.
 func (s *Store) ClearAncestry() {
 	s.ancestry.Clear()
 }
@@ -383,7 +384,7 @@ func (s *Store) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals
 	s.postStateUnmatchedKeyVals = unmatchedKeyVals
 }
 
-// GetGenesisBlock retrieves the genesis block from the store.
+// GetGenesisBlock retrieves the genesis block from the blockchain.
 // This function panics if the genesis block does not exist, as it is assumed to always be present.
 // TODO: This is because respecting the current implementation usage of `GenerateGenesisBlock`, but later should ensure genesis block exist at store initialization.
 func (s *Store) GetGenesisBlock() types.Block {

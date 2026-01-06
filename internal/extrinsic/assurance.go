@@ -1,14 +1,14 @@
 package extrinsic
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 // Assurance is a struct that contains a slice of Assurance
 func Assurance() (err *types.ErrorCode) {
-	block := store.GetInstance().GetLatestBlock()
+	block := blockchain.GetInstance().GetLatestBlock()
 	assuranceExtrinsic := block.Extrinsic.Assurances
 	assurances := AvailAssuranceController{AvailAssurances: assuranceExtrinsic}
 

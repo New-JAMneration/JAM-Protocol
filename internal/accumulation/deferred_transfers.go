@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -30,7 +30,7 @@ func calculateMaxGasUsed(alwaysAccumulateMap types.AlwaysAccumulateMap) types.Ga
 	return max(GT, GA*C+sum)
 }
 
-func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialStateSet) {
+func updatePartialStateSetToPosteriorState(store *blockchain.Store, o types.PartialStateSet) {
 	// (12.22)
 	deltaDagger := o.ServiceAccounts
 	postIota := o.ValidatorKeys
@@ -58,7 +58,7 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 // this approach would differ from the graypaper and is not being implemented at this time.
 func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	// Get W^*
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	// First pass: count matching results to determine exact capacity
@@ -119,7 +119,7 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 // (12.28) (12.29)
 // Build delta double dagger (second intermediate state)
 // NOTE: v0.7.1 has removed deferred transfers & Ψ_T
-func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.AccumulationStatistics) {
+func updateDeltaDoubleDagger(store *blockchain.Store, accumulationStatistics types.AccumulationStatistics) {
 	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
 	tauPrime := store.GetPosteriorStates().GetTau()
 
@@ -137,7 +137,7 @@ func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.Ac
 
 // (12.31) (12.32)
 // Update the AccumulatedQueue(AccumulatedQueue)
-func updateXi(store *store.Store, n types.U64) {
+func updateXi(store *blockchain.Store, n types.U64) {
 	// Get W^* (accumulatable work-reports in this block)
 	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
@@ -175,7 +175,7 @@ func updateXi(store *store.Store, n types.U64) {
 
 // (12.33)
 // Update ReadyQueue(Theta)
-func updateTheta(store *store.Store) {
+func updateTheta(store *blockchain.Store) {
 	// (12.10) let m = H_t mode E
 	headerSlot := store.GetLatestBlock().Header.Slot
 	m := int(headerSlot) % types.EpochLength
@@ -222,7 +222,7 @@ func updateTheta(store *store.Store) {
 }
 
 // (12.20) (12.21)
-func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, error) {
+func executeOuterAccumulation(store *blockchain.Store) (OuterAccumulationOutput, error) {
 	// Get W^* (accumulatable work-reports in this block)
 	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
 
@@ -293,7 +293,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 // (v0.6.4) 12.3 Deferred Transfers And State Integration.
 func DeferredTransfers() error {
 	// Get parameters from the store
-	store := store.GetInstance()
+	store := blockchain.GetInstance()
 
 	// (12.20) (12.21) (12.22)
 	output, err := executeOuterAccumulation(store)

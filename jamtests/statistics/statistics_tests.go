@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -227,7 +227,7 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 }
 
 func (s *StatisticsTestCase) Dump() error {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	// Input
 	block := types.Block{
@@ -270,7 +270,7 @@ func (s *StatisticsTestCase) ExpectError() error {
 }
 
 func (s *StatisticsTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	statistics := storeInstance.GetPosteriorStates().GetPi()
 

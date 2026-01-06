@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/hdevalence/ed25519consensus"
 )
@@ -45,8 +45,8 @@ func (f *FaultController) VerifyFaultValidity() error {
 }
 
 func (f *FaultController) VerifyFaultSignature() error {
-	state := store.GetInstance().GetPriorStates()
-	posterior := store.GetInstance().GetPosteriorStates()
+	state := blockchain.GetInstance().GetPriorStates()
+	posterior := blockchain.GetInstance().GetPosteriorStates()
 
 	validators := append(state.GetKappa(), state.GetLambda()...)
 	validKeySet := make(map[types.Ed25519Public]struct{})
@@ -80,7 +80,7 @@ func (f *FaultController) VerifyFaultSignature() error {
 
 // VerifyReportHashValidty verifies the validity of the reports
 func (f *FaultController) VerifyReportHashValidty() error {
-	posteriorStates := store.GetInstance().GetPosteriorStates()
+	posteriorStates := blockchain.GetInstance().GetPosteriorStates()
 	psiBad := posteriorStates.GetPsiB()
 	psiGood := posteriorStates.GetPsiG()
 
@@ -110,7 +110,7 @@ func (f *FaultController) VerifyReportHashValidty() error {
 // ExcludeOffenders excludes the offenders from the validator set
 func (f *FaultController) ExcludeOffenders() error {
 
-	exclude := store.GetInstance().GetPriorStates().GetPsiO()
+	exclude := blockchain.GetInstance().GetPriorStates().GetPsiO()
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list

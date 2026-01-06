@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -211,8 +211,8 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 }
 
 func (h *HistoryTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	storeInstance := blockchain.GetInstance()
 
 	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
 
@@ -266,7 +266,7 @@ func (h *HistoryTestCase) ExpectError() error {
 }
 
 func (h *HistoryTestCase) Validate() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	// === (4.6) ===
 	// Get result of BetaDagger from store
 	HistoryDagger := s.GetIntermediateStates().GetBetaHDagger()

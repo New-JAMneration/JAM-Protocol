@@ -18,8 +18,8 @@ package statistics
 import (
 	"math"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -101,7 +101,7 @@ func UpdateAvailabilityStatistics(statistics *types.Statistics, authorIndex type
 
 func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	// Get current slot
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get author index
 	authorIndex := s.GetLatestBlock().Header.AuthorIndex
@@ -204,12 +204,12 @@ func createWorkReportMap(workReports []types.WorkReport) CoreWorkReportMap {
 
 // (13.8)
 func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
-	store := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// **w**: the incoming work-reports (11.28)
 	// **W**: the newly available work-reports (11.16)
-	w := store.GetIntermediateStates().GetPresentWorkReports()
-	W := store.GetIntermediateStates().GetAvailableWorkReports()
+	w := s.GetIntermediateStates().GetPresentWorkReports()
+	W := s.GetIntermediateStates().GetAvailableWorkReports()
 
 	// Create a map for the work reports
 	wMap := createWorkReportMap(w)
@@ -237,15 +237,15 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 	}
 
 	// Set the core activity statistics to the store
-	store.GetPosteriorStates().SetCoresStatistics(coreActivityStatisitics)
+	s.GetPosteriorStates().SetCoresStatistics(coreActivityStatisitics)
 }
 
 type ServiceWorkResultsMap map[types.ServiceId][]types.WorkResult
 
 // Create a map (service Id -> []work result)
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
-	store := store.GetInstance()
-	w := store.GetIntermediateStates().GetPresentWorkReports()
+	s := blockchain.GetInstance()
+	w := s.GetIntermediateStates().GetPresentWorkReports()
 
 	// Create a map to store the service id map to work results
 	serviceWorkResultsMap := make(ServiceWorkResultsMap)
@@ -264,8 +264,8 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 // (13.14) s^R -> Get services from the coming work reports
 // (11.28) I to be the set of work-reports in the present extrinsic E:
 func GetServicesFromPresentWorkReport() []types.ServiceId {
-	store := store.GetInstance()
-	I := store.GetIntermediateStates().GetPresentWorkReports()
+	s := blockchain.GetInstance()
+	I := s.GetIntermediateStates().GetPresentWorkReports()
 
 	services := []types.ServiceId{}
 
@@ -299,10 +299,10 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 }
 
 func GetServicesFromAccumulationStatistics() []types.ServiceId {
-	store := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get the accumulation statistics (S)
-	accumulationStatistics := store.GetIntermediateStates().GetAccumulationStatistics()
+	accumulationStatistics := s.GetIntermediateStates().GetAccumulationStatistics()
 
 	services := make([]types.ServiceId, 0, len(accumulationStatistics))
 	for key := range accumulationStatistics {
@@ -407,8 +407,8 @@ func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStat
 // v0.7.1
 // (13.12)
 func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
-	store := store.GetInstance()
-	accumulationStatisitcs := store.GetIntermediateStates().GetAccumulationStatistics()
+	st := blockchain.GetInstance()
+	accumulationStatisitcs := st.GetIntermediateStates().GetAccumulationStatistics()
 
 	// (13.13)
 	s := GetAllServices(extrinsic.Preimages)
@@ -445,14 +445,14 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	if len(servicesStatistics) == 0 {
 		servicesStatistics = nil
 	}
-	store.GetPosteriorStates().SetServicesStatistics(servicesStatistics)
+	st.GetPosteriorStates().SetServicesStatistics(servicesStatistics)
 }
 
 // (13.3)
 // π ≡ (πV , πL, πC , πS)
 // (πV, πL) => (current, last)
 func UpdateValidatorActivityStatistics() {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	extrinsic := s.GetLatestBlock().Extrinsic
 

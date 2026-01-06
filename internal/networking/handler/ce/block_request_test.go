@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -180,7 +180,7 @@ func generateTLSConfig() *tls.Config {
 // TestRealQuicStreamBlockRequest uses a real QUIC connection to test the block request handler.
 func TestRealQuicStreamBlockRequest(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
-	defer store.CloseMiniRedis()
+	defer blockchain.CloseMiniRedis()
 
 	// Setup TLS configurations.
 	clientTLS, err := quic.NewTLSConfig(false, false)

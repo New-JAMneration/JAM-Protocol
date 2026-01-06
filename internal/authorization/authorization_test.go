@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_authorization "github.com/New-JAMneration/JAM-Protocol/jamtests/authorizations"
@@ -42,8 +42,8 @@ func TestAuthorizationTestVectors(t *testing.T) {
 		/*
 			STORE
 		*/
-		store.ResetInstance()
-		s := store.GetInstance()
+		blockchain.ResetInstance()
+		s := blockchain.GetInstance()
 
 		// Set up test input state
 		var (

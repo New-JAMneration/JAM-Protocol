@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	types "github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -20,7 +20,7 @@ func SealingByTickets() error {
 							  iy = Y(Hs)
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
 	*/
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	posteriorState := s.GetPosteriorStates()
 	gammaSTickets := posteriorState.GetGammaS().Tickets
 	header := s.GetLatestBlock().Header
@@ -60,7 +60,7 @@ func SealingByBandersnatchs() error {
 		message: EU (H)
 		context: XF ⌢ η′3
 	*/
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	posterior_state := s.GetPosteriorStates()
 	GammaSKeys := posterior_state.GetGammaS().Keys
 	header := s.GetLatestBlock().Header
@@ -90,7 +90,7 @@ func SealingByBandersnatchs() error {
 
 // (6.15~6.16) Make H_s (seal for new header)
 func SealingHeader() error {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	gammaS := s.GetPosteriorStates().GetGammaS()
 	if len(gammaS.Keys) > 0 {
 		err := SealingByBandersnatchs()
@@ -109,7 +109,7 @@ func SealingHeader() error {
 func UpdateEtaPrime0() error {
 	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
 
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	priorState := s.GetPriorStates()
 	header := s.GetLatestBlock().Header
@@ -133,7 +133,7 @@ func UpdateEntropy(e types.TimeSlot, ePrime types.TimeSlot) {
 								(η1, η2, η3) otherwise
 	*/
 
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	eta := s.GetPriorStates().GetEta()
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {
@@ -304,7 +304,7 @@ func ValidateHeaderSeal(header types.Header, state *types.State) *types.ErrorCod
 
 // NO REFERENCES
 func UpdateHeaderEntropy() {
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get prior state
 	posterior_state := s.GetPosteriorStates()
@@ -324,7 +324,7 @@ func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex ty
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 
 	// Get prior state
 	priorState := s.GetPriorStates()

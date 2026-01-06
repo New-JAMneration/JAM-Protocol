@@ -2,7 +2,7 @@ package work_package
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -64,7 +64,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err := workPackage.Validate(); err != nil {
 		return types.WorkReport{}, err
 	}
-	delta := store.GetInstance().GetPriorStates().GetDelta()
+	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
 	pa, _, pc, err := VerifyAuthorization(&workPackage, delta)
 	if err != nil {
 		return types.WorkReport{}, err
@@ -79,7 +79,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err != nil {
 		return types.WorkReport{}, err
 	}
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		return types.WorkReport{}, err
 	}
@@ -97,7 +97,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 }
 
 func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 	}
@@ -163,7 +163,7 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
 	var segments types.ExportSegmentMatrix
 	var proofs types.OpaqueHashMatrix
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		return nil, nil, err
 	}

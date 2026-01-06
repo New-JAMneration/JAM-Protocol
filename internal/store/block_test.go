@@ -1,11 +1,11 @@
-package repository_test
+package store_test
 
 import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ func TestSaveAndGetBlock(t *testing.T) {
 	}
 
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	encoded, err := encoder.Encode(&block.Header)
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func TestMultipleBlocks(t *testing.T) {
 	headerHash2 := types.HeaderHash(hash.Blake2bHash(encoded2))
 
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	err = repo.WithBatch(func(batch database.Batch) error {
 		require.NoError(t, repo.SaveBlock(batch, &block1))
@@ -76,7 +76,7 @@ func TestMultipleBlocks(t *testing.T) {
 
 func TestGetNonExistentBlock(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash{}
 	readBlock, err := repo.GetBlock(db, headerHash, 1)
@@ -91,7 +91,7 @@ func TestDeleteBlock(t *testing.T) {
 	}
 
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	encoded, err := encoder.Encode(&block.Header)
 	require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestDeleteBlock(t *testing.T) {
 
 func TestDeleteNonExistentBlock(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash{}
 	require.NoError(t, repo.DeleteBlock(db, headerHash, 1))
