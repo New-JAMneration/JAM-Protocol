@@ -54,6 +54,7 @@ func ImportEd25519KeyPair(seed []byte) (*Ed25519KeyPair, error) {
 	return &Ed25519KeyPair{private: priv, Public: pub}, nil
 }
 
+// imports from a 32-byte private key
 func FromEd25519PrivateKey(priv ed25519.PrivateKey) (*Ed25519KeyPair, error) {
 	if len(priv) != ed25519.PrivateKeySize {
 		return nil, errors.New("invalid ed25519 private key size")
