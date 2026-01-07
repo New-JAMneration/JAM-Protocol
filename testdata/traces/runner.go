@@ -14,7 +14,7 @@ import (
 var genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")))
 
 type TraceRunner struct {
-	// Store is the global protocol blockchain. The runner mutates it between traces.
+	// ChainState is the global protocol blockchain. The runner mutates it between traces.
 	ChainState *blockchain.ChainState
 }
 
@@ -33,12 +33,12 @@ func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 	}
 
 	// Verify the header
-	if tr.Store.GetLatestBlock().Header.Parent != testCase.Block.Header.Parent {
-		return fmt.Errorf("parent mismatch: got %x, want %x", tr.Store.GetLatestBlock().Header.Parent, testCase.PreState.StateRoot)
+	if tr.ChainState.GetLatestBlock().Header.Parent != testCase.Block.Header.Parent {
+		return fmt.Errorf("parent mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.Parent, testCase.PreState.StateRoot)
 	}
 
-	if tr.Store.GetLatestBlock().Header.ParentStateRoot != testCase.Block.Header.ParentStateRoot {
-		return fmt.Errorf("state_root mismatch: got %x, want %x", tr.Store.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot)
+	if tr.ChainState.GetLatestBlock().Header.ParentStateRoot != testCase.Block.Header.ParentStateRoot {
+		return fmt.Errorf("state_root mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot)
 	}
 
 	_, err := stf.RunSTF()
