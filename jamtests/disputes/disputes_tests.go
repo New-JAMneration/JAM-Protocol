@@ -388,13 +388,13 @@ func (d *DisputeOutput) IsError() bool {
 // TODO: Implement the Dump method
 func (d *DisputeTestCase) Dump() error {
 	blockchain.ResetInstance()
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
-	storeInstance.GetPriorStates().SetPsi(d.PreState.Psi)
-	storeInstance.GetPriorStates().SetRho(d.PreState.Rho)
-	storeInstance.GetPriorStates().SetTau(d.PreState.Tau)
-	storeInstance.GetPriorStates().SetKappa(d.PreState.Kappa)
-	storeInstance.GetPriorStates().SetLambda(d.PreState.Lambda)
+	cs.GetPriorStates().SetPsi(d.PreState.Psi)
+	cs.GetPriorStates().SetRho(d.PreState.Rho)
+	cs.GetPriorStates().SetTau(d.PreState.Tau)
+	cs.GetPriorStates().SetKappa(d.PreState.Kappa)
+	cs.GetPriorStates().SetLambda(d.PreState.Lambda)
 
 	// Add block with DisputesExtrinsic
 	block := types.Block{
@@ -402,8 +402,8 @@ func (d *DisputeTestCase) Dump() error {
 			Disputes: d.Input.Disputes,
 		},
 	}
-	storeInstance.AddBlock(block)
-	storeInstance.GetPosteriorStates().SetTau(d.PreState.Tau)
+	cs.AddBlock(block)
+	cs.GetPosteriorStates().SetTau(d.PreState.Tau)
 	return nil
 }
 
@@ -423,13 +423,13 @@ func (d *DisputeTestCase) ExpectError() error {
 }
 
 func (d *DisputeTestCase) Validate() error {
-	s := blockchain.GetInstance()
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetPsi(), d.PostState.Psi)
-		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, s.GetPosteriorStates().GetPsi(), diff)
+	cs := blockchain.GetInstance()
+	if !reflect.DeepEqual(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
+		diff := cmp.Diff(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi)
+		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, cs.GetPosteriorStates().GetPsi(), diff)
 	}
-	if s.GetPosteriorStates().GetTau() != d.PostState.Tau {
-		return fmt.Errorf("time slot does not match expected: %v, but got %v", d.PostState.Tau, s.GetPosteriorStates().GetTau())
+	if cs.GetPosteriorStates().GetTau() != d.PostState.Tau {
+		return fmt.Errorf("time slot does not match expected: %v, but got %v", d.PostState.Tau, cs.GetPosteriorStates().GetTau())
 	}
 
 	return nil

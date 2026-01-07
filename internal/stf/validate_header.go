@@ -26,8 +26,7 @@ func ValidateNonVRFHeader(header types.Header, priorState *types.State, extrinsi
 	}
 
 	// H_R
-	storeInstance := blockchain.GetInstance()
-	unmatchedKeyVals := storeInstance.GetPriorStateUnmatchedKeyVals()
+	unmatchedKeyVals := blockchain.GetInstance().GetPriorStateUnmatchedKeyVals()
 	serializedState, _ := m.StateEncoder(*priorState)
 	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
 	priorStateRoot := m.MerklizationSerializedState(fullStateKeyVals)

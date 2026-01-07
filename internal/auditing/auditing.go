@@ -20,13 +20,13 @@ import (
 //
 // CollectAuditReportCandidates constructs the audit report candidates Q (formula 17.1 ~ 17.2).
 func CollectAuditReportCandidates() []*types.WorkReport {
-	store := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// ρ(rho): Current assignment map (per core)
-	rho := store.GetPriorStates().GetRho()
+	rho := cs.GetPriorStates().GetRho()
 
 	// W: Available work reports
-	W := store.GetIntermediateStates().GetAvailableWorkReports()
+	W := cs.GetIntermediateStates().GetAvailableWorkReports()
 
 	// Create a set of available work package hashes
 	available := make(map[types.WorkPackageHash]bool)
@@ -52,8 +52,8 @@ func CollectAuditReportCandidates() []*types.WorkReport {
 // GenerateValidatorAuditSeed computes the initial audit seed s0 for a validator, following Formula (17.3)-(17.4).
 // Returns the VRF output (s0) as BandersnatchVrfSignature.
 func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.BandersnatchVrfSignature, error) {
-	store := blockchain.GetInstance()
-	priorStates := store.GetPriorStates()
+	cs := blockchain.GetInstance()
+	priorStates := cs.GetPriorStates()
 
 	entropyHash, err := ComputeAuthorEntropyVrfOutput() // Y(Hᵥ): VRF output of block author's entropy
 	if err != nil {
@@ -95,7 +95,7 @@ func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.Band
 //
 // Returns a list of AuditReports
 func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.ValidatorIndex) ([]types.AuditReport, error) {
-	store := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get initial audit seed s0 (17.3)
 	s0, err := GenerateValidatorAuditSeed(validatorIndex)
@@ -104,7 +104,7 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 	}
 
 	// Compute r = 𝒴(s0) — derive audit random seed (17.7)
-	validatorKey := store.GetPriorStates().GetKappa()[validatorIndex].Bandersnatch
+	validatorKey := cs.GetPriorStates().GetKappa()[validatorIndex].Bandersnatch
 	handler, err := safrole.CreateVRFHandler(validatorKey)
 	if err != nil {
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to create VRF handler for validator: %w", err)
@@ -248,9 +248,9 @@ func ClassifyJudgments(
 // GetYHv computes the VRF output Y(Hᵥ) using the block author's key and the block header's entropy source.
 func ComputeAuthorEntropyVrfOutput() ([]byte, error) {
 	// Compute Y(Hᵥ) — entropy hashed by block author's key
-	store := blockchain.GetInstance()
-	priorStates := store.GetPriorStates()
-	header := blockchain.GetInstance().GetProcessingBlockPointer().GetHeader()
+	cs := blockchain.GetInstance()
+	priorStates := cs.GetPriorStates()
+	header := cs.GetProcessingBlockPointer().GetHeader()
 	authorKey := priorStates.GetKappa()[header.AuthorIndex].Bandersnatch
 	authorVRF, err := safrole.CreateVRFHandler(authorKey)
 	if err != nil {
@@ -277,8 +277,7 @@ func ComputeAnForValidator(
 ) ([]types.AuditReport, error) {
 	var an []types.AuditReport
 
-	store := blockchain.GetInstance()
-	priorStates := store.GetPriorStates()
+	priorStates := blockchain.GetInstance().GetPriorStates()
 
 	// Y(Hᵥ): VRF output of block author's entropy
 	Y_Hv, err := ComputeAuthorEntropyVrfOutput()

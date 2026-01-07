@@ -671,7 +671,7 @@ func (t *PreimageTestCase) Encode(e *types.Encoder) error {
 
 func (p *PreimageTestCase) Dump() error {
 	blockchain.ResetInstance()
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	inputDelta := make(types.ServiceAccountState)
 	for _, delta := range p.PreState.Accounts {
@@ -706,10 +706,10 @@ func (p *PreimageTestCase) Dump() error {
 			Preimages: p.Input.Preimages,
 		},
 	}
-	storeInstance.AddBlock(block)
-	storeInstance.GetPriorStates().SetDelta(inputDelta)
-	storeInstance.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
-	storeInstance.GetPosteriorStates().SetTau(p.Input.Slot)
+	cs.AddBlock(block)
+	cs.GetPriorStates().SetDelta(inputDelta)
+	cs.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
+	cs.GetPosteriorStates().SetTau(p.Input.Slot)
 
 	return nil
 }
@@ -730,9 +730,9 @@ func (p *PreimageTestCase) ExpectError() error {
 }
 
 func (p *PreimageTestCase) Validate() error {
-	storeInstance := blockchain.GetInstance()
-	inputDelta := storeInstance.GetPriorStates().GetDelta()
-	outputDelta := storeInstance.GetPosteriorStates().GetDelta()
+	cs := blockchain.GetInstance()
+	inputDelta := cs.GetPriorStates().GetDelta()
+	outputDelta := cs.GetPosteriorStates().GetDelta()
 
 	// Validate output accounts
 	if !reflect.DeepEqual(outputDelta, inputDelta) {
@@ -741,11 +741,11 @@ func (p *PreimageTestCase) Validate() error {
 
 	// Validate output service statistics
 	// After processing the preimages, we need to calculate the statistics and compare it with the expected statistics.
-	extrinsic := storeInstance.GetLatestBlock().Extrinsic
+	extrinsic := cs.GetLatestBlock().Extrinsic
 	statistics.UpdateServiceActivityStatistics(extrinsic)
 
 	expectedServiceStatistics := p.PostState.Statistics
-	actualServiceStatistics := storeInstance.GetPosteriorStates().GetPi().Services
+	actualServiceStatistics := cs.GetPosteriorStates().GetPi().Services
 	if !reflect.DeepEqual(expectedServiceStatistics, actualServiceStatistics) {
 		return fmt.Errorf("expected service statistics %v, got %v", expectedServiceStatistics, actualServiceStatistics)
 	}

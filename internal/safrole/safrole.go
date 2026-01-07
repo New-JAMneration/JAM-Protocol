@@ -43,8 +43,7 @@ func ValidatorIsOffender(validator types.Validator, offendersMark types.Offender
 // Equation (6.14) Phi(k)
 func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 	// Get offendersMark (Psi_O) from posterior state
-	s := blockchain.GetInstance()
-	posteriorState := s.GetPosteriorStates()
+	posteriorState := blockchain.GetInstance().GetPosteriorStates()
 	offendersMark := posteriorState.GetPsiO()
 
 	for i, validator := range validators {
@@ -102,25 +101,25 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 // Update the state with the new Safrole state
 // (6.13)
 func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get prior state
-	priorState := s.GetPriorStates()
+	priorState := cs.GetPriorStates()
 	if ePrime > e {
 		// Update state to posterior state
-		s.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
-		s.GetPosteriorStates().SetKappa(priorState.GetGammaK())
-		s.GetPosteriorStates().SetLambda(priorState.GetKappa())
+		cs.GetPosteriorStates().SetGammaK(ReplaceOffenderKeys(priorState.GetIota()))
+		cs.GetPosteriorStates().SetKappa(priorState.GetGammaK())
+		cs.GetPosteriorStates().SetLambda(priorState.GetKappa())
 		// z, zErr := UpdateBandersnatchKeyRoot(s.GetPosteriorStates().GetGammaK())
 		// if zErr != nil {
 		// 	return fmt.Errorf("error updating Bandersnatch key root: %w", zErr)
 		// }
 		// s.GetPosteriorStates().SetGammaZ(z)
 	} else {
-		s.GetPosteriorStates().SetGammaK(priorState.GetGammaK())
-		s.GetPosteriorStates().SetKappa(priorState.GetKappa())
-		s.GetPosteriorStates().SetLambda(priorState.GetLambda())
-		s.GetPosteriorStates().SetGammaZ(priorState.GetGammaZ())
+		cs.GetPosteriorStates().SetGammaK(priorState.GetGammaK())
+		cs.GetPosteriorStates().SetKappa(priorState.GetKappa())
+		cs.GetPosteriorStates().SetLambda(priorState.GetLambda())
+		cs.GetPosteriorStates().SetGammaZ(priorState.GetGammaZ())
 	}
 	return nil
 }
@@ -132,9 +131,9 @@ func OuterUsedSafrole() *types.ErrorCode {
 	var (
 		err            error
 		ringVerifier   *vrf.Verifier
-		s              = blockchain.GetInstance()
-		tau            = s.GetPriorStates().GetTau()
-		tauPrime       = s.GetPosteriorStates().GetTau()
+		cs             = blockchain.GetInstance()
+		tau            = cs.GetPriorStates().GetTau()
+		tauPrime       = cs.GetPosteriorStates().GetTau()
 		e, m           = R(tau)
 		ePrime, mPrime = R(tauPrime)
 	)
@@ -164,7 +163,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	UpdateSlotKeySequence(e, ePrime, m)
 
 	// After KeyRotate, gammaK and kappa are updated
-	postGammaK := s.GetPosteriorStates().GetGammaK()
+	postGammaK := cs.GetPosteriorStates().GetGammaK()
 
 	ringVerifier, err = blockchain.GetVerifier(ePrime, postGammaK)
 	if err != nil {
@@ -178,7 +177,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 		if err != nil || len(commitment) == 0 {
 			logger.Errorf("Failed to get commitment: %v", err)
 		} else {
-			s.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
+			cs.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
 		}
 	}
 

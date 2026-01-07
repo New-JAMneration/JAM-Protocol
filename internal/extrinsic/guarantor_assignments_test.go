@@ -122,10 +122,11 @@ func TestGStarLambda(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	blockchain.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	blockchain.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	blockchain.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	blockchain.GetInstance().GetPosteriorStates().SetTau(120)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(120)
 
 	// act
 	gStarVal, _ := GStarFunc(nil)
@@ -169,10 +170,11 @@ func TestGStarKappa(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	blockchain.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	blockchain.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	blockchain.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	blockchain.GetInstance().GetPosteriorStates().SetTau(130)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(130)
 
 	// act
 	gStarVal, _ := GStarFunc(nil)
@@ -221,10 +223,11 @@ func TestGFunc(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	blockchain.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	blockchain.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	blockchain.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	blockchain.GetInstance().GetPosteriorStates().SetTau(120)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(120)
 
 	// act
 	gVal, _ := GFunc(nil)

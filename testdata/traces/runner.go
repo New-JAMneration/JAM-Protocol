@@ -15,21 +15,21 @@ var genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000
 
 type TraceRunner struct {
 	// Store is the global protocol blockchain. The runner mutates it between traces.
-	Store *blockchain.Store
+	ChainState *blockchain.ChainState
 }
 
 // NewTraceRunner constructs a TraceRunner with sane defaults.
 func NewTraceRunner() *TraceRunner {
 	return &TraceRunner{
-		Store: blockchain.GetInstance(),
+		ChainState: blockchain.GetInstance(),
 	}
 }
 
 func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 	testCase := data.(*jamteststrace.TraceTestCase)
 
-	if len(tr.Store.GetBlocks()) == 0 {
-		return fmt.Errorf("no blocks in the store")
+	if len(tr.ChainState.GetBlocks()) == 0 {
+		return fmt.Errorf("no blocks in the cs")
 	}
 
 	// Verify the header

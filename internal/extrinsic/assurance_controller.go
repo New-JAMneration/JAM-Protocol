@@ -180,8 +180,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 	}
 
 	// Set the available work reports to the available work reports
-	store := blockchain.GetInstance()
-	store.GetIntermediateStates().SetAvailableWorkReports(availableWorkReports)
+	blockchain.GetInstance().GetIntermediateStates().SetAvailableWorkReports(availableWorkReports)
 
 	return availableWorkReports
 }
@@ -199,16 +198,16 @@ func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkR
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
-	store := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
-	rhoDagger := store.GetIntermediateStates().GetRhoDagger()
-	rhoDoubleDagger := store.GetIntermediateStates().GetRhoDoubleDagger()
-	rho := store.GetPriorStates().GetRho()
+	rhoDagger := cs.GetIntermediateStates().GetRhoDagger()
+	rhoDoubleDagger := cs.GetIntermediateStates().GetRhoDoubleDagger()
+	rho := cs.GetPriorStates().GetRho()
 
 	// 11.17 Set available reports or timeout reports to nil
 	// Make a copy to avoid aliasing with rhoDagger
 	copy(rhoDoubleDagger, rhoDagger)
-	headerTimeSlot := store.GetBlock().Header.Slot
+	headerTimeSlot := cs.GetLatestBlock().Header.Slot
 
 	// (11.16) Filter newly available work reports
 	availableWorkReports := a.UpdateNewlyAvailableWorkReports(rhoDagger)
@@ -229,7 +228,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 		}
 	}
 
-	store.GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
+	cs.GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
 
 	return nil
 }

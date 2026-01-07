@@ -8,7 +8,7 @@ import (
 )
 
 // AncestorHeaders represents 24 hours of ancestor headers
-// We only require implmentations to store headers of ancestors which were
+// We only require implmentations to cs headers of ancestors which were
 // authored in the previous L = 24 hours of any block B they wish to validate.
 // graypaper (5.3)
 type AncestorHeaders struct {
@@ -38,7 +38,7 @@ func (a *AncestorHeaders) GetHeaders() []types.Header {
 	return a.ancestorHeaders
 }
 
-// We only require implmentations to store headers of ancestors which were
+// We only require implmentations to cs headers of ancestors which were
 // authored in the previous L = 24 hours of any block B they wish to validate.
 // graypaper (5.3)
 // The ancestorHeaders is ordered by the slot, we can remove the

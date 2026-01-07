@@ -60,7 +60,7 @@ func UpdateImmediatelyAccumulateWorkReports() {
 }
 
 // (12.5) WQ ≡ E([D(w) S w <− W, S(wx)pS > 0 ∨ wl ≠ {}], ©ξ )
-// Get all workreport with dependency, and store in QueuedWorkReports
+// Get all workreport with dependency, and cs in QueuedWorkReports
 func UpdateQueuedWorkReports() {
 	intermediateState := blockchain.GetInstance().GetIntermediateStates()
 	availableReports := intermediateState.GetAvailableWorkReports()
@@ -170,17 +170,17 @@ func ExtractWorkReportHashes(w []types.WorkReport) (output []types.WorkPackageHa
 // (12.11) W∗ ≡ W! ⌢ Q(q)
 // (12.12) q = E(ϑm... ⌢ ϑ...m ⌢ WQ, P (W!))
 func UpdateAccumulatableWorkReports() {
-	store := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// (12.10) Get current slot index 'm'
-	slot := store.GetLatestBlock().Header.Slot
+	slot := cs.GetLatestBlock().Header.Slot
 	E := types.EpochLength
 	m := int(slot) % E
 
 	// Get θ: the available work reports (ϑ)
-	theta := store.GetPriorStates().GetTheta()
-	WQ := store.GetIntermediateStates().GetQueuedWorkReports()
-	Wbang := store.GetIntermediateStates().GetAccumulatedWorkReports()
+	theta := cs.GetPriorStates().GetTheta()
+	WQ := cs.GetIntermediateStates().GetQueuedWorkReports()
+	Wbang := cs.GetIntermediateStates().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
 	// Pre-calculate total capacity for composedQueue to avoid multiple reallocations
@@ -216,7 +216,7 @@ func UpdateAccumulatableWorkReports() {
 	WStar = append(WStar, AccumulationPriorityQueue(q)...)
 
 	// Update W*
-	store.GetIntermediateStates().SetAccumulatableWorkReports(WStar)
+	cs.GetIntermediateStates().SetAccumulatableWorkReports(WStar)
 }
 
 // (12.16) ∆+ outer accumulation function
@@ -640,17 +640,17 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// Set posterior state
 	{
-		store := blockchain.GetInstance()
-		store.GetPosteriorStates().SetChi(types.Privileges{
+		cs := blockchain.GetInstance()
+		cs.GetPosteriorStates().SetChi(types.Privileges{
 			Bless:       mPrime,
 			Assign:      aPrime,
 			Designate:   vPrime,
 			CreateAcct:  rPrime,
 			AlwaysAccum: zPrime,
 		})
-		store.GetPosteriorStates().SetVarphi(qPrime)
-		store.GetPosteriorStates().SetIota(iPrime)
-		store.GetPosteriorStates().SetDelta(dPrime)
+		cs.GetPosteriorStates().SetVarphi(qPrime)
+		cs.GetPosteriorStates().SetIota(iPrime)
+		cs.GetPosteriorStates().SetDelta(dPrime)
 	}
 	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
 	// Set output ((d′, i′, q′, m′, a′, v′, r′, z′), t′, b, u)

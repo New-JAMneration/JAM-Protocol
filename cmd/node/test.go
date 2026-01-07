@@ -133,12 +133,10 @@ For example:
 			if err != nil {
 				logger.Fatalf("Failed to parse state key-vals to state: %v", err)
 			}
-
-			blockchain.GetInstance().SetPriorStateUnmatchedKeyVals(keyVals)
-
-			instance := blockchain.GetInstance()
-			instance.GenerateGenesisBlock(genesisBlock)
-			instance.GenerateGenesisState(state)
+			cs := blockchain.GetInstance()
+			cs.SetPriorStateUnmatchedKeyVals(keyVals)
+			cs.GenerateGenesisBlock(genesisBlock)
+			cs.GenerateGenesisState(state)
 		}
 
 		for idx, testFile := range testFiles {
@@ -187,8 +185,9 @@ For example:
 				// stf occurs error
 				if outputErr != nil {
 					logger.Errorf("stf output error %v:", outputErr)
-					priorState := blockchain.GetInstance().GetPriorStates().GetState()
-					blockchain.GetInstance().GetPosteriorStates().SetState(priorState)
+					cs := blockchain.GetInstance()
+					priorState := cs.GetPriorStates().GetState()
+					cs.GetPosteriorStates().SetState(priorState)
 				}
 
 				err := data.Validate()

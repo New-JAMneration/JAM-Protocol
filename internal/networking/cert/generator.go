@@ -157,8 +157,8 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // ALPNGen generates an ALPN string based on a genesis header and builder flag
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
-	store := blockchain.GetInstance()
-	genesisBlock := store.GetGenesisBlock()
+	cs := blockchain.GetInstance()
+	genesisBlock := cs.GetGenesisBlock()
 
 	// Get first 4 bytes (8 nibbles) of the genesis header hash
 	genesisBlockHeaderHash, err := utils.HeaderSerialization(genesisBlock.Header)

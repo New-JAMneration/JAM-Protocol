@@ -140,9 +140,9 @@ func AddItem2BetaHPrime(historyDagger types.BlocksHistory, item types.BlockInfo)
 // STF β†_H ≺ (H, β_H) (4.6)
 func STFBetaH2BetaHDagger() {
 	var (
-		s     = blockchain.GetInstance()
-		beta  = s.GetPriorStates().GetBeta()
-		block = s.GetLatestBlock()
+		cs    = blockchain.GetInstance()
+		beta  = cs.GetPriorStates().GetBeta()
+		block = cs.GetLatestBlock()
 	)
 	// logger.Debugf("Latest block got by (4.6): %+v", block)
 	if beta.History.Validate() != nil {
@@ -150,17 +150,17 @@ func STFBetaH2BetaHDagger() {
 	}
 	betaDagger := History2HistoryDagger(beta.History, block.Header.ParentStateRoot)
 
-	s.GetIntermediateStates().SetBetaHDagger(betaDagger)
+	cs.GetIntermediateStates().SetBetaHDagger(betaDagger)
 }
 
 // STF β′_H ≺ (H, EG, β†_H, C) (4.7)
 func STFBetaHDagger2BetaHPrime() error {
 	var (
-		s             = blockchain.GetInstance()
-		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
-		beefyBelt     = s.GetPriorStates().GetBeta().Mmr
-		lastAccOut    = s.GetPosteriorStates().GetLastAccOut()
-		block         = s.GetLatestBlock()
+		cs            = blockchain.GetInstance()
+		historyDagger = cs.GetIntermediateStates().GetBetaHDagger()
+		beefyBelt     = cs.GetPriorStates().GetBeta().Mmr
+		lastAccOut    = cs.GetPosteriorStates().GetLastAccOut()
+		block         = cs.GetLatestBlock()
 		encoder       = types.NewEncoder()
 	)
 	// calculate beefyBeltPrime(β′_B) and commitment(b) from lastAccOut
@@ -185,8 +185,8 @@ func STFBetaHDagger2BetaHPrime() error {
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_B^prime and beta_H^prime to store
-	s.GetPosteriorStates().SetBetaB(beefyBeltPrime)
-	s.GetPosteriorStates().SetBetaH(historyPrime)
+	cs.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	cs.GetPosteriorStates().SetBetaH(historyPrime)
 	return nil
 }
 
@@ -195,11 +195,11 @@ func STFBetaHDagger2BetaHPrime() error {
 // HeaderHash is hash of block's header, not the parent HeaderHash
 func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	var (
-		s             = blockchain.GetInstance()
-		historyDagger = s.GetIntermediateStates().GetBetaHDagger()
-		block         = s.GetLatestBlock()
+		cs            = blockchain.GetInstance()
+		historyDagger = cs.GetIntermediateStates().GetBetaHDagger()
+		block         = cs.GetLatestBlock()
 		// (b)
-		commitment = s.GetIntermediateStates().GetMmrCommitment()
+		commitment = cs.GetIntermediateStates().GetMmrCommitment()
 	)
 
 	// calculate workReportHash(p) from guarantees
@@ -213,6 +213,6 @@ func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
 
 	// Set beta_H^prime to store
-	s.GetPosteriorStates().SetBetaH(historyPrime)
+	cs.GetPosteriorStates().SetBetaH(historyPrime)
 	return nil
 }

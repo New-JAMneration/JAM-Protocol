@@ -10,8 +10,7 @@ import (
 
 func (s *TraceTestCase) Dump() error {
 	// Add block, state
-	st := blockchain.GetInstance()
-	st.AddBlock(s.Block)
+	blockchain.GetInstance().AddBlock(s.Block)
 
 	return nil
 }

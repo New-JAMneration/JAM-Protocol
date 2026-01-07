@@ -15,7 +15,7 @@ func tearDown() {
 	redisInitOnce = sync.Once{}
 	CloseMiniRedis()
 	initOnce = sync.Once{}
-	globalStore = nil
+	globalChainState = nil
 	os.Unsetenv("USE_MINI_REDIS")
 }
 

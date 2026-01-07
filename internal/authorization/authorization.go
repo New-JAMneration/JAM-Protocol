@@ -63,8 +63,8 @@ func STFAlpha2AlphaPrime(slot types.TimeSlot, guarantees types.GuaranteesExtrins
 // - α: prior authorization pool (alpha)
 func Authorization() error {
 	// Load state
-	s := blockchain.GetInstance()
-	block := s.GetLatestBlock()
+	cs := blockchain.GetInstance()
+	block := cs.GetLatestBlock()
 	slot := block.Header.Slot
 	guarantees := block.Extrinsic.Guarantees
 	if len(guarantees) == 0 {
@@ -73,11 +73,11 @@ func Authorization() error {
 		logger.Errorf("extrinsic_guarantee validation failed: %v", err)
 	}
 	// Validate input EG and φ′
-	posteriorVarphi := s.GetPosteriorStates().GetVarphi()
+	posteriorVarphi := cs.GetPosteriorStates().GetVarphi()
 	if err := posteriorVarphi.Validate(); err != nil {
 		return fmt.Errorf("posterior_varphi validation failed: %w", err)
 	}
-	priorAlpha := s.GetPriorStates().GetAlpha()
+	priorAlpha := cs.GetPriorStates().GetAlpha()
 	if err := priorAlpha.Validate(); err != nil {
 		return fmt.Errorf("prior_alpha validation failed: %w", err)
 	}
@@ -87,7 +87,7 @@ func Authorization() error {
 		return fmt.Errorf("stf_alpha_to_alpha_prime raised Error: %w", err)
 	}
 
-	s.GetPosteriorStates().SetAlpha(postAlpha)
+	cs.GetPosteriorStates().SetAlpha(postAlpha)
 
 	return nil
 }

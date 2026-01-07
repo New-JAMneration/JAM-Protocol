@@ -20,10 +20,10 @@ func SealingByTickets() error {
 							  iy = Y(Hs)
 		(6.15) γ′s ∈ ⟦C⟧ Hs ∈ F EU(H) Ha ⟨XT ⌢ η′3 ir⟩
 	*/
-	s := blockchain.GetInstance()
-	posteriorState := s.GetPosteriorStates()
+	cs := blockchain.GetInstance()
+	posteriorState := cs.GetPosteriorStates()
 	gammaSTickets := posteriorState.GetGammaS().Tickets
-	header := s.GetLatestBlock().Header
+	header := cs.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
 	publicKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch
@@ -47,7 +47,7 @@ func SealingByTickets() error {
 	if err != nil {
 		return err
 	}
-	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	cs.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
 	return nil
 }
 
@@ -60,10 +60,10 @@ func SealingByBandersnatchs() error {
 		message: EU (H)
 		context: XF ⌢ η′3
 	*/
-	s := blockchain.GetInstance()
-	posterior_state := s.GetPosteriorStates()
+	cs := blockchain.GetInstance()
+	posterior_state := cs.GetPosteriorStates()
 	GammaSKeys := posterior_state.GetGammaS().Keys
-	header := s.GetLatestBlock().Header
+	header := cs.GetLatestBlock().Header
 	index := uint(header.Slot) % uint(len(GammaSKeys))
 	publicKey := GammaSKeys[index]
 	message, err := utilities.HeaderUSerialization(header)
@@ -84,14 +84,14 @@ func SealingByBandersnatchs() error {
 	if err != nil {
 		return err
 	}
-	s.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	cs.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
 	return nil
 }
 
 // (6.15~6.16) Make H_s (seal for new header)
 func SealingHeader() error {
-	s := blockchain.GetInstance()
-	gammaS := s.GetPosteriorStates().GetGammaS()
+	cs := blockchain.GetInstance()
+	gammaS := cs.GetPosteriorStates().GetGammaS()
 	if len(gammaS.Keys) > 0 {
 		err := SealingByBandersnatchs()
 		if err != nil {
@@ -109,10 +109,10 @@ func SealingHeader() error {
 func UpdateEtaPrime0() error {
 	// (6.22) η′0 ≡ H(η0 ⌢ Y(Hv))
 
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
-	priorState := s.GetPriorStates()
-	header := s.GetLatestBlock().Header
+	priorState := cs.GetPriorStates()
+	header := cs.GetLatestBlock().Header
 
 	entropySource := header.EntropySource
 	eta := priorState.GetEta()
@@ -122,7 +122,7 @@ func UpdateEtaPrime0() error {
 		return fmt.Errorf("VRFIetfOutput: %w", err)
 	}
 	hashInput := append(eta[0][:], vrfOutput...)
-	s.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hashInput)))
+	cs.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hashInput)))
 	return nil
 }
 
@@ -133,16 +133,16 @@ func UpdateEntropy(e types.TimeSlot, ePrime types.TimeSlot) {
 								(η1, η2, η3) otherwise
 	*/
 
-	s := blockchain.GetInstance()
-	eta := s.GetPriorStates().GetEta()
+	cs := blockchain.GetInstance()
+	eta := cs.GetPriorStates().GetEta()
 	if ePrime > e {
 		for i := 2; i >= 0; i-- {
 			eta[i+1] = eta[i]
 		}
 	}
 	// This make sure we won't overwrite eta0
-	eta[0] = s.GetPosteriorStates().GetEta0()
-	s.GetPosteriorStates().SetEta(eta)
+	eta[0] = cs.GetPosteriorStates().GetEta0()
+	cs.GetPosteriorStates().SetEta(eta)
 }
 
 func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.BandersnatchVrfSignature) (sign []byte) {
@@ -304,16 +304,16 @@ func ValidateHeaderSeal(header types.Header, state *types.State) *types.ErrorCod
 
 // NO REFERENCES
 func UpdateHeaderEntropy() {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get prior state
-	posterior_state := s.GetPosteriorStates()
+	posterior_state := cs.GetPosteriorStates()
 
-	header := s.GetProcessingBlockPointer().GetHeader()
+	header := cs.GetProcessingBlockPointer().GetHeader()
 
 	publicKey := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch // Ha
 	seal := header.Seal                                                      // Hs
-	s.GetProcessingBlockPointer().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(publicKey, seal)))
+	cs.GetProcessingBlockPointer().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(publicKey, seal)))
 }
 
 // Calculate gamma^prime_s
@@ -324,14 +324,14 @@ func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex ty
 		(6.24) γ′s ≡    γs if e′ = e
 						F(η′2, κ′) otherwise
 	*/
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get prior state
-	priorState := s.GetPriorStates()
+	priorState := cs.GetPriorStates()
 	gammaA := priorState.GetGammaA()
 
 	// Get posterior state
-	posteriorState := s.GetPosteriorStates()
+	posteriorState := cs.GetPosteriorStates()
 	etaPrime := posteriorState.GetEta()
 
 	var newGammaS types.TicketsOrKeys
@@ -339,7 +339,7 @@ func UpdateSlotKeySequence(e types.TimeSlot, ePrime types.TimeSlot, slotIndex ty
 	if ePrime == e+1 && len(gammaA) == types.EpochLength && int(slotIndex) >= types.SlotSubmissionEnd { // Z(γa) if e′ = e + 1 ∧ m ≥ Y ∧ ∣γa∣ = E
 		newGammaS.Tickets = OutsideInSequencer(&gammaA)
 	} else if ePrime == e { // γs if e′ = e
-		newGammaS = priorState.GetGammaS()
+		newGammaS = cs.GetPriorStates().GetGammaS()
 	} else { // F(η′2, κ′) otherwise
 		newGammaS.Keys = FallbackKeySequence(etaPrime[2], posteriorState.GetKappa())
 	}

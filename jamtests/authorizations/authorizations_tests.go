@@ -320,7 +320,7 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
 	blockchain.ResetInstance()
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Set up test input state
 	mockEgs := make(types.GuaranteesExtrinsic, 0, len(a.Input.Auths))
@@ -341,10 +341,10 @@ func (a *AuthorizationTestCase) Dump() error {
 			Guarantees: mockEgs,
 		},
 	}
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 
-	storeInstance.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
-	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
+	cs.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
+	cs.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	return nil
 }
 
@@ -362,10 +362,10 @@ func (a *AuthorizationTestCase) ExpectError() error {
 }
 
 func (a *AuthorizationTestCase) Validate() error {
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get output state
-	outputAlpha := storeInstance.GetPosteriorStates().GetAlpha()
+	outputAlpha := cs.GetPosteriorStates().GetAlpha()
 
 	// Validate output state
 	if !reflect.DeepEqual(a.PreState.Varphi, a.PostState.Varphi) {

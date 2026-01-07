@@ -403,13 +403,13 @@ func (a *AssuranceTestCase) Encode(e *types.Encoder) error {
 
 func (a *AssuranceTestCase) Dump() error {
 	blockchain.ResetInstance()
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Add block
 
-	s.GetPriorStates().SetKappa(a.PreState.CurrValidators)
-	s.GetPriorStates().SetRho(a.PreState.AvailAssignments)
-	s.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
+	cs.GetPriorStates().SetKappa(a.PreState.CurrValidators)
+	cs.GetPriorStates().SetRho(a.PreState.AvailAssignments)
+	cs.GetIntermediateStates().SetRhoDagger(a.PreState.AvailAssignments)
 	block := types.Block{
 		Header: types.Header{
 			Slot:   a.Input.Slot,
@@ -419,7 +419,7 @@ func (a *AssuranceTestCase) Dump() error {
 			Assurances: a.Input.Assurances,
 		},
 	}
-	s.AddBlock(block)
+	cs.AddBlock(block)
 
 	return nil
 }
@@ -441,11 +441,9 @@ func (a *AssuranceTestCase) ExpectError() error {
 }
 
 func (a *AssuranceTestCase) Validate() error {
-	s := blockchain.GetInstance()
-
 	// kappa is not updated during assurance so there is no point in comparing the value of kappa to match the expected value.
 
-	if err := checkValue("Availability assignments", s.GetIntermediateStates().GetRhoDoubleDagger(), a.PostState.AvailAssignments); err != nil {
+	if err := checkValue("Availability assignments", blockchain.GetInstance().GetIntermediateStates().GetRhoDoubleDagger(), a.PostState.AvailAssignments); err != nil {
 		return err
 	}
 

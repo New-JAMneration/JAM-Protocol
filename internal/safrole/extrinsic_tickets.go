@@ -17,10 +17,10 @@ import (
 // tickets.
 // Return error code: UnexpectedTicket
 func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := cs.GetPosteriorStates().GetTau()
 
 	// m'
 	mPrime := GetSlotIndex(tauPrime)
@@ -45,8 +45,8 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 // VerifyTicketsProof verifies the proof of the tickets
 // If the proof is valid, return the ticket bodies
 func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrinsic) (types.TicketsAccumulator, *types.ErrorCode) {
-	s := blockchain.GetInstance()
-	posteriorEta := s.GetPosteriorStates().GetEta()
+	cs := blockchain.GetInstance()
+	posteriorEta := cs.GetPosteriorStates().GetEta()
 
 	// Prepare batch items for verification
 	items := make([]vrf.VerifyItem, 0, len(tickets))
@@ -191,13 +191,13 @@ func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.Ticke
 
 // (6.34)
 func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get previous time slot index
-	tau := s.GetPriorStates().GetTau()
+	tau := cs.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := s.GetPosteriorStates().GetTau()
+	tauPrime := cs.GetPosteriorStates().GetTau()
 
 	e := GetEpochIndex(tau)
 	ePrime := GetEpochIndex(tauPrime)
@@ -205,7 +205,7 @@ func GetPreviousTicketsAccumulator() types.TicketsAccumulator {
 	if ePrime > e {
 		return types.TicketsAccumulator{}
 	} else {
-		gammaA := s.GetPriorStates().GetGammaA()
+		gammaA := cs.GetPriorStates().GetGammaA()
 		return gammaA
 	}
 }
@@ -225,8 +225,8 @@ func CreateNewTicketAccumulator(ringVerifier *vrf.Verifier) *types.ErrorCode {
 	// 10. Set the new ticket accumulator to the posterior state
 
 	// Get extrinsic tickets
-	s := blockchain.GetInstance()
-	extrinsicTickets := s.GetLatestBlock().Extrinsic.Tickets
+	cs := blockchain.GetInstance()
+	extrinsicTickets := cs.GetLatestBlock().Extrinsic.Tickets
 
 	// (6.30) Verify the epoch tail
 	err := VerifyEpochTail(extrinsicTickets)
@@ -289,7 +289,7 @@ func CreateNewTicketAccumulator(ringVerifier *vrf.Verifier) *types.ErrorCode {
 	}
 
 	// (6.34) set the new ticket accumulator to the posterior state
-	s.GetPosteriorStates().SetGammaA(newTicketsAccumulator)
+	cs.GetPosteriorStates().SetGammaA(newTicketsAccumulator)
 
 	return nil
 }

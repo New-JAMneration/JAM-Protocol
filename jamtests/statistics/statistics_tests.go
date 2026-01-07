@@ -227,7 +227,7 @@ func (t *StatisticsTestCase) Encode(e *types.Encoder) error {
 }
 
 func (s *StatisticsTestCase) Dump() error {
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Input
 	block := types.Block{
@@ -237,23 +237,23 @@ func (s *StatisticsTestCase) Dump() error {
 		},
 		Extrinsic: s.Input.Extrinsic,
 	}
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 
 	// w (present work reports) from guarantee extrinsic
 	reports := []types.WorkReport{}
 	for _, guarantee := range s.Input.Extrinsic.Guarantees {
 		reports = append(reports, guarantee.Report)
 	}
-	storeInstance.GetIntermediateStates().SetPresentWorkReports(reports)
+	cs.GetIntermediateStates().SetPresentWorkReports(reports)
 
 	// PreState
-	storeInstance.GetPriorStates().SetTau(s.PreState.Slot)
-	storeInstance.GetPriorStates().SetPiCurrent(s.PreState.ValsCurrStats)
-	storeInstance.GetPriorStates().SetPiLast(s.PreState.ValsLastStats)
+	cs.GetPriorStates().SetTau(s.PreState.Slot)
+	cs.GetPriorStates().SetPiCurrent(s.PreState.ValsCurrStats)
+	cs.GetPriorStates().SetPiLast(s.PreState.ValsLastStats)
 
 	// PostState
-	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
-	storeInstance.GetPosteriorStates().SetKappa(s.PreState.CurrValidators)
+	cs.GetPosteriorStates().SetTau(s.Input.Slot)
+	cs.GetPosteriorStates().SetKappa(s.PreState.CurrValidators)
 	return nil
 }
 
@@ -270,9 +270,9 @@ func (s *StatisticsTestCase) ExpectError() error {
 }
 
 func (s *StatisticsTestCase) Validate() error {
-	storeInstance := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
-	statistics := storeInstance.GetPosteriorStates().GetPi()
+	statistics := cs.GetPosteriorStates().GetPi()
 
 	if !reflect.DeepEqual(statistics.ValsCurr, s.PostState.ValsCurrStats) {
 		return fmt.Errorf("statistics.ValsCurrent failed: expected %v, got %v", s.PostState.ValsCurrStats, statistics.ValsCurr)
@@ -283,7 +283,7 @@ func (s *StatisticsTestCase) Validate() error {
 	}
 
 	expectedCurrentValidators := s.PostState.CurrValidators
-	actualCurrentValidators := storeInstance.GetPosteriorStates().GetKappa()
+	actualCurrentValidators := cs.GetPosteriorStates().GetKappa()
 	if !reflect.DeepEqual(actualCurrentValidators, expectedCurrentValidators) {
 		return fmt.Errorf("CurrentValidators failed: expected %v, got %v", expectedCurrentValidators, actualCurrentValidators)
 	}

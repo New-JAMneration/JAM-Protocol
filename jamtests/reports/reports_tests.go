@@ -708,7 +708,7 @@ func (r *ReportsTestCase) Encode(e *types.Encoder) error {
 
 func (r *ReportsTestCase) Dump() error {
 	blockchain.ResetInstance()
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Guarantee Input : extrinsics, slot, known_packages
 	// set slot, guarantee extrinsics
@@ -720,36 +720,36 @@ func (r *ReportsTestCase) Dump() error {
 			Guarantees: r.Input.Guarantees,
 		},
 	}
-	s.AddBlock(block)
-	s.GetPosteriorStates().SetTau(r.Input.Slot)
+	cs.AddBlock(block)
+	cs.GetPosteriorStates().SetTau(r.Input.Slot)
 
 	// set known_packages
 	// known_packages can be either xi or theta
 	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
 	xi := types.AccumulatedQueue{item}
-	s.GetPriorStates().SetXi(xi)
+	cs.GetPriorStates().SetXi(xi)
 
 	// Set AvailAssignments (rhoDoubleDagger)
-	s.GetIntermediateStates().SetRhoDoubleDagger(r.PreState.AvailAssignments)
+	cs.GetIntermediateStates().SetRhoDoubleDagger(r.PreState.AvailAssignments)
 
 	// Set CurrValidators
-	s.GetPosteriorStates().SetKappa(r.PreState.CurrValidators)
+	cs.GetPosteriorStates().SetKappa(r.PreState.CurrValidators)
 
 	// Set PrevValidators
-	s.GetPosteriorStates().SetLambda(r.PreState.PrevValidators)
+	cs.GetPosteriorStates().SetLambda(r.PreState.PrevValidators)
 
 	// Set Entropy
-	s.GetPosteriorStates().SetEta(r.PreState.Entropy)
+	cs.GetPosteriorStates().SetEta(r.PreState.Entropy)
 
 	// Set Offenders
-	s.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
+	cs.GetPosteriorStates().SetPsiO(r.PreState.Offenders)
 
 	// Set RecentBlocks
-	s.GetPriorStates().SetBetaH(r.PostState.RecentBlocks.History)
-	s.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks.History)
+	cs.GetPriorStates().SetBetaH(r.PostState.RecentBlocks.History)
+	cs.GetIntermediateStates().SetBetaHDagger(r.PostState.RecentBlocks.History)
 
 	// Set AuthPools
-	s.GetPriorStates().SetAlpha(r.PreState.AuthPools)
+	cs.GetPriorStates().SetAlpha(r.PreState.AuthPools)
 
 	// Set Accounts
 	accounts := make(types.ServiceAccountState)
@@ -760,7 +760,7 @@ func (r *ReportsTestCase) Dump() error {
 		accounts[v.Id] = serviceAccount
 	}
 
-	s.GetPriorStates().SetDelta(accounts)
+	cs.GetPriorStates().SetDelta(accounts)
 
 	var statistics types.Statistics
 	// Set CoresStatisitics
@@ -768,7 +768,7 @@ func (r *ReportsTestCase) Dump() error {
 	// Set ServicesStatistics
 	statistics.Services = r.PreState.ServicesStatistics
 
-	s.GetPriorStates().SetPi(statistics)
+	cs.GetPriorStates().SetPi(statistics)
 
 	return nil
 }

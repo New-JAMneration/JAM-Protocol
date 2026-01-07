@@ -6,23 +6,23 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// AncestryStore represents a thread-safe ancestry storage
+// AncestryCache represents a thread-safe ancestry storage
 // The maximum length is MaxLookupAge
-type AncestryStore struct {
+type AncestryCache struct {
 	mu       sync.RWMutex
 	ancestry types.Ancestry
 }
 
-// NewAncestryStore creates a new AncestryStore
-func NewAncestryStore() *AncestryStore {
-	return &AncestryStore{
+// NewAncestryCache creates a new AncestryCache
+func NewAncestryCache() *AncestryCache {
+	return &AncestryCache{
 		ancestry: make(types.Ancestry, 0, types.MaxLookupAge),
 	}
 }
 
 // AppendAncestry appends ancestry items to the blockchain.
 // It maintains a maximum length of MaxLookupAge.
-func (a *AncestryStore) AppendAncestry(newAncestry types.Ancestry) {
+func (a *AncestryCache) AppendAncestry(newAncestry types.Ancestry) {
 	if len(newAncestry) == 0 {
 		return
 	}
@@ -43,7 +43,7 @@ func (a *AncestryStore) AppendAncestry(newAncestry types.Ancestry) {
 
 // KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.
 // If the headerHash is not found, it clears all ancestry.
-func (a *AncestryStore) KeepAncestryUpTo(headerHash types.HeaderHash) {
+func (a *AncestryCache) KeepAncestryUpTo(headerHash types.HeaderHash) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -68,7 +68,7 @@ func (a *AncestryStore) KeepAncestryUpTo(headerHash types.HeaderHash) {
 
 // GetAncestry returns the current ancestry.
 // Returns a copy to prevent external modification.
-func (a *AncestryStore) GetAncestry() types.Ancestry {
+func (a *AncestryCache) GetAncestry() types.Ancestry {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -79,7 +79,7 @@ func (a *AncestryStore) GetAncestry() types.Ancestry {
 }
 
 // Clear clears all ancestry
-func (a *AncestryStore) Clear() {
+func (a *AncestryCache) Clear() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.ancestry = make(types.Ancestry, 0, types.MaxLookupAge)

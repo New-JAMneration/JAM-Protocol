@@ -312,10 +312,11 @@ func (g *GuaranteeController) ValidateContexts() error {
 // ValidateWorkPackageHashes | Eq. 11.36-11.38
 func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	workPackageHashes := g.WorkPackageHashSet()
-	theta := blockchain.GetInstance().GetPriorStates().GetTheta()
-	rho := blockchain.GetInstance().GetPriorStates().GetRho()
-	xi := blockchain.GetInstance().GetPriorStates().GetXi()
-	beta := blockchain.GetInstance().GetPriorStates().GetBeta()
+	cs := blockchain.GetInstance()
+	theta := cs.GetPriorStates().GetTheta()
+	rho := cs.GetPriorStates().GetRho()
+	xi := cs.GetPriorStates().GetXi()
+	beta := cs.GetPriorStates().GetBeta()
 	qMap := make(map[types.WorkPackageHash]bool)
 	// q
 	for _, v := range theta {
@@ -440,8 +441,9 @@ func (g *GuaranteeController) CheckWorkResult() error {
 
 // Transitioning for work reports | Eq. 11.43
 func (g *GuaranteeController) TransitionWorkReport() {
-	rhoDoubleDagger := blockchain.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
-	posteriorTau := blockchain.GetInstance().GetPosteriorStates().GetTau()
+	cs := blockchain.GetInstance()
+	rhoDoubleDagger := cs.GetIntermediateStates().GetRhoDoubleDagger()
+	posteriorTau := cs.GetPosteriorStates().GetTau()
 
 	for _, guarantee := range g.Guarantees {
 		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
@@ -450,11 +452,11 @@ func (g *GuaranteeController) TransitionWorkReport() {
 		}
 	}
 
-	blockchain.GetInstance().GetPosteriorStates().SetRho(rhoDoubleDagger)
+	cs.GetPosteriorStates().SetRho(rhoDoubleDagger)
 
 	// Save the work reports to the store
 	workReports := g.WorkReportSet()
-	blockchain.GetInstance().GetIntermediateStates().SetPresentWorkReports(workReports)
+	cs.GetIntermediateStates().SetPresentWorkReports(workReports)
 }
 
 // Set sets the ReportGuarantee slice

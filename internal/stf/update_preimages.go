@@ -8,10 +8,10 @@ import (
 // This only used by jam-test-vectors
 // For production, please use stf.go instead
 func UpdatePreimages() error {
-	s := blockchain.GetInstance()
-	delta := s.GetPriorStates().GetDelta()
-	unmatchedKeyVals := s.GetPriorStateUnmatchedKeyVals()
-	eps := s.GetLatestBlock().Extrinsic.Preimages
+	cs := blockchain.GetInstance()
+	delta := cs.GetPriorStates().GetDelta()
+	unmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
+	eps := cs.GetLatestBlock().Extrinsic.Preimages
 	// Preimage
 	err := accumulation.ValidatePreimageExtrinsics(eps, delta, &unmatchedKeyVals)
 	if err != nil {

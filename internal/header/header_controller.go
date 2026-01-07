@@ -15,7 +15,7 @@ import (
 // This controller is used to manage the header.
 // You can use this controller to create a header.
 type HeaderController struct {
-	Store *blockchain.Store
+	Store *blockchain.ChainState
 }
 
 // NewHeaderController creates a new HeaderController.

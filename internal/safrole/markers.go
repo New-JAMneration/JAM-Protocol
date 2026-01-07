@@ -14,15 +14,15 @@ import (
 // CreateEpochMarker creates the epoch marker
 // (6.27)
 func CreateEpochMarker(e types.TimeSlot, ePrime types.TimeSlot) {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
 	if ePrime > e {
 		// New epoch, create epoch marker
 		// Get eta_0, eta_1
-		eta := s.GetPriorStates().GetEta()
+		eta := cs.GetPriorStates().GetEta()
 
 		// Get gamma_k from posterior state
-		gammaK := s.GetPosteriorStates().GetGammaK()
+		gammaK := cs.GetPosteriorStates().GetGammaK()
 
 		// Get ed25519/bandersnatch keys from gamma_k
 		var epochMarkValidatorKeys []types.EpochMarkValidatorKeys
@@ -39,20 +39,20 @@ func CreateEpochMarker(e types.TimeSlot, ePrime types.TimeSlot) {
 			Validators:     epochMarkValidatorKeys,
 		}
 
-		s.GetProcessingBlockPointer().SetEpochMark(epochMarker)
+		cs.GetProcessingBlockPointer().SetEpochMark(epochMarker)
 	} else {
 		// The epoch is the same
 		var epochMarker *types.EpochMark = nil
-		s.GetProcessingBlockPointer().SetEpochMark(epochMarker)
+		cs.GetProcessingBlockPointer().SetEpochMark(epochMarker)
 	}
 }
 
 // CreateWinningTickets creates the winning tickets
 // (6.28)
 func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeSlot, mPrime types.TimeSlot) {
-	s := blockchain.GetInstance()
+	cs := blockchain.GetInstance()
 
-	gammaA := s.GetPriorStates().GetGammaA()
+	gammaA := cs.GetPriorStates().GetGammaA()
 
 	condition1 := ePrime == e
 	condition2 := m < types.TimeSlot(types.SlotSubmissionEnd) && mPrime >= types.TimeSlot(types.SlotSubmissionEnd)
@@ -61,11 +61,11 @@ func CreateWinningTickets(e types.TimeSlot, ePrime types.TimeSlot, m types.TimeS
 	if condition1 && condition2 && condition3 {
 		// Z(gamma_a)
 		ticketsMark := types.TicketsMark(OutsideInSequencer(&gammaA))
-		s.GetProcessingBlockPointer().SetTicketsMark(&ticketsMark)
+		cs.GetProcessingBlockPointer().SetTicketsMark(&ticketsMark)
 	} else {
 		// The epoch is the same
 		var ticketsMark *types.TicketsMark = nil
-		s.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
+		cs.GetProcessingBlockPointer().SetTicketsMark(ticketsMark)
 	}
 }
 

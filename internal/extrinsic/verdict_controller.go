@@ -250,7 +250,8 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 
 // ClearWorkReports clear uncertain or invalid work reports from core | Eq. 10.15
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
-	priorStatesRho := blockchain.GetInstance().GetPriorStates().GetRho()
+	cs := blockchain.GetInstance()
+	priorStatesRho := cs.GetPriorStates().GetRho()
 	clearReports := make(map[types.OpaqueHash]bool)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
@@ -266,5 +267,5 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			priorStatesRho[i] = nil
 		}
 	}
-	blockchain.GetInstance().GetIntermediateStates().SetRhoDagger(priorStatesRho)
+	cs.GetIntermediateStates().SetRhoDagger(priorStatesRho)
 }
