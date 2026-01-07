@@ -5,7 +5,7 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	PreimageErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/preimages"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -161,8 +161,9 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 }
 
 func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, types.ServiceAccountState) {
+	cs := blockchain.GetInstance()
 	j := 0
-	keyVals := store.GetInstance().GetPostStateUnmatchedKeyVals()
+	keyVals := cs.GetPostStateUnmatchedKeyVals()
 	copiedKeyVals := keyVals.DeepCopy()
 	for i, ep := range eps {
 		// Calculate preimage hash and length
@@ -183,7 +184,7 @@ func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccou
 		}
 
 	}
-	store.GetInstance().SetPostStateUnmatchedKeyVals(copiedKeyVals)
+	cs.SetPostStateUnmatchedKeyVals(copiedKeyVals)
 	eps = eps[:j]
 	return eps, d
 }
@@ -229,11 +230,11 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 // It combines filtering and delta state updates in a single call for external use
 // v0.7.0 (12.38-12.43)
 func ProcessPreimageExtrinsics() error {
-	// Get store instance and required states
-	s := store.GetInstance()
-	eps := s.GetLatestBlock().Extrinsic.Preimages
-	deltaDoubleDagger := s.GetIntermediateStates().GetDeltaDoubleDagger()
-	tauPrime := s.GetPosteriorStates().GetTau()
+	// Get cs instance and required states
+	cs := blockchain.GetInstance()
+	eps := cs.GetLatestBlock().Extrinsic.Preimages
+	deltaDoubleDagger := cs.GetIntermediateStates().GetDeltaDoubleDagger()
+	tauPrime := cs.GetPosteriorStates().GetTau()
 
 	// Filter preimage extrinsics, integrate lookup keyvals into dict
 	filteredEps, updatedLookupServiceAccount := filterPreimageExtrinsics(eps, deltaDoubleDagger)
@@ -245,7 +246,7 @@ func ProcessPreimageExtrinsics() error {
 	}
 
 	// Update new double-dagger to posterior state
-	s.GetPosteriorStates().SetDelta(newDeltaDoubleDagger)
+	cs.GetPosteriorStates().SetDelta(newDeltaDoubleDagger)
 	return nil
 }
 
@@ -270,7 +271,7 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; !found || (found && len(timeSlotSet) > 0) {
 			continue
 		}
-		tauPrime := store.GetInstance().GetPosteriorStates().GetTau()
+		tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
 		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
 		dPrime[serviceId] = serviceAccount

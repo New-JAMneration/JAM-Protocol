@@ -3,8 +3,8 @@ package stf
 import (
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -26,8 +26,7 @@ func ValidateNonVRFHeader(header types.Header, priorState *types.State, extrinsi
 	}
 
 	// H_R
-	storeInstance := store.GetInstance()
-	unmatchedKeyVals := storeInstance.GetPriorStateUnmatchedKeyVals()
+	unmatchedKeyVals := blockchain.GetInstance().GetPriorStateUnmatchedKeyVals()
 	serializedState, _ := m.StateEncoder(*priorState)
 	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
 	priorStateRoot := m.MerklizationSerializedState(fullStateKeyVals)

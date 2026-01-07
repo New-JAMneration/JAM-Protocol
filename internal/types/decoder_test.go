@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 
@@ -164,7 +164,7 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 	}
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
-	redisBackend, _ := store.GetRedisBackend()
+	redisBackend, _ := blockchain.GetRedisBackend()
 	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
@@ -1148,7 +1148,7 @@ func TestDecodeImportSpec(t *testing.T) {
 
 	// If you want to encode the ImportSpec, you have to offer the `HashSegmentMap`.
 	// You can get the `HashSegmentMap` from the redis.
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		t.Fatalf("Failed to get redis backend: %v", err)
 	}

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -30,22 +30,22 @@ func calculateMaxGasUsed(alwaysAccumulateMap types.AlwaysAccumulateMap) types.Ga
 	return max(GT, GA*C+sum)
 }
 
-func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialStateSet) {
+func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.PartialStateSet) {
 	// (12.22)
 	deltaDagger := o.ServiceAccounts
 	postIota := o.ValidatorKeys
 	postVarphi := o.Authorizers
 
 	// Update the posterior state
-	store.GetPosteriorStates().SetChi(types.Privileges{
+	cs.GetPosteriorStates().SetChi(types.Privileges{
 		Bless:       o.Bless,
 		Assign:      o.Assign,
 		Designate:   o.Designate,
 		AlwaysAccum: o.AlwaysAccum,
 	})
-	store.GetIntermediateStates().SetDeltaDagger(deltaDagger)
-	store.GetPosteriorStates().SetIota(postIota)
-	store.GetPosteriorStates().SetVarphi(postVarphi)
+	cs.GetIntermediateStates().SetDeltaDagger(deltaDagger)
+	cs.GetPosteriorStates().SetIota(postIota)
+	cs.GetPosteriorStates().SetVarphi(postVarphi)
 }
 
 // (12.25)
@@ -58,8 +58,8 @@ func updatePartialStateSetToPosteriorState(store *store.Store, o types.PartialSt
 // this approach would differ from the graypaper and is not being implemented at this time.
 func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	// Get W^*
-	store := store.GetInstance()
-	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
+	cs := blockchain.GetInstance()
+	accumulatableWorkReports := cs.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	// First pass: count matching results to determine exact capacity
 	count := 0
@@ -87,7 +87,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 // (12.23) (12.24) (12.25)
 // u from outer accuulation function
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
-// We save the accumulation statistics in the store
+// We save the accumulation statistics in the cs
 func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) types.AccumulationStatistics {
 	// (12.28–12.29)
 	// S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
@@ -119,9 +119,9 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 // (12.28) (12.29)
 // Build delta double dagger (second intermediate state)
 // NOTE: v0.7.1 has removed deferred transfers & Ψ_T
-func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.AccumulationStatistics) {
-	deltaDagger := store.GetIntermediateStates().GetDeltaDagger()
-	tauPrime := store.GetPosteriorStates().GetTau()
+func updateDeltaDoubleDagger(cs *blockchain.ChainState, accumulationStatistics types.AccumulationStatistics) {
+	deltaDagger := cs.GetIntermediateStates().GetDeltaDagger()
+	tauPrime := cs.GetPosteriorStates().GetTau()
 
 	deltaDoubleDagger := types.ServiceAccountState{}
 
@@ -132,17 +132,17 @@ func updateDeltaDoubleDagger(store *store.Store, accumulationStatistics types.Ac
 		}
 		deltaDoubleDagger[serviceId] = acc
 	}
-	store.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
+	cs.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 }
 
 // (12.31) (12.32)
 // Update the AccumulatedQueue(AccumulatedQueue)
-func updateXi(store *store.Store, n types.U64) {
+func updateXi(cs *blockchain.ChainState, n types.U64) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
+	accumulatableWorkReports := cs.GetIntermediateStates().GetAccumulatableWorkReports()
 
-	priorXi := store.GetPriorStates().GetXi()
-	posteriorXi := store.GetPosteriorStates().GetXi()
+	priorXi := cs.GetPriorStates().GetXi()
+	posteriorXi := cs.GetPosteriorStates().GetXi()
 
 	// (12.31) Update the last element
 	posteriorXi[types.EpochLength-1] = ExtractWorkReportHashes(accumulatableWorkReports[:n])
@@ -169,35 +169,35 @@ func updateXi(store *store.Store, n types.U64) {
 		})
 	}
 
-	// Update posteriorXi to store
-	store.GetPosteriorStates().SetXi(posteriorXi)
+	// Update posteriorXi to cs
+	cs.GetPosteriorStates().SetXi(posteriorXi)
 }
 
 // (12.33)
 // Update ReadyQueue(Theta)
-func updateTheta(store *store.Store) {
+func updateTheta(cs *blockchain.ChainState) {
 	// (12.10) let m = H_t mode E
-	headerSlot := store.GetLatestBlock().Header.Slot
+	headerSlot := cs.GetLatestBlock().Header.Slot
 	m := int(headerSlot) % types.EpochLength
 
 	// (6.2) tau and tau prime
 	// Get previous time slot index
-	tau := store.GetPriorStates().GetTau()
+	tau := cs.GetPriorStates().GetTau()
 
 	// Get current time slot index
-	tauPrime := store.GetPosteriorStates().GetTau()
+	tauPrime := cs.GetPosteriorStates().GetTau()
 
 	tauOffset := tauPrime - tau
 
 	// Get queued work reports
-	queueWorkReports := store.GetIntermediateStates().GetQueuedWorkReports()
+	queueWorkReports := cs.GetIntermediateStates().GetQueuedWorkReports()
 
 	// Get prior theta and posterior theta (ReadyQueue)
-	priorTheta := store.GetPriorStates().GetTheta()
-	posteriorTheta := store.GetPosteriorStates().GetTheta()
+	priorTheta := cs.GetPriorStates().GetTheta()
+	posteriorTheta := cs.GetPosteriorStates().GetTheta()
 
 	// Get posterior xi
-	posteriorXi := store.GetPosteriorStates().GetXi()
+	posteriorXi := cs.GetPosteriorStates().GetXi()
 
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
@@ -218,16 +218,16 @@ func updateTheta(store *store.Store) {
 	}
 
 	// Update posterior theta
-	store.GetPosteriorStates().SetTheta(posteriorTheta)
+	cs.GetPosteriorStates().SetTheta(posteriorTheta)
 }
 
 // (12.20) (12.21)
-func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, error) {
+func executeOuterAccumulation(cs *blockchain.ChainState) (OuterAccumulationOutput, error) {
 	// Get W^* (accumulatable work-reports in this block)
-	accumulatableWorkReports := store.GetIntermediateStates().GetAccumulatableWorkReports()
+	accumulatableWorkReports := cs.GetIntermediateStates().GetAccumulatableWorkReports()
 
 	// (12.13) PartialStateSet
-	priorState := store.GetPriorStates()
+	priorState := cs.GetPriorStates()
 	chi := priorState.GetChi()
 	delta := priorState.GetDelta()
 	iota := priorState.GetIota()
@@ -268,7 +268,7 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 	ePrime := output.PartialStateSet
 	// (12.22)
 	// Update the partial state set to posterior state
-	updatePartialStateSetToPosteriorState(store, ePrime)
+	updatePartialStateSetToPosteriorState(cs, ePrime)
 
 	// (12.26) θ′ ≡ [[(s, h) ∈ b]]
 	// Convert accumulated service output (b) to the accumulation output log (θ′)
@@ -285,18 +285,18 @@ func executeOuterAccumulation(store *store.Store) (OuterAccumulationOutput, erro
 		return bytes.Compare(thetaPrime[i].Hash[:], thetaPrime[j].Hash[:]) < 0
 	})
 
-	store.GetPosteriorStates().SetLastAccOut(thetaPrime)
+	cs.GetPosteriorStates().SetLastAccOut(thetaPrime)
 
 	return output, nil
 }
 
 // (v0.6.4) 12.3 Deferred Transfers And State Integration.
 func DeferredTransfers() error {
-	// Get parameters from the store
-	store := store.GetInstance()
+	// Get parameters from the cs
+	cs := blockchain.GetInstance()
 
 	// (12.20) (12.21) (12.22)
-	output, err := executeOuterAccumulation(store)
+	output, err := executeOuterAccumulation(cs)
 	if err != nil {
 		return err
 	}
@@ -306,18 +306,18 @@ func DeferredTransfers() error {
 	// Calculate the accumulation statistics I
 	// (12.28–12.29) S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
 	S := calculateAccumulationStatistics(u, n)
-	store.GetIntermediateStates().SetAccumulationStatistics(S)
+	cs.GetIntermediateStates().SetAccumulationStatistics(S)
 
 	// (12.27) (12.28) (12.29) (12.30)
-	updateDeltaDoubleDagger(store, S)
+	updateDeltaDoubleDagger(cs, S)
 
 	// (12.31) (12.32)
 	// Update the AccumulatedQueue(AccumulatedQueue)
-	updateXi(store, n)
+	updateXi(cs, n)
 
 	// (12.33)
 	// Update ReadyQueue(Theta)
-	updateTheta(store)
+	updateTheta(cs)
 
 	return nil
 }

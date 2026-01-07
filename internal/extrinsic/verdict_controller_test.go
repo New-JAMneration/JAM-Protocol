@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -139,7 +139,7 @@ func TestVerifySignature(t *testing.T) {
 			Ed25519: types.Ed25519Public(HexToBytes("0x837ce344bc9defceb0d7de7e9e9925096768b7adb4dad932e532eb6551e0ea02"))},
 	}
 
-	states := store.GetInstance().GetPriorStates()
+	states := blockchain.GetInstance().GetPriorStates()
 	states.SetKappa(kappa)
 	// test data 1 : https://github.com/davxy/jam-test-vectors/blob/polkajam-vectors/disputes/tiny/progress_with_verdicts-1.json
 	fmt.Println("Data 1 : valid signatures in verdicts")

@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 )
 
 func TestNewListener(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
-	defer store.CloseMiniRedis()
+	defer blockchain.CloseMiniRedis()
 
 	listenAddr := "localhost:0"
 	quicCfg := NewQuicConfig()

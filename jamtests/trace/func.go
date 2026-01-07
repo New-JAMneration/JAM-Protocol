@@ -3,15 +3,14 @@ package jamtests
 import (
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 func (s *TraceTestCase) Dump() error {
 	// Add block, state
-	st := store.GetInstance()
-	st.AddBlock(s.Block)
+	blockchain.GetInstance().AddBlock(s.Block)
 
 	return nil
 }
@@ -29,7 +28,7 @@ func (s *TraceTestCase) ExpectError() error {
 }
 
 func (s *TraceTestCase) Validate() error {
-	stateRoot := m.MerklizationState(store.GetInstance().GetPosteriorStates().GetState())
+	stateRoot := m.MerklizationState(blockchain.GetInstance().GetPosteriorStates().GetState())
 
 	if stateRoot != s.PostState.StateRoot {
 		err := s.CmpKeyVal(stateRoot)
@@ -42,7 +41,7 @@ func (s *TraceTestCase) Validate() error {
 }
 
 func (s *TraceTestCase) CmpKeyVal(stateRoot types.StateRoot) error {
-	keyVals, err := m.StateEncoder(store.GetInstance().GetPosteriorStates().GetState())
+	keyVals, err := m.StateEncoder(blockchain.GetInstance().GetPosteriorStates().GetState())
 	if err != nil {
 		return fmt.Errorf("state encode keyVals failed: %w", err)
 	}

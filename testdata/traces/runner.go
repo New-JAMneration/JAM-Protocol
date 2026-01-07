@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
@@ -14,31 +14,31 @@ import (
 var genesisStateRoot = types.StateRoot(types.OpaqueHash(hexToBytes("0x0000000000000000000000000000000000000000000000000000000000000000")))
 
 type TraceRunner struct {
-	// Store is the global protocol store. The runner mutates it between traces.
-	Store *store.Store
+	// ChainState is the global protocol blockchain. The runner mutates it between traces.
+	ChainState *blockchain.ChainState
 }
 
 // NewTraceRunner constructs a TraceRunner with sane defaults.
 func NewTraceRunner() *TraceRunner {
 	return &TraceRunner{
-		Store: store.GetInstance(),
+		ChainState: blockchain.GetInstance(),
 	}
 }
 
 func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 	testCase := data.(*jamteststrace.TraceTestCase)
 
-	if len(tr.Store.GetBlocks()) == 0 {
-		return fmt.Errorf("no blocks in the store")
+	if len(tr.ChainState.GetBlocks()) == 0 {
+		return fmt.Errorf("no blocks in the cs")
 	}
 
 	// Verify the header
-	if tr.Store.GetLatestBlock().Header.Parent != testCase.Block.Header.Parent {
-		return fmt.Errorf("parent mismatch: got %x, want %x", tr.Store.GetLatestBlock().Header.Parent, testCase.PreState.StateRoot)
+	if tr.ChainState.GetLatestBlock().Header.Parent != testCase.Block.Header.Parent {
+		return fmt.Errorf("parent mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.Parent, testCase.PreState.StateRoot)
 	}
 
-	if tr.Store.GetLatestBlock().Header.ParentStateRoot != testCase.Block.Header.ParentStateRoot {
-		return fmt.Errorf("state_root mismatch: got %x, want %x", tr.Store.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot)
+	if tr.ChainState.GetLatestBlock().Header.ParentStateRoot != testCase.Block.Header.ParentStateRoot {
+		return fmt.Errorf("state_root mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot)
 	}
 
 	_, err := stf.RunSTF()

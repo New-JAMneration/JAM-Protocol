@@ -1,13 +1,13 @@
 package extrinsic
 
 import (
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	DisputesErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
 )
 
 func Disputes() (types.OffendersMark, error) {
-	block := store.GetInstance().GetLatestBlock()
+	block := blockchain.GetInstance().GetLatestBlock()
 	disputeExtrinsic := block.Extrinsic.Disputes
 
 	// init controllers

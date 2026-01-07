@@ -3,8 +3,8 @@ package extrinsic
 import (
 	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/input/jam_types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -90,8 +90,8 @@ func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
-	tau := store.GetInstance().GetPosteriorStates().GetTau()
-	offenders := store.GetInstance().GetPosteriorStates().GetPsiO()
+	tau := blockchain.GetInstance().GetPosteriorStates().GetTau()
+	offenders := blockchain.GetInstance().GetPosteriorStates().GetPsiO()
 	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
 	for _, offender := range offenders {
 		offendersMap[offender] = true
@@ -158,9 +158,9 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 // ValidateWorkReports | Eq. 11.29-11.30
 func (g *GuaranteeController) ValidateWorkReports() error {
 	workReports := g.WorkReportSet()
-	alpha := store.GetInstance().GetPriorStates().GetAlpha()
-	delta := store.GetInstance().GetPriorStates().GetDelta()
-	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
+	alpha := blockchain.GetInstance().GetPriorStates().GetAlpha()
+	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
+	rhoDoubleDagger := blockchain.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 	for _, workReport := range workReports {
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
 			err := ReportsErrorCode.CoreEngaged
@@ -240,8 +240,8 @@ func (g *GuaranteeController) CardinalityCheck() error {
 // ValidateContexts | Eq. 11.33-11.35
 func (g *GuaranteeController) ValidateContexts() error {
 	contexts := g.ContextSet()
-	betaDagger := store.GetInstance().GetIntermediateStates().GetBetaHDagger()
-	headerTimeSlot := store.GetInstance().GetLatestBlock().Header.Slot
+	betaDagger := blockchain.GetInstance().GetIntermediateStates().GetBetaHDagger()
+	headerTimeSlot := blockchain.GetInstance().GetLatestBlock().Header.Slot
 	// ∀x ∈ x ∶ ∃y ∈ β†H ∶ xa = yh ∧ xs = ys ∧ xb = yb (11.33)
 	for _, context := range contexts {
 		recentAnchorMatch := false
@@ -280,7 +280,7 @@ func (g *GuaranteeController) ValidateContexts() error {
 	}
 
 	// 11.35   ancestors currently not maintained
-	ancestry := store.GetInstance().GetAncestry()
+	ancestry := blockchain.GetInstance().GetAncestry()
 
 	if len(ancestry) > 0 {
 		// ∀x ∈ x ∶ ∃h ∈ A ∶ hT = xt ∧ H(h) = xl (11.35)
@@ -312,10 +312,11 @@ func (g *GuaranteeController) ValidateContexts() error {
 // ValidateWorkPackageHashes | Eq. 11.36-11.38
 func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	workPackageHashes := g.WorkPackageHashSet()
-	theta := store.GetInstance().GetPriorStates().GetTheta()
-	rho := store.GetInstance().GetPriorStates().GetRho()
-	xi := store.GetInstance().GetPriorStates().GetXi()
-	beta := store.GetInstance().GetPriorStates().GetBeta()
+	cs := blockchain.GetInstance()
+	theta := cs.GetPriorStates().GetTheta()
+	rho := cs.GetPriorStates().GetRho()
+	xi := cs.GetPriorStates().GetXi()
+	beta := cs.GetPriorStates().GetBeta()
 	qMap := make(map[types.WorkPackageHash]bool)
 	// q
 	for _, v := range theta {
@@ -355,7 +356,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 // CheckExtrinsicOrRecentHistory | Eq. 11.39
 func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 	w := g.WorkReportSet()
-	beta := store.GetInstance().GetPriorStates().GetBeta()
+	beta := blockchain.GetInstance().GetPriorStates().GetBeta()
 	dependencySet := make(map[types.OpaqueHash]bool)
 	segmentRootSet := make(map[types.OpaqueHash]bool)
 	for _, v := range w {
@@ -398,7 +399,7 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 	for _, guarantee := range g.Guarantees {
 		pSet[guarantee.Report.PackageSpec.Hash] = guarantee.Report.PackageSpec.ExportsRoot
 	}
-	beta := store.GetInstance().GetPriorStates().GetBeta()
+	beta := blockchain.GetInstance().GetPriorStates().GetBeta()
 	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			pSet[types.WorkPackageHash(w.Hash)] = w.ExportsRoot
@@ -426,7 +427,7 @@ func (g *GuaranteeController) CheckSegmentRootLookup() error {
 // CheckWorkResult | Eq. 11.42
 func (g *GuaranteeController) CheckWorkResult() error {
 	w := g.WorkReportSet()
-	delta := store.GetInstance().GetPriorStates().GetDelta()
+	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
 			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
@@ -440,8 +441,9 @@ func (g *GuaranteeController) CheckWorkResult() error {
 
 // Transitioning for work reports | Eq. 11.43
 func (g *GuaranteeController) TransitionWorkReport() {
-	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
-	posteriorTau := store.GetInstance().GetPosteriorStates().GetTau()
+	cs := blockchain.GetInstance()
+	rhoDoubleDagger := cs.GetIntermediateStates().GetRhoDoubleDagger()
+	posteriorTau := cs.GetPosteriorStates().GetTau()
 
 	for _, guarantee := range g.Guarantees {
 		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
@@ -450,11 +452,11 @@ func (g *GuaranteeController) TransitionWorkReport() {
 		}
 	}
 
-	store.GetInstance().GetPosteriorStates().SetRho(rhoDoubleDagger)
+	cs.GetPosteriorStates().SetRho(rhoDoubleDagger)
 
 	// Save the work reports to the store
 	workReports := g.WorkReportSet()
-	store.GetInstance().GetIntermediateStates().SetPresentWorkReports(workReports)
+	cs.GetIntermediateStates().SetPresentWorkReports(workReports)
 }
 
 // Set sets the ReportGuarantee slice
@@ -491,8 +493,8 @@ func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 }
 
 func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, error) {
-	tau := store.GetInstance().GetPosteriorStates().GetTau()
-	offenders := store.GetInstance().GetPriorStates().GetPsiO()
+	tau := blockchain.GetInstance().GetPosteriorStates().GetTau()
+	offenders := blockchain.GetInstance().GetPriorStates().GetPsiO()
 	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
 	for _, offender := range offenders {
 		offendersMap[offender] = true

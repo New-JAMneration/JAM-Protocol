@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	AssuranceErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
@@ -34,7 +34,7 @@ func NewAvailAssuranceController() *AvailAssuranceController {
 
 // ValidateAnchor validates the anchor of the AvailAssurance | Eq. 11.11
 func (a *AvailAssuranceController) ValidateAnchor() *types.ErrorCode {
-	headerParent := types.OpaqueHash(store.GetInstance().GetBlock().Header.Parent)
+	headerParent := types.OpaqueHash(blockchain.GetInstance().GetLatestBlock().Header.Parent)
 
 	for _, availAssurance := range a.AvailAssurances {
 		if !bytes.Equal(availAssurance.Anchor[:], headerParent[:]) {
@@ -115,7 +115,7 @@ func (a *AvailAssuranceController) Swap(i, j int) {
 
 // ValidateSignature validates the signature of the AvailAssurance | Eq. 11.13, 11.14
 func (a *AvailAssuranceController) ValidateSignature() *types.ErrorCode {
-	kappa := store.GetInstance().GetPriorStates().GetKappa()
+	kappa := blockchain.GetInstance().GetPriorStates().GetKappa()
 
 	for _, availAssurance := range a.AvailAssurances {
 		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
@@ -136,7 +136,7 @@ func (a *AvailAssuranceController) ValidateSignature() *types.ErrorCode {
 
 // ValidateBitField | Eq. 11.15
 func (a *AvailAssuranceController) ValidateBitField() *types.ErrorCode {
-	rhoDagger := store.GetInstance().GetIntermediateStates().GetRhoDagger()
+	rhoDagger := blockchain.GetInstance().GetIntermediateStates().GetRhoDagger()
 
 	for i := 0; i < len(a.AvailAssurances); i++ {
 		for j := 0; j < types.CoresCount; j++ {
@@ -180,8 +180,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 	}
 
 	// Set the available work reports to the available work reports
-	store := store.GetInstance()
-	store.GetIntermediateStates().SetAvailableWorkReports(availableWorkReports)
+	blockchain.GetInstance().GetIntermediateStates().SetAvailableWorkReports(availableWorkReports)
 
 	return availableWorkReports
 }
@@ -199,16 +198,16 @@ func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkR
 
 // FilterAvailableReports | Eq. 11.16 & 11.17
 func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
-	store := store.GetInstance()
+	cs := blockchain.GetInstance()
 
-	rhoDagger := store.GetIntermediateStates().GetRhoDagger()
-	rhoDoubleDagger := store.GetIntermediateStates().GetRhoDoubleDagger()
-	rho := store.GetPriorStates().GetRho()
+	rhoDagger := cs.GetIntermediateStates().GetRhoDagger()
+	rhoDoubleDagger := cs.GetIntermediateStates().GetRhoDoubleDagger()
+	rho := cs.GetPriorStates().GetRho()
 
 	// 11.17 Set available reports or timeout reports to nil
 	// Make a copy to avoid aliasing with rhoDagger
 	copy(rhoDoubleDagger, rhoDagger)
-	headerTimeSlot := store.GetBlock().Header.Slot
+	headerTimeSlot := cs.GetLatestBlock().Header.Slot
 
 	// (11.16) Filter newly available work reports
 	availableWorkReports := a.UpdateNewlyAvailableWorkReports(rhoDagger)
@@ -229,7 +228,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 		}
 	}
 
-	store.GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
+	cs.GetIntermediateStates().SetRhoDoubleDagger(rhoDoubleDagger)
 
 	return nil
 }

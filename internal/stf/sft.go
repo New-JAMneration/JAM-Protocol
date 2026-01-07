@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	AssurancesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/assurances"
 	DisputesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
@@ -39,15 +39,15 @@ func IsProtocolError(err error) bool {
 func RunSTF() (bool, error) {
 	var (
 		err              error
-		st               = store.GetInstance()
-		priorState       = st.GetPriorStates().GetState()
-		header           = st.GetLatestBlock().Header
-		extrinsic        = st.GetLatestBlock().Extrinsic
-		unmatchedKeyVals = st.GetPriorStateUnmatchedKeyVals()
+		cs               = blockchain.GetInstance()
+		priorState       = cs.GetPriorStates().GetState()
+		header           = cs.GetLatestBlock().Header
+		extrinsic        = cs.GetLatestBlock().Extrinsic
+		unmatchedKeyVals = cs.GetPriorStateUnmatchedKeyVals()
 	)
 
 	// Update timeslot
-	st.GetPosteriorStates().SetTau(header.Slot)
+	cs.GetPosteriorStates().SetTau(header.Slot)
 
 	// Validate Non-VRF Header(H_E, H_W, H_O, H_I)
 	// For non-genesis blocks, validate the header
@@ -75,7 +75,7 @@ func RunSTF() (bool, error) {
 		errorMessage := SafroleErrorCodes.SafroleErrorCodeMessages[*err.(*types.ErrorCode)]
 		return IsProtocolError(err), fmt.Errorf("%v", errorMessage)
 	}
-	postState := st.GetPosteriorStates().GetState()
+	postState := cs.GetPosteriorStates().GetState()
 
 	// After keyRotate
 	err = ValidateHeaderVrf(header, &priorState, &postState)

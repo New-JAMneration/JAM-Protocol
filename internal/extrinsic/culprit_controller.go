@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/hdevalence/ed25519consensus"
 )
@@ -45,8 +45,8 @@ func (c *CulpritController) VerifyCulpritValidity() error {
 }
 
 func (c *CulpritController) VerifyCulpritSignature() error {
-	state := store.GetInstance().GetPriorStates()
-	posterior := store.GetInstance().GetPosteriorStates()
+	state := blockchain.GetInstance().GetPriorStates()
+	posterior := blockchain.GetInstance().GetPosteriorStates()
 
 	validators := append(state.GetKappa(), state.GetLambda()...)
 	validKeySet := make(map[types.Ed25519Public]struct{})
@@ -74,7 +74,7 @@ func (c *CulpritController) VerifyCulpritSignature() error {
 
 // VerifyReportHashValidty verifies the validity of the reports
 func (c *CulpritController) VerifyReportHashValidty() error {
-	psiBad := store.GetInstance().GetPosteriorStates().GetPsiB()
+	psiBad := blockchain.GetInstance().GetPosteriorStates().GetPsiB()
 	checkMap := make(map[types.WorkReportHash]bool)
 
 	for _, report := range psiBad {
@@ -93,7 +93,7 @@ func (c *CulpritController) VerifyReportHashValidty() error {
 // Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
 func (c *CulpritController) ExcludeOffenders() error {
 
-	exclude := store.GetInstance().GetPriorStates().GetPsiO()
+	exclude := blockchain.GetInstance().GetPriorStates().GetPsiO()
 
 	excludeMap := make(map[types.Ed25519Public]bool)
 	for _, offenderEd25519 := range exclude {

@@ -1,8 +1,8 @@
 package extrinsic
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
@@ -83,7 +83,7 @@ func NewGuranatorAssignments(
 // (11.21) G(e, t, k) = (P(e, t), H_K)
 // G ≡ (P (η′2, τ ′), Φ(κ′))
 func GFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
-	state := store.GetInstance().GetPosteriorStates()
+	state := blockchain.GetInstance().GetPosteriorStates()
 	etaPrime := state.GetEta()
 
 	// (η′2, κ′)
@@ -102,7 +102,7 @@ func GFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, err
 
 // (11.22) G∗ ≡ (P (e, τ ′ − R), Φ(k))
 func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
-	state := store.GetInstance().GetPosteriorStates()
+	state := blockchain.GetInstance().GetPosteriorStates()
 	var e types.Entropy
 	var validators types.ValidatorsData
 

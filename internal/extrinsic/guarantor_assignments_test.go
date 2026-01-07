@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -122,10 +122,11 @@ func TestGStarLambda(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	store.GetInstance().GetPosteriorStates().SetTau(120)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(120)
 
 	// act
 	gStarVal, _ := GStarFunc(nil)
@@ -169,10 +170,11 @@ func TestGStarKappa(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	store.GetInstance().GetPosteriorStates().SetTau(130)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(130)
 
 	// act
 	gStarVal, _ := GStarFunc(nil)
@@ -221,10 +223,11 @@ func TestGFunc(t *testing.T) {
 		{Ed25519: [32]byte{0xCC}},
 		{Ed25519: [32]byte{0xDD}},
 	}
-	store.GetInstance().GetPosteriorStates().SetLambda(dummyLambda)
-	store.GetInstance().GetPosteriorStates().SetKappa(dummyKappa)
-	store.GetInstance().GetPosteriorStates().SetEta(dummyEta)
-	store.GetInstance().GetPosteriorStates().SetTau(120)
+	cs := blockchain.GetInstance()
+	cs.GetPosteriorStates().SetLambda(dummyLambda)
+	cs.GetPosteriorStates().SetKappa(dummyKappa)
+	cs.GetPosteriorStates().SetEta(dummyEta)
+	cs.GetPosteriorStates().SetTau(120)
 
 	// act
 	gVal, _ := GFunc(nil)
