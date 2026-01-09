@@ -405,6 +405,10 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	n := make(types.ServiceAccountState)
 	m := make(types.ServiceAccountState)
 
+	// Track postState keys for each service to implement global pessimistic deletion rule
+	// postStateKeys[serviceId][accountId] = true if accountId exists in service's postState
+	postStateKeys := make(map[types.ServiceId]map[types.ServiceId]bool)
+
 	var singleInput SingleServiceAccumulationInput
 	singleInput.PartialStateSet = e
 	singleInput.DeferredTransfers = t
@@ -497,6 +501,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		tPrime = append(tPrime, singleOutput.DeferredTransfers...)
 
 		singleOutputD := singleOutput.PartialStateSet.ServiceAccounts
+
+		// Record postState keys for this service (pessimistic deletion logic)
+		keys := make(map[types.ServiceId]bool)
+		for k := range singleOutputD {
+			keys[k] = true
+		}
+		postStateKeys[service_id] = keys
 
 		// n = ⋃ ((∆(s)e)d ∖ K(d ∖ { s }))
 		// n = union of (d_prime without keys in d except service_id)
@@ -628,6 +639,18 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 		}
 
+	}
+
+	// If ANY service's postState does NOT contain an account d, then d must be in m (deleted).
+	for accountId := range d {
+		for serviceId := range s {
+			// If this service's postState does not contain the account, mark it for deletion
+			serviceKeys, exists := postStateKeys[serviceId]
+			if !exists || !serviceKeys[accountId] {
+				m[accountId] = d[accountId]
+				break
+			}
+		}
 	}
 
 	// (d ∪ n) ∖ m
