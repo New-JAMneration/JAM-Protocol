@@ -88,6 +88,8 @@ func (l *LocalKeyStore) Generate(t keystore.KeyType) (keystore.KeyPair, error) {
 	switch t {
 	case keystore.KeyTypeEd25519:
 		kp, err = keystore.NewEd25519KeyPair()
+	case keystore.KeyTypeBandersnatch:
+		kp, err = keystore.NewBandersnatchKeyPair()
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -126,6 +128,8 @@ func (l *LocalKeyStore) Import(t keystore.KeyType, seed []byte) (keystore.KeyPai
 	switch t {
 	case keystore.KeyTypeEd25519:
 		kp, err = keystore.ImportEd25519KeyPair(seed)
+	case keystore.KeyTypeBandersnatch:
+		kp, err = keystore.ImportBandersnatchKeyPair(seed)
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -192,6 +196,8 @@ func (l *LocalKeyStore) Get(t keystore.KeyType, pubKey []byte) (keystore.KeyPair
 	switch t {
 	case keystore.KeyTypeEd25519:
 		return keystore.FromEd25519PrivateKey(privBytes)
+	case keystore.KeyTypeBandersnatch:
+		return keystore.ImportBandersnatchKeyPair(privBytes)
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -202,12 +208,15 @@ func (l *LocalKeyStore) List(t keystore.KeyType) ([]keystore.KeyPair, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
+	var err error
 	keys, err := l.loadKeys(t)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []keystore.KeyPair
+	var kps []keystore.KeyPair
+	var kp keystore.KeyPair
+
 	for _, kd := range keys {
 		privBytes, err := hex.DecodeString(kd.PrivateKey)
 		if err != nil {
@@ -216,16 +225,18 @@ func (l *LocalKeyStore) List(t keystore.KeyType) ([]keystore.KeyPair, error) {
 
 		switch t {
 		case keystore.KeyTypeEd25519:
-			kp, err := keystore.FromEd25519PrivateKey(privBytes)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, kp)
+			kp, err = keystore.FromEd25519PrivateKey(privBytes)
+		case keystore.KeyTypeBandersnatch:
+			kp, err = keystore.ImportBandersnatchKeyPair(privBytes)
 		default:
 			return nil, fmt.Errorf("unsupported key type: %s", t)
 		}
+		if err != nil {
+			return nil, err
+		}
+		kps = append(kps, kp)
 	}
-	return result, nil
+	return kps, nil
 }
 
 // Delete removes a keypair from the keystore
@@ -244,5 +255,27 @@ func (l *LocalKeyStore) Delete(t keystore.KeyType, pubKey []byte) error {
 	if err := l.saveKeys(t, keys); err != nil {
 		return fmt.Errorf("failed to save keys after deletion: %w", err)
 	}
+	return nil
+}
+
+// ImportValidatorKeysFromSeed imports both Ed25519 and Bandersnatch keys
+// from a JIP-5 seed into the local keystore.
+func (l *LocalKeyStore) ImportValidatorKeysFromSeed(seed []byte) error {
+	// Derive the secret seeds directly
+	ed25519SecretSeed, bandersnatchSecretSeed, _, _, err := keystore.DeriveValidatorKeys(seed)
+	if err != nil {
+		return fmt.Errorf("failed to derive validator keys: %w", err)
+	}
+
+	// Import Ed25519 key using the derived seed (32 bytes)
+	if _, err := l.Import(keystore.KeyTypeEd25519, ed25519SecretSeed); err != nil {
+		return fmt.Errorf("failed to import Ed25519 key: %w", err)
+	}
+
+	// Import Bandersnatch key using the derived secret seed (32 bytes)
+	if _, err := l.Import(keystore.KeyTypeBandersnatch, bandersnatchSecretSeed); err != nil {
+		return fmt.Errorf("failed to import Bandersnatch key: %w", err)
+	}
+
 	return nil
 }
