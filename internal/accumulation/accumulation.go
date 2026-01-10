@@ -638,6 +638,21 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		return output, fmt.Errorf("failed to provide service accounts: %w", err)
 	}
 
+	// Filter tPrime: remove DeferredTransfers where SenderID or ReceiverID is deleted (not in dPrime)
+	// A DeferredTransfer can only be valid if both sender and receiver services exist in dPrime
+	tPrimeFiltered := make([]types.DeferredTransfer, 0, len(tPrime))
+	for _, transfer := range tPrime {
+		if _, senderExists := dPrime[transfer.SenderID]; !senderExists {
+			continue
+		}
+		if _, receiverExists := dPrime[transfer.ReceiverID]; !receiverExists {
+			continue
+		}
+		// Both sender and receiver exist in dPrime, keep this transfer
+		tPrimeFiltered = append(tPrimeFiltered, transfer)
+	}
+	tPrime = tPrimeFiltered
+
 	// Set posterior state
 	{
 		store := store.GetInstance()
