@@ -93,8 +93,9 @@ func SingleStepStateTransition(instructionData ProgramCode, bitmask Bitmask, jum
 
 // block based version of (A.1) ψ_1
 func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
-	gasPrime := Gas(gas)
-	// decode instructions in a block
+	// gasPrime := Gas(gas)
+
+	// in fact, interpreter do not need to decode, this func will check opcode, block validity
 	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
 	if err != nil {
 		pvmLogger.Errorf("DecodeInstructionBlock error : %v", err)
@@ -164,6 +165,22 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	}
 }
 
+func (p *Program) ValidateOpcode(pc ProgramCounter) error {
+	// check pc is not out of range and avoid infinit-loop
+	if pc > ProgramCounter(len(p.InstructionData)) {
+		// pvmLogger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
+		return PVMExitTuple(PANIC, nil)
+	}
+
+	// check opcode is valid after computing with skip
+	if !p.InstructionData.isOpcodeValid(pc) {
+		// pvmLogger.Debugf("PVM panic: decode program failed: opcode invalid")
+		return PVMExitTuple(PANIC, nil)
+	}
+
+	return nil
+}
+
 // execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
 func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable JumpTable, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) {
 	// no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
@@ -190,7 +207,7 @@ func ExecuteInstructions(instructionData ProgramCode, bitmask Bitmask, jumpTable
 		case PANIC, HALT:
 			return 0, registers, memory, gas, exitReason
 		case HOST_CALL:
-			return pc + skipLength + 1, registers, memory, gas, exitReason
+			return pc, registers, memory, gas, exitReason
 		}
 
 		if pc != newPC {

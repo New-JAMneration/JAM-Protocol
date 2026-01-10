@@ -14,13 +14,14 @@ type ExecUnits struct {
 var InitialUnits = ExecUnits{A: 4, L: 4, S: 4, M: 1, D: 1} // x.^(0)
 
 type Reg uint8
+type RegSlices [][]Reg
 
-type State struct {
+type BlockState struct {
 	// ι^(n): next opcode index
-	Iota int
+	Iota ProgramCounter
 
 	// c.^(n): cycle counter
-	Cyc int
+	Cyc Gas
 
 	// n.^(n): ROB index count
 	Next int
@@ -34,8 +35,8 @@ type State struct {
 	// ROB vectors
 	S []uint8     // s->: instruction state: 1. decoded, 2. pending, 3. executing, 4. finished
 	C []int       // c->: remaining exec cycles
-	P [][]int     // p->: pending dependencies
-	R [][]Reg     // r->: destination registers
+	P RegSlices   // p->: pending dependencies
+	R RegSlices   // r->: destination registers
 	X []ExecUnits // x->: units required to start
 
 	// x.^(n): available execution units in current cycle
@@ -46,8 +47,8 @@ type State struct {
 }
 
 // A.51: Ξ₀(ι)
-func InitState(startIota int) *State {
-	return &State{
+func InitBlockState(startIota ProgramCounter) *BlockState {
+	return &BlockState{
 		Iota:           startIota,      // ι^(0)=ι
 		Cyc:            0,              // c.^(0)=0
 		Next:           0,              // n.^(0)=0
@@ -56,11 +57,37 @@ func InitState(startIota int) *State {
 
 		S: make([]uint8, 0, MaxROB),
 		C: make([]int, 0, MaxROB),
-		P: make([][]int, 0, MaxROB),
-		R: make([][]Reg, 0, MaxROB),
+		P: make(RegSlices, 0, MaxROB),
+		R: make(RegSlices, 0, MaxROB),
 		X: make([]ExecUnits, 0, MaxROB),
 
 		UnitsAvail: InitialUnits, // x.^(0)
 		Step:       0,
 	}
+}
+
+func (r *RegSlices) remove1D(j int) {
+	if r == nil || j < 0 || j >= len(*r) {
+		return
+	}
+
+	s := *r
+	copy(s[j:], s[j+1:])
+	s[len(s)-1] = nil
+	*r = s[:len(s)-1]
+}
+
+func (r *RegSlices) remove2D(j, k int) {
+	if r == nil || j < 0 || j >= len(*r) {
+		return
+	}
+
+	inner := (*r)[j]
+	if k < 0 || k >= len(inner) {
+		return
+	}
+
+	copy(inner[k:], inner[k+1:])
+	inner[len(inner)-1] = 0
+	(*r)[j] = inner[:len(inner)-1]
 }
