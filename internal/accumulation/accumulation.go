@@ -441,7 +441,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		mu.Lock()
 		cache[s] = out
-		store.GetInstance().SetPostStateUnmatchedKeyVals(out.UnmatchedKeyVals)
+		// Do not update global store here during parallel execution
+		// UnmatchedKeyVals will be merged after all services complete
 		mu.Unlock()
 
 		return out, nil
@@ -526,6 +527,43 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		// collect blobs updates
 		p = append(p, singleOutput.ServiceBlobs...)
+	}
+
+	// Merge UnmatchedKeyVals from all services using intersection
+	// Each service remove its own keys from UnmatchedKeyVals
+	// Keys removed by other services remain in each service's output
+	// Use intersection to merge UnmatchedKeyVals which not removed by any service
+	{
+		if len(s) > 0 {
+			keyCountMap := make(map[[31]byte]int)               // key -> count of how many services have this key
+			keyValueMap := make(map[[31]byte]types.StateKeyVal) // key -> value of the key
+			serviceCount := 0
+
+			// Count occurrences of each key across all service outputs
+			for service_id := range s {
+				singleOutput, ok := cache[service_id]
+				if !ok {
+					continue
+				}
+				serviceCount++
+				for _, kv := range singleOutput.UnmatchedKeyVals {
+					keyCountMap[kv.Key]++
+					keyValueMap[kv.Key] = kv
+				}
+			}
+
+			// Only keep keys that exist in ALL service outputs (intersection)
+			mergedUnmatchedKeyVals := make(types.StateKeyVals, 0)
+			for key, count := range keyCountMap {
+				if count == serviceCount {
+					// This key exists in all service outputs, keep it
+					mergedUnmatchedKeyVals = append(mergedUnmatchedKeyVals, keyValueMap[key])
+				}
+			}
+
+			// Update the global store with merged result
+			store.GetInstance().SetPostStateUnmatchedKeyVals(mergedUnmatchedKeyVals)
+		}
 	}
 
 	singleOutput, err := runSingleReplaceService(input.PartialStateSet.Bless, singleInput)
@@ -739,8 +777,6 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
 	storageKeyVal := input.UnmatchedKeyVals
 	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
-	// Note: SetPostStateUnmatchedKeyVals is called in runSingleReplaceService with mutex protection
-	// to avoid data race when SingleServiceAccumulation is called concurrently
 
 	// Collect PVM results as output
 	{
