@@ -19,6 +19,7 @@ var zeta = map[opcode]string{
 	// Ins w/o Arg
 	0: "trap",
 	1: "fallthrough",
+	2: "unlikey",
 	// Ins w/ Arg of One Imm
 	10: "ecalli",
 	// Ins w/ Arg of One Reg and One Extended Width Imm
@@ -190,6 +191,7 @@ var execInstructions = [231]func([]byte, ProgramCounter, ProgramCounter, Registe
 	// A.5.1 Instructiopns without Arguments
 	0: instTrap,
 	1: instFallthrough,
+	2: instUnlikey,
 	// A.5.2 Instructions with Arguments of One Immediate
 	10: instEcalli,
 	// A.5.3 Instructions with Arguments of One Register & One Extended With Immediate
@@ -356,6 +358,12 @@ func instFallthrough(instructionCode []byte, pc ProgramCounter, skipLength Progr
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
 
+// opcode 2
+func instUnlikey(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
+	pvmLogger.Debugf("[%d]: pc: %d, %s", instrCount, pc, zeta[opcode(instructionCode[pc])])
+	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
+}
+
 // opcode 10
 //
 //lint:ignore ST1008 error naming here is intentional
@@ -385,12 +393,19 @@ func instEcalli(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 //
 //lint:ignore ST1008 error naming here is intentional
 func instLoadImm64(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter, reg Registers, mem Memory, jumpTable JumpTable, bitmask Bitmask) (error, ProgramCounter, Registers, Memory) {
-	rA := min(12, (int(instructionCode[pc+1]) % 16))
-	// zeta_{iota+2,...,+8}
-	instLength := instructionCode[pc+2 : pc+10]
-	nuX, err := utils.DeserializeFixedLength(instLength, types.U64(8))
+	/*
+		rA := min(12, (int(instructionCode[pc+1]) % 16))
+		// zeta_{iota+2,...,+8}
+		instLength := instructionCode[pc+2 : pc+10]
+		nuX, err := utils.DeserializeFixedLength(instLength, types.U64(8))
+		if err != nil {
+			pvmLogger.Errorf("insLoadImm64 deserialization raise error: %v", err)
+		}
+	*/
+	rA, nuX, err := decodeOneRegisterAndOneExtendedWidthImmediate(instructionCode, pc, skipLength)
 	if err != nil {
-		pvmLogger.Errorf("insLoadImm64 deserialization raise error: %v", err)
+		pvmLogger.Errorf("insLoadImm64 decodeOneRegisterAndOneExtendedWidthImmediate error: %v", err)
+		return err, pc, reg, mem
 	}
 	reg[rA] = uint64(nuX)
 	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], RegName[rA], formatInt(uint64(nuX)))
