@@ -546,9 +546,14 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 					continue
 				}
 				serviceCount++
+				// Deduplicate keys within each service output first
+				serviceKeySet := make(map[[31]byte]bool)
 				for _, kv := range singleOutput.UnmatchedKeyVals {
-					keyCountMap[kv.Key]++
-					keyValueMap[kv.Key] = kv
+					if !serviceKeySet[kv.Key] {
+						serviceKeySet[kv.Key] = true
+						keyCountMap[kv.Key]++
+						keyValueMap[kv.Key] = kv
+					}
 				}
 			}
 
