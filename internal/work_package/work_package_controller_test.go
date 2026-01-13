@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/require"
@@ -36,7 +36,7 @@ func (m *MockFetcher) Fetch(erasureRoot types.OpaqueHash, index types.U16) (type
 }
 
 func TestFetchImportSegments(t *testing.T) {
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	require.NoError(t, err)
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
@@ -92,7 +92,7 @@ func TestFetchImportSegments(t *testing.T) {
 }
 
 func TestWorkPackageController_InitialProcess(t *testing.T) {
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	require.NoError(t, err)
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
@@ -112,7 +112,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 			StorageDict:    nil,
 		},
 	}
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	wp := &types.WorkPackage{
@@ -222,7 +222,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 }
 
 func TestPrepareInputs_Shared(t *testing.T) {
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	require.NoError(t, err)
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
 	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
@@ -242,7 +242,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 			StorageDict:    nil,
 		},
 	}
-	s := store.GetInstance()
+	s := blockchain.GetInstance()
 	s.GetPriorStates().SetDelta(inputDelta)
 
 	wp := &types.WorkPackage{

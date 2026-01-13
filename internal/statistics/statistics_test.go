@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	jamtests_reports "github.com/New-JAMneration/JAM-Protocol/jamtests/reports"
 	jamtests_statistics "github.com/New-JAMneration/JAM-Protocol/jamtests/statistics"
@@ -117,7 +117,7 @@ func TestStatisticsWithReportTestVectors(t *testing.T) {
 		}
 
 		// Set input to store
-		s := store.GetInstance()
+		s := blockchain.GetInstance()
 		s.GetIntermediateStates().SetPresentWorkReports(reports)
 
 		// input
@@ -166,9 +166,9 @@ func TestStatistics(t *testing.T) {
 			return
 		}
 
-		store.ResetInstance()
+		blockchain.ResetInstance()
 		// Set input to store
-		s := store.GetInstance()
+		s := blockchain.GetInstance()
 
 		// input
 		s.GetProcessingBlockPointer().SetSlot(statisticsTestCase.Input.Slot)

@@ -1,7 +1,7 @@
 package testdata
 
 type Testable interface {
-	// Dump the test data to store
+	// Dump the test data to cs
 	Dump() error
 
 	// Get State

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -211,10 +211,10 @@ func (h *HistoryTestCase) Encode(e *types.Encoder) error {
 }
 
 func (h *HistoryTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
 
-	storeInstance.GetPriorStates().SetBeta(h.PreState.Beta)
+	cs.GetPriorStates().SetBeta(h.PreState.Beta)
 
 	mockGuarantessExtrinsic := types.GuaranteesExtrinsic{}
 	for _, workPackage := range h.Input.WorkPackages {
@@ -240,14 +240,14 @@ func (h *HistoryTestCase) Dump() error {
 			Guarantees: mockGuarantessExtrinsic,
 		},
 	}
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 
 	// We do part of STF here, due to the .asn file giving the intermediate value
 	beefyBelt := h.PreState.Beta.Mmr
 	merkleRoot := h.Input.AccumulateRoot
 	beefyBeltPrime, commitment := recent_history.AppendAndCommitMmr(beefyBelt, merkleRoot)
-	storeInstance.GetIntermediateStates().SetMmrCommitment(commitment)
-	storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)
+	cs.GetIntermediateStates().SetMmrCommitment(commitment)
+	cs.GetPosteriorStates().SetBetaB(beefyBeltPrime)
 
 	return nil
 }
@@ -266,10 +266,10 @@ func (h *HistoryTestCase) ExpectError() error {
 }
 
 func (h *HistoryTestCase) Validate() error {
-	s := store.GetInstance()
+	cs := blockchain.GetInstance()
 	// === (4.6) ===
-	// Get result of BetaDagger from store
-	HistoryDagger := s.GetIntermediateStates().GetBetaHDagger()
+	// Get result of BetaDagger from cs
+	HistoryDagger := cs.GetIntermediateStates().GetBetaHDagger()
 
 	// length of BetaDagger should not exceed maxBlocksHistory
 	if err := HistoryDagger.Validate(); err != nil {
@@ -277,8 +277,8 @@ func (h *HistoryTestCase) Validate() error {
 	}
 
 	// === (4.7) ===
-	// Get result of (7.4), beta^prime, from store
-	betaPrime := s.GetPosteriorStates().GetBeta()
+	// Get result of (7.4), beta^prime, from cs
+	betaPrime := cs.GetPosteriorStates().GetBeta()
 	if err := betaPrime.History.Validate(); err != nil {
 		return err
 	} else if len(betaPrime.History) < 1 {

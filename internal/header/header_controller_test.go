@@ -483,7 +483,7 @@ func TestCreateExtrinsicHash(t *testing.T) {
 // 		},
 // 	}
 
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 // 	// Initialize the store
 // 	for _, tc := range testCases {
 // 		s.AddPosteriorCurrentValidator(types.Validator{
@@ -509,7 +509,7 @@ func TestCreateExtrinsicHash(t *testing.T) {
 // 	now := time.Now().UTC()
 // 	secondsSinceJam := uint64(now.Sub(types.JamCommonEra).Seconds())
 
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 // 	s.AddAncestorHeader(types.Header{
 // 		Slot: types.TimeSlot((secondsSinceJam + 100) / uint64(types.SlotPeriod)),
 // 	})
@@ -529,7 +529,7 @@ func TestCreateExtrinsicHash(t *testing.T) {
 // }
 
 // func TestGetAncenstorHeadersTooOld(t *testing.T) {
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 // 	s.AddAncestorHeader(types.Header{
 // 		Slot: 0,
 // 	})

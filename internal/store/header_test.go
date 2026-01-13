@@ -1,11 +1,11 @@
-package repository_test
+package store_test
 
 import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/test-go/testify/require"
@@ -13,7 +13,7 @@ import (
 
 func TestSaveAndGetCanonicalHash(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	slot := types.TimeSlot(1)
 	headerHash := types.HeaderHash{0x01, 0x02, 0x03}
@@ -28,7 +28,7 @@ func TestSaveAndGetCanonicalHash(t *testing.T) {
 
 func TestSaveAndGetHeader(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	header := &types.Header{
 		Slot: 1,
@@ -48,7 +48,7 @@ func TestSaveAndGetHeader(t *testing.T) {
 
 func TestDeleteHeader(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	header := &types.Header{
 		Slot: 1,
@@ -70,7 +70,7 @@ func TestDeleteHeader(t *testing.T) {
 
 func TestGetHeaderTimeSlot(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	header := &types.Header{
 		Slot: 1,
@@ -89,7 +89,7 @@ func TestGetHeaderTimeSlot(t *testing.T) {
 
 func TestGetHeaderHashesByTimeSlot(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	slot := types.TimeSlot(1)
 	header1 := &types.Header{

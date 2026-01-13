@@ -3,7 +3,7 @@ package safrole
 import (
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SaforleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
 )
@@ -119,7 +119,7 @@ func TestVerifyEpochTail(t *testing.T) {
 
 	for _, tc := range testCases {
 		// Set posterior state tau
-		s := store.GetInstance()
+		s := blockchain.GetInstance()
 		s.GetPosteriorStates().SetTau(tc.slot)
 
 		err := VerifyEpochTail(tc.tickets)

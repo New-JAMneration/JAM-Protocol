@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
@@ -105,7 +105,7 @@ func TestValidateAnchor(t *testing.T) {
 			})
 	}
 
-	store.GetInstance().AddBlock(types.Block{
+	blockchain.GetInstance().AddBlock(types.Block{
 		Header: types.Header{
 			Parent: input.Parent,
 		},
@@ -266,7 +266,7 @@ func TestValidateSignature(t *testing.T) {
 		},
 	}
 
-	store.GetInstance().GetPriorStates().SetKappa(kappa)
+	blockchain.GetInstance().GetPriorStates().SetKappa(kappa)
 
 	err = assuranceExtrinsic.ValidateSignature()
 	if err == nil {
@@ -324,7 +324,7 @@ func TestValidateSignature(t *testing.T) {
 			Timeout: types.TimeSlot(11),
 		}
 		assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
-		store.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
+		blockchain.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
 		err = assuranceExtrinsic.ValidateBitField()
 		if err == nil {
 			t.Errorf("Expected error, but validate")
@@ -424,15 +424,15 @@ func TestFilterAvailableReports(t *testing.T) {
 		Timeout: types.TimeSlot(11),
 	}
 	assuranceExtrinsic.BitfieldOctetSequenceToBinarySequence()
-	store.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
-	store.GetInstance().AddBlock(types.Block{
+	blockchain.GetInstance().GetIntermediateStates().SetRhoDagger(rhoDagger)
+	blockchain.GetInstance().AddBlock(types.Block{
 		Header: types.Header{
 			Slot: input.Slot,
 		},
 	})
 	assuranceExtrinsic.FilterAvailableReports()
 
-	rhoDoubleDagger := store.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
+	rhoDoubleDagger := blockchain.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
 
 	expected := rhoDagger
 	expected[0] = nil
@@ -497,9 +497,9 @@ func TestAssuranceTestVectors(t *testing.T) {
 			t.Errorf("Error: %v", err)
 		}
 
-		// Get store instance and required states
-		store.ResetInstance()
-		s := store.GetInstance()
+		// Get blockchain instance and required states
+		blockchain.ResetInstance()
+		s := blockchain.GetInstance()
 
 		// Add block
 		s.GetPriorStates().SetKappa(a.PreState.CurrValidators)

@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	jamtests_accmuluate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
@@ -306,7 +306,7 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 			{h1},
 		},
 	}
-	redisBackend, _ := store.GetRedisBackend()
+	redisBackend, _ := blockchain.GetRedisBackend()
 	encoder := types.NewEncoder()
 	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
 	if err != nil {
@@ -362,7 +362,7 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 			},
 		},
 	}
-	redisBackend, _ := store.GetRedisBackend()
+	redisBackend, _ := blockchain.GetRedisBackend()
 	e := types.NewEncoder()
 	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
 	if err != nil {

@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/recent_history"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	jamtests_history "github.com/New-JAMneration/JAM-Protocol/jamtests/history"
@@ -50,8 +50,8 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		/*
 			STORE
 		*/
-		store.ResetInstance()
-		storeInstance := store.GetInstance()
+		blockchain.ResetInstance()
+		storeInstance := blockchain.GetInstance()
 		// Set prior state recent history ( beta_H )
 		storeInstance.GetPriorStates().SetBeta(history.PreState.Beta)
 		// Set extrinsic

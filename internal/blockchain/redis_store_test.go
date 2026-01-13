@@ -1,18 +1,51 @@
-package store_test
+package blockchain
 
 import (
+	"os"
+	"sync"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestStorePersistsBlocks(t *testing.T) {
-	store.ResetInstance()
+func tearDown() {
+	redisInitOnce = sync.Once{}
+	CloseMiniRedis()
+	initOnce = sync.Once{}
+	globalChainState = nil
+	os.Unsetenv("USE_MINI_REDIS")
+}
 
-	store := store.GetInstance()
+func TestGetRedisBackendSuccess(t *testing.T) {
+	defer tearDown()
+	os.Setenv("USE_MINI_REDIS", "true")
+	_, err := GetRedisBackend()
+	assert.NoError(t, err, "should not fail calling GetRedisClient again")
+}
+
+func TestGetRedisClientIdempotent(t *testing.T) {
+	defer tearDown()
+	os.Setenv("USE_MINI_REDIS", "true")
+
+	backend, err := GetRedisBackend()
+	assert.NoError(t, err, "should not fail calling GetRedisClient again")
+
+	backend2, err := GetRedisBackend()
+	assert.NoError(t, err, "should not fail calling GetRedisClient again")
+
+	assert.Equal(t, backend, backend2, "expected the same *RedisClient object due to sync.Once")
+}
+
+func TestStorePersistsBlocksInRedis(t *testing.T) {
+	defer tearDown()
+	os.Setenv("USE_MINI_REDIS", "true")
+
+	ResetInstance()
+
+	store := GetInstance()
 	block := types.Block{
 		Header: types.Header{
 			Slot:   123,
@@ -49,7 +82,8 @@ func TestStorePersistsBlocks(t *testing.T) {
 		},
 	}
 
-	store.AddBlock(block)
+	err := store.persistBlockMapping(block)
+	require.NoError(t, err, "persistBlockMapping should succeed")
 
 	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
 	require.NoError(t, err, "computeBlockHeaderHash should succeed")

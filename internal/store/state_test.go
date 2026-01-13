@@ -1,18 +1,18 @@
-package repository_test
+package store_test
 
 import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/repository"
+	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSaveAndGetStateRootByHeaderHash(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash([32]byte{1, 2, 3, 4, 5})
 	stateRoot := types.StateRoot([32]byte{10, 20, 30, 40, 50})
@@ -25,7 +25,7 @@ func TestSaveAndGetStateRootByHeaderHash(t *testing.T) {
 
 func TestGetNonExistentStateRoot(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash([32]byte{1, 2, 3, 4, 5})
 	_, err := repo.GetStateRootByHeaderHash(db, headerHash)
@@ -34,7 +34,7 @@ func TestGetNonExistentStateRoot(t *testing.T) {
 
 func TestSaveAndGetStateData(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	stateRoot := types.StateRoot([32]byte{10, 20, 30, 40, 50})
 	stateData := types.StateKeyVals{
@@ -56,7 +56,7 @@ func TestSaveAndGetStateData(t *testing.T) {
 
 func TestGetNonExistentStateData(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	stateRoot := types.StateRoot([32]byte{10, 20, 30, 40, 50})
 	_, err := repo.GetStateData(db, stateRoot)
@@ -65,7 +65,7 @@ func TestGetNonExistentStateData(t *testing.T) {
 
 func TestGetStateDataByHeaderHash(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash([32]byte{1, 2, 3, 4, 5})
 	stateRoot := types.StateRoot([32]byte{10, 20, 30, 40, 50})
@@ -86,7 +86,7 @@ func TestGetStateDataByHeaderHash(t *testing.T) {
 
 func TestGetStateDataByNonExistentHeaderHash(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash := types.HeaderHash([32]byte{1, 2, 3, 4, 5})
 	_, err := repo.GetStateDataByHeaderHash(db, headerHash)
@@ -95,7 +95,7 @@ func TestGetStateDataByNonExistentHeaderHash(t *testing.T) {
 
 func TestMultipleStateRoots(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	headerHash1 := types.HeaderHash([32]byte{1, 1, 1, 1, 1})
 	stateRoot1 := types.StateRoot([32]byte{10, 10, 10, 10, 10})
@@ -127,7 +127,7 @@ func TestMultipleStateRoots(t *testing.T) {
 
 func TestSaveStateDataWithEmptyStateKeyVals(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	stateRoot := types.StateRoot([32]byte{10, 20, 30, 40, 50})
 	stateData := types.StateKeyVals{}
@@ -140,7 +140,7 @@ func TestSaveStateDataWithEmptyStateKeyVals(t *testing.T) {
 
 func TestSaveStateDataWithMultipleKeyVals(t *testing.T) {
 	db := memory.NewDatabase()
-	repo := repository.NewRepository(db)
+	repo := store.NewRepository(db)
 
 	stateRoot := types.StateRoot([32]byte{30, 40, 50, 60, 70})
 	stateData := types.StateKeyVals{

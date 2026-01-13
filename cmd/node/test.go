@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -133,19 +133,17 @@ For example:
 			if err != nil {
 				logger.Fatalf("Failed to parse state key-vals to state: %v", err)
 			}
-
-			store.GetInstance().SetPriorStateUnmatchedKeyVals(keyVals)
-
-			instance := store.GetInstance()
-			instance.GenerateGenesisBlock(genesisBlock)
-			instance.GenerateGenesisState(state)
+			cs := blockchain.GetInstance()
+			cs.SetPriorStateUnmatchedKeyVals(keyVals)
+			cs.GenerateGenesisBlock(genesisBlock)
+			cs.GenerateGenesisState(state)
 		}
 
 		for idx, testFile := range testFiles {
 			logger.Infof("------------------{%v, %s}--------------------", idx+1, testFile.Name)
 			if testType == "trace" {
 				// post-state update to pre-state, tau_prime+1
-				store.GetInstance().StateCommit()
+				blockchain.GetInstance().StateCommit()
 			}
 
 			data, err := reader.ParseTestData(testFile.Data)
@@ -187,8 +185,9 @@ For example:
 				// stf occurs error
 				if outputErr != nil {
 					logger.Errorf("stf output error %v:", outputErr)
-					priorState := store.GetInstance().GetPriorStates().GetState()
-					store.GetInstance().GetPosteriorStates().SetState(priorState)
+					cs := blockchain.GetInstance()
+					priorState := cs.GetPriorStates().GetState()
+					cs.GetPosteriorStates().SetState(priorState)
 				}
 
 				err := data.Validate()

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 )
 
 func TestConnectionDialAndClose(t *testing.T) {
@@ -15,7 +15,7 @@ func TestConnectionDialAndClose(t *testing.T) {
 	defer cancel()
 
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
-	defer store.CloseMiniRedis()
+	defer blockchain.CloseMiniRedis()
 
 	listenAddr := "localhost:0"
 	quicCfg := NewQuicConfig()

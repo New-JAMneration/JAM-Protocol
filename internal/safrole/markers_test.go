@@ -10,7 +10,7 @@ package safrole
 // )
 
 // func TestCreateEpochMarkerNewEpoch(t *testing.T) {
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	priorTau := types.TimeSlot(types.EpochLength - 1)
 // 	posteriorTau := types.TimeSlot(types.EpochLength)
@@ -83,7 +83,7 @@ package safrole
 // }
 
 // func TestCreateEpochMarkerSameEpoch(t *testing.T) {
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	priorTau := types.TimeSlot(types.EpochLength - 2)
 // 	posteriorTau := types.TimeSlot(types.EpochLength - 1)
@@ -179,7 +179,7 @@ package safrole
 // 		},
 // 	}
 
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	// Simulate previous time slot to trigger create epoch marker
 // 	priorTau := types.TimeSlot(types.EpochLength - 1)
@@ -225,7 +225,7 @@ package safrole
 
 // func TestCreateWinningTicketsPassFullConditions(t *testing.T) {
 // 	// Prepare test data
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	// Simulate different epoch and pass slot index condition
 // 	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
@@ -299,7 +299,7 @@ package safrole
 // // Different epoch, no epoch marker should be created
 // func TestCreateWinningTicketsDifferentEpoch(t *testing.T) {
 // 	// Prepare test data
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	// Simulate different epoch and pass slot index condition
 // 	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
@@ -375,7 +375,7 @@ package safrole
 // // No winning tickets should be created
 // func TestCreateWinningTicketsSlotIndexNotEndOfSubmission(t *testing.T) {
 // 	// Prepare test data
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	priorTau := types.TimeSlot(0)
 // 	posterTau := types.TimeSlot(1)
@@ -450,7 +450,7 @@ package safrole
 // // No winning tickets should be created
 // func TestCreateWinningTicketsGammaALengthNotEqualEpochLength(t *testing.T) {
 // 	// Prepare test data
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	priorTau := types.TimeSlot(types.SlotSubmissionEnd - 1)
 // 	posterTau := types.TimeSlot(types.SlotSubmissionEnd)
@@ -485,7 +485,7 @@ package safrole
 // 	testPosteriorSlotIndex := 10
 
 // 	// Prepare test data
-// 	s := store.GetInstance()
+// 	s := blockchain.GetInstance()
 
 // 	// Simulate different epoch and pass slot index condition
 // 	priorTau := types.TimeSlot(testPriorEpochIndex*types.EpochLength + testPriorSlotIndex)
@@ -683,7 +683,7 @@ package safrole
 // 	}
 
 // 	for _, tc := range testCases {
-// 		s := store.GetInstance()
+// 		s := blockchain.GetInstance()
 
 // 		// Set the time slot
 // 		s.GetPriorStates().SetTau(tc.preTau)

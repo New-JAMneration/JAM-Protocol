@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
@@ -80,11 +80,11 @@ func SetupJAMProtocol(chainPath string) {
 	log.SetOutput(os.Stdout)
 	log.Println("🚀 Start JAM Protocol")
 
-	s := store.GetInstance()
+	cs := blockchain.GetInstance()
 	ctx := context.Background()
 
 	if chainPath != "" {
-		spec, err := store.GetChainSpecFromJson(chainPath)
+		spec, err := blockchain.GetChainSpecFromJson(chainPath)
 		if err != nil {
 			log.Fatalf("failed to load chainspec: %v", err)
 		}
@@ -104,7 +104,7 @@ func SetupJAMProtocol(chainPath string) {
 			log.Fatalf("failed to decode genesis_header hex: %v", err)
 		}
 
-		hdr, err := store.DecodeHeaderFromBin(hdrBytes)
+		hdr, err := blockchain.DecodeHeaderFromBin(hdrBytes)
 		if err != nil {
 			log.Fatalf("failed to decode genesis_header bytes: %v", err)
 		}
@@ -114,7 +114,7 @@ func SetupJAMProtocol(chainPath string) {
 			log.Fatalf("failed to decode genesis_state: %v", err)
 		}
 
-		genesisHash, stateRoot, err := s.SeedGenesisToBackend(ctx, *hdr, kvs)
+		genesisHash, stateRoot, err := cs.SeedGenesisToBackend(ctx, *hdr, kvs)
 		if err != nil {
 			log.Fatalf("failed to seed genesis to backend: %v", err)
 		}
@@ -130,7 +130,7 @@ func SetupJAMProtocol(chainPath string) {
 			},
 		}
 
-		s.GenerateGenesisBlock(genesisBlock)
+		cs.GenerateGenesisBlock(genesisBlock)
 
 		log.Printf("✅ Genesis seeded")
 		log.Printf("  genesis_hash: 0x%s", hex.EncodeToString(genesisHash[:]))
@@ -176,10 +176,10 @@ func SetupJAMProtocol(chainPath string) {
 		},
 	}
 
-	s.GenerateGenesisBlock(genesisBlock)
+	cs.GenerateGenesisBlock(genesisBlock)
 
 	logger.Info("Genesis block parent header hash:")
-	logger.Infof("0x%s", hex.EncodeToString(s.GetBlocks()[0].Header.Parent[:]))
+	logger.Infof("0x%s", hex.EncodeToString(cs.GetBlocks()[0].Header.Parent[:]))
 }
 
 func main() {

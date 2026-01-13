@@ -6,7 +6,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 )
@@ -319,8 +319,8 @@ func (a *AuthorizationTestCase) Encode(e *types.Encoder) error {
 
 // TODO: Implement Dump method
 func (a *AuthorizationTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
 
 	// Set up test input state
 	mockEgs := make(types.GuaranteesExtrinsic, 0, len(a.Input.Auths))
@@ -341,10 +341,10 @@ func (a *AuthorizationTestCase) Dump() error {
 			Guarantees: mockEgs,
 		},
 	}
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 
-	storeInstance.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
-	storeInstance.GetPriorStates().SetAlpha(a.PreState.Alpha)
+	cs.GetPosteriorStates().SetVarphi(a.PostState.Varphi)
+	cs.GetPriorStates().SetAlpha(a.PreState.Alpha)
 	return nil
 }
 
@@ -362,10 +362,10 @@ func (a *AuthorizationTestCase) ExpectError() error {
 }
 
 func (a *AuthorizationTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get output state
-	outputAlpha := storeInstance.GetPosteriorStates().GetAlpha()
+	outputAlpha := cs.GetPosteriorStates().GetAlpha()
 
 	// Validate output state
 	if !reflect.DeepEqual(a.PreState.Varphi, a.PostState.Varphi) {
