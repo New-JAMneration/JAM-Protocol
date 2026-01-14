@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/require"
@@ -15,7 +15,7 @@ func TestNode_SetupJAMProtocol_SeedsGenesisFromChainSpec_ToRedis(t *testing.T) {
 	chainPath := "./test_data/dev.chainspec.json"
 	// chainPath := "./test_data/jamduna-spec.json"
 
-	spec, err := store.GetChainSpecFromJson(chainPath)
+	spec, err := blockchain.GetChainSpecFromJson(chainPath)
 	require.NoError(t, err)
 
 	pp, err := spec.ParseProtocolParameters()
@@ -24,13 +24,13 @@ func TestNode_SetupJAMProtocol_SeedsGenesisFromChainSpec_ToRedis(t *testing.T) {
 
 	hdrBytes, err := spec.GenesisHeaderBytes()
 	require.NoError(t, err)
-	hdr, err := store.DecodeHeaderFromBin(hdrBytes)
+	hdr, err := blockchain.DecodeHeaderFromBin(hdrBytes)
 	require.NoError(t, err)
 
 	kvs, err := spec.GenesisStateKeyVals()
 	require.NoError(t, err)
 
-	wantInputKVs, wantRoot, err := store.BuildStateRootInputKeyValsAndRoot(kvs)
+	wantInputKVs, wantRoot, err := blockchain.BuildStateRootInputKeyValsAndRoot(kvs)
 	require.NoError(t, err)
 
 	genesisHashBytes, err := hash.ComputeBlockHeaderHash(*hdr)
@@ -39,7 +39,7 @@ func TestNode_SetupJAMProtocol_SeedsGenesisFromChainSpec_ToRedis(t *testing.T) {
 
 	SetupJAMProtocol(chainPath)
 
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	require.NoError(t, err)
 
 	ctx := context.Background()

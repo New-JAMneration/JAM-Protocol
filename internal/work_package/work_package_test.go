@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -214,7 +214,7 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		t.Errorf("expected non-empty bundle")
 	}
 
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		t.Fatalf("Failed to get redis backend: %v", err)
 	}

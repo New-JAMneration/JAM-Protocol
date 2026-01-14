@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
@@ -46,11 +46,11 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	logger.Debugf("%s Processing...", ctx)
 
 	// Get the latest block
-	storeInstance := store.GetInstance()
+	cs := blockchain.GetInstance()
 
-	blocks := storeInstance.GetBlocks()
+	blocks := cs.GetBlocks()
 	if len(blocks) > 0 {
-		latestBlock := storeInstance.GetLatestBlock()
+		latestBlock := cs.GetLatestBlock()
 
 		latestBlockHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
 		if err != nil {
@@ -60,7 +60,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		if latestBlockHash != block.Header.Parent && latestBlockHash != headerHash {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
 			// Try the restore block and state
-			err := storeInstance.RestoreBlockAndState(block.Header.Parent)
+			err := cs.RestoreBlockAndState(block.Header.Parent)
 			if err != nil {
 				return types.StateRoot{}, fmt.Errorf("failed to restore block and state after parent mismatch: %w", err)
 			}
@@ -68,13 +68,13 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	}
 
 	// Get the latest state root
-	latestState := storeInstance.GetPriorStates().GetState()
+	latestState := cs.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
-	priorUnmatchedKeyVals := storeInstance.GetPriorStateUnmatchedKeyVals()
+	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
 	serializedState = append(priorUnmatchedKeyVals, serializedState...)
 	latestStateRoot := m.MerklizationSerializedState(serializedState)
 
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
 
 	// Run the STF and get the state root
@@ -92,18 +92,18 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return latestStateRoot, err
 	}
 
-	latestState = storeInstance.GetPosteriorStates().GetState()
+	latestState = cs.GetPosteriorStates().GetState()
 	serializedState, err = m.StateEncoder(latestState)
 	if err != nil {
 		logger.Errorf("%s state encoder error: %v", ctx, err)
 		return types.StateRoot{}, err
 	}
-	postUnmatchedKeyVals := storeInstance.GetPostStateUnmatchedKeyVals()
+	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyVals()
 	serializedState = append(postUnmatchedKeyVals, serializedState...)
 	latestStateRoot = m.MerklizationSerializedState(serializedState)
 
 	// Commit the state and persist the state to Redis
-	storeInstance.StateCommit()
+	cs.StateCommit()
 
 	return latestStateRoot, nil
 }
@@ -118,15 +118,15 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	logger.Debugf("%s Processing...", ctx)
 
 	// Reset State and Blocks
-	store.ClearVerifierCache()
-	store.ResetInstance()
+	blockchain.ClearVerifierCache()
+	blockchain.ResetInstance()
 
 	// Set State
-	storeInstance := store.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Append ancestry if provided
 	if len(ancestry) > 0 {
-		storeInstance.AppendAncestry(ancestry)
+		cs.AppendAncestry(ancestry)
 		logger.Debugf("%s Appended %d ancestry items", ctx, len(ancestry))
 		// logger.Debugf("%s Ancestry items: %v", ctx, ancestry)
 	}
@@ -142,21 +142,21 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// calls can restore using the genesis header hash via RestoreBlockAndState.
 
 	// Prepare posterior state to match the initialized state.
-	storeInstance.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
-	storeInstance.GetPosteriorStates().SetState(state)
+	cs.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
+	cs.GetPosteriorStates().SetState(state)
 
 	// Add the genesis block to the in-memory block list.
 	genesisBlock := types.Block{
 		Header: header,
 	}
-	storeInstance.AddBlock(genesisBlock)
+	cs.AddBlock(genesisBlock)
 
 	// Persist block + state to Redis and record ancestry via StateCommit.
-	storeInstance.StateCommit()
+	cs.StateCommit()
 
 	// Empty posterior state
-	posteriorStates := store.NewPosteriorStates()
-	storeInstance.GetPosteriorStates().SetState(posteriorStates.GetState())
+	posteriorStates := blockchain.NewPosteriorStates()
+	cs.GetPosteriorStates().SetState(posteriorStates.GetState())
 
 	serializedState, _ := m.StateEncoder(state)
 
@@ -171,9 +171,9 @@ func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyV
 	hashStr := hex.EncodeToString(headerHash[:])
 	slot := uint32(0)
 	epoch := uint32(0)
-	storeInstance := store.GetInstance()
+	cs := blockchain.GetInstance()
 	// Try to get block to extract slot/epoch
-	block, err := storeInstance.GetBlockByHash(headerHash)
+	block, err := cs.GetBlockByHash(headerHash)
 	if err == nil {
 		slot = uint32(block.Header.Slot) % uint32(types.EpochLength)
 		epoch = uint32(block.Header.Slot) / uint32(types.EpochLength)
@@ -181,7 +181,7 @@ func (s *FuzzServiceStub) GetState(headerHash types.HeaderHash) (types.StateKeyV
 
 	ctx := logger.FormatContext(hashStr, slot, epoch, "GetState")
 
-	state, err := storeInstance.GetStateByBlockHash(headerHash)
+	state, err := cs.GetStateByBlockHash(headerHash)
 	if err != nil {
 		logger.Errorf("%s failed to get state: %v", ctx, err)
 		return nil, err

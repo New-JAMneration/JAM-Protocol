@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -826,11 +826,11 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 
 // TODO: Implement Dump method
 func (a *AccumulateTestCase) Dump() error {
-	store.ResetInstance()
-	s := store.GetInstance()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
 
 	// Set time slot
-	s.GetPriorStates().SetTau(a.PreState.Slot)
+	cs.GetPriorStates().SetTau(a.PreState.Slot)
 
 	// Add block with header slot
 	block := types.Block{
@@ -838,30 +838,30 @@ func (a *AccumulateTestCase) Dump() error {
 			Slot: a.Input.Slot,
 		},
 	}
-	s.AddBlock(block)
-	s.GetPosteriorStates().SetTau(a.Input.Slot)
+	cs.AddBlock(block)
+	cs.GetPosteriorStates().SetTau(a.Input.Slot)
 
 	// Set entropy
-	s.GetPriorStates().SetEta(types.EntropyBuffer{a.PreState.Entropy})
-	s.GetPosteriorStates().SetEta0(a.PreState.Entropy)
+	cs.GetPriorStates().SetEta(types.EntropyBuffer{a.PreState.Entropy})
+	cs.GetPosteriorStates().SetEta0(a.PreState.Entropy)
 
 	// Set ready queue
-	s.GetPriorStates().SetTheta(a.PreState.ReadyQueue)
+	cs.GetPriorStates().SetTheta(a.PreState.ReadyQueue)
 
 	// Set accumulated reports
-	s.GetPriorStates().SetXi(a.PreState.Accumulated)
+	cs.GetPriorStates().SetXi(a.PreState.Accumulated)
 
 	// Set privileges
-	s.GetPriorStates().SetChi(a.PreState.Privileges)
+	cs.GetPriorStates().SetChi(a.PreState.Privileges)
 
 	// Set accounts
 	inputDelta := ParseAccountToServiceAccountState(a.PreState.Accounts)
-	s.GetPriorStates().SetDelta(inputDelta)
+	cs.GetPriorStates().SetDelta(inputDelta)
 
 	sort.Slice(a.Input.Reports, func(i, j int) bool {
 		return a.Input.Reports[i].CoreIndex < a.Input.Reports[j].CoreIndex
 	})
-	s.GetIntermediateStates().SetAvailableWorkReports(a.Input.Reports)
+	cs.GetIntermediateStates().SetAvailableWorkReports(a.Input.Reports)
 	return nil
 }
 
@@ -881,21 +881,21 @@ func (a *AccumulateTestCase) ExpectError() error {
 }
 
 func (a *AccumulateTestCase) Validate() error {
-	s := store.GetInstance()
+	cs := blockchain.GetInstance()
 	// Validate time slot
-	if s.GetPosteriorStates().GetTau() != a.PostState.Slot {
-		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, s.GetPosteriorStates().GetTau())
-		return fmt.Errorf("time slot does not match expected: %v, but got %v", a.PostState.Slot, s.GetPosteriorStates().GetTau())
+	if cs.GetPosteriorStates().GetTau() != a.PostState.Slot {
+		log.Printf(Red+"Time slot does not match expected: %v, but got %v"+Reset, a.PostState.Slot, cs.GetPosteriorStates().GetTau())
+		return fmt.Errorf("time slot does not match expected: %v, but got %v", a.PostState.Slot, cs.GetPosteriorStates().GetTau())
 	}
 
 	// Validate entropy
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetEta(), types.EntropyBuffer{a.PostState.Entropy}) {
-		log.Printf(Red+"Entropy does not match expected: %v, but got %v"+Reset, a.PostState.Entropy, s.GetPosteriorStates().GetEta())
-		return fmt.Errorf("entropy does not match expected: %v, but got %v", a.PostState.Entropy, s.GetPosteriorStates().GetEta())
+	if !reflect.DeepEqual(cs.GetPosteriorStates().GetEta(), types.EntropyBuffer{a.PostState.Entropy}) {
+		log.Printf(Red+"Entropy does not match expected: %v, but got %v"+Reset, a.PostState.Entropy, cs.GetPosteriorStates().GetEta())
+		return fmt.Errorf("entropy does not match expected: %v, but got %v", a.PostState.Entropy, cs.GetPosteriorStates().GetEta())
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	ourTheta := s.GetPosteriorStates().GetTheta()
+	ourTheta := cs.GetPosteriorStates().GetTheta()
 	if !reflect.DeepEqual(ourTheta, a.PostState.ReadyQueue) {
 		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
 		for i := range ourTheta {
@@ -914,16 +914,16 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Validate accumulated reports (passed by implementing sort)
-	if !cmp.Equal(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty()) {
-		diff := cmp.Diff(s.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty())
-		log.Printf(Red+"Accumulated reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
-		return fmt.Errorf("accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, s.GetPosteriorStates().GetXi(), diff)
+	if !cmp.Equal(cs.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(cs.GetPosteriorStates().GetXi(), a.PostState.Accumulated, cmpopts.EquateEmpty())
+		log.Printf(Red+"Accumulated reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.Accumulated, cs.GetPosteriorStates().GetXi(), diff)
+		return fmt.Errorf("accumulated reports do not match expected:\n%v,but got \n%v\nDiff:\n%v", a.PostState.Accumulated, cs.GetPosteriorStates().GetXi(), diff)
 	}
 
 	// Validate privileges (passed)
-	if !reflect.DeepEqual(s.GetPosteriorStates().GetChi(), a.PostState.Privileges) {
-		log.Printf(Red+"Privileges do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Privileges, s.GetPosteriorStates().GetChi())
-		return fmt.Errorf("privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, s.GetPosteriorStates().GetChi())
+	if !reflect.DeepEqual(cs.GetPosteriorStates().GetChi(), a.PostState.Privileges) {
+		log.Printf(Red+"Privileges do not match expected:\n%v,\nbut got %v"+Reset, a.PostState.Privileges, cs.GetPosteriorStates().GetChi())
+		return fmt.Errorf("privileges do not match expected:\n%v,\nbut got %v", a.PostState.Privileges, cs.GetPosteriorStates().GetChi())
 	}
 
 	// FIXME: Before validating statistics, we need to execute the update_preimage and update statistics functions
@@ -932,8 +932,8 @@ func (a *AccumulateTestCase) Validate() error {
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
 	serviceIds := []types.ServiceId{}
-	ourStatisticsServices := s.GetPosteriorStates().GetServicesStatistics()
-	accumulationStatisitcs := s.GetIntermediateStates().GetAccumulationStatistics()
+	ourStatisticsServices := cs.GetPosteriorStates().GetServicesStatistics()
+	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 
 	for serviceId := range accumulationStatisitcs {
 		serviceIds = append(serviceIds, serviceId)
@@ -964,8 +964,8 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate statistics
 	if a.PostState.Statistics == nil {
 		// we ignore case don't compare statistics
-	} else if !reflect.DeepEqual(s.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
-		got := s.GetPosteriorStates().GetServicesStatistics()
+	} else if !reflect.DeepEqual(cs.GetPosteriorStates().GetServicesStatistics(), a.PostState.Statistics) {
+		got := cs.GetPosteriorStates().GetServicesStatistics()
 		expected := a.PostState.Statistics
 
 		// TEMP FIX: ignore ejected service (ID = 2) for comparison
@@ -983,7 +983,7 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Delta
 	// FIXME: Review after PVM stable
 	expectedDelta := ParseAccountToServiceAccountState(a.PostState.Accounts)
-	actualDelta := s.GetIntermediateStates().GetDeltaDoubleDagger()
+	actualDelta := cs.GetIntermediateStates().GetDeltaDoubleDagger()
 
 	for key, expectedAcc := range expectedDelta {
 		actualAcc, ok := actualDelta[key]

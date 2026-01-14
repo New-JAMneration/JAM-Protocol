@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/google/go-cmp/cmp"
@@ -546,27 +546,27 @@ func (t *SafroleTestCase) Encode(e *types.Encoder) error {
 }
 
 func (s *SafroleTestCase) Dump() error {
-	store.ResetInstance()
-	storeInstance := store.GetInstance()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
 
-	storeInstance.GetPriorStates().SetTau(s.PreState.Tau)
-	storeInstance.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
-	storeInstance.GetPosteriorStates().SetTau(s.Input.Slot)
+	cs.GetPriorStates().SetTau(s.PreState.Tau)
+	cs.GetProcessingBlockPointer().SetSlot(s.Input.Slot)
+	cs.GetPosteriorStates().SetTau(s.Input.Slot)
 
-	storeInstance.GetPriorStates().SetEta(s.PreState.Eta)
+	cs.GetPriorStates().SetEta(s.PreState.Eta)
 	// Set eta^prime_0 here
 	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
-	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	cs.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 
-	storeInstance.GetPriorStates().SetLambda(s.PreState.Lambda)
-	storeInstance.GetPriorStates().SetKappa(s.PreState.Kappa)
-	storeInstance.GetPriorStates().SetGammaK(s.PreState.GammaK)
-	storeInstance.GetPriorStates().SetIota(s.PreState.Iota)
-	storeInstance.GetPriorStates().SetGammaA(s.PreState.GammaA)
-	storeInstance.GetPriorStates().SetGammaS(s.PreState.GammaS)
-	storeInstance.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
+	cs.GetPriorStates().SetLambda(s.PreState.Lambda)
+	cs.GetPriorStates().SetKappa(s.PreState.Kappa)
+	cs.GetPriorStates().SetGammaK(s.PreState.GammaK)
+	cs.GetPriorStates().SetIota(s.PreState.Iota)
+	cs.GetPriorStates().SetGammaA(s.PreState.GammaA)
+	cs.GetPriorStates().SetGammaS(s.PreState.GammaS)
+	cs.GetPriorStates().SetGammaZ(s.PreState.GammaZ)
 
-	storeInstance.GetPosteriorStates().SetPsiO(s.PreState.PostOffenders)
+	cs.GetPosteriorStates().SetPsiO(s.PreState.PostOffenders)
 
 	// Add block with TicketsExtrinsic
 	block := types.Block{
@@ -574,7 +574,7 @@ func (s *SafroleTestCase) Dump() error {
 			Tickets: s.Input.Extrinsic,
 		},
 	}
-	storeInstance.AddBlock(block)
+	cs.AddBlock(block)
 
 	return nil
 }
@@ -595,15 +595,15 @@ func (s *SafroleTestCase) ExpectError() error {
 }
 
 func (s *SafroleTestCase) Validate() error {
-	storeInstance := store.GetInstance()
+	cs := blockchain.GetInstance()
 	// Set eta^prime_0 here
 	hash_input := append(s.PreState.Eta[0][:], s.Input.Entropy[:]...)
-	storeInstance.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
+	cs.GetPosteriorStates().SetEta0(types.Entropy(hash.Blake2bHash(hash_input)))
 	/*
 		Check EpochMark and TicketsMark
 	*/
-	ourEpochMarker := storeInstance.GetProcessingBlockPointer().GetEpochMark()
-	ourTicketsMark := storeInstance.GetProcessingBlockPointer().GetTicketsMark()
+	ourEpochMarker := cs.GetProcessingBlockPointer().GetEpochMark()
+	ourTicketsMark := cs.GetProcessingBlockPointer().GetTicketsMark()
 
 	if s.Output.Ok.EpochMark != nil && ourEpochMarker != nil {
 		if !reflect.DeepEqual(s.Output.Ok.EpochMark, ourEpochMarker) {
@@ -620,38 +620,38 @@ func (s *SafroleTestCase) Validate() error {
 	/*
 		Check PosteriorStates
 	*/
-	if !reflect.DeepEqual(s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau()) {
-		diff := cmp.Diff(s.PostState.Tau, storeInstance.GetPosteriorStates().GetTau())
+	if !reflect.DeepEqual(s.PostState.Tau, cs.GetPosteriorStates().GetTau()) {
+		diff := cmp.Diff(s.PostState.Tau, cs.GetPosteriorStates().GetTau())
 		return fmt.Errorf("tau mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.Eta, storeInstance.GetPosteriorStates().GetEta()) {
-		diff := cmp.Diff(s.PostState.Eta, storeInstance.GetPosteriorStates().GetEta())
+	} else if !reflect.DeepEqual(s.PostState.Eta, cs.GetPosteriorStates().GetEta()) {
+		diff := cmp.Diff(s.PostState.Eta, cs.GetPosteriorStates().GetEta())
 		return fmt.Errorf("eta mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.Lambda, storeInstance.GetPosteriorStates().GetLambda()) {
-		diff := cmp.Diff(s.PostState.Lambda, storeInstance.GetPosteriorStates().GetLambda())
+	} else if !reflect.DeepEqual(s.PostState.Lambda, cs.GetPosteriorStates().GetLambda()) {
+		diff := cmp.Diff(s.PostState.Lambda, cs.GetPosteriorStates().GetLambda())
 		return fmt.Errorf("lambda mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.Kappa, storeInstance.GetPosteriorStates().GetKappa()) {
-		diff := cmp.Diff(s.PostState.Kappa, storeInstance.GetPosteriorStates().GetKappa())
+	} else if !reflect.DeepEqual(s.PostState.Kappa, cs.GetPosteriorStates().GetKappa()) {
+		diff := cmp.Diff(s.PostState.Kappa, cs.GetPosteriorStates().GetKappa())
 		return fmt.Errorf("kappa mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.GammaK, storeInstance.GetPosteriorStates().GetGammaK()) {
-		diff := cmp.Diff(s.PostState.GammaK, storeInstance.GetPosteriorStates().GetGammaK())
+	} else if !reflect.DeepEqual(s.PostState.GammaK, cs.GetPosteriorStates().GetGammaK()) {
+		diff := cmp.Diff(s.PostState.GammaK, cs.GetPosteriorStates().GetGammaK())
 		return fmt.Errorf("gamma_k mismatch:\n%v", diff)
 		/*
 			We don't compare iota here, this state will be update in accumulation
 		*/
-		// } else if !reflect.DeepEqual(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota()) {
-		// diff := cmp.Diff(expectedState.Iota, storeInstance.GetPosteriorStates().GetIota())
+		// } else if !reflect.DeepEqual(expectedState.Iota, cs.GetPosteriorStates().GetIota()) {
+		// diff := cmp.Diff(expectedState.Iota, cs.GetPosteriorStates().GetIota())
 		// t.Errorf("iota mismatch:\n%v", diff)
-	} else if !cmp.Equal(s.PostState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty()) {
-		diff := cmp.Diff(s.PostState.GammaA, storeInstance.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty())
+	} else if !cmp.Equal(s.PostState.GammaA, cs.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(s.PostState.GammaA, cs.GetPosteriorStates().GetGammaA(), cmpopts.EquateEmpty())
 		return fmt.Errorf("gamma_a mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.GammaS, storeInstance.GetPosteriorStates().GetGammaS()) {
-		diff := cmp.Diff(s.PostState.GammaS, storeInstance.GetPosteriorStates().GetGammaS())
+	} else if !reflect.DeepEqual(s.PostState.GammaS, cs.GetPosteriorStates().GetGammaS()) {
+		diff := cmp.Diff(s.PostState.GammaS, cs.GetPosteriorStates().GetGammaS())
 		return fmt.Errorf("gamma_s mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ()) {
-		diff := cmp.Diff(s.PostState.GammaZ, storeInstance.GetPosteriorStates().GetGammaZ())
+	} else if !reflect.DeepEqual(s.PostState.GammaZ, cs.GetPosteriorStates().GetGammaZ()) {
+		diff := cmp.Diff(s.PostState.GammaZ, cs.GetPosteriorStates().GetGammaZ())
 		return fmt.Errorf("gamma_z mismatch:\n%v", diff)
-	} else if !reflect.DeepEqual(s.PostState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO()) {
-		diff := cmp.Diff(s.PostState.PostOffenders, storeInstance.GetPosteriorStates().GetPsiO())
+	} else if !reflect.DeepEqual(s.PostState.PostOffenders, cs.GetPosteriorStates().GetPsiO()) {
+		diff := cmp.Diff(s.PostState.PostOffenders, cs.GetPosteriorStates().GetPsiO())
 		return fmt.Errorf("post_offenders mismatch:\n%v", diff)
 	}
 

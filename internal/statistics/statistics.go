@@ -18,8 +18,8 @@ package statistics
 import (
 	"math"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -101,19 +101,19 @@ func UpdateAvailabilityStatistics(statistics *types.Statistics, authorIndex type
 
 func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	// Get current slot
-	s := store.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get author index
-	authorIndex := s.GetLatestBlock().Header.AuthorIndex
+	authorIndex := cs.GetLatestBlock().Header.AuthorIndex
 
 	// Get statistics
-	statistics := s.GetPosteriorStates().GetPi()
+	statistics := cs.GetPosteriorStates().GetPi()
 
 	// Get guarantors from state
-	tau := s.GetPosteriorStates().GetTau()
+	tau := cs.GetPosteriorStates().GetTau()
 
 	// Get validators kappa Prime
-	kappa := s.GetPosteriorStates().GetKappa()
+	kappa := cs.GetPosteriorStates().GetKappa()
 
 	UpdateBlockStatistics(&statistics, authorIndex)
 	UpdateTicketStatistics(&statistics, authorIndex, extrinsic.Tickets)
@@ -123,7 +123,7 @@ func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	UpdateAvailabilityStatistics(&statistics, authorIndex, extrinsic.Assurances)
 
 	// Update current statistics
-	s.GetPosteriorStates().SetPiCurrent(statistics.ValsCurr)
+	cs.GetPosteriorStates().SetPiCurrent(statistics.ValsCurr)
 }
 
 type (
@@ -204,12 +204,12 @@ func createWorkReportMap(workReports []types.WorkReport) CoreWorkReportMap {
 
 // (13.8)
 func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
-	store := store.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// **w**: the incoming work-reports (11.28)
 	// **W**: the newly available work-reports (11.16)
-	w := store.GetIntermediateStates().GetPresentWorkReports()
-	W := store.GetIntermediateStates().GetAvailableWorkReports()
+	w := cs.GetIntermediateStates().GetPresentWorkReports()
+	W := cs.GetIntermediateStates().GetAvailableWorkReports()
 
 	// Create a map for the work reports
 	wMap := createWorkReportMap(w)
@@ -236,18 +236,18 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 		}
 	}
 
-	// Set the core activity statistics to the store
-	store.GetPosteriorStates().SetCoresStatistics(coreActivityStatisitics)
+	// Set the core activity statistics to the cs
+	cs.GetPosteriorStates().SetCoresStatistics(coreActivityStatisitics)
 }
 
 type ServiceWorkResultsMap map[types.ServiceId][]types.WorkResult
 
 // Create a map (service Id -> []work result)
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
-	store := store.GetInstance()
-	w := store.GetIntermediateStates().GetPresentWorkReports()
+	cs := blockchain.GetInstance()
+	w := cs.GetIntermediateStates().GetPresentWorkReports()
 
-	// Create a map to store the service id map to work results
+	// Create a map to cs the service id map to work results
 	serviceWorkResultsMap := make(ServiceWorkResultsMap)
 
 	// Get all work reports from work results
@@ -264,8 +264,8 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 // (13.14) s^R -> Get services from the coming work reports
 // (11.28) I to be the set of work-reports in the present extrinsic E:
 func GetServicesFromPresentWorkReport() []types.ServiceId {
-	store := store.GetInstance()
-	I := store.GetIntermediateStates().GetPresentWorkReports()
+	cs := blockchain.GetInstance()
+	I := cs.GetIntermediateStates().GetPresentWorkReports()
 
 	services := []types.ServiceId{}
 
@@ -299,10 +299,10 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 }
 
 func GetServicesFromAccumulationStatistics() []types.ServiceId {
-	store := store.GetInstance()
+	cs := blockchain.GetInstance()
 
 	// Get the accumulation statistics (S)
-	accumulationStatistics := store.GetIntermediateStates().GetAccumulationStatistics()
+	accumulationStatistics := cs.GetIntermediateStates().GetAccumulationStatistics()
 
 	services := make([]types.ServiceId, 0, len(accumulationStatistics))
 	for key := range accumulationStatistics {
@@ -407,8 +407,8 @@ func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStat
 // v0.7.1
 // (13.12)
 func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
-	store := store.GetInstance()
-	accumulationStatisitcs := store.GetIntermediateStates().GetAccumulationStatistics()
+	cs := blockchain.GetInstance()
+	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 
 	// (13.13)
 	s := GetAllServices(extrinsic.Preimages)
@@ -441,41 +441,41 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 		}
 	}
 
-	// Set the service activity statistics to the store
+	// Set the service activity statistics to the cs
 	if len(servicesStatistics) == 0 {
 		servicesStatistics = nil
 	}
-	store.GetPosteriorStates().SetServicesStatistics(servicesStatistics)
+	cs.GetPosteriorStates().SetServicesStatistics(servicesStatistics)
 }
 
 // (13.3)
 // π ≡ (πV , πL, πC , πS)
 // (πV, πL) => (current, last)
 func UpdateValidatorActivityStatistics() {
-	s := store.GetInstance()
+	cs := blockchain.GetInstance()
 
-	extrinsic := s.GetLatestBlock().Extrinsic
+	extrinsic := cs.GetLatestBlock().Extrinsic
 
-	preTau := s.GetPriorStates().GetTau()
-	postTau := s.GetPosteriorStates().GetTau()
+	preTau := cs.GetPriorStates().GetTau()
+	postTau := cs.GetPosteriorStates().GetTau()
 
 	preEpochIndex := GetEpochIndex(preTau)
 	postEpochIndex := GetEpochIndex(postTau)
 
-	preStatistics := s.GetPriorStates().GetPi()
+	preStatistics := cs.GetPriorStates().GetPi()
 
 	if preEpochIndex == postEpochIndex {
 		// If the epoch index is the same, we will keep using the same statistics.
 		valsCurrent := preStatistics.ValsCurr
 		valsLast := preStatistics.ValsLast
-		s.GetPosteriorStates().SetPiCurrent(valsCurrent)
-		s.GetPosteriorStates().SetPiLast(valsLast)
+		cs.GetPosteriorStates().SetPiCurrent(valsCurrent)
+		cs.GetPosteriorStates().SetPiLast(valsLast)
 	} else {
 		// If the epoch index is different, we will reset the statistics.
 		valsCurrent := make(types.ValidatorsStatistics, types.ValidatorsCount)
 		valsLast := preStatistics.ValsCurr
-		s.GetPosteriorStates().SetPiCurrent(valsCurrent)
-		s.GetPosteriorStates().SetPiLast(valsLast)
+		cs.GetPosteriorStates().SetPiCurrent(valsCurrent)
+		cs.GetPosteriorStates().SetPiLast(valsLast)
 	}
 
 	// Update current statistics.

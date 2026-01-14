@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merkle_tree"
@@ -81,7 +81,7 @@ func buildWorkPackageBundle(
 	}
 	output := []byte{}
 
-	redisBackend, err := store.GetRedisBackend()
+	redisBackend, err := blockchain.GetRedisBackend()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get redis backend: %w", err)
 	}

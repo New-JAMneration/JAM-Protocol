@@ -1,4 +1,4 @@
-package repository
+package store
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/database"
