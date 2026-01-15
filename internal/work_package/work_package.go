@@ -81,11 +81,8 @@ func buildWorkPackageBundle(
 	}
 	output := []byte{}
 
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get redis backend: %w", err)
-	}
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	cs := blockchain.GetInstance()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hash segment map: %w", err)
 	}

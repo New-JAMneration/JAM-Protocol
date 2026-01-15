@@ -5,9 +5,14 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
+	"github.com/New-JAMneration/JAM-Protocol/config"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
+	pebbledb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/pebble"
+	redisdb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/redis"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -17,15 +22,18 @@ import (
 )
 
 var (
-	initOnce         sync.Once
-	globalChainState *ChainState
+	initOnce           sync.Once
+	persistentDBOnce   sync.Once
+	globalChainState   *ChainState
+	globalPersistentDB database.Database
 )
 
 // ChainState represents a thread-safe global container,
 // manages the state and blocks of the blockchain
 type ChainState struct {
 	// Data access layer
-	repo *store.Repository
+	repo           *store.Repository
+	persistentRepo *store.Repository
 
 	// State management
 	priorStates        *PriorStates
@@ -43,14 +51,43 @@ type ChainState struct {
 	postStateUnmatchedKeyVals  types.StateKeyVals
 }
 
+func getPersistentDatabase() database.Database {
+	persistentDBOnce.Do(func() {
+		dbConfig := config.Config.Database
+		switch dbConfig.Type {
+		case "pebble":
+			db, err := pebbledb.NewDatabase(dbConfig.DataDir, false)
+			if err != nil {
+				if strings.Contains(err.Error(), "lock") {
+					logger.Errorf("Failed to initialize Pebble database: %v. Database may be locked by another process or previous instance. Please ensure no other process is using the database at %s", err, dbConfig.DataDir)
+				} else {
+					logger.Errorf("Failed to initialize Pebble database: %v", err)
+				}
+				globalPersistentDB = memory.NewDatabase()
+			} else {
+				globalPersistentDB = db
+			}
+		case "redis":
+			redisConfig := config.Config.Redis
+			globalPersistentDB = redisdb.NewDatabase(redisConfig.Address, redisConfig.Password, redisConfig.Port)
+		default:
+			logger.Warnf("Unknown database type: %s, using memory database", dbConfig.Type)
+			globalPersistentDB = memory.NewDatabase()
+		}
+	})
+	return globalPersistentDB
+}
+
 // GetInstance returns the singleton instance of ChainState.
 // If the instance doesn't exist, it creates one.
 func GetInstance() *ChainState {
 	initOnce.Do(func() {
-		db := memory.NewDatabase()
-		repo := store.NewRepository(db)
+		repo := store.NewRepository(memory.NewDatabase())
+		persistentRepo := store.NewRepository(getPersistentDatabase())
+
 		globalChainState = &ChainState{
-			repo: repo,
+			repo:           repo,
+			persistentRepo: persistentRepo,
 
 			priorStates:        NewPriorStates(),
 			intermediateStates: NewIntermediateStates(),
@@ -71,11 +108,12 @@ func GetInstance() *ChainState {
 }
 
 func ResetInstance() {
-	// reset globalStore
-	db := memory.NewDatabase()
-	repo := store.NewRepository(db)
+	repo := store.NewRepository(memory.NewDatabase())
+	persistentRepo := store.NewRepository(getPersistentDatabase())
+
 	globalChainState = &ChainState{
-		repo: repo,
+		repo:           repo,
+		persistentRepo: persistentRepo,
 
 		priorStates:        NewPriorStates(),
 		intermediateStates: NewIntermediateStates(),
@@ -422,12 +460,24 @@ func (cs *ChainState) GetGenesisBlock() types.Block {
 func (cs *ChainState) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
 	timeSlot, err := cs.repo.GetHeaderTimeSlot(cs.repo.Database(), headerHash)
 	if err != nil {
-		return types.Block{}, err
+		timeSlot, err = cs.persistentRepo.GetHeaderTimeSlot(cs.persistentRepo.Database(), headerHash)
+		if err != nil {
+			return types.Block{}, err
+		}
+		block, err := cs.persistentRepo.GetBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(headerHash))
+		if err != nil {
+			return types.Block{}, err
+		}
+		return *block, nil
 	}
 
 	block, err := cs.repo.GetBlock(cs.repo.Database(), headerHash, timeSlot)
 	if err != nil {
-		return types.Block{}, err
+		block, err := cs.persistentRepo.GetBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(headerHash))
+		if err != nil {
+			return types.Block{}, err
+		}
+		return *block, nil
 	}
 
 	return *block, nil
@@ -467,9 +517,38 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	return nil
 }
 
-// GetStateByBlockHash retrieves state data for a given block from Redis
+// GetStateByBlockHash retrieves state data for a given block from persistent database
 func (cs *ChainState) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
-	return cs.repo.GetStateDataByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	return cs.persistentRepo.GetStateDataByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
+}
+
+func (cs *ChainState) GetStateRootByBlockHash(blockHeaderHash types.HeaderHash) (types.StateRoot, error) {
+	return cs.persistentRepo.GetStateRootByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
+}
+
+func (cs *ChainState) GetHashSegmentMap() (map[types.OpaqueHash]types.OpaqueHash, error) {
+	return cs.persistentRepo.GetHashSegmentMap(cs.persistentRepo.Database())
+}
+
+func (cs *ChainState) SetHashSegmentMap(hashSegmentMap map[string]string) error {
+	return cs.persistentRepo.SetHashSegmentMap(cs.persistentRepo.Database(), hashSegmentMap)
+}
+
+func (cs *ChainState) SetHashSegmentMapWithLimit(wpHash, segmentRoot types.OpaqueHash) (map[types.OpaqueHash]types.OpaqueHash, error) {
+	db := cs.persistentRepo.Database()
+	return cs.persistentRepo.SetHashSegmentMapWithLimit(db, db, wpHash, segmentRoot)
+}
+
+func (cs *ChainState) GetSegmentErasureMap(segmentRoot types.OpaqueHash) (types.OpaqueHash, error) {
+	return cs.persistentRepo.GetSegmentErasureMap(cs.persistentRepo.Database(), segmentRoot)
+}
+
+func (cs *ChainState) SetSegmentErasureMap(segmentRoot, erasureRoot types.OpaqueHash) error {
+	return cs.persistentRepo.SetSegmentErasureMap(cs.persistentRepo.Database(), segmentRoot, erasureRoot, types.SegmentErasureTTL)
+}
+
+func (cs *ChainState) SaveBlockByHashToPersistent(hash types.OpaqueHash, block *types.Block) error {
+	return cs.persistentRepo.SaveBlockByHash(cs.persistentRepo.Database(), hash, block)
 }
 
 func (cs *ChainState) persistBlockMapping(block types.Block) error {
@@ -478,14 +557,12 @@ func (cs *ChainState) persistBlockMapping(block types.Block) error {
 		return fmt.Errorf("failed to compute block header hash: %w", err)
 	}
 
-	redisBackend, err := GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get redis backend: %w", err)
+	if err := cs.SaveBlockByHashToPersistent(types.OpaqueHash(headerHash), &block); err != nil {
+		return fmt.Errorf("failed to persist block: %w", err)
 	}
 
-	ctx := context.Background()
-	if err := redisBackend.StoreBlockByHash(ctx, &block, types.OpaqueHash(headerHash)); err != nil {
-		return fmt.Errorf("failed to persist block in redis: %w", err)
+	if err := cs.persistentRepo.SaveHeaderTimeSlot(cs.persistentRepo.Database(), headerHash, block.Header.Slot); err != nil {
+		return fmt.Errorf("failed to persist header time slot: %w", err)
 	}
 
 	return nil
@@ -596,15 +673,11 @@ func (cs *ChainState) SeedGenesisToBackend(
 		)
 	}
 
-	redisBackend, err := GetRedisBackend()
-	if err != nil {
-		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("failed to get redis backend: %w", err)
-	}
-
-	if err := redisBackend.StoreStateData(ctx, genesisStateRoot, merkleInputKeyVals); err != nil {
+	db := cs.persistentRepo.Database()
+	if err := cs.persistentRepo.SaveStateData(db, genesisStateRoot, merkleInputKeyVals); err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_data: %w", err)
 	}
-	if err := redisBackend.StoreStateRootByBlockHash(ctx, genesisBlockHash, genesisStateRoot); err != nil {
+	if err := cs.persistentRepo.SaveStateRootByHeaderHash(db, genesisBlockHash, genesisStateRoot); err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_root mapping: %w", err)
 	}
 

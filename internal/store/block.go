@@ -77,3 +77,28 @@ func (repo *Repository) SaveExtrinsic(w database.Writer, hash types.HeaderHash, 
 func (repo *Repository) DeleteExtrinsic(w database.Writer, hash types.HeaderHash, slot types.TimeSlot) error {
 	return w.Delete(extrinsicKey(repo.encoder, slot, hash))
 }
+
+func (repo *Repository) SaveBlockByHash(w database.Writer, hash types.OpaqueHash, block *types.Block) error {
+	encoded, err := repo.encoder.Encode(block)
+	if err != nil {
+		return fmt.Errorf("failed to encode block: %w", err)
+	}
+	return w.Put(blockByHashKey(hash), encoded)
+}
+
+func (repo *Repository) GetBlockByHash(r database.Reader, hash types.OpaqueHash) (*types.Block, error) {
+	encoded, found, err := r.Get(blockByHashKey(hash))
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("block not found for hash %x", hash)
+	}
+
+	block := &types.Block{}
+	if err := repo.decoder.Decode(encoded, block); err != nil {
+		return nil, fmt.Errorf("failed to decode block: %w", err)
+	}
+
+	return block, nil
+}

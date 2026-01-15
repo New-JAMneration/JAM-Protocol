@@ -36,10 +36,9 @@ func (m *MockFetcher) Fetch(erasureRoot types.OpaqueHash, index types.U16) (type
 }
 
 func TestFetchImportSegments(t *testing.T) {
-	redisBackend, err := blockchain.GetRedisBackend()
-	require.NoError(t, err)
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	cs := blockchain.GetInstance()
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02}))
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04}))
 
 	wp := &types.WorkPackage{
 		Items: []types.WorkItem{
@@ -92,10 +91,9 @@ func TestFetchImportSegments(t *testing.T) {
 }
 
 func TestWorkPackageController_InitialProcess(t *testing.T) {
-	redisBackend, err := blockchain.GetRedisBackend()
-	require.NoError(t, err)
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	cs := blockchain.GetInstance()
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02}))
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04}))
 
 	inputDelta := types.ServiceAccountState{
 		types.ServiceId(1): {
@@ -196,7 +194,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 
 	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
 
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}
@@ -210,7 +208,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
 
 	// Check the local map with report
-	dict, err := redisBackend.GetHashSegmentMap()
+	dict, err := cs.GetHashSegmentMap()
 	for _, lookupItem := range report.SegmentRootLookup {
 		key := types.OpaqueHash(lookupItem.WorkPackageHash[:])
 		require.Equal(t, dict[key], lookupItem.SegmentTreeRoot)
@@ -222,10 +220,9 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 }
 
 func TestPrepareInputs_Shared(t *testing.T) {
-	redisBackend, err := blockchain.GetRedisBackend()
-	require.NoError(t, err)
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02})
-	redisBackend.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04})
+	cs := blockchain.GetInstance()
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x01}, types.OpaqueHash{0x02}))
+	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04}))
 
 	inputDelta := types.ServiceAccountState{
 		types.ServiceId(1): {
@@ -311,7 +308,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 		ImportProofs:   types.OpaqueHashMatrix{{types.OpaqueHash{0x01}}},
 	}
 
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}
@@ -343,7 +340,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
 
 	// Check the local map with report
-	dict, err := redisBackend.GetHashSegmentMap()
+	dict, err := cs.GetHashSegmentMap()
 	require.NoError(t, err)
 	for _, lookupItem := range report.SegmentRootLookup {
 		key := types.OpaqueHash(lookupItem.WorkPackageHash[:])
