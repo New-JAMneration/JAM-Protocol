@@ -156,14 +156,15 @@ func ReverseBitsToUnsigned(x []bool, n uint) (uint64, error) {
 
 // A.16 SignExtend
 func SignExtend(n int, x uint64) (uint64, error) {
-	if n < 0 || n > 8 || n == 5 || n == 6 || n == 7 {
+	if n < 0 || n > 8 || (n > 4 && n < 8) { // exclude <0, 5, 6, 7, >8
 		return 0, fmt.Errorf("invalid byte count: got %d", n)
 	}
-	// mask immediate
-	mask := ^uint64(0)
-	x = x & mask
 
-	shift := 64 - n*8
+	if n == 8 { // it's 64-bit, do not need to extend
+		return x, nil
+	}
+
+	shift := 64 - n<<3
 	return uint64(int64(x<<shift) >> shift), nil
 
 	/*
