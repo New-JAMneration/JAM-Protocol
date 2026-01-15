@@ -14,6 +14,12 @@ var (
 
 	extrinsicPrefix = []byte("e:")
 
+	blockByHashPrefix = []byte("b:")
+
+	hashSegmentMapPrefix = []byte("segment_dict")
+
+	segmentErasurePrefix = []byte("segment_erasure:")
+
 	stateRootPrefix = []byte("sr:")
 	stateDataPrefix = []byte("sd:")
 )
@@ -51,4 +57,16 @@ func stateRootKey(headerHash types.HeaderHash) []byte {
 
 func stateDataKey(stateRoot types.StateRoot) []byte {
 	return append(stateDataPrefix, stateRoot[:]...)
+}
+
+func blockByHashKey(hash types.OpaqueHash) []byte {
+	return append(blockByHashPrefix, hash[:]...)
+}
+
+func hashSegmentMapKey() []byte {
+	return hashSegmentMapPrefix
+}
+
+func segmentErasureKey(segmentRoot types.OpaqueHash) []byte {
+	return append(segmentErasurePrefix, segmentRoot[:]...)
 }
