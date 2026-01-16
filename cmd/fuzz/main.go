@@ -44,12 +44,6 @@ var (
 	folderPathArg = &cli.StringArg{
 		Name: "folder-path",
 	}
-
-	folderWiseArg = &cli.BoolFlag{
-		Name:  "folderwise",
-		Usage: "SetState once(true) or SetState each block(false)",
-		Value: false,
-	}
 )
 
 var (
@@ -137,9 +131,6 @@ var (
 		Arguments: []cli.Argument{
 			socketAddrArg,
 			folderPathArg,
-		},
-		Flags: []cli.Flag{
-			folderWiseArg,
 		},
 	}
 )
@@ -409,7 +400,6 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	if folderPath == "" {
 		return errors.New("test_folder requires a json file path argument")
 	}
-	config.Config.FolderWise = cmd.Bool(folderWiseArg.Name)
 
 	// Connect to server
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
@@ -431,23 +421,20 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 			return nil
 		}
 
-		// folder-wise
-		if config.Config.FolderWise {
-			folderName := strings.Split(path, "/")
-			folderIndex := folderName[len(folderName)-2]
-			fileName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		folderName := strings.Split(path, "/")
+		folderIndex := folderName[len(folderName)-2]
+		fileName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
-			// 1. record each group of the first-data, genesis might not be the first file to be read
-			if _, ok := firstFiles[folderIndex]; !ok || fileName == "genesis" {
-				firstFiles[folderIndex] = fileName
-			}
+		// 1. record each group of the first-data, genesis might not be the first file to be read
+		if _, ok := firstFiles[folderIndex]; !ok || fileName == "genesis" {
+			firstFiles[folderIndex] = fileName
+		}
 
-			// 2. re-order genesis, assume each test-data index is unique, genesis might not be the first data to be append in jsonFiles
-			if fileName == "genesis" {
-				index := findGroupFirstIndex(&jsonFiles, folderIndex) // find how many test-data in a group has appended in the jsonFiles
-				copy(jsonFiles[index+1:], jsonFiles[index:len(jsonFiles)-1])
-				jsonFiles[index] = path
-			}
+		// 2. re-order genesis, assume each test-data index is unique, genesis might not be the first data to be append in jsonFiles
+		if fileName == "genesis" {
+			index := findGroupFirstIndex(&jsonFiles, folderIndex) // find how many test-data in a group has appended in the jsonFiles
+			copy(jsonFiles[index+1:], jsonFiles[index:len(jsonFiles)-1])
+			jsonFiles[index] = path
 		}
 
 		return nil
@@ -474,15 +461,13 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 
 	for _, jsonFile := range jsonFiles {
 		var setStateRequired bool
-		if config.Config.FolderWise {
-			folderName := strings.Split(jsonFile, "/")
-			fileName := strings.TrimSuffix(filepath.Base(jsonFile), filepath.Ext(jsonFile))
-			folderIndex := folderName[len(folderName)-2]
+		folderName := strings.Split(jsonFile, "/")
+		fileName := strings.TrimSuffix(filepath.Base(jsonFile), filepath.Ext(jsonFile))
+		folderIndex := folderName[len(folderName)-2]
 
-			firstFileName, ok := firstFiles[folderIndex]
-			if ok && firstFileName == fileName {
-				setStateRequired = true
-			}
+		firstFileName, ok := firstFiles[folderIndex]
+		if ok && firstFileName == fileName {
+			setStateRequired = true
 		}
 
 		if err := testFixtureFile(client, jsonFile, setStateRequired); err != nil {
@@ -544,8 +529,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		Step 1: Initialization (SetState) to the post_state
 	*/
 	// folder-wise: only when the data is the first data will do SetState
-	if !config.Config.FolderWise || (config.Config.FolderWise && setStateRequired) {
-
+	if setStateRequired {
 		decoder := types.NewDecoder()
 		recentBlocks := &types.RecentBlocks{}
 		recentBlocksKeyVal := types.StateKeyVal{}
