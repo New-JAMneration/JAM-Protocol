@@ -567,7 +567,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 
 			// Update the global store with merged result
-			store.GetInstance().SetPostStateUnmatchedKeyVals(mergedUnmatchedKeyVals)
+			blockchain.GetInstance().SetPostStateUnmatchedKeyVals(mergedUnmatchedKeyVals)
 		}
 	}
 

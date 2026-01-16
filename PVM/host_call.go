@@ -108,7 +108,7 @@ type HostCallArgs struct {
 	GeneralArgs
 	AccumulateArgs
 	RefineArgs
-	Program
+	*Program
 }
 
 type Psi_H_ReturnType struct {
@@ -121,7 +121,7 @@ type Psi_H_ReturnType struct {
 }
 
 // JIT version of (A.34) Ψ_H
-func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs, instrCount uint64,
+func HostCall(program *Program, pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs, instrCount uint64,
 ) (psi_result Psi_H_ReturnType) {
 	var exitReason error
 	var pcPrime ProgramCounter
@@ -153,7 +153,7 @@ func HostCall(program Program, pc ProgramCounter, gas types.Gas, reg Registers, 
 		psi_result.Addition = addition
 		return
 	}
-	//reason.Reason == HOST_CALL
+	// reason.Reason == HOST_CALL
 	var input OmegaInput
 	input.Operation = OperationType(*reason.HostCall)
 	input.Gas = gasPrime
@@ -830,7 +830,8 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 			// store the unknown storage item to state
 			a.StorageDict[string(storageRawKey)] = v
-			input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a // TODO: refactor
+
+			input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 			// remove from storageKeyVal
 			removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 		}
@@ -865,12 +866,15 @@ func read(input OmegaInput) (output OmegaOutput) {
 	new_registers := input.Registers
 	new_registers[7] = uint64(len(v))
 	new_memory := input.Memory
-	for i := uint32(0); i < uint32(l); i++ {
-		address := i + uint32(o)
-		page := address / ZP
-		index := address % ZP
-		new_memory.Pages[page].Value[index] = v[uint32(f)+i]
-	}
+	input.Memory.Write(o, l, v[f:f+l])
+	/*
+		for i := uint32(0); i < uint32(l); i++ {
+			address := i + uint32(o)
+			page := address / ZP
+			index := address % ZP
+			new_memory.Pages[page].Value[index] = v[uint32(f)+i]
+		}
+	*/
 
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -912,9 +916,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	a := *input.Addition.GeneralArgs.ServiceAccount
 
 	value, storageRawKeyExists := a.StorageDict[string(storageRawKey)]
-
 	storageRawData := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-
 	var l uint64
 	var footprintItems types.U32
 	var footprintOctets types.U64
@@ -1801,6 +1803,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	input.Addition.ResultContextX.PartialState.Bless = types.ServiceId(m)
 	input.Addition.ResultContextX.PartialState.Assign = assignData
 	input.Addition.ResultContextX.PartialState.Designate = types.ServiceId(v)
+	input.Addition.ResultContextX.PartialState.CreateAcct = types.ServiceId(r)
 	input.Addition.ResultContextX.PartialState.AlwaysAccum = alwaysAccum
 
 	return OmegaOutput{
@@ -1854,6 +1857,17 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s ≠ (x_u)_a[c]
 	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
 		input.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason:   PVMExitTuple(CONTINUE, nil),
+			NewGas:       newGas,
+			NewRegisters: input.Registers,
+			NewMemory:    input.Memory,
+			Addition:     input.Addition,
+		}
+	}
+
+	if a >= (1 << 32) {
+		input.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
 			NewGas:       newGas,
@@ -1976,7 +1990,6 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 // new = 18
 func new(input OmegaInput) (output OmegaOutput) {
 	newGas := input.Gas - 10
-
 	if newGas < 0 {
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(OUT_OF_GAS, nil),
@@ -1988,7 +2001,6 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 
 	o, l, g, m, f, i := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
-
 	offset := uint64(32)
 	// if c = ∇
 	if !(isReadable(o, offset, input.Memory) && l < (1<<32)) { // not readable, return
@@ -2016,11 +2028,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	c := input.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
-	s, sExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
-	if !sExists {
-		// according GP, no need to check the service exists => it should in ServiceAccountState
-		pvmLogger.Debugf("host-call function \"new\" serviceID : %d not in ServiceAccount state", serviceID)
-	}
+	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 
 	var cDecoded types.U32
 	decoder := types.NewDecoder()
@@ -2060,7 +2068,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	newBalance := s.ServiceInfo.Balance - at
 	// otherwise if s_b < (x_s)_t, transfer a_t tokens to new service, so need to check balance(b) > minBalance()
 	minBalance := service_account.CalcThresholdBalance(s.ServiceInfo.Items, s.ServiceInfo.Bytes, s.ServiceInfo.DepositOffset)
-	if s.ServiceInfo.Balance < minBalance {
+	if newBalance < minBalance {
 		input.Registers[7] = CASH
 		return OmegaOutput{
 			ExitReason:   PVMExitTuple(CONTINUE, nil),
@@ -2125,7 +2133,6 @@ func new(input OmegaInput) (output OmegaOutput) {
 		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = s
 		*input.Addition.GeneralArgs.ServiceAccount = s
 	}
-
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
@@ -2281,7 +2288,6 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	newGas -= Gas(l)
 
 	input.Registers[7] = OK
-
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
 		NewGas:       newGas,
@@ -2555,11 +2561,22 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 
 		if !lookupDataExists {
 			// a_l[(h,z)] = []
-			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
-			itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
 			newFootprintItems += itemFootprintItems
 			newFootprintOctets += itemFootprintOctets
+			newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, a.ServiceInfo.DepositOffset)
 
+			// check a_b < a_t
+			if a.ServiceInfo.Balance < newMinBalance {
+				input.Registers[7] = FULL
+				return OmegaOutput{
+					ExitReason:   PVMExitTuple(CONTINUE, nil),
+					NewGas:       newGas,
+					NewRegisters: input.Registers,
+					NewMemory:    input.Memory,
+					Addition:     input.Addition,
+				}
+			}
+			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
 		} else if lookupDataExists && len(lookupData) == 2 {
 			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
 			// first take off the lookup item footprints
@@ -2584,20 +2601,6 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 
-		newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, a.ServiceInfo.DepositOffset)
-
-		// a_b < a_t
-		if a.ServiceInfo.Balance < newMinBalance {
-			input.Registers[7] = FULL
-			return OmegaOutput{
-				ExitReason:   PVMExitTuple(CONTINUE, nil),
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
-		}
-		//
 		input.Registers[7] = OK
 		// LookupDict is updated, service items and service Bytes should be updated
 		a.ServiceInfo.Items = newFootprintItems
@@ -2941,6 +2944,8 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
 	}
+
+	input.Registers[7] = WHAT
 	pvmLogger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason:   PVMExitTuple(CONTINUE, nil),
