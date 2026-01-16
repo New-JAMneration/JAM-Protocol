@@ -42,7 +42,6 @@ type config struct {
 		AppVersion   string `json:"app_version"`
 		Name         string `json:"name"`
 	} `json:"info"`
-	FolderWise bool
 }
 
 func DefaultConfig() config {
