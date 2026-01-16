@@ -43,8 +43,8 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	stackStart := stackEnd - P(int(s))
 	argumentStart := uint32(1<<32 - ZZ - ZI)
 	// argumentEnd := argumentStart + uint32(len(a))
-	argumentEnd := argumentStart + ZI
-	argumentPadding := argumentStart + P(len(a))
+	argumentEnd := argumentStart + uint32(len(a))
+	argumentPadding := argumentEnd + P(len(a))
 
 	mem := Memory{Pages: make(map[uint32]*Page), heapPointer: uint64(heapStart)}
 

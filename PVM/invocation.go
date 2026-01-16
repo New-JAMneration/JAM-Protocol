@@ -6,13 +6,13 @@ import (
 )
 
 // per-instruction based of (A.1) ψ_1,
-func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (
+func SingleStepInvoke(program *Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
 	var exitReason error
 
 	exitReason, pcPrime, gasPrime, registersPrime, memoryPrime := SingleStepStateTransition(
-		//program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
+		// program.InstructionData, program.Bitmasks, program.JumpTable, pc, gas, reg, mem)
 		program, pc, gas, reg, mem)
 	if exitReason == ErrNotImplemented {
 		return exitReason, pcPrime, gasPrime, registersPrime, memoryPrime
@@ -31,7 +31,7 @@ func SingleStepInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers
 var ErrNotImplemented = errors.New("instruction not implemented")
 
 // (v.0.7.1 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(program Program, pc ProgramCounter, gas Gas, registers Registers, memory Memory) (
+func SingleStepStateTransition(program *Program, pc ProgramCounter, gas Gas, registers Registers, memory Memory) (
 	error, ProgramCounter, Gas, Registers, Memory,
 ) {
 	// check program-counter exceed blob length
@@ -91,7 +91,7 @@ func SingleStepStateTransition(program Program, pc ProgramCounter, gas Gas, regi
 }
 
 // block based version of (A.1) ψ_1
-func BlockBasedInvoke(program Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
+func BlockBasedInvoke(program *Program, pc ProgramCounter, gas Gas, reg Registers, mem Memory) (error, ProgramCounter, Gas, Registers, Memory) {
 	gasPrime := Gas(gas)
 	// decode instructions in a block
 	pcPrime, _, err := DecodeInstructionBlock(program.InstructionData, pc, program.Bitmasks)
@@ -163,7 +163,7 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 }
 
 // execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
-func ExecuteInstructions(program Program, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) { // no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
+func ExecuteInstructions(program *Program, pc ProgramCounter, pcPrime ProgramCounter, registers Registers, memory Memory, gas Gas) (ProgramCounter, Registers, Memory, Gas, error) { // no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
 	for pc <= pcPrime {
 		if gas < 1 {
 			return pc, registers, memory, gas, PVMExitTuple(OUT_OF_GAS, nil)

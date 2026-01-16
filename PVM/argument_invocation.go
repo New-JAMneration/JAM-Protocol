@@ -41,9 +41,9 @@ func Psi_M(
 		}
 	}
 
-	addition.Program = program
+	addition.Program = &program
 
-	g, v, a := R(gas, HostCall(program, counter, gas, registers, memory, omegas, addition, 0))
+	g, v, a := R(gas, HostCall(&program, counter, gas, registers, memory, omegas, addition, 0))
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,
