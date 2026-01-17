@@ -1,8 +1,7 @@
 module github.com/New-JAMneration/JAM-Protocol
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.25.5
+toolchain go1.25.5
 
 require (
 	github.com/alicebob/miniredis/v2 v2.34.0
