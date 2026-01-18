@@ -57,10 +57,16 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 			return types.StateRoot{}, fmt.Errorf("error computing latest block hash: %w", err)
 		}
 
+		ancestry := cs.GetAncestry()
+		var latestAncestry types.AncestryItem
+		if len(ancestry) > 0 {
+			latestAncestry = ancestry[len(ancestry)-1]
+		}
+
 		if latestBlockHash != block.Header.Parent && latestBlockHash != headerHash {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
 			// Check block timeslot
-			if latestBlock.Header.Slot > block.Header.Slot {
+			if latestAncestry.Slot > block.Header.Slot {
 				finalizedBlocksHeader, err := cs.GetBlockHashByNumber(uint32(block.Header.Slot))
 				if err != nil {
 					return types.StateRoot{}, err
@@ -76,7 +82,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 					}
 				}
 				if !headerMatch {
-					return types.StateRoot{}, fmt.Errorf("not part of finalized block")
+					return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", currentHeader[:8])
 				}
 			}
 
