@@ -7,6 +7,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	SafroleErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/safrole"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
@@ -127,6 +128,8 @@ func KeyRotate(e types.TimeSlot, ePrime types.TimeSlot) error {
 // Outer Safrole function
 // I made this function return ErrorCode only
 func OuterUsedSafrole() *types.ErrorCode {
+	defer timing.Track("safrole.OuterUsedSafrole")()
+
 	// --- STEP 1 Get Epoch and Slot for safrole --- //
 	var (
 		err            error
@@ -146,12 +149,18 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// --- STEP 2 Update Entropy123 --- //
 	// (GP 6.23)
-	UpdateEntropy(e, ePrime)
+	func() {
+		defer timing.Track("safrole.UpdateEntropy")()
+		UpdateEntropy(e, ePrime)
+	}()
 
 	// --- STEP 3 safrole.go (GP 6.2, 6.13, 6.14) --- //
 	// (6.2, 6.13, 6.14)
 	// This function will update GammaK, GammaZ, Lambda, Kappa
-	err = KeyRotate(e, ePrime)
+	func() {
+		defer timing.Track("safrole.KeyRotate")()
+		err = KeyRotate(e, ePrime)
+	}()
 	if err != nil {
 		logger.Errorf("KeyRotate error: %v", err)
 	}
@@ -160,12 +169,18 @@ func OuterUsedSafrole() *types.ErrorCode {
 	// UpdateHeaderEntropy()
 
 	// --- slot_key_sequence.go (GP 6.25, 6.26) --- //
-	UpdateSlotKeySequence(e, ePrime, m)
+	func() {
+		defer timing.Track("safrole.UpdateSlotKeySequence")()
+		UpdateSlotKeySequence(e, ePrime, m)
+	}()
 
 	// After KeyRotate, gammaK and kappa are updated
 	postGammaK := cs.GetPosteriorStates().GetGammaK()
 
-	ringVerifier, err = blockchain.GetVerifier(ePrime, postGammaK)
+	func() {
+		defer timing.Track("safrole.GetVerifier")()
+		ringVerifier, err = blockchain.GetVerifier(ePrime, postGammaK)
+	}()
 	if err != nil {
 		// This error should not happen
 		logger.Errorf("error creating verifiers: %v", err)
@@ -173,29 +188,42 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
-		commitment, err := ringVerifier.GetCommitment()
-		if err != nil || len(commitment) == 0 {
-			logger.Errorf("Failed to get commitment: %v", err)
-		} else {
-			cs.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
-		}
+		func() {
+			defer timing.Track("safrole.GetCommitment")()
+			commitment, err := ringVerifier.GetCommitment()
+			if err != nil || len(commitment) == 0 {
+				logger.Errorf("Failed to get commitment: %v", err)
+			} else {
+				cs.GetPosteriorStates().SetGammaZ(types.BandersnatchRingCommitment(commitment))
+			}
+		}()
 	}
 
 	// (GP 6.22)
-	err = UpdateEtaPrime0()
+	func() {
+		defer timing.Track("safrole.UpdateEtaPrime0")()
+		err = UpdateEtaPrime0()
+	}()
 	if err != nil {
 		logger.Errorf("UpdateEtaPrime0Err: %v", err)
 	}
 
 	// --- STEP 4 Check TicketExtrinsic --- //
 	// --- extrinsic_tickets.go (GP 6.30~6.34) --- //
-	HtErrCode := CreateNewTicketAccumulator(ringVerifier)
+	var HtErrCode *types.ErrorCode
+	func() {
+		defer timing.Track("safrole.CreateNewTicketAccumulator")()
+		HtErrCode = CreateNewTicketAccumulator(ringVerifier)
+	}()
 	if HtErrCode != nil {
 		return HtErrCode
 	}
 
 	// (GP 6.28)
-	CreateWinningTickets(e, ePrime, m, mPrime)
+	func() {
+		defer timing.Track("safrole.CreateWinningTickets")()
+		CreateWinningTickets(e, ePrime, m, mPrime)
+	}()
 
 	// // --- sealing.go (GP 6.15~6.24) --- //
 	// err = SealingHeader()
@@ -205,7 +233,10 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// --- markers.go (GP 6.27, 6.28) --- //
 	// (GP 6.27)
-	CreateEpochMarker(e, ePrime)
+	func() {
+		defer timing.Track("safrole.CreateEpochMarker")()
+		CreateEpochMarker(e, ePrime)
+	}()
 
 	return nil
 }
