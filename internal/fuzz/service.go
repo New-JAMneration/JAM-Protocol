@@ -59,6 +59,27 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 		if latestBlockHash != block.Header.Parent && latestBlockHash != headerHash {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
+			// Check block timeslot
+			if latestBlock.Header.Slot > block.Header.Slot {
+				finalizedBlocksHeader, err := cs.GetBlockHashByNumber(uint32(block.Header.Slot))
+				if err != nil {
+					return types.StateRoot{}, err
+				}
+				currentHeader, err := hash.ComputeBlockHeaderHash(block.Header)
+				if err != nil {
+					return types.StateRoot{}, fmt.Errorf("error computing current block hash: %w", err)
+				}
+				headerMatch := false
+				for _, blockHeader := range finalizedBlocksHeader {
+					if currentHeader == blockHeader {
+						headerMatch = true
+					}
+				}
+				if !headerMatch {
+					return types.StateRoot{}, fmt.Errorf("not part of finalized block")
+				}
+			}
+
 			// Try the restore block and state
 			err := cs.RestoreBlockAndState(block.Header.Parent)
 			if err != nil {
