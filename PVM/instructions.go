@@ -1649,7 +1649,7 @@ func instSetLtSImm(instructionCode []byte, pc ProgramCounter, skipLength Program
 	} else {
 		reg[rA] = 0
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])],
+	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %s", instrCount, pc, zeta[opcode(instructionCode[pc])], //[CHECK THIS: You have 9 arguments in this line but only 8 arguments are provided]
 		RegName[rA], RegName[rB], formatInt(int(reg[rB])), formatInt(int64(vX)), formatInt(reg[rA]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -2752,7 +2752,7 @@ func instSetLtU(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = 0
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %t", instrCount, pc, zeta[opcode(instructionCode[pc])],
+	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = (%s < %s) = %t", instrCount, pc, zeta[opcode(instructionCode[pc])], //[CHECK THIS:  "%t" is for boolean values, but formatInt(reg[rD]) will return a string, try %s?]
 		RegName[rD], RegName[rA], RegName[rB], formatInt(reg[rA]), formatInt(reg[rB]), formatInt(reg[rD]))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
@@ -2773,7 +2773,7 @@ func instSetLtS(instructionCode []byte, pc ProgramCounter, skipLength ProgramCou
 		reg[rD] = 0
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])],
+	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = 0x%x, %s = 0x%x, %s = 0x%x", pc, zeta[opcode(instructionCode[pc])], // [CHECK THIS: Fix format string - missing instrCount, format specifiers mismatch with argument types]
 		RegName[rD], RegName[rA], RegName[rB], formatInt(int64(reg[rA])), formatInt(int64(reg[rB])), formatInt(int64(reg[rD])))
 	return PVMExitTuple(CONTINUE, nil), pc, reg, mem
 }
