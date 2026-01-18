@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"golang.org/x/sync/singleflight"
 )
@@ -221,6 +222,8 @@ func UpdateAccumulatableWorkReports() {
 
 // (12.16) ∆+ outer accumulation function
 func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput, err error) {
+	defer timing.Track("accumulation.OuterAccumulation")()
+
 	// input parameters
 	g := input.GasLimit
 	t := input.DeferredTransfers
@@ -385,6 +388,8 @@ func (in SingleServiceAccumulationInput) CloneForService(s types.ServiceId) Sing
 
 // Parallelize parts and partial state modification needs confirm what is the correct way to process
 func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output ParallelizedAccumulationOutput, err error) {
+	defer timing.Track("accumulation.ParallelizedAccumulation")()
+
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
 	b := make(map[types.AccumulatedServiceHash]bool)
@@ -732,6 +737,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 // (12.20) ∆1 single-service accumulation function
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
+	defer timing.Track("accumulation.SingleServiceAccumulation")()
+
 	e := input.PartialStateSet      // e: PartialStateSet
 	t := input.DeferredTransfers    // t: DeferredTransfers
 	r := input.WorkReports          // r: WorkReports
@@ -796,7 +803,11 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
 	storageKeyVal := input.UnmatchedKeyVals
-	pvmResult := PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
+	var pvmResult PVM.Psi_A_ReturnType
+	func() {
+		defer timing.Track("PVM.Psi_A")()
+		pvmResult = PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
+	}()
 
 	// Collect PVM results as output
 	{
@@ -811,6 +822,8 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 }
 
 func ProcessAccumulation() error {
+	defer timing.Track("accumulation.ProcessAccumulation")()
+
 	// Compute W!
 	UpdateImmediatelyAccumulateWorkReports()
 

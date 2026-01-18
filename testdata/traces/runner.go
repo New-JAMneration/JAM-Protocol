@@ -49,6 +49,31 @@ func (tr *TraceRunner) Run(data interface{}, _ bool) error {
 	return nil
 }
 
+// RunWithTiming executes the STF with timing and returns detailed timing information.
+func (tr *TraceRunner) RunWithTiming(data interface{}) (bool, error, stf.STFTiming) {
+	testCase := data.(*jamteststrace.TraceTestCase)
+
+	if len(tr.ChainState.GetBlocks()) == 0 {
+		return false, fmt.Errorf("no blocks in the cs"), stf.STFTiming{}
+	}
+
+	// Verify the header
+	if tr.ChainState.GetLatestBlock().Header.Parent != testCase.Block.Header.Parent {
+		return false, fmt.Errorf("parent mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.Parent, testCase.PreState.StateRoot), stf.STFTiming{}
+	}
+
+	if tr.ChainState.GetLatestBlock().Header.ParentStateRoot != testCase.Block.Header.ParentStateRoot {
+		return false, fmt.Errorf("state_root mismatch: got %x, want %x", tr.ChainState.GetLatestBlock().Header.ParentStateRoot, testCase.PreState.StateRoot), stf.STFTiming{}
+	}
+
+	isProtocolError, err, timing := stf.RunSTFWithTiming()
+	if err != nil {
+		return isProtocolError, err, timing
+	}
+
+	return false, nil, timing
+}
+
 // Verify checks the block header's parent_hash and state_root against the
 // expected values in the Testable instance.
 func (tr *TraceRunner) Verify(data testdata.Testable) error {

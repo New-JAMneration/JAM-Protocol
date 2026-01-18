@@ -6,8 +6,10 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -91,6 +93,12 @@ For example:
 			logger.Fatal(err)
 		}
 
+		// Enable timing if TIMING environment variable is set
+		if timing.Enabled {
+			timing.ResetGlobal()
+			stf.ResetCustomTimings()
+		}
+
 		// Create reader and runner
 		reader, runner, err := createReaderAndRunner(testType, mode, testdata.TestSize(testSize), dataFormat)
 		if err != nil {
@@ -113,6 +121,7 @@ For example:
 
 		passed := 0
 		failed := 0
+		var allSTFTimings []stf.STFTiming // Collect STF timings if timing is enabled
 
 		if testType == "trace" {
 			// get genesis file, genesis will be sorted at last
@@ -153,8 +162,21 @@ For example:
 				continue
 			}
 
-			// Run the test
-			outputErr := runner.Run(data, testRunSTF)
+			// Run the test with timing if enabled and runner supports it
+			var outputErr error
+			if timing.Enabled && testType == "trace" {
+				if timingRunner, ok := runner.(testdata.TimingRunner); ok {
+					isProtocolError, err, stfTiming := timingRunner.RunWithTiming(data)
+					outputErr = err
+					if err == nil || !isProtocolError {
+						allSTFTimings = append(allSTFTimings, stfTiming)
+					}
+				} else {
+					outputErr = runner.Run(data, testRunSTF)
+				}
+			} else {
+				outputErr = runner.Run(data, testRunSTF)
+			}
 
 			if testType == "jam-test-vectors" {
 				expectedErr := data.ExpectError()
@@ -204,6 +226,18 @@ For example:
 
 		logger.Info("----------------------------------------")
 		logger.Infof("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+
+		// Print timing summary if timing is enabled
+		if timing.Enabled {
+			// Print STF timing summary if available
+			// Note: PrintTimingSummary already includes global timing summary
+			if len(allSTFTimings) > 0 {
+				stf.PrintTimingSummary(allSTFTimings)
+			} else {
+				// If no STF timings, just print global timing summary
+				timing.PrintGlobalSummary()
+			}
+		}
 
 		return nil
 	},
