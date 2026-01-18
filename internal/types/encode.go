@@ -3046,6 +3046,7 @@ func (s *StateKey) Encode(e *Encoder) error {
 }
 
 // Encode StateKeyVals
+// Optimized version that inlines Key and Value encoding to reduce function call overhead
 func (s *StateKeyVals) Encode(e *Encoder) error {
 	var err error
 
@@ -3055,12 +3056,21 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 	}
 
 	// Encode each element in the array
+	// Inline encoding to avoid function call overhead for large arrays
 	for i := range *s {
-		if err = (*s)[i].Key.Encode(e); err != nil {
+		// Encode Key (StateKey is 32 bytes, write directly)
+		if _, err = e.buf.Write((*s)[i].Key[:]); err != nil {
 			return err
 		}
 
-		if err = (*s)[i].Value.Encode(e); err != nil {
+		// Encode Value (ByteSequence) - inline to avoid function call
+		value := (*s)[i].Value
+		// Encode length of ByteSequence
+		if err = e.EncodeLength(uint64(len(value))); err != nil {
+			return err
+		}
+		// Write the bytes directly
+		if _, err = e.buf.Write(value); err != nil {
 			return err
 		}
 	}
