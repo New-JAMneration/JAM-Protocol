@@ -2,7 +2,8 @@ package stf
 
 import (
 	"fmt"
-	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/accumulation"
@@ -11,9 +12,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 )
-
-// Set STF_TIMING=1 to enable verbose per-block timing output
-var verboseTiming = os.Getenv("STF_TIMING") == "1"
 
 // ResetCustomTimings resets the global timing collector
 func ResetCustomTimings() {
@@ -337,4 +335,142 @@ func PrintTimingSummary(timings []STFTiming) {
 func LogTimingSummary(timings []STFTiming) string {
 	summary := CalculateTimingSummary(timings)
 	return summary.FormatSummaryTable()
+}
+
+// BenchmarkSummary holds aggregated statistics for all STF steps across multiple runs
+type BenchmarkSummary struct {
+	Steps map[string]timing.BenchmarkStats // Step name -> stats
+}
+
+// CalculateBenchmarkSummary calculates statistics from multiple runs of STF timings
+func CalculateBenchmarkSummary(allRuns [][]STFTiming) BenchmarkSummary {
+	summary := BenchmarkSummary{
+		Steps: make(map[string]timing.BenchmarkStats),
+	}
+
+	// Collect durations for each step across all runs
+	stepDurations := make(map[string][]time.Duration)
+
+	for _, run := range allRuns {
+		for _, timing := range run {
+			stepDurations["ValidateNonVRFHeader"] = append(stepDurations["ValidateNonVRFHeader"], timing.ValidateNonVRFHeader)
+			stepDurations["UpdateBetaH"] = append(stepDurations["UpdateBetaH"], timing.UpdateBetaH)
+			stepDurations["UpdateDisputes"] = append(stepDurations["UpdateDisputes"], timing.UpdateDisputes)
+			stepDurations["UpdateSafrole"] = append(stepDurations["UpdateSafrole"], timing.UpdateSafrole)
+			stepDurations["ValidateHeaderVrf"] = append(stepDurations["ValidateHeaderVrf"], timing.ValidateHeaderVrf)
+			stepDurations["ValidateExtrinsic"] = append(stepDurations["ValidateExtrinsic"], timing.ValidateExtrinsic)
+			stepDurations["UpdateAssurances"] = append(stepDurations["UpdateAssurances"], timing.UpdateAssurances)
+			stepDurations["UpdateReports"] = append(stepDurations["UpdateReports"], timing.UpdateReports)
+			stepDurations["UpdateAccumulate"] = append(stepDurations["UpdateAccumulate"], timing.UpdateAccumulate)
+			stepDurations["UpdateHistory"] = append(stepDurations["UpdateHistory"], timing.UpdateHistory)
+			stepDurations["UpdatePreimages"] = append(stepDurations["UpdatePreimages"], timing.UpdatePreimages)
+			stepDurations["UpdateAuthorizations"] = append(stepDurations["UpdateAuthorizations"], timing.UpdateAuthorizations)
+			stepDurations["UpdateStatistics"] = append(stepDurations["UpdateStatistics"], timing.UpdateStatistics)
+			stepDurations["Total"] = append(stepDurations["Total"], timing.Total)
+		}
+	}
+
+	// Calculate stats for each step
+	for step, durations := range stepDurations {
+		if len(durations) > 0 {
+			summary.Steps[step] = timing.CalculateBenchmarkStats(durations)
+		}
+	}
+
+	return summary
+}
+
+// FormatBenchmarkTable formats benchmark statistics as a table similar to visualize.py
+func (bs BenchmarkSummary) FormatBenchmarkTable(runCount int) string {
+	if len(bs.Steps) == 0 {
+		return "No benchmark data available"
+	}
+
+	// Sort steps by mean time (descending)
+	type stepStat struct {
+		name  string
+		stats timing.BenchmarkStats
+	}
+
+	steps := make([]stepStat, 0, len(bs.Steps))
+	for name, stats := range bs.Steps {
+		steps = append(steps, stepStat{name: name, stats: stats})
+	}
+
+	slices.SortFunc(steps, func(a, b stepStat) int {
+		if a.stats.Mean > b.stats.Mean {
+			return -1
+		} else if a.stats.Mean < b.stats.Mean {
+			return 1
+		}
+		return 0
+	})
+
+	// Find max for bar scaling
+	maxMean := time.Duration(0)
+	for _, s := range steps {
+		if s.stats.Mean > maxMean {
+			maxMean = s.stats.Mean
+		}
+	}
+
+	var sb strings.Builder
+	width := 90
+
+	fmt.Fprintf(&sb, "\n")
+	fmt.Fprintf(&sb, "%s\n", strings.Repeat("=", width))
+	fmt.Fprintf(&sb, "  BENCHMARK STATISTICS (%d runs)\n", runCount)
+	fmt.Fprintf(&sb, "%s\n\n", strings.Repeat("=", width))
+
+	fmt.Fprintf(&sb, "  Step                      │    Mean    │     P50     │     P90     │     P99     │    StdDev   │  Graph\n")
+	fmt.Fprintf(&sb, "  %s\n", strings.Repeat("-", width-2))
+
+	for _, s := range steps {
+		bar := createBar(s.stats.Mean, maxMean, 25)
+		fmt.Fprintf(&sb, "  %-25s │ %10v │ %11v │ %11v │ %11v │ %11v │ %s\n",
+			truncateStepName(s.name, 25),
+			formatBenchmarkDuration(s.stats.Mean),
+			formatBenchmarkDuration(s.stats.P50),
+			formatBenchmarkDuration(s.stats.P90),
+			formatBenchmarkDuration(s.stats.P99),
+			formatBenchmarkDuration(s.stats.StdDev),
+			bar)
+	}
+
+	fmt.Fprintf(&sb, "%s\n", strings.Repeat("=", width))
+
+	return sb.String()
+}
+
+func createBar(value, max time.Duration, width int) string {
+	if max == 0 {
+		return strings.Repeat("░", width)
+	}
+	filled := int((float64(value) / float64(max)) * float64(width))
+	filled = min(filled, width)
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+}
+
+func formatBenchmarkDuration(d time.Duration) string {
+	ms := float64(d) / float64(time.Millisecond)
+	if ms < 1 {
+		return fmt.Sprintf("%.2fμs", ms*1000)
+	} else if ms < 1000 {
+		return fmt.Sprintf("%.2fms", ms)
+	} else {
+		return fmt.Sprintf("%.2fs", ms/1000)
+	}
+}
+
+func truncateStepName(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
+}
+
+// PrintBenchmarkSummary prints benchmark statistics
+func PrintBenchmarkSummary(allRuns [][]STFTiming, runCount int) {
+	summary := CalculateBenchmarkSummary(allRuns)
+	fmt.Println(summary.FormatBenchmarkTable(runCount))
 }

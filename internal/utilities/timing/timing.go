@@ -4,8 +4,9 @@ package timing
 
 import (
 	"fmt"
+	"math"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -194,8 +195,15 @@ func ResetGlobal() {
 
 // SortByTotal sorts stats by total time (descending)
 func SortByTotal(stats []TimingStats) {
-	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Total > stats[j].Total
+	slices.SortFunc(stats, func(a, b TimingStats) int {
+		switch {
+		case a.Total > b.Total:
+			return -1
+		case a.Total < b.Total:
+			return 1
+		default:
+			return 0
+		}
 	})
 }
 
@@ -219,4 +227,199 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%.2fms", float64(d)/float64(time.Millisecond))
 	}
 	return fmt.Sprintf("%.2fs", float64(d)/float64(time.Second))
+}
+
+// BenchmarkStats holds statistical data for benchmark runs
+type BenchmarkStats struct {
+	Min    time.Duration
+	Max    time.Duration
+	Mean   time.Duration
+	StdDev time.Duration
+	P50    time.Duration // Median
+	P75    time.Duration
+	P90    time.Duration
+	P99    time.Duration
+}
+
+// CalculateBenchmarkStats calculates statistics from multiple durations
+func CalculateBenchmarkStats(durations []time.Duration) BenchmarkStats {
+	if len(durations) == 0 {
+		return BenchmarkStats{}
+	}
+
+	// Sort for percentile calculation
+	sorted := make([]time.Duration, len(durations))
+	copy(sorted, durations)
+	slices.Sort(sorted)
+
+	var sum time.Duration
+	for _, d := range durations {
+		sum += d
+	}
+
+	mean := sum / time.Duration(len(durations))
+
+	// Calculate variance and std dev
+	var variance float64
+	for _, d := range durations {
+		diff := float64(d - mean)
+		variance += diff * diff
+	}
+	variance /= float64(len(durations))
+	stdDev := time.Duration(math.Sqrt(variance))
+
+	// Calculate percentiles
+	percentile := func(p float64) time.Duration {
+		idx := int(float64(len(sorted)) * p)
+		if idx >= len(sorted) {
+			idx = len(sorted) - 1
+		}
+		return sorted[idx]
+	}
+
+	return BenchmarkStats{
+		Min:    sorted[0],
+		Max:    sorted[len(sorted)-1],
+		Mean:   mean,
+		StdDev: stdDev,
+		P50:    percentile(0.50),
+		P75:    percentile(0.75),
+		P90:    percentile(0.90),
+		P99:    percentile(0.99),
+	}
+}
+
+// BenchmarkSummary holds aggregated statistics for all custom timings
+type BenchmarkSummary struct {
+	Timings map[string]BenchmarkStats
+}
+
+// CalculateBenchmarkSummary calculates statistics from multiple collector snapshots
+// Each element in allRunsStats should be the Stats() result from a single run
+func CalculateBenchmarkSummary(allRunsStats [][]TimingStats) BenchmarkSummary {
+	summary := BenchmarkSummary{
+		Timings: make(map[string]BenchmarkStats),
+	}
+
+	// Collect all timing names
+	timingNames := make(map[string]bool)
+	for _, runStats := range allRunsStats {
+		for _, stat := range runStats {
+			timingNames[stat.Name] = true
+		}
+	}
+
+	// Calculate stats for each timing
+	for name := range timingNames {
+		var durations []time.Duration
+		for _, runStats := range allRunsStats {
+			for _, stat := range runStats {
+				if stat.Name == name {
+					// Use average from this run
+					durations = append(durations, stat.Average)
+					break
+				}
+			}
+		}
+		if len(durations) > 0 {
+			summary.Timings[name] = CalculateBenchmarkStats(durations)
+		}
+	}
+
+	return summary
+}
+
+// FormatBenchmarkTable formats benchmark statistics as a table
+func (bs BenchmarkSummary) FormatBenchmarkTable(runCount int) string {
+	if len(bs.Timings) == 0 {
+		return "No benchmark data available"
+	}
+
+	// Sort timings by mean time (descending)
+	type timingStat struct {
+		name  string
+		stats BenchmarkStats
+	}
+
+	timings := make([]timingStat, 0, len(bs.Timings))
+	for name, stats := range bs.Timings {
+		timings = append(timings, timingStat{name: name, stats: stats})
+	}
+
+	slices.SortFunc(timings, func(a, b timingStat) int {
+		if a.stats.Mean > b.stats.Mean {
+			return -1
+		} else if a.stats.Mean < b.stats.Mean {
+			return 1
+		}
+		return 0
+	})
+
+	// Find max for bar scaling
+	maxMean := time.Duration(0)
+	for _, t := range timings {
+		if t.stats.Mean > maxMean {
+			maxMean = t.stats.Mean
+		}
+	}
+
+	var sb strings.Builder
+	width := 90
+
+	fmt.Fprintf(&sb, "\n")
+	fmt.Fprintf(&sb, "%s\n", strings.Repeat("=", width))
+	fmt.Fprintf(&sb, "  CUSTOM TIMING BENCHMARK STATISTICS (%d runs)\n", runCount)
+	fmt.Fprintf(&sb, "%s\n\n", strings.Repeat("=", width))
+
+	fmt.Fprintf(&sb, "  Name                      │    Mean    │     P50     │     P90     │     P99     │    StdDev   │  Graph\n")
+	fmt.Fprintf(&sb, "  %s\n", strings.Repeat("-", width-2))
+
+	for _, t := range timings {
+		bar := createTimingBar(t.stats.Mean, maxMean, 25)
+		fmt.Fprintf(&sb, "  %-25s │ %10v │ %11v │ %11v │ %11v │ %11v │ %s\n",
+			truncate(t.name, 25),
+			formatBenchmarkDuration(t.stats.Mean),
+			formatBenchmarkDuration(t.stats.P50),
+			formatBenchmarkDuration(t.stats.P90),
+			formatBenchmarkDuration(t.stats.P99),
+			formatBenchmarkDuration(t.stats.StdDev),
+			bar)
+	}
+
+	fmt.Fprintf(&sb, "%s\n", strings.Repeat("=", width))
+
+	return sb.String()
+}
+
+func createTimingBar(value, max time.Duration, width int) string {
+	if max == 0 {
+		return strings.Repeat("░", width)
+	}
+	filled := int((float64(value) / float64(max)) * float64(width))
+	filled = min(filled, width)
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+}
+
+func formatBenchmarkDuration(d time.Duration) string {
+	ms := float64(d) / float64(time.Millisecond)
+	if ms < 1 {
+		return fmt.Sprintf("%.2fμs", ms*1000)
+	} else if ms < 1000 {
+		return fmt.Sprintf("%.2fms", ms)
+	} else {
+		return fmt.Sprintf("%.2fs", ms/1000)
+	}
+}
+
+// PrintBenchmarkSummary prints benchmark statistics
+func PrintBenchmarkSummary(allRunsStats [][]TimingStats, runCount int) {
+	summary := CalculateBenchmarkSummary(allRunsStats)
+	fmt.Println(summary.FormatBenchmarkTable(runCount))
+}
+
+// GetGlobalStats returns a snapshot of the global collector's stats
+func GetGlobalStats() []TimingStats {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+	return globalCollector.Stats()
 }

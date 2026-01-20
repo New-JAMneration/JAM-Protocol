@@ -12,13 +12,11 @@ var TEST_MODE = "tiny"
 func SetTestMode() {
 	TEST_MODE = os.Getenv("TEST_MODE")
 	if TEST_MODE == "tiny" {
-		logger.Info("⚙️  Tiny mode activated")
 		SetTinyMode()
 		return
 	}
 
 	if TEST_MODE == "full" {
-		logger.Info("⚙️  Full mode activated")
 		SetFullMode()
 		return
 	}
