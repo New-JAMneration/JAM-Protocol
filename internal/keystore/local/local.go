@@ -143,6 +143,10 @@ func (l *LocalKeyStore) Import(t keystore.KeyType, seed []byte) (keystore.KeyPai
 	}
 
 	pubHex := hex.EncodeToString(kp.PublicKey())
+	if _, exists := keys[pubHex]; exists {
+		return nil, fmt.Errorf("key already exists for type %s", t)
+	}
+
 	privHex := hex.EncodeToString(kp.PrivateKey())
 
 	keys[pubHex] = keyData{
@@ -262,18 +266,35 @@ func (l *LocalKeyStore) Delete(t keystore.KeyType, pubKey []byte) error {
 // from a JIP-5 seed into the local keystore.
 func (l *LocalKeyStore) ImportValidatorKeysFromSeed(seed []byte) error {
 	// Derive the secret seeds directly
-	ed25519SecretSeed, bandersnatchSecretSeed, _, _, err := keystore.DeriveValidatorKeys(seed)
+	ed25519SecretSeed, bandersnatchSecretSeed, edPub, bnPub, err := keystore.DeriveValidatorKeys(seed)
 	if err != nil {
 		return fmt.Errorf("failed to derive validator keys: %w", err)
 	}
 
+	// Make sure we don't accidentally overwrite existing validator keys.
+	// Both Ed25519 and Bandersnatch keys must be absent, otherwise we abort.
+	if exists, err := l.Contains(keystore.KeyTypeEd25519, edPub[:]); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("Ed25519 validator key already exists")
+	}
+
+	if exists, err := l.Contains(keystore.KeyTypeBandersnatch, bnPub[:]); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("Bandersnatch validator key already exists")
+	}
+
 	// Import Ed25519 key using the derived seed (32 bytes)
-	if _, err := l.Import(keystore.KeyTypeEd25519, ed25519SecretSeed); err != nil {
+	edKP, err := l.Import(keystore.KeyTypeEd25519, ed25519SecretSeed)
+	if err != nil {
 		return fmt.Errorf("failed to import Ed25519 key: %w", err)
 	}
 
 	// Import Bandersnatch key using the derived secret seed (32 bytes)
 	if _, err := l.Import(keystore.KeyTypeBandersnatch, bandersnatchSecretSeed); err != nil {
+		// Best-effort rollback so we don't end up with only one of the two keys.
+		_ = l.Delete(keystore.KeyTypeEd25519, edKP.PublicKey())
 		return fmt.Errorf("failed to import Bandersnatch key: %w", err)
 	}
 
