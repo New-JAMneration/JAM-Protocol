@@ -17,6 +17,7 @@ package statistics
 
 import (
 	"math"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
@@ -478,12 +479,21 @@ func UpdateValidatorActivityStatistics() {
 		cs.GetPosteriorStates().SetPiLast(valsLast)
 	}
 
-	// Update current statistics.
-	UpdateCurrentStatistics(extrinsic)
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	// Update the cores statistics.
-	UpdateCoreActivityStatistics(extrinsic)
+	go func() {
+		defer wg.Done()
+		UpdateCurrentStatistics(extrinsic)
+	}()
+	go func() {
+		defer wg.Done()
+		UpdateCoreActivityStatistics(extrinsic)
+	}()
+	go func() {
+		defer wg.Done()
+		UpdateServiceActivityStatistics(extrinsic)
+	}()
 
-	// Update the services statistics.
-	UpdateServiceActivityStatistics(extrinsic)
+	wg.Wait()
 }
