@@ -3,9 +3,11 @@ package merklization
 import (
 	"bytes"
 	"sort"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"golang.org/x/sync/errgroup"
 )
 
 // key 1: Alpha
@@ -545,35 +547,47 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval16)
 
-	// delta 1
+	// Parallelize Delta encoding
+	var deltaMu sync.Mutex
+	deltaEncoded := types.StateKeyVals{}
+	g := new(errgroup.Group)
+	g.SetLimit(types.MaxWorkers)
+
 	for id, account := range state.Delta {
-		stateKeyVal := encodeDelta1KeyVal(id, account)
-		encoded = append(encoded, stateKeyVal)
+		id, account := id, account
+		g.Go(func() error {
+			kvs := types.StateKeyVals{}
+
+			// delta 1
+			kvs = append(kvs, encodeDelta1KeyVal(id, account))
+
+			// delta 2
+			for key, val := range account.StorageDict {
+				kvs = append(kvs, encodeDelta2KeyVal(id, types.ByteSequence(key), val))
+			}
+
+			// delta 3
+			for key, val := range account.PreimageLookup {
+				kvs = append(kvs, encodeDelta3KeyVal(id, key, val))
+			}
+
+			// delta 4
+			for key, val := range account.LookupDict {
+				kvs = append(kvs, EncodeDelta4KeyVal(id, key, val))
+			}
+
+			deltaMu.Lock()
+			deltaEncoded = append(deltaEncoded, kvs...)
+			deltaMu.Unlock()
+			return nil
+		})
 	}
 
-	// delta 2
-	for id, account := range state.Delta {
-		for key, val := range account.StorageDict {
-			stateKeyVal := encodeDelta2KeyVal(id, types.ByteSequence(key), val)
-			encoded = append(encoded, stateKeyVal)
-		}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
-	// delta 3
-	for id, account := range state.Delta {
-		for key, val := range account.PreimageLookup {
-			stateKeyVal := encodeDelta3KeyVal(id, key, val)
-			encoded = append(encoded, stateKeyVal)
-		}
-	}
-
-	// delta 4
-	for id, account := range state.Delta {
-		for key, val := range account.LookupDict {
-			stateKeyVal := EncodeDelta4KeyVal(id, key, val)
-			encoded = append(encoded, stateKeyVal)
-		}
-	}
+	encoded = append(encoded, deltaEncoded...)
 
 	// Order by key
 	sort.Slice(encoded, func(i, j int) bool {
