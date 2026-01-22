@@ -9,6 +9,7 @@ import (
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/hdevalence/ed25519consensus"
+	"golang.org/x/sync/errgroup"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
@@ -97,10 +98,15 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		offendersMap[offender] = true
 	}
 
-	var guranatorAssignments GuranatorAssignments
-	var err error
+	// Parallelize signature verifications across guarantees
+	eg := new(errgroup.Group)
+	eg.SetLimit(types.MaxWorkers)
 
 	for _, guarantee := range g.Guarantees {
+		guarantee := guarantee
+
+		var guranatorAssignments GuranatorAssignments
+		var err error
 		if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
 			guranatorAssignments, err = GFunc(offendersMap)
 		} else {
@@ -130,19 +136,26 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		}
 		hashed := hash.Blake2bHash(reportSerial)
 		message = append(message, hashed[:]...)
+
+		// Parallelize signature verifications
 		for _, sig := range guarantee.Signatures {
-			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-				err := ReportsErrorCode.WrongAssignment
-				return &err
-			}
-			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
-			if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
-				err := ReportsErrorCode.BadSignature
-				return &err
-			}
+			sig := sig
+
+			eg.Go(func() error {
+				if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
+					err := ReportsErrorCode.WrongAssignment
+					return &err
+				}
+				publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
+				if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
+					err := ReportsErrorCode.BadSignature
+					return &err
+				}
+				return nil
+			})
 		}
 	}
-	return nil
+	return eg.Wait()
 }
 
 // WorkReportSet | Eq. 11.28
