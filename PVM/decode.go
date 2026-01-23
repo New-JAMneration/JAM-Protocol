@@ -41,7 +41,7 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 		return 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -51,7 +51,7 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d deserialization vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vY, err := SignExtend(int(lY), uint64(decodedVy))
+	vY, err := SignExtend(uint8(lY), uint64(decodedVy))
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -97,7 +97,7 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -107,7 +107,7 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vY, err := SignExtend(int(lY), uint64(decodedVY))
+	vY, err := SignExtend(uint8(lY), uint64(decodedVY))
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -155,7 +155,7 @@ func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialization error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
 		return 0, 0, 0, err
 	}

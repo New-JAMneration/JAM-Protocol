@@ -187,7 +187,7 @@ func ReadUintSignExtended(data []byte, numBytes int) (uint64, []byte, error) {
 		return 0, nil, err
 	}
 
-	value, err = SignExtend(numBytes, value)
+	value, err = SignExtend(uint8(numBytes), value)
 	if err != nil {
 		return 0, nil, err
 	}
