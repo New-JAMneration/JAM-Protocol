@@ -1,7 +1,6 @@
 package PVM
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -20,13 +19,14 @@ func Z(x int) uint32 {
 }
 
 // A.36 Y func
-func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Registers, Memory, error) {
+func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Registers, Memory, ExitReason) {
 	c, o, w, z, s, err := DecodeSerializedValues(p)
 	if err != nil {
-		return nil, Registers{}, Memory{}, err
+		return nil, Registers{}, Memory{}, ExitPanic
 	}
 	if 5*ZZ+uint64(Z(len(o)))+uint64(Z(len(w)+int(z)*int(ZP)+int(s)+ZI)) > 1<<32 {
-		return nil, Registers{}, Memory{}, errors.New("memory layout calculations failed")
+		pvmLogger.Errorf("memory layout calculations failed")
+		return nil, Registers{}, Memory{}, ExitPanic
 	}
 
 	// Memory layout calculations
@@ -73,7 +73,7 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	regs[7] = uint64(1<<32 - ZZ - ZI)
 	regs[8] = uint64(len(a))
 
-	return c, regs, mem, nil
+	return c, regs, mem, ExitContinue
 }
 
 func allocateMemorySegment(mem *Memory, start, end uint32, content []byte, access MemoryAccess) {

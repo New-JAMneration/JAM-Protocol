@@ -22,9 +22,9 @@ func TestSingleInitializer(t *testing.T) {
 
 	a := []byte("args_data")
 
-	c, regs, mem, err := SingleInitializer(p, a)
-	if err != nil {
-		t.Fatalf("singleInitializer returned an error: %v", err)
+	c, regs, mem, exitReason := SingleInitializer(p, a)
+	if exitReason != ExitContinue {
+		t.Fatalf("singleInitializer returned an error")
 	}
 
 	// validate c

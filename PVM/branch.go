@@ -1,24 +1,24 @@
 package PVM
 
-func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask, instruction ProgramCode) (ExitReasonTypes, ProgramCounter) {
+func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask, instruction ProgramCode) (ExitReason, ProgramCounter) {
 	switch {
 	case !C:
-		return CONTINUE, pc
+		return ExitContinue, pc
 	case !bitmask.IsStartOfBasicBlock(b) && instruction.isOpcodeValid(b):
-		return PANIC, pc
+		return ExitPanic, pc
 	default:
-		return CONTINUE, b
+		return ExitContinue, b
 	}
 }
 
-func djump(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (ExitReasonTypes, ProgramCounter) {
+func djump(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (ExitReason, ProgramCounter) {
 	switch {
 	case a == 0xffff0000:
-		return HALT, pc
+		return ExitHalt, pc
 		// jumpTable Size : |j|  , jumpTable Length E_1(z)
 	case a == 0 || a > jumpTable.Size*ZA || a%ZA != 0:
 		// case a == 0 || a > jumpTable.Size*jumpTable.Length || a%jumpTable.Length != 0:
-		return PANIC, pc
+		return ExitPanic, pc
 	}
 	index := a/ZA - 1 // GP,  if  ZA > 1, index = ZA*index
 	dest, _, err := ReadUintFixed(jumpTable.Data[index*jumpTable.Length:], int(jumpTable.Length))
@@ -30,8 +30,8 @@ func djump(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (E
 	newPC := ProgramCounter(dest)
 
 	if !bitmask.IsStartOfBasicBlock(newPC) {
-		return PANIC, pc
+		return ExitPanic, pc
 	}
 
-	return CONTINUE, newPC
+	return ExitContinue, newPC
 }
