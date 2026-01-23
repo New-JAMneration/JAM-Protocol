@@ -2,78 +2,81 @@
 package PVM
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"reflect"
 	"testing"
 )
 
-func TestExitReasonsTypes(t *testing.T) {
+func TestExitReasonGetReasonType(t *testing.T) {
 	tests := []struct {
-		reason ExitReasonTypes
-		want   string
+		name     string
+		reason   ExitReason
+		expected ExitReasonType
 	}{
-		{CONTINUE, "continue"},
-		{HALT, "halt"},
-		{PANIC, "panic"},
-		{OUT_OF_GAS, "out-of-gas"},
-		{PAGE_FAULT, "page-fault"},
-		{HOST_CALL, "host-call identifier"},
+		{"Continue", ExitContinue, CONTINUE},
+		{"Halt", ExitHalt, HALT},
+		{"Panic", ExitPanic, PANIC},
+		{"OOG", ExitOOG, OUT_OF_GAS},
+		{"PageFault", ExitPageFault | 0x12345678, PAGE_FAULT},
+		{"HostCall", ExitHostCall | 0xFF, HOST_CALL},
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v", tt.reason), func(t *testing.T) {
-			if got := exitMessages[tt.reason]; got != tt.want {
-				t.Errorf("exitMessages[%v] = %v, want %v", tt.reason, got, tt.want)
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.reason.GetReasonType(); got != tt.expected {
+				t.Errorf("GetReasonType() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
 }
 
-func TestInvocation(t *testing.T) {
-	// mockHC := "mockHostCall"
+func TestExitReasonDataExtraction(t *testing.T) {
+	// 測試 PageFault 地址提取 (32 bits 邊界測試)
+	t.Run("PageFaultAddress_Boundary", func(t *testing.T) {
+		var addr uint32 = 0xABCDEFFF
+		reason := ExitPageFault | ExitReason(addr)
+		if got := reason.GetPageFaultAddress(); got != addr {
+			t.Errorf("GetPageFaultAddress() = 0x%x, want 0x%x", got, addr)
+		}
+		// 確保高位 Type 沒變
+		if reason.GetReasonType() != PAGE_FAULT {
+			t.Errorf("Type corrupted! got %v", reason.GetReasonType())
+		}
+	})
 
+	// 測試 HostCall ID 提取 (8 bits)
+	t.Run("HostCallID_Boundary", func(t *testing.T) {
+		var id uint8 = 255
+		reason := ExitHostCall | ExitReason(id)
+		if got := reason.GetHostCallID(); got != id {
+			t.Errorf("GetHostCallID() = %d, want %d", got, id)
+		}
+	})
+}
+
+func TestExitReasonString(t *testing.T) {
 	tests := []struct {
-		p, pc, gas, reg, mem int
-		want                 string
+		reason   ExitReason
+		expected string
 	}{
-		// {1, 0, 10, 0, 1, "Continue (▸)"},                     // CONTINUE
-		{1, 0, 10, 0, 0, "page-fault at RAM address: 0"}, // PAGE_FAULT
-		{1, 0, 0, 0, 1, "out-of-gas"},                    // OUT_OF_GAS
-		{1, 0, 10, 0, 1, "host-call identifier: 1"},      // HOST_CALL
+		{ExitContinue, "Continue"},
+		{ExitHalt, "Halt"},
+		{ExitPageFault | 0xDEADBEEF, "Page fault at 0xdeadbeef"},
+		{ExitHostCall | 42, "Host Call 42"},
+		{ExitReason(99) << 56, "Unknown ExitReasonType(99)"},
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("p=%d, pc=%d, gas=%d, reg=%d, mem=%d", tt.p, tt.pc, tt.gas, tt.reg, tt.mem), func(t *testing.T) {
-			_, _, _, _, got := exPsi(tt.p, tt.pc, tt.gas, tt.reg, tt.mem)
-			gotStr := got.Error()
-			if gotStr != tt.want {
-				t.Errorf("ExPsi(%d, %d, %d, %d, %d) = %v, want %v", tt.p, tt.pc, tt.gas, tt.reg, tt.mem, got, tt.want)
+		t.Run(tt.expected, func(t *testing.T) {
+			if got := tt.reason.String(); got != tt.expected {
+				t.Errorf("String() = %q, want %q", got, tt.expected)
 			}
 		})
 	}
 }
 
-// test all exit types of invocation function
-func exPsi(p, pc, gas, reg, mem int) (int, int, int, int, error) {
-	// call Psi1 to renew states first
-	newPc, newGas, newReg, newMem, epsilon := psi1(pc, gas, reg, mem)
-
-	if errors.Is(epsilon, PVMExitTuple(CONTINUE, nil)) {
-		return exPsi(p, newPc, newGas, newReg, newMem)
-	} else if errors.Is(epsilon, PVMExitTuple(OUT_OF_GAS, nil)) || errors.Is(epsilon, PVMExitTuple(HALT, nil)) {
-		return newPc, newGas, newReg, newMem, epsilon
-	} else if errors.Is(epsilon, PVMExitTuple(PAGE_FAULT, newMem)) { // test page fault
-		return newPc, newGas, newReg, newMem, epsilon
-	} else if errors.Is(epsilon, PVMExitTuple(HOST_CALL, newMem)) { // test host call
-		return newPc, newGas, newReg, newMem, epsilon
-	} else {
-		return newPc, newGas, newReg, newMem, epsilon
-	}
-}
-
-func psi1(pc, gas, reg, mem int) (int, int, int, int, error) {
+func psi1(pc, gas, reg, mem int) (int, int, int, int, ExitReason) {
 	var (
 		newPc  = pc + 1 // + skip()
 		newGas = gas - 10
@@ -82,13 +85,13 @@ func psi1(pc, gas, reg, mem int) (int, int, int, int, error) {
 	)
 
 	if newGas < 0 {
-		return newPc, newGas, newReg, newMem, PVMExitTuple(OUT_OF_GAS, nil)
+		return newPc, newGas, newReg, newMem, ExitOOG
 	}
 	if newMem == 0 { // mock "0" for page fault
-		return newPc, newGas, newReg, newMem, PVMExitTuple(PAGE_FAULT, uint64(newMem))
+		return newPc, newGas, newReg, newMem, ExitPageFault | ExitReason(newMem)
 	}
 	// return newPc, newGas, newReg, newMem, PVMExitTuple(CONTINUE, nil)
-	return newPc, newGas, newReg, newMem, PVMExitTuple(HOST_CALL, uint64(newMem))
+	return newPc, newGas, newReg, newMem, ExitHostCall | ExitReason(newMem)
 }
 
 // ---
@@ -141,7 +144,7 @@ func TestBranch(t *testing.T) {
 		offset      uint32
 		condition   bool
 		basicBlocks []uint32
-		wantExit    ExitReasonTypes
+		wantExit    ExitReasonType
 		wantPC      ProgramCounter
 	}{
 		{
@@ -192,7 +195,7 @@ func TestDjump(t *testing.T) {
 		target             uint32
 		jumpTable          []uint32
 		basicBlocks        []uint32
-		expectedExitReason ExitReasonTypes
+		expectedExitReason ExitReasonType
 		expectedPC         uint32
 	}{
 		{

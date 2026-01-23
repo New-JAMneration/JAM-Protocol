@@ -19,11 +19,10 @@ func TestLoadPVMFile(t *testing.T) {
 			continue
 		}
 
-		programCode, _, _, err := SingleInitializer(data, []byte{})
-		if err != nil {
+		programCode, _, _, exitReason := SingleInitializer(data, []byte{})
+		if exitReason != ExitContinue {
 			t.Errorf("Error parsing %s: %v", filename, err)
 		}
-
 		// exitReason will not be used in this test
 		programBlob, _ := DeBlobProgramCode(programCode)
 
@@ -76,8 +75,8 @@ func TestSkip(t *testing.T) {
 			continue
 		}
 
-		programCode, _, _, err := SingleInitializer(data, []byte{})
-		if err != nil {
+		programCode, _, _, exitReason := SingleInitializer(data, []byte{})
+		if exitReason != ExitContinue {
 			t.Errorf("Error parsing %s: %v", filename, err)
 		}
 

@@ -2,7 +2,6 @@ package PVM
 
 import (
 	"errors"
-	"fmt"
 )
 
 type JumpTable struct {
@@ -15,7 +14,7 @@ type JumpTable struct {
 // 0x02 bit stores whether an index is the start of a basic block
 type Bitmask []byte
 
-func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, error) {
+func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, ExitReason) {
 	instSize := len(instruction)
 	bitmaskSize := instSize / 8
 	if instSize%8 > 0 {
@@ -23,7 +22,8 @@ func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, error) {
 	}
 
 	if len(bitmaskData) != int(bitmaskSize) {
-		return nil, fmt.Errorf("bitmask has incorrect size: expected %d, got %d", bitmaskSize, len(bitmaskData))
+		pvmLogger.Errorf("bitmask has incorrect size: expected %d, got %d", bitmaskSize, len(bitmaskData))
+		return nil, ExitPanic
 	}
 
 	bitmask := make(Bitmask, instSize)
@@ -40,7 +40,7 @@ func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, error) {
 		}
 	}
 
-	return bitmask, nil
+	return bitmask, ExitContinue
 }
 
 // returns false if the address is invalid
@@ -84,46 +84,47 @@ type Program struct {
 	InstrCount      uint64
 }
 
-func (p *Program) RunHostCallFunc(operationType OperationType) Omega {
-	return HostCallFunctions[operationType]
-}
-
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
-func DeBlobProgramCode(data []byte) (_ Program, exitReason error) {
+func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableSize ReadUintVariable error: %w", err)
+		pvmLogger.Errorf("jumpTableSize ReadUintVariable error: %v", err)
+		return Program{}, ExitPanic
 	}
 
 	// E_1(z) : length of jumpTableLength
 	jumpTableLength, data, err := ReadUintFixed(data, 1)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableLength ReadUintFixed error: %w", err)
+		pvmLogger.Errorf("jumpTableLength ReadUintFixed error: %v", err)
+		return Program{}, ExitPanic
 	}
 	// E_(|c|) : size of instructions
 	instSize, data, err := ReadUintVariable(data)
 	if err != nil {
-		return Program{}, fmt.Errorf("instSize ReadUintVariable error: %w", err)
+		pvmLogger.Errorf("instSize ReadUintVariable error: %v", err)
+		return Program{}, ExitPanic
 	}
 
 	if jumpTableLength*jumpTableSize >= 1<<32 {
-		return Program{}, fmt.Errorf("jump table size %d bits exceed litmit of 32 bits", jumpTableLength*jumpTableSize)
+		pvmLogger.Errorf("jump table size %d bits exceed litmit of 32 bits", jumpTableLength*jumpTableSize)
+		return Program{}, ExitPanic
 		// panic("the jump table's size is supposed to be at most 32 bits")
 	}
 
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
 	jumpTableData, data, err := ReadBytes(data, jumpTableLength*jumpTableSize)
 	if err != nil {
-		return Program{}, fmt.Errorf("jumpTableData ReadBytes error: %w", err)
+		pvmLogger.Errorf("jumpTableData ReadBytes error: %v", err)
+		return Program{}, ExitPanic
 	}
 
 	instructions := data[:instSize]
 	bitmaskData := data[instSize:]
-	bitmask, err := MakeBitMasks(instructions, bitmaskData)
-	if err != nil {
+	bitmask, exitReason := MakeBitMasks(instructions, bitmaskData)
+	if exitReason == ExitPanic {
 		// A.2 if bitmasks cannot fit instructions, return panic
-		return Program{}, PVMExitTuple(PANIC, nil)
+		return Program{}, ExitPanic
 	}
 
 	return Program{
@@ -134,7 +135,7 @@ func DeBlobProgramCode(data []byte) (_ Program, exitReason error) {
 		},
 		Bitmasks:        bitmask,      // k
 		InstructionData: instructions, // c
-	}, PVMExitTuple(CONTINUE, nil)
+	}, ExitContinue
 }
 
 // skip computes the distance to the next opcode  A.3

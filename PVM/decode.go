@@ -157,7 +157,7 @@ func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter
 	}
 	vX, err := SignExtend(int(lX), uint64(decodedVX))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, err
 	}
 
 	return rA, rB, vX, nil
@@ -213,9 +213,9 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	return rA, rB, rD, nil
 }
 
-func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
+func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) ExitReason {
 	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
-		return PVMExitTuple(PANIC, memIndex)
+		return ExitPanic
 	}
 	vX := uint32(memIndex)
 	pageNum := vX / ZP
@@ -226,14 +226,14 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 	if _, pageAllocated := mem.Pages[pageNum]; pageAllocated {
 		// try to allocate read-only memory --> page-fault
 		if mem.Pages[pageNum].Access != MemoryReadWrite {
-			return PVMExitTuple(PAGE_FAULT, memIndex)
+			return ExitPageFault | ExitReason(memIndex)
 		}
 		if pageIndex+uint32(len(vY)) <= ZP { // data allocated do not exceed maxSize
 			copy(mem.Pages[pageNum].Value[pageIndex:], vY)
 		} else { // data allocated exceed maxSize --> cross page
 			// check next page access
 			if _, pageAllocated := mem.Pages[pageNum+1]; !pageAllocated {
-				return PVMExitTuple(PAGE_FAULT, memIndex)
+				return ExitPageFault | ExitReason(memIndex)
 			}
 
 			currentPageLength := ZP - pageIndex
@@ -245,14 +245,14 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 		}
 
 	} else { // page not allocated
-		return PVMExitTuple(PAGE_FAULT, memIndex)
+		return ExitPageFault | ExitReason(memIndex)
 	}
-	return PVMExitTuple(CONTINUE, nil)
+	return ExitContinue
 }
 
-func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
+func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, ExitReason) {
 	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
-		return 0, PVMExitTuple(PANIC, vx)
+		return 0, ExitPanic
 	}
 	vX := uint32(vx)
 
@@ -262,7 +262,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	// we allocated memory at least read-only
 	// => if the memory is not allocated -> it's Inaccessible
 	if _, pageAllocated := mem.Pages[pageNum]; !pageAllocated {
-		return 0, PVMExitTuple(PAGE_FAULT, vx)
+		return 0, ExitPageFault | ExitReason(vX)
 	}
 	memBytes := make([]byte, offset)
 
@@ -270,7 +270,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
 	} else { // cross page memory memory loading
 		if mem.Pages[pageNum+1] == nil {
-			return 0, PVMExitTuple(PAGE_FAULT, vx)
+			return 0, ExitPageFault | ExitReason(vX)
 		}
 
 		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
@@ -279,7 +279,8 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
-		return 0, err
+		pvmLogger.Errorf("loadFromMemory deserialization error %s", err)
+		return 0, ExitPanic
 	}
-	return uint64(memVal), nil
+	return uint64(memVal), ExitContinue
 }

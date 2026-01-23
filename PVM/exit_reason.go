@@ -6,10 +6,10 @@ import (
 	"sort"
 )
 
-type ExitReasonTypes int
+type ExitReasonType uint8
 
 const (
-	CONTINUE ExitReasonTypes = iota
+	CONTINUE ExitReasonType = iota
 	HALT
 	PANIC
 	OUT_OF_GAS
@@ -17,59 +17,57 @@ const (
 	HOST_CALL
 )
 
-var exitMessages = map[ExitReasonTypes]string{
-	CONTINUE:   "continue",
-	HALT:       "halt",
-	PANIC:      "panic",
-	OUT_OF_GAS: "out-of-gas",
-	PAGE_FAULT: "page-fault",
-	HOST_CALL:  "host-call identifier",
-}
+// use mask to store the status and value
+type ExitReason uint64
 
-// varepsilon ε
-type PVMExitReason struct {
-	Reason    ExitReasonTypes // exit types: "HALT", "PANIC", "OUT_OF_GAS", "PAGE_FAULT", "HOST_CALL"
-	HostCall  *uint64         // if Type = "HOST_CALL", store Host-Call identifier
-	FaultAddr *uint64         // if Type = "PAGE_FAULT", store wrong RAM address
-}
+const (
+	// GP do not define CONTINUE
+	// if the actual result code defined in B.1 is needed
+	// result =  (res >> 56) -1
+	ExitContinue  = ExitReason(CONTINUE)         // 0x00
+	ExitHalt      = ExitReason(HALT) << 56       // 0x01
+	ExitPanic     = ExitReason(PANIC) << 56      // 0x02
+	ExitOOG       = ExitReason(OUT_OF_GAS) << 56 // 0x03
+	ExitPageFault = ExitReason(PAGE_FAULT) << 56 // 0x04000000XXXXXXXX
+	ExitHostCall  = ExitReason(HOST_CALL) << 56  // 0x050000000000XXXX
 
-// error interface
-func (e *PVMExitReason) Error() string {
-	msg, exists := exitMessages[e.Reason]
-	if !exists {
-		msg = "Unknown exit reason"
-	}
+)
 
-	switch e.Reason {
+func (e ExitReason) String() string {
+	exitType := e.GetReasonType()
+
+	switch exitType {
+	case CONTINUE:
+		return "Continue"
+	case HALT:
+		return "Halt"
+	case PANIC:
+		return "Panic"
+	case OUT_OF_GAS:
+		return "Out of Gas"
 	case PAGE_FAULT:
-		if e.FaultAddr != nil {
-			return fmt.Sprintf("%s at RAM address: %d", msg, *e.FaultAddr)
-		}
+		return fmt.Sprintf("Page fault at 0x%08x", e.GetPageFaultAddress())
 	case HOST_CALL:
-		if e.HostCall != nil {
-			return fmt.Sprintf("%s: %d", msg, *e.HostCall)
-		}
+		return fmt.Sprintf("Host Call %d", e.GetHostCallID())
+	default:
+		return fmt.Sprintf("Unknown ExitReasonType(%d)", exitType)
 	}
-	return msg
 }
 
-// PVMExitTuple can handle varepsilon type with (reason, meta)
-func PVMExitTuple(reason ExitReasonTypes, meta interface{}) error {
-	switch reason {
-	case PAGE_FAULT:
-		if addr, ok := meta.(uint64); ok { // uint64 types may change in the future
-			return &PVMExitReason{Reason: PAGE_FAULT, FaultAddr: &addr}
-		}
-	case HOST_CALL:
-		if call, ok := meta.(uint64); ok { // string types may change in the future
-			return &PVMExitReason{Reason: HOST_CALL, HostCall: &call}
-		}
-	}
-	return &PVMExitReason{Reason: reason}
+func (e ExitReason) GetReasonType() ExitReasonType {
+	return ExitReasonType(e >> 56)
+}
+
+func (e ExitReason) GetHostCallID() uint8 {
+	return uint8(e)
+}
+
+func (e ExitReason) GetPageFaultAddress() uint32 {
+	return uint32(e)
 }
 
 // Branch implements the branch function (A.17)
-func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint32) (ExitReasonTypes, ProgramCounter) {
+func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint32) (ExitReasonType, ProgramCounter) {
 	// instructions table will define different offset
 	target := pc + ProgramCounter(offset)
 	if !condition {
@@ -82,12 +80,12 @@ func Branch(pc ProgramCounter, offset uint32, condition bool, basicBlocks []uint
 }
 
 // djump implements the dynamic jump function (A.18)
-func Djump(target uint32, jumpTable []uint32, basicBlocks []uint32) (ExitReasonTypes, uint32) {
+func Djump(target uint32, jumpTable []uint32, basicBlocks []uint32) (ExitReasonType, uint32) {
 	if target == math.MaxUint32-ZZ+1 {
-		return HALT, target // Special case: return the address as is. // TODO design for returning iota
+		return HALT, target // Special case: return the address as is.
 	}
 	if target == 0 || target > uint32(len(jumpTable))*ZA || target%ZA != 0 || !IsBasicBlock(jumpTable[target/ZA], basicBlocks) {
-		return PANIC, target // If the target is invalid, panic. // TODO design for returning iota
+		return PANIC, target // If the target is invalid, panic.
 	}
 	return CONTINUE, jumpTable[target/ZA] // Otherwise, jump to the target.
 }
@@ -104,28 +102,28 @@ func IsBasicBlock(target uint32, basicBlocks []uint32) bool {
 
 // (A.9) ParseMemoryAccessError parses the memory access error based on the given
 // invalid addresses.
-func ParseMemoryAccessError(invalidAddresses []uint64) (ExitReasonTypes, error) {
+func ParseMemoryAccessError(invalidAddresses []uint64) ExitReason {
 	for i := range invalidAddresses {
 		invalidAddresses[i] = invalidAddresses[i] % (1 << 32)
 	}
 	// Iterate over read addresses and check for errors.0
 	if len(invalidAddresses) == 0 {
-		return CONTINUE, nil
+		return ExitContinue
 	}
 
 	minAddress := uint32(math.MaxUint32)
 	for _, addr := range invalidAddresses {
 		if addr < ZZ {
-			return PANIC, nil
+			return ExitPanic
 		}
 		if uint32(addr) < minAddress {
 			minAddress = uint32(addr)
 		}
 	}
-	return PAGE_FAULT, PVMExitTuple(PAGE_FAULT, minAddress/ZP)
+	return ExitPageFault | ExitReason(minAddress)
 }
 
-// (A.8) get invalid address // TODO design/align with 4.26 4.27
+// (A.8) get invalid address ß
 func GetInvalidAddress(readAddresses []uint64, writeAddresses []uint64, readableAddresses map[int]bool, writeableAddresses map[int]bool) []uint64 {
 	var invalidAddresses []uint64
 	for _, addr := range readAddresses {
