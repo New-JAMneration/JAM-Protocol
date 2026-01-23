@@ -362,7 +362,7 @@ func instEcalli(program *Program, pc ProgramCounter, skipLength ProgramCounter, 
 		pvmLogger.Errorf("instEcalli deserialization error: %v", err)
 		return ExitPanic, pc, reg, mem
 	}
-	nuX, err := SignExtend(lX, uint64(x))
+	nuX, err := SignExtend(uint8(lX), uint64(x))
 	if err != nil {
 		pvmLogger.Errorf("instEcalli signExtend error: %v", err)
 		return ExitPanic, pc, reg, mem
@@ -559,7 +559,7 @@ func instLoadI8(program *Program, pc ProgramCounter, skipLength ProgramCounter, 
 		return exitReason, pc, reg, mem
 	}
 
-	extend, err := SignExtend(offset, memVal)
+	extend, err := SignExtend(uint8(offset), memVal)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI8 SignExtend error: %v", err)
 		return ExitPanic, pc, reg, mem
@@ -606,7 +606,7 @@ func instLoadI16(program *Program, pc ProgramCounter, skipLength ProgramCounter,
 		return exitReason, pc, reg, mem
 	}
 
-	extend, err := SignExtend(offset, memVal)
+	extend, err := SignExtend(uint8(offset), memVal)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI16 signExtend error: %v", err)
 		return ExitPanic, pc, reg, mem
@@ -653,7 +653,7 @@ func instLoadI32(program *Program, pc ProgramCounter, skipLength ProgramCounter,
 		return exitReason, pc, reg, mem
 	}
 
-	extend, err := SignExtend(offset, memVal)
+	extend, err := SignExtend(uint8(offset), memVal)
 	if err != nil {
 		pvmLogger.Errorf("instLoadI32 signExtend error: %v", err)
 		return ExitPanic, pc, reg, mem
