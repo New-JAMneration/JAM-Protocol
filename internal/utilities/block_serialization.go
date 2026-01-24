@@ -129,8 +129,6 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
 	encoder := types.NewEncoder()
 
-	encoded := []byte{}
-
 	// Encode the length of the guarantees
 	guaranteesLength := uint64(len(guaranteesExtrinsic))
 	encodedLength, err := encoder.EncodeUint(guaranteesLength)
@@ -138,6 +136,9 @@ func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
 		return nil, err
 	}
 
+	// Pre-allocate capacity: encodedLength + estimate per guarantee (hash 32 + slot 4 + sigs length 9 + avg 2 sigs * 64)
+	estimatedSize := len(encodedLength) + len(guaranteesExtrinsic)*173
+	encoded := make([]byte, 0, estimatedSize)
 	encoded = append(encoded, encodedLength...)
 
 	for _, guarantee := range guaranteesExtrinsic {

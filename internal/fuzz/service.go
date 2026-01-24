@@ -71,8 +71,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	latestState := cs.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
 	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
-	serializedState = append(priorUnmatchedKeyVals, serializedState...)
-	latestStateRoot := m.MerklizationSerializedState(serializedState)
+	combinedState := make(types.StateKeyVals, 0, len(priorUnmatchedKeyVals)+len(serializedState))
+	combinedState = append(combinedState, priorUnmatchedKeyVals...)
+	combinedState = append(combinedState, serializedState...)
+	latestStateRoot := m.MerklizationSerializedState(combinedState)
 
 	cs.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
@@ -99,8 +101,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyVals()
-	serializedState = append(postUnmatchedKeyVals, serializedState...)
-	latestStateRoot = m.MerklizationSerializedState(serializedState)
+	combinedState = make(types.StateKeyVals, 0, len(postUnmatchedKeyVals)+len(serializedState))
+	combinedState = append(combinedState, postUnmatchedKeyVals...)
+	combinedState = append(combinedState, serializedState...)
+	latestStateRoot = m.MerklizationSerializedState(combinedState)
 
 	// Commit the state and persist the state to Redis
 	cs.StateCommit()

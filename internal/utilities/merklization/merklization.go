@@ -31,7 +31,9 @@ func embeddedValueLeaf(key types.StateKey, value types.ByteSequence) types.BitSe
 	serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
 	valueSizeBits := utilities.BytesToBits(serializedValueSize)
 
-	encoding := types.BitSequence{}
+	// Estimate capacity: prefix + valueSizeBits + key + value
+	estimatedSize := len(prefix) + len(valueSizeBits) + len(key) + len(value)
+	encoding := make(types.BitSequence, 0, estimatedSize)
 	encoding = append(encoding, prefix...)
 	encoding = append(encoding, valueSizeBits[2:]...)
 	encoding = append(encoding, utilities.BytesToBits(key[:])...)
@@ -50,7 +52,9 @@ func regularLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence
 	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
 	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
 
-	encoding := types.BitSequence{}
+	// Estimate capacity: prefix bits + key + hash
+	estimatedSize := 8 + len(key)*8 + 32*8 // 8 prefix bits + key bits + hash bits
+	encoding := make(types.BitSequence, 0, estimatedSize)
 	encoding = append(encoding, leftPrefixBit...)
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)

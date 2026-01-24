@@ -272,7 +272,7 @@ func executeOuterAccumulation(cs *blockchain.ChainState) (OuterAccumulationOutpu
 
 	// (12.26) θ′ ≡ [[(s, h) ∈ b]]
 	// Convert accumulated service output (b) to the accumulation output log (θ′)
-	var thetaPrime types.LastAccOut
+	thetaPrime := make(types.LastAccOut, 0, len(b))
 	for accumulatedServiceHash := range b {
 		// append accumulatedServiceHash to lastAccOut
 		thetaPrime = append(thetaPrime, accumulatedServiceHash)

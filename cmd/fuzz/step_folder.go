@@ -81,7 +81,7 @@ func testStepFolder(ctx context.Context, cmd *cli.Command) error {
 }
 
 func scanStepFiles(folderPath string) ([]stepFile, error) {
-	var files []stepFile
+	files := make([]stepFile, 0, 50)
 
 	err := filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

@@ -126,7 +126,11 @@ func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPac
 	β′_H ≡ β†_H cat. ( p, h = H(H), b = MR(β′_B ), s = H^0 )
 */
 func AddItem2BetaHPrime(historyDagger types.BlocksHistory, item types.BlockInfo) types.BlocksHistory {
-	historyPrime := append(historyDagger, item)
+	// Pre-allocate capacity: historyDagger length + 1 (for new item), capped at maxBlocksHistory
+	capacity := min(len(historyDagger)+1, maxBlocksHistory)
+	historyPrime := make(types.BlocksHistory, len(historyDagger), capacity)
+	copy(historyPrime, historyDagger)
+	historyPrime = append(historyPrime, item)
 
 	// Ensure beta^prime's length not exceed maxBlocksHistory
 	if historyPrime.Validate() != nil {

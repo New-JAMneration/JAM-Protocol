@@ -157,8 +157,9 @@ func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueH
 	var proofs types.OpaqueHashMatrix
 	cs := blockchain.GetInstance()
 	for _, item := range p.WorkPackage.Items {
-		var rowSegments []types.ExportSegment
-		var rowProofs []types.OpaqueHash
+		// Pre-allocate capacity based on import segments count
+		rowSegments := make([]types.ExportSegment, 0, len(item.ImportSegments))
+		rowProofs := make([]types.OpaqueHash, 0, len(item.ImportSegments))
 
 		for _, spec := range item.ImportSegments {
 			segmentRoot := spec.TreeRoot
