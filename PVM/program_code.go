@@ -1,7 +1,8 @@
 package PVM
 
 import (
-	"errors"
+	"encoding/binary"
+	"math/bits"
 )
 
 type JumpTable struct {
@@ -87,24 +88,27 @@ type Program struct {
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
 func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 	// E_(|j|) : size of jumpTable
-	jumpTableSize, data, err := ReadUintVariable(data)
-	if err != nil {
-		pvmLogger.Errorf("jumpTableSize ReadUintVariable error: %v", err)
+	jumpTableSize, dataUsed, exitReason := ReadUintVariable(data)
+	if exitReason != ExitContinue {
+		pvmLogger.Errorf("jumpTableSize ReadUintVariable error")
 		return Program{}, ExitPanic
 	}
+	data = data[dataUsed:]
 
 	// E_1(z) : length of jumpTableLength
-	jumpTableLength, data, err := ReadUintFixed(data, 1)
-	if err != nil {
-		pvmLogger.Errorf("jumpTableLength ReadUintFixed error: %v", err)
-		return Program{}, ExitPanic
+	jumpTableLength, exitReason := decodeUintFixedLength(data, 1)
+	if exitReason != ExitContinue {
+		pvmLogger.Errorf("jumpTableLength decodeUintFixedLength error")
 	}
+	data = data[1:]
+
 	// E_(|c|) : size of instructions
-	instSize, data, err := ReadUintVariable(data)
-	if err != nil {
-		pvmLogger.Errorf("instSize ReadUintVariable error: %v", err)
+	instSize, dataUsed, exitReason := ReadUintVariable(data)
+	if exitReason != ExitContinue {
+		pvmLogger.Errorf("instSize ReadUintVariable error")
 		return Program{}, ExitPanic
 	}
+	data = data[dataUsed:]
 
 	if jumpTableLength*jumpTableSize >= 1<<32 {
 		pvmLogger.Errorf("jump table size %d bits exceed litmit of 32 bits", jumpTableLength*jumpTableSize)
@@ -165,25 +169,103 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 	return true
 }
 
-func ReadUintVariable(data []byte) (uint64, []byte, error) {
+func ReadUintVariable(data []byte) (uint64, int, ExitReason) {
 	if len(data) < 1 {
-		return 0, data, errors.New("not enough data to read a uint")
+		pvmLogger.Errorf("readUintVariable failed: no data to deserialize U64")
+		return 0, 0, ExitPanic
+	}
+	prefix := data[0]
+	if prefix < 0x80 {
+		return uint64(prefix), 1, ExitContinue
 	}
 
-	firstByte := data[0]
-	data = data[1:]
+	if prefix == 0xFF {
+		if len(data) < 9 {
+			pvmLogger.Errorf("readUintVariable: not enough data for 8-byte payload")
+			return 0, 0, ExitPanic
+		}
 
-	valueMask, bytesToRead, err := decodeUintFirstByte(firstByte)
-	if err != nil {
-		return 0, data, err
-	}
-	valueFromFirstByte := uint64(firstByte & valueMask)
-	valueFromRemainingBytes, data, err := ReadUintFixed(data, bytesToRead)
-	if err != nil {
-		return 0, data, err
+		return binary.LittleEndian.Uint64(data[1:9]), 9, ExitContinue
 	}
 
-	return valueFromFirstByte<<(8*bytesToRead) | valueFromRemainingBytes, data, nil
+	l := bits.LeadingZeros8(^prefix)
+	needed := l + 1
+	if len(data) < needed {
+		pvmLogger.Errorf("readUintVariable failed:not enough data for 8-byte U64")
+		return 0, 0, ExitPanic
+	}
+
+	base := 0xFF - (uint8(1) << (8 - uint(l))) + 1
+	floorVal := uint64(prefix - base)
+
+	var x uint64
+	switch l {
+	case 1:
+		x = (floorVal << 8) | uint64(data[1])
+	case 2:
+		x = (floorVal << 16) | uint64(binary.LittleEndian.Uint16(data[1:3]))
+	case 3:
+		if len(data) >= 5 {
+			x = (floorVal << 24) | (uint64(binary.LittleEndian.Uint32(data[1:5])) & 0xFFFFFF)
+		} else {
+			x = (floorVal << 24) | uint64(data[1]) | uint64(data[2])<<8 | uint64(data[3])<<16
+		}
+	case 4:
+		x = (floorVal << 32) | uint64(binary.LittleEndian.Uint32(data[1:5]))
+	default:
+		remainder := uint64(0)
+		for i := range l {
+			remainder |= uint64(data[i+1]) << (8 * uint(i))
+		}
+		x = (floorVal << (8 * uint(l))) | remainder
+	}
+
+	if x < (uint64(1) << (7 * uint(l))) {
+		pvmLogger.Errorf("readUintVariable: invalid encoding")
+		return 0, 0, ExitPanic
+	}
+	return x, needed, ExitContinue
+}
+
+func decodeUintFixedLength(data []byte, l int) (uint64, ExitReason) {
+	if len(data) < l {
+		pvmLogger.Errorf("not enough data to read a uint: got %d", len(data))
+		return 0, ExitPanic
+	}
+	switch l {
+	case 1:
+		return uint64(data[0]), ExitContinue
+	case 2:
+		return uint64(binary.LittleEndian.Uint16(data[0:2])), ExitContinue
+	case 3:
+		if len(data) >= 4 {
+			return uint64(binary.LittleEndian.Uint32(data[0:4])) & 0x00FFFFFF, ExitContinue
+		}
+		return decodeRemainderManual(data, l), ExitContinue
+	case 4:
+		return uint64(binary.LittleEndian.Uint32(data[0:4])), ExitContinue
+	case 5, 6, 7:
+		return decodeRemainderLong(data, l), ExitContinue
+	default:
+		pvmLogger.Errorf("invalid number of octets to read: got %d", l)
+		return 0, ExitPanic
+	}
+}
+
+func decodeRemainderLong(data []byte, l int) uint64 {
+	if len(data) >= 9 {
+		mask := (uint64(1) << (uint(l) * 8)) - 1
+		return binary.LittleEndian.Uint64(data[1:9]) & mask
+	}
+	return decodeRemainderManual(data, l)
+}
+
+func decodeRemainderManual(data []byte, l int) uint64 {
+	var remainder uint64
+	for i := 0; i < l && i+1 < len(data); i++ {
+		remainder |= uint64(data[i+1]) << (8 * i)
+	}
+	return remainder
 }
 
 // return (mask, bytes to read)
