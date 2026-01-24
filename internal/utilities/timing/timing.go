@@ -311,7 +311,8 @@ func CalculateBenchmarkSummary(allRunsStats [][]TimingStats) BenchmarkSummary {
 
 	// Calculate stats for each timing
 	for name := range timingNames {
-		var durations []time.Duration
+		// Pre-allocate capacity: estimate based on number of runs
+		durations := make([]time.Duration, 0, len(allRunsStats))
 		for _, runStats := range allRunsStats {
 			for _, stat := range runStats {
 				if stat.Name == name {

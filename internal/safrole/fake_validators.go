@@ -167,7 +167,7 @@ func CreateVRFHandler(bandersnatchKey types.BandersnatchPublic) (*vrf.Handler, e
 	skBytes := private[:]
 	// logger.Debug(skBytes)
 	// Use input bandersnatch keys to create the ring
-	ringBytes := []byte{}
+	ringBytes := make([]byte, 0, 32)
 	ringSize := uint(1)
 	ringBytes = append(ringBytes, bandersnatchKey[:]...)
 	return vrf.NewHandler(ringBytes, skBytes, ringSize, 0)

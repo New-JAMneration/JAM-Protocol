@@ -27,7 +27,8 @@ func NewDisputeController(VerdictController *VerdictController, FaultController 
 
 // ValidateFaults validates the faults in the verdict | Eq. 10.13
 func (d *DisputeController) ValidateFaults() error {
-	faultMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for fault map
+	faultMap := make(map[types.WorkReportHash]bool, len(d.FaultController.Faults))
 	for _, report := range d.FaultController.Faults {
 		faultMap[report.Target] = true
 	}
@@ -45,7 +46,8 @@ func (d *DisputeController) ValidateFaults() error {
 
 // ValidateCulprits validates the culprits in the verdict | Eq. 10.14
 func (d *DisputeController) ValidateCulprits() error {
-	culpritMap := make(map[types.WorkReportHash]int)
+	// Pre-allocate capacity for culprit map
+	culpritMap := make(map[types.WorkReportHash]int, len(d.CulpritController.Culprits))
 
 	for _, report := range d.CulpritController.Culprits {
 		culpritMap[report.Target]++
@@ -83,14 +85,20 @@ func (d *DisputeController) UpdatePsiGBW(newVerdicts []VerdictSummary) error {
 
 func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequence []VerdictSummary) (types.DisputesRecords, error) {
 	var updates types.DisputesRecords
+	// Pre-allocate capacity for slices (estimate: about 1/3 each category)
+	estimatedSize := len(verdictSumSequence) / 3
+	updates.Good = make([]types.WorkReportHash, 0, estimatedSize)
+	updates.Bad = make([]types.WorkReportHash, 0, estimatedSize)
+	updates.Wonky = make([]types.WorkReportHash, 0, estimatedSize)
 	for _, verdict := range verdictSumSequence {
-		if verdict.PositiveJudgmentsSum == types.ValidatorsCount*2/3+1 {
+		switch verdict.PositiveJudgmentsSum {
+		case types.ValidatorsCount*2/3+1:
 			updates.Good = append(updates.Good, types.WorkReportHash(verdict.ReportHash))
-		} else if verdict.PositiveJudgmentsSum == 0 {
+		case 0:
 			updates.Bad = append(updates.Bad, types.WorkReportHash(verdict.ReportHash))
-		} else if verdict.PositiveJudgmentsSum == types.ValidatorsCount*1/3 {
+		case types.ValidatorsCount*1/3:
 			updates.Wonky = append(updates.Wonky, types.WorkReportHash(verdict.ReportHash))
-		} else {
+		default:
 			return types.DisputesRecords{}, errors.New("bad_vote_split")
 		}
 	}
@@ -98,7 +106,8 @@ func CompareVerdictsWithPsi(disputeState types.DisputesRecords, verdictSumSequen
 }
 
 func UpdatePsiG(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
-	goodMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for good map
+	goodMap := make(map[types.WorkReportHash]bool, len(priorPsi.Good))
 	for _, good := range priorPsi.Good {
 		goodMap[good] = true
 	}
@@ -106,7 +115,8 @@ func UpdatePsiG(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkRepo
 }
 
 func UpdatePsiB(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
-	badMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for bad map
+	badMap := make(map[types.WorkReportHash]bool, len(priorPsi.Bad))
 	for _, bad := range priorPsi.Bad {
 		badMap[bad] = true
 	}
@@ -114,7 +124,8 @@ func UpdatePsiB(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkRepo
 }
 
 func UpdatePsiW(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkReportHash {
-	wonkyMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for wonky map
+	wonkyMap := make(map[types.WorkReportHash]bool, len(priorPsi.Wonky))
 	for _, wonky := range priorPsi.Wonky {
 		wonkyMap[wonky] = true
 	}
@@ -122,13 +133,17 @@ func UpdatePsiW(priorPsi, updateVerdicts types.DisputesRecords) []types.WorkRepo
 }
 
 func updateListAndMap(list []types.WorkReportHash, newItems []types.WorkReportHash, itemMap map[types.WorkReportHash]bool) []types.WorkReportHash {
+	// Pre-allocate capacity: worst case is all newItems are unique and appended
+	// Use len(list) + len(newItems) as capacity estimate
+	result := make([]types.WorkReportHash, len(list), len(list)+len(newItems))
+	copy(result, list)
 	for _, item := range newItems {
 		if !itemMap[item] {
-			list = append(list, item)
+			result = append(result, item)
 			itemMap[item] = true
 		}
 	}
-	return list
+	return result
 }
 
 // UpdatePsiO updates the PsiO | Eq. 10.19
@@ -155,7 +170,9 @@ func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.
 		}
 	}
 
-	psiO := append([]types.Ed25519Public(nil), priorPsi.Offenders...)
+	// Pre-allocate capacity: total = prior offenders + new posterior offenders
+	psiO := make([]types.Ed25519Public, 0, len(priorPsi.Offenders)+len(posteriorPsiO))
+	psiO = append(psiO, priorPsi.Offenders...)
 	psiO = append(psiO, posteriorPsiO...)
 	sort.Slice(psiO, func(i, j int) bool {
 		return bytes.Compare(psiO[i][:], psiO[j][:]) < 0
@@ -166,7 +183,8 @@ func (d *DisputeController) UpdatePsiO(culprits []types.Culprit, faults []types.
 
 // HeaderOffenders returns the offenders markers | Eq. 10.20
 func (d *DisputeController) HeaderOffenders(newCulprits []types.Culprit, newFaults []types.Fault) []types.Ed25519Public {
-	offendersMarkers := make([]types.Ed25519Public, 0)
+	// Pre-allocate capacity: total offenders = culprits + faults
+	offendersMarkers := make([]types.Ed25519Public, 0, len(newCulprits)+len(newFaults))
 	for _, culprit := range newCulprits {
 		offendersMarkers = append(offendersMarkers, culprit.Key)
 	}

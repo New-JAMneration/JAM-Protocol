@@ -49,7 +49,8 @@ func UpdateImmediatelyAccumulateWorkReports() {
 	intermediateState := blockchain.GetInstance().GetIntermediateStates()
 	availableReports := intermediateState.GetAvailableWorkReports()
 
-	var accumulatableReports []types.WorkReport
+	// Pre-allocate capacity: estimate that about half of reports are immediately accumulatable
+	accumulatableReports := make([]types.WorkReport, 0, len(availableReports)/2)
 	for _, report := range availableReports {
 		// Check for no prerequisites and no segment root lookup dependencies
 		if len(report.Context.Prerequisites) == 0 && len(report.SegmentRootLookup) == 0 {
@@ -65,7 +66,8 @@ func UpdateImmediatelyAccumulateWorkReports() {
 func UpdateQueuedWorkReports() {
 	intermediateState := blockchain.GetInstance().GetIntermediateStates()
 	availableReports := intermediateState.GetAvailableWorkReports()
-	var reportsWithDependency types.ReadyQueueItem
+	// Pre-allocate capacity: estimate that about half of reports have dependencies
+	reportsWithDependency := make(types.ReadyQueueItem, 0, len(availableReports)/2)
 	for _, report := range availableReports {
 		if len(report.Context.Prerequisites) != 0 || len(report.SegmentRootLookup) != 0 {
 			// D(w): extract the dependency structure from report
@@ -82,6 +84,9 @@ func UpdateQueuedWorkReports() {
 // Extract all dependencies from single work report
 func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRecord) {
 	output.Report = report
+	// Pre-allocate capacity: total dependencies = prerequisites + segment root lookups
+	totalDeps := len(report.Context.Prerequisites) + len(report.SegmentRootLookup)
+	output.Dependencies = make([]types.WorkPackageHash, 0, totalDeps)
 	// Add all explicit prerequisites (wx)p to the dependency list
 	for _, hash := range report.Context.Prerequisites {
 		output.Dependencies = append(output.Dependencies, types.WorkPackageHash(hash))
@@ -106,7 +111,7 @@ func GetDependencyFromWorkReport(report types.WorkReport) (output types.ReadyRec
 //	  - Remove from d any dependencies already present in x (i.e., prune known satisfied deps)
 //	  - Return the pruned ReadyQueueItem (w, d \ x)
 func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (newQueue types.ReadyQueueItem) {
-	finishedReportHashes := make(map[types.WorkPackageHash]bool)
+	finishedReportHashes := make(map[types.WorkPackageHash]bool, len(x))
 	for _, h := range x {
 		finishedReportHashes[h] = true
 	}
@@ -116,7 +121,8 @@ func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (ne
 			continue
 		}
 		// Otherwise, filter its dependencies: keep only those NOT in the finished set
-		var remainingDeps []types.WorkPackageHash
+		// Pre-allocate capacity: worst case is all dependencies remain
+		remainingDeps := make([]types.WorkPackageHash, 0, len(item.Dependencies))
 		for _, dep := range item.Dependencies {
 			if _, exist := finishedReportHashes[dep]; !exist {
 				remainingDeps = append(remainingDeps, dep)
@@ -133,7 +139,8 @@ func QueueEditingFunction(r types.ReadyQueueItem, x []types.WorkPackageHash) (ne
 // (12.8) Q get accumulatable work reports
 
 func AccumulationPriorityQueue(r types.ReadyQueueItem) (output []types.WorkReport) {
-	var g []types.WorkReport // g := items with no remaining dependencies
+	// Pre-allocate capacity: estimate that most items have no dependencies
+	g := make([]types.WorkReport, 0, len(r))
 
 	// Collect all reports that are ready for accumulation (i.e., dependencies resolved)
 	for _, item := range r {
@@ -212,9 +219,10 @@ func UpdateAccumulatableWorkReports() {
 
 	// (12.11) W* ≡ W! ⌢ Q(q)
 	// Reconstruct W* by appending newly-resolved reports to previously accumulated W!
-	WStar := []types.WorkReport{}
+	qResult := AccumulationPriorityQueue(q)
+	WStar := make([]types.WorkReport, 0, len(Wbang)+len(qResult))
 	WStar = append(WStar, Wbang...)
-	WStar = append(WStar, AccumulationPriorityQueue(q)...)
+	WStar = append(WStar, qResult...)
 
 	// Update W*
 	cs.GetIntermediateStates().SetAccumulatableWorkReports(WStar)
@@ -256,12 +264,13 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	}
 
 	// Accumulate the first i reports in parallel across services (∆)
-	//(e∗, t∗, b∗, u∗) = ∆∗(e, t, r...i, f)
-	var parallelInput ParallelizedAccumulationInput
-	parallelInput.PartialStateSet = e
-	parallelInput.DeferredTransfers = t
-	parallelInput.WorkReports = r[:i]
-	parallelInput.AlwaysAccumulateMap = f
+	//(e∗, t∗, b∗, u∗) = ∆∗(e, t, r...i, f)
+	parallelInput := ParallelizedAccumulationInput{
+		PartialStateSet:     e,
+		DeferredTransfers:   t,
+		WorkReports:         r[:i],
+		AlwaysAccumulateMap: f,
+	}
 
 	parallelResult, err := ParallelizedAccumulation(parallelInput)
 	eStar := parallelResult.PartialStateSet
@@ -283,12 +292,13 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	for _, u := range uStar {
 		gasLimitForRecursion -= u.Gas
 	}
-	var recursiveOuterInput OuterAccumulationInput
-	recursiveOuterInput.GasLimit = gasLimitForRecursion
-	recursiveOuterInput.DeferredTransfers = tStar
-	recursiveOuterInput.WorkReports = r[i:]
-	recursiveOuterInput.InitPartialStateSet = eStar
-	recursiveOuterInput.ServicesWithFreeAccumulation = make(map[types.ServiceId]types.Gas) // {}
+	recursiveOuterInput := OuterAccumulationInput{
+		GasLimit:                     gasLimitForRecursion,
+		DeferredTransfers:            tStar,
+		WorkReports:                  r[i:],
+		InitPartialStateSet:          eStar,
+		ServicesWithFreeAccumulation: make(map[types.ServiceId]types.Gas), // {}
+	}
 	recursiveOuterOutput, err := OuterAccumulation(recursiveOuterInput)
 	if err != nil {
 		return output, fmt.Errorf("recursive accumulation failed: %w", err)
@@ -303,15 +313,15 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		output.NumberOfWorkResultsAccumulated = types.U64(i) + j
 		output.PartialStateSet = ePrime // need to set post state?
 		// merge b_star and b
-		bUnion := make(map[types.AccumulatedServiceHash]bool)
-		for key, value := range bStar {
-			bUnion[key] = value
-		}
-		for key, value := range b {
-			bUnion[key] = value
-		}
+		bUnion := make(map[types.AccumulatedServiceHash]bool, len(bStar)+len(b))
+		maps.Copy(bUnion, bStar)
+		maps.Copy(bUnion, b)
 		output.AccumulatedServiceOutput = bUnion
-		output.ServiceGasUsedList = append(uStar, u...)
+		// Pre-allocate capacity for combined list
+		combinedGasUsed := make(types.ServiceGasUsedList, 0, len(uStar)+len(u))
+		combinedGasUsed = append(combinedGasUsed, uStar...)
+		combinedGasUsed = append(combinedGasUsed, u...)
+		output.ServiceGasUsedList = combinedGasUsed
 	}
 
 	return output, nil
@@ -329,7 +339,7 @@ func R[T comparable](o, a, b T) T {
 // Helper function to compute the set s for(12.17)
 // s = {s S s ∈ (rs S r ∈ r, d ∈ rd)} ∪ K(f) ∪ {td S t ∈ t}
 func set_s(r []types.WorkReport, f types.AlwaysAccumulateMap, t []types.DeferredTransfer) map[types.ServiceId]bool {
-	s := make(map[types.ServiceId]bool)
+	s := make(map[types.ServiceId]bool, len(r)*2+len(f)+len(t))
 	// {rs S r ∈ r, d ∈ rd}
 	for _, w := range r {
 		for _, r := range w.Results {
@@ -351,15 +361,11 @@ func set_s(r []types.WorkReport, f types.AlwaysAccumulateMap, t []types.Deferred
 
 // Merge three maps, d, n, m
 func merge(d, n, m types.ServiceAccountState) types.ServiceAccountState {
-	result := make(types.ServiceAccountState)
+	result := make(types.ServiceAccountState, len(d)+len(n)-len(m))
 	// Copy d
-	for key, value := range d {
-		result[key] = value
-	}
+	maps.Copy(result, d)
 	// Merge n, overwriting any keys from d
-	for key, value := range n {
-		result[key] = value
-	}
+	maps.Copy(result, n)
 	// Remove keys present in m
 	for key := range m {
 		delete(result, key)
@@ -392,8 +398,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 	// s = {s S s ∈ (rs S w ∈ w, r ∈ wr)} ∪ K(f) ∪ {td S t ∈ t}
 	s := set_s(input.WorkReports, input.AlwaysAccumulateMap, input.DeferredTransfers)
-	b := make(map[types.AccumulatedServiceHash]bool)
-	u := make(types.ServiceGasUsedList, 0)
+	b := make(map[types.AccumulatedServiceHash]bool, len(s))
+	u := make(types.ServiceGasUsedList, 0, len(s))
 
 	// Needed notations from partial state set
 	e := input.PartialStateSet
@@ -404,24 +410,25 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	d := input.PartialStateSet.ServiceAccounts
 	a := input.PartialStateSet.Assign
 
-	var tPrime []types.DeferredTransfer
+	tPrime := make([]types.DeferredTransfer, 0, len(t))
 
 	// maps for collecting service account state changes and update d_prime
-	n := make(types.ServiceAccountState)
-	m := make(types.ServiceAccountState)
+	n := make(types.ServiceAccountState, len(d))
+	m := make(types.ServiceAccountState, len(d))
 
-	var singleInput SingleServiceAccumulationInput
-	singleInput.PartialStateSet = e
-	singleInput.DeferredTransfers = t
-	singleInput.WorkReports = r
-	singleInput.AlwaysAccumulateMap = f
+	singleInput := SingleServiceAccumulationInput{
+		PartialStateSet:     e,
+		DeferredTransfers:   t,
+		WorkReports:         r,
+		AlwaysAccumulateMap: f,
+	}
 
 	// Helper to run single service accumulation for a given service ID
 	// ∆(s) ≡ ∆1(e, t, r, f, s)
 	var (
 		sf    singleflight.Group
 		mu    sync.RWMutex
-		cache = make(map[types.ServiceId]SingleServiceAccumulationOutput)
+		cache = make(map[types.ServiceId]SingleServiceAccumulationOutput, len(s))
 	)
 	runSingleReplaceService := func(s types.ServiceId, singleParam SingleServiceAccumulationInput) (SingleServiceAccumulationOutput, error) {
 		mu.RLock()
@@ -454,7 +461,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 
 	// p: output service blobs collection
-	var p types.ServiceBlobs
+	p := make(types.ServiceBlobs, 0, len(s))
 	// For each service in s, run single service accumulation in parallel
 	{
 		var wg sync.WaitGroup
@@ -518,7 +525,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
 		// m = union of (keys in d but missing in d_prime)
-		dExcludeSingleOutput := make(types.ServiceAccountState)
+		dExcludeSingleOutput := make(types.ServiceAccountState, len(d)-len(singleOutputD))
 		for key := range d {
 			if _, exists := singleOutputD[key]; !exists {
 				dExcludeSingleOutput[key] = d[key]
@@ -527,9 +534,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 		}
 		// add to m
-		for key, value := range dExcludeSingleOutput {
-			m[key] = value
-		}
+		maps.Copy(m, dExcludeSingleOutput)
 		// collect blobs updates
 		p = append(p, singleOutput.ServiceBlobs...)
 	}
@@ -540,8 +545,8 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	// Use intersection to merge UnmatchedKeyVals which not removed by any service
 	{
 		if len(s) > 0 {
-			keyCountMap := make(map[[31]byte]int)               // key -> count of how many services have this key
-			keyValueMap := make(map[[31]byte]types.StateKeyVal) // key -> value of the key
+			keyCountMap := make(map[[31]byte]int, len(s))               // key -> count of how many services have this key
+			keyValueMap := make(map[[31]byte]types.StateKeyVal, len(s)) // key -> value of the key
 			serviceCount := 0
 
 			// Count occurrences of each key across all service outputs
@@ -552,7 +557,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 				}
 				serviceCount++
 				// Deduplicate keys within each service output first
-				serviceKeySet := make(map[[31]byte]bool)
+				serviceKeySet := make(map[[31]byte]bool, len(singleOutput.UnmatchedKeyVals))
 				for _, kv := range singleOutput.UnmatchedKeyVals {
 					if !serviceKeySet[kv.Key] {
 						serviceKeySet[kv.Key] = true
@@ -563,7 +568,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 			}
 
 			// Only keep keys that exist in ALL service outputs (intersection)
-			mergedUnmatchedKeyVals := make(types.StateKeyVals, 0)
+			mergedUnmatchedKeyVals := make(types.StateKeyVals, 0, len(keyCountMap))
 			for key, count := range keyCountMap {
 				if count == serviceCount {
 					// This key exists in all service outputs, keep it
@@ -717,18 +722,16 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 	// new partial state set: (d′, i′, q′, m′, a′, v′, r′, z′)
 	// Set output ((d′, i′, q′, m′, a′, v′, r′, z′), t′, b, u)
-	var newPartialState types.PartialStateSet
-	{
-		newPartialState.ServiceAccounts = dPrime
-		newPartialState.ValidatorKeys = iPrime
-		newPartialState.Authorizers = qPrime
-		newPartialState.Bless = mPrime
-		newPartialState.Assign = aPrime
-		newPartialState.Designate = vPrime
-		newPartialState.CreateAcct = rPrime
-		newPartialState.AlwaysAccum = zPrime
+	output.PartialStateSet = types.PartialStateSet{
+		ServiceAccounts: dPrime,
+		ValidatorKeys:   iPrime,
+		Authorizers:     qPrime,
+		Bless:           mPrime,
+		Assign:          aPrime,
+		Designate:       vPrime,
+		CreateAcct:      rPrime,
+		AlwaysAccum:     zPrime,
 	}
-	output.PartialStateSet = newPartialState
 	output.DeferredTransfers = tPrime
 	output.AccumulatedServiceOutput = b
 	output.ServiceGasUsedList = u
@@ -739,13 +742,15 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output SingleServiceAccumulationOutput, err error) {
 	defer timing.Track("accumulation.SingleServiceAccumulation")()
 
-	e := input.PartialStateSet      // e: PartialStateSet
-	t := input.DeferredTransfers    // t: DeferredTransfers
-	r := input.WorkReports          // r: WorkReports
-	f := input.AlwaysAccumulateMap  // f: AlwaysAccumulateMap
-	s := input.ServiceId            // s: ServiceId
-	var iU []types.Operand          // all operand inputs for Ψₐ
-	var iT []types.DeferredTransfer // all deferred transfers for Ψₐ
+	e := input.PartialStateSet     // e: PartialStateSet
+	t := input.DeferredTransfers   // t: DeferredTransfers
+	r := input.WorkReports         // r: WorkReports
+	f := input.AlwaysAccumulateMap // f: AlwaysAccumulateMap
+	s := input.ServiceId           // s: ServiceId
+	// Estimate capacity: each work report may have multiple results matching this service
+	// Use conservative estimate of 2 results per work report on average
+	iU := make([]types.Operand, 0, len(r)*2)        // all operand inputs for Ψₐ
+	iT := make([]types.DeferredTransfer, 0, len(t)) // all deferred transfers for Ψₐ
 
 	// U(fs, 0)
 	g := types.Gas(0)
@@ -788,7 +793,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	})
 
 	//  iT ⌢ iU
-	var pvmItems []types.OperandOrDeferredTransfer
+	pvmItems := make([]types.OperandOrDeferredTransfer, 0, len(iT)+len(iU))
 	for _, deferredTransfer := range iT {
 		pvmItems = append(pvmItems, types.OperandOrDeferredTransfer{Operand: nil, DeferredTransfer: &deferredTransfer})
 	}

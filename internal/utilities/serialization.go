@@ -185,10 +185,9 @@ func (w ByteArray32Wrapper) Serialize() types.ByteSequence {
 }
 
 func (w TimeSlotSetWrapper) Serialize() types.ByteSequence {
-	bytes := []byte{}
-
-	// Encode the length of the set
+	// Pre-allocate capacity: 8 bytes (length) + 4 bytes per element
 	length := len(w.Value)
+	bytes := make([]byte, 0, 8+length*4)
 	bytes = append(bytes, SerializeU64(types.U64(length))...)
 
 	for _, elem := range w.Value {
@@ -198,7 +197,8 @@ func (w TimeSlotSetWrapper) Serialize() types.ByteSequence {
 }
 
 func (w ServiceRecordWrapper) Serialize() types.ByteSequence {
-	bytes := []byte{}
+	// Pre-allocate capacity: 11 fields * 8 bytes each = 88 bytes
+	bytes := make([]byte, 0, 88)
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.ProvidedCount))...)
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.ProvidedSize))...)
 	bytes = append(bytes, SerializeU64(types.U64(w.Value.RefinementCount))...)
@@ -405,7 +405,8 @@ func (m *MapWarpper) Serialize() types.ByteSequence {
 	})
 
 	// Put the (key, value) pair into an array
-	seq := []Serializable{}
+	// Pre-allocate capacity based on keys count
+	seq := make([]Serializable, 0, len(keys))
 	for _, key := range keys {
 		seq = append(seq, SerializableSequence{key.(Serializable), m.Value[key]})
 	}

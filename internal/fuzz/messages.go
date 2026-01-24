@@ -128,7 +128,8 @@ func (v *Version) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (m *ErrorMessage) MarshalBinary() ([]byte, error) {
-	var buffer []byte
+	// Pre-allocate capacity: compact encoded length (max 9 bytes) + error message
+	buffer := make([]byte, 0, 9+len(m.Error))
 	buffer = append(buffer, compactEncode(uint64(len(m.Error)))...)
 	buffer = append(buffer, []byte(m.Error)...)
 	return buffer, nil
@@ -194,7 +195,10 @@ func (m *PeerInfo) FromValues(name, strAppVersion, strJamVersion string, fuzzVer
 }
 
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
-	var buffer []byte
+	// Pre-allocate capacity: 1 byte (FuzzVersion) + 4 bytes (FuzzFeatures uint32) +
+	// 3 bytes (JamVersion) + 3 bytes (AppVersion) + 2 bytes (~compactEncode) + app name
+	estimatedSize := 1 + 4 + 3 + 3 + 2 + len(m.AppName)
+	buffer := make([]byte, 0, estimatedSize)
 
 	// Append size of fuzz version
 	buffer = append(buffer, marshalUint8(m.FuzzVersion)...)

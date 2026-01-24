@@ -87,7 +87,8 @@ func (d *DatabaseStorage) SetMembers(key string) ([][]byte, error) {
 	}
 	defer iter.Close()
 
-	var members [][]byte
+	// Pre-allocate with small initial capacity (set members typically small)
+	members := make([][]byte, 0, 16)
 	for iter.Next() {
 		iterKey := iter.Key()
 		// Extract member value from key: {setKey}:member:{memberValue}
@@ -130,9 +131,10 @@ func (d *DatabaseStorage) GetMultiple(keys []string) (map[string][]byte, error) 
 
 // Begin starts a transaction
 func (d *DatabaseStorage) Begin() (Transaction, error) {
+	// Pre-allocate with small initial capacity (transactions typically have few operations)
 	return &DatabaseTransaction{
 		db:  d.db,
-		ops: make([]operation, 0),
+		ops: make([]operation, 0, 16),
 	}, nil
 }
 

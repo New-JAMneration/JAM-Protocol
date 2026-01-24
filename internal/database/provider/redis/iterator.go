@@ -47,8 +47,9 @@ func (db *redisDB) NewIterator(prefix []byte, start []byte) (database.Iterator, 
 		}
 	}
 
-	var keys [][]byte
-	var values [][]byte
+	// Pre-allocate capacity for keys and values
+	keys := make([][]byte, 0, len(allKeys))
+	values := make([][]byte, 0, len(allKeys))
 	for _, key := range allKeys {
 		value, err := db.client.Get(key).Bytes()
 		if err != nil && err != redis.Nil {

@@ -19,7 +19,7 @@ type AncestorHeaders struct {
 // NewAncestorHeaders creates a new AncestorHeaders
 func NewAncestorHeaders() *AncestorHeaders {
 	return &AncestorHeaders{
-		ancestorHeaders: make([]types.Header, 0),
+		ancestorHeaders: make([]types.Header, 0, types.MaxLookupAge),
 	}
 }
 

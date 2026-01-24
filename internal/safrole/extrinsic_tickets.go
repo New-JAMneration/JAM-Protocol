@@ -133,7 +133,8 @@ func createSignatureContext(_X_T string, _posteriorEta2 types.Entropy, _r types.
 	posteriorEta2 := _posteriorEta2[:]
 	r := []byte{byte(_r)}
 
-	context := []byte{}
+	// Pre-allocate capacity: X_T length + 32 bytes (Entropy) + 1 byte (r)
+	context := make([]byte, 0, len(X_T)+32+1)
 	context = append(context, X_T...)
 	context = append(context, posteriorEta2...)
 	context = append(context, r...)
@@ -179,7 +180,8 @@ func Contains(tickets types.TicketsAccumulator, ticketId types.TicketId) bool {
 // This function is not used in the current implementation, becasue we throw an
 // error if we find a duplicate ticket in the new ticket accumulator.
 func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.TicketsAccumulator {
-	result := types.TicketsAccumulator{}
+	// Pre-allocate capacity: worst case is all tickets are kept
+	result := make(types.TicketsAccumulator, 0, len(tickets))
 	for _, ticket := range tickets {
 		if !Contains(gammaA, ticket.Id) {
 			result = append(result, ticket)
