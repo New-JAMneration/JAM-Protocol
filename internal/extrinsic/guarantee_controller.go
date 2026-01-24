@@ -317,7 +317,12 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	rho := cs.GetPriorStates().GetRho()
 	xi := cs.GetPriorStates().GetXi()
 	beta := cs.GetPriorStates().GetBeta()
-	qMap := make(map[types.WorkPackageHash]bool, len(theta))
+	// Pre-allocate capacity based on total queued items
+	qCap := 0
+	for _, slot := range theta {
+		qCap += len(slot)
+	}
+	qMap := make(map[types.WorkPackageHash]bool, qCap)
 	// q
 	for _, v := range theta {
 		for _, w := range v {
@@ -332,13 +337,21 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 			aMap[v.Report.PackageSpec.Hash] = true
 		}
 	}
-	xiMap := make(map[types.WorkPackageHash]bool, len(xi))
+	xiCap := 0
+	for _, slot := range xi {
+		xiCap += len(slot)
+	}
+	xiMap := make(map[types.WorkPackageHash]bool, xiCap)
 	for _, v := range xi {
 		for _, w := range v {
 			xiMap[w] = true
 		}
 	}
-	betaMap := make(map[types.WorkPackageHash]bool, len(beta.History))
+	betaCap := 0
+	for _, h := range beta.History {
+		betaCap += len(h.Reported)
+	}
+	betaMap := make(map[types.WorkPackageHash]bool, betaCap)
 	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			betaMap[types.WorkPackageHash(w.Hash)] = true

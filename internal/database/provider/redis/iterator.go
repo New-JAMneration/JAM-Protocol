@@ -23,7 +23,8 @@ func (db *redisDB) NewIterator(prefix []byte, start []byte) (database.Iterator, 
 	startString := string(buf)
 
 	var nextCursor uint64
-	var allKeys []string
+	// Pre-allocate with heuristic: SCAN uses COUNT 100
+	allKeys := make([]string, 0, 100)
 	var err error
 
 	pattern := startString + "*"
