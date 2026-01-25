@@ -342,22 +342,26 @@ func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKe
 	return stateKeyVal
 }
 
+var delta2Prefix = types.ByteSequence{0xFF, 0xFF, 0xFF, 0xFF}
+var delta3Prefix = types.ByteSequence{0xFE, 0xFF, 0xFF, 0xFF}
+
+func encodeUint32ToBytes(value uint32) types.ByteSequence {
+	return types.ByteSequence{
+		byte(value & 0xFF),
+		byte((value >> 8) & 0xFF),
+		byte((value >> 16) & 0xFF),
+		byte((value >> 24) & 0xFF),
+	}
+}
+
 func WrapEncodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	return encodeDelta2KeyVal(id, key, value)
 }
 
 func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	h := append(delta2Prefix, key...)
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 1), encodeLength)
-	part_2 := key
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: value,
@@ -367,17 +371,9 @@ func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.
 }
 
 func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	h := append(delta3Prefix, key[:]...)
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
-	part_2 := key
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: value,
@@ -387,32 +383,18 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 }
 
 func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.StateKey {
-	encoder := types.NewEncoder()
+	part_1 := encodeUint32ToBytes(uint32(key.Length))
+	h := append(part_1, key.Hash[:]...)
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
-	part_2 := key.Hash
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	return serviceWrapper.StateKeyConstruct()
 }
 
 func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	part_1 := encodeUint32ToBytes(uint32(key.Length))
+	h := append(part_1, key.Hash[:]...)
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
-	part_2 := key.Hash
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 
 	stateValue := types.ByteSequence{}
 	for _, timeSlot := range value {
