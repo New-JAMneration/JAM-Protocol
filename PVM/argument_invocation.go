@@ -36,7 +36,11 @@ func Psi_M(
 
 	addition.Program = &program
 
-	g, v, a := R(gas, HostCall(counter, gas, registers, memory, omegas, addition, 0))
+	interp := NewInterpreter(&program, registers, &memory, Gas(gas), omegas)
+	psiHResult := HostCallInterp(interp, counter, addition, 0)
+
+	// Convert result using R function (which reads from interpreter state)
+	g, v, a := R(gas, psiHResult)
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,

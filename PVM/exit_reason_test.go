@@ -32,20 +32,18 @@ func TestExitReasonGetReasonType(t *testing.T) {
 }
 
 func TestExitReasonDataExtraction(t *testing.T) {
-	// 測試 PageFault 地址提取 (32 bits 邊界測試)
 	t.Run("PageFaultAddress_Boundary", func(t *testing.T) {
 		var addr uint32 = 0xABCDEFFF
 		reason := ExitPageFault | ExitReason(addr)
 		if got := reason.GetPageFaultAddress(); got != addr {
 			t.Errorf("GetPageFaultAddress() = 0x%x, want 0x%x", got, addr)
 		}
-		// 確保高位 Type 沒變
+
 		if reason.GetReasonType() != PAGE_FAULT {
 			t.Errorf("Type corrupted! got %v", reason.GetReasonType())
 		}
 	})
 
-	// 測試 HostCall ID 提取 (8 bits)
 	t.Run("HostCallID_Boundary", func(t *testing.T) {
 		var id uint8 = 255
 		reason := ExitHostCall | ExitReason(id)

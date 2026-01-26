@@ -213,7 +213,7 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	return rA, rB, rD, nil
 }
 
-func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) ExitReason {
+func storeIntoMemory(mem *Memory, offset int, memIndex uint32, Immediate uint64) ExitReason {
 	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
 		return ExitPanic
 	}
@@ -241,7 +241,7 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 			nextPageData := vY[currentPageLength:]
 
 			copy(mem.Pages[pageNum].Value[pageIndex:], currentPageData)
-			copy(mem.Pages[pageNum].Value[:len(nextPageData)], nextPageData)
+			copy(mem.Pages[pageNum+1].Value[:len(nextPageData)], nextPageData)
 		}
 
 	} else { // page not allocated
@@ -250,7 +250,7 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 	return ExitContinue
 }
 
-func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, ExitReason) {
+func loadFromMemory(mem *Memory, offset uint32, vx uint32) (uint64, ExitReason) {
 	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
 		return 0, ExitPanic
 	}
@@ -275,7 +275,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, ExitReason) {
 
 		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
 		copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
-		copy(memBytes[:ZP-pageIndex], remainBytes)           // copy next page
+		copy(memBytes[ZP-pageIndex:], remainBytes)           // copy next page
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
