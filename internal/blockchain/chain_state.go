@@ -5,35 +5,28 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
-	"github.com/New-JAMneration/JAM-Protocol/config"
-	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
-	pebbledb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/pebble"
-	redisdb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/redis"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 var (
-	initOnce           sync.Once
-	persistentDBOnce   sync.Once
-	globalChainState   *ChainState
-	globalPersistentDB database.Database
+	initOnce         sync.Once
+	globalChainState *ChainState
 )
 
 // ChainState represents a thread-safe global container,
 // manages the state and blocks of the blockchain
 type ChainState struct {
 	// Data access layer
-	repo           *store.Repository
-	persistentRepo *store.Repository
+	repo *store.Repository
 
 	// State management
 	priorStates        *PriorStates
@@ -49,45 +42,19 @@ type ChainState struct {
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	preStateUnmatchedKeyVals   types.StateKeyVals
 	postStateUnmatchedKeyVals  types.StateKeyVals
-}
 
-func getPersistentDatabase() database.Database {
-	persistentDBOnce.Do(func() {
-		dbConfig := config.Config.Database
-		switch dbConfig.Type {
-		case "pebble":
-			db, err := pebbledb.NewDatabase(dbConfig.DataDir, false)
-			if err != nil {
-				if strings.Contains(err.Error(), "lock") {
-					logger.Errorf("Failed to initialize Pebble database: %v. Database may be locked by another process or previous instance. Please ensure no other process is using the database at %s", err, dbConfig.DataDir)
-				} else {
-					logger.Errorf("Failed to initialize Pebble database: %v", err)
-				}
-				globalPersistentDB = memory.NewDatabase()
-			} else {
-				globalPersistentDB = db
-			}
-		case "redis":
-			redisConfig := config.Config.Redis
-			globalPersistentDB = redisdb.NewDatabase(redisConfig.Address, redisConfig.Password, redisConfig.Port)
-		default:
-			logger.Warnf("Unknown database type: %s, using memory database", dbConfig.Type)
-			globalPersistentDB = memory.NewDatabase()
-		}
-	})
-	return globalPersistentDB
+	// cache for leaf level merklization
+	keyLevelCache *KeyLevelCache
 }
 
 // GetInstance returns the singleton instance of ChainState.
 // If the instance doesn't exist, it creates one.
 func GetInstance() *ChainState {
 	initOnce.Do(func() {
-		repo := store.NewRepository(memory.NewDatabase())
-		persistentRepo := store.NewRepository(getPersistentDatabase())
-
+		db := memory.NewDatabase()
+		repo := store.NewRepository(db)
 		globalChainState = &ChainState{
-			repo:           repo,
-			persistentRepo: persistentRepo,
+			repo: repo,
 
 			priorStates:        NewPriorStates(),
 			intermediateStates: NewIntermediateStates(),
@@ -101,6 +68,8 @@ func GetInstance() *ChainState {
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			preStateUnmatchedKeyVals:   types.StateKeyVals{},
 			postStateUnmatchedKeyVals:  types.StateKeyVals{},
+
+			keyLevelCache: NewKeyLevelCache(),
 		}
 		logger.Debug("🚀 ChainState initialized")
 	})
@@ -108,12 +77,11 @@ func GetInstance() *ChainState {
 }
 
 func ResetInstance() {
-	repo := store.NewRepository(memory.NewDatabase())
-	persistentRepo := store.NewRepository(getPersistentDatabase())
-
+	// reset globalStore
+	db := memory.NewDatabase()
+	repo := store.NewRepository(db)
 	globalChainState = &ChainState{
-		repo:           repo,
-		persistentRepo: persistentRepo,
+		repo: repo,
 
 		priorStates:        NewPriorStates(),
 		intermediateStates: NewIntermediateStates(),
@@ -127,6 +95,8 @@ func ResetInstance() {
 		posteriorCurrentValidators: NewPosteriorValidators(),
 		preStateUnmatchedKeyVals:   types.StateKeyVals{},
 		postStateUnmatchedKeyVals:  types.StateKeyVals{},
+
+		keyLevelCache: NewKeyLevelCache(),
 	}
 	logger.Debug("🚀 ChainState reset")
 }
@@ -460,24 +430,12 @@ func (cs *ChainState) GetGenesisBlock() types.Block {
 func (cs *ChainState) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
 	timeSlot, err := cs.repo.GetHeaderTimeSlot(cs.repo.Database(), headerHash)
 	if err != nil {
-		timeSlot, err = cs.persistentRepo.GetHeaderTimeSlot(cs.persistentRepo.Database(), headerHash)
-		if err != nil {
-			return types.Block{}, err
-		}
-		block, err := cs.persistentRepo.GetBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(headerHash))
-		if err != nil {
-			return types.Block{}, err
-		}
-		return *block, nil
+		return types.Block{}, err
 	}
 
 	block, err := cs.repo.GetBlock(cs.repo.Database(), headerHash, timeSlot)
 	if err != nil {
-		block, err := cs.persistentRepo.GetBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(headerHash))
-		if err != nil {
-			return types.Block{}, err
-		}
-		return *block, nil
+		return types.Block{}, err
 	}
 
 	return *block, nil
@@ -502,7 +460,8 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
+	// Compute state root with key-level cache
+	stateRoot := cs.merklizeWithKeyCache(fullStateKeyVals)
 
 	err = cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
 	if err != nil {
@@ -517,7 +476,43 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	return nil
 }
 
-// GetStateByBlockHash retrieves state data for a given block from persistent database
+// merklizeWithKeyCache computes state root using key-level cache.
+// This optimization caches leaf hashes for individual keys, so unchanged keys
+// don't need to recompute their leaf hashes during merklization.
+func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) types.StateRoot {
+	// Create cache callback for merklization.
+	// This callback computes and caches leaf hashes on miss, avoiding duplicate computation.
+	cacheFn := func(key types.StateKey, value []byte) (types.OpaqueHash, bool) {
+		cachedHash, ok := cs.keyLevelCache.GetLeafHashCache(key, value)
+		if ok {
+			return cachedHash, true
+		}
+
+		// Cache miss: compute leaf hash directly
+		leftEncoding := m.LeafEncoding(key, value)
+		bytes, _ := utilities.BitsToBytes(leftEncoding)
+		leafHash := hash.Blake2bHash(bytes)
+
+		// Cache it for future use
+		cs.keyLevelCache.AddLeafHashCache(key, value, leafHash)
+
+		return leafHash, false
+	}
+
+	// Use cached merklization
+	stateRoot := m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn)
+
+	return stateRoot
+}
+
+// ComputeStateRootWithCache computes the state root for given state key-values using the key-level cache.
+// This is a public method that can be used by other packages (e.g., stf) to compute state roots with caching.
+// The stateKeyVals should already be sorted by Key for consistent Merklization.
+func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals) types.StateRoot {
+	return cs.merklizeWithKeyCache(stateKeyVals)
+}
+
+// GetStateByBlockHash retrieves state data for a given block from Redis
 func (cs *ChainState) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
 	stateKeyVals, err := cs.repo.GetStateDataByHeaderHash(cs.repo.Database(), blockHeaderHash)
 	if err == nil {
@@ -565,12 +560,14 @@ func (cs *ChainState) persistBlockMapping(block types.Block) error {
 		return fmt.Errorf("failed to compute block header hash: %w", err)
 	}
 
-	if err := cs.SaveBlockByHashToPersistent(types.OpaqueHash(headerHash), &block); err != nil {
-		return fmt.Errorf("failed to persist block: %w", err)
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return fmt.Errorf("failed to get redis backend: %w", err)
 	}
 
-	if err := cs.persistentRepo.SaveHeaderTimeSlot(cs.persistentRepo.Database(), headerHash, block.Header.Slot); err != nil {
-		return fmt.Errorf("failed to persist header time slot: %w", err)
+	ctx := context.Background()
+	if err := redisBackend.StoreBlockByHash(ctx, &block, types.OpaqueHash(headerHash)); err != nil {
+		return fmt.Errorf("failed to persist block in redis: %w", err)
 	}
 
 	return nil
@@ -633,7 +630,7 @@ func (cs *ChainState) RestoreBlockAndState(blockHeaderHash types.HeaderHash) err
 	return nil
 }
 
-func BuildStateRootInputKeyValsAndRoot(
+func (cs *ChainState) BuildStateRootInputKeyValsAndRoot(
 	stateKeyVals types.StateKeyVals,
 ) (merkleInputKeyVals types.StateKeyVals, stateRoot types.StateRoot, err error) {
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
@@ -650,7 +647,8 @@ func BuildStateRootInputKeyValsAndRoot(
 	merkleInputKeyVals = append(merkleInputKeyVals, unmatchedKeyVals...)
 	merkleInputKeyVals = append(merkleInputKeyVals, serializedState...)
 
-	stateRoot = m.MerklizationSerializedState(merkleInputKeyVals)
+	// Use key-level cache for merklization
+	stateRoot = cs.merklizeWithKeyCache(merkleInputKeyVals)
 	return merkleInputKeyVals, stateRoot, nil
 }
 
@@ -665,7 +663,7 @@ func (cs *ChainState) SeedGenesisToBackend(
 	}
 	genesisBlockHash = types.HeaderHash(h)
 
-	merkleInputKeyVals, stateRoot, err := BuildStateRootInputKeyValsAndRoot(stateKeyVals)
+	merkleInputKeyVals, stateRoot, err := cs.BuildStateRootInputKeyValsAndRoot(stateKeyVals)
 	if err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("build merkle input + state root: %w", err)
 	}
@@ -681,11 +679,15 @@ func (cs *ChainState) SeedGenesisToBackend(
 		)
 	}
 
-	db := cs.persistentRepo.Database()
-	if err := cs.persistentRepo.SaveStateData(db, genesisStateRoot, merkleInputKeyVals); err != nil {
+	redisBackend, err := GetRedisBackend()
+	if err != nil {
+		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("failed to get redis backend: %w", err)
+	}
+
+	if err := redisBackend.StoreStateData(ctx, genesisStateRoot, merkleInputKeyVals); err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_data: %w", err)
 	}
-	if err := cs.persistentRepo.SaveStateRootByHeaderHash(db, genesisBlockHash, genesisStateRoot); err != nil {
+	if err := redisBackend.StoreStateRootByBlockHash(ctx, genesisBlockHash, genesisStateRoot); err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_root mapping: %w", err)
 	}
 
