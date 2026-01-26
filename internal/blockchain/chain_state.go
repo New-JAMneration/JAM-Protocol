@@ -108,7 +108,7 @@ func GetInstance() *ChainState {
 
 			keyLevelCache: NewKeyLevelCache(),
 		}
-		logger.Debug("?? ChainState initialized")
+		logger.Debug("🚀 ChainState initialized")
 	})
 	return globalChainState
 }
@@ -136,7 +136,7 @@ func ResetInstance() {
 
 		keyLevelCache: NewKeyLevelCache(),
 	}
-	logger.Debug("?? ChainState reset")
+	logger.Debug("🚀 ChainState reset")
 }
 
 // Blockchain interface implementation
@@ -314,7 +314,7 @@ func (cs *ChainState) GetPosteriorStates() *PosteriorStates {
 
 func (cs *ChainState) GenerateGenesisState(state types.State) {
 	cs.posteriorStates.GenerateGenesisState(state)
-	logger.Debug("?? Genesis state generated")
+	logger.Debug("🚀 Genesis state generated")
 }
 
 // post-state update to pre-state
