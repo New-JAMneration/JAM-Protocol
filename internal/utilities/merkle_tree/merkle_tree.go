@@ -44,16 +44,13 @@ func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 }
 
 // Mb: Well-balanced binary Merkle function
-func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output types.OpaqueHash) {
+func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) types.OpaqueHash {
 	// [[]] should go to N
 	if len(v) == 1 && v[0] != nil {
-		output = hashFunc(v[0])
-		return output
+		return hashFunc(v[0])
 	} else {
 		// N returns ByteSequence, convert to OpaqueHash
-		nResult := N(v, hashFunc)
-		copy(output[:], nResult)
-		return output
+		return types.OpaqueHash(N(v, hashFunc))
 	}
 }
 
@@ -104,7 +101,8 @@ func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) ty
 	suffix := T(traverseHalf, newIndex, hashFunc)
 
 	// Pre-allocate capacity to avoid reallocation
-	result := make([]types.ByteSequence, 0, len(sibling)+len(suffix))
+	// sibling is a single ByteSequence, so capacity should be 1 + len(suffix)
+	result := make([]types.ByteSequence, 0, 1+len(suffix))
 	result = append(result, sibling)
 	result = append(result, suffix...)
 	return result
