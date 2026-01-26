@@ -363,24 +363,25 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	input.Addition.Program.InstructionData = input.Addition.IntegratedPVMMap[n].ProgramCode
 
 	tempMemory := input.Addition.IntegratedPVMMap[n].Memory
-	tempInterp := NewInterpreter(input.Addition.Program, w, &tempMemory, Gas(gas), input.Interpreter.HostCalls)
+	tempAddition := input.Addition
+	tempHost := NewHost(input.Addition.Program, w, &tempMemory, Gas(gas), tempAddition, input.HostCalls)
 
 	var c ExitReason
 	var pcPrime ProgramCounter
 
 	if GasChargingMode == "blockBased" {
-		c, pcPrime = BlockBasedInvoke(tempInterp, input.Addition.IntegratedPVMMap[n].PC)
+		c, pcPrime = tempHost.Interpreter.BlockBasedInvoke(input.Addition.IntegratedPVMMap[n].PC)
 	} else {
-		c, pcPrime = SingleStepInvoke(tempInterp, input.Addition.IntegratedPVMMap[n].PC)
+		c, pcPrime = tempHost.Interpreter.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
 	}
 
 	// mu* = mu
 	encoder := types.NewEncoder()
 	data = types.ByteSequence(make([]byte, offset))
-	encoded, _ := encoder.Encode(&tempInterp.Gas)
+	encoded, _ := encoder.Encode(&tempHost.Interpreter.Gas)
 	copy(data, encoded)
 	for i := uint64(1); i < offset/8; i++ {
-		encoded, _ := encoder.Encode(&tempInterp.Registers[i-1])
+		encoded, _ := encoder.Encode(&tempHost.Interpreter.Registers[i-1])
 		copy(data[8*i:8*(i+1)], encoded)
 	}
 	// write data into memory (mu)
@@ -388,7 +389,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	// m* = m
 	tmp := input.Addition.IntegratedPVMMap[n]
-	tmp.Memory = *tempInterp.Memory
+	tmp.Memory = *tempHost.Interpreter.Memory
 	if c.GetReasonType() == HOST_CALL {
 		tmp.PC = pcPrime + 1 + ProgramCounter(skip(int(pcPrime), input.Addition.Program.Bitmasks))
 	} else {

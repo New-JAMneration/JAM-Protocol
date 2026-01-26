@@ -10,6 +10,7 @@ type OmegaInput struct {
 	Operation   OperationType // operation type
 	Interpreter *Interpreter  // interpreter state (registers, memory, gas)
 	Addition    HostCallArgs  // Extra parameter for each host-call function
+	HostCalls   Omegas        // host-call functions (needed for nested invocations)
 }
 type OmegaOutput struct {
 	ExitReason ExitReason // Exit reason
@@ -86,37 +87,39 @@ type Psi_H_ReturnType struct {
 	Addition   HostCallArgs // addition host-call context
 }
 
-// (A.34) Ψ_H - new version using Interpreter
-func HostCallInterp(interp *Interpreter, pc ProgramCounter, addition HostCallArgs, instrCount uint64) (psi_result Psi_H_ReturnType) {
+// (A.34) Ψ_H - Host method version for better performance
+// HostCall executes instructions and handles host calls
+func (h *Host) HostCall(pc ProgramCounter, instrCount uint64) (psi_result Psi_H_ReturnType) {
 	var exitReason ExitReason
 	var pcPrime ProgramCounter
 
 	if GasChargingMode == "blockBased" {
-		exitReason, pcPrime = BlockBasedInvoke(interp, pc)
+		exitReason, pcPrime = h.Interpreter.BlockBasedInvoke(pc)
 	} else {
-		exitReason, pcPrime = SingleStepInvoke(interp, pc)
+		exitReason, pcPrime = h.Interpreter.SingleStepInvoke(pc)
 	}
 
 	switch exitReason.GetReasonType() {
 	case HALT, PANIC, OUT_OF_GAS, PAGE_FAULT:
 		psi_result.ExitReason = exitReason
 		psi_result.Counter = uint32(pcPrime)
-		psi_result.Gas = interp.Gas
-		psi_result.Reg = interp.Registers
-		psi_result.Ram = *interp.Memory
-		psi_result.Addition = addition
+		psi_result.Gas = h.Interpreter.Gas
+		psi_result.Reg = h.Interpreter.Registers
+		psi_result.Ram = *h.Interpreter.Memory
+		psi_result.Addition = h.Addition
 		return
 	}
 
 	// reason.Reason == HOST_CALL
 	var input OmegaInput
 	input.Operation = OperationType(exitReason.GetHostCallID())
-	input.Interpreter = interp
-	input.Addition = addition
+	input.Interpreter = &h.Interpreter
+	input.Addition = h.Addition
+	input.HostCalls = h.HostCalls
 
-	omega := getOmega(interp.HostCalls, input.Operation)
+	omega := getOmega(h.HostCalls, input.Operation)
 	if omega == nil {
-		if interp.Gas < 0 {
+		if h.Interpreter.Gas < 0 {
 			omega = hostCallOutOfGas
 		} else {
 			omega = hostCallException
@@ -124,18 +127,20 @@ func HostCallInterp(interp *Interpreter, pc ProgramCounter, addition HostCallArg
 	}
 	omegaResult := omega(input)
 	pvmLogger.Debugf("%s host-call return: %d, gas : %d\nRegisters: %v\n",
-		hostCallName[input.Operation], omegaResult.ExitReason.GetReasonType(), interp.Gas, interp.Registers)
+		hostCallName[input.Operation], omegaResult.ExitReason.GetReasonType(), h.Interpreter.Gas, h.Interpreter.Registers)
 
 	switch omegaResult.ExitReason {
 	case ExitContinue:
-		skipLength := ProgramCounter(skip(int(pcPrime), addition.Program.Bitmasks))
-		return HostCallInterp(interp, pcPrime+skipLength+1, omegaResult.Addition, instrCount)
+		// Update addition context
+		h.Addition = omegaResult.Addition
+		skipLength := ProgramCounter(skip(int(pcPrime), h.Addition.Program.Bitmasks))
+		return h.HostCall(pcPrime+skipLength+1, instrCount)
 	default: // PANIC, OUT_OF_GAS, HALT
 		psi_result.ExitReason = omegaResult.ExitReason
 		psi_result.Counter = uint32(pcPrime)
-		psi_result.Gas = interp.Gas
-		psi_result.Reg = interp.Registers
-		psi_result.Ram = *interp.Memory
+		psi_result.Gas = h.Interpreter.Gas
+		psi_result.Reg = h.Interpreter.Registers
+		psi_result.Ram = *h.Interpreter.Memory
 		psi_result.Addition = omegaResult.Addition
 		return
 	}
