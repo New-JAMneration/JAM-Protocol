@@ -3,6 +3,7 @@ package mmr
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // Node represents a node in the Merkle Mountain Range
