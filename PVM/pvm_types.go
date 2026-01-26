@@ -80,16 +80,37 @@ type Interpreter struct {
 	Memory     *Memory
 	Gas        Gas
 	InstrCount uint64
-	HostCalls  Omegas
 }
 
-func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas, hostCalls Omegas) *Interpreter {
+// Host holds the main execution context, similar to linux kernel
+// It contains the interpreter state, host call arguments, and host call functions
+type Host struct {
+	Interpreter Interpreter  // interpreter state (registers, memory, gas, program)
+	Addition    HostCallArgs // host-call context (addition)
+	HostCalls   Omegas       // host-call functions (moved from Interpreter for better locality)
+}
+
+func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas) *Interpreter {
 	return &Interpreter{
 		Program:    program,
 		Registers:  registers,
 		Memory:     memory,
 		Gas:        gas,
 		InstrCount: 0,
-		HostCalls:  hostCalls,
+	}
+}
+
+// NewHost creates a new Host with interpreter state, host call args, and host call functions
+func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
+	return &Host{
+		Interpreter: Interpreter{
+			Program:    program,
+			Registers:  registers,
+			Memory:     memory,
+			Gas:        gas,
+			InstrCount: 0,
+		},
+		Addition:  addition,
+		HostCalls: hostCalls,
 	}
 }

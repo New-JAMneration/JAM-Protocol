@@ -5,14 +5,14 @@ import (
 )
 
 // per-instruction based of (A.1) ψ_1,
-func SingleStepInvoke(interp *Interpreter, pc ProgramCounter) (ExitReason, ProgramCounter) {
+func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	var exitReason ExitReason
 
-	exitReason, pcPrime := SingleStepStateTransition(interp, pc)
+	exitReason, pcPrime := interp.SingleStepStateTransition(pc)
 
 	switch exitReason.GetReasonType() {
 	case CONTINUE:
-		return SingleStepInvoke(interp, pcPrime)
+		return interp.SingleStepInvoke(pcPrime)
 	case HALT, PANIC:
 		return exitReason, 0
 	default: // HOST_CALL, OUT_OF_GAS
@@ -21,7 +21,7 @@ func SingleStepInvoke(interp *Interpreter, pc ProgramCounter) (ExitReason, Progr
 }
 
 // (v.0.7.1 A.6, A.7) SingleStepStateTransition
-func SingleStepStateTransition(interp *Interpreter, pc ProgramCounter) (ExitReason, ProgramCounter) {
+func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	// check program-counter exceed blob length
 	if int(pc) >= len(interp.Program.InstructionData) {
 		return ExitPanic, pc
@@ -48,7 +48,6 @@ func SingleStepStateTransition(interp *Interpreter, pc ProgramCounter) (ExitReas
 
 	exitReason, newPC := execInstructions[opcodeData](interp, pc, skipLength) // update PVM states
 	interp.Program.InstrCount++
-	// logger.Debug("gasPrime, regPrime: ", interp.Gas, interp.Registers)
 
 	reason := exitReason.GetReasonType()
 	switch reason {
@@ -74,7 +73,7 @@ func SingleStepStateTransition(interp *Interpreter, pc ProgramCounter) (ExitReas
 }
 
 // block based version of (A.1) ψ_1
-func BlockBasedInvoke(interp *Interpreter, pc ProgramCounter) (ExitReason, ProgramCounter) {
+func (interp *Interpreter) BlockBasedInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	// decode instructions in a block
 	pcPrime, _, exitReason := DecodeInstructionBlock(interp.Program.InstructionData, pc, interp.Program.Bitmasks)
 	if exitReason.GetReasonType() != CONTINUE {
@@ -83,8 +82,7 @@ func BlockBasedInvoke(interp *Interpreter, pc ProgramCounter) (ExitReason, Progr
 	}
 
 	// execute instructions in the block
-	pc, exitReason = ExecuteInstructions(interp, pc, pcPrime)
-
+	pc, exitReason = interp.ExecuteInstructions(pc, pcPrime)
 	reason := exitReason.GetReasonType()
 	switch reason {
 	case PANIC, HALT:
@@ -94,7 +92,7 @@ func BlockBasedInvoke(interp *Interpreter, pc ProgramCounter) (ExitReason, Progr
 	}
 
 	// reason == CONTINUE
-	return BlockBasedInvoke(interp, pc)
+	return interp.BlockBasedInvoke(pc)
 }
 
 func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitmask Bitmask) (ProgramCounter, int64, ExitReason) {
@@ -125,7 +123,7 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 }
 
 // execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
-func ExecuteInstructions(interp *Interpreter, pc ProgramCounter, pcPrime ProgramCounter) (ProgramCounter, ExitReason) { // no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
+func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime ProgramCounter) (ProgramCounter, ExitReason) { // no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
 	for pc <= pcPrime {
 		if interp.Gas < 1 {
 			return pc, ExitOOG
