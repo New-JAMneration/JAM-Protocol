@@ -21,12 +21,8 @@ func MerklizationSerializedStateWithCache(
 
 	// Convert StateKeyVals to merklization input
 	for _, stateKeyVal := range serializedState {
-		key := bitSequenceToString(utilities.BytesToBits(stateKeyVal.Key[:]))
-		value := types.StateKeyVal{
-			Key:   stateKeyVal.Key,
-			Value: stateKeyVal.Value,
-		}
-		merklizationInput[key] = value
+		// StateKey is already [31]byte, use it directly as map key
+		merklizationInput[stateKeyVal.Key] = stateKeyVal
 	}
 
 	// Use the cached version of Merklization if we have cache
@@ -64,14 +60,15 @@ func MerklizationWithLeafCache(d MerklizationInput, cache LeafHashCache) types.O
 	l := make(MerklizationInput)
 	r := make(MerklizationInput)
 	for key, value := range d {
-		isLeft := key[0] == '0'
-		if isLeft {
-			l[key[1:]] = value
-		}
+		// check the first bit: 0 -> left, 1 -> right
+		firstBit := (key[0] & 0x80) == 0
 
-		isRight := key[0] == '1'
-		if isRight {
-			r[key[1:]] = value
+		shiftedKey := shiftKeyLeft(key)
+
+		if firstBit {
+			l[shiftedKey] = value
+		} else {
+			r[shiftedKey] = value
 		}
 	}
 
