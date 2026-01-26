@@ -1,7 +1,5 @@
 package PVM
 
-import "github.com/New-JAMneration/JAM-Protocol/internal/types"
-
 // Ω⟨X⟩
 type (
 	Omega  func(OmegaInput) OmegaOutput
@@ -9,18 +7,16 @@ type (
 )
 
 type OmegaInput struct {
-	Operation OperationType // operation type
-	Gas       Gas           // gas counter
-	Registers Registers     // PVM registers
-	Memory    Memory        // memory
-	Addition  HostCallArgs  // Extra parameter for each host-call function
+	Operation   OperationType // operation type
+	Interpreter *Interpreter  // interpreter state (registers, memory, gas)
+	Addition    HostCallArgs  // Extra parameter for each host-call function
 }
 type OmegaOutput struct {
-	ExitReason   ExitReason   // Exit reason
-	NewGas       Gas          // New Gas
-	NewRegisters Registers    // New Register
-	NewMemory    Memory       // New Memory
-	Addition     HostCallArgs // addition host-call context
+	ExitReason ExitReason // Exit reason
+	// NewGas       Gas          // New Gas
+	// NewRegisters Registers    // New Register
+	// NewMemory    Memory       // New Memory
+	Addition HostCallArgs // addition host-call context
 }
 
 var (
@@ -90,28 +86,24 @@ type Psi_H_ReturnType struct {
 	Addition   HostCallArgs // addition host-call context
 }
 
-// (A.34) Ψ_H
-func HostCall(pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omegas Omegas, addition HostCallArgs, instrCount uint64,
-) (psi_result Psi_H_ReturnType) {
+// (A.34) Ψ_H - new version using Interpreter
+func HostCallInterp(interp *Interpreter, pc ProgramCounter, addition HostCallArgs, instrCount uint64) (psi_result Psi_H_ReturnType) {
 	var exitReason ExitReason
 	var pcPrime ProgramCounter
-	var gasPrime Gas
-	var regPrime Registers
-	var memPrime Memory
 
 	if GasChargingMode == "blockBased" {
-		exitReason, pcPrime, gasPrime, regPrime, memPrime = BlockBasedInvoke(addition.Program, pc, Gas(gas), reg, ram)
+		exitReason, pcPrime = BlockBasedInvoke(interp, pc)
 	} else {
-		exitReason, pcPrime, gasPrime, regPrime, memPrime = SingleStepInvoke(addition.Program, pc, Gas(gas), reg, ram)
+		exitReason, pcPrime = SingleStepInvoke(interp, pc)
 	}
 
 	switch exitReason.GetReasonType() {
 	case HALT, PANIC, OUT_OF_GAS, PAGE_FAULT:
 		psi_result.ExitReason = exitReason
 		psi_result.Counter = uint32(pcPrime)
-		psi_result.Gas = gasPrime
-		psi_result.Reg = regPrime
-		psi_result.Ram = memPrime
+		psi_result.Gas = interp.Gas
+		psi_result.Reg = interp.Registers
+		psi_result.Ram = *interp.Memory
 		psi_result.Addition = addition
 		return
 	}
@@ -119,32 +111,31 @@ func HostCall(pc ProgramCounter, gas types.Gas, reg Registers, ram Memory, omega
 	// reason.Reason == HOST_CALL
 	var input OmegaInput
 	input.Operation = OperationType(exitReason.GetHostCallID())
-	input.Gas = gasPrime
-	input.Registers = regPrime
-	input.Memory = ram
+	input.Interpreter = interp
 	input.Addition = addition
 
-	omega := getOmega(omegas, input.Operation)
+	omega := getOmega(interp.HostCalls, input.Operation)
 	if omega == nil {
-		if gasPrime < 0 {
+		if interp.Gas < 0 {
 			omega = hostCallOutOfGas
 		} else {
 			omega = hostCallException
 		}
 	}
 	omegaResult := omega(input)
-	pvmLogger.Debugf("%s host-call return: %d, gas : %d -> %d\nRegisters: %v\n",
-		hostCallName[input.Operation], omegaResult.ExitReason.GetReasonType(), gasPrime, omegaResult.NewGas, omegaResult.NewRegisters)
+	pvmLogger.Debugf("%s host-call return: %d, gas : %d\nRegisters: %v\n",
+		hostCallName[input.Operation], omegaResult.ExitReason.GetReasonType(), interp.Gas, interp.Registers)
+
 	switch omegaResult.ExitReason {
 	case ExitContinue:
 		skipLength := ProgramCounter(skip(int(pcPrime), addition.Program.Bitmasks))
-		return HostCall(pcPrime+skipLength+1, types.Gas(omegaResult.NewGas), omegaResult.NewRegisters, omegaResult.NewMemory, omegas, omegaResult.Addition, instrCount)
+		return HostCallInterp(interp, pcPrime+skipLength+1, omegaResult.Addition, instrCount)
 	default: // PANIC, OUT_OF_GAS, HALT
 		psi_result.ExitReason = omegaResult.ExitReason
 		psi_result.Counter = uint32(pcPrime)
-		psi_result.Gas = omegaResult.NewGas
-		psi_result.Reg = omegaResult.NewRegisters
-		psi_result.Ram = omegaResult.NewMemory
+		psi_result.Gas = interp.Gas
+		psi_result.Reg = interp.Registers
+		psi_result.Ram = *interp.Memory
 		psi_result.Addition = omegaResult.Addition
 		return
 	}

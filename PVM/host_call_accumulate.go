@@ -11,63 +11,48 @@ import (
 
 // bless = 14
 func bless(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	m, a, v, r, o, n := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
+	m, a, v := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	r, o, n := input.Interpreter.Registers[10], input.Interpreter.Registers[11], input.Interpreter.Registers[12]
 
 	// if N_{a...+4C} not readable
 	offset := uint64(4 * types.CoresCount)
-	if !isReadable(a, offset, input.Memory) {
-		input.Registers[7] = OOB
+	if !isReadable(a, offset, *input.Interpreter.Memory) {
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	// \mathbb{a}
-	rawData := input.Memory.Read(a, offset)
+	rawData := input.Interpreter.Memory.Read(a, offset)
 	var assignData types.ServiceIdList
 	decoder := types.NewDecoder()
 	assignErr := decoder.Decode(rawData, &assignData)
 	if assignErr != nil {
 		pvmLogger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
-		input.Registers[7] = OOB
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	offset = uint64(12 * n)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	// read data from memory, might cross many pages
-	rawData = input.Memory.Read(o, offset)
+	rawData = input.Interpreter.Memory.Read(o, offset)
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := make(types.AlwaysAccumulateMap)
@@ -91,13 +76,10 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if accumErr != nil {
-		input.Registers[7] = OOB
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -105,18 +87,15 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	limit := uint64(1 << 32)
 
 	if m >= limit || v >= limit || r >= limit {
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 	// otherwise
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 	input.Addition.ResultContextX.PartialState.Bless = types.ServiceId(m)
 	input.Addition.ResultContextX.PartialState.Assign = assignData
 	input.Addition.ResultContextX.PartialState.Designate = types.ServiceId(v)
@@ -124,77 +103,55 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	input.Addition.ResultContextX.PartialState.AlwaysAccum = alwaysAccum
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // assign = 15
 func assign(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	c, o, a := input.Registers[7], input.Registers[8], input.Registers[9]
+	c, o, a := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
 
 	offset := uint64(32 * types.AuthQueueSize)
-	if !isReadable(o, offset, input.Memory) { // not readable, panic
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, panic
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise if c >= C
 	if c >= uint64(types.CoresCount) {
-		input.Registers[7] = CORE
+		input.Interpreter.Registers[7] = CORE
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise if x_s ≠ (x_u)_a[c]
 	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	if a >= (1 << 32) {
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
-	rawData := input.Memory.Read(o, offset)
+	rawData := input.Interpreter.Memory.Read(o, offset)
 
 	// decode rawData , authQueue = mathbb{q}
 	authQueue := types.AuthQueue{}
@@ -206,58 +163,42 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
 	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceId(a)
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // designate = 16
 func designate(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o := input.Registers[7]
+	o := input.Interpreter.Registers[7]
 
 	offset := uint64(336 * types.ValidatorsCount)
-	if !isReadable(o, offset, input.Memory) { // not readable, panic
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, panic
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise if x_s ≠ (x_u)_v
 	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Designate {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	// 336 * types.ValidatorsCount might cross many pages
-	rawData := input.Memory.Read(o, offset) // bold{v}
+	rawData := input.Interpreter.Memory.Read(o, offset) // bold{v}
 
 	validatorsData := types.ValidatorsData{}
 	decoder := types.NewDecoder()
@@ -267,82 +208,56 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // checkpoint = 17
 func checkpoint(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
 	input.Addition.ResultContextY = input.Addition.ResultContextX.DeepCopy()
 
-	input.Registers[7] = uint64(newGas)
+	input.Interpreter.Registers[7] = uint64(input.Interpreter.Gas)
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // new = 18
 func new(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, l, g, m, f, i := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10], input.Registers[11], input.Registers[12]
+	o, l, g, m, f, i := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10], input.Interpreter.Registers[11], input.Interpreter.Registers[12]
 	offset := uint64(32)
 	// if c = ∇
-	if !(isReadable(o, offset, input.Memory) && l < (1<<32)) { // not readable, return
+	if !(isReadable(o, offset, *input.Interpreter.Memory) && l < (1<<32)) { // not readable, return
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise if f ≠ 0 and x_s ≠ (x_u)_m
 	if f != 0 && input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextY.PartialState.Bless {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
-	c := input.Memory.Read(o, offset)
+	c := input.Interpreter.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
@@ -386,27 +301,21 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if s_b < (x_s)_t, transfer a_t tokens to new service, so need to check balance(b) > minBalance()
 	minBalance := service_account.CalcThresholdBalance(s.ServiceInfo.Items, s.ServiceInfo.Bytes, s.ServiceInfo.DepositOffset)
 	if newBalance < minBalance {
-		input.Registers[7] = CASH
+		input.Interpreter.Registers[7] = CASH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise if x_s = (x_e)r and i < S and i \in K((x_e)_d)
 	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)]
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex && exists {
-		input.Registers[7] = FULL
+		input.Interpreter.Registers[7] = FULL
 
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -416,7 +325,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s = (x_e)_r and i < S
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
 		// reg[7] = i
-		input.Registers[7] = i
+		input.Interpreter.Registers[7] = i
 		// d = { (i -> a) }
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)] = a
 		// d = { (x_s -> s) }
@@ -426,11 +335,8 @@ func new(input OmegaInput) (output OmegaOutput) {
 			*input.Addition.GeneralArgs.ServiceAccount = s
 		}
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -438,7 +344,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	importServiceID := input.Addition.ResultContextX.ImportServiceId
 
 	// reg[7] = x_i
-	input.Registers[7] = uint64(importServiceID)
+	input.Interpreter.Registers[7] = uint64(importServiceID)
 	// i* = check(i)
 	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	input.Addition.ResultContextX.ImportServiceId = iStar
@@ -451,44 +357,31 @@ func new(input OmegaInput) (output OmegaOutput) {
 		*input.Addition.GeneralArgs.ServiceAccount = s
 	}
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // upgrade = 19
 func upgrade(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, g, m := input.Registers[7], input.Registers[8], input.Registers[9]
+	o, g, m := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	c := input.Memory.Read(o, offset)
+	c := input.Interpreter.Memory.Read(o, offset)
 
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	// x_bold{s} = (x_u)_d[x_s]
@@ -505,58 +398,39 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 	}
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // transfer = 20
 func transfer(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	d, a, l, o := input.Registers[7], input.Registers[8], input.Registers[9], input.Registers[10]
-	if !isReadable(o, uint64(types.TransferMemoSize), input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	d, a, l, o := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
+	if !isReadable(o, uint64(types.TransferMemoSize), *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 	// m
-	rawData := input.Memory.Read(o, types.TransferMemoSize)
+	rawData := input.Interpreter.Memory.Read(o, types.TransferMemoSize)
 	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
 		// not exist
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
-		input.Registers[7] = LOW
+		input.Interpreter.Registers[7] = LOW
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 	serviceID := input.Addition.ResultContextX.ServiceId
@@ -564,13 +438,10 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
 		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
 		if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) { //  check b underflow
-			input.Registers[7] = CASH
+			input.Interpreter.Registers[7] = CASH
 			return OmegaOutput{
-				ExitReason:   ExitContinue,
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
+				ExitReason: ExitContinue,
+				Addition:   input.Addition,
 			}
 		}
 
@@ -593,83 +464,60 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// l = reg[9]
-	if uint64(newGas) < l {
+	if uint64(input.Interpreter.Gas) < l {
+		input.Interpreter.Gas = 0
 		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       0,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitOOG,
+			Addition:   input.Addition,
 		}
 	}
-	newGas -= Gas(l)
-
-	input.Registers[7] = OK
+	input.Interpreter.Gas -= Gas(l)
+	input.Interpreter.Registers[7] = OK
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // eject = 21
 func eject(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	d, o := input.Registers[7], input.Registers[8]
+	d, o := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Memory.Read(o, offset)
+	h := input.Interpreter.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 
 	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]
 	if !(types.ServiceId(d) != serviceID && accountExists) {
 		// bold{d} = panic => CONTINUE, WHO
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	// else : d = account
 	serviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
-	// not sure need to add d_b first or not
 	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], serviceIDSerialized) {
 		// d_c not equal E_32(x_s)
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -679,14 +527,11 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
 
 	if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -700,14 +545,11 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
-				input.Registers[7] = OK
+				input.Interpreter.Registers[7] = OK
 
 				return OmegaOutput{
-					ExitReason:   ExitContinue,
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
+					ExitReason: ExitContinue,
+					Addition:   input.Addition,
 				}
 			}
 			// according GP, no need to check the service exists => it should in ServiceAccountState
@@ -715,45 +557,32 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Registers[7] = HUH
+	input.Interpreter.Registers[7] = HUH
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // query = 22
 func query(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, z := input.Registers[7], input.Registers[8]
+	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Memory.Read(o, offset)
+	h := input.Interpreter.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	// x_bold{s} = (x_u)_d[x_s]
@@ -770,11 +599,8 @@ func query(input OmegaInput) (output OmegaOutput) {
 		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
 		if err != nil {
 			return OmegaOutput{
-				ExitReason:   ExitPanic,
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
 			}
 		}
 		account.LookupDict[lookupKey] = timeSlotSet
@@ -785,187 +611,156 @@ func query(input OmegaInput) (output OmegaOutput) {
 		// a = lookupData[h,z]
 		switch len(lookupData) {
 		case 0:
-			input.Registers[7], input.Registers[8] = 0, 0
+			input.Interpreter.Registers[7], input.Interpreter.Registers[8] = 0, 0
 		case 1:
-			input.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
-			input.Registers[8] = 0
+			input.Interpreter.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
+			input.Interpreter.Registers[8] = 0
 		case 2:
-			input.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
-			input.Registers[8] = uint64(lookupData[1])
+			input.Interpreter.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
+			input.Interpreter.Registers[8] = uint64(lookupData[1])
 		case 3:
-			input.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
-			input.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
+			input.Interpreter.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
+			input.Interpreter.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
 		}
 	} else {
 		// a = panic
-		input.Registers[7] = NONE
-		input.Registers[8] = 0
+		input.Interpreter.Registers[7] = NONE
+		input.Interpreter.Registers[8] = 0
 
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
+}
+
+func loadLookupTimeSlotSet(account *types.ServiceAccount, storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, lookupKey types.LookupMetaMapkey) *OmegaOutput {
+	lookupTimeSlotSet := getLookupItemFromKeyVal(storageKeyVal, serviceID, lookupKey)
+	if lookupTimeSlotSet == nil {
+		return nil
+	}
+	var timeSlotSet types.TimeSlotSet
+	decoder := types.NewDecoder()
+	if err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet); err != nil {
+		return &OmegaOutput{ExitReason: ExitPanic}
+	}
+	account.LookupDict[lookupKey] = timeSlotSet
+	return nil
+}
+
+func handleSolicitNewLookup(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, itemFootprintItems types.U32, itemFootprintOctets types.U64, registers *Registers) *OmegaOutput {
+	newFootprintItems := account.ServiceInfo.Items + itemFootprintItems
+	newFootprintOctets := account.ServiceInfo.Bytes + itemFootprintOctets
+	newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, account.ServiceInfo.DepositOffset)
+	if account.ServiceInfo.Balance < newMinBalance {
+		registers[7] = FULL
+		return &OmegaOutput{ExitReason: ExitContinue}
+	}
+	account.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
+	account.ServiceInfo.Items = newFootprintItems
+	account.ServiceInfo.Bytes = newFootprintOctets
+	return nil
+}
+
+func handleSolicitExistingLookup(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, itemFootprintItems types.U32, itemFootprintOctets types.U64, timeslot types.TimeSlot) *OmegaOutput {
+	newFootprintItems := account.ServiceInfo.Items - itemFootprintItems
+	newFootprintOctets := account.ServiceInfo.Bytes - itemFootprintOctets
+	lookupData = append(lookupData, timeslot)
+	newItemFootprintItems, newItemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
+	account.LookupDict[lookupKey] = lookupData
+	account.ServiceInfo.Items = newFootprintItems + newItemFootprintItems
+	account.ServiceInfo.Bytes = newFootprintOctets + newItemFootprintOctets
+	return nil
+}
+
+func processSolicitLookupData(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, lookupDataExists bool, timeslot types.TimeSlot, registers *Registers) *OmegaOutput {
+	itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
+
+	if !lookupDataExists {
+		return handleSolicitNewLookup(account, lookupKey, itemFootprintItems, itemFootprintOctets, registers)
+	}
+	if len(lookupData) == 2 {
+		return handleSolicitExistingLookup(account, lookupKey, lookupData, itemFootprintItems, itemFootprintOctets, timeslot)
+	}
+	registers[7] = HUH
+	return &OmegaOutput{ExitReason: ExitContinue}
 }
 
 // solicit = 23
 func solicit(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, z := input.Registers[7], input.Registers[8]
-
+	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) {
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Memory.Read(o, offset)
-
+	h := input.Interpreter.Memory.Read(o, offset)
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
-	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
-		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-		// check lookupItem from key-val
-		var timeSlotSet types.TimeSlotSet
-		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
-		if lookupTimeSlotSet != nil {
-			decoder := types.NewDecoder()
-			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
-			if err != nil {
-				return OmegaOutput{
-					ExitReason:   ExitPanic,
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-			a.LookupDict[lookupKey] = timeSlotSet
-		}
 
-		lookupData, lookupDataExists := a.LookupDict[lookupKey]
-		itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
-
-		newFootprintItems := a.ServiceInfo.Items
-		newFootprintOctets := a.ServiceInfo.Bytes
-
-		if !lookupDataExists {
-			// a_l[(h,z)] = []
-			newFootprintItems += itemFootprintItems
-			newFootprintOctets += itemFootprintOctets
-			newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, a.ServiceInfo.DepositOffset)
-
-			// check a_b < a_t
-			if a.ServiceInfo.Balance < newMinBalance {
-				input.Registers[7] = FULL
-				return OmegaOutput{
-					ExitReason:   ExitContinue,
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
-				}
-			}
-			a.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
-		} else if lookupDataExists && len(lookupData) == 2 {
-			// a_l[(h,z)] = (x_s)_l[(h,z)] 艹 t   艹 = concat
-			// first take off the lookup item footprints
-			newFootprintItems -= itemFootprintItems
-			newFootprintOctets -= itemFootprintOctets
-			lookupData = append(lookupData, timeslot)
-			// re-compute the item footprints
-			itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
-			a.LookupDict[lookupKey] = lookupData
-			newFootprintItems += itemFootprintItems
-			newFootprintOctets += itemFootprintOctets
-		} else {
-			// a = panic
-			input.Registers[7] = HUH
-
-			return OmegaOutput{
-				ExitReason:   ExitContinue,
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
-			}
-		}
-
-		input.Registers[7] = OK
-		// LookupDict is updated, service items and service Bytes should be updated
-		a.ServiceInfo.Items = newFootprintItems
-		a.ServiceInfo.Bytes = newFootprintOctets
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a // update general args
-		*input.Addition.GeneralArgs.ServiceAccount = a
-	} else {
+	a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !accountExists {
 		pvmLogger.Debugf("host-call function \"solicit\" serviceID : %d not in ServiceAccount state", serviceID)
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
 	}
 
+	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
+	if result := loadLookupTimeSlotSet(&a, input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey); result != nil {
+		result.Addition = input.Addition
+		return *result
+	}
+
+	lookupData, lookupDataExists := a.LookupDict[lookupKey]
+	if result := processSolicitLookupData(&a, lookupKey, lookupData, lookupDataExists, timeslot, &input.Interpreter.Registers); result != nil {
+		result.Addition = input.Addition
+		return *result
+	}
+
+	input.Interpreter.Registers[7] = OK
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+	(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
+	*input.Addition.GeneralArgs.ServiceAccount = a
+
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // forget = 24
 func forget(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, z := input.Registers[7], input.Registers[8]
+	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) { // not readable, return
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Memory.Read(o, offset)
+	h := input.Interpreter.Memory.Read(o, offset)
 	serviceID := input.Addition.ResultContextX.ServiceId
 	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
@@ -979,11 +774,8 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
 			if err != nil {
 				return OmegaOutput{
-					ExitReason:   ExitPanic,
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
+					ExitReason: ExitPanic,
+					Addition:   input.Addition,
 				}
 			}
 			a.LookupDict[lookupKey] = timeSlotSet
@@ -1025,13 +817,10 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				newFootprintItems += itemFootprintItems
 				newFootprintOctets += itemFootprintOctets
 			} else { // otherwise, panic
-				input.Registers[7] = HUH
+				input.Interpreter.Registers[7] = HUH
 				return OmegaOutput{
-					ExitReason:   ExitContinue,
-					NewGas:       newGas,
-					NewRegisters: input.Registers,
-					NewMemory:    input.Memory,
-					Addition:     input.Addition,
+					ExitReason: ExitContinue,
+					Addition:   input.Addition,
 				}
 			}
 			// x'_s = a
@@ -1041,113 +830,83 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
 			*input.Addition.GeneralArgs.ServiceAccount = a
 
-			input.Registers[7] = OK
+			input.Interpreter.Registers[7] = OK
 		} else { // otherwise : lookupData (x_s)_l[h,z] not exist
-			input.Registers[7] = HUH
+			input.Interpreter.Registers[7] = HUH
 		}
 	} else {
 		pvmLogger.Debugf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // yield = 25
 func yield(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o := input.Registers[7]
+	o := input.Interpreter.Registers[7]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, input.Memory) {
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) {
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Memory.Read(o, offset)
+	h := input.Interpreter.Memory.Read(o, offset)
 	opaqueHash := types.OpaqueHash(h)
 	input.Addition.ResultContextX.Exception = &opaqueHash
-	// copy(input.Addition.ResultContextX.Exception[:], h)
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
 
 // provide = 26
 func provide(input OmegaInput) (output OmegaOutput) {
-	newGas := input.Gas - 10
-	if newGas < 0 {
-		return OmegaOutput{
-			ExitReason:   ExitOOG,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
-		}
+	if result := chargeGasAndCheck(&input); result != nil {
+		return *result
 	}
 
-	o, z := input.Registers[8], input.Registers[9]
+	o, z := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
 	// i = panic
 	offset := uint64(z)
-	if !isReadable(o, offset, input.Memory) {
-		input.Registers[7] = OOB
+	if !isReadable(o, offset, *input.Interpreter.Memory) {
+		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
-			ExitReason:   ExitPanic,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
 	}
 	// i = mu_o...+z
-	i := input.Memory.Read(o, z)
+	i := input.Interpreter.Memory.Read(o, z)
 
 	// s = x_s or s = omega_7
 	var s types.ServiceId
-	if input.Registers[7] == 0xffffffffffffffff {
+	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
 		s = input.Addition.ResultContextX.ServiceId
 	} else {
-		s = types.ServiceId(input.Registers[7])
+		s = types.ServiceId(input.Interpreter.Registers[7])
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[s]
 	if !accountExists {
 		// otherwise if a = nil
-		input.Registers[7] = WHO
+		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -1164,11 +923,8 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
 		if err != nil {
 			return OmegaOutput{
-				ExitReason:   ExitPanic,
-				NewGas:       newGas,
-				NewRegisters: input.Registers,
-				NewMemory:    input.Memory,
-				Addition:     input.Addition,
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
 			}
 		}
 		account.LookupDict[lookupKey] = timeSlotSet
@@ -1176,13 +932,10 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if a_l[H(i), z] not in []
 	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
@@ -1199,25 +952,19 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// golang can not have slice in map key, so use hash instead
 	if _, hashExists := input.Addition.ResultContextX.ServiceBlobs[hashKey]; hashExists {
-		input.Registers[7] = HUH
+		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
-			ExitReason:   ExitContinue,
-			NewGas:       newGas,
-			NewRegisters: input.Registers,
-			NewMemory:    input.Memory,
-			Addition:     input.Addition,
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
 	// otherwise OK
 	input.Addition.ResultContextX.ServiceBlobs[hashKey] = serviceBlob
-	input.Registers[7] = OK
+	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
-		ExitReason:   ExitContinue,
-		NewGas:       newGas,
-		NewRegisters: input.Registers,
-		NewMemory:    input.Memory,
-		Addition:     input.Addition,
+		ExitReason: ExitContinue,
+		Addition:   input.Addition,
 	}
 }
