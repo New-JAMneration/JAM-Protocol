@@ -72,23 +72,21 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 			}
 
 			if latestAncestry.Slot > block.Header.Slot {
-				finalizedParentHeaders, err := cs.GetBlockHashByNumber(uint32(block.Header.Slot - 1))
+				finalizedHeaders, err := cs.GetBlockHashByNumber(uint32(block.Header.Slot))
 				if err != nil {
 					return types.StateRoot{}, err
 				}
-				currentParentHeader, err := hash.ComputeBlockHeaderHash(block.Header.Parent)
+				currentHeader, err := hash.ComputeBlockHeaderHash(block.Header)
 				if err != nil {
 					return types.StateRoot{}, fmt.Errorf("error computing current block hash: %w", err)
 				}
-				headerMatch := false
+
 				for _, ParentHeader := range finalizedParentHeaders {
 					if currentParentHeader == ParentHeader {
-						headerMatch = true
+						return types.StateRoot{}, fmt.Errorf("block 0x%x... is already finalized", currentHeader[:8])
 					}
 				}
-				if !headerMatch {
-					return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", currentHeader[:8])
-				}
+				return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", currentHeader[:8])
 			}
 
 			// Try the restore block and state
