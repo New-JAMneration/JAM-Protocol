@@ -101,13 +101,13 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 
 	for {
 		// check pc is not out of range and avoid infinit-loop
-		if pc > ProgramCounter(len(instructionData)) {
+		if pcPrime >= ProgramCounter(len(instructionData)) {
 			// pvmLogger.Debugf("PVM panic: program counter out of range, pcPrime = %d > program-length = %d", pcPrime, len(instructionData))
 			return pc, 0, ExitPanic
 		}
 
 		// check opcode is valid after computing with skip
-		if !instructionData.isOpcodeValid(pc) {
+		if !instructionData.isOpcodeValid(pcPrime) {
 			// pvmLogger.Debugf("PVM panic: decode program failed: opcode invalid")
 			return pc, 0, ExitPanic
 		}

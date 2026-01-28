@@ -204,259 +204,276 @@ func gas(input OmegaInput) OmegaOutput {
 	}
 }
 
+type fetchHandler func(OmegaInput, *types.Encoder) ([]byte, error)
+
+var fetchHandlers = [16]fetchHandler{
+	0:  fetchConstants,
+	1:  fetchEta,
+	2:  fetchAuthOutput,
+	3:  fetchExtrinsicAt,
+	4:  fetchExtrinsicForWorkItem,
+	5:  fetchImportSegmentAt,
+	6:  fetchImportSegmentForWorkItem,
+	7:  fetchWorkPackage,
+	8:  fetchAuthorizerConfig,
+	9:  fetchAuthorization,
+	10: fetchWorkPackageContext,
+	11: fetchWorkPackageItems,
+	12: fetchWorkItemAt,
+	13: fetchWorkItemPayload,
+	14: fetchOperandOrDeferredTransfers,
+	15: fetchOperandOrDeferredTransferAt,
+}
+
+func fetchConstants(input OmegaInput, _ *types.Encoder) ([]byte, error) {
+	return getFetchConstantsData(), nil
+}
+
+func fetchEta(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if reflect.ValueOf(input.Addition.Eta).IsZero() {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.Eta)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 1 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchAuthOutput(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.AuthOutput == nil {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.AuthOutput)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 2 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchExtrinsicAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.Extrinsics) == 0 {
+		return nil, nil
+	}
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.Extrinsics)) {
+		return nil, nil
+	}
+	w12 := input.Interpreter.Registers[12]
+	if w12 >= uint64(len(input.Addition.Extrinsics[w11])) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.Extrinsics[w11][w12])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 3 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchExtrinsicForWorkItem(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.Extrinsics) == 0 || input.Addition.WorkItemIndex == nil {
+		return nil, nil
+	}
+	i := *input.Addition.WorkItemIndex
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.Extrinsics[i][w11])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 4 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchImportSegmentAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.ImportSegments) == 0 {
+		return nil, nil
+	}
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.ImportSegments)) {
+		return nil, nil
+	}
+	w12 := input.Interpreter.Registers[12]
+	if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.ImportSegments[w11][w12])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 5 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchImportSegmentForWorkItem(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.ImportSegments) == 0 || input.Addition.WorkItemIndex == nil {
+		return nil, nil
+	}
+	i := *input.Addition.WorkItemIndex
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.ImportSegments[i])) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.ImportSegments[i][w11])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 6 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchWorkPackage(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.WorkPackage)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 7 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchAuthorizerConfig(input OmegaInput, _ *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	return []byte(input.Addition.WorkPackage.AuthorizerConfig), nil
+}
+
+func fetchAuthorization(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.WorkPackage.Authorization)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 9 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchWorkPackageContext(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.WorkPackage.Context)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 10 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchWorkPackageItems(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	buffer, err := enc.EncodeUint(uint64(len(input.Addition.WorkPackage.Items)))
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 11 encode error: %v", err)
+		return nil, err
+	}
+	for _, w := range input.Addition.WorkPackage.Items {
+		sw, err := S(enc, w)
+		if err != nil {
+			pvmLogger.Errorf("fetch host-call case 11 S func error: %v", err)
+			return nil, err
+		}
+		buffer = append(buffer, sw...)
+	}
+	return buffer, nil
+}
+
+func fetchWorkItemAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+		return nil, nil
+	}
+	val, err := S(enc, input.Addition.WorkPackage.Items[w11])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 12 S func error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchWorkItemPayload(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if input.Addition.WorkPackage == nil {
+		return nil, nil
+	}
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.WorkPackage.Items[w11].Payload)
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 13 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
+func fetchOperandOrDeferredTransfers(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.OperandOrDeferredTransfers) == 0 {
+		return nil, nil
+	}
+	buffer, err := enc.EncodeUint(uint64(len(input.Addition.OperandOrDeferredTransfers)))
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 14 encode uint error: %v", err)
+		return nil, err
+	}
+	for _, o := range input.Addition.OperandOrDeferredTransfers {
+		b, err := enc.Encode(&o)
+		if err != nil {
+			pvmLogger.Errorf("fetch host-call case 14 encode error: %v", err)
+			return nil, err
+		}
+		buffer = append(buffer, b...)
+	}
+	return buffer, nil
+}
+
+func fetchOperandOrDeferredTransferAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
+	if len(input.Addition.OperandOrDeferredTransfers) == 0 {
+		return nil, nil
+	}
+	w11 := input.Interpreter.Registers[11]
+	if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfers)) {
+		return nil, nil
+	}
+	val, err := enc.Encode(&input.Addition.OperandOrDeferredTransfers[w11])
+	if err != nil {
+		pvmLogger.Errorf("fetch host-call case 15 encode error: %v", err)
+		return nil, err
+	}
+	return val, nil
+}
+
 // fetch = 1
 func fetch(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 
-	var (
-		v   *[]byte
-		err error
-	)
 	encoder := types.NewEncoder()
+	idx := input.Interpreter.Registers[10]
+	var v *[]byte
 	var val []byte
-	switch input.Interpreter.Registers[10] {
-	case 0:
-		val := getFetchConstantsData()
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 0 encode error: %v", err)
-			break
+	var err error
+	if idx < uint64(len(fetchHandlers)) {
+		val, err = fetchHandlers[idx](input, encoder)
+		if err == nil && val != nil {
+			v = &val
 		}
-		v = &val
-	case 1:
-		if reflect.ValueOf(input.Addition.Eta).IsZero() {
-			break
-		}
-		val, err = encoder.Encode(&input.Addition.Eta)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 1 encode error: %v", err)
-		}
-		v = &val
-	case 2:
-		if input.Addition.AuthOutput == nil {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.AuthOutput)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 2 encode error: %v", err)
-		}
-		v = &val
-	case 3:
-		if len(input.Addition.Extrinsics) == 0 {
-			break
-		}
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.Extrinsics)) {
-			break
-		}
-
-		w12 := input.Interpreter.Registers[12]
-		if w12 >= uint64(len(input.Addition.Extrinsics[w11])) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.Extrinsics[w11][w12])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 3 encode error: %v", err)
-		}
-		v = &val
-	case 4:
-		// check \bar{x}
-		if len(input.Addition.Extrinsics) == 0 {
-			break
-		}
-		// check i
-
-		if input.Addition.WorkItemIndex == nil {
-			break
-		}
-
-		i := *input.Addition.WorkItemIndex
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.Extrinsics[i][w11])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 4 encode error: %v", err)
-		}
-		v = &val
-	case 5:
-		if len(input.Addition.ImportSegments) == 0 {
-			break
-		}
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.ImportSegments)) {
-			break
-		}
-
-		w12 := input.Interpreter.Registers[12]
-		if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.ImportSegments[w11][w12])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 5 encode error: %v", err)
-		}
-		v = &val
-	case 6:
-		// check \bar{i}
-		if len(input.Addition.ImportSegments) == 0 {
-			break
-		}
-
-		// check i
-		if input.Addition.WorkItemIndex == nil {
-			break
-		}
-
-		i := *input.Addition.WorkItemIndex
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.ImportSegments[i])) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.ImportSegments[i][w11])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 6 encode error: %v", err)
-		}
-		v = &val
-	case 7:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.WorkPackage)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 7 encode error: %v", err)
-		}
-		v = &val
-	case 8:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		vF := []byte(input.Addition.WorkPackage.AuthorizerConfig)
-		v = &vF
-	case 9:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.WorkPackage.Authorization)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 9 encode error: %v", err)
-		}
-		v = &val
-	case 10:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.WorkPackage.Context)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 10 encode error: %v", err)
-		}
-		v = &val
-	case 11:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		var buffer []byte
-		buffer, err = encoder.EncodeUint(uint64(len(input.Addition.WorkPackage.Items)))
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 11 encode error: %v", err)
-			break
-		}
-
-		for _, w := range input.Addition.WorkPackage.Items {
-			var sw []byte
-			sw, err = S(encoder, w)
-			if err != nil {
-				pvmLogger.Errorf("fetch host-call case 11 S func error: %v", err)
-				break
-			}
-
-			buffer = append(buffer, sw...)
-		}
-
-		v = &buffer
-	case 12:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
-			break
-		}
-
-		val, err = S(encoder, input.Addition.WorkPackage.Items[w11])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 12 S func error: %v", err)
-		}
-		v = &val
-	case 13:
-		if input.Addition.WorkPackage == nil {
-			break
-		}
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.WorkPackage.Items[w11].Payload)
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 13 encode error: %v", err)
-		}
-		v = &val
-	case 14:
-		if len(input.Addition.OperandOrDeferredTransfers) == 0 {
-			break
-		}
-
-		var buffer []byte
-		buffer, err = encoder.EncodeUint(uint64((len(input.Addition.OperandOrDeferredTransfers))))
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 14 encode uint error: %v", err)
-			break
-		}
-
-		for _, o := range input.Addition.OperandOrDeferredTransfers {
-			var bytes []byte
-			bytes, err = encoder.Encode(&o)
-			if err != nil {
-				pvmLogger.Errorf("fetch host-call case 14 encode error: %v", err)
-				break
-			}
-			buffer = append(buffer, bytes...)
-		}
-
-		v = &buffer
-	case 15:
-		if len(input.Addition.OperandOrDeferredTransfers) == 0 {
-			break
-		}
-
-		w11 := input.Interpreter.Registers[11]
-		if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfers)) {
-			break
-		}
-
-		val, err = encoder.Encode(&input.Addition.OperandOrDeferredTransfers[w11])
-		if err != nil {
-			pvmLogger.Errorf("fetch host-call case 15 encode error: %v", err)
-		}
-		v = &val
 	}
 
 	if err != nil {
