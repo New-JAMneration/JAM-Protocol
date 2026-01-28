@@ -64,12 +64,18 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
 		if accumErr != nil {
 			pvmLogger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
-			break
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
+			}
 		}
 		accumErr = decoder.Decode(alwaysAccumRawData[4:], &alwaysAccumServiceGas)
 		if accumErr != nil {
 			pvmLogger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
-			break
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
+			}
 		}
 		rawData = rawData[12:]
 		alwaysAccum[alwaysAccumServiceId] = alwaysAccumServiceGas
@@ -159,6 +165,10 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	err := decoder.Decode(rawData, &authQueue)
 	if err != nil {
 		pvmLogger.Errorf("host-call function \"assign\" decode error : %v", err)
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
 	}
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
@@ -205,6 +215,10 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	err := decoder.Decode(rawData, &validatorsData)
 	if err != nil {
 		pvmLogger.Errorf("host-call function \"designate\" decode validatorsData error : %v", err)
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
@@ -261,13 +275,6 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	serviceID := input.Addition.ResultContextX.ServiceId
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
-
-	var cDecoded types.U32
-	decoder := types.NewDecoder()
-	err := decoder.Decode(c, &cDecoded)
-	if err != nil {
-		pvmLogger.Errorf("host-call function \"new\" decode error %v: ", err)
-	}
 
 	// new an account
 	a := types.ServiceAccount{
@@ -787,7 +794,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 
 			newFootprintItems := a.ServiceInfo.Items
 			newFootprintOctets := a.ServiceInfo.Bytes
-			if lookupDataLength == 0 || (lookupDataLength == 2 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
+			if lookupDataLength == 0 || (lookupDataLength == 2 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
 				// delete (h,z) from a_l
 				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
 				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
@@ -805,7 +812,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				newFootprintItems += itemFootprintItems
 				newFootprintOctets += itemFootprintOctets
 
-			} else if lookupDataLength == 3 && lookupDataLength > 1 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
+			} else if lookupDataLength == 3 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
 				newFootprintItems -= itemFootprintItems
 				newFootprintOctets -= itemFootprintOctets
 				// a_l[h,z] = [w,t]

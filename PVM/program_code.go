@@ -99,6 +99,7 @@ func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 	jumpTableLength, exitReason := decodeUintFixedLength(data, 1)
 	if exitReason != ExitContinue {
 		pvmLogger.Errorf("jumpTableLength decodeUintFixedLength error")
+		return Program{}, ExitPanic
 	}
 	data = data[1:]
 
