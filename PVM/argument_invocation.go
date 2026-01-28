@@ -89,11 +89,17 @@ func isReadable(start, offset uint64, m Memory) bool {
 }
 
 func isWriteable(start, offset uint64, m Memory) bool {
+	if offset == 0 {
+		return true
+	}
 	startPage := uint32(start / ZP)
-	endPage := uint32((start + offset) / ZP)
-
-	return m.GetPageAccess(startPage) == MemoryReadWrite &&
-		m.GetPageAccess(endPage) == MemoryReadWrite
+	endPage := uint32((start + offset - 1) / ZP)
+	for p := startPage; p <= endPage; p++ {
+		if m.GetPageAccess(p) != MemoryReadWrite {
+			return false
+		}
+	}
+	return true
 }
 
 func readRAM(start, length uint64, m Memory) ([]byte, bool) {
