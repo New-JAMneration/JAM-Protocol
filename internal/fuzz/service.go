@@ -65,10 +65,14 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 
 		if latestBlockHash != block.Header.Parent && latestBlockHash != headerHash {
 			logger.Debugf("%s parent mismatch, trying to restore block and state", ctx)
+			headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
+			if err != nil {
+				return types.StateRoot{}, fmt.Errorf("error computing current block hash: %w", err)
+			}
+
 			// Check block timeslot
 			if block.Header.Slot < 1 {
-				currentHeader, err := hash.ComputeBlockHeaderHash(block.Header)
-				return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", currentHeader[:8])
+				return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", headerHash[:8])
 			}
 
 			if latestAncestry.Slot > block.Header.Slot {
@@ -76,21 +80,17 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 				if err != nil {
 					return types.StateRoot{}, err
 				}
-				currentHeader, err := hash.ComputeBlockHeaderHash(block.Header)
-				if err != nil {
-					return types.StateRoot{}, fmt.Errorf("error computing current block hash: %w", err)
-				}
 
-				for _, ParentHeader := range finalizedParentHeaders {
-					if currentParentHeader == ParentHeader {
-						return types.StateRoot{}, fmt.Errorf("block 0x%x... is already finalized", currentHeader[:8])
+				for _, finalizedHeader := range finalizedHeaders {
+					if headerHash == finalizedHeader {
+						return types.StateRoot{}, fmt.Errorf("block 0x%x... is already finalized", headerHash[:8])
 					}
 				}
-				return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", currentHeader[:8])
+				return types.StateRoot{}, fmt.Errorf("block 0x%x... is not part of the finalized block", headerHash[:8])
 			}
 
 			// Try the restore block and state
-			err := cs.RestoreBlockAndState(block.Header.Parent)
+			err = cs.RestoreBlockAndState(block.Header.Parent)
 			if err != nil {
 				return types.StateRoot{}, fmt.Errorf("failed to restore block and state after parent mismatch: %w", err)
 			}
