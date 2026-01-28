@@ -77,6 +77,10 @@ func (e *Encoder) EncodeUint(value uint64) ([]byte, error) {
 		return []byte{0}, nil
 	}
 
+	if value < 0x80 {
+		return []byte{byte(value)}, nil
+	}
+
 	if value >= (uint64(1) << 56) {
 		remainderBytes, err := e.EncodeUintWithLength(value, 8)
 		if err != nil {

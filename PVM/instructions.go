@@ -524,7 +524,7 @@ func instLoadU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 	offset := uint32(1)
 	memVal, exitReason := loadFromMemory(interp.Memory, offset, uint32(vX))
 	if exitReason != ExitContinue {
-		return ExitContinue, pc
+		return exitReason, pc
 	}
 
 	interp.Registers[rA] = memVal
@@ -543,10 +543,6 @@ func instLoadI8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 
 	offset := 1
 	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
-	if exitReason != ExitContinue {
-		return exitReason, pc
-	}
-
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -574,7 +570,7 @@ func instLoadU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	offset := 2
 	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
-		return ExitContinue, pc
+		return exitReason, pc
 	}
 
 	interp.Registers[rA] = memVal

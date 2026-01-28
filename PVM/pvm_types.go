@@ -82,12 +82,10 @@ type Interpreter struct {
 	InstrCount uint64
 }
 
-// Host holds the main execution context, similar to linux kernel
-// It contains the interpreter state, host call arguments, and host call functions
 type Host struct {
-	Interpreter Interpreter  // interpreter state (registers, memory, gas, program)
-	Addition    HostCallArgs // host-call context (addition)
-	HostCalls   Omegas       // host-call functions (moved from Interpreter for better locality)
+	Interpreter Interpreter
+	Addition    HostCallArgs
+	HostCalls   Omegas
 }
 
 func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas) *Interpreter {
@@ -100,7 +98,6 @@ func NewInterpreter(program *Program, registers Registers, memory *Memory, gas G
 	}
 }
 
-// NewHost creates a new Host with interpreter state, host call args, and host call functions
 func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
 	return &Host{
 		Interpreter: Interpreter{
