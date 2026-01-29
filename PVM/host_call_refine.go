@@ -63,7 +63,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Interpreter.Registers[7] = uint64(len(*v))
-	input.Interpreter.Memory.Write(o, l, (*v)[f:f+l])
+	input.Interpreter.Memory.Write(o, (*v)[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -213,7 +213,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	data := (&integratedPVMType.Memory).Read(s, z)
 	// write data into memory
-	input.Interpreter.Memory.Write(o, z, data[s:s+z])
+	input.Interpreter.Memory.Write(o, data[s:s+z])
 
 	input.Interpreter.Registers[7] = OK
 	return OmegaOutput{
@@ -261,7 +261,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	data := input.Interpreter.Memory.Read(s, z)
 	// write data into m[n]_u
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
-	(&integratedPVMType.Memory).Write(o, z, data)
+	(&integratedPVMType.Memory).Write(o, data)
 	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
@@ -385,7 +385,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		copy(data[8*i:8*(i+1)], encoded)
 	}
 	// write data into memory (mu)
-	input.Interpreter.Memory.Write(o, offset, data)
+	input.Interpreter.Memory.Write(o, data)
 
 	// m* = m
 	tmp := input.Addition.IntegratedPVMMap[n]
