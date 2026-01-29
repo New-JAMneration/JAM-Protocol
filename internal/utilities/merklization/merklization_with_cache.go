@@ -6,9 +6,11 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// LeafHashCache is a callback function type for caching leaf hashes
-// Returns the cached hash and true if found, or zero hash and false if not cached
-type LeafHashCache func(key types.StateKey, value []byte) (types.OpaqueHash, bool)
+// LeafHashCache is a get-or-compute callback for leaf hashes.
+// It returns the leaf hash for (key, value); on cache miss the implementation
+// computes it, stores it, and returns it. The caller must always use the returned
+// hash and must not recompute when ok is false.
+type LeafHashCache func(key types.StateKey, value []byte) (leafHash types.OpaqueHash, ok bool)
 
 // MerklizationSerializedStateWithCache computes the Merkle root with key-level caching.
 // The cache callback is used to retrieve and store leaf hashes, avoiding recomputation
@@ -42,14 +44,12 @@ func MerklizationWithLeafCache(d MerklizationInput, cache LeafHashCache) types.O
 
 	if len(d) == 1 {
 		for _, stateKeyVal := range d {
-			// Try cache first
 			if cache != nil {
-				if cached, ok := cache(stateKeyVal.Key, stateKeyVal.Value); ok {
-					return cached
-				}
+				// Get-or-compute: callback returns valid hash on both hit and miss.
+				leafHash, _ := cache(stateKeyVal.Key, stateKeyVal.Value)
+				return leafHash
 			}
-
-			// Compute if not cached
+			// No cache: compute here
 			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
 			bytes, _ := utilities.BitsToBytes(leftEncoding)
 			return hash.Blake2bHash(bytes)

@@ -1,4 +1,4 @@
-﻿package blockchain
+package blockchain
 
 import (
 	"bytes"
@@ -529,29 +529,23 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 // merklizeWithKeyCache computes state root using key-level cache.
 // This optimization caches leaf hashes for individual keys, so unchanged keys
 // don't need to recompute their leaf hashes during merklization.
+// The cache callback is get-or-compute: on miss it computes once, stores, and returns
+// the hash so merklization uses it without recomputing.
 func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) types.StateRoot {
-	// Create cache callback for merklization.
-	// This callback computes and caches leaf hashes on miss, avoiding duplicate computation.
 	cacheFn := func(key types.StateKey, value []byte) (types.OpaqueHash, bool) {
-		cachedHash, ok := cs.keyLevelCache.GetLeafHashCache(key, value)
+		leafHash, valueHash, ok := cs.keyLevelCache.GetLeafHash(key, value)
 		if ok {
-			return cachedHash, true
+			return leafHash, true
 		}
-
-		// Cache miss: compute leaf hash directly
+		// Cache miss: compute once, store, and return so merklization uses it
 		leftEncoding := m.LeafEncoding(key, value)
 		bytes, _ := utilities.BitsToBytes(leftEncoding)
-		leafHash := hash.Blake2bHash(bytes)
-
-		// Cache it for future use
-		cs.keyLevelCache.AddLeafHashCache(key, value, leafHash)
-
+		leafHash = hash.Blake2bHash(bytes)
+		cs.keyLevelCache.PutLeafHash(key, valueHash, leafHash)
 		return leafHash, false
 	}
 
-	// Use cached merklization
 	stateRoot := m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn)
-
 	return stateRoot
 }
 

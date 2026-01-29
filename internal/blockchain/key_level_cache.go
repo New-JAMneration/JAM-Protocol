@@ -5,60 +5,61 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// KeyLevelCache caches leaf hashes for individual state keys.
+// leafCacheEntry stores the latest (valueHash, leafHash) for a stateKey.
+// Only one entry per stateKey; updated when value changes.
+type leafCacheEntry struct {
+	valueHash types.OpaqueHash // Blake2bHash(value)
+	leafHash  types.OpaqueHash // Merkle leaf hash for (key, value)
+}
+
+// KeyLevelCache keeps at most one entry per stateKey.
+// For a given stateKey, we only recompute the leaf hash when its value actually changes.
 type KeyLevelCache struct {
-	// Cache: key + valueHash -> leaf hash
-	cache map[cacheKey]types.OpaqueHash
+	entries map[types.StateKey]leafCacheEntry
 }
 
-type cacheKey struct {
-	stateKey  types.StateKey
-	valueHash types.OpaqueHash
-}
-
-// NewKeyLevelCache creates a new key-level cache
+// NewKeyLevelCache creates a new key-level cache.
 func NewKeyLevelCache() *KeyLevelCache {
 	return &KeyLevelCache{
-		cache: make(map[cacheKey]types.OpaqueHash),
+		entries: make(map[types.StateKey]leafCacheEntry),
 	}
 }
 
-// GetLeafHash attempts to get a cached leaf hash for a key-value pair.
-// Returns the cached hash and true if found, or zero hash and false if not cached.
-func (c *KeyLevelCache) GetLeafHashCache(key types.StateKey, value []byte) (types.OpaqueHash, bool) {
-	valueHash := hash.Blake2bHash(value)
-	ck := cacheKey{stateKey: key, valueHash: valueHash}
-
-	if leafHash, ok := c.cache[ck]; ok {
-		return leafHash, true
+// GetLeafHash returns the cached leaf hash if the key's value matches the cached valueHash.
+// Also returns the computed valueHash so the caller can reuse it (e.g. when storing on miss).
+// Returns (leafHash, valueHash, true) on hit, (zero, valueHash, false) on miss.
+func (c *KeyLevelCache) GetLeafHash(key types.StateKey, value []byte) (leafHash types.OpaqueHash, valueHash types.OpaqueHash, ok bool) {
+	valueHash = hash.Blake2bHash(value)
+	entry, found := c.entries[key]
+	if !found || entry.valueHash != valueHash {
+		return types.OpaqueHash{}, valueHash, false
 	}
-
-	return types.OpaqueHash{}, false
+	return entry.leafHash, valueHash, true
 }
 
-// PutLeafHash stores a leaf hash in the cache.
-func (c *KeyLevelCache) AddLeafHashCache(key types.StateKey, value []byte, leafHash types.OpaqueHash) {
-	valueHash := hash.Blake2bHash(value)
-	ck := cacheKey{stateKey: key, valueHash: valueHash}
-	c.cache[ck] = leafHash
+// PutLeafHash stores the leaf hash for (key, value). Caller must pass the same valueHash
+// returned from GetLeafHash (or computed once) to avoid hashing value twice.
+func (c *KeyLevelCache) PutLeafHash(key types.StateKey, valueHash types.OpaqueHash, leafHash types.OpaqueHash) {
+	c.entries[key] = leafCacheEntry{valueHash: valueHash, leafHash: leafHash}
 }
 
 // GetOrComputeLeafHash gets a cached leaf hash or computes it.
+// ValueHash is computed once and reused for PutLeafHash on miss.
 func (c *KeyLevelCache) GetOrComputeLeafHash(
 	key types.StateKey,
 	value []byte,
 	computeFn func(types.StateKey, []byte) types.OpaqueHash,
 ) types.OpaqueHash {
-	if leafHash, ok := c.GetLeafHashCache(key, value); ok {
+	leafHash, valueHash, ok := c.GetLeafHash(key, value)
+	if ok {
 		return leafHash
 	}
-
-	leafHash := computeFn(key, value)
-	c.AddLeafHashCache(key, value, leafHash)
+	leafHash = computeFn(key, value)
+	c.PutLeafHash(key, valueHash, leafHash)
 	return leafHash
 }
 
 // Clear removes all entries from the cache.
 func (c *KeyLevelCache) Clear() {
-	c.cache = make(map[cacheKey]types.OpaqueHash)
+	c.entries = make(map[types.StateKey]leafCacheEntry)
 }
