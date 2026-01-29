@@ -513,7 +513,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 			Addition:   input.Addition,
 		}
 	}
-	input.Interpreter.Memory.Write(o, l, (*v)[f:f+l])
+	input.Interpreter.Memory.Write(o, (*v)[f:f+l])
 	input.Interpreter.Registers[7] = dataLength
 
 	return OmegaOutput{
@@ -582,7 +582,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 
 	input.Interpreter.Registers[7] = uint64(len(*v))
 	if l != 0 {
-		input.Interpreter.Memory.Write(o, l, (*v)[f:f+l])
+		input.Interpreter.Memory.Write(o, (*v)[f:f+l])
 	}
 
 	return OmegaOutput{
@@ -687,7 +687,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Interpreter.Registers[7] = uint64(len(v))
-	input.Interpreter.Memory.Write(o, l, v[f:f+l])
+	input.Interpreter.Memory.Write(o, v[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -875,7 +875,7 @@ func info(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Interpreter.Registers[7] = uint64(len(v))
-	input.Interpreter.Memory.Write(o, l, v[f:f+l])
+	input.Interpreter.Memory.Write(o, v[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,

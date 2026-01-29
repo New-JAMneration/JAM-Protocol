@@ -33,6 +33,9 @@ func (m *Memory) GetPageAccess(index uint32) MemoryAccess {
 
 // Read reads data from memory, might cross many pages
 func (m *Memory) Read(start uint64, offset uint64) types.ByteSequence {
+	if offset == 0 {
+		return []byte{}
+	}
 	buffer := make([]byte, offset)
 
 	pageNumber := uint32(start / ZP)
@@ -47,12 +50,15 @@ func (m *Memory) Read(start uint64, offset uint64) types.ByteSequence {
 	return buffer
 }
 
-func (m *Memory) Write(start uint64, offset uint64, data types.ByteSequence) {
+func (m *Memory) Write(start uint64, data types.ByteSequence) {
+	if len(data) == 0 {
+		return
+	}
 	pageNumber := uint32(start / ZP)
 	pageIndex := start % ZP
-
-	for copied := uint64(0); copied < offset; {
-		copied += uint64(copy(m.Pages[pageNumber].Value[pageIndex:], data[copied:]))
+	for copied := 0; copied < len(data); {
+		n := copy(m.Pages[pageNumber].Value[pageIndex:], data[copied:])
+		copied += n
 		pageNumber++
 		pageIndex = 0
 	}

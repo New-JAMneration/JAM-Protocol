@@ -6,17 +6,17 @@ import (
 
 // per-instruction based of (A.1) ψ_1,
 func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
-	var exitReason ExitReason
-
-	exitReason, pcPrime := interp.SingleStepStateTransition(pc)
-
-	switch exitReason.GetReasonType() {
-	case CONTINUE:
-		return interp.SingleStepInvoke(pcPrime)
-	case HALT, PANIC:
-		return exitReason, 0
-	default: // HOST_CALL, OUT_OF_GAS
-		return exitReason, pcPrime
+	for {
+		exitReason, pcPrime := interp.SingleStepStateTransition(pc)
+		switch exitReason.GetReasonType() {
+		case CONTINUE:
+			pc = pcPrime
+			continue
+		case HALT, PANIC:
+			return exitReason, 0
+		default: // HOST_CALL, OUT_OF_GAS
+			return exitReason, pcPrime
+		}
 	}
 }
 
