@@ -556,6 +556,13 @@ func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals)
 	return cs.merklizeWithKeyCache(stateKeyVals)
 }
 
+// ClearKeyLevelCache clears the key-level merklization cache. Called on epoch boundary (e.g. from safrole.CreateEpochMarker).
+func (cs *ChainState) ClearKeyLevelCache() {
+	if cs.keyLevelCache != nil {
+		cs.keyLevelCache.Clear()
+	}
+}
+
 // GetStateByBlockHash retrieves state data for a given block from persistent database
 func (cs *ChainState) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
 	stateKeyVals, err := cs.repo.GetStateDataByHeaderHash(cs.repo.Database(), blockHeaderHash)

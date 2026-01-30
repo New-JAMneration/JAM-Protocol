@@ -190,6 +190,8 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	// Update GammaZ commitment (gammaZ)
 	if ePrime > e {
+		// Clear key-level merklization cache on each epoch boundary
+		cs.ClearKeyLevelCache()
 		func() {
 			defer timing.Track("safrole.GetCommitment")()
 			commitment, err := ringVerifier.GetCommitment()
