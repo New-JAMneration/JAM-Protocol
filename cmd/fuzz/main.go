@@ -408,8 +408,8 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer client.Close()
 
-	// Read all JSON files in the folder
-	var jsonFiles []string
+	// Read all (~100) JSON files in the folder
+	jsonFiles := make([]string, 0, 100)
 	firstFiles := make(map[string]string)
 	err = filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

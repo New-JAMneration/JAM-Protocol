@@ -25,7 +25,8 @@ func CreateEpochMarker(e types.TimeSlot, ePrime types.TimeSlot) {
 		gammaK := cs.GetPosteriorStates().GetGammaK()
 
 		// Get ed25519/bandersnatch keys from gamma_k
-		var epochMarkValidatorKeys []types.EpochMarkValidatorKeys
+		// Pre-allocate capacity based on gammaK length
+		epochMarkValidatorKeys := make([]types.EpochMarkValidatorKeys, 0, len(gammaK))
 		for _, validator := range gammaK {
 			epochMarkValidatorKeys = append(epochMarkValidatorKeys, types.EpochMarkValidatorKeys{
 				Bandersnatch: validator.Bandersnatch,

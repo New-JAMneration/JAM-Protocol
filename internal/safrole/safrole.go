@@ -65,7 +65,8 @@ func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
 func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
-	ringBytes := []byte{}
+	// Pre-allocate capacity: each BandersnatchPublic is 32 bytes
+	ringBytes := make([]byte, 0, len(bandersnatchKeys)*len(types.BandersnatchPublic{}))
 	ringSize := uint(len(bandersnatchKeys))
 
 	for _, bandersnatch := range bandersnatchKeys {
@@ -90,7 +91,8 @@ func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPub
 // ring
 // Equation (6.13)
 func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.BandersnatchRingCommitment, error) {
-	bandersnatchKeys := []types.BandersnatchPublic{}
+	// Pre-allocate capacity based on validators count
+	bandersnatchKeys := make([]types.BandersnatchPublic, 0, len(validators))
 	for _, validator := range validators {
 		bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
 	}

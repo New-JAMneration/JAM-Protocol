@@ -88,6 +88,8 @@ func (l *LocalKeyStore) Generate(t keystore.KeyType) (keystore.KeyPair, error) {
 	switch t {
 	case keystore.KeyTypeEd25519:
 		kp, err = keystore.NewEd25519KeyPair()
+	case keystore.KeyTypeBandersnatch:
+		kp, err = keystore.NewBandersnatchKeyPair()
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -126,6 +128,8 @@ func (l *LocalKeyStore) Import(t keystore.KeyType, seed []byte) (keystore.KeyPai
 	switch t {
 	case keystore.KeyTypeEd25519:
 		kp, err = keystore.ImportEd25519KeyPair(seed)
+	case keystore.KeyTypeBandersnatch:
+		kp, err = keystore.ImportBandersnatchKeyPair(seed)
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -139,6 +143,10 @@ func (l *LocalKeyStore) Import(t keystore.KeyType, seed []byte) (keystore.KeyPai
 	}
 
 	pubHex := hex.EncodeToString(kp.PublicKey())
+	if _, exists := keys[pubHex]; exists {
+		return nil, fmt.Errorf("key already exists for type %s", t)
+	}
+
 	privHex := hex.EncodeToString(kp.PrivateKey())
 
 	keys[pubHex] = keyData{
@@ -192,6 +200,8 @@ func (l *LocalKeyStore) Get(t keystore.KeyType, pubKey []byte) (keystore.KeyPair
 	switch t {
 	case keystore.KeyTypeEd25519:
 		return keystore.FromEd25519PrivateKey(privBytes)
+	case keystore.KeyTypeBandersnatch:
+		return keystore.ImportBandersnatchKeyPair(privBytes)
 	default:
 		return nil, fmt.Errorf("unsupported key type: %s", t)
 	}
@@ -202,12 +212,15 @@ func (l *LocalKeyStore) List(t keystore.KeyType) ([]keystore.KeyPair, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
+	var err error
 	keys, err := l.loadKeys(t)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []keystore.KeyPair
+	var kp keystore.KeyPair
+	// Pre-allocsate capacity based on keys count
+	kps := make([]keystore.KeyPair, 0, len(keys))
 	for _, kd := range keys {
 		privBytes, err := hex.DecodeString(kd.PrivateKey)
 		if err != nil {
@@ -216,16 +229,18 @@ func (l *LocalKeyStore) List(t keystore.KeyType) ([]keystore.KeyPair, error) {
 
 		switch t {
 		case keystore.KeyTypeEd25519:
-			kp, err := keystore.FromEd25519PrivateKey(privBytes)
-			if err != nil {
-				return nil, err
-			}
-			result = append(result, kp)
+			kp, err = keystore.FromEd25519PrivateKey(privBytes)
+		case keystore.KeyTypeBandersnatch:
+			kp, err = keystore.ImportBandersnatchKeyPair(privBytes)
 		default:
 			return nil, fmt.Errorf("unsupported key type: %s", t)
 		}
+		if err != nil {
+			return nil, err
+		}
+		kps = append(kps, kp)
 	}
-	return result, nil
+	return kps, nil
 }
 
 // Delete removes a keypair from the keystore
@@ -244,5 +259,44 @@ func (l *LocalKeyStore) Delete(t keystore.KeyType, pubKey []byte) error {
 	if err := l.saveKeys(t, keys); err != nil {
 		return fmt.Errorf("failed to save keys after deletion: %w", err)
 	}
+	return nil
+}
+
+// ImportValidatorKeysFromSeed imports both Ed25519 and Bandersnatch keys
+// from a JIP-5 seed into the local keystore.
+func (l *LocalKeyStore) ImportValidatorKeysFromSeed(seed []byte) error {
+	// Derive the secret seeds directly
+	ed25519SecretSeed, bandersnatchSecretSeed, edPub, bnPub, err := keystore.DeriveValidatorKeys(seed)
+	if err != nil {
+		return fmt.Errorf("failed to derive validator keys: %w", err)
+	}
+
+	// Make sure we don't accidentally overwrite existing validator keys.
+	// Both Ed25519 and Bandersnatch keys must be absent, otherwise we abort.
+	if exists, err := l.Contains(keystore.KeyTypeEd25519, edPub[:]); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("Ed25519 validator key already exists")
+	}
+
+	if exists, err := l.Contains(keystore.KeyTypeBandersnatch, bnPub[:]); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("Bandersnatch validator key already exists")
+	}
+
+	// Import Ed25519 key using the derived seed (32 bytes)
+	edKP, err := l.Import(keystore.KeyTypeEd25519, ed25519SecretSeed)
+	if err != nil {
+		return fmt.Errorf("failed to import Ed25519 key: %w", err)
+	}
+
+	// Import Bandersnatch key using the derived secret seed (32 bytes)
+	if _, err := l.Import(keystore.KeyTypeBandersnatch, bandersnatchSecretSeed); err != nil {
+		// Best-effort rollback so we don't end up with only one of the two keys.
+		_ = l.Delete(keystore.KeyTypeEd25519, edKP.PublicKey())
+		return fmt.Errorf("failed to import Bandersnatch key: %w", err)
+	}
+
 	return nil
 }

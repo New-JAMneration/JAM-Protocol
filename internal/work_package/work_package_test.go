@@ -214,11 +214,8 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		t.Errorf("expected non-empty bundle")
 	}
 
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		t.Fatalf("Failed to get redis backend: %v", err)
-	}
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	cs := blockchain.GetInstance()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}

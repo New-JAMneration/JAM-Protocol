@@ -62,7 +62,7 @@ func (v *VerdictWrapper) VerifySignature() error {
 		return errors.New("bad_judgement_age")
 	}
 
-	var k types.ValidatorsData
+	k := make(types.ValidatorsData, types.ValidatorsCount)
 	if v.Verdict.Age == a {
 		k = state.GetKappa()
 	} else {
@@ -74,18 +74,19 @@ func (v *VerdictWrapper) VerifySignature() error {
 	target := v.Verdict.Target[:]
 
 	// store the index of votes with invalid signature
-	invalidVotes := make([]int, 0)
+	invalidVotes := make([]int, 0, VoteNum)
 
 	for i := 0; i < VoteNum; i++ {
 		if int(v.Verdict.Votes[i].Index) >= len(k) {
 			return errors.New("bad_guarantor_key")
 		}
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
-		var message []byte
+		// Pre-allocate capacity: vote type (1 byte) + target (32 bytes)
+		message := make([]byte, 0, 33)
 		if v.Verdict.Votes[i].Vote {
-			message = []byte(types.JamValid)
+			message = append(message, []byte(types.JamValid)...)
 		} else {
-			message = []byte(types.JamInvalid)
+			message = append(message, []byte(types.JamInvalid)...)
 		}
 
 		message = append(message, target...)
@@ -118,8 +119,8 @@ func (v *VerdictController) CheckUnique() error {
 		return nil
 	}
 	// Eq. 10.7 unique
-	uniqueMap := make(map[types.OpaqueHash]bool)
-	result := make([]VerdictWrapper, 0)
+	uniqueMap := make(map[types.OpaqueHash]bool, len(v.Verdicts))
+	result := make([]VerdictWrapper, 0, len(v.Verdicts))
 
 	for _, v := range v.Verdicts {
 		if uniqueMap[v.Verdict.Target] {
@@ -131,8 +132,8 @@ func (v *VerdictController) CheckUnique() error {
 	(*v).Verdicts = result
 	// Eq. 10.10 unique
 	for _, v := range v.Verdicts {
-		uniqueJudgementMap := make(map[types.ValidatorIndex]bool)
-		votesResult := make([]types.Judgement, 0)
+		uniqueJudgementMap := make(map[types.ValidatorIndex]bool, len(v.Verdict.Votes))
+		votesResult := make([]types.Judgement, 0, len(v.Verdict.Votes))
 		for _, vote := range v.Verdict.Votes {
 			if uniqueJudgementMap[vote.Index] {
 				return errors.New("judgements_not_sorted_unique")
@@ -210,7 +211,7 @@ func (v *VerdictController) SetDisjoint() error {
 	psiBad := states.GetPsiB()
 	psiWonky := states.GetPsiW()
 
-	uniqueMap := make(map[types.OpaqueHash]bool)
+	uniqueMap := make(map[types.OpaqueHash]bool, len(psiGood)+len(psiBad)+len(psiWonky))
 
 	for _, v := range psiGood {
 		uniqueMap[types.OpaqueHash(v)] = true
@@ -232,6 +233,8 @@ func (v *VerdictController) SetDisjoint() error {
 
 // GenerateVerdictSumSequence generates verdict only with report hash and votes | Eq. 10.11
 func (v *VerdictController) GenerateVerdictSumSequence() {
+	// Pre-allocate capacity for verdict sum sequence
+	v.VerdictSumSequence = make([]VerdictSummary, 0, len(v.Verdicts))
 
 	for _, verdict := range v.Verdicts {
 		verdictSummary := VerdictSummary{}
@@ -252,7 +255,8 @@ func (v *VerdictController) GenerateVerdictSumSequence() {
 func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary) {
 	cs := blockchain.GetInstance()
 	priorStatesRho := cs.GetPriorStates().GetRho()
-	clearReports := make(map[types.OpaqueHash]bool)
+	// Pre-allocate capacity: estimate that about half of verdicts need clearing
+	clearReports := make(map[types.OpaqueHash]bool, len(verdictSumSequence)/2)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
 			clearReports[types.OpaqueHash(verdict.ReportHash)] = true

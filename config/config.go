@@ -35,6 +35,10 @@ type config struct {
 		Port     int    `json:"port"`
 		Password string `json:"password"`
 	} `json:"redis"`
+	Database struct {
+		Type    string `json:"type"`
+		DataDir string `json:"data_dir"`
+	} `json:"database"`
 	Info struct {
 		FuzzVersion  uint8  `json:"fuzz_version"`
 		FuzzFeatures uint32 `json:"fuzz_features"`
@@ -86,6 +90,13 @@ func DefaultConfig() config {
 			Address:  "localhost",
 			Port:     6379,
 			Password: "password",
+		},
+		Database: struct {
+			Type    string `json:"type"`
+			DataDir string `json:"data_dir"`
+		}{
+			Type:    "pebble",
+			DataDir: "./data/pebble",
 		},
 		Info: struct {
 			FuzzVersion  uint8  `json:"fuzz_version"`

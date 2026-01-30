@@ -12,6 +12,8 @@ func Disputes() (types.OffendersMark, error) {
 
 	// init controllers
 	verdictController := NewVerdictController()
+	// Pre-allocate capacity for verdicts
+	verdictController.Verdicts = make([]VerdictWrapper, 0, len(disputeExtrinsic.Verdicts))
 	for _, verdict := range disputeExtrinsic.Verdicts {
 		verdictController.Verdicts = append(verdictController.Verdicts, VerdictWrapper{verdict})
 	}

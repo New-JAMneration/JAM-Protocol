@@ -4,28 +4,25 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-type HashOrByteSequence struct {
-	Hash         types.OpaqueHash
-	ByteSequence types.ByteSequence
-}
-
-func GetDataFromHashOrByteSequence(input HashOrByteSequence) types.ByteSequence {
-	if len(input.ByteSequence) > 0 {
-		return input.ByteSequence
-	}
-	return input.Hash[:]
-}
+// Package-level constants
+var (
+	// nodePrefix is the prefix used for internal node hashing in N function
+	nodePrefix = []byte("node")
+	// leafPrefix is the prefix used for leaf node hashing in Lx and C functions
+	leafPrefix = []byte("leaf")
+	// zeroHash is the zero OpaqueHash used for empty Merkle trees
+	zeroHash = types.OpaqueHash{}
+)
 
 // N: Calculates the Merkle root from integers.
-func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output HashOrByteSequence) {
+func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) types.ByteSequence {
 	// [[]] should result zero hash
 	if len(v) == 0 || v[0] == nil {
-		// H0
-		output.Hash = types.OpaqueHash{} // zero hash
-		return output
+		// H0 - return zero hash as bytes
+		return types.ByteSequence(zeroHash[:])
 	} else if len(v) == 1 {
-		output.ByteSequence = v[0]
-		return output
+		// Single element: return raw data
+		return v[0]
 	} else {
 		mid := (len(v) + 1) / 2
 		left := v[:mid]
@@ -33,22 +30,27 @@ func N(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 		// $node + N(left) + N(right)
 		a := N(left, hashFunc)
 		b := N(right, hashFunc)
-		merge := types.ByteSequence("node")
-		merge = append(merge, GetDataFromHashOrByteSequence(a)...)
-		merge = append(merge, GetDataFromHashOrByteSequence(b)...)
-		output.Hash = hashFunc(merge) // Combine hashes of left and right subtrees
-		return output
+
+		// Pre-allocate buffer with exact capacity to avoid multiple reallocations
+		merge := make([]byte, 0, len(nodePrefix)+len(a)+len(b))
+		merge = append(merge, nodePrefix...)
+		merge = append(merge, a...)
+		merge = append(merge, b...)
+
+		// Return hash as ByteSequence
+		hash := hashFunc(merge)
+		return types.ByteSequence(hash[:])
 	}
 }
 
 // Mb: Well-balanced binary Merkle function
-func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) (output types.OpaqueHash) {
+func Mb(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) types.OpaqueHash {
 	// [[]] should go to N
 	if len(v) == 1 && v[0] != nil {
-		output = hashFunc(v[0][:])
-		return output
+		return hashFunc(v[0])
 	} else {
-		return N(v, hashFunc).Hash // Use N for multiple elements
+		// N returns ByteSequence, convert to OpaqueHash
+		return types.OpaqueHash(N(v, hashFunc))
 	}
 }
 
@@ -73,7 +75,7 @@ func PI(v []types.ByteSequence, i types.U32) types.U32 {
 }
 
 // T: Traces the path from the root to a leaf node, returning opposite nodes at each level to justify data inclusion.
-func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) (output []HashOrByteSequence) {
+func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) (output []types.ByteSequence) {
 	if len(v) <= 1 {
 		return output
 	}
@@ -92,22 +94,36 @@ func T(v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) ty
 		newIndex = i - mid
 	}
 
-	// Use full HashOrByteSequence from N, not just .Hash
+	// N returns ByteSequence directly
 	sibling := N(siblingHalf, hashFunc)
 
 	// Recursive trace on the half we're traversing
 	suffix := T(traverseHalf, newIndex, hashFunc)
 
-	// Prepend sibling to suffix
-	return append([]HashOrByteSequence{sibling}, suffix...)
+	// Pre-allocate capacity to avoid reallocation
+	// sibling is a single ByteSequence, so capacity should be 1 + len(suffix)
+	result := make([]types.ByteSequence, 0, 1+len(suffix))
+	result = append(result, sibling)
+	result = append(result, suffix...)
+	return result
 }
 
 // Lx: Function provides a single page of hashed leaves
 func Lx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
-	ret := make([]types.OpaqueHash, 0)
-	for idx := i * (1 << x); idx < min(i*(1<<x)+(1<<x), types.U32(len(v))); idx++ {
-		merge := types.ByteSequence("leaf")
-		merge = append(merge, v[idx][:]...)
+	pageSize := 1 << x
+	start := i * types.U32(pageSize)
+	end := min(start+types.U32(pageSize), types.U32(len(v)))
+
+	// Pre-allocate capacity to avoid dynamic resizing
+	ret := make([]types.OpaqueHash, 0, end-start)
+
+	var merge types.ByteSequence
+
+	for idx := start; idx < end; idx++ {
+		// Reset merge buffer and append "leaf" prefix
+		merge = merge[:0]
+		merge = append(merge, leafPrefix...)
+		merge = append(merge, v[idx]...)
 		ret = append(ret, hashFunc(merge))
 	}
 	return ret
@@ -120,25 +136,31 @@ func C(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHas
 		sz *= 2
 	}
 	ret := make([]types.OpaqueHash, sz)
+	var merge types.ByteSequence
 	for i := 0; i < sz; i++ {
 		if i < len(v) {
-			merge := types.ByteSequence("leaf")
-			merge = append(merge, v[i][:]...)
+			// Reset merge buffer and append "leaf" prefix + value
+			merge = merge[:0]
+			merge = append(merge, leafPrefix...)
+			merge = append(merge, v[i]...)
 			ret[i] = hashFunc(merge)
 		} else {
-			ret[i] = types.OpaqueHash{} // Zero hash for padding
+			// constant for zero hash
+			ret[i] = zeroHash
 		}
 	}
 	return ret
 }
 
 // Jx: Function provides the Merkle path to a single page
-
 func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.ByteSequence) types.OpaqueHash) []types.OpaqueHash {
 	C_res := C(v, hashFunc)
-	var seq []types.ByteSequence
-	for _, hash := range C_res {
-		seq = append(seq, types.ByteSequence(hash[:]))
+
+	// Pre-allocate with exact size to avoid reallocation
+	seq := make([]types.ByteSequence, len(C_res))
+	for i, hash := range C_res {
+		// Direct slice conversion
+		seq[i] = types.ByteSequence(hash[:])
 	}
 	// ... max(0,⌈log2(max(1,|v|))−x⌉)
 	num := max(1, len(v))
@@ -148,9 +170,13 @@ func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.Byt
 	}
 	sz := max(0, log-int(x))
 	res := T(seq, i*(1<<x), hashFunc)
-	ret := []types.OpaqueHash{}
-	for i := 0; i < sz; i++ {
-		ret = append(ret, types.OpaqueHash(GetDataFromHashOrByteSequence(res[i])))
+
+	// Pre-allocate with exact size to avoid reallocation
+	// res is now []types.ByteSequence, convert to []types.OpaqueHash
+	ret := make([]types.OpaqueHash, sz)
+	for i := 0; i < sz && i < len(res); i++ {
+		// Direct copy with bounds check
+		copy(ret[i][:], res[i])
 	}
 	return ret
 }
@@ -158,9 +184,17 @@ func Jx(x types.U8, v []types.ByteSequence, i types.U32, hashFunc func(types.Byt
 // M: Constant-depth binary Merkle function
 func M(v []types.ByteSequence, hashFunc func(types.ByteSequence) types.OpaqueHash) types.OpaqueHash {
 	C_res := C(v, hashFunc)
-	var seq []types.ByteSequence
-	for _, hash := range C_res {
-		seq = append(seq, types.ByteSequence(hash[:]))
+
+	// Pre-allocate with exact size to avoid reallocation
+	seq := make([]types.ByteSequence, len(C_res))
+	for i, hash := range C_res {
+		// Direct slice conversion
+		seq[i] = types.ByteSequence(hash[:])
 	}
-	return types.OpaqueHash(GetDataFromHashOrByteSequence(N(seq, hashFunc)))
+
+	// N returns ByteSequence, convert to OpaqueHash
+	nResult := N(seq, hashFunc)
+	var hash types.OpaqueHash
+	copy(hash[:], nResult)
+	return hash
 }

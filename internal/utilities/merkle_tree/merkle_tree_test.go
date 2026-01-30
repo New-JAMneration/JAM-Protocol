@@ -60,13 +60,17 @@ func TestN(t *testing.T) {
 	h4 := hash(append(types.ByteSequence("leaf"), 4))
 	t.Run("empty slice", func(t *testing.T) {
 		var empty []types.ByteSequence
-		result := N(empty, hash).Hash
+		nResult := N(empty, hash)
+		var result types.OpaqueHash
+		copy(result[:], nResult)
 		require.Equal(t, types.OpaqueHash{}, result)
 	})
 	t.Run("single element", func(t *testing.T) {
 		data := []types.ByteSequence{{42}}
 		data[0] = h1[:]
-		result := types.OpaqueHash(GetDataFromHashOrByteSequence(N(data, hash)))
+		nResult := N(data, hash)
+		var result types.OpaqueHash
+		copy(result[:], nResult)
 		require.Equal(t, h1, result)
 	})
 	t.Run("two elements", func(t *testing.T) {
@@ -80,7 +84,9 @@ func TestN(t *testing.T) {
 		merge = append(merge, data[1]...)
 		expected := hash(merge)
 
-		result := N(data, hash).Hash
+		nResult := N(data, hash)
+		var result types.OpaqueHash
+		copy(result[:], nResult)
 		require.Equal(t, expected, result)
 	})
 	t.Run("three elements", func(t *testing.T) {
@@ -90,23 +96,30 @@ func TestN(t *testing.T) {
 			h3[:],
 		}
 
-		// Merkle tree:
-		// left : data[0]
-		// right: hash(data[1], data[2])
-		// root : hash(node, left, right)
-		left := data[0]
+		// Merkle tree for 3 elements:
+		// mid = (3+1)/2 = 2
+		// left = data[:2] = [h1, h2] -> N(left) = hash("node" + h1 + h2)
+		// right = data[2:] = [h3] -> N(right) = h3 (single element returns raw)
+		// root = hash("node" + N(left) + N(right))
 
-		right := types.ByteSequence("node")
-		right = append(right, data[1]...)
-		right = append(right, data[2]...)
-		right_hash := hash(right)
+		// Compute N(left) for [h1, h2]
+		leftMerge := types.ByteSequence("node")
+		leftMerge = append(leftMerge, data[0]...)
+		leftMerge = append(leftMerge, data[1]...)
+		leftHash := hash(leftMerge)
 
+		// N(right) for [h3] is just h3
+		rightHash := data[2]
+
+		// Root = hash("node" + N(left) + N(right))
 		merge := types.ByteSequence("node")
-		merge = append(merge, left...)
-		merge = append(merge, right_hash[:]...)
+		merge = append(merge, leftHash[:]...)
+		merge = append(merge, rightHash...)
 		expected := hash(merge)
 
-		result := N(data, hash).Hash
+		nResult := N(data, hash)
+		var result types.OpaqueHash
+		copy(result[:], nResult)
 		require.Equal(t, expected, result)
 	})
 	t.Run("four elements", func(t *testing.T) {
@@ -135,7 +148,9 @@ func TestN(t *testing.T) {
 		merge = append(merge, rightHash[:]...)
 		expected := hash(merge)
 
-		result := N(data, hash).Hash
+		nResult := N(data, hash)
+		var result types.OpaqueHash
+		copy(result[:], nResult)
 		require.Equal(t, expected, result)
 	})
 

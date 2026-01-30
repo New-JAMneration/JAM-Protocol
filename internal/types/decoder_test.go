@@ -1,7 +1,6 @@
 package types_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -164,8 +163,8 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 	}
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "codec", types.TEST_MODE)
-	redisBackend, _ := blockchain.GetRedisBackend()
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	cs := blockchain.GetInstance()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}
@@ -1147,16 +1146,15 @@ func TestDecodeImportSpec(t *testing.T) {
 	}
 
 	// If you want to encode the ImportSpec, you have to offer the `HashSegmentMap`.
-	// You can get the `HashSegmentMap` from the redis.
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		t.Fatalf("Failed to get redis backend: %v", err)
+	// You can get the `HashSegmentMap` from the persistent database.
+	cs := blockchain.GetInstance()
+
+	// Set the mock hash segment map
+	if err := cs.SetHashSegmentMap(mockHashSegmentMap); err != nil {
+		t.Fatalf("Failed to set hash segment map: %v", err)
 	}
 
-	// Set the mock hash segment map to the redis
-	redisBackend.SetHashSegmentMap(context.Background(), mockHashSegmentMap)
-
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}

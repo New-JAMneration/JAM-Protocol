@@ -180,7 +180,8 @@ func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccou
 				Length: preimageLength,
 			}
 			requestService := d[ep.Requester]
-			requestService.LookupDict[lookupData] = make(types.TimeSlotSet, 0)
+			// Pre-allocate with small initial capacity (lookup entries typically small)
+			requestService.LookupDict[lookupData] = make(types.TimeSlotSet, 0, 8)
 		}
 
 	}

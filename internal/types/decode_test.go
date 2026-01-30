@@ -306,9 +306,9 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 			{h1},
 		},
 	}
-	redisBackend, _ := blockchain.GetRedisBackend()
+	cs := blockchain.GetInstance()
 	encoder := types.NewEncoder()
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}
@@ -362,9 +362,9 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 			},
 		},
 	}
-	redisBackend, _ := blockchain.GetRedisBackend()
+	cs := blockchain.GetInstance()
 	e := types.NewEncoder()
-	hashSegmentMap, err := redisBackend.GetHashSegmentMap()
+	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
 		t.Fatalf("Failed to get hash segment map: %v", err)
 	}

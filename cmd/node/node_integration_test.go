@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"encoding/hex"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -39,28 +37,16 @@ func TestNode_SetupJAMProtocol_SeedsGenesisFromChainSpec_ToRedis(t *testing.T) {
 
 	SetupJAMProtocol(chainPath)
 
-	redisBackend, err := blockchain.GetRedisBackend()
+	cs := blockchain.GetInstance()
+	gotRoot, err := cs.GetStateRootByBlockHash(types.HeaderHash(wantGenesisHash))
 	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	stateRootKey := "state_root:" + hex.EncodeToString(wantGenesisHash[:])
-	gotRootBytes, err := redisBackend.DebugGetBytes(ctx, stateRootKey)
-	require.NoError(t, err)
-	require.Len(t, gotRootBytes, 32)
-
-	var gotRoot types.StateRoot
-	copy(gotRoot[:], gotRootBytes)
 	require.Equal(t, wantRoot, gotRoot)
 
-	stateDataKey := "state_data:" + hex.EncodeToString(wantRoot[:])
-	raw, err := redisBackend.DebugGetBytes(ctx, stateDataKey)
+	raw, err := cs.GetStateByBlockHash(types.HeaderHash(wantGenesisHash))
 	require.NoError(t, err)
 	require.NotEmpty(t, raw)
 
-	var decoded types.StateKeyVals
-	dec := types.NewDecoder()
-	require.NoError(t, dec.Decode(raw, &decoded))
+	decoded := raw
 
 	require.Equal(t, len(wantInputKVs), len(decoded))
 	for i := range decoded {

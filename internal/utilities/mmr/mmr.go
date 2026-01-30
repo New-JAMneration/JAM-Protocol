@@ -50,9 +50,11 @@ func NewMMRFromPeaks(peaks []types.MmrPeak, hashFn HashFunction) *MMR {
 
 // concatenateAndHash combines two byte slices and hashes the result
 func (m *MMR) concatenateAndHash(left, right types.MmrPeak) types.MmrPeak {
-	leftBytes := [32]byte(*left)
-	rightBytes := [32]byte(*right)
-	val := m.hashFn(append(leftBytes[:], rightBytes[:]...))
+	// Pre-allocate 64 bytes buffer to avoid multiple reallocations
+	combined := make([]byte, 0, 64)
+	combined = append(combined, (*left)[:]...)
+	combined = append(combined, (*right)[:]...)
+	val := m.hashFn(combined)
 	return &val
 }
 
@@ -101,7 +103,10 @@ func (m *MMR) AppendOne(data types.MmrPeak) []types.MmrPeak {
 	if data == nil || len(*data) == 0 {
 		return m.Peaks
 	}
-	newPeaks := m.P(m.Peaks, data, 0)
+	// Copy-on-write: protect m.Peaks from being modified by append() in P()
+	// Using append([]T(nil), slice...) is the idiomatic way to copy a slice in Go
+	peaks2 := append([]types.MmrPeak(nil), m.Peaks...)
+	newPeaks := m.P(peaks2, data, 0)
 	m.Peaks = newPeaks
 	return newPeaks
 }
@@ -147,8 +152,9 @@ func (m *MMR) Serialize() types.ByteSequence {
 	}
 */
 func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.OpaqueHash {
-	// Filter out nil peaks to form h = [h | h <- b, h != ∅]
-	h := make([]types.MmrPeak, 0)
+	// Filter out nil and empty peaks to form h = [h | h <- b, h != ∅]
+	// Pre-allocate with estimated capacity to avoid reallocation
+	h := make([]types.MmrPeak, 0, len(peaks))
 	for _, peak := range peaks {
 		if peak != nil {
 			h = append(h, peak)
@@ -165,7 +171,8 @@ func (m *MMR) SuperPeak(peaks []types.MmrPeak) types.OpaqueHash {
 		return *h[0]
 	default:
 		// H_K ( $peak ⌢ M_R( h_[...|h|-1] ) ⌢ h_[|h|-1] ) otherwise
-		seq := types.ByteSequence{}
+		// Pre-allocate buffer: "peak" (4 bytes) + partial hash (32 bytes) + final peak (32 bytes) = 68 bytes
+		seq := make(types.ByteSequence, 0, 68)
 
 		// Append the "peak" prefix
 		seq = append(seq, []byte("peak")...)

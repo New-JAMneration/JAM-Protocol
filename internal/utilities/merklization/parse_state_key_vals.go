@@ -137,10 +137,10 @@ func updateLookup(state *types.State, serviceId types.ServiceId, lookupKey types
 }
 
 func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, error) {
-	var diffs []types.StateKeyValDiff
+	diffs := make([]types.StateKeyValDiff, 0, len(a)+len(b))
 
-	aMap := make(map[types.StateKey]types.ByteSequence)
-	bMap := make(map[types.StateKey]types.ByteSequence)
+	aMap := make(map[types.StateKey]types.ByteSequence, len(a))
+	bMap := make(map[types.StateKey]types.ByteSequence, len(b))
 
 	for _, kv := range a {
 		aMap[kv.Key] = kv.Value
@@ -392,11 +392,20 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 
 func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.StateKeyVals, error) {
 	var err error
+	// Estimate number of services from ServiceInfo keys (Type 2: C(255, s)).
+	estimatedServices := 0
+	for _, kv := range stateKeyVals {
+		if IsServiceInfoKey(kv.Key) {
+			estimatedServices++
+		}
+	}
+	estimatedServices = max(estimatedServices, 16)
 	state := types.State{
-		Delta: make(types.ServiceAccountState),
+		Delta: make(types.ServiceAccountState, estimatedServices),
 	}
 
-	unmatchedStateKeyVals := make(map[types.StateKey]types.ByteSequence)
+	unmatchedCapacity := max(len(stateKeyVals)-16, 0)
+	unmatchedStateKeyVals := make(map[types.StateKey]types.ByteSequence, unmatchedCapacity)
 
 	for _, keyVal := range stateKeyVals {
 		stateKey := keyVal.Key

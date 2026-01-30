@@ -63,11 +63,12 @@ func (f *FaultController) VerifyFaultSignature() error {
 		if _, ok := validKeySet[vote.Key]; !ok {
 			return errors.New("bad_auditor_key")
 		}
-		var msg []byte
+		// Pre-allocate capacity: vote type (1 byte) + target (32 bytes)
+		msg := make([]byte, 0, 33)
 		if vote.Vote {
-			msg = []byte(types.JamValid)
+			msg = append(msg, []byte(types.JamValid)...)
 		} else {
-			msg = []byte(types.JamInvalid)
+			msg = append(msg, []byte(types.JamInvalid)...)
 		}
 		msg = append(msg, vote.Target[:]...)
 
@@ -84,12 +85,13 @@ func (f *FaultController) VerifyReportHashValidty() error {
 	psiBad := posteriorStates.GetPsiB()
 	psiGood := posteriorStates.GetPsiG()
 
-	badMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for maps
+	badMap := make(map[types.WorkReportHash]bool, len(psiBad))
 	for _, report := range psiBad {
 		badMap[report] = true
 	}
 
-	goodMap := make(map[types.WorkReportHash]bool)
+	goodMap := make(map[types.WorkReportHash]bool, len(psiGood))
 	for _, report := range psiGood {
 		goodMap[report] = true
 	}
@@ -111,7 +113,8 @@ func (f *FaultController) VerifyReportHashValidty() error {
 func (f *FaultController) ExcludeOffenders() error {
 
 	exclude := blockchain.GetInstance().GetPriorStates().GetPsiO()
-	excludeMap := make(map[types.Ed25519Public]bool)
+	// Pre-allocate capacity for exclude map
+	excludeMap := make(map[types.Ed25519Public]bool, len(exclude))
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
 	}
@@ -141,8 +144,9 @@ func (f *FaultController) CheckUnique() error {
 	if len(f.Faults) == 0 {
 		return nil
 	}
-	uniqueMap := make(map[types.Ed25519Public]bool)
-	uniqueFaults := make([]types.Fault, 0)
+	// Pre-allocate capacity for unique map and result slice
+	uniqueMap := make(map[types.Ed25519Public]bool, len(f.Faults))
+	uniqueFaults := make([]types.Fault, 0, len(f.Faults))
 	for _, fault := range f.Faults {
 		if uniqueMap[fault.Key] {
 			return errors.New("faults_not_sorted_unique")

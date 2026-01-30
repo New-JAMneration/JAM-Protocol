@@ -79,12 +79,8 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err != nil {
 		return types.WorkReport{}, err
 	}
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		return types.WorkReport{}, err
-	}
-	// (14.13)
-	newDict, err := redisBackend.SetHashSegmentMapWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
+	cs := blockchain.GetInstance()
+	newDict, err := cs.SetHashSegmentMapWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
 	if err != nil {
 		return types.WorkReport{}, err
 	}
@@ -97,12 +93,8 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 }
 
 func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.ExtrinsicDataMap, types.ExportSegmentMatrix, []byte, types.OpaqueHash, error) {
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
-	}
-
-	dict, err := redisBackend.GetHashSegmentMap()
+	cs := blockchain.GetInstance()
+	dict, err := cs.GetHashSegmentMap()
 	if err != nil {
 		return types.WorkPackage{}, nil, nil, nil, types.OpaqueHash{}, err
 	}
@@ -163,13 +155,11 @@ func (p *WorkPackageController) prepareInputs() (types.WorkPackage, PVM.Extrinsi
 func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueHash]types.OpaqueHash) (types.ExportSegmentMatrix, types.OpaqueHashMatrix, error) {
 	var segments types.ExportSegmentMatrix
 	var proofs types.OpaqueHashMatrix
-	redisBackend, err := blockchain.GetRedisBackend()
-	if err != nil {
-		return nil, nil, err
-	}
+	cs := blockchain.GetInstance()
 	for _, item := range p.WorkPackage.Items {
-		var rowSegments []types.ExportSegment
-		var rowProofs []types.OpaqueHash
+		// Pre-allocate capacity based on import segments count
+		rowSegments := make([]types.ExportSegment, 0, len(item.ImportSegments))
+		rowProofs := make([]types.OpaqueHash, 0, len(item.ImportSegments))
 
 		for _, spec := range item.ImportSegments {
 			segmentRoot := spec.TreeRoot
@@ -177,7 +167,7 @@ func (p *WorkPackageController) fetchImportSegments(lookupDict map[types.OpaqueH
 			if mapped, ok := lookupDict[spec.TreeRoot]; ok {
 				segmentRoot = mapped
 			}
-			erasureRoot, err := redisBackend.GetSegmentErasureMap(segmentRoot)
+			erasureRoot, err := cs.GetSegmentErasureMap(segmentRoot)
 			if err != nil {
 				return nil, nil, err
 			}
