@@ -2,6 +2,7 @@ package types
 
 import (
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -189,3 +190,6 @@ const (
 const BiasFactor = 2
 
 const SegmentErasureTTL = 28 * 24 * time.Hour // 28 days
+
+// Maximum number of concurrent workers for parallel tasks
+var MaxWorkers = runtime.NumCPU() * 2

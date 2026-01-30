@@ -12,6 +12,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -464,22 +465,19 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	p := make(types.ServiceBlobs, 0, len(s))
 	// For each service in s, run single service accumulation in parallel
 	{
-		var wg sync.WaitGroup
-		errCh := make(chan error)
+		g := new(errgroup.Group)
+		g.SetLimit(types.MaxWorkers)
 		for serviceId := range s {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			serviceId := serviceId
+			g.Go(func() error {
 				_, err := runSingleReplaceService(serviceId, singleInput)
 				if err != nil {
-					errCh <- fmt.Errorf("single service accumulation for service %d failed: %w", serviceId, err)
-					return
+					return fmt.Errorf("single service accumulation for service %d failed: %w", serviceId, err)
 				}
-			}()
+				return nil
+			})
 		}
-		wg.Wait()
-		close(errCh)
-		for err := range errCh {
+		if err := g.Wait(); err != nil {
 			return output, err
 		}
 	}
@@ -598,25 +596,22 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	}
 	// For each core c, parallelize compute a′c
 	{
-		var wg sync.WaitGroup
-		errCh := make(chan error)
+		g := new(errgroup.Group)
+		g.SetLimit(types.MaxWorkers)
+
 		for c := range types.CoresCount {
 			c := c
 			serviceId := a[c]
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			g.Go(func() error {
 				singleOutput, err := runSingleReplaceService(serviceId, singleInput)
 				if err != nil {
-					errCh <- fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
-					return
+					return fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
 				}
 				aPrime[c] = R(serviceId, eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
-			}()
+				return nil
+			})
 		}
-		wg.Wait()
-		close(errCh)
-		for err := range errCh {
+		if err := g.Wait(); err != nil {
 			return output, err
 		}
 	}
@@ -655,28 +650,23 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		}
 		// For each core c, parallelize compute q′c
 		{
-			var wg sync.WaitGroup
-			errCh := make(chan error)
+			g := new(errgroup.Group)
+			g.SetLimit(types.MaxWorkers)
 			for c, serviceId := range input.PartialStateSet.Assign {
 				c := c
 				serviceId := serviceId
 
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				g.Go(func() error {
 
 					singleOutput, err := runSingleReplaceService(serviceId, singleInput)
 					if err != nil {
-						errCh <- fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
-						return
+						return fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
 					}
 					qPrime[c] = singleOutput.PartialStateSet.Authorizers[c]
-				}()
+					return nil
+				})
 			}
-			wg.Wait()
-			close(errCh)
-
-			for err := range errCh {
+			if err := g.Wait(); err != nil {
 				return output, err
 			}
 		}
