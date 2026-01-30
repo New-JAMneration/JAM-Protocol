@@ -519,10 +519,18 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 
 // GetStateByBlockHash retrieves state data for a given block from persistent database
 func (cs *ChainState) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
+	stateKeyVals, err := cs.repo.GetStateDataByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	if err == nil {
+		return stateKeyVals, nil
+	}
 	return cs.persistentRepo.GetStateDataByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
 }
 
 func (cs *ChainState) GetStateRootByBlockHash(blockHeaderHash types.HeaderHash) (types.StateRoot, error) {
+	stateRoot, err := cs.repo.GetStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	if err == nil {
+		return stateRoot, nil
+	}
 	return cs.persistentRepo.GetStateRootByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
 }
 
