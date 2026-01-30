@@ -7,10 +7,9 @@ import (
 )
 
 // LeafHashCache is a get-or-compute callback for leaf hashes.
-// It returns the leaf hash for (key, value); on cache miss the implementation
-// computes it, stores it, and returns it. The caller must always use the returned
-// hash and must not recompute when ok is false.
-type LeafHashCache func(key types.StateKey, value []byte) (leafHash types.OpaqueHash, ok bool)
+// It returns the leaf hash for (key, value);
+// On cache miss the implementation: computes it, stores it, and returns it.
+type LeafHashCache func(key types.StateKey, value []byte) (leafHash types.OpaqueHash)
 
 // MerklizationSerializedStateWithCache computes the Merkle root with key-level caching.
 // The cache callback is used to retrieve and store leaf hashes, avoiding recomputation
@@ -46,7 +45,7 @@ func MerklizationWithLeafCache(d MerklizationInput, cache LeafHashCache) types.O
 		for _, stateKeyVal := range d {
 			if cache != nil {
 				// Get-or-compute: callback returns valid hash on both hit and miss.
-				leafHash, _ := cache(stateKeyVal.Key, stateKeyVal.Value)
+				leafHash := cache(stateKeyVal.Key, stateKeyVal.Value)
 				return leafHash
 			}
 			// No cache: compute here

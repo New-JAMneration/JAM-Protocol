@@ -532,17 +532,17 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 // The cache callback is get-or-compute: on miss it computes once, stores, and returns
 // the hash so merklization uses it without recomputing.
 func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) types.StateRoot {
-	cacheFn := func(key types.StateKey, value []byte) (types.OpaqueHash, bool) {
+	cacheFn := func(key types.StateKey, value []byte) types.OpaqueHash {
 		leafHash, valueHash, ok := cs.keyLevelCache.GetLeafHash(key, value)
 		if ok {
-			return leafHash, true
+			return leafHash
 		}
 		// Cache miss: compute once, store, and return so merklization uses it
 		leftEncoding := m.LeafEncoding(key, value)
 		bytes, _ := utilities.BitsToBytes(leftEncoding)
 		leafHash = hash.Blake2bHash(bytes)
 		cs.keyLevelCache.PutLeafHash(key, valueHash, leafHash)
-		return leafHash, false
+		return leafHash
 	}
 
 	stateRoot := m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn)
