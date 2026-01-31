@@ -537,6 +537,10 @@ func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) 
 		if ok {
 			return leafHash
 		}
+		// Safety cap: clear cache if over limit (EpochLength * 50; in addition to per-epoch clear)
+		if cs.keyLevelCache.Len() >= types.MaxKeyLevelCacheSize {
+			cs.keyLevelCache.Clear()
+		}
 		// Cache miss: compute once, store, and return so merklization uses it
 		leftEncoding := m.LeafEncoding(key, value)
 		bytes, _ := utilities.BitsToBytes(leftEncoding)
@@ -556,7 +560,7 @@ func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals)
 	return cs.merklizeWithKeyCache(stateKeyVals)
 }
 
-// ClearKeyLevelCache clears the key-level merklization cache. Called on epoch boundary (e.g. from safrole.CreateEpochMarker).
+// ClearKeyLevelCache clears the key-level merklization cache.
 func (cs *ChainState) ClearKeyLevelCache() {
 	if cs.keyLevelCache != nil {
 		cs.keyLevelCache.Clear()

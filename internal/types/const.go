@@ -43,7 +43,8 @@ func SetTinyMode() {
 	MaxRefineGas = 1_000_000_000       // G_R
 	ECPiecesPerSegment = 1026
 	ECBasicSize = 4
-	MaxLookupAge = 24 // L
+	MaxLookupAge = 24                       // L
+	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cahce size limit
 }
 
 func SetFullMode() {
@@ -63,7 +64,8 @@ func SetFullMode() {
 	MaxRefineGas = 5_000_000_000                              // G_R
 	ECPiecesPerSegment = 6
 	ECBasicSize = 684
-	MaxLookupAge = 14400 // L
+	MaxLookupAge = 14400                    // L
+	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cahce size limit
 }
 
 // changeable constants depends on chainspec
@@ -79,6 +81,8 @@ var (
 	TicketsPerValidator = 3
 	// EpochLength (E) represents the length of an epoch.
 	EpochLength = 12
+	// MaxKeyLevelCacheSize is the maximum key-level merklization cache entries before clearing (EpochLength * 50).
+	MaxKeyLevelCacheSize = EpochLength * 50
 	// SlotSubmissionEnd (Y) represents the number of slots into an epoch at which ticket-submission ends.
 	SlotSubmissionEnd = 10
 	// MaxTicketsPerBlock (K) represents the maximum number of tickets per block.
