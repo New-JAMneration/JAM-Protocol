@@ -539,7 +539,7 @@ func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) 
 		}
 		// Safety cap: clear cache if over limit (EpochLength * 50; in addition to per-epoch clear)
 		if cs.keyLevelCache.Len() >= types.MaxKeyLevelCacheSize {
-			cs.keyLevelCache.Clear()
+			cs.ClearKeyLevelCache()
 		}
 		// Cache miss: compute once, store, and return so merklization uses it
 		leftEncoding := m.LeafEncoding(key, value)
