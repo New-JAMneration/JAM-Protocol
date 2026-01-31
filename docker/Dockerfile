@@ -12,7 +12,7 @@ RUN cargo clean && \
     cargo build --release --target x86_64-unknown-linux-musl
 
 # Second stage: use golang image to build the main project
-FROM golang:1.23-alpine AS go-builder
+FROM golang:1.25-alpine AS go-builder
 WORKDIR /app
 COPY . .
 # Copy the built Rust library from the previous stage
