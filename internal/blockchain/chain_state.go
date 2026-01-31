@@ -537,7 +537,7 @@ func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) 
 		if ok {
 			return leafHash
 		}
-		// Safety cap: clear cache if over limit (EpochLength * 50; in addition to per-epoch clear)
+		// Safety cap: clear entire cache if over limit (EpochLength * 50)
 		if cs.keyLevelCache.Len() >= types.MaxKeyLevelCacheSize {
 			cs.ClearKeyLevelCache()
 		}
