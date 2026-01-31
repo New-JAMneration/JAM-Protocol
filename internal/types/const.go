@@ -44,7 +44,7 @@ func SetTinyMode() {
 	ECPiecesPerSegment = 1026
 	ECBasicSize = 4
 	MaxLookupAge = 24                       // L
-	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cahce size limit
+	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cache size limit
 }
 
 func SetFullMode() {
@@ -65,7 +65,7 @@ func SetFullMode() {
 	ECPiecesPerSegment = 6
 	ECBasicSize = 684
 	MaxLookupAge = 14400                    // L
-	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cahce size limit
+	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cache size limit
 }
 
 // changeable constants depends on chainspec
