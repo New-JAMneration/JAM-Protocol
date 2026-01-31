@@ -37,6 +37,11 @@ func (c *KeyLevelCache) GetLeafHash(key types.StateKey, value []byte) (leafHash 
 	return entry.leafHash, valueHash, true
 }
 
+// Len returns the number of entries in the cache.
+func (c *KeyLevelCache) Len() int {
+	return len(c.entries)
+}
+
 // PutLeafHash stores the leaf hash for (key, value). Caller must pass the same valueHash
 // returned from GetLeafHash (or computed once) to avoid hashing value twice.
 func (c *KeyLevelCache) PutLeafHash(key types.StateKey, valueHash types.OpaqueHash, leafHash types.OpaqueHash) {
