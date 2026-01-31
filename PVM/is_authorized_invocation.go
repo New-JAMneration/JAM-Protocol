@@ -23,11 +23,6 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequ
 		panic(err)
 	}
 
-	F := Omegas{}
-	F[GasOp] = HostCallFunctions[GasOp]
-	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
-	F[100] = logHostCall
-
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceId: nil,
@@ -35,7 +30,7 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequ
 		},
 	}
 
-	resultM := Psi_M(StandardCodeFormat(authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), F, addition)
+	resultM := Psi_M(StandardCodeFormat(authorizerCode), 0, types.IsAuthorizedGas, Argument(encoded), IsAuthorizedOmegas, addition)
 	if resultM.ReasonOrBytes == PANIC {
 		return Psi_I_ReturnType{
 			WorkExecResult: types.WorkExecResultPanic,

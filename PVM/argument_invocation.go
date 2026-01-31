@@ -1,8 +1,6 @@
 package PVM
 
 import (
-	"errors"
-
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -17,33 +15,31 @@ func Psi_M(
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
-	programCode, registers, memory, err := SingleInitializer(code, argument)
+	programCode, registers, memory, exitReason := SingleInitializer(code, argument)
 	// Y(p) = nil
-	if err != nil {
+	if exitReason != ExitContinue {
 		return Psi_M_ReturnType{
 			Gas:           0,
-			ReasonOrBytes: PVMExitTuple(PANIC, nil),
+			ReasonOrBytes: ExitPanic,
 			Addition:      addition,
 		}
 	}
 
-	program, err := DeBlobProgramCode(programCode)
-	var pvmExit *PVMExitReason
-	if !errors.As(err, &pvmExit) {
-		return
-	}
-	reason := err.(*PVMExitReason).Reason
-	if reason == PANIC {
+	program, exitReason := DeBlobProgramCode(programCode)
+	if exitReason != ExitContinue {
 		return Psi_M_ReturnType{
 			Gas:           0,
-			ReasonOrBytes: PVMExitTuple(PANIC, nil),
+			ReasonOrBytes: ExitPanic,
 			Addition:      addition,
 		}
 	}
 
 	addition.Program = &program
 
-	g, v, a := R(gas, HostCall(&program, counter, gas, registers, memory, omegas, addition, 0))
+	host := NewHost(&program, registers, &memory, Gas(gas), addition, omegas)
+	psiHResult := host.HostCall(counter, 0)
+
+	g, v, a := R(gas, psiHResult)
 	return Psi_M_ReturnType{
 		Gas:           types.Gas(g),
 		ReasonOrBytes: v,
@@ -55,11 +51,7 @@ func Psi_M(
 func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
 	u := priorGas - types.Gas(max(Psi_H_Return.Gas, 0))
 
-	var pvmExit *PVMExitReason
-	if !errors.As(Psi_H_Return.ExitReason, &pvmExit) {
-		return Gas(u), Psi_H_Return.ExitReason, Psi_H_Return.Addition
-	}
-	switch Psi_H_Return.ExitReason.(*PVMExitReason).Reason {
+	switch Psi_H_Return.ExitReason.GetReasonType() {
 	case OUT_OF_GAS:
 		return Gas(u), OUT_OF_GAS, Psi_H_Return.Addition
 	case HALT:
@@ -97,11 +89,17 @@ func isReadable(start, offset uint64, m Memory) bool {
 }
 
 func isWriteable(start, offset uint64, m Memory) bool {
+	if offset == 0 {
+		return true
+	}
 	startPage := uint32(start / ZP)
-	endPage := uint32((start + offset) / ZP)
-
-	return m.GetPageAccess(startPage) == MemoryReadWrite &&
-		m.GetPageAccess(endPage) == MemoryReadWrite
+	endPage := uint32((start + offset - 1) / ZP)
+	for p := startPage; p <= endPage; p++ {
+		if m.GetPageAccess(p) != MemoryReadWrite {
+			return false
+		}
+	}
+	return true
 }
 
 func readRAM(start, length uint64, m Memory) ([]byte, bool) {

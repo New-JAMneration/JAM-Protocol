@@ -17,6 +17,7 @@ package statistics
 
 import (
 	"math"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
@@ -59,7 +60,8 @@ func UpdatePreimageOctetStatistics(statistics *types.Statistics, authorIndex typ
 // signature is in a credential is placed in the reporters set R.
 func UpdateReportStatistics(statistics *types.Statistics, guarantees types.GuaranteesExtrinsic, tau types.TimeSlot, validators types.ValidatorsData) {
 	var guarantor extrinsic.GuranatorAssignments
-	reportersSet := make(map[types.Ed25519Public]bool)
+	// Pre-allocate capacity: estimate based on guarantees count
+	reportersSet := make(map[types.Ed25519Public]bool, len(guarantees))
 
 	for _, guarantee := range guarantees {
 		left := int(tau) / types.RotationPeriod
@@ -195,7 +197,7 @@ func CalculateWorkResults(coreIndex types.CoreIndex, wMap CoreWorkReportMap) Pi_
 }
 
 func createWorkReportMap(workReports []types.WorkReport) CoreWorkReportMap {
-	workReportMap := make(CoreWorkReportMap)
+	workReportMap := make(CoreWorkReportMap, len(workReports))
 	for _, workReport := range workReports {
 		workReportMap[workReport.CoreIndex] = workReport
 	}
@@ -248,7 +250,18 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	w := cs.GetIntermediateStates().GetPresentWorkReports()
 
 	// Create a map to cs the service id map to work results
-	serviceWorkResultsMap := make(ServiceWorkResultsMap)
+
+	// Estimate capacity
+	serviceCount := make(map[types.ServiceId]int)
+	for _, workReport := range w {
+		for _, result := range workReport.Results {
+			serviceCount[result.ServiceId]++
+		}
+	}
+	serviceWorkResultsMap := make(ServiceWorkResultsMap, len(serviceCount))
+	for serviceId, count := range serviceCount {
+		serviceWorkResultsMap[serviceId] = make([]types.WorkResult, 0, count)
+	}
 
 	// Get all work reports from work results
 	for _, workReport := range w {
@@ -267,7 +280,7 @@ func GetServicesFromPresentWorkReport() []types.ServiceId {
 	cs := blockchain.GetInstance()
 	I := cs.GetIntermediateStates().GetPresentWorkReports()
 
-	services := []types.ServiceId{}
+	services := make([]types.ServiceId, 0, len(I))
 
 	for _, workReport := range I {
 		for _, workResult := range workReport.Results {
@@ -281,7 +294,8 @@ func GetServicesFromPresentWorkReport() []types.ServiceId {
 // v0.7.1
 // (13.15) s^P
 func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
-	servicesMap := make(map[types.ServiceId]bool)
+	// Pre-allocate capacity: estimate based on preimages count
+	servicesMap := make(map[types.ServiceId]bool, len(preimagesExtrinsic))
 
 	for _, preimage := range preimagesExtrinsic {
 		serviceId := preimage.Requester
@@ -323,7 +337,7 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 	keyOfS := GetServicesFromAccumulationStatistics()
 
 	// Merge all services (without duplicates)
-	servicesMap := make(map[types.ServiceId]bool)
+	servicesMap := make(map[types.ServiceId]bool, len(sR)+len(sP)+len(keyOfS))
 	for _, serviceId := range sR {
 		servicesMap[serviceId] = true
 	}
@@ -478,12 +492,21 @@ func UpdateValidatorActivityStatistics() {
 		cs.GetPosteriorStates().SetPiLast(valsLast)
 	}
 
-	// Update current statistics.
-	UpdateCurrentStatistics(extrinsic)
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	// Update the cores statistics.
-	UpdateCoreActivityStatistics(extrinsic)
+	go func() {
+		defer wg.Done()
+		UpdateCurrentStatistics(extrinsic)
+	}()
+	go func() {
+		defer wg.Done()
+		UpdateCoreActivityStatistics(extrinsic)
+	}()
+	go func() {
+		defer wg.Done()
+		UpdateServiceActivityStatistics(extrinsic)
+	}()
 
-	// Update the services statistics.
-	UpdateServiceActivityStatistics(extrinsic)
+	wg.Wait()
 }

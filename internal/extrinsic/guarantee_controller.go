@@ -9,6 +9,7 @@ import (
 	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/hdevalence/ed25519consensus"
+	"golang.org/x/sync/errgroup"
 )
 
 // GuaranteeController is a struct that contains a slice of ReportGuarantee (for controller logic)
@@ -97,10 +98,15 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		offendersMap[offender] = true
 	}
 
-	var guranatorAssignments GuranatorAssignments
-	var err error
+	// Parallelize signature verifications across guarantees
+	eg := new(errgroup.Group)
+	eg.SetLimit(types.MaxWorkers)
 
 	for _, guarantee := range g.Guarantees {
+		guarantee := guarantee
+
+		var guranatorAssignments GuranatorAssignments
+		var err error
 		if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
 			guranatorAssignments, err = GFunc(offendersMap)
 		} else {
@@ -130,24 +136,31 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		}
 		hashed := hash.Blake2bHash(reportSerial)
 		message = append(message, hashed[:]...)
+
+		// Parallelize signature verifications
 		for _, sig := range guarantee.Signatures {
-			if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
-				err := ReportsErrorCode.WrongAssignment
-				return &err
-			}
-			publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
-			if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
-				err := ReportsErrorCode.BadSignature
-				return &err
-			}
+			sig := sig
+
+			eg.Go(func() error {
+				if guranatorAssignments.CoreAssignments[sig.ValidatorIndex] != guarantee.Report.CoreIndex {
+					err := ReportsErrorCode.WrongAssignment
+					return &err
+				}
+				publicKey := guranatorAssignments.PublicKeys[sig.ValidatorIndex].Ed25519[:]
+				if !ed25519consensus.Verify(publicKey, message, sig.Signature[:]) {
+					err := ReportsErrorCode.BadSignature
+					return &err
+				}
+				return nil
+			})
 		}
 	}
-	return nil
+	return eg.Wait()
 }
 
 // WorkReportSet | Eq. 11.28
 func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
-	workReports := make([]types.WorkReport, 0)
+	workReports := make([]types.WorkReport, 0, len(g.Guarantees))
 	for _, guarantee := range g.Guarantees {
 		workReports = append(workReports, guarantee.Report)
 	}
@@ -202,7 +215,7 @@ func isAuthPoolContains(authPool []types.AuthorizerHash, authorizerHash types.Op
 
 // ContextSet | Eq. 11.31
 func (g *GuaranteeController) ContextSet() []types.RefineContext {
-	contexts := make([]types.RefineContext, 0)
+	contexts := make([]types.RefineContext, 0, len(g.Guarantees))
 	for _, guarantee := range g.Guarantees {
 		contexts = append(contexts, guarantee.Report.Context)
 	}
@@ -211,8 +224,8 @@ func (g *GuaranteeController) ContextSet() []types.RefineContext {
 
 // WorkPackageHashSet | Eq. 11.31
 func (g *GuaranteeController) WorkPackageHashSet() []types.WorkPackageHash {
-	workPackageHashes := make([]types.WorkPackageHash, 0)
-	workPackageMap := make(map[types.WorkPackageHash]bool)
+	workPackageHashes := make([]types.WorkPackageHash, 0, len(g.Guarantees))
+	workPackageMap := make(map[types.WorkPackageHash]bool, len(g.Guarantees))
 	// filter duplicate WorkPackageHash
 	for _, guarantee := range g.Guarantees {
 		workPackageMap[guarantee.Report.PackageSpec.Hash] = true
@@ -317,7 +330,12 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	rho := cs.GetPriorStates().GetRho()
 	xi := cs.GetPriorStates().GetXi()
 	beta := cs.GetPriorStates().GetBeta()
-	qMap := make(map[types.WorkPackageHash]bool)
+	// Pre-allocate capacity based on total queued items
+	qCap := 0
+	for _, slot := range theta {
+		qCap += len(slot)
+	}
+	qMap := make(map[types.WorkPackageHash]bool, qCap)
 	// q
 	for _, v := range theta {
 		for _, w := range v {
@@ -325,19 +343,28 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 		}
 	}
 
-	aMap := make(map[types.WorkPackageHash]bool)
+	// rho: CoresCount slots, most are non-nil
+	aMap := make(map[types.WorkPackageHash]bool, len(rho))
 	for _, v := range rho {
 		if v != nil {
 			aMap[v.Report.PackageSpec.Hash] = true
 		}
 	}
-	xiMap := make(map[types.WorkPackageHash]bool)
+	xiCap := 0
+	for _, slot := range xi {
+		xiCap += len(slot)
+	}
+	xiMap := make(map[types.WorkPackageHash]bool, xiCap)
 	for _, v := range xi {
 		for _, w := range v {
 			xiMap[w] = true
 		}
 	}
-	betaMap := make(map[types.WorkPackageHash]bool)
+	betaCap := 0
+	for _, h := range beta.History {
+		betaCap += len(h.Reported)
+	}
+	betaMap := make(map[types.WorkPackageHash]bool, betaCap)
 	for _, v := range beta.History {
 		for _, w := range v.Reported {
 			betaMap[types.WorkPackageHash(w.Hash)] = true
@@ -357,8 +384,10 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 	w := g.WorkReportSet()
 	beta := blockchain.GetInstance().GetPriorStates().GetBeta()
-	dependencySet := make(map[types.OpaqueHash]bool)
-	segmentRootSet := make(map[types.OpaqueHash]bool)
+	// Pre-allocate capacity: estimate based on work reports (conservative: 2-3 dependencies per report)
+	estimatedDeps := len(w) * 3
+	dependencySet := make(map[types.OpaqueHash]bool, estimatedDeps)
+	segmentRootSet := make(map[types.OpaqueHash]bool, estimatedDeps)
 	for _, v := range w {
 		for _, w := range v.Context.Prerequisites {
 			dependencySet[types.OpaqueHash(w)] = true
@@ -368,7 +397,8 @@ func (g *GuaranteeController) CheckExtrinsicOrRecentHistory() error {
 		}
 	}
 	p := g.WorkPackageHashSet()
-	checkPackageSet := make(map[types.OpaqueHash]bool)
+	// Pre-allocate capacity for check package set
+	checkPackageSet := make(map[types.OpaqueHash]bool, len(p))
 	for _, v := range p {
 		checkPackageSet[types.OpaqueHash(v)] = true
 	}
@@ -502,7 +532,7 @@ func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, erro
 
 	var guranatorAssignments GuranatorAssignments
 	var err error
-	guarantors := make([]types.Ed25519Public, 0)
+	guarantors := make([]types.Ed25519Public, 0, len(guarantee.Signatures))
 	if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
 		guranatorAssignments, err = GFunc(offendersMap)
 	} else {

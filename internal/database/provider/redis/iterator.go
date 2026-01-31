@@ -23,7 +23,8 @@ func (db *redisDB) NewIterator(prefix []byte, start []byte) (database.Iterator, 
 	startString := string(buf)
 
 	var nextCursor uint64
-	var allKeys []string
+	// Pre-allocate with heuristic: SCAN uses COUNT 100
+	allKeys := make([]string, 0, 100)
 	var err error
 
 	pattern := startString + "*"
@@ -47,8 +48,9 @@ func (db *redisDB) NewIterator(prefix []byte, start []byte) (database.Iterator, 
 		}
 	}
 
-	var keys [][]byte
-	var values [][]byte
+	// Pre-allocate capacity for keys and values
+	keys := make([][]byte, 0, len(allKeys))
+	values := make([][]byte, 0, len(allKeys))
 	for _, key := range allKeys {
 		value, err := db.client.Get(key).Bytes()
 		if err != nil && err != redis.Nil {

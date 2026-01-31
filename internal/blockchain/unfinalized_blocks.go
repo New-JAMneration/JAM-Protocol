@@ -14,8 +14,9 @@ type UnfinalizedBlocks struct {
 
 // New one empty slice for blocks
 func NewUnfinalizedBlocks() *UnfinalizedBlocks {
+	// Pre-allocate with small initial capacity
 	return &UnfinalizedBlocks{
-		blocks: make([]types.Block, 0),
+		blocks: make([]types.Block, 0, 2*types.EpochLength),
 	}
 }
 
@@ -47,7 +48,7 @@ func (b *UnfinalizedBlocks) KeepBlocksUpTo(headerHash types.HeaderHash) {
 
 	if foundIdx == -1 {
 		// HeaderHash not found, clear all blocks
-		b.blocks = make([]types.Block, 0)
+		b.blocks = make([]types.Block, 0, 2*types.EpochLength)
 		return
 	}
 

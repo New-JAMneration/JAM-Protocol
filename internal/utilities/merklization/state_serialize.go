@@ -3,9 +3,11 @@ package merklization
 import (
 	"bytes"
 	"sort"
+	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"golang.org/x/sync/errgroup"
 )
 
 // key 1: Alpha
@@ -342,22 +344,28 @@ func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKe
 	return stateKeyVal
 }
 
+const (
+	delta2PrefixLen = 4
+	delta3PrefixLen = 4
+)
+
+var (
+	delta2Prefix = types.ByteSequence{0xFF, 0xFF, 0xFF, 0xFF}
+	delta3Prefix = types.ByteSequence{0xFE, 0xFF, 0xFF, 0xFF}
+)
+
+const uint32EncodedLen = 4
+
 func WrapEncodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	return encodeDelta2KeyVal(id, key, value)
 }
 
 func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	h := make(types.ByteSequence, delta2PrefixLen+len(key))
+	copy(h[:delta2PrefixLen], delta2Prefix)
+	copy(h[delta2PrefixLen:], key)
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 1), encodeLength)
-	part_2 := key
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: value,
@@ -367,17 +375,11 @@ func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.
 }
 
 func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	h := make(types.ByteSequence, delta3PrefixLen+len(key))
+	copy(h[:delta3PrefixLen], delta3Prefix)
+	copy(h[delta3PrefixLen:], key[:])
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength((1<<32 - 2), encodeLength)
-	part_2 := key
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: value,
@@ -387,32 +389,28 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 }
 
 func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.StateKey {
-	encoder := types.NewEncoder()
+	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
+	v := uint32(key.Length)
+	h[0] = byte(v)
+	h[1] = byte(v >> 8)
+	h[2] = byte(v >> 16)
+	h[3] = byte(v >> 24)
+	copy(h[uint32EncodedLen:], key.Hash[:])
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
-	part_2 := key.Hash
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 	return serviceWrapper.StateKeyConstruct()
 }
 
 func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
-	encoder := types.NewEncoder()
+	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
+	v := uint32(key.Length)
+	h[0] = byte(v)
+	h[1] = byte(v >> 8)
+	h[2] = byte(v >> 16)
+	h[3] = byte(v >> 24)
+	copy(h[uint32EncodedLen:], key.Hash[:])
 
-	encodeLength := 4
-	part_1, _ := encoder.EncodeUintWithLength(uint64(key.Length), encodeLength)
-	part_2 := key.Hash
-
-	h := make(types.ByteSequence, len(part_1)+len(part_2))
-	copy(h, part_1)
-	copy(h[encodeLength:], part_2[:])
-
-	serviceWrapper := ServiceWrapper{ServiceIndex: types.ServiceId(id), h: h}
+	serviceWrapper := ServiceWrapper{ServiceIndex: id, h: h}
 
 	stateValue := types.ByteSequence{}
 	for _, timeSlot := range value {
@@ -545,35 +543,47 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval16)
 
-	// delta 1
+	// Parallelize Delta encoding
+	var deltaMu sync.Mutex
+	deltaEncoded := types.StateKeyVals{}
+	g := new(errgroup.Group)
+	g.SetLimit(types.MaxWorkers)
+
 	for id, account := range state.Delta {
-		stateKeyVal := encodeDelta1KeyVal(id, account)
-		encoded = append(encoded, stateKeyVal)
+		id, account := id, account
+		g.Go(func() error {
+			kvs := types.StateKeyVals{}
+
+			// delta 1
+			kvs = append(kvs, encodeDelta1KeyVal(id, account))
+
+			// delta 2
+			for key, val := range account.StorageDict {
+				kvs = append(kvs, encodeDelta2KeyVal(id, types.ByteSequence(key), val))
+			}
+
+			// delta 3
+			for key, val := range account.PreimageLookup {
+				kvs = append(kvs, encodeDelta3KeyVal(id, key, val))
+			}
+
+			// delta 4
+			for key, val := range account.LookupDict {
+				kvs = append(kvs, EncodeDelta4KeyVal(id, key, val))
+			}
+
+			deltaMu.Lock()
+			deltaEncoded = append(deltaEncoded, kvs...)
+			deltaMu.Unlock()
+			return nil
+		})
 	}
 
-	// delta 2
-	for id, account := range state.Delta {
-		for key, val := range account.StorageDict {
-			stateKeyVal := encodeDelta2KeyVal(id, types.ByteSequence(key), val)
-			encoded = append(encoded, stateKeyVal)
-		}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
-	// delta 3
-	for id, account := range state.Delta {
-		for key, val := range account.PreimageLookup {
-			stateKeyVal := encodeDelta3KeyVal(id, key, val)
-			encoded = append(encoded, stateKeyVal)
-		}
-	}
-
-	// delta 4
-	for id, account := range state.Delta {
-		for key, val := range account.LookupDict {
-			stateKeyVal := EncodeDelta4KeyVal(id, key, val)
-			encoded = append(encoded, stateKeyVal)
-		}
-	}
+	encoded = append(encoded, deltaEncoded...)
 
 	// Order by key
 	sort.Slice(encoded, func(i, j int) bool {

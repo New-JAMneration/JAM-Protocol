@@ -26,7 +26,11 @@ func VerifyAuthorization(wp *types.WorkPackage, delta types.ServiceAccountState)
 }
 
 func FlattenExtrinsicSpecs(wp *types.WorkPackage) []types.ExtrinsicSpec {
-	var allSpecs []types.ExtrinsicSpec
+	cp := 0
+	for _, wi := range wp.Items {
+		cp += len(wi.Extrinsic)
+	}
+	allSpecs := make([]types.ExtrinsicSpec, 0, cp)
 	for _, wi := range wp.Items {
 		allSpecs = append(allSpecs, wi.Extrinsic...)
 	}
@@ -34,7 +38,7 @@ func FlattenExtrinsicSpecs(wp *types.WorkPackage) []types.ExtrinsicSpec {
 }
 
 func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PVM.ExtrinsicDataMap, error) {
-	result := make(PVM.ExtrinsicDataMap)
+	result := make(PVM.ExtrinsicDataMap, len(specs))
 	curr := 0
 
 	for _, spec := range specs {
@@ -48,7 +52,9 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 			return nil, errors.New("extrinsic hash mismatch")
 		}
 
-		result[spec.Hash] = append([]byte(nil), extracted...)
+		// Pre-allocate capacity: copy extracted data
+		result[spec.Hash] = make([]byte, len(extracted))
+		copy(result[spec.Hash], extracted)
 		curr += length
 	}
 
@@ -66,7 +72,11 @@ func buildWorkPackageBundle(
 	importSegments types.ExportSegmentMatrix,
 	importProofs types.OpaqueHashMatrix,
 ) ([]byte, error) {
-	var extrinsics types.ExtrinsicDataList
+	cp := 0
+	for _, item := range wp.Items {
+		cp += len(item.Extrinsic)
+	}
+	extrinsics := make(types.ExtrinsicDataList, 0, cp)
 	for _, item := range wp.Items {
 		for _, extrinsic := range item.Extrinsic {
 			extrinsics = append(extrinsics, types.ExtrinsicData(extrinsicMap[extrinsic.Hash]))
@@ -79,7 +89,6 @@ func buildWorkPackageBundle(
 		ImportSegments: importSegments,
 		ImportProofs:   importProofs,
 	}
-	output := []byte{}
 
 	cs := blockchain.GetInstance()
 	hashSegmentMap, err := cs.GetHashSegmentMap()
@@ -92,6 +101,8 @@ func buildWorkPackageBundle(
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode work package bundle: %w", err)
 	}
+	// Pre-allocate output with encoded size to avoid reallocation
+	output := make([]byte, 0, len(encoded))
 	output = append(output, encoded...)
 
 	return output, nil
@@ -129,7 +140,11 @@ func WorkReportCompute(
 		exports = append(exports, e)
 	}
 
-	var exportsData []types.ExportSegment
+	cp := 0
+	for _, export := range exports {
+		cp += len(export)
+	}
+	exportsData := make([]types.ExportSegment, 0, cp)
 	for _, export := range exports {
 		exportsData = append(exportsData, export...)
 	}
@@ -221,7 +236,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 
 // A (14.16)
 func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []types.ExportSegment) (types.WorkPackageSpec, error) {
-	var exports []types.ByteSequence
+	exports := make([]types.ByteSequence, 0, len(exportsData))
 	for _, export := range exportsData {
 		exports = append(exports, types.ByteSequence(export[:]))
 	}
@@ -273,7 +288,9 @@ func buildSCloud(exports []types.ExportSegment) ([]types.OpaqueHash, error) {
 	if err != nil {
 		return nil, err
 	}
-	fullSegments := append(exports, pagedProof...)
+	fullSegments := make([]types.ExportSegment, 0, len(exports)+len(pagedProof))
+	fullSegments = append(fullSegments, exports...)
+	fullSegments = append(fullSegments, pagedProof...)
 
 	groupShards := make([][][]byte, len(fullSegments))
 	for i := range fullSegments {
@@ -327,13 +344,13 @@ func PagedProofs(exportSegments []types.ExportSegment) ([]types.ExportSegment, e
 	for i, segment := range exportSegments {
 		byteSequences[i] = types.ByteSequence(segment[:])
 	}
-	result := []types.ExportSegment{}
 	maxIndex := (len(exportSegments) + 63) / 64 // ceiling
+	result := make([]types.ExportSegment, 0, maxIndex)
 	for i := 0; i < maxIndex; i++ {
 		j6 := merkle_tree.Jx(6, byteSequences, types.U32(i), hash.Blake2bHash)
 		l6 := merkle_tree.Lx(6, byteSequences, types.U32(i), hash.Blake2bHash)
 
-		output := []byte{}
+		output := make([]byte, 0, len(j6)+len(l6))
 		encoder := types.NewEncoder()
 
 		encoded, err := encoder.Encode(&types.SliceHash{
@@ -375,7 +392,7 @@ func extractExtrinsicMapFromBundle(workPackage *types.WorkPackage, extrinsics ty
 		return nil, fmt.Errorf("extrinsic count mismatch: %d specs vs %d data", len(specs), len(extrinsics))
 	}
 
-	result := make(PVM.ExtrinsicDataMap)
+	result := make(PVM.ExtrinsicDataMap, len(specs))
 	for i, spec := range specs {
 		result[spec.Hash] = PVM.ExtrinsicData(extrinsics[i])
 	}

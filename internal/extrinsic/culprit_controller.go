@@ -75,7 +75,8 @@ func (c *CulpritController) VerifyCulpritSignature() error {
 // VerifyReportHashValidty verifies the validity of the reports
 func (c *CulpritController) VerifyReportHashValidty() error {
 	psiBad := blockchain.GetInstance().GetPosteriorStates().GetPsiB()
-	checkMap := make(map[types.WorkReportHash]bool)
+	// Pre-allocate capacity for check map
+	checkMap := make(map[types.WorkReportHash]bool, len(psiBad))
 
 	for _, report := range psiBad {
 		checkMap[report] = true
@@ -95,7 +96,8 @@ func (c *CulpritController) ExcludeOffenders() error {
 
 	exclude := blockchain.GetInstance().GetPriorStates().GetPsiO()
 
-	excludeMap := make(map[types.Ed25519Public]bool)
+	// Pre-allocate capacity for exclude map
+	excludeMap := make(map[types.Ed25519Public]bool, len(exclude))
 	for _, offenderEd25519 := range exclude {
 		excludeMap[offenderEd25519] = true // true : the offender is in the exclude list
 	}
@@ -127,8 +129,9 @@ func (c *CulpritController) CheckUnique() error {
 		return nil
 	}
 
-	uniqueKeyMap := make(map[types.Ed25519Public]bool)
-	result := make([]types.Culprit, 0)
+	// Pre-allocate capacity for unique map and result slice
+	uniqueKeyMap := make(map[types.Ed25519Public]bool, len(c.Culprits))
+	result := make([]types.Culprit, 0, len(c.Culprits))
 	for _, culprit := range c.Culprits {
 		if uniqueKeyMap[culprit.Key] {
 			return errors.New("culprits_not_sorted_unique")

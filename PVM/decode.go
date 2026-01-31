@@ -41,7 +41,7 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 		return 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
 
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -51,7 +51,7 @@ func decodeTwoImmediates(instructionCode []byte, pc ProgramCounter, skipLength P
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d deserialization vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vY, err := SignExtend(int(lY), uint64(decodedVy))
+	vY, err := SignExtend(uint8(lY), uint64(decodedVy))
 	if err != nil {
 		return 0, 0, fmt.Errorf("opcosde %s(%d) at pc=%d signExtend lx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -97,7 +97,7 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vx raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -107,7 +107,7 @@ func decodeOneRegisterAndTwoImmediates(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialize vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vY, err := SignExtend(int(lY), uint64(decodedVY))
+	vY, err := SignExtend(uint8(lY), uint64(decodedVY))
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d signExtend vy raise error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
@@ -155,9 +155,9 @@ func decodeTwoRegistersAndOneImmediate(instructionCode []byte, pc ProgramCounter
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opcode %s(%d) at pc=%d deserialization error : %w", zeta[opcode(instructionCode[pc])], opcode(instructionCode[pc]), pc, err)
 	}
-	vX, err := SignExtend(int(lX), uint64(decodedVX))
+	vX, err := SignExtend(uint8(lX), uint64(decodedVX))
 	if err != nil {
-		return 0, 0, 0, PVMExitTuple(PANIC, nil)
+		return 0, 0, 0, err
 	}
 
 	return rA, rB, vX, nil
@@ -213,9 +213,9 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	return rA, rB, rD, nil
 }
 
-func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) error {
+func storeIntoMemory(mem *Memory, offset int, memIndex uint32, Immediate uint64) ExitReason {
 	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
-		return PVMExitTuple(PANIC, memIndex)
+		return ExitPanic
 	}
 	vX := uint32(memIndex)
 	pageNum := vX / ZP
@@ -226,14 +226,14 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 	if _, pageAllocated := mem.Pages[pageNum]; pageAllocated {
 		// try to allocate read-only memory --> page-fault
 		if mem.Pages[pageNum].Access != MemoryReadWrite {
-			return PVMExitTuple(PAGE_FAULT, memIndex)
+			return ExitPageFault | ExitReason(memIndex)
 		}
 		if pageIndex+uint32(len(vY)) <= ZP { // data allocated do not exceed maxSize
 			copy(mem.Pages[pageNum].Value[pageIndex:], vY)
 		} else { // data allocated exceed maxSize --> cross page
 			// check next page access
 			if _, pageAllocated := mem.Pages[pageNum+1]; !pageAllocated {
-				return PVMExitTuple(PAGE_FAULT, memIndex)
+				return ExitPageFault | ExitReason(memIndex)
 			}
 
 			currentPageLength := ZP - pageIndex
@@ -241,18 +241,18 @@ func storeIntoMemory(mem Memory, offset int, memIndex uint32, Immediate uint64) 
 			nextPageData := vY[currentPageLength:]
 
 			copy(mem.Pages[pageNum].Value[pageIndex:], currentPageData)
-			copy(mem.Pages[pageNum].Value[:len(nextPageData)], nextPageData)
+			copy(mem.Pages[pageNum+1].Value[:len(nextPageData)], nextPageData)
 		}
 
 	} else { // page not allocated
-		return PVMExitTuple(PAGE_FAULT, memIndex)
+		return ExitPageFault | ExitReason(memIndex)
 	}
-	return PVMExitTuple(CONTINUE, nil)
+	return ExitContinue
 }
 
-func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
+func loadFromMemory(mem *Memory, offset uint32, vx uint32) (uint64, ExitReason) {
 	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
-		return 0, PVMExitTuple(PANIC, vx)
+		return 0, ExitPanic
 	}
 	vX := uint32(vx)
 
@@ -262,7 +262,7 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 	// we allocated memory at least read-only
 	// => if the memory is not allocated -> it's Inaccessible
 	if _, pageAllocated := mem.Pages[pageNum]; !pageAllocated {
-		return 0, PVMExitTuple(PAGE_FAULT, vx)
+		return 0, ExitPageFault | ExitReason(vX)
 	}
 	memBytes := make([]byte, offset)
 
@@ -270,16 +270,17 @@ func loadFromMemory(mem Memory, offset uint32, vx uint32) (uint64, error) {
 		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
 	} else { // cross page memory memory loading
 		if mem.Pages[pageNum+1] == nil {
-			return 0, PVMExitTuple(PAGE_FAULT, vx)
+			return 0, ExitPageFault | ExitReason(vX)
 		}
 
 		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
 		copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
-		copy(memBytes[:ZP-pageIndex], remainBytes)           // copy next page
+		copy(memBytes[ZP-pageIndex:], remainBytes)           // copy next page
 	}
 	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
 	if err != nil {
-		return 0, err
+		pvmLogger.Errorf("loadFromMemory deserialization error %s", err)
+		return 0, ExitPanic
 	}
-	return uint64(memVal), nil
+	return uint64(memVal), ExitContinue
 }

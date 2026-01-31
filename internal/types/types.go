@@ -1503,22 +1503,19 @@ type PartialStateSet struct {
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	// ServiceAccountState
-	copiedServiceAccounts := make(ServiceAccountState)
+	// Pre-allocate capacity for service accounts map
+	copiedServiceAccounts := make(ServiceAccountState, len(origin.ServiceAccounts))
 	for serviceID, originAccount := range origin.ServiceAccounts {
 		var copiedAccount ServiceAccount
 		copiedAccount.ServiceInfo = originAccount.ServiceInfo
-		copiedAccount.PreimageLookup = make(PreimagesMapEntry)
-		for preimageKey, preimageVal := range originAccount.PreimageLookup {
-			copiedPreimage := make(ByteSequence, len(preimageVal))
-			copy(copiedPreimage, preimageVal)
-			copiedAccount.PreimageLookup[preimageKey] = copiedPreimage
-		}
+		// use shallow copy for PreimageLookup since host call only delete preimage item, no modification
+		copiedAccount.PreimageLookup = maps.Clone(originAccount.PreimageLookup)
 		copiedAccount.LookupDict = make(LookupMetaMapEntry)
 		for k, v := range originAccount.LookupDict {
 			copiedAccount.LookupDict[k] = make(TimeSlotSet, len(v))
 			copy(copiedAccount.LookupDict[k], v)
 		}
-		copiedAccount.StorageDict = make(Storage)
+		copiedAccount.StorageDict = make(Storage, len(originAccount.StorageDict))
 		for storageKey, storageVal := range originAccount.StorageDict {
 			copiedStorage := make(ByteSequence, len(storageVal))
 			copy(copiedStorage, storageVal)

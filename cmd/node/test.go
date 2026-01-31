@@ -6,8 +6,10 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	jamtestvector "github.com/New-JAMneration/JAM-Protocol/testdata/jam_test_vector"
@@ -23,6 +25,7 @@ var (
 	testFileFormat string
 	testRunSTF     bool
 	testGenesis    string
+	benchmarkRuns  int
 )
 
 var testCmd = &cli.Command{
@@ -71,6 +74,12 @@ For example:
 			Value:       "genesis",
 			Destination: &testGenesis,
 		},
+		&cli.IntFlag{
+			Name:        "benchmark",
+			Usage:       "Run benchmark mode with N runs (only for trace tests with timing enabled)",
+			Value:       0,
+			Destination: &benchmarkRuns,
+		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
 		// Initialize config
@@ -91,6 +100,12 @@ For example:
 			logger.Fatal(err)
 		}
 
+		// Enable timing if TIMING environment variable is set
+		if timing.Enabled {
+			timing.ResetGlobal()
+			stf.ResetCustomTimings()
+		}
+
 		// Create reader and runner
 		reader, runner, err := createReaderAndRunner(testType, mode, testdata.TestSize(testSize), dataFormat)
 		if err != nil {
@@ -104,15 +119,148 @@ For example:
 			logger.Fatalf("Error reading test data: %v", err)
 		}
 
-		// Print results
+		// Validate benchmark mode
+		if benchmarkRuns > 0 {
+			if testType != "trace" {
+				return fmt.Errorf("benchmark mode is only supported for trace tests")
+			}
+			if !timing.Enabled {
+				return fmt.Errorf("benchmark mode requires timing to be enabled (set TIMING=1)")
+			}
+		}
+
+		// Benchmark mode: run multiple times
+		if benchmarkRuns > 0 && testType == "trace" && timing.Enabled {
+			// Disable logger output during benchmark runs
+			logger.Disable()
+			defer logger.Enable() // Re-enable logger when done
+
+			var allRunsSTFTimings [][]stf.STFTiming
+			var allRunsCustomTimings [][]timing.TimingStats
+			var allRunsPassed []bool
+
+			for run := 0; run < benchmarkRuns; run++ {
+
+				// Reset state for each run
+				timing.ResetGlobal()
+				stf.ResetCustomTimings()
+
+				// Setup genesis for each run
+				genesisFile := testFiles[len(testFiles)-1]
+				testFilesForRun := testFiles[:len(testFiles)-1]
+
+				genesis, err := reader.ParseGenesis(genesisFile.Data)
+				if err != nil {
+					logger.Fatalf("error parsing genesis: %v", err)
+				}
+
+				genesisBlock := types.Block{
+					Header: genesis.Header,
+				}
+
+				state, keyVals, err := m.StateKeyValsToState(genesis.State.KeyVals)
+				if err != nil {
+					logger.Fatalf("Failed to parse state key-vals to state: %v", err)
+				}
+				cs := blockchain.GetInstance()
+				cs.SetPriorStateUnmatchedKeyVals(keyVals)
+				cs.GenerateGenesisBlock(genesisBlock)
+				cs.GenerateGenesisState(state)
+
+				// Run tests for this run
+				passed := 0
+				failed := 0
+				var runSTFTimings []stf.STFTiming
+
+				for _, testFile := range testFilesForRun {
+					// post-state update to pre-state, tau_prime+1
+					blockchain.GetInstance().StateCommit()
+
+					data, err := reader.ParseTestData(testFile.Data)
+					if err != nil {
+						failed++
+						continue
+					}
+
+					// Run the test with timing
+					var outputErr error
+					if timingRunner, ok := runner.(testdata.TimingRunner); ok {
+						isProtocolError, err, stfTiming := timingRunner.RunWithTiming(data)
+						outputErr = err
+						if err == nil || !isProtocolError {
+							runSTFTimings = append(runSTFTimings, stfTiming)
+						}
+					} else {
+						outputErr = runner.Run(data, testRunSTF)
+					}
+
+					// Validate trace test
+					if outputErr != nil {
+						cs := blockchain.GetInstance()
+						priorState := cs.GetPriorStates().GetState()
+						cs.GetPosteriorStates().SetState(priorState)
+					}
+
+					err = data.Validate()
+					if err != nil {
+						failed++
+						break
+					}
+					passed++
+				}
+
+				// Check if this run passed
+				if failed == 0 {
+					allRunsPassed = append(allRunsPassed, true)
+					allRunsSTFTimings = append(allRunsSTFTimings, runSTFTimings)
+
+					// Snapshot custom timings
+					customStats := timing.GetGlobalStats()
+					allRunsCustomTimings = append(allRunsCustomTimings, customStats)
+				} else {
+					allRunsPassed = append(allRunsPassed, false)
+				}
+			}
+
+			// Check if all runs passed
+			allPassed := true
+			failedRuns := 0
+			for _, passed := range allRunsPassed {
+				if !passed {
+					allPassed = false
+					failedRuns++
+				}
+			}
+
+			// Only print statistics if all runs passed
+			if allPassed && timing.Enabled {
+				if len(allRunsSTFTimings) > 0 {
+					stf.PrintBenchmarkSummary(allRunsSTFTimings, benchmarkRuns)
+				}
+
+				if len(allRunsCustomTimings) > 0 {
+					timing.PrintBenchmarkSummary(allRunsCustomTimings, benchmarkRuns)
+				}
+			} else if !allPassed {
+				return fmt.Errorf("benchmark failed: %d out of %d runs had failures", failedRuns, benchmarkRuns)
+			}
+
+			return nil
+		}
+
+		// Print results (skip noisy output in benchmark mode)
 		msg := fmt.Sprintf("Test Results for %s (type: %s) (format: %s) ", mode, testType, testFileFormat)
 		if testType == "jam-test-vectors" {
 			msg += fmt.Sprintf("(size: %s) ", testSize)
 		}
-		logger.Info(msg)
+		if benchmarkRuns == 0 {
+			logger.Info(msg)
+		}
 
+		// Normal test mode
 		passed := 0
 		failed := 0
+		var allSTFTimings []stf.STFTiming // Collect STF timings if timing is enabled
 
 		if testType == "trace" {
 			// get genesis file, genesis will be sorted at last
@@ -153,8 +301,21 @@ For example:
 				continue
 			}
 
-			// Run the test
-			outputErr := runner.Run(data, testRunSTF)
+			// Run the test with timing if enabled and runner supports it
+			var outputErr error
+			if timing.Enabled && testType == "trace" {
+				if timingRunner, ok := runner.(testdata.TimingRunner); ok {
+					isProtocolError, err, stfTiming := timingRunner.RunWithTiming(data)
+					outputErr = err
+					if err == nil || !isProtocolError {
+						allSTFTimings = append(allSTFTimings, stfTiming)
+					}
+				} else {
+					outputErr = runner.Run(data, testRunSTF)
+				}
+			} else {
+				outputErr = runner.Run(data, testRunSTF)
+			}
 
 			if testType == "jam-test-vectors" {
 				expectedErr := data.ExpectError()
@@ -204,6 +365,18 @@ For example:
 
 		logger.Info("----------------------------------------")
 		logger.Infof("Total: %d, Passed: %d, Failed: %d\n", len(testFiles), passed, failed)
+
+		// Print timing summary if timing is enabled
+		if timing.Enabled {
+			// Print STF timing summary if available
+			// Note: PrintTimingSummary already includes global timing summary
+			if len(allSTFTimings) > 0 {
+				stf.PrintTimingSummary(allSTFTimings)
+			} else {
+				// If no STF timings, just print global timing summary
+				timing.PrintGlobalSummary()
+			}
+		}
 
 		return nil
 	},

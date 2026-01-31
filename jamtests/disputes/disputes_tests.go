@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // ANSI color codes
@@ -424,8 +424,8 @@ func (d *DisputeTestCase) ExpectError() error {
 
 func (d *DisputeTestCase) Validate() error {
 	cs := blockchain.GetInstance()
-	if !reflect.DeepEqual(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi) {
-		diff := cmp.Diff(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi)
+	if !cmp.Equal(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi, cmpopts.EquateEmpty()) {
+		diff := cmp.Diff(cs.GetPosteriorStates().GetPsi(), d.PostState.Psi, cmpopts.EquateEmpty())
 		return fmt.Errorf("psi does not match expected:\n%v,\nbut got %v\nDiff:\n%v", d.PostState.Psi, cs.GetPosteriorStates().GetPsi(), diff)
 	}
 	if cs.GetPosteriorStates().GetTau() != d.PostState.Tau {

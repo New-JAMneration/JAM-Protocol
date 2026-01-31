@@ -96,19 +96,6 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		pvmLogger.Fatalf("refine invoke (Psi_R) decode metaCode error : %v", err)
 	}
 
-	F := Omegas{}
-	F[HistoricalLookupOp] = HostCallFunctions[HistoricalLookupOp]
-	F[FetchOp] = HostCallFunctions[FetchOp]
-	F[ExportOp] = HostCallFunctions[ExportOp]
-	F[GasOp] = HostCallFunctions[GasOp]
-	F[MachineOp] = HostCallFunctions[MachineOp]
-	F[PeekOp] = HostCallFunctions[PeekOp]
-	F[PokeOp] = HostCallFunctions[PokeOp]
-	F[PagesOp] = HostCallFunctions[PagesOp]
-	F[InvokeOp] = HostCallFunctions[InvokeOp]
-	F[ExpungeOp] = HostCallFunctions[ExpungeOp]
-	F[100] = logHostCall
-
 	extrinsics := make([][]types.ExtrinsicSpec, len(input.WorkPackage.Items))
 
 	for i, item := range input.WorkPackage.Items {
@@ -140,7 +127,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	//	WorkExecResultOutOfGas                        = "out-of-gas"
 	// WorkExecResultPanic
 	// result = u, r, (m,e)
-	result := Psi_M(StandardCodeFormat(code), 0, workItem.RefineGasLimit, a, F, addition)
+	result := Psi_M(StandardCodeFormat(code), 0, workItem.RefineGasLimit, a, RefineOmegas, addition)
 
 	if result.ReasonOrBytes == PANIC {
 		return RefineOutput{

@@ -36,7 +36,7 @@ func GetTargetExtensionFiles(dir string, extension string) ([]string, error) {
 	}
 
 	// Get all files with the target extension
-	var targetFiles []string
+	targetFiles := make([]string, 0, len(files))
 	for _, file := range files {
 		fileName := file.Name()
 		if fileName[len(fileName)-len(extension):] == extension {

@@ -72,8 +72,9 @@ func (a *AvailAssuranceController) CheckUniqueAndSort() *types.ErrorCode {
 		return nil
 	}
 
-	uniqueMap := make(map[types.ValidatorIndex]bool)
-	result := make([]types.AvailAssurance, 0)
+	// Pre-allocate capacity based on avail assurances count
+	uniqueMap := make(map[types.ValidatorIndex]bool, len(a.AvailAssurances))
+	result := make([]types.AvailAssurance, 0, len(a.AvailAssurances))
 	var last types.ValidatorIndex = 0
 	for _, availAssurance := range a.AvailAssurances {
 		if availAssurance.ValidatorIndex < last {
@@ -165,7 +166,8 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 		}
 	}
 
-	availableWorkReports := []types.WorkReport{}
+	// Pre-allocate capacity: estimate that about half of cores have available reports
+	availableWorkReports := make([]types.WorkReport, 0, types.CoresCount/2)
 	for i := 0; i < types.CoresCount; i++ {
 		// If the votes for this core are greater than the available number, add the work report to the available work reports
 		if totalAvailable[i] >= types.ValidatorsSuperMajority {
@@ -187,7 +189,8 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 
 // Create a work report map for checking a work report existence
 func (a *AvailAssuranceController) CreateWorkReportMap(workReports []types.WorkReport) map[types.CoreIndex]bool {
-	workReportMap := make(map[types.CoreIndex]bool)
+	// Pre-allocate capacity based on work reports count
+	workReportMap := make(map[types.CoreIndex]bool, len(workReports))
 
 	for _, workReport := range workReports {
 		workReportMap[workReport.CoreIndex] = true

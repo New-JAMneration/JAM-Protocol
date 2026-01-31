@@ -104,7 +104,7 @@ func GFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, err
 func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
 	state := blockchain.GetInstance().GetPosteriorStates()
 	var e types.Entropy
-	var validators types.ValidatorsData
+	validators := make(types.ValidatorsData, types.ValidatorsCount)
 
 	etaPrime := state.GetEta()
 	if (int(state.GetTau())-types.RotationPeriod)/types.EpochLength == int(state.GetTau())/types.EpochLength {

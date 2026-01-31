@@ -31,7 +31,9 @@ func embeddedValueLeaf(key types.StateKey, value types.ByteSequence) types.BitSe
 	serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
 	valueSizeBits := utilities.BytesToBits(serializedValueSize)
 
-	encoding := types.BitSequence{}
+	// Estimate capacity: prefix + valueSizeBits + key + value
+	estimatedSize := len(prefix) + len(valueSizeBits) + len(key) + len(value)
+	encoding := make(types.BitSequence, 0, estimatedSize)
 	encoding = append(encoding, prefix...)
 	encoding = append(encoding, valueSizeBits[2:]...)
 	encoding = append(encoding, utilities.BytesToBits(key[:])...)
@@ -50,7 +52,9 @@ func regularLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence
 	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
 	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
 
-	encoding := types.BitSequence{}
+	// Estimate capacity: prefix bits + key + hash
+	estimatedSize := 8 + len(key)*8 + 32*8 // 8 prefix bits + key bits + hash bits
+	encoding := make(types.BitSequence, 0, estimatedSize)
 	encoding = append(encoding, leftPrefixBit...)
 	encoding = append(encoding, regularLeafPrefixBit...)
 	encoding = append(encoding, fillZeroBits...)
@@ -86,9 +90,17 @@ func BitSequenceToString(bitSequence types.BitSequence) string {
 	return bitSequenceToString(bitSequence)
 }
 
-// INFO: Convert the BitSequence to a bitstrings, because we cannot use []bool as a
-// key in a map
-type MerklizationInput map[string]types.StateKeyVal
+type MerklizationInput map[[31]byte]types.StateKeyVal
+
+// Shift the key left by 1 bit
+func shiftKeyLeft(key [31]byte) [31]byte {
+	var result [31]byte
+	for i := 0; i < 30; i++ {
+		result[i] = (key[i] << 1) | (key[i+1] >> 7)
+	}
+	result[30] = key[30] << 1
+	return result
+}
 
 func Merklization(d MerklizationInput) types.OpaqueHash {
 	if len(d) == 0 {
@@ -108,14 +120,15 @@ func Merklization(d MerklizationInput) types.OpaqueHash {
 	l := make(MerklizationInput)
 	r := make(MerklizationInput)
 	for key, value := range d {
-		isLeft := key[0] == '0'
-		if isLeft {
-			l[key[1:]] = value
-		}
+		// check the first bit: 0 -> left, 1 -> right
+		firstBit := (key[0] & 0x80) == 0
 
-		isRight := key[0] == '1'
-		if isRight {
-			r[key[1:]] = value
+		shiftedKey := shiftKeyLeft(key)
+
+		if firstBit {
+			l[shiftedKey] = value
+		} else {
+			r[shiftedKey] = value
 		}
 	}
 
@@ -132,13 +145,7 @@ func MerklizationSerializedState(serializedState types.StateKeyVals) types.State
 
 	// Convert the StateKeyVals to merklization input
 	for _, stateKeyVal := range serializedState {
-		key := bitSequenceToString(utilities.BytesToBits(stateKeyVal.Key[:]))
-		value := types.StateKeyVal{
-			Key:   stateKeyVal.Key,
-			Value: stateKeyVal.Value,
-		}
-
-		merklizationInput[key] = value
+		merklizationInput[stateKeyVal.Key] = stateKeyVal
 	}
 
 	return types.StateRoot(Merklization(merklizationInput))

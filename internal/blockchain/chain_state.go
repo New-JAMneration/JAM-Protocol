@@ -16,6 +16,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -49,6 +50,9 @@ type ChainState struct {
 	posteriorCurrentValidators *PosteriorCurrentValidators
 	preStateUnmatchedKeyVals   types.StateKeyVals
 	postStateUnmatchedKeyVals  types.StateKeyVals
+
+	// cache for leaf level merklization
+	keyLevelCache *KeyLevelCache
 }
 
 func getPersistentDatabase() database.Database {
@@ -101,6 +105,8 @@ func GetInstance() *ChainState {
 			posteriorCurrentValidators: NewPosteriorValidators(),
 			preStateUnmatchedKeyVals:   types.StateKeyVals{},
 			postStateUnmatchedKeyVals:  types.StateKeyVals{},
+
+			keyLevelCache: NewKeyLevelCache(),
 		}
 		logger.Debug("🚀 ChainState initialized")
 	})
@@ -127,6 +133,8 @@ func ResetInstance() {
 		posteriorCurrentValidators: NewPosteriorValidators(),
 		preStateUnmatchedKeyVals:   types.StateKeyVals{},
 		postStateUnmatchedKeyVals:  types.StateKeyVals{},
+
+		keyLevelCache: NewKeyLevelCache(),
 	}
 	logger.Debug("🚀 ChainState reset")
 }
@@ -502,7 +510,8 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	stateRoot := m.MerklizationSerializedState(fullStateKeyVals)
+	// Compute state root with key-level cache
+	stateRoot := cs.merklizeWithKeyCache(fullStateKeyVals)
 
 	err = cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
 	if err != nil {
@@ -517,12 +526,61 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	return nil
 }
 
+// merklizeWithKeyCache computes state root using key-level cache.
+// This optimization caches leaf hashes for individual keys, so unchanged keys
+// don't need to recompute their leaf hashes during merklization.
+// The cache callback is get-or-compute: on miss it computes once, stores, and returns
+// the hash so merklization uses it without recomputing.
+func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) types.StateRoot {
+	cacheFn := func(key types.StateKey, value []byte) types.OpaqueHash {
+		leafHash, valueHash, ok := cs.keyLevelCache.GetLeafHash(key, value)
+		if ok {
+			return leafHash
+		}
+		// Safety cap: clear entire cache if over limit (EpochLength * 50)
+		if cs.keyLevelCache.Len() >= types.MaxKeyLevelCacheSize {
+			cs.ClearKeyLevelCache()
+		}
+		// Cache miss: compute once, store, and return so merklization uses it
+		leftEncoding := m.LeafEncoding(key, value)
+		bytes, _ := utilities.BitsToBytes(leftEncoding)
+		leafHash = hash.Blake2bHash(bytes)
+		cs.keyLevelCache.PutLeafHash(key, valueHash, leafHash)
+		return leafHash
+	}
+
+	stateRoot := m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn)
+	return stateRoot
+}
+
+// ComputeStateRootWithCache computes the state root for given state key-values using the key-level cache.
+// This is a public method that can be used by other packages (e.g., stf) to compute state roots with caching.
+// The stateKeyVals should already be sorted by Key for consistent Merklization.
+func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals) types.StateRoot {
+	return cs.merklizeWithKeyCache(stateKeyVals)
+}
+
+// ClearKeyLevelCache clears the key-level merklization cache.
+func (cs *ChainState) ClearKeyLevelCache() {
+	if cs.keyLevelCache != nil {
+		cs.keyLevelCache.Clear()
+	}
+}
+
 // GetStateByBlockHash retrieves state data for a given block from persistent database
 func (cs *ChainState) GetStateByBlockHash(blockHeaderHash types.HeaderHash) (types.StateKeyVals, error) {
+	stateKeyVals, err := cs.repo.GetStateDataByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	if err == nil {
+		return stateKeyVals, nil
+	}
 	return cs.persistentRepo.GetStateDataByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
 }
 
 func (cs *ChainState) GetStateRootByBlockHash(blockHeaderHash types.HeaderHash) (types.StateRoot, error) {
+	stateRoot, err := cs.repo.GetStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	if err == nil {
+		return stateRoot, nil
+	}
 	return cs.persistentRepo.GetStateRootByHeaderHash(cs.persistentRepo.Database(), blockHeaderHash)
 }
 
@@ -625,7 +683,7 @@ func (cs *ChainState) RestoreBlockAndState(blockHeaderHash types.HeaderHash) err
 	return nil
 }
 
-func BuildStateRootInputKeyValsAndRoot(
+func (cs *ChainState) BuildStateRootInputKeyValsAndRoot(
 	stateKeyVals types.StateKeyVals,
 ) (merkleInputKeyVals types.StateKeyVals, stateRoot types.StateRoot, err error) {
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
@@ -642,7 +700,8 @@ func BuildStateRootInputKeyValsAndRoot(
 	merkleInputKeyVals = append(merkleInputKeyVals, unmatchedKeyVals...)
 	merkleInputKeyVals = append(merkleInputKeyVals, serializedState...)
 
-	stateRoot = m.MerklizationSerializedState(merkleInputKeyVals)
+	// Use key-level cache for merklization
+	stateRoot = cs.merklizeWithKeyCache(merkleInputKeyVals)
 	return merkleInputKeyVals, stateRoot, nil
 }
 
@@ -657,7 +716,7 @@ func (cs *ChainState) SeedGenesisToBackend(
 	}
 	genesisBlockHash = types.HeaderHash(h)
 
-	merkleInputKeyVals, stateRoot, err := BuildStateRootInputKeyValsAndRoot(stateKeyVals)
+	merkleInputKeyVals, stateRoot, err := cs.BuildStateRootInputKeyValsAndRoot(stateKeyVals)
 	if err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("build merkle input + state root: %w", err)
 	}

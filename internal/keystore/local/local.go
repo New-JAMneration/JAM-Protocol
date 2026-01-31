@@ -218,9 +218,9 @@ func (l *LocalKeyStore) List(t keystore.KeyType) ([]keystore.KeyPair, error) {
 		return nil, err
 	}
 
-	var kps []keystore.KeyPair
 	var kp keystore.KeyPair
-
+	// Pre-allocsate capacity based on keys count
+	kps := make([]keystore.KeyPair, 0, len(keys))
 	for _, kd := range keys {
 		privBytes, err := hex.DecodeString(kd.PrivateKey)
 		if err != nil {

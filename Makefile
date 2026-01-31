@@ -41,13 +41,43 @@ test-jam-test-vectors-trace:
 		echo "Testing trace $(mode)..."; \
 		export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
-		MODES="fallback safrole preimages_light preimages storage_light storage"; \
+		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light fuzzy"; \
 		for mode in $$MODES; do \
 			echo "Testing trace $$mode..."; \
 			export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$$mode"; \
 			echo ""; \
 		done; \
 	fi
+
+# Test with detailed timing breakdown for trace tests
+# Usage: make test-timing-jam-test-vectors-trace mode=safrole
+#        make test-timing-jam-test-vectors-trace (runs all trace modes)
+.PHONY: test-timing-jam-test-vectors-trace
+test-timing-jam-test-vectors-trace:
+	@if [ -n "$(mode)" ]; then \
+		echo "Testing trace $(mode) with timing..."; \
+		TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+	else \
+		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light fuzzy"; \
+		for mode in $$MODES; do \
+			echo ""; \
+			echo "========================================"; \
+			echo "Testing trace $$mode with timing..."; \
+			echo "========================================"; \
+			TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$$mode"; \
+		done; \
+	fi
+
+# Benchmark trace tests with 5 runs (only reports statistics if all runs pass)
+# Usage: make test-benchmark-trace mode=safrole
+.PHONY: test-benchmark-trace
+test-benchmark-trace:
+	@if [ -z "$(mode)" ]; then \
+		echo "Error: mode is required for benchmark. Usage: make test-benchmark-trace mode=safrole"; \
+		exit 1; \
+	fi
+	@echo "Running benchmark for trace $(mode) (5 runs)..."
+	TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$(mode)" --benchmark 5
 
 .PHONY: lint
 lint:

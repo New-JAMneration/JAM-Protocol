@@ -19,7 +19,7 @@ func NewPriorStates() *PriorStates {
 			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
 			Xi:         make(types.AccumulatedQueue, types.EpochLength),
 			Varphi:     make(types.AuthQueues, types.CoresCount),
-			LastAccOut: make(types.LastAccOut, 0),
+			LastAccOut: make(types.LastAccOut, 0, 16), // Pre-allocate with small initial capacity
 			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
 			Alpha:      make(types.AuthPools, types.CoresCount),
 			Delta:      make(types.ServiceAccountState),

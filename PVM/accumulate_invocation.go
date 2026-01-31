@@ -91,27 +91,6 @@ func Psi_A(
 		panic(err)
 	}
 	serialized = append(serialized, encoded...)
-	F := Omegas{}
-	F[FetchOp] = HostCallFunctions[FetchOp] // added 0.6.6
-	F[ReadOp] = wrapWithG(HostCallFunctions[ReadOp])
-	F[WriteOp] = wrapWithG(HostCallFunctions[WriteOp])
-	F[LookupOp] = wrapWithG(HostCallFunctions[LookupOp])
-	F[GasOp] = HostCallFunctions[GasOp]
-	F[InfoOp] = wrapWithG(HostCallFunctions[InfoOp])
-	F[BlessOp] = HostCallFunctions[BlessOp]
-	F[AssignOp] = HostCallFunctions[AssignOp]
-	F[DesignateOp] = HostCallFunctions[DesignateOp]
-	F[CheckpointOp] = HostCallFunctions[CheckpointOp]
-	F[NewOp] = HostCallFunctions[NewOp]
-	F[UpgradeOp] = HostCallFunctions[UpgradeOp]
-	F[TransferOp] = HostCallFunctions[TransferOp]
-	F[EjectOp] = HostCallFunctions[EjectOp]
-	F[QueryOp] = HostCallFunctions[QueryOp]
-	F[SolicitOp] = HostCallFunctions[SolicitOp]
-	F[ForgetOp] = HostCallFunctions[ForgetOp]
-	F[YieldOp] = HostCallFunctions[YieldOp]
-	F[ProvideOp] = HostCallFunctions[ProvideOp]
-	F[100] = logHostCall
 
 	newPartialState := partialState.DeepCopy()
 	newStorageKeyVal := storageKeyVal.DeepCopy()
@@ -134,7 +113,7 @@ func Psi_A(
 		},
 	}
 
-	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), F, addition)
+	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), AccumulateOmegas, addition)
 	partialState, deferredTransfer, result, gas, serviceBlobs, storageKeyVal := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,

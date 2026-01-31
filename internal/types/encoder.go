@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"math/bits"
 )
 
 type Encoder struct {
@@ -76,36 +77,35 @@ func (e *Encoder) EncodeUint(value uint64) ([]byte, error) {
 		return []byte{0}, nil
 	}
 
-	// Attempt to find l in [1..8] such that 2^(7*l) ≤ x < 2^(7*(l+1))
-	for l := 0; l <= 7; l++ {
-		l64 := uint(l)
-		lowerBound := uint64(1) << (7 * l64)       // 2^(7*l)
-		upperBound := uint64(1) << (7 * (l64 + 1)) // 2^(7*(l+1))
-		if value >= lowerBound && value < upperBound {
-			// Found suitable l.
-			power8l := uint64(1) << (8 * l64)
-			remainder := value % power8l
-			floor := value / power8l
-
-			// prefix = 2^8 - 2^(8-l) + floor(x / 2^(8*l))
-			prefix := byte((256 - (1 << (8 - l64))) + floor)
-
-			remainderBytes, err := e.EncodeUintWithLength(remainder, l)
-			if err != nil {
-				return nil, err
-			}
-
-			return append([]byte{prefix}, remainderBytes...), nil
-		}
+	if value < 0x80 {
+		return []byte{byte(value)}, nil
 	}
 
-	// If no suitable l found:
-	// E(x) = [2^8 - 1] || E_8(x) = [255] || SerializeFixedLength(x,8)
-	remainderBytes, err := e.EncodeUintWithLength(value, 8)
+	if value >= (uint64(1) << 56) {
+		remainderBytes, err := e.EncodeUintWithLength(value, 8)
+		if err != nil {
+			return nil, err
+		}
+		return append([]byte{0xFF}, remainderBytes...), nil
+	}
+
+	k := bits.Len64(value) - 1
+	l := k / 7
+	l64 := uint(l)
+
+	power8l := uint64(1) << (8 * l64)
+	remainder := value % power8l
+	floor := value / power8l
+
+	// prefix = 2^8 - 2^(8-l) + floor(x / 2^(8*l))
+	prefix := byte((256 - (1 << (8 - l64))) + floor)
+
+	remainderBytes, err := e.EncodeUintWithLength(remainder, int(l))
 	if err != nil {
 		return nil, err
 	}
-	return append([]byte{0xFF}, remainderBytes...), nil
+
+	return append([]byte{prefix}, remainderBytes...), nil
 }
 
 func (e *Encoder) EncodeInteger(value uint64) error {

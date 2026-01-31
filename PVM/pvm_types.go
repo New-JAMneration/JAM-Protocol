@@ -73,3 +73,41 @@ const (
 	INNERHOST
 	INNEROOG
 )
+
+type Interpreter struct {
+	Program    *Program
+	Registers  Registers
+	Memory     *Memory
+	Gas        Gas
+	InstrCount uint64
+}
+
+type Host struct {
+	Interpreter Interpreter
+	Addition    HostCallArgs
+	HostCalls   Omegas
+}
+
+func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas) *Interpreter {
+	return &Interpreter{
+		Program:    program,
+		Registers:  registers,
+		Memory:     memory,
+		Gas:        gas,
+		InstrCount: 0,
+	}
+}
+
+func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
+	return &Host{
+		Interpreter: Interpreter{
+			Program:    program,
+			Registers:  registers,
+			Memory:     memory,
+			Gas:        gas,
+			InstrCount: 0,
+		},
+		Addition:  addition,
+		HostCalls: hostCalls,
+	}
+}

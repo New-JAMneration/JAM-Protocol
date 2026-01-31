@@ -2,11 +2,14 @@ package jamtests
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
+
+var disableStateDiff = os.Getenv("DEBUG_STATE_DIFF") == "1"
 
 func (s *TraceTestCase) Dump() error {
 	// Add block, state
@@ -31,8 +34,10 @@ func (s *TraceTestCase) Validate() error {
 	stateRoot := m.MerklizationState(blockchain.GetInstance().GetPosteriorStates().GetState())
 
 	if stateRoot != s.PostState.StateRoot {
-		err := s.CmpKeyVal(stateRoot)
-		if err != nil {
+		if disableStateDiff {
+			return fmt.Errorf("state root mismatch: got %x, want %x", stateRoot, s.PostState.StateRoot)
+		}
+		if err := s.CmpKeyVal(stateRoot); err != nil {
 			return fmt.Errorf("compare key-val error: %w", err)
 		}
 	}

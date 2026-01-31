@@ -34,7 +34,8 @@ func SealingByTickets() error {
 	}
 	eta_prime := posteriorState.GetEta()
 
-	var context types.ByteSequence
+	// Pre-allocate context: JamTicketSeal (14) + eta_prime[3] (32) + i_r (1) = 47 bytes
+	context := make(types.ByteSequence, 0, len(types.JamTicketSeal)+32+1)
 	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
 	context = append(context, types.ByteSequence([]byte{uint8(i_r)})...)     // ir
@@ -72,7 +73,8 @@ func SealingByBandersnatchs() error {
 	}
 	eta_prime := posterior_state.GetEta()
 
-	var context types.ByteSequence
+	// Pre-allocate context: JamFallbackSeal (17) + eta_prime[3] (32) = 49 bytes
+	context := make(types.ByteSequence, 0, len(types.JamFallbackSeal)+32)
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
 
@@ -155,7 +157,7 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 	*/
 	handler, _ := CreateVRFHandler(public_key)
 	var message types.ByteSequence                                        // message: []
-	var context types.ByteSequence                                        // context: XE ⌢ Y(Hs)
+	context := make(types.ByteSequence, 0, len(types.JamEntropy)+32)      // context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
 	vrf, _ := handler.VRFIetfOutput(seal[:])
 	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
@@ -166,7 +168,8 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 func ValidateHeaderEntropy(header types.Header, priorState *types.State) *types.ErrorCode {
 	seal := header.Seal
 	var message types.ByteSequence // message: []
-	var context types.ByteSequence
+	// Pre-allocate context: JamEntropy (13) + VRF output (32) = 45 bytes
+	context := make(types.ByteSequence, 0, len(types.JamEntropy)+32)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
 	vrfOutput, err := vrf.VRFIetfOutput(seal[:])
 	if err != nil {
@@ -203,7 +206,8 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) *types.Err
 		logger.Errorf("ValidateByBandersnatchs HeaderUSerialization err: %v", err)
 		return nil
 	}
-	var context types.ByteSequence
+	// Pre-allocate context: JamFallbackSeal (17) + state.Eta[3] (32) = 49 bytes
+	context := make(types.ByteSequence, 0, len(types.JamFallbackSeal)+32)
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(state.Eta[3][:])...)
 	signature := header.Seal[:]
@@ -258,7 +262,8 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 	}
 	eta_prime := state.Eta
 
-	var context types.ByteSequence
+	// Pre-allocate context: JamTicketSeal (14) + eta_prime[3] (32) + ticket.Attempt (1) = 47 bytes
+	context := make(types.ByteSequence, 0, len(types.JamTicketSeal)+32+1)
 	context = append(context, types.ByteSequence(types.JamTicketSeal[:])...) // XT
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
 	context = append(context, byte(ticket.Attempt))                          // ir (uint8)
