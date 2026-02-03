@@ -268,7 +268,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// pages = 11 , TODO: GP 0.7.2
+// pages = 11
 func pages(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
