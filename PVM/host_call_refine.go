@@ -28,7 +28,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	s := input.Addition.ServiceId
 	// assign a
 	var a *types.ServiceAccount
-	var v *types.ByteSequence
+	var v types.ByteSequence
 
 	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.Interpreter.Registers[7] == 0xffffffffffffffff {
 		a = &account
@@ -40,10 +40,9 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	var l uint64
 
 	if a != nil {
-		val := service_account.HistoricalLookup(*a, input.Addition.RefineArgs.TimeSlot, codeHash)
-		v = &val
-		f = min(input.Interpreter.Registers[10], uint64(len(*v)))
-		l = min(input.Interpreter.Registers[11], uint64(len(*v))-f)
+		v = service_account.HistoricalLookup(*a, input.Addition.RefineArgs.TimeSlot, codeHash)
+		f = min(input.Interpreter.Registers[10], uint64(len(v)))
+		l = min(input.Interpreter.Registers[11], uint64(len(v))-f)
 	}
 
 	if !isWriteable(o, l, *input.Interpreter.Memory) && l != 0 { // not writeable, return panic
@@ -62,8 +61,8 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(len(*v))
-	input.Interpreter.Memory.Write(o, (*v)[f:f+l])
+	input.Interpreter.Registers[7] = uint64(len(v))
+	input.Interpreter.Memory.Write(o, (v)[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -88,8 +87,8 @@ func export(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	segmentLength := input.Addition.ExportSegmentOffset + uint(len(input.Addition.ExportSegment))
-	// otherwise if ζ + |e| >= W_M
+	segmentLength := uint64(input.Addition.ExportSegmentOffset) + uint64(len(input.Addition.ExportSegment))
+	// otherwise if ζ + |e| >= W_X
 	if segmentLength > types.MaxExportCount {
 		input.Interpreter.Registers[7] = FULL
 		return OmegaOutput{
@@ -104,7 +103,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	exportSegment := types.ExportSegment{}
 	copy(exportSegment[:], x)
 
-	input.Interpreter.Registers[7] = uint64(input.Addition.ExportSegmentOffset) + uint64(segmentLength)
+	input.Interpreter.Registers[7] = segmentLength
 	input.Addition.ExportSegment = append(input.Addition.ExportSegment, exportSegment)
 
 	return OmegaOutput{
@@ -199,7 +198,6 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if N_s...+z not subset of \mathbf{V}_m[n]_u
-	// can be simplify to check readable, if not readable => Inaccessible
 	if !isReadable(s, z, input.Addition.IntegratedPVMMap[n].Memory) {
 		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
@@ -213,7 +211,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	data := (&integratedPVMType.Memory).Read(s, z)
 	// write data into memory
-	input.Interpreter.Memory.Write(o, data[s:s+z])
+	input.Interpreter.Memory.Write(o, data)
 
 	input.Interpreter.Registers[7] = OK
 	return OmegaOutput{
@@ -270,13 +268,13 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// pages = 11 , GP 0.6.7 void is renamed pages
+// pages = 11 , TODO: GP 0.7.2
 func pages(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 
-	n, p, c := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	n, p, c, r := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
 	// u = panic
 	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
 		// u = panic
@@ -288,7 +286,15 @@ func pages(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if p < 16 or p + c >= 2^32 / ZP or i in N_p...+c : (u_A)_i = nil
-	if p < 16 || p+c >= (1<<32)/ZP || !isReadable(p, c, input.Addition.IntegratedPVMMap[n].Memory) {
+	if r > 4 || p < 16 || p+c >= (1<<32)/ZP {
+		input.Interpreter.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+
+	if r > 2 && !isReadable(p, c, input.Addition.IntegratedPVMMap[n].Memory) {
 		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -297,10 +303,32 @@ func pages(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise : ok
-	for i := uint32(p); i < uint32(c); i++ {
-		input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
-			Value:  make([]byte, ZP),
-			Access: MemoryInaccessible,
+	// u_v
+	if r >= 3 {
+		for i := uint32(p); i < uint32(p+c); i++ {
+			input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
+				Value:  make([]byte, ZP),
+				Access: MemoryInaccessible,
+			}
+		}
+	}
+
+	// u_a
+	if r == 1 || r == 3 {
+		for i := uint32(p); i < uint32(p+c); i++ {
+			input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
+				Value:  make([]byte, ZP),
+				Access: MemoryReadOnly,
+			}
+		}
+	}
+
+	if r == 2 || r == 4 {
+		for i := uint32(p); i < uint32(p+c); i++ {
+			input.Addition.IntegratedPVMMap[n].Memory.Pages[i] = &Page{
+				Value:  make([]byte, ZP),
+				Access: MemoryReadWrite,
+			}
 		}
 	}
 
@@ -322,7 +350,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	offset := uint64(112)
 	// g = panic
-	if !isWriteable(o, offset, input.Addition.IntegratedPVMMap[n].Memory) { // not writeable, return
+	if !isWriteable(o, offset, *input.Interpreter.Memory) {
 		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -340,7 +368,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// assign g, w  |  g => gas , w => registers[13]   , 8(gas) + 8(uint64) * 13 = 112
-	var gas uint64
+	var g uint64
 	var w Registers
 
 	// first read data from memory
@@ -348,29 +376,31 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	decoder := types.NewDecoder()
 	// decode gas
-	err := decoder.Decode(data[:8], &gas)
+	err := decoder.Decode(data[:8], &g)
 	if err != nil {
 		pvmLogger.Errorf("host-call function \"invoke\" decode gas error : %v", err)
 	}
 	// decode registers
-	for i := uint64(1); i < offset/8; i++ {
+	for i := uint64(1); i < offset/8; i++ { // start after gas used(8)
 		err = decoder.Decode(data[8*i:8*(i+1)], &w[i-1])
 		if err != nil {
 			pvmLogger.Errorf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
-	// psi
-	input.Addition.Program.InstructionData = input.Addition.IntegratedPVMMap[n].ProgramCode
-
+	// psi preprocess
+	tmpProgram := Program{
+		InstructionData: input.Addition.IntegratedPVMMap[n].ProgramCode,
+	}
 	tempMemory := input.Addition.IntegratedPVMMap[n].Memory
-	tempAddition := input.Addition
-	tempHost := NewHost(input.Addition.Program, w, &tempMemory, Gas(gas), tempAddition, input.HostCalls)
+	// wrap m[n]_p (program),  w (registers),  m[n]_u (memory),   g (gas) into NewHost
+	tempHost := NewHost(&tmpProgram, w, &tempMemory, Gas(g), HostCallArgs{}, nil)
 
 	var c ExitReason
 	var pcPrime ProgramCounter
 
+	// run psi
 	if GasChargingMode == "blockBased" {
-		c, pcPrime = tempHost.Interpreter.BlockBasedInvoke(input.Addition.IntegratedPVMMap[n].PC)
+		c, pcPrime = tempHost.Interpreter.BlockBasedInvoke(input.Addition.IntegratedPVMMap[n].PC) // m[n]_i => pc
 	} else {
 		c, pcPrime = tempHost.Interpreter.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
 	}
@@ -378,7 +408,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// mu* = mu
 	encoder := types.NewEncoder()
 	data = types.ByteSequence(make([]byte, offset))
-	encoded, _ := encoder.Encode(&tempHost.Interpreter.Gas)
+	encoded, _ := encoder.Encode(&tempHost.Interpreter.Gas) // encode g'
 	copy(data, encoded)
 	for i := uint64(1); i < offset/8; i++ {
 		encoded, _ := encoder.Encode(&tempHost.Interpreter.Registers[i-1])
