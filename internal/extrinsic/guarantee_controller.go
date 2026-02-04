@@ -326,18 +326,18 @@ func (g *GuaranteeController) ValidateContexts() error {
 func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	workPackageHashes := g.WorkPackageHashSet()
 	cs := blockchain.GetInstance()
-	theta := cs.GetPriorStates().GetTheta()
+	vartheta := cs.GetPriorStates().GetVartheta()
 	rho := cs.GetPriorStates().GetRho()
 	xi := cs.GetPriorStates().GetXi()
 	beta := cs.GetPriorStates().GetBeta()
 	// Pre-allocate capacity based on total queued items
 	qCap := 0
-	for _, slot := range theta {
+	for _, slot := range vartheta {
 		qCap += len(slot)
 	}
 	qMap := make(map[types.WorkPackageHash]bool, qCap)
 	// q
-	for _, v := range theta {
+	for _, v := range vartheta {
 		for _, w := range v {
 			qMap[w.Report.PackageSpec.Hash] = true
 		}

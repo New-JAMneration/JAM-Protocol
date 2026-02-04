@@ -2712,9 +2712,9 @@ func (p *Privileges) Decode(d *Decoder) error {
 	return nil
 }
 
-// Gamma
-func (g *Gamma) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding Gamma")
+// SafroleState
+func (g *SafroleState) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding SafroleState")
 
 	var err error
 
@@ -3040,7 +3040,7 @@ func (s *State) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.Theta.Decode(d); err != nil {
+	if err = s.Vartheta.Decode(d); err != nil {
 		return err
 	}
 

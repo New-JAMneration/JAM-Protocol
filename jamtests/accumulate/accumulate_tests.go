@@ -846,7 +846,7 @@ func (a *AccumulateTestCase) Dump() error {
 	cs.GetPosteriorStates().SetEta0(a.PreState.Entropy)
 
 	// Set ready queue
-	cs.GetPriorStates().SetTheta(a.PreState.ReadyQueue)
+	cs.GetPriorStates().SetVartheta(a.PreState.ReadyQueue)
 
 	// Set accumulated reports
 	cs.GetPriorStates().SetXi(a.PreState.Accumulated)
@@ -895,20 +895,20 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	ourTheta := cs.GetPosteriorStates().GetTheta()
-	if !reflect.DeepEqual(ourTheta, a.PostState.ReadyQueue) {
-		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
-		for i := range ourTheta {
+	ourVartheta := cs.GetPosteriorStates().GetVartheta()
+	if !reflect.DeepEqual(ourVartheta, a.PostState.ReadyQueue) {
+		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetVartheta()))
+		for i := range ourVartheta {
 			if a.PostState.ReadyQueue[i] == nil {
 				a.PostState.ReadyQueue[i] = []types.ReadyRecord{}
 			}
-			if ourTheta[i] == nil {
-				ourTheta[i] = []types.ReadyRecord{}
+			if ourVartheta[i] == nil {
+				ourVartheta[i] = []types.ReadyRecord{}
 			}
-			diff := cmp.Diff(ourTheta[i], a.PostState.ReadyQueue[i])
+			diff := cmp.Diff(ourVartheta[i], a.PostState.ReadyQueue[i])
 			if len(diff) != 0 {
-				log.Printf(Red+"Ready queue reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.ReadyQueue[i], ourTheta[i], diff)
-				return fmt.Errorf("theta[%d] diff:\n%v", i, diff)
+				log.Printf(Red+"Ready queue reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.ReadyQueue[i], ourVartheta[i], diff)
+				return fmt.Errorf("Vartheta[%d] diff:\n%v", i, diff)
 			}
 		}
 	}

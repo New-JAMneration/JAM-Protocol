@@ -1598,7 +1598,6 @@ type AccumulatedServiceHash struct {
 }
 
 // v0.6.7 (7.4)
-// TODO: rename LastAccOut to Theta, and Theta to Vartheta
 type LastAccOut []AccumulatedServiceHash
 
 // (12.15) B

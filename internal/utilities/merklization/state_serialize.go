@@ -62,7 +62,7 @@ func encodeGammaKey() types.StateKey {
 	return gammaWrapper.StateKeyConstruct()
 }
 
-func encodeGamma(gamma types.Gamma) types.ByteSequence {
+func encodeGamma(gamma types.SafroleState) types.ByteSequence {
 	encoder := types.NewEncoder()
 	encodedGamma, err := encoder.Encode(&gamma)
 	if err != nil {
@@ -206,19 +206,19 @@ func encodePi(pi types.Statistics) types.ByteSequence {
 	return encodedPi
 }
 
-// key 14: theta
-func encodeThetaKey() types.StateKey {
-	thetaWrapper := StateWrapper{StateIndex: 14}
-	return thetaWrapper.StateKeyConstruct()
+// key 14: vartheta
+func encodeVarthetaKey() types.StateKey {
+	varthetaWrapper := StateWrapper{StateIndex: 14}
+	return varthetaWrapper.StateKeyConstruct()
 }
 
-func encodeTheta(theta types.ReadyQueue) types.ByteSequence {
+func encodeVartheta(vartheta types.ReadyQueue) types.ByteSequence {
 	encoder := types.NewEncoder()
-	encodedTheta, err := encoder.Encode(&theta)
+	encodedVartheta, err := encoder.Encode(&vartheta)
 	if err != nil {
 		return nil
 	}
-	return encodedTheta
+	return encodedVartheta
 }
 
 // key 15: xi
@@ -236,21 +236,21 @@ func encodeXi(xi types.AccumulatedQueue) types.ByteSequence {
 	return encodedXi
 }
 
-// key 16: lastaccount (theta)
-func encodeLastAccKey() types.StateKey {
-	lastAccountWrapper := StateWrapper{StateIndex: 16}
-	return lastAccountWrapper.StateKeyConstruct()
+// key 16: theta (LastAccOut)
+func encodeThetaKey() types.StateKey {
+	thetaWrapper := StateWrapper{StateIndex: 16}
+	return thetaWrapper.StateKeyConstruct()
 }
 
-// value 16: lastaccount (theta)
-func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
+// value 16: theta (LastAccOut)
+func encodeTheta(theta types.LastAccOut) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
-	encodedLastAccount, err := encoder.Encode(&lastAccOut)
+	encodedTheta, err := encoder.Encode(&theta)
 	if err != nil {
 		return nil
 	}
 
-	return encodedLastAccount
+	return encodedTheta
 }
 
 func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequence) {
@@ -521,10 +521,10 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval13)
 
-	// key 14: theta
+	// key 14: vartheta
 	keyval14 := types.StateKeyVal{
-		Key:   encodeThetaKey(),
-		Value: encodeTheta(state.Theta),
+		Key:   encodeVarthetaKey(),
+		Value: encodeVartheta(state.Vartheta),
 	}
 	encoded = append(encoded, keyval14)
 
@@ -535,11 +535,10 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval15)
 
-	// key 16 theta lastaccout
-	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+	// key 16 theta (LastAccOut)
 	keyval16 := types.StateKeyVal{
-		Key:   encodeLastAccKey(),
-		Value: encodeLastAccOut(state.LastAccOut),
+		Key:   encodeThetaKey(),
+		Value: encodeTheta(state.Theta),
 	}
 	encoded = append(encoded, keyval16)
 

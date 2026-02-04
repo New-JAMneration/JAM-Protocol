@@ -37,7 +37,7 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	return output
 }
 
-// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: blockchain.theta
+// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: blockchain.Vartheta
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
 // This function identifies and stores work reports that are immediately
@@ -187,26 +187,26 @@ func UpdateAccumulatableWorkReports() {
 	m := int(slot) % E
 
 	// Get θ: the available work reports (ϑ)
-	theta := cs.GetPriorStates().GetTheta()
+	vartheta := cs.GetPriorStates().GetVartheta()
 	WQ := cs.GetIntermediateStates().GetQueuedWorkReports()
 	Wbang := cs.GetIntermediateStates().GetAccumulatedWorkReports()
 
 	// E(ϑm... ⌢ ϑ...m ⌢ WQ)
 	// Pre-calculate total capacity for composedQueue to avoid multiple reallocations
 	composedQueueCapacity := len(WQ)
-	for _, record := range theta[m:] {
+	for _, record := range vartheta[m:] {
 		composedQueueCapacity += len(record)
 	}
-	for _, record := range theta[:m] {
+	for _, record := range vartheta[:m] {
 		composedQueueCapacity += len(record)
 	}
 	composedQueue := make(types.ReadyQueueItem, 0, composedQueueCapacity)
 
-	for _, record := range theta[m:] {
+	for _, record := range vartheta[m:] {
 		composedQueue = append(composedQueue, record...)
 	}
 
-	for _, record := range theta[:m] {
+	for _, record := range vartheta[:m] {
 		composedQueue = append(composedQueue, record...)
 	}
 

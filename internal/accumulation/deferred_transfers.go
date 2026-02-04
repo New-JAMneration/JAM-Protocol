@@ -174,8 +174,8 @@ func updateXi(cs *blockchain.ChainState, n types.U64) {
 }
 
 // (12.33)
-// Update ReadyQueue(Theta)
-func updateTheta(cs *blockchain.ChainState) {
+// Update ReadyQueue(Vartheta)
+func updateVartheta(cs *blockchain.ChainState) {
 	// (12.10) let m = H_t mode E
 	headerSlot := cs.GetLatestBlock().Header.Slot
 	m := int(headerSlot) % types.EpochLength
@@ -192,9 +192,9 @@ func updateTheta(cs *blockchain.ChainState) {
 	// Get queued work reports
 	queueWorkReports := cs.GetIntermediateStates().GetQueuedWorkReports()
 
-	// Get prior theta and posterior theta (ReadyQueue)
-	priorTheta := cs.GetPriorStates().GetTheta()
-	posteriorTheta := cs.GetPosteriorStates().GetTheta()
+	// Get prior Vartheta and posterior Vartheta (ReadyQueue)
+	priorVartheta := cs.GetPriorStates().GetVartheta()
+	posteriorVartheta := cs.GetPosteriorStates().GetVartheta()
 
 	// Get posterior xi
 	posteriorXi := cs.GetPosteriorStates().GetXi()
@@ -202,23 +202,23 @@ func updateTheta(cs *blockchain.ChainState) {
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
 		index := (m - i + types.EpochLength) % types.EpochLength
-		index = index % len(posteriorTheta)
+		index = index % len(posteriorVartheta)
 
 		firstCondition := i == 0
 		secondCondition := (1 <= i) && (i < int(tauOffset))
 		thirdCondition := i >= int(tauOffset)
 
 		if firstCondition {
-			posteriorTheta[index] = QueueEditingFunction(queueWorkReports, posteriorXi[types.EpochLength-1])
+			posteriorVartheta[index] = QueueEditingFunction(queueWorkReports, posteriorXi[types.EpochLength-1])
 		} else if secondCondition {
-			posteriorTheta[index] = types.ReadyQueueItem{}
+			posteriorVartheta[index] = types.ReadyQueueItem{}
 		} else if thirdCondition {
-			posteriorTheta[index] = QueueEditingFunction(priorTheta[index], posteriorXi[types.EpochLength-1])
+			posteriorVartheta[index] = QueueEditingFunction(priorVartheta[index], posteriorXi[types.EpochLength-1])
 		}
 	}
 
-	// Update posterior theta
-	cs.GetPosteriorStates().SetTheta(posteriorTheta)
+	// Update posterior Vartheta
+	cs.GetPosteriorStates().SetVartheta(posteriorVartheta)
 }
 
 // (12.20) (12.21)
@@ -274,7 +274,7 @@ func executeOuterAccumulation(cs *blockchain.ChainState) (OuterAccumulationOutpu
 	// Convert accumulated service output (b) to the accumulation output log (θ′)
 	thetaPrime := make(types.LastAccOut, 0, len(b))
 	for accumulatedServiceHash := range b {
-		// append accumulatedServiceHash to lastAccOut
+		// append accumulatedServiceHash to theta
 		thetaPrime = append(thetaPrime, accumulatedServiceHash)
 	}
 
@@ -316,8 +316,8 @@ func DeferredTransfers() error {
 	updateXi(cs, n)
 
 	// (12.33)
-	// Update ReadyQueue(Theta)
-	updateTheta(cs)
+	// Update ReadyQueue(Vartheta)
+	updateVartheta(cs)
 
 	return nil
 }

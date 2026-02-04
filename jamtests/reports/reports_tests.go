@@ -724,7 +724,7 @@ func (r *ReportsTestCase) Dump() error {
 	cs.GetPosteriorStates().SetTau(r.Input.Slot)
 
 	// set known_packages
-	// known_packages can be either xi or theta
+	// known_packages can be either xi or vartheta
 	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
 	xi := types.AccumulatedQueue{item}
 	cs.GetPriorStates().SetXi(xi)

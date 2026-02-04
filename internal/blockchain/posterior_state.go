@@ -16,11 +16,11 @@ type PosteriorStates struct {
 func NewPosteriorStates() *PosteriorStates {
 	return &PosteriorStates{
 		state: &types.State{
-			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
-			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			LastAccOut: types.LastAccOut{},
-			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
-			Alpha:      make(types.AuthPools, types.CoresCount),
+			Vartheta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:       make(types.AccumulatedQueue, types.EpochLength),
+			Theta:    make(types.LastAccOut, 0, 16), // Pre-allocate with small initial capacity
+			Rho:      make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:    make(types.AuthPools, types.CoresCount),
 			Pi: types.Statistics{
 				ValsCurr: types.ValidatorsStatistics{},
 				ValsLast: types.ValidatorsStatistics{},
@@ -92,14 +92,14 @@ func (s *PosteriorStates) GetBeta() types.RecentBlocks {
 }
 
 // SetGamma sets the gamma value
-func (s *PosteriorStates) SetGamma(gamma types.Gamma) {
+func (s *PosteriorStates) SetGamma(gamma types.SafroleState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Gamma = gamma
 }
 
 // GetGamma returns the gamma value
-func (s *PosteriorStates) GetGamma() types.Gamma {
+func (s *PosteriorStates) GetGamma() types.SafroleState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Gamma
@@ -497,18 +497,18 @@ func (s *PosteriorStates) GetServicesStatistics() types.ServicesStatistics {
 	return s.state.Pi.Services
 }
 
-// SetTheta sets the theta value
-func (s *PosteriorStates) SetTheta(theta types.ReadyQueue) {
+// SetVartheta sets the vartheta value
+func (s *PosteriorStates) SetVartheta(vartheta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Theta = theta
+	s.state.Vartheta = vartheta
 }
 
-// GetTheta returns the theta value
-func (s *PosteriorStates) GetTheta() types.ReadyQueue {
+// GetVartheta returns the vartheta value
+func (s *PosteriorStates) GetVartheta() types.ReadyQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Theta
+	return s.state.Vartheta
 }
 
 // SetXi sets the xi value
@@ -528,11 +528,11 @@ func (s *PosteriorStates) GetXi() types.AccumulatedQueue {
 func (s *PosteriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.LastAccOut = c
+	s.state.Theta = c
 }
 
 func (s *PosteriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.LastAccOut
+	return s.state.Theta
 }
