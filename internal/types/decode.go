@@ -427,32 +427,32 @@ func (t *TicketsExtrinsic) Decode(d *Decoder) error {
 	return nil
 }
 
-// ServiceId
-func (s *ServiceId) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding ServiceId")
+// ServiceID
+func (s *ServiceID) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceID")
 
-	var val ServiceId
+	var val ServiceID
 	err := binary.Read(d.buf, binary.LittleEndian, &val)
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
 
 	*s = val
 	return nil
 }
 
-// ServiceIdList
-func (s *ServiceIdList) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding ServiceIdList")
-	val := make([]ServiceId, CoresCount)
+// ServiceIDList
+func (s *ServiceIDList) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceIDList")
+	val := make([]ServiceID, CoresCount)
 	for i := 0; i < CoresCount; i++ {
 		var err error
 		if err = val[i].Decode(d); err != nil {
 			return err
 		}
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
 	*s = val
 	return nil
 }
@@ -867,7 +867,7 @@ func (w *WorkResult) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = w.ServiceId.Decode(d); err != nil {
+	if err = w.ServiceID.Decode(d); err != nil {
 		return err
 	}
 
@@ -1819,7 +1819,7 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 	services := make(ServicesStatistics)
 
 	for i := uint64(0); i < length; i++ {
-		var serviceId ServiceId
+		var serviceId ServiceID
 		if err = serviceId.Decode(d); err != nil {
 			return err
 		}
@@ -1829,7 +1829,7 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 			return err
 		}
 
-		services[ServiceId(serviceId)] = serviceActivityRecord
+		services[ServiceID(serviceId)] = serviceActivityRecord
 	}
 
 	*s = services
@@ -2667,7 +2667,7 @@ func (a *AlwaysAccumulateMap) Decode(d *Decoder) error {
 	*a = make(AlwaysAccumulateMap, length)
 
 	for i := uint64(0); i < length; i++ {
-		var key ServiceId
+		var key ServiceID
 		if err = key.Decode(d); err != nil {
 			return err
 		}
@@ -2921,8 +2921,8 @@ func (a *ServiceAccountState) Decode(d *Decoder) error {
 	*a = make(ServiceAccountState, length)
 
 	for i := uint64(0); i < length; i++ {
-		// Decode key (ServiceId)
-		var key ServiceId
+		// Decode key (ServiceID)
+		var key ServiceID
 		if err = key.Decode(d); err != nil {
 			return err
 		}
@@ -3348,7 +3348,7 @@ func (a *AccumulatedServiceHash) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = a.ServiceId.Decode(d); err != nil {
+	if err = a.ServiceID.Decode(d); err != nil {
 		return err
 	}
 

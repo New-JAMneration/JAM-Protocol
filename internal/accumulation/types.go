@@ -36,7 +36,7 @@ type SingleServiceAccumulationInput struct {
 	DeferredTransfers   []types.DeferredTransfer  // t   deferred transfers
 	WorkReports         []types.WorkReport        // r   a sequence of work-reports
 	AlwaysAccumulateMap types.AlwaysAccumulateMap // f   a dictionary of privileged always-accumulate services
-	ServiceId           types.ServiceId           // s   a service index
+	ServiceID           types.ServiceID           // s   a service index
 	UnmatchedKeyVals    types.StateKeyVals        // storage key-value pairs that were not matched yet
 }
 

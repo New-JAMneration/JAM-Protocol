@@ -136,7 +136,7 @@ func (v ValidatorsData) Validate() error {
 
 // Service
 
-type ServiceId U32
+type ServiceID U32
 
 type ServiceInfo struct {
 	CodeHash   OpaqueHash `json:"code_hash,omitempty"`
@@ -279,7 +279,7 @@ type Authorizer struct {
 }
 
 type WorkItem struct {
-	Service            ServiceId       `json:"service,omitempty"`
+	Service            ServiceID       `json:"service,omitempty"`
 	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
 	Payload            ByteSequence    `json:"payload,omitempty"`
 	RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`
@@ -304,7 +304,7 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 
 type WorkPackage struct {
 	Authorization ByteSequence  `json:"authorization,omitempty"`
-	AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"`
+	AuthCodeHost  ServiceID     `json:"auth_code_host,omitempty"`
 	Authorizer    Authorizer    `json:"authorizer"`
 	Context       RefineContext `json:"context"`
 	Items         []WorkItem    `json:"items,omitempty"`
@@ -357,7 +357,7 @@ func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResul
 }
 
 type WorkResult struct {
-	ServiceId     ServiceId      `json:"service_id,omitempty"`
+	ServiceID     ServiceID      `json:"service_id,omitempty"`
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
 	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
 	AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
@@ -643,7 +643,7 @@ func (d *DisputesExtrinsic) ScaleEncode() ([]byte, error) {
 // Preimages
 
 type Preimage struct {
-	Requester ServiceId    `json:"requester,omitempty"`
+	Requester ServiceID    `json:"requester,omitempty"`
 	Blob      ByteSequence `json:"blob,omitempty"`
 }
 

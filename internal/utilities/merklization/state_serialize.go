@@ -335,8 +335,8 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	return output
 }
 
-func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKeyVal types.StateKeyVal) {
-	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceId(id)}
+func encodeDelta1KeyVal(id types.ServiceID, delta types.ServiceAccount) (stateKeyVal types.StateKeyVal) {
+	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceID(id)}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: encodeDelta1(delta),
@@ -356,11 +356,11 @@ var (
 
 const uint32EncodedLen = 4
 
-func WrapEncodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func WrapEncodeDelta2KeyVal(id types.ServiceID, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	return encodeDelta2KeyVal(id, key, value)
 }
 
-func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func encodeDelta2KeyVal(id types.ServiceID, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, delta2PrefixLen+len(key))
 	copy(h[:delta2PrefixLen], delta2Prefix)
 	copy(h[delta2PrefixLen:], key)
@@ -374,7 +374,7 @@ func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.
 	return stateKeyVal
 }
 
-func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func encodeDelta3KeyVal(id types.ServiceID, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, delta3PrefixLen+len(key))
 	copy(h[:delta3PrefixLen], delta3Prefix)
 	copy(h[delta3PrefixLen:], key[:])
@@ -388,7 +388,7 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	return stateKeyVal
 }
 
-func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.StateKey {
+func EncodeDelta4Key(id types.ServiceID, key types.LookupMetaMapkey) types.StateKey {
 	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
 	v := uint32(key.Length)
 	h[0] = byte(v)
@@ -401,7 +401,7 @@ func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.State
 	return serviceWrapper.StateKeyConstruct()
 }
 
-func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
+func EncodeDelta4KeyVal(id types.ServiceID, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
 	v := uint32(key.Length)
 	h[0] = byte(v)

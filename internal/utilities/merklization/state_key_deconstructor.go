@@ -15,30 +15,30 @@ func C(stateIndex types.U8) types.StateKey {
 }
 
 // (D.1) type 2 (i, s): delta
-func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceId, error) {
+func DecodeServiceIdFromType2(stateKey types.StateKey) (types.ServiceID, error) {
 	// Decode the service Id from the state key
 	// service id = [k1, k3, k5, k7]
 	encodedServiceId := types.ByteSequence{stateKey[1], stateKey[3], stateKey[5], stateKey[7]}
 	decoder := types.NewDecoder()
-	var serviceId types.ServiceId
+	var serviceId types.ServiceID
 	err := decoder.Decode(encodedServiceId, &serviceId)
 	if err != nil {
-		return types.ServiceId(0), err
+		return types.ServiceID(0), err
 	}
 
 	return serviceId, nil
 }
 
 // (D.1) type 3 (s, h): a_s, a_p, a_l
-func DecodeServiceIdFromType3(stateKey types.StateKey) (types.ServiceId, error) {
+func DecodeServiceIdFromType3(stateKey types.StateKey) (types.ServiceID, error) {
 	// Decode the service Id from the state key
 	// service id = [k0, k2, k4, k6]
 	encodedServiceId := types.ByteSequence{stateKey[0], stateKey[2], stateKey[4], stateKey[6]}
 	decoder := types.NewDecoder()
-	var serviceId types.ServiceId
+	var serviceId types.ServiceID
 	err := decoder.Decode(encodedServiceId, &serviceId)
 	if err != nil {
-		return types.ServiceId(0), err
+		return types.ServiceID(0), err
 	}
 
 	return serviceId, nil

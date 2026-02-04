@@ -58,7 +58,7 @@ func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 		Items                U32       `json:"items,omitempty"`
 		CreationSlot         TimeSlot  `json:"creation_slot,omitempty"`
 		LastAccumulationSlot TimeSlot  `json:"last_accumulation_slot,omitempty"`
-		ParentService        ServiceId `json:"parent_service,omitempty"`
+		ParentService        ServiceID `json:"parent_service,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -219,7 +219,7 @@ func (w *WorkItem) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	w.Service = ServiceId(temp.Service)
+	w.Service = ServiceID(temp.Service)
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -262,7 +262,7 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	}
 	w.Authorization = ByteSequence(authorizationBytes)
 
-	w.AuthCodeHost = ServiceId(temp.AuthCodeHost)
+	w.AuthCodeHost = ServiceID(temp.AuthCodeHost)
 
 	codeHashBytes, err := hex.DecodeString(temp.AuthCodeHash[2:])
 	if err != nil {
@@ -307,7 +307,7 @@ func (r *RefineLoad) UnmarshalJSON(data []byte) error {
 
 func (w *WorkResult) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		ServiceId     U32            `json:"service_id,omitempty"`
+		ServiceID     U32            `json:"service_id,omitempty"`
 		CodeHash      string         `json:"code_hash,omitempty"`
 		PayloadHash   string         `json:"payload_hash,omitempty"`
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
@@ -319,7 +319,7 @@ func (w *WorkResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	w.ServiceId = ServiceId(temp.ServiceId)
+	w.ServiceID = ServiceID(temp.ServiceID)
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -786,7 +786,7 @@ func (p *Preimage) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	p.Requester = ServiceId(temp.Requester)
+	p.Requester = ServiceID(temp.Requester)
 
 	blobBytes, err := hex.DecodeString(temp.Blob[2:])
 	if err != nil {
@@ -1521,7 +1521,7 @@ func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.Id = ServiceId(temp.Id)
+	a.Id = ServiceID(temp.Id)
 	a.Data = temp.Data
 
 	return nil
@@ -1667,16 +1667,16 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	p.Bless = ServiceId(temp.Bless)
-	p.Assign = make(ServiceIdList, len(temp.Assign))
+	p.Bless = ServiceID(temp.Bless)
+	p.Assign = make(ServiceIDList, len(temp.Assign))
 	for i, id := range temp.Assign {
-		p.Assign[i] = ServiceId(id)
+		p.Assign[i] = ServiceID(id)
 	}
-	p.Designate = ServiceId(temp.Designate)
-	p.CreateAcct = ServiceId(temp.CreateAcct)
+	p.Designate = ServiceID(temp.Designate)
+	p.CreateAcct = ServiceID(temp.CreateAcct)
 	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
-		p.AlwaysAccum[entry.ServiceId] = entry.Gas
+		p.AlwaysAccum[entry.ServiceID] = entry.Gas
 	}
 
 	return nil
@@ -1700,7 +1700,7 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 
 	*s = make(ServicesStatistics, len(temp))
 	for _, item := range temp {
-		(*s)[ServiceId(item.Id)] = item.Record
+		(*s)[ServiceID(item.Id)] = item.Record
 	}
 
 	return nil

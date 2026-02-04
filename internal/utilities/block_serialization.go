@@ -67,7 +67,7 @@ func ExtrinsicPreimageSerialization(preimages types.PreimagesExtrinsic) (output 
 	/*
 		(C.15) E(↕[s, ↕p])
 
-		Requester ServiceId    `json:"requester,omitempty"`
+		Requester ServiceID    `json:"requester,omitempty"`
 		Blob      ByteSequence `json:"blob,omitempty"`
 	*/
 	output = append(output, SerializeU64(types.U64(len(preimages)))...)
@@ -409,7 +409,7 @@ func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence
 	/*
 		(C.23) E(x ∈ L) ≡ E(E4(xs)) ⌢ E(xc, xy) ⌢ E(E8(xg)) ⌢ E(O(xd)) ⌢ E(xu, xi, xx, xz, xe)
 
-		ServiceId     ServiceId      `json:"service_id,omitempty"`
+		ServiceID     ServiceID      `json:"service_id,omitempty"`
 		CodeHash      OpaqueHash     `json:"code_hash,omitempty"`
 		PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
@@ -418,7 +418,7 @@ func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence
 	*/
 	// E(E4(xs))
 	// output = append(output, SerializeByteSequence([]byte{0xe0})...)
-	output = append(output, SerializeFixedLength(types.U64(result.ServiceId), 4)...)
+	output = append(output, SerializeFixedLength(types.U64(result.ServiceID), 4)...)
 	// E(xc)
 	// output = append(output, SerializeByteSequence([]byte{0xe1})...)
 	output = append(output, SerializeOpaqueHash(result.CodeHash)...)
@@ -503,7 +503,7 @@ func SerializeWorkPackage(work_package types.WorkPackage) (output types.ByteSequ
 		(C.25) E(x ∈ P) ≡ E(↕xj, E4(xh), xu, ↕xp, xx, ↕xw)
 		type WorkPackage struct {
 			Authorization ByteSequence  `json:"authorization,omitempty"`
-			AuthCodeHost  ServiceId     `json:"auth_code_host,omitempty"`
+			AuthCodeHost  ServiceID     `json:"auth_code_host,omitempty"`
 			Authorizer    Authorizer    `json:"authorizer"`
 			Context       RefineContext `json:"context"`
 			Items         []WorkItem    `json:"items,omitempty"`
@@ -527,7 +527,7 @@ func WorkItemSerialization(work_item types.WorkItem) (output types.ByteSequence)
 	/*
 		(C.26) E(x ∈ I) ≡ E(E4(xs), xc, ↕xy, E8(xg), ↕E#I(xi), ↕[(h, E4(i)) ∣ (h, i) <− xx], E2(xe))
 		type WorkItem struct {
-			Service            ServiceId       `json:"service,omitempty"`
+			Service            ServiceID       `json:"service,omitempty"`
 			CodeHash           OpaqueHash      `json:"code_hash,omitempty"`
 			Payload            ByteSequence    `json:"payload,omitempty"`
 			RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`
@@ -580,8 +580,8 @@ func DeferredTransferSerialization(transfer types.DeferredTransfer) (output type
 		(C.28) E(x ∈ T) ≡ E(E4(xs), E4(xd), E8(xa), E(xm), E8(xg))
 
 		type DeferredTransfer struct {
-			SenderID   ServiceId `json:"senderid"`
-			ReceiverID ServiceId `json:"receiverid"`
+			SenderID   ServiceID `json:"senderid"`
+			ReceiverID ServiceID `json:"receiverid"`
 			Balance    U64       `json:"balance"`
 			Memo       [128]byte `json:"memo"`
 			GasLimit   Gas       `json:"gas"`
