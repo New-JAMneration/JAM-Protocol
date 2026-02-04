@@ -41,12 +41,12 @@ func decodeBeta(encodedValue types.ByteSequence) (types.RecentBlocks, error) {
 }
 
 // C(4)
-func decodeGamma(encodedValue types.ByteSequence) (types.Gamma, error) {
-	output := types.Gamma{}
+func decodeGamma(encodedValue types.ByteSequence) (types.SafroleState, error) {
+	output := types.SafroleState{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(encodedValue, &output)
 	if err != nil {
-		return types.Gamma{}, err
+		return types.SafroleState{}, err
 	}
 
 	return output, nil
@@ -161,7 +161,7 @@ func decodePi(encodedValue types.ByteSequence) (types.Statistics, error) {
 }
 
 // C(14)
-func decodeTheta(encodedValue types.ByteSequence) (types.ReadyQueue, error) {
+func decodeVartheta(encodedValue types.ByteSequence) (types.ReadyQueue, error) {
 	output := types.ReadyQueue{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(encodedValue, &output)
@@ -185,8 +185,8 @@ func decodeXi(encodedValue types.ByteSequence) (types.AccumulatedQueue, error) {
 }
 
 // C(16)
-// theta LastAccOut
-func decodeThetaAccOut(encodedValue types.ByteSequence) (types.LastAccOut, error) {
+// theta (LastAccOut)
+func decodeTheta(encodedValue types.ByteSequence) (types.LastAccOut, error) {
 	output := types.LastAccOut{}
 	decoder := types.NewDecoder()
 	err := decoder.Decode(encodedValue, &output)

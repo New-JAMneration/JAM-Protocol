@@ -2426,9 +2426,9 @@ func (a *AccumulateRoot) Encode(e *Encoder) error {
 	return nil
 }
 
-// Gamma
-func (g *Gamma) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding Gamma")
+// SafroleState
+func (g *SafroleState) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding SafroleState")
 
 	// GammaK
 	if err := g.GammaK.Encode(e); err != nil {
@@ -2771,8 +2771,8 @@ func (s *State) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Theta
-	if err := s.Theta.Encode(e); err != nil {
+	// Vartheta
+	if err := s.Vartheta.Encode(e); err != nil {
 		return err
 	}
 
@@ -3113,10 +3113,9 @@ func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	return nil
 }
 
-// (7.4) LastAccOut
-// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+// (7.4) Theta
 func (l *LastAccOut) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding LastAccOut")
+	cLog(Cyan, "Encoding Theta")
 
 	// Encode the size of the slice
 	if err := e.EncodeLength(uint64(len(*l))); err != nil {

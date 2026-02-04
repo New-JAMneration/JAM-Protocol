@@ -332,15 +332,15 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 		}
 		return pi, nil
 	case C(14):
-		// Decode the theta
+		// Decode the vartheta
 		cLog(Yellow, "[C(14)]")
 		printStateKey(Cyan, stateKey)
 		printStateValue(stateVal)
-		theta, err := decodeTheta(stateVal)
+		vartheta, err := decodeVartheta(stateVal)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode theta: %w", err)
+			return nil, fmt.Errorf("failed to decode vartheta: %w", err)
 		}
-		return theta, nil
+		return vartheta, nil
 	case C(15):
 		// Decode the xi
 		cLog(Yellow, "[C(15)]")
@@ -356,11 +356,11 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 		cLog(Yellow, "[C(16)]")
 		printStateKey(Cyan, stateKey)
 		printStateValue(stateVal)
-		lastAccOut, err := decodeThetaAccOut(stateVal)
+		theta, err := decodeTheta(stateVal)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode theta: %w", err)
 		}
-		return lastAccOut, nil
+		return theta, nil
 	default:
 		// C(255, s)
 		if IsServiceInfoKey(stateKey) {
@@ -557,15 +557,15 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			state.Pi = pi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(14):
-			// Decode the theta
+			// Decode the vartheta
 			cLog(Yellow, "[C(14)]")
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
-			theta, err := decodeTheta(stateVal)
+			vartheta, err := decodeVartheta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
+				return state, nil, fmt.Errorf("failed to decode vartheta: %w", err)
 			}
-			state.Theta = theta
+			state.Vartheta = vartheta
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(15):
 			// Decode the xi
@@ -583,11 +583,11 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			cLog(Yellow, "[C(16)]")
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
-			lastAccOut, err := decodeThetaAccOut(stateVal)
+			theta, err := decodeTheta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
 			}
-			state.LastAccOut = lastAccOut
+			state.Theta = theta
 			delete(unmatchedStateKeyVals, stateKey)
 		default:
 			// C(255, s)

@@ -6,28 +6,27 @@ import (
 
 // (4.4)
 type State struct {
-	Alpha  AuthPools               `json:"alpha"`
-	Varphi AuthQueues              `json:"varphi"`
-	Beta   RecentBlocks            `json:"beta"`
-	Gamma  Gamma                   `json:"gamma"`
-	Psi    DisputesRecords         `json:"psi"`
-	Eta    EntropyBuffer           `json:"eta"`
-	Iota   ValidatorsData          `json:"iota"`
-	Kappa  ValidatorsData          `json:"kappa"`
-	Lambda ValidatorsData          `json:"lambda"`
-	Rho    AvailabilityAssignments `json:"rho"`
-	Tau    TimeSlot                `json:"tau"`
-	Chi    Privileges              `json:"chi"`
-	Pi     Statistics              `json:"pi"`
-	Theta  ReadyQueue              `json:"theta"`
-	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
-	LastAccOut LastAccOut
-	Xi         AccumulatedQueue    `json:"xi"`
-	Delta      ServiceAccountState `json:"accounts"`
+	Alpha    AuthPools               `json:"alpha"`
+	Varphi   AuthQueues              `json:"varphi"`
+	Beta     RecentBlocks            `json:"beta"`
+	Gamma    SafroleState            `json:"gamma"`
+	Psi      DisputesRecords         `json:"psi"`
+	Eta      EntropyBuffer           `json:"eta"`
+	Iota     ValidatorsData          `json:"iota"`
+	Kappa    ValidatorsData          `json:"kappa"`
+	Lambda   ValidatorsData          `json:"lambda"`
+	Rho      AvailabilityAssignments `json:"rho"`
+	Tau      TimeSlot                `json:"tau"`
+	Chi      Privileges              `json:"chi"`
+	Pi       Statistics              `json:"pi"`
+	Vartheta ReadyQueue              `json:"theta"`
+	Theta LastAccOut
+	Xi    AccumulatedQueue    `json:"xi"`
+	Delta ServiceAccountState `json:"accounts"`
 }
 
 // (6.3)
-type Gamma struct {
+type SafroleState struct {
 	GammaK ValidatorsData             `json:"gamma_k"`
 	GammaZ BandersnatchRingCommitment `json:"gamma_z"`
 	GammaS TicketsOrKeys              `json:"gamma_s"`
@@ -137,7 +136,7 @@ var KeyValMap = map[StateKey]string{
 	{11}: "tau",
 	{12}: "chi",
 	{13}: "pi",
-	{14}: "theta",
+	{14}: "vartheta",
 	{15}: "xi",
-	{16}: "vartheta",
+	{16}: "theta",
 }
