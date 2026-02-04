@@ -27,7 +27,7 @@ After that, adding those preimages into delta anchored with time for each servic
 */
 
 // v0.6.4 (12.36) R function determines whether a preimage should be integrated
-func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h types.OpaqueHash, l types.U32, keyVals *types.StateKeyVals, parseToState bool) bool {
+func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceID, h types.OpaqueHash, l types.U32, keyVals *types.StateKeyVals, parseToState bool) bool {
 	// Check for existence of the service account
 	account, isInAccount := d[s]
 	if !isInAccount || account.PreimageLookup == nil || account.LookupDict == nil {
@@ -60,7 +60,7 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceId, h t
 	return !isInPreimageMap && (len(timeSlotSet) == 0)
 }
 
-func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceId) bool {
+func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceID) bool {
 	if len(keyVals) == 0 {
 		return false
 	}
@@ -79,7 +79,7 @@ func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey
 	return false
 }
 
-func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceId) bool {
+func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceID) bool {
 	if len(*keyVals) == 0 {
 		return false
 	}
@@ -202,7 +202,7 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 			Length: preimageLength,
 		}
 
-		// Check if ServiceId exists in deltaDoubleDagger
+		// Check if ServiceID exists in deltaDoubleDagger
 		serviceAccount, exists := deltaDoubleDagger[ep.Requester]
 		if !exists {
 			return nil, errors.New("service account not found")

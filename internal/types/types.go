@@ -21,19 +21,31 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
+type ErrorCode U8
+
+func (e *ErrorCode) Error() string {
+	if e == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v", *e)
+}
+
+/*
+	Basically follow jam-test-vectors/lib/jam-types.asn to define the types.
+*/
+
 // Simple
 
-type U8 uint8
-
-type U16 uint16
-
-type U32 uint32
+type (
+	U8  uint8
+	U16 uint16
+	U32 uint32
+	U64 uint64
+)
 
 type (
-	U64          uint64
 	ByteSequence []byte
 	ByteArray32  [32]byte
-	ByteString   string
 )
 
 type BitSequence []bool
@@ -74,17 +86,8 @@ type (
 	ErasureRoot     OpaqueHash
 )
 
-type (
-	ErrorCode U8
-	Gas       U64
-)
-
-func (e *ErrorCode) Error() string {
-	if e == nil {
-		return "nil"
-	}
-	return fmt.Sprintf("%v", *e)
-}
+// Gas unit
+type Gas U64
 
 type (
 	Entropy       OpaqueHash
@@ -112,8 +115,8 @@ func (v ValidatorsData) Validate() error {
 // Service
 
 type (
-	ServiceId     U32
-	ServiceIdList []ServiceId
+	ServiceID     U32
+	ServiceIDList []ServiceID
 )
 
 // ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
@@ -127,7 +130,7 @@ type ServiceInfo struct {
 	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"`           // a_m
 	CreationSlot         TimeSlot   `json:"creation_slot,omitempty"`          // a_r
 	LastAccumulationSlot TimeSlot   `json:"last_accumulation_slot,omitempty"` // a_a
-	ParentService        ServiceId  `json:"parent_service,omitempty"`         // a_p
+	ParentService        ServiceID  `json:"parent_service,omitempty"`         // a_p
 	Bytes                U64        `json:"bytes,omitempty"`                  // a_o
 	Items                U32        `json:"items,omitempty"`                  // a_i
 }
@@ -294,7 +297,7 @@ type ExtrinsicSpec struct {
 
 // v0.6.3 (14.3) Work Item $\mathbb{I}$
 type WorkItem struct {
-	Service            ServiceId       `json:"service,omitempty"`              // service index $s$
+	Service            ServiceID       `json:"service,omitempty"`              // service index $s$
 	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`            // code hash of the service $c$
 	Payload            ByteSequence    `json:"payload,omitempty"`              // payload blob $\mathbf{y}$
 	RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`     // refinement gas limit $g$
@@ -319,7 +322,7 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 
 // v0.7.0 (14.2) Work Package
 type WorkPackage struct {
-	AuthCodeHost     ServiceId     `json:"auth_code_host,omitempty"`    // host service index h
+	AuthCodeHost     ServiceID     `json:"auth_code_host,omitempty"`    // host service index h
 	AuthCodeHash     OpaqueHash    `json:"auth_code_hash,omitempty"`    // u
 	Context          RefineContext `json:"context"`                     // c
 	Authorization    ByteSequence  `json:"authorization,omitempty"`     // authorization token j
@@ -443,7 +446,7 @@ type RefineLoad struct {
 // v0.6.4 (11.6) WorkResult $\mathbb{L}$
 // v0.7.0 (11.6) Work Digest
 type WorkResult struct {
-	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
+	ServiceID     ServiceID      `json:"service_id,omitempty"`     // s
 	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
 	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`   // y
 	AccumulateGas Gas            `json:"accumulate_gas,omitempty"` // g
@@ -647,7 +650,7 @@ type ServiceActivityRecord struct {
 	AccumulateGasUsed Gas `json:"accumulate_gas_used,omitempty"`
 }
 
-type ServicesStatistics map[ServiceId]ServiceActivityRecord
+type ServicesStatistics map[ServiceID]ServiceActivityRecord
 
 // v0.6.4 (13.1)
 type Statistics struct {
@@ -811,7 +814,7 @@ func (d *DisputesExtrinsic) ScaleEncode() ([]byte, error) {
 // Preimages
 
 type Preimage struct {
-	Requester ServiceId    `json:"requester,omitempty"`
+	Requester ServiceID    `json:"requester,omitempty"`
 	Blob      ByteSequence `json:"blob,omitempty"`
 }
 
@@ -1446,8 +1449,8 @@ func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
 // (12.14) deferred transfer
 // X = deferred-transfer
 type DeferredTransfer struct {
-	SenderID   ServiceId `json:"senderid"`
-	ReceiverID ServiceId `json:"receiverid"`
+	SenderID   ServiceID `json:"senderid"`
+	ReceiverID ServiceID `json:"receiverid"`
 	Balance    U64       `json:"balance"`
 	Memo       [128]byte `json:"memo"`
 	GasLimit   Gas       `json:"gas"`
@@ -1471,19 +1474,19 @@ type (
 	AccumulatedQueue     []AccumulatedQueueItem // SEQUENCE (SIZE(epoch-length)) OF AccumulatedQueueItem
 )
 
-type AlwaysAccumulateMap map[ServiceId]Gas
+type AlwaysAccumulateMap map[ServiceID]Gas
 
 // jam-types.asn AlwaysAccumulateMapEntry
 type AlwaysAccumulateMapDTO struct {
-	ServiceId ServiceId `json:"id"`
+	ServiceID ServiceID `json:"id"`
 	Gas       Gas       `json:"gas"`
 }
 
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // XM
-	Designate   ServiceId           `json:"chi_v"` // XV
-	CreateAcct  ServiceId           `json:"chi_r"` // XR
-	Assign      ServiceIdList       `json:"chi_a"` // XA
+	Bless       ServiceID           `json:"chi_m"` // XM
+	Designate   ServiceID           `json:"chi_v"` // XV
+	CreateAcct  ServiceID           `json:"chi_r"` // XR
+	Assign      ServiceIDList       `json:"chi_a"` // XA
 	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
 }
 
@@ -1494,10 +1497,10 @@ type PartialStateSet struct {
 	ServiceAccounts ServiceAccountState // d
 	ValidatorKeys   ValidatorsData      // i
 	Authorizers     AuthQueues          // q
-	Bless           ServiceId           // m
-	Assign          ServiceIdList       // a
-	Designate       ServiceId           // v
-	CreateAcct      ServiceId           // r
+	Bless           ServiceID           // m
+	Assign          ServiceIDList       // a
+	Designate       ServiceID           // v
+	CreateAcct      ServiceID           // r
 	AlwaysAccum     AlwaysAccumulateMap // z
 }
 
@@ -1547,7 +1550,7 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	}
 
 	// Assign
-	copiedAssign := make(ServiceIdList, len(origin.Assign))
+	copiedAssign := make(ServiceIDList, len(origin.Assign))
 	copy(copiedAssign, origin.Assign)
 	/*
 		for idx, serviceID := range copiedAssign {
@@ -1588,12 +1591,12 @@ type OperandOrDeferredTransfer struct {
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
-	ServiceId ServiceId
+	ServiceID ServiceID
 	Gas       Gas
 }
 
 type AccumulatedServiceHash struct {
-	ServiceId ServiceId
+	ServiceID ServiceID
 	Hash      OpaqueHash // AccumulationOutput
 }
 
@@ -1615,7 +1618,7 @@ type GasAndNumAccumulatedReports struct {
 // (12.26)
 // S: accumulation statistics
 // dictionary<serviceId, (gas used, the number of work-reports accumulated)>
-type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+type AccumulationStatistics map[ServiceID]GasAndNumAccumulatedReports
 
 // (12.29)
 type NumDeferredTransfersAndTotalGasUsed struct {
@@ -1654,7 +1657,7 @@ type WorkPackageBundle struct {
 
 // v0.6.5
 type ServiceBlob struct {
-	ServiceID ServiceId
+	ServiceID ServiceID
 	Blob      []byte
 }
 type ServiceBlobs []ServiceBlob

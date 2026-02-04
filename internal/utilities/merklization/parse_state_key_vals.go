@@ -49,7 +49,7 @@ func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, err
 	// The preimage value is a ByteSequence
 	preimageValue := stateVal
 
-	// Get ServiceId from state key
+	// Get ServiceID from state key
 	serviceId, err := DecodeServiceIdFromType3(stateKey)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse service ID from state key: %w", err)
@@ -67,7 +67,7 @@ func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, err
 }
 
 func IsLookup(stateKey types.StateKey, stateVal types.ByteSequence) bool {
-	// Get ServiceId from state key
+	// Get ServiceID from state key
 	serviceId, _ := DecodeServiceIdFromType3(stateKey)
 
 	// Lookup key = (preimage hash, preimage length)
@@ -82,7 +82,7 @@ func IsLookup(stateKey types.StateKey, stateVal types.ByteSequence) bool {
 	return lookupStateKey == stateKey
 }
 
-func updateServiceInfo(state *types.State, serviceId types.ServiceId, serviceInfo types.ServiceInfo) {
+func updateServiceInfo(state *types.State, serviceId types.ServiceID, serviceInfo types.ServiceInfo) {
 	// Check if the service account exists
 	serviceAccount, exists := state.Delta[serviceId]
 	if !exists {
@@ -100,7 +100,7 @@ func updateServiceInfo(state *types.State, serviceId types.ServiceId, serviceInf
 	state.Delta[serviceId] = serviceAccount
 }
 
-func updatePreimage(state *types.State, serviceId types.ServiceId, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
+func updatePreimage(state *types.State, serviceId types.ServiceID, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
 	// Check if the service account exists
 	serviceAccount, exists := state.Delta[serviceId]
 	if !exists {
@@ -118,7 +118,7 @@ func updatePreimage(state *types.State, serviceId types.ServiceId, preimageKey t
 	state.Delta[serviceId] = serviceAccount
 }
 
-func updateLookup(state *types.State, serviceId types.ServiceId, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
+func updateLookup(state *types.State, serviceId types.ServiceID, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
 	// Check if the service account exists
 	serviceAccount, exists := state.Delta[serviceId]
 	if !exists {
@@ -368,7 +368,7 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
 			delta := types.ServiceAccountState{}
-			// ServiceId
+			// ServiceID
 			serviceId, err := DecodeServiceIdFromType2(stateKey)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode service ID: %w", err)
@@ -596,7 +596,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				printStateKey(Cyan, stateKey)
 				printStateValue(stateVal)
 
-				// ServiceId
+				// ServiceID
 				serviceId, err := DecodeServiceIdFromType2(stateKey)
 				if err != nil {
 					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
@@ -612,7 +612,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				continue
 			}
 
-			// ServiceId
+			// ServiceID
 			serviceId, err := DecodeServiceIdFromType3(stateKey)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode service ID: %w", err)

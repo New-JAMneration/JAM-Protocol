@@ -56,7 +56,7 @@ func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.Pa
 // s: serviceId
 // NOTE: While it is possible to refactor the function to use a map where the key is the service ID and the value is the number of work results,
 // this approach would differ from the graypaper and is not being implemented at this time.
-func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
+func getWorkResultByService(s types.ServiceID, n types.U64) []types.WorkResult {
 	// Get W^*
 	cs := blockchain.GetInstance()
 	accumulatableWorkReports := cs.GetIntermediateStates().GetAccumulatableWorkReports()
@@ -65,7 +65,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	count := 0
 	for _, workReport := range accumulatableWorkReports[:n] {
 		for _, result := range workReport.Results {
-			if result.ServiceId == s {
+			if result.ServiceID == s {
 				count++
 			}
 		}
@@ -75,7 +75,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	output := make([]types.WorkResult, 0, count)
 	for _, workReport := range accumulatableWorkReports[:n] {
 		for _, result := range workReport.Results {
-			if result.ServiceId == s {
+			if result.ServiceID == s {
 				output = append(output, result)
 			}
 		}
@@ -94,9 +94,9 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	// where:
 	//   G(s) ≡ Σ₍ₛ,ᵤ₎∈ᵤ(u)
 	//   N(s) ≡ [[d | r ∈ R*...n, d ∈ r_d, dₛ = s]]
-	G := map[types.ServiceId]types.Gas{} // G(s)
+	G := map[types.ServiceID]types.Gas{} // G(s)
 	for _, serviceGasUsed := range serviceGasUsedList {
-		G[serviceGasUsed.ServiceId] += serviceGasUsed.Gas
+		G[serviceGasUsed.ServiceID] += serviceGasUsed.Gas
 	}
 
 	// calcualte the number of work reports accumulated
@@ -279,8 +279,8 @@ func executeOuterAccumulation(cs *blockchain.ChainState) (OuterAccumulationOutpu
 	}
 
 	sort.Slice(thetaPrime, func(i, j int) bool {
-		if thetaPrime[i].ServiceId != thetaPrime[j].ServiceId {
-			return thetaPrime[i].ServiceId < thetaPrime[j].ServiceId
+		if thetaPrime[i].ServiceID != thetaPrime[j].ServiceID {
+			return thetaPrime[i].ServiceID < thetaPrime[j].ServiceID
 		}
 		return bytes.Compare(thetaPrime[i].Hash[:], thetaPrime[j].Hash[:]) < 0
 	})

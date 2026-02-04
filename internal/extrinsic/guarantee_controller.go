@@ -187,11 +187,11 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 		totalGas := types.U64(0)
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
-			if _, serviceExists := delta[workResult.ServiceId]; !serviceExists {
+			if _, serviceExists := delta[workResult.ServiceID]; !serviceExists {
 				err := ReportsErrorCode.BadServiceId
 				return &err
 			}
-			if workResult.AccumulateGas < delta[workResult.ServiceId].ServiceInfo.MinItemGas {
+			if workResult.AccumulateGas < delta[workResult.ServiceID].ServiceInfo.MinItemGas {
 				err := ReportsErrorCode.ServiceItemGasTooLow
 				return &err
 			}
@@ -460,7 +460,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
-			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
+			if w.CodeHash != delta[w.ServiceID].ServiceInfo.CodeHash {
 				err := ReportsErrorCode.BadCodeHash
 				return &err
 			}

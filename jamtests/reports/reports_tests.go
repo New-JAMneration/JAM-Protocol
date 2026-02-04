@@ -43,7 +43,7 @@ type ReportsTestCase struct {
 }
 
 type ServiceItem struct {
-	ServiceId   types.ServiceId   `json:"service_id"`
+	ServiceID   types.ServiceID   `json:"service_id"`
 	ServiceInfo types.ServiceInfo `json:"service_info"`
 }
 
@@ -75,7 +75,7 @@ type Account struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	Id   types.ServiceID `json:"id"`
 	Info Account         `json:"data"`
 }
 

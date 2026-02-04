@@ -30,7 +30,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 
 	// \mathbb{a}
 	rawData := input.Interpreter.Memory.Read(a, offset)
-	var assignData types.ServiceIdList
+	var assignData types.ServiceIDList
 	decoder := types.NewDecoder()
 	assignErr := decoder.Decode(rawData, &assignData)
 	if assignErr != nil {
@@ -58,7 +58,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	alwaysAccum := make(types.AlwaysAccumulateMap)
 	var accumErr error
 	for len(rawData) > 0 {
-		var alwaysAccumServiceId types.ServiceId
+		var alwaysAccumServiceId types.ServiceID
 		var alwaysAccumServiceGas types.Gas
 		alwaysAccumRawData := rawData[:12]
 		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
@@ -102,10 +102,10 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 	// otherwise
 	input.Interpreter.Registers[7] = OK
-	input.Addition.ResultContextX.PartialState.Bless = types.ServiceId(m)
+	input.Addition.ResultContextX.PartialState.Bless = types.ServiceID(m)
 	input.Addition.ResultContextX.PartialState.Assign = assignData
-	input.Addition.ResultContextX.PartialState.Designate = types.ServiceId(v)
-	input.Addition.ResultContextX.PartialState.CreateAcct = types.ServiceId(r)
+	input.Addition.ResultContextX.PartialState.Designate = types.ServiceID(v)
+	input.Addition.ResultContextX.PartialState.CreateAcct = types.ServiceID(r)
 	input.Addition.ResultContextX.PartialState.AlwaysAccum = alwaysAccum
 
 	return OmegaOutput{
@@ -141,7 +141,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if x_s ≠ (x_u)_a[c]
-	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Assign[c] {
+	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Assign[c] {
 		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -172,7 +172,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
-	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceId(a)
+	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceID(a)
 	input.Interpreter.Registers[7] = OK
 
 	return OmegaOutput{
@@ -199,7 +199,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if x_s ≠ (x_u)_v
-	if input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextX.PartialState.Designate {
+	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Designate {
 		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -263,7 +263,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if f ≠ 0 and x_s ≠ (x_u)_m
-	if f != 0 && input.Addition.ResultContextX.ServiceId != input.Addition.ResultContextY.PartialState.Bless {
+	if f != 0 && input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextY.PartialState.Bless {
 		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -273,7 +273,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	c := input.Interpreter.Memory.Read(o, offset)
 
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 
 	// new an account
@@ -286,7 +286,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 			CreationSlot:         input.Addition.AccumulateArgs.Timeslot,  // r
 			DepositOffset:        types.U64(0),                            // f
 			LastAccumulationSlot: types.TimeSlot(0),                       // a
-			ParentService:        input.Addition.ResultContextX.ServiceId, // p
+			ParentService:        input.Addition.ResultContextX.ServiceID, // p
 		},
 		PreimageLookup: types.PreimagesMapEntry{}, // p
 		LookupDict: types.LookupMetaMapEntry{ // l
@@ -316,7 +316,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise if x_s = (x_e)r and i < S and i \in K((x_e)_d)
-	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)]
+	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)]
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex && exists {
 		input.Interpreter.Registers[7] = FULL
 
@@ -334,10 +334,10 @@ func new(input OmegaInput) (output OmegaOutput) {
 		// reg[7] = i
 		input.Interpreter.Registers[7] = i
 		// d = { (i -> a) }
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(i)] = a
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)] = a
 		// d = { (x_s -> s) }
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
-		if serviceID == *input.Addition.GeneralArgs.ServiceId { // update general args
+		if serviceID == *input.Addition.GeneralArgs.ServiceID { // update general args
 			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = s
 			*input.Addition.GeneralArgs.ServiceAccount = s
 		}
@@ -359,7 +359,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
 	// mathbb{d} : x_s -> s
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
-	if serviceID == *input.Addition.GeneralArgs.ServiceId { // update general args
+	if serviceID == *input.Addition.GeneralArgs.ServiceID { // update general args
 		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = s
 		*input.Addition.GeneralArgs.ServiceAccount = s
 	}
@@ -390,7 +390,7 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 
 	input.Interpreter.Registers[7] = OK
 
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	// x_bold{s} = (x_u)_d[x_s]
 	if serviceAccount, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		serviceAccount.ServiceInfo.CodeHash = types.OpaqueHash(c)
@@ -426,7 +426,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 	// m
 	rawData := input.Interpreter.Memory.Read(o, types.TransferMemoSize)
-	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]; !accountExists {
+	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]; !accountExists {
 		// not exist
 		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
@@ -440,7 +440,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 			Addition:   input.Addition,
 		}
 	}
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
 		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
@@ -454,7 +454,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 
 		t := types.DeferredTransfer{
 			SenderID:   serviceID,
-			ReceiverID: types.ServiceId(d),
+			ReceiverID: types.ServiceID(d),
 			Balance:    types.U64(a),
 			Memo:       [128]byte(rawData),
 			GasLimit:   types.Gas(l),
@@ -505,10 +505,10 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 	h := input.Interpreter.Memory.Read(o, offset)
 
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 
-	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceId(d)]
-	if !(types.ServiceId(d) != serviceID && accountExists) {
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]
+	if !(types.ServiceID(d) != serviceID && accountExists) {
 		// bold{d} = panic => CONTINUE, WHO
 		input.Interpreter.Registers[7] = WHO
 		return OmegaOutput{
@@ -551,7 +551,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceId(d))
+				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceID(d))
 				input.Interpreter.Registers[7] = OK
 
 				return OmegaOutput{
@@ -591,7 +591,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 
 	h := input.Interpreter.Memory.Read(o, offset)
 
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	// x_bold{s} = (x_u)_d[x_s]
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 	if !accountExists {
@@ -646,7 +646,7 @@ func query(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-func loadLookupTimeSlotSet(account *types.ServiceAccount, storageKeyVal *types.StateKeyVals, serviceID types.ServiceId, lookupKey types.LookupMetaMapkey) *OmegaOutput {
+func loadLookupTimeSlotSet(account *types.ServiceAccount, storageKeyVal *types.StateKeyVals, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey) *OmegaOutput {
 	lookupTimeSlotSet := getLookupItemFromKeyVal(storageKeyVal, serviceID, lookupKey)
 	if lookupTimeSlotSet == nil {
 		return nil
@@ -715,7 +715,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Interpreter.Memory.Read(o, offset)
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	timeslot := input.Addition.Timeslot
 
 	a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
@@ -768,7 +768,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 
 	h := input.Interpreter.Memory.Read(o, offset)
-	serviceID := input.Addition.ResultContextX.ServiceId
+	serviceID := input.Addition.ResultContextX.ServiceID
 	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
@@ -899,11 +899,11 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	i := input.Interpreter.Memory.Read(o, z)
 
 	// s = x_s or s = omega_7
-	var s types.ServiceId
+	var s types.ServiceID
 	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
-		s = input.Addition.ResultContextX.ServiceId
+		s = input.Addition.ResultContextX.ServiceID
 	} else {
-		s = types.ServiceId(input.Interpreter.Registers[7])
+		s = types.ServiceID(input.Interpreter.Registers[7])
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d

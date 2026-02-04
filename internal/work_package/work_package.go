@@ -219,7 +219,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 		zSum += types.U16(v.Len)
 	}
 	return types.WorkResult{
-		ServiceId:     item.Service,
+		ServiceID:     item.Service,
 		CodeHash:      item.CodeHash,
 		PayloadHash:   payloadHash,
 		AccumulateGas: item.AccumulateGasLimit,

@@ -15,19 +15,19 @@ type StateWrapper struct {
 	StateIndex types.U8
 }
 
-// StateServiceWrapper is a wrapper for U8 and ServiceId(U32)
+// StateServiceWrapper is a wrapper for U8 and ServiceID(U32)
 type StateServiceWrapper struct {
 	StateIndex   types.U8
-	ServiceIndex types.ServiceId
+	ServiceIndex types.ServiceID
 }
 
-// ServiceWrapper is a wrapper for ServiceId(U32) and a byte array of length 27
+// ServiceWrapper is a wrapper for ServiceID(U32) and a byte array of length 27
 type ServiceWrapper struct {
-	ServiceIndex types.ServiceId
+	ServiceIndex types.ServiceID
 	h            types.ByteSequence
 }
 
-func encodeServiceId(serviceId types.ServiceId) []byte {
+func encodeServiceId(serviceId types.ServiceID) []byte {
 	encoder := types.NewEncoder()
 	encoded, _ := encoder.EncodeUintWithLength(uint64(serviceId), 4)
 

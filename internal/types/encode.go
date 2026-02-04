@@ -447,14 +447,14 @@ func (t *TicketsExtrinsic) Encode(e *Encoder) error {
 }
 
 // SerivceId
-func (s *ServiceId) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding ServiceId")
+func (s *ServiceID) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceID")
 	encoded, err := e.EncodeUintWithLength(uint64(*s), 4)
 	if err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", encoded))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", encoded))
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -464,8 +464,8 @@ func (s *ServiceId) Encode(e *Encoder) error {
 }
 
 // SerivceIdList
-func (s *ServiceIdList) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding ServiceIdList")
+func (s *ServiceIDList) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceIDList")
 	for _, serviceId := range *s {
 		if err := serviceId.Encode(e); err != nil {
 			return err
@@ -828,8 +828,8 @@ func (r *RefineLoad) Encode(e *Encoder) error {
 func (w *WorkResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkResult")
 
-	// ServiceId (s)
-	if err := w.ServiceId.Encode(e); err != nil {
+	// ServiceID (s)
+	if err := w.ServiceID.Encode(e); err != nil {
 		return err
 	}
 
@@ -1623,7 +1623,7 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	return nil
 }
 
-// type ServicesStatistics map[ServiceId]ServiceActivityRecord
+// type ServicesStatistics map[ServiceID]ServiceActivityRecord
 func (s *ServicesStatistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServicesStatistics")
 
@@ -1633,12 +1633,12 @@ func (s *ServicesStatistics) Encode(e *Encoder) error {
 	}
 
 	// Before encoding the map, sort the keys
-	keys := make([]ServiceId, 0, len(*s))
+	keys := make([]ServiceID, 0, len(*s))
 	for k := range *s {
 		keys = append(keys, k)
 	}
 
-	// Sort the keys (ServiceId)
+	// Sort the keys (ServiceID)
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
@@ -2356,19 +2356,19 @@ func (a *AlwaysAccumulateMap) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	key := make([]ServiceId, 0, len(*a))
+	key := make([]ServiceID, 0, len(*a))
 	for k := range *a {
 		key = append(key, k)
 	}
 
-	// Sort the keys (ServiceId)
+	// Sort the keys (ServiceID)
 	sort.Slice(key, func(i, j int) bool {
 		return key[i] < key[j]
 	})
 
 	// Iterate over the map and encode the key and value
 	for _, k := range key {
-		// ServiceId
+		// ServiceID
 		if err := k.Encode(e); err != nil {
 			return err
 		}
@@ -2675,18 +2675,18 @@ func (s *ServiceAccountState) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	keys := make([]ServiceId, 0, len(*s))
+	keys := make([]ServiceID, 0, len(*s))
 	for k := range *s {
 		keys = append(keys, k)
 	}
 
-	// Sort the keys (ServiceId, U32)
+	// Sort the keys (ServiceID, U32)
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
 
 	for _, k := range keys {
-		// Encode the key (ServiceId)
+		// Encode the key (ServiceID)
 		if err := k.Encode(e); err != nil {
 			return err
 		}
@@ -3082,8 +3082,8 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AccumulatedServiceHash")
 
-	// ServiceId
-	if err := ash.ServiceId.Encode(e); err != nil {
+	// ServiceID
+	if err := ash.ServiceID.Encode(e); err != nil {
 		return err
 	}
 

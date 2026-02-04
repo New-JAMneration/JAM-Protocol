@@ -20,9 +20,9 @@ type State struct {
 	Chi      Privileges              `json:"chi"`
 	Pi       Statistics              `json:"pi"`
 	Vartheta ReadyQueue              `json:"theta"`
-	Theta LastAccOut
-	Xi    AccumulatedQueue    `json:"xi"`
-	Delta ServiceAccountState `json:"accounts"`
+	Theta    LastAccOut
+	Xi       AccumulatedQueue    `json:"xi"`
+	Delta    ServiceAccountState `json:"accounts"`
 }
 
 // (6.3)
@@ -55,7 +55,7 @@ type AccountDataDTO struct {
 
 // We use this type to parse json file
 type AccountDTO struct {
-	Id   ServiceId      `json:"id"`
+	Id   ServiceID      `json:"id"`
 	Data AccountDataDTO `json:"data"`
 }
 
@@ -66,7 +66,7 @@ type (
 )
 
 // (9.2) delta
-type ServiceAccountState map[ServiceId]ServiceAccount
+type ServiceAccountState map[ServiceID]ServiceAccount
 
 // (9.3)
 type ServiceAccount struct {

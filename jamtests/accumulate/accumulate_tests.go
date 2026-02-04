@@ -65,7 +65,7 @@ type ServiceAccount struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	Id   types.ServiceID `json:"id"`
 	Data ServiceAccount  `json:"data"`
 }
 
@@ -265,7 +265,7 @@ func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling AccountsMapEntry")
 
 	var temp struct {
-		Id   types.ServiceId `json:"id"`
+		Id   types.ServiceID `json:"id"`
 		Data ServiceAccount  `json:"data"`
 	}
 
@@ -818,7 +818,7 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 		}
 
 		// Store ServiceAccount into inputDelta
-		serviceId := types.ServiceId(delta.Id)
+		serviceId := types.ServiceID(delta.Id)
 		output[serviceId] = serviceAccount
 	}
 	return output
@@ -931,7 +931,7 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := []types.ServiceId{}
+	serviceIds := []types.ServiceID{}
 	ourStatisticsServices := cs.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 

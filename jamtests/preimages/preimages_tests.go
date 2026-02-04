@@ -77,7 +77,7 @@ type Account struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	Id   types.ServiceID `json:"id"`
 	Data Account         `json:"data"`
 }
 
