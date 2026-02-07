@@ -264,7 +264,7 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	binary.LittleEndian.PutUint32(reqPayload[33:37], req.MaxBlocks)
 
 	// Write the request payload.
-	_, err = stream.Write(framePayload(reqPayload))
+	_, err = stream.Write(reqPayload)
 	if err != nil {
 		t.Fatalf("Client write error: %v", err)
 	}
@@ -309,14 +309,17 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	// Check chain validity:
 	var block1Hash [32]byte
 	block1Hash[0] = 1
-	if respBlocks[1].Header.Parent != fakeBC.genesis {
-		t.Errorf("expected block1 parent to be genesis, got %v", respBlocks[1].Header.Parent)
+	if respBlocks[0].Header.Parent != fakeBC.genesis {
+		t.Errorf("expected block1 parent to be genesis, got %v", respBlocks[0].Header.Parent)
 	}
 
 	var block2Hash [32]byte
 	block2Hash[0] = 2
-	log.Printf("block2: %v", respBlocks[2])
-	if respBlocks[2].Header.Parent != block1Hash {
-		t.Errorf("expected block2 parent to be block1, got %v", respBlocks[2].Header.Parent)
+	if respBlocks[1].Header.Parent != block1Hash {
+		t.Errorf("expected block2 parent to be block1, got %v", respBlocks[1].Header.Parent)
+	}
+
+	if respBlocks[2].Header.Parent != block2Hash {
+		t.Errorf("expected block3 parent to be block2, got %v", respBlocks[2].Header.Parent)
 	}
 }
