@@ -15,19 +15,9 @@ JAM-Protocol/
 ├── README.md              # Project entry point
 ├── READMERef/             # Project-level documentation
 │   ├── INDEX.md           # Documentation index (start here)
-│   ├── DOCUMENTATION_POLICY.md  (this file)
-│   ├── CODE_FORMATTING.md
-│   ├── DEVELOPMENT_DOC.md
-│   ├── ENCODER_AND_DECODER.md
-│   ├── FOLDER_STRUCTURE.md
-│   ├── GOLANG_TEST.md
-│   ├── LOGGER_USAGE.md
-│   ├── RECORD_TERMINAL.md
-│   ├── RELEASE_AND_PUBLISH.md
-│   ├── RUST_VRF_COMPILE_GUIDE.md
-│   └── SEMANTIC_COMMIT_MESSAGES.md
+│   └── ...                # See INDEX.md for full list
 └── <module>/              # Module-level documentation
-    └── README.md
+    └── README.md          # See FOLDER_STRUCTURE.md for list
 ```
 
 ### 1.1 Documentation Layers
@@ -80,11 +70,7 @@ Each module with public APIs or significant complexity should have a `README.md`
 - Should include: purpose, file structure, API reference, usage examples
 - Should NOT duplicate project-level content
 
-**Current module READMEs:**
-
-- `cmd/fuzz/README.md` - Fuzzing tool usage and test data
-- `pkg/erasure_coding/reed-solomon-ffi/README.md` - Reed-Solomon FFI library
-- `pkg/test_data/README.md` - Test data information
+For the list of current module READMEs, see [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md).
 
 ---
 
@@ -182,7 +168,6 @@ When adding new documentation, update the following:
 2. **New doc in `READMERef/`**:
    - Create the file using `UPPER_SNAKE_CASE.md` naming
    - Update `INDEX.md`
-   - Update the folder structure diagram in Section 1 of this file
 
 3. **New workflow**:
    - Add to existing doc or create new one in `READMERef/`
