@@ -14,17 +14,17 @@ The project uses a **layered documentation** approach:
 JAM-Protocol/
 ├── README.md              # Project entry point
 ├── READMERef/             # Project-level documentation
-│   ├── code-formatting.md
-│   ├── development-doc.md
+│   ├── CODE_FORMATTING.md
+│   ├── DEVELOPMENT_DOC.md
 │   ├── DOCUMENTATION_POLICY.md  (this file)
-│   ├── encoder-and-decoder.md
-│   ├── folder_structure.md
-│   ├── golang-test.md
-│   ├── logger-usage.md
-│   ├── record-terminal.md
-│   ├── release-and-publish.md
-│   ├── rust-vrf-compile-guide.md
-│   └── semantic-commit-messages.md
+│   ├── ENCODER_AND_DECODER.md
+│   ├── FOLDER_STRUCTURE.md
+│   ├── GOLANG_TEST.md
+│   ├── LOGGER_USAGE.md
+│   ├── RECORD_TERMINAL.md
+│   ├── RELEASE_AND_PUBLISH.md
+│   ├── RUST_VRF_COMPILE_GUIDE.md
+│   └── SEMANTIC_COMMIT_MESSAGES.md
 └── <module>/              # Module-level documentation
     └── README.md
 ```
@@ -59,16 +59,16 @@ Project-level documentation that spans multiple modules.
 
 | Document | Description |
 |----------|-------------|
-| `code-formatting.md` | Code formatting guidelines using `gofmt` |
-| `development-doc.md` | Development documentation and guidelines |
-| `encoder-and-decoder.md` | SCALE codec encoder/decoder usage |
-| `folder_structure.md` | Project folder structure overview |
-| `golang-test.md` | Go testing guidelines |
-| `logger-usage.md` | Logger usage instructions |
-| `record-terminal.md` | Terminal recording guidelines |
-| `release-and-publish.md` | Release and publish workflow |
-| `rust-vrf-compile-guide.md` | Rust VRF library compilation guide |
-| `semantic-commit-messages.md` | Commit message conventions |
+| `CODE_FORMATTING.md` | Code formatting guidelines using `gofmt` |
+| `DEVELOPMENT_DOC.md` | Development documentation and guidelines |
+| `ENCODER_AND_DECODER.md` | SCALE codec encoder/decoder usage |
+| `FOLDER_STRUCTURE.md` | Project folder structure overview |
+| `GOLANG_TEST.md` | Go testing guidelines |
+| `LOGGER_USAGE.md` | Logger usage instructions |
+| `RECORD_TERMINAL.md` | Terminal recording guidelines |
+| `RELEASE_AND_PUBLISH.md` | Release and publish workflow |
+| `RUST_VRF_COMPILE_GUIDE.md` | Rust VRF library compilation guide |
+| `SEMANTIC_COMMIT_MESSAGES.md` | Commit message conventions |
 
 **Important:** Only cross-module documentation belongs in `READMERef/`. Module-specific docs should stay in their respective folders.
 
@@ -97,9 +97,9 @@ Documentation **must** be updated when:
 
 | Change | Required Doc Update |
 |--------|---------------------|
-| New public API | Module README or `folder_structure.md` |
+| New public API | Module README or `FOLDER_STRUCTURE.md` |
 | API behavior change | Module README |
-| New module added | Create module README, update `folder_structure.md` |
+| New module added | Create module README, update `FOLDER_STRUCTURE.md` |
 | Setup/install change | Root `README.md` |
 | Workflow change | Relevant doc in `READMERef/` |
 | New design decision | Relevant doc in `READMERef/` |
@@ -109,7 +109,7 @@ Documentation **must** be updated when:
 Before submitting a PR, ask yourself:
 
 - [ ] Did I add/change any public API? → Update module README
-- [ ] Did I add a new file/module? → Update `folder_structure.md`
+- [ ] Did I add a new file/module? → Update `FOLDER_STRUCTURE.md`
 - [ ] Did I change setup steps? → Update root `README.md`
 - [ ] Did I change any workflow? → Update relevant doc in `READMERef/`
 - [ ] Is this a large change? → Consider adding or updating a doc
@@ -152,7 +152,7 @@ For documents that may become outdated, add a note at the top:
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Policy docs in `READMERef/` | `UPPER_SNAKE_CASE.md` or `kebab-case.md` | `DOCUMENTATION_POLICY.md`, `code-formatting.md` |
+| Policy docs in `READMERef/` | `UPPER_SNAKE_CASE.md` | `DOCUMENTATION_POLICY.md`, `CODE_FORMATTING.md` |
 | Module README | `README.md` | `cmd/fuzz/README.md` |
 
 ### 5.2 Section Headers
@@ -169,20 +169,20 @@ For documents that may become outdated, add a note at the top:
 | Looking for... | Go to... |
 |----------------|----------|
 | How to set up the project | `README.md` |
-| Code formatting | `READMERef/code-formatting.md` |
-| Commit message format | `READMERef/semantic-commit-messages.md` |
-| Project folder structure | `READMERef/folder_structure.md` |
-| Encoder/Decoder usage | `READMERef/encoder-and-decoder.md` |
-| Go testing guidelines | `READMERef/golang-test.md` |
-| Logger usage | `READMERef/logger-usage.md` |
-| Release workflow | `READMERef/release-and-publish.md` |
-| Rust VRF compilation | `READMERef/rust-vrf-compile-guide.md` |
+| Code formatting | `READMERef/CODE_FORMATTING.md` |
+| Commit message format | `READMERef/SEMANTIC_COMMIT_MESSAGES.md` |
+| Project folder structure | `READMERef/FOLDER_STRUCTURE.md` |
+| Encoder/Decoder usage | `READMERef/ENCODER_AND_DECODER.md` |
+| Go testing guidelines | `READMERef/GOLANG_TEST.md` |
+| Logger usage | `READMERef/LOGGER_USAGE.md` |
+| Release workflow | `READMERef/RELEASE_AND_PUBLISH.md` |
+| Rust VRF compilation | `READMERef/RUST_VRF_COMPILE_GUIDE.md` |
 | Fuzzing tool | `cmd/fuzz/README.md` |
 | Erasure coding FFI | `pkg/erasure_coding/reed-solomon-ffi/README.md` |
 
 ### Adding New Documentation
 
-1. **New module**: Create `<module>/README.md`, update `folder_structure.md`
+1. **New module**: Create `<module>/README.md`, update `FOLDER_STRUCTURE.md`
 2. **New doc in `READMERef/`**: Create the file, update this policy if needed
 3. **New workflow**: Add to existing doc or create new one in `READMERef/`
 
