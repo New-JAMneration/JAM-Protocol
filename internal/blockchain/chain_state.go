@@ -203,6 +203,39 @@ func (cs *ChainState) SetCurrentHead(hash types.HeaderHash) {
 	// This is a placeholder for node/CE compatibility.
 }
 
+func (cs *ChainState) GetStateAt(headerHash types.HeaderHash) (types.StateKeyVals, error) {
+	return cs.GetStateByBlockHash(headerHash)
+}
+
+func (cs *ChainState) GetStateRange(
+	headerHash types.HeaderHash,
+	keyStart types.StateKey,
+	keyEnd types.StateKey,
+	maxSize uint32,
+) (types.StateKeyVals, error) {
+	stateKeyVals, err := cs.GetStateAt(headerHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure consistent ordering (required by CE).
+	sort.Slice(stateKeyVals, func(i, j int) bool {
+		return bytes.Compare(stateKeyVals[i].Key[:], stateKeyVals[j].Key[:]) < 0
+	})
+
+	out := make(types.StateKeyVals, 0)
+	for _, kv := range stateKeyVals {
+		if bytes.Compare(kv.Key[:], keyStart[:]) >= 0 && bytes.Compare(kv.Key[:], keyEnd[:]) < 0 {
+			out = append(out, kv)
+			if maxSize > 0 && uint32(len(out)) >= maxSize {
+				break
+			}
+		}
+	}
+
+	return out, nil
+}
+
 func (cs *ChainState) GetProcessingBlockPointer() *ProcessingBlock {
 	return cs.processingBlock
 }
