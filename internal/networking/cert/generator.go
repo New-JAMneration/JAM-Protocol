@@ -158,7 +158,17 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
 	cs := blockchain.GetInstance()
-	genesisBlock := cs.GetGenesisBlock()
+	genesisBlock, err := cs.GetGenesisBlockMaybe()
+	if err != nil || genesisBlock == nil {
+		// In some test / bootstrap scenarios the chain state may not have a persisted genesis yet.
+		// Fall back to a stable placeholder so both sides can still negotiate ALPN.
+		hashHex := "00000000"
+		baseALPN := "jamnp-s/0/" + hashHex
+		if isBuilder {
+			return []string{baseALPN + "/builder"}, nil
+		}
+		return []string{baseALPN}, nil
+	}
 
 	// Get first 4 bytes (8 nibbles) of the genesis header hash
 	genesisBlockHeaderHash, err := utils.HeaderSerialization(genesisBlock.Header)

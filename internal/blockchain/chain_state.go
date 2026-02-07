@@ -193,6 +193,16 @@ func (cs *ChainState) GetLatestBlock() types.Block {
 	return cs.unfinalizedBlocks.GetLatestBlock()
 }
 
+func (cs *ChainState) GetCurrentHead() (types.Block, error) {
+	// For now, treat the latest in-memory block as the current head.
+	return cs.GetLatestBlock(), nil
+}
+
+func (cs *ChainState) SetCurrentHead(hash types.HeaderHash) {
+	// NOTE: ChainState currently tracks head implicitly via in-memory ordering.
+	// This is a placeholder for node/CE compatibility.
+}
+
 func (cs *ChainState) GetProcessingBlockPointer() *ProcessingBlock {
 	return cs.processingBlock
 }
@@ -463,6 +473,21 @@ func (cs *ChainState) GetGenesisBlock() types.Block {
 		panic(fmt.Sprintf("genesis block must exist, failed to retrieve genesis block: %v", err))
 	}
 	return *block
+}
+
+// GetGenesisBlockMaybe retrieves the genesis block if it exists.
+// Unlike GetGenesisBlock, it does not panic when the genesis block is missing.
+func (cs *ChainState) GetGenesisBlockMaybe() (*types.Block, error) {
+	headerHash, err := cs.repo.GetCanonicalHash(cs.repo.Database(), 0)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := cs.repo.GetBlock(cs.repo.Database(), headerHash, 0)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
 func (cs *ChainState) GetBlockByHash(headerHash types.HeaderHash) (types.Block, error) {
