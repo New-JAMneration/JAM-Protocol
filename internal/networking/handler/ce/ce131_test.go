@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -24,7 +24,7 @@ func TestHandleSafroleTicketDistribution_Proxy(t *testing.T) {
 	v0.Bandersnatch = types.BandersnatchPublic{1}
 	v1.Bandersnatch = types.BandersnatchPublic{2}
 	validators := types.ValidatorsData{v0, v1}
-	store.GetInstance().GetPosteriorStates().SetGammaK(validators)
+	blockchain.GetInstance().GetPosteriorStates().SetGammaK(validators)
 
 	SetLocalBandersnatchKey(v1.Bandersnatch)
 
@@ -50,7 +50,7 @@ func TestHandleSafroleTicketDistribution_NotProxy(t *testing.T) {
 	v0.Bandersnatch = types.BandersnatchPublic{1}
 	v1.Bandersnatch = types.BandersnatchPublic{2}
 	validators := types.ValidatorsData{v0, v1}
-	store.GetInstance().GetPosteriorStates().SetGammaK(validators)
+	blockchain.GetInstance().GetPosteriorStates().SetGammaK(validators)
 
 	SetLocalBandersnatchKey(v0.Bandersnatch)
 

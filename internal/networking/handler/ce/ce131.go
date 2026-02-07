@@ -6,7 +6,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -23,7 +22,7 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 	localBandersnatchKey = key
 }
 
-func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *quic.Stream) error {
+func HandleSafroleTicketDistribution(bc blockchain.Blockchain, stream *quic.Stream) error {
 	payload := make([]byte, 789)
 	if _, err := io.ReadFull(stream, payload); err != nil {
 		return err
@@ -38,7 +37,7 @@ func HandleSafroleTicketDistribution(blockchain blockchain.Blockchain, stream *q
 	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
 
 	// Get next epoch's validator set (GammaK)
-	nextValidators := store.GetInstance().GetPosteriorStates().GetGammaK()
+	nextValidators := blockchain.GetInstance().GetPosteriorStates().GetGammaK()
 
 	// Defensive: check bounds
 	if int(proxyIndex) >= len(nextValidators) {
