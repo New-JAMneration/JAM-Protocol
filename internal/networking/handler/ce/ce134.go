@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
@@ -46,14 +45,12 @@ func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
 }
 
 // Handler for CE 134: Guarantor <-> Guarantor work-package sharing
-// Accepts any io.ReadWriteCloser for testability, and allows injection of a PVMExecutor and store maps for unit tests
+// Accepts any io.ReadWriteCloser for testability, and allows injection of a PVMExecutor for unit tests.
 func HandleWorkPackageShare(
-	blockchain blockchain.Blockchain,
+	_ blockchain.Blockchain,
 	stream io.ReadWriteCloser,
 	keypair keystore.KeyPair,
 	pvmExecutor work_package.PVMExecutor,
-	erasureMap *store.SegmentErasureMap,
-	segmentRootLookup *store.HashSegmentMap,
 ) error {
 	// 1. Read core index (2 bytes, little endian)
 	coreIndexBuf := make([]byte, 2)
@@ -78,7 +75,7 @@ func HandleWorkPackageShare(
 	bundle = bundle[:n]
 
 	// 4. Basic verification: decode bundle, check authorization, check mappings
-	controller := work_package.NewSharedController(bundle, erasureMap, segmentRootLookup, coreIndex)
+	controller := work_package.NewSharedController(bundle, coreIndex)
 	if pvmExecutor != nil {
 		controller.PVM = pvmExecutor
 	}

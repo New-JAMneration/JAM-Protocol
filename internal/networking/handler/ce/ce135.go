@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
@@ -14,7 +13,7 @@ import (
 // HandleWorkReportDistribution implements CE 135: distribution of a fully guaranteed work-report
 // Accepts any io.ReadWriteCloser for testability, and allows injection of a keypair for signing
 func HandleWorkReportDistribution(
-	blockchain blockchain.Blockchain,
+	_ blockchain.Blockchain,
 	stream io.ReadWriteCloser,
 	keypair keystore.KeyPair,
 ) error {
@@ -39,8 +38,9 @@ func HandleWorkReportDistribution(
 	}
 
 	// Determine validator sets
-	currentVals := store.GetInstance().GetPosteriorStates().GetKappa()
-	nextVals := store.GetInstance().GetPosteriorStates().GetGammaK()
+	cs := blockchain.GetInstance()
+	currentVals := cs.GetPosteriorStates().GetKappa()
+	nextVals := cs.GetPosteriorStates().GetGammaK()
 	_ = currentVals
 	_ = nextVals
 

@@ -5,11 +5,10 @@ import (
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
-	"github.com/alicebob/miniredis/v2"
 )
 
 // FakePVMExecutor mocks the PVMExecutor interface for unit testing
@@ -57,13 +56,26 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	for i := range extrinsicHash1 {
 		extrinsicHash1[i] = byte(i)
 	}
+
+	// Authorization preimage setup for VerifyAuthorization (service_account.HistoricalLookup).
+	authCodeHash := types.OpaqueHash{}
+	for i := range authCodeHash {
+		authCodeHash[i] = byte(0xA0 + i)
+	}
+	metaCode := types.MetaCode{
+		Metadata: types.ByteSequence("meta"),
+		Code:     types.ByteSequence("code"),
+	}
+	metaEncoder := types.NewEncoder()
+	metaCodeBytes, err := metaEncoder.Encode(&metaCode)
+	if err != nil {
+		t.Fatalf("failed to encode MetaCode: %v", err)
+	}
 	wp := &types.WorkPackage{
-		Authorization: types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:  types.ServiceId(1),
-		Authorizer: types.Authorizer{
-			CodeHash: types.OpaqueHash{0x04, 0x05, 0x06},
-			Params:   types.ByteSequence{0x07, 0x08, 0x09},
-		},
+		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHash:     authCodeHash,
+		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
+		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
 			Anchor:           types.HeaderHash{0x0A, 0x0B, 0x0C},
 			StateRoot:        types.StateRoot{0x0D, 0x0E, 0x0F},
@@ -115,6 +127,10 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	input = append(input, bundle...)
 
 	// Set up service account state so the handler can verify the work-package
+	lookupKey := types.LookupMetaMapkey{
+		Hash:   authCodeHash,
+		Length: types.U32(len(metaCodeBytes)),
+	}
 	inputDelta := types.ServiceAccountState{
 		types.ServiceId(1): {
 			ServiceInfo: types.ServiceInfo{
@@ -125,13 +141,17 @@ func TestHandleWorkPackageShare(t *testing.T) {
 				Bytes:      types.U64(1),
 				Items:      types.U32(1),
 			},
-			PreimageLookup: nil,
-			LookupDict:     nil,
-			StorageDict:    nil,
+			PreimageLookup: types.PreimagesMapEntry{
+				authCodeHash: metaCodeBytes,
+			},
+			LookupDict: types.LookupMetaMapEntry{
+				lookupKey: types.TimeSlotSet{0},
+			},
+			StorageDict: nil,
 		},
 	}
-	s := store.GetInstance()
-	s.GetPriorStates().SetDelta(inputDelta)
+	cs := blockchain.GetInstance()
+	cs.GetPriorStates().SetDelta(inputDelta)
 
 	stream := newMockStream(input)
 
@@ -139,16 +159,8 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	keypair, _ := keystore.FromEd25519PrivateKey(priv)
 
-	rdb, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("failed to init miniredis: %v", err)
-	}
-	defer rdb.Close()
-	client := store.NewRedisClient(rdb.Addr(), "", 0)
-	segmentMap := store.NewHashSegmentMap(client)
-	erasureMap := store.NewSegmentErasureMap(client)
 	fakePVM := &FakePVMExecutor{}
-	err = HandleWorkPackageShare(nil, stream, keypair, fakePVM, erasureMap, segmentMap) // Use mockStream directly for test
+	err = HandleWorkPackageShare(nil, stream, keypair, fakePVM) // Use mockStream directly for test
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
