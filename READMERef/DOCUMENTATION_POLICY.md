@@ -14,9 +14,10 @@ The project uses a **layered documentation** approach:
 JAM-Protocol/
 ├── README.md              # Project entry point
 ├── READMERef/             # Project-level documentation
+│   ├── INDEX.md           # Documentation index (start here)
+│   ├── DOCUMENTATION_POLICY.md  (this file)
 │   ├── CODE_FORMATTING.md
 │   ├── DEVELOPMENT_DOC.md
-│   ├── DOCUMENTATION_POLICY.md  (this file)
 │   ├── ENCODER_AND_DECODER.md
 │   ├── FOLDER_STRUCTURE.md
 │   ├── GOLANG_TEST.md
@@ -55,20 +56,18 @@ The root `README.md` should contain:
 
 Project-level documentation that spans multiple modules.
 
-**Current documents:**
+**Entry point:** Start with [INDEX.md](./INDEX.md) for a categorized list of all documents in this directory.
+
+**Key documents:**
 
 | Document | Description |
 |----------|-------------|
-| `CODE_FORMATTING.md` | Code formatting guidelines using `gofmt` |
-| `DEVELOPMENT_DOC.md` | Development documentation and guidelines |
-| `ENCODER_AND_DECODER.md` | SCALE codec encoder/decoder usage |
-| `FOLDER_STRUCTURE.md` | Project folder structure overview |
-| `GOLANG_TEST.md` | Go testing guidelines |
-| `LOGGER_USAGE.md` | Logger usage instructions |
-| `RECORD_TERMINAL.md` | Terminal recording guidelines |
-| `RELEASE_AND_PUBLISH.md` | Release and publish workflow |
-| `RUST_VRF_COMPILE_GUIDE.md` | Rust VRF library compilation guide |
-| `SEMANTIC_COMMIT_MESSAGES.md` | Commit message conventions |
+| `INDEX.md` | **Documentation index** - categorized list of docs in `READMERef/` |
+| `DOCUMENTATION_POLICY.md` | Documentation structure and maintenance rules (this file) |
+| `FOLDER_STRUCTURE.md` | Project folder structure and module READMEs |
+
+For the full list of documents in `READMERef/`, see [INDEX.md](./INDEX.md).
+For module-specific documentation, see [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md).
 
 **Important:** Only cross-module documentation belongs in `READMERef/`. Module-specific docs should stay in their respective folders.
 
@@ -168,30 +167,24 @@ For documents that may become outdated, add a note at the top:
 
 | Looking for... | Go to... |
 |----------------|----------|
+| **READMERef documentation index** | `READMERef/INDEX.md` |
+| **Project folder structure & module READMEs** | `READMERef/FOLDER_STRUCTURE.md` |
 | How to set up the project | `README.md` |
-| Code formatting | `READMERef/CODE_FORMATTING.md` |
-| Commit message format | `READMERef/SEMANTIC_COMMIT_MESSAGES.md` |
-| Project folder structure | `READMERef/FOLDER_STRUCTURE.md` |
-| Encoder/Decoder usage | `READMERef/ENCODER_AND_DECODER.md` |
-| Go testing guidelines | `READMERef/GOLANG_TEST.md` |
-| Logger usage | `READMERef/LOGGER_USAGE.md` |
-| Release workflow | `READMERef/RELEASE_AND_PUBLISH.md` |
-| Rust VRF compilation | `READMERef/RUST_VRF_COMPILE_GUIDE.md` |
-| Fuzzing tool | `cmd/fuzz/README.md` |
-| Erasure coding FFI | `pkg/erasure_coding/reed-solomon-ffi/README.md` |
 
 ### Adding New Documentation
 
-1. **New module**: Create `<module>/README.md`, update `FOLDER_STRUCTURE.md`
-2. **New doc in `READMERef/`**: Create the file, update this policy if needed
-3. **New workflow**: Add to existing doc or create new one in `READMERef/`
+When adding new documentation, update the following:
 
----
+1. **New module**:
+   - Create `<module>/README.md`
+   - Update `FOLDER_STRUCTURE.md` (add to structure and module READMEs section)
 
-## 7. Future Improvements (Optional)
+2. **New doc in `READMERef/`**:
+   - Create the file using `UPPER_SNAKE_CASE.md` naming
+   - Update `INDEX.md`
+   - Update the folder structure diagram in Section 1 of this file
 
-These are not required but could be added later:
+3. **New workflow**:
+   - Add to existing doc or create new one in `READMERef/`
+   - Update `INDEX.md`
 
-- [ ] Add `markdown-link-check` to CI to detect broken links
-- [ ] Add GoDoc comments to public APIs for auto-generated documentation
-- [ ] Create an `INDEX.md` in `READMERef/` for easier navigation
