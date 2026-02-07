@@ -4,4 +4,3 @@ package store
 // The current mainline implementation does not manage an embedded Redis instance here,
 // so this is intentionally a no-op.
 func CloseMiniRedis() {}
-
