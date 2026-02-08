@@ -28,6 +28,7 @@ func (s *WorkPackageBundleStore) Save(bundle *types.WorkPackageBundle) error {
 	}
 
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return fmt.Errorf("failed to encode bundle: %w", err)
@@ -51,6 +52,7 @@ func (s *WorkPackageBundleStore) Get(erasureRoot []byte) (*types.WorkPackageBund
 
 	var bundle types.WorkPackageBundle
 	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	err = decoder.Decode(bundleBytes, &bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode bundle: %w", err)
@@ -62,6 +64,7 @@ func (s *WorkPackageBundleStore) Get(erasureRoot []byte) (*types.WorkPackageBund
 // computeErasureRoot computes the erasure root for a work package bundle.
 func (s *WorkPackageBundleStore) computeErasureRoot(bundle *types.WorkPackageBundle) (types.OpaqueHash, error) {
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return types.OpaqueHash{}, fmt.Errorf("failed to encode bundle: %w", err)
@@ -96,6 +99,7 @@ func (s *WorkPackageBundleStore) SaveWithMetadata(bundle *types.WorkPackageBundl
 	}
 
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return fmt.Errorf("failed to encode bundle: %w", err)
@@ -142,6 +146,7 @@ func (s *WorkPackageBundleStore) GetWithMetadata(erasureRoot []byte) (*types.Wor
 	if err := json.Unmarshal(combinedBytes, &combined); err == nil {
 		var bundle types.WorkPackageBundle
 		decoder := types.NewDecoder()
+		decoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 		err = decoder.Decode(combined.Bundle, &bundle)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to decode bundle: %w", err)
@@ -152,6 +157,7 @@ func (s *WorkPackageBundleStore) GetWithMetadata(erasureRoot []byte) (*types.Wor
 	// Fallback: try to decode as just bundle bytes
 	var bundle types.WorkPackageBundle
 	decoder := types.NewDecoder()
+	decoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	err = decoder.Decode(combinedBytes, &bundle)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode bundle: %w", err)

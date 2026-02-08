@@ -91,6 +91,7 @@ func lookupWorkPackageBundleShard(erasureRoot []byte, shardIndex uint32) ([]byte
 // extractBundleShard extracts the specific shard from the work package bundle using erasure coding.
 func extractBundleShard(bundle *types.WorkPackageBundle, shardIndex uint32) ([]byte, error) {
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode bundle: %w", err)
