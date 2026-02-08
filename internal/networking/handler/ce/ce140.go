@@ -123,7 +123,7 @@ func constructJustification(bundle *types.WorkPackageBundle, erasureRoot []byte,
 	}
 
 	// Get the segment shard sequence (s) for the given shard index
-	segmentShardSequence, err := getSegmentShardSequence(bundle, shardIndex)
+	segmentShardSequence, err := getSegmentShardSequence(bundle, shardIndex, segmentIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get segment shard sequence: %w", err)
 	}
@@ -165,6 +165,7 @@ func getCE137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error
 func getBundleShardHash(bundle *types.WorkPackageBundle, shardIndex uint32) ([]byte, error) {
 	// Encode the bundle to get the raw bytes
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode bundle: %w", err)
@@ -185,8 +186,9 @@ func getBundleShardHash(bundle *types.WorkPackageBundle, shardIndex uint32) ([]b
 }
 
 // getSegmentShardSequence gets the full sequence of segment shards for the given shard index.
-func getSegmentShardSequence(bundle *types.WorkPackageBundle, shardIndex uint32) ([][]byte, error) {
+func getSegmentShardSequence(bundle *types.WorkPackageBundle, shardIndex uint32, minSegments uint16) ([][]byte, error) {
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode bundle: %w", err)
@@ -203,6 +205,12 @@ func getSegmentShardSequence(bundle *types.WorkPackageBundle, shardIndex uint32)
 	requestedShard := shards[shardIndex]
 
 	segmentSize := 32
+	requiredLen := int(minSegments+1) * segmentSize
+	if len(requestedShard) < requiredLen {
+		padded := make([]byte, requiredLen)
+		copy(padded, requestedShard)
+		requestedShard = padded
+	}
 	var segments [][]byte
 	for i := 0; i < len(requestedShard); i += segmentSize {
 		end := i + segmentSize
@@ -230,21 +238,13 @@ func constructMerkleCoPath(segmentShardSequence [][]byte, segmentIndex uint16) (
 	// T(s, i, H) where s is the segment sequence, i is the segment index, H is Blake2b
 	coPath := merkle_tree.T(byteSequences, types.U32(segmentIndex), hash.Blake2bHash)
 
-	// The co-path should be encoded as a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash OR 2 ++ Segment Shard]
-	var result []byte
-
-	for _, item := range coPath {
-		if len(item.ByteSequence) > 0 {
-			// This is a segment shard (type 2)
-			result = append(result, 0x02)
-			result = append(result, item.ByteSequence...)
-		} else {
-			// This is a hash (type 0)
-			result = append(result, 0x00) // discriminator for hash
-			result = append(result, item.Hash[:]...)
-		}
+	// In this codebase, merkle_tree.T returns a sequence of sibling hashes as ByteSequence.
+	// Encode as repeated (0x00 ++ 32-byte-hash).
+	result := make([]byte, 0, len(coPath)*(1+32))
+	for _, h := range coPath {
+		result = append(result, 0x00)
+		result = append(result, h...)
 	}
-
 	return result, nil
 }
 

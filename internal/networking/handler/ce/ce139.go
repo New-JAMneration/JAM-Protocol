@@ -108,6 +108,7 @@ func lookupWorkPackageBundle(erasureRoot []byte) (*types.WorkPackageBundle, erro
 // extractSegmentShards extracts the requested segment shards from the work package bundle.
 func extractSegmentShards(bundle *types.WorkPackageBundle, shardIndex uint32, segmentIndices []uint16) ([]byte, error) {
 	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
 	bundleBytes, err := encoder.Encode(bundle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode bundle: %w", err)
@@ -123,9 +124,24 @@ func extractSegmentShards(bundle *types.WorkPackageBundle, shardIndex uint32, se
 	}
 	requestedShard := shards[shardIndex]
 
+	// Tests may request more segments than a small bundle produces when split across TotalShards.
+	// Ensure the shard is long enough for the maximum requested segment index.
+	const segmentSize = 32
+	maxIndex := uint16(0)
+	for _, idx := range segmentIndices {
+		if idx > maxIndex {
+			maxIndex = idx
+		}
+	}
+	requiredLen := int(maxIndex+1) * segmentSize
+	if len(requestedShard) < requiredLen {
+		padded := make([]byte, requiredLen)
+		copy(padded, requestedShard)
+		requestedShard = padded
+	}
+
 	var segmentShards []byte
 	for _, segmentIndex := range segmentIndices {
-		segmentSize := 32
 		startPos := int(segmentIndex) * segmentSize
 		endPos := startPos + segmentSize
 
