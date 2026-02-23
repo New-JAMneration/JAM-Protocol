@@ -28,13 +28,13 @@ type AvailAssuranceController struct {
 // NewAvailAssuranceController creates a new AvailAssuranceController
 func NewAvailAssuranceController() *AvailAssuranceController {
 	return &AvailAssuranceController{
-		AvailAssurances: make(types.AssurancesExtrinsic, 0),
+		AvailAssurances: make(types.AssurancesExtrinsic, 0, types.ValidatorsCount),
 	}
 }
 
 // ValidateAnchor validates the anchor of the AvailAssurance | Eq. 11.11
 func (a *AvailAssuranceController) ValidateAnchor() *types.ErrorCode {
-	headerParent := types.OpaqueHash(blockchain.GetInstance().GetLatestBlock().Header.Parent)
+	headerParent := blockchain.GetInstance().GetLatestBlock().Header.Parent
 
 	for _, availAssurance := range a.AvailAssurances {
 		if !bytes.Equal(availAssurance.Anchor[:], headerParent[:]) {
@@ -46,6 +46,7 @@ func (a *AvailAssuranceController) ValidateAnchor() *types.ErrorCode {
 	return nil
 }
 
+// Eq. 11.11
 func (a *AvailAssuranceController) CheckValidatorIndex() *types.ErrorCode {
 	for _, availAssurance := range a.AvailAssurances {
 		if int(availAssurance.ValidatorIndex) >= types.ValidatorsCount {
@@ -119,11 +120,11 @@ func (a *AvailAssuranceController) ValidateSignature() *types.ErrorCode {
 	kappa := blockchain.GetInstance().GetPriorStates().GetKappa()
 
 	for _, availAssurance := range a.AvailAssurances {
-		anchor := utilities.OpaqueHashWrapper{Value: availAssurance.Anchor}.Serialize()
+		anchor := utilities.OpaqueHashWrapper{Value: types.OpaqueHash(availAssurance.Anchor)}.Serialize()
 		bitfield := utilities.ByteSequenceWrapper{Value: types.ByteSequence(availAssurance.Bitfield.ToOctetSlice())}.Serialize()
-		hased := hash.Blake2bHash(append(anchor, bitfield...))
+		hashed := hash.Blake2bHash(append(anchor, bitfield...))
 		message := []byte(types.JamAvailable)
-		message = append(message, hased[:]...)
+		message = append(message, hashed[:]...)
 
 		publicKey := kappa[availAssurance.ValidatorIndex].Ed25519
 		if !ed25519consensus.Verify(publicKey[:], message, availAssurance.Signature[:]) {
@@ -224,7 +225,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 		}
 
 		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Report.CoreIndex]
-		reportIsTimeout := headerTimeSlot >= rhoDagger[coreIndex].Timeout+types.TimeSlot(types.WorkReportTimeout)
+		reportIsTimeout := headerTimeSlot >= rhoDagger[coreIndex].AssignedSlot+types.TimeSlot(types.WorkReportTimeout)
 
 		if reportIsAvailable || reportIsTimeout {
 			rhoDoubleDagger[coreIndex] = nil

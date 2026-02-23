@@ -19,7 +19,7 @@ type VerdictWrapper struct {
 
 // VerdictSummary is a struct that contains a Verdict
 type VerdictSummary struct {
-	ReportHash           types.OpaqueHash `json:"target,omitempty"`
+	ReportHash           types.WorkReportHash `json:"target,omitempty"`
 	PositiveJudgmentsSum int
 }
 
@@ -119,7 +119,7 @@ func (v *VerdictController) CheckUnique() error {
 		return nil
 	}
 	// Eq. 10.7 unique
-	uniqueMap := make(map[types.OpaqueHash]bool, len(v.Verdicts))
+	uniqueMap := make(map[types.WorkReportHash]bool, len(v.Verdicts))
 	result := make([]VerdictWrapper, 0, len(v.Verdicts))
 
 	for _, v := range v.Verdicts {
@@ -149,7 +149,7 @@ func (v *VerdictController) CheckUnique() error {
 func (v *VerdictController) CheckSorted() error {
 	// Check if Verdicts are sorted by target
 	for i := 1; i < len(v.Verdicts); i++ {
-		if CompareOpaqueHash(v.Verdicts[i-1].Verdict.Target, v.Verdicts[i].Verdict.Target) > 0 {
+		if CompareWorkReportHash(v.Verdicts[i-1].Verdict.Target, v.Verdicts[i].Verdict.Target) > 0 {
 			return errors.New("verdicts_not_sorted_unique")
 		}
 	}
@@ -165,7 +165,7 @@ func (v *VerdictController) CheckSorted() error {
 	return nil
 }
 
-func CompareOpaqueHash(a, b types.OpaqueHash) int {
+func CompareWorkReportHash(a, b types.WorkReportHash) int {
 	for i := 0; i < len(a); i++ {
 		if a[i] < b[i] {
 			return -1
@@ -211,16 +211,16 @@ func (v *VerdictController) SetDisjoint() error {
 	psiBad := states.GetPsiB()
 	psiWonky := states.GetPsiW()
 
-	uniqueMap := make(map[types.OpaqueHash]bool, len(psiGood)+len(psiBad)+len(psiWonky))
+	uniqueMap := make(map[types.WorkReportHash]bool, len(psiGood)+len(psiBad)+len(psiWonky))
 
 	for _, v := range psiGood {
-		uniqueMap[types.OpaqueHash(v)] = true
+		uniqueMap[v] = true
 	}
 	for _, v := range psiBad {
-		uniqueMap[types.OpaqueHash(v)] = true
+		uniqueMap[v] = true
 	}
 	for _, v := range psiWonky {
-		uniqueMap[types.OpaqueHash(v)] = true
+		uniqueMap[v] = true
 	}
 
 	for _, v := range v.Verdicts {
@@ -256,10 +256,10 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 	cs := blockchain.GetInstance()
 	priorStatesRho := cs.GetPriorStates().GetRho()
 	// Pre-allocate capacity: estimate that about half of verdicts need clearing
-	clearReports := make(map[types.OpaqueHash]bool, len(verdictSumSequence)/2)
+	clearReports := make(map[types.WorkReportHash]bool, len(verdictSumSequence)/2)
 	for _, verdict := range verdictSumSequence {
 		if verdict.PositiveJudgmentsSum < types.ValidatorsCount*2/3 {
-			clearReports[types.OpaqueHash(verdict.ReportHash)] = true
+			clearReports[verdict.ReportHash] = true
 		}
 	}
 	for i := range priorStatesRho {
@@ -267,7 +267,7 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			continue
 		}
 		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(priorStatesRho[i].Report))
-		if clearReports[hashReport] {
+		if clearReports[types.WorkReportHash(hashReport)] {
 			priorStatesRho[i] = nil
 		}
 	}
