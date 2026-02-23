@@ -7,6 +7,96 @@ import (
 	"strings"
 )
 
+func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *HeaderHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Signature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 64)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Public) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BlsPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 96)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 784)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingCommitment) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 128)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
 func (v *Validator) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Bandersnatch string `json:"bandersnatch,omitempty"`
@@ -653,7 +743,7 @@ func (v *Verdict) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	v.Target = OpaqueHash(targetBytes)
+	v.Target = WorkReportHash(targetBytes)
 
 	v.Age = temp.Age
 	v.Votes = temp.Votes
@@ -818,7 +908,7 @@ func (a *AvailAssurance) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.Anchor = OpaqueHash(anchorBytes)
+	a.Anchor = HeaderHash(anchorBytes)
 
 	bitfield, err := MakeBitfieldFromHexString(temp.Bitfield)
 	if err != nil {
@@ -1252,8 +1342,8 @@ func (a *AuthPools) UnmarshalJSON(data []byte) error {
 // AvailabilityAssignment
 func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Report  WorkReport `json:"report"`
-		Timeout TimeSlot   `json:"timeout,omitempty"`
+		Report       WorkReport `json:"report"`
+		AssignedSlot TimeSlot   `json:"timeout"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -1261,7 +1351,7 @@ func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Report = temp.Report
-	a.Timeout = temp.Timeout
+	a.AssignedSlot = temp.AssignedSlot
 
 	return nil
 }

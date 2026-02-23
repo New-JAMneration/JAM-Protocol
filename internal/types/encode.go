@@ -1880,8 +1880,8 @@ func (a *AvailabilityAssignment) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Timeout
-	if err := a.Timeout.Encode(e); err != nil {
+	// AssignedSlot
+	if err := a.AssignedSlot.Encode(e); err != nil {
 		return err
 	}
 

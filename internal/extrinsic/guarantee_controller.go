@@ -158,7 +158,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 	return eg.Wait()
 }
 
-// WorkReportSet | Eq. 11.28
+// WorkReportSet | Eq. 11.28, $\mathbf{I}$
 func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 	workReports := make([]types.WorkReport, 0, len(g.Guarantees))
 	for _, guarantee := range g.Guarantees {
@@ -477,8 +477,8 @@ func (g *GuaranteeController) TransitionWorkReport() {
 
 	for _, guarantee := range g.Guarantees {
 		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
-			Report:  guarantee.Report,
-			Timeout: posteriorTau,
+			Report:       guarantee.Report,
+			AssignedSlot: posteriorTau,
 		}
 	}
 

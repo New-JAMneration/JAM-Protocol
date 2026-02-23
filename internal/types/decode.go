@@ -2057,7 +2057,7 @@ func (a *AvailabilityAssignment) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = a.Timeout.Decode(d); err != nil {
+	if err = a.AssignedSlot.Decode(d); err != nil {
 		return err
 	}
 

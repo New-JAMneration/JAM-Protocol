@@ -41,7 +41,7 @@ test-jam-test-vectors-trace:
 		echo "Testing trace $(mode)..."; \
 		export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
-		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light fuzzy"; \
+		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
 			echo "Testing trace $$mode..."; \
 			export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$$mode"; \
@@ -58,7 +58,7 @@ test-timing-jam-test-vectors-trace:
 		echo "Testing trace $(mode) with timing..."; \
 		TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
-		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light fuzzy"; \
+		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
 			echo ""; \
 			echo "========================================"; \

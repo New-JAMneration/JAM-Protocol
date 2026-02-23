@@ -35,7 +35,7 @@ For example, if you have a structure like this:
 graypaper (B.10): $\mathcal{E}(s, \eta^{'}_{0}, \mathbf{H_t})$
 
 ```go
-serviceId := ServiceId(1)
+serviceId := ServiceID(1)
 entropy := Entropy{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 timeSlot := TimeSlot(100)
 
@@ -45,7 +45,7 @@ encoder := NewEncoder()
 // Encode service id
 encoded, err := encoder.Encode(&serviceId)
 if err != nil {
-  t.Errorf("Error encoding ServiceId: %v", err)
+  t.Errorf("Error encoding ServiceID: %v", err)
 }
 output = append(output, encoded...)
 
