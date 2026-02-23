@@ -72,8 +72,8 @@ type LookupMetaMapEntry struct {
 }
 
 type Account struct {
-	Preimages  []PreimagesMapEntry  `json:"preimages"`
-	LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+	Preimages  []PreimagesMapEntry  `json:"preimage_blobs"`
+	LookupMeta []LookupMetaMapEntry `json:"preimage_requests"`
 }
 
 type AccountsMapEntry struct {
@@ -227,8 +227,8 @@ func (l *LookupMetaMapEntry) UnmarshalJSON(data []byte) error {
 
 func (a *Account) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Preimages  []PreimagesMapEntry  `json:"preimages"`
-		LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+		Preimages  []PreimagesMapEntry  `json:"preimage_blobs"`
+		LookupMeta []LookupMetaMapEntry `json:"preimage_requests"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {

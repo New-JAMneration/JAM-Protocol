@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	reportsErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 )
 
 // ANSI color codes
@@ -179,8 +180,8 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := ReportsErrorMap[str]; ok {
-			*e = val
+		if val, ok := reportsErrorCodes.ReportsErrorMap[str]; ok {
+			*e = ReportsErrorCode(val)
 			return nil
 		}
 		return errors.New("invalid error code name: " + str)

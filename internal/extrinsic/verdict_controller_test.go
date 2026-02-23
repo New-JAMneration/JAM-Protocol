@@ -21,7 +21,7 @@ func TestNewVerdictController(t *testing.T) {
 	verdictController := NewVerdictController()
 	verdictController.Verdicts = append(verdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x3c6680931983df80bbd1cb77a0db0303e61550ee0a868d8edd69302d8f45c29f")),
+			Target: types.WorkReportHash(HexToBytes("0x3c6680931983df80bbd1cb77a0db0303e61550ee0a868d8edd69302d8f45c29f")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -54,7 +54,7 @@ func TestNewVerdictController(t *testing.T) {
 	})
 	verdictController.Verdicts = append(verdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x94a9424dec0e513afb0a9187c0456b7760f02ee5969130fde29c8683d62f74fb")),
+			Target: types.WorkReportHash(HexToBytes("0x94a9424dec0e513afb0a9187c0456b7760f02ee5969130fde29c8683d62f74fb")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -92,7 +92,7 @@ func TestVerifySignature(t *testing.T) {
 	verdictController := NewVerdictController()
 	verdictController.Verdicts = append(verdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
+			Target: types.WorkReportHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -158,7 +158,7 @@ func TestVerifySignature(t *testing.T) {
 	verdictController = NewVerdictController()
 	verdictController.Verdicts = append(verdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
+			Target: types.WorkReportHash(HexToBytes("0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -208,7 +208,7 @@ func TestSortUnique(t *testing.T) {
 
 	disputeController.VerdictController.Verdicts = append(disputeController.VerdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
+			Target: types.WorkReportHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -241,7 +241,7 @@ func TestSortUnique(t *testing.T) {
 	})
 	disputeController.VerdictController.Verdicts = append(disputeController.VerdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x7b0aa1735e5ba58d3236316c671fe4f00ed366ee72417c9ed02a53a8019e85b8")),
+			Target: types.WorkReportHash(HexToBytes("0x7b0aa1735e5ba58d3236316c671fe4f00ed366ee72417c9ed02a53a8019e85b8")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{
@@ -274,7 +274,7 @@ func TestSortUnique(t *testing.T) {
 	})
 	disputeController.VerdictController.Verdicts = append(disputeController.VerdictController.Verdicts, VerdictWrapper{
 		types.Verdict{
-			Target: types.OpaqueHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
+			Target: types.WorkReportHash(HexToBytes("0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9")),
 			Age:    0,
 			Votes: []types.Judgement{
 				{

@@ -758,16 +758,11 @@ func (s *SegmentRootLookup) Decode(d *Decoder) error {
 func (w *WorkExecResult) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding WorkExecResult")
 
-	var err error
-
 	// Get the first byte
 	firstByte, err := d.buf.ReadByte()
 	if err != nil {
 		return err
 	}
-
-	// make the map
-	*w = WorkExecResult{}
 
 	switch firstByte {
 	case 0:
@@ -779,26 +774,26 @@ func (w *WorkExecResult) Decode(d *Decoder) error {
 			return err
 		}
 
-		// set the map
-		(*w)["ok"] = byteSequence
+		w.Type = WorkExecResultOk
+		w.Data = byteSequence
 	case 1:
 		cLog(Yellow, "WorkExecResultOutOfGas")
-		(*w)["out-of-gas"] = nil
+		w.Type = WorkExecResultOutOfGas
 	case 2:
 		cLog(Yellow, "WorkExecResultPanic")
-		(*w)["panic"] = nil
+		w.Type = WorkExecResultPanic
 	case 3:
 		cLog(Yellow, "WorkExecResultBadExports")
-		(*w)["bad-exports"] = nil
+		w.Type = WorkExecResultBadExports
 	case 4:
 		cLog(Yellow, "WorkExecResultReportOversize")
-		(*w)["output-oversize"] = nil
+		w.Type = WorkExecResultReportOversize
 	case 5:
 		cLog(Yellow, "WorkExecResultBadCode")
-		(*w)["bad-code"] = nil
+		w.Type = WorkExecResultBadCode
 	case 6:
 		cLog(Yellow, "WorkExecResultCodeOversize")
-		(*w)["code-oversize"] = nil
+		w.Type = WorkExecResultCodeOversize
 	}
 
 	return nil

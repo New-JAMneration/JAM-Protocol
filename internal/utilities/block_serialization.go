@@ -598,37 +598,23 @@ func DeferredTransferSerialization(transfer types.DeferredTransfer) (output type
 
 func SerializeWorkExecResult(result types.WorkExecResult) (output types.ByteSequence) {
 	// (C.29)
-	/*
-			const (
-			WorkExecResultOk           WorkExecResultType = "ok"
-			WorkExecResultOutOfGas                        = "out-of-gas"
-			WorkExecResultPanic                           = "panic"
-			WorkExecResultBadExports                      = "bad-exports"
-			WorkExecResultBadCode                         = "bad-code"
-			WorkExecResultCodeOversize                    = "code-oversize"
-		)
-
-	*/
-	if len(result) == 1 {
-		for key, value := range result {
-			if key == "ok" {
-				output = append(output, SerializeU64(types.U64(0))...)
-				output = append(output, SerializeU64(types.U64(len(value)))...)
-				output = append(output, SerializeByteSequence(value)...) // (0, ↕o)
-			} else if key == "out-of-gas" {
-				output = append(output, SerializeU64(types.U64(1))...)
-			} else if key == "panic" {
-				output = append(output, SerializeU64(types.U64(2))...)
-			} else if key == "bad-exports" {
-				output = append(output, SerializeU64(types.U64(3))...)
-			} else if key == "bad-code" {
-				output = append(output, SerializeU64(types.U64(4))...)
-			} else if key == "code-oversize" {
-				output = append(output, SerializeU64(types.U64(5))...)
-			}
-		}
-	} else {
-		logger.Errorf("Map size expected to be 1")
+	switch result.Type {
+	case types.WorkExecResultOk:
+		output = append(output, SerializeU64(types.U64(0))...)
+		output = append(output, SerializeU64(types.U64(len(result.Data)))...)
+		output = append(output, SerializeByteSequence(result.Data)...) // (0, ↕o)
+	case types.WorkExecResultOutOfGas:
+		output = append(output, SerializeU64(types.U64(1))...)
+	case types.WorkExecResultPanic:
+		output = append(output, SerializeU64(types.U64(2))...)
+	case types.WorkExecResultBadExports:
+		output = append(output, SerializeU64(types.U64(3))...)
+	case types.WorkExecResultBadCode:
+		output = append(output, SerializeU64(types.U64(4))...)
+	case types.WorkExecResultCodeOversize:
+		output = append(output, SerializeU64(types.U64(5))...)
+	default:
+		logger.Errorf("unknown WorkExecResultType: %v", result.Type)
 	}
 	return output
 }
