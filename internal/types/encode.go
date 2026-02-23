@@ -720,67 +720,49 @@ func (g *Gas) Encode(e *Encoder) error {
 func (w *WorkExecResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkExecResult")
 
-	// Check the size of map
-	if len(*w) != 1 {
-		return errors.New("WorkExecResult size is not equal to 1")
-	}
-
-	var key WorkExecResultType
-	for k := range *w {
-		key = k
-		break // Get the first key and exit loop
-	}
-
-	cLog(Yellow, fmt.Sprintf("WorkExecResultType: %v", key))
-
-	switch key {
-	case "ok":
-		// Encode the first byte
+	switch w.Type {
+	case WorkExecResultOk:
 		if _, err := e.buf.Write([]byte{0}); err != nil {
 			return err
 		}
 
-		// Get the value and encode it.
-		byteSequence := (*w)["ok"]
-
-		// Encode the length of byte sequence
-		if err := e.EncodeLength(uint64(len(byteSequence))); err != nil {
+		if err := e.EncodeLength(uint64(len(w.Data))); err != nil {
 			return err
 		}
 
-		if _, err := e.buf.Write(byteSequence); err != nil {
+		if _, err := e.buf.Write(w.Data); err != nil {
 			return err
 		}
 
-		cLog(Yellow, fmt.Sprintf("WorkExecResult: %v", byteSequence))
+		cLog(Yellow, fmt.Sprintf("WorkExecResult: %v", w.Data))
 
 		return nil
-	case "out-of-gas":
+	case WorkExecResultOutOfGas:
 		if _, err := e.buf.Write([]byte{1}); err != nil {
 			return err
 		}
 		return nil
-	case "panic":
+	case WorkExecResultPanic:
 		if _, err := e.buf.Write([]byte{2}); err != nil {
 			return err
 		}
 		return nil
-	case "bad-exports":
+	case WorkExecResultBadExports:
 		if _, err := e.buf.Write([]byte{3}); err != nil {
 			return err
 		}
 		return nil
-	case "output-oversize":
+	case WorkExecResultReportOversize:
 		if _, err := e.buf.Write([]byte{4}); err != nil {
 			return err
 		}
 		return nil
-	case "bad-code":
+	case WorkExecResultBadCode:
 		if _, err := e.buf.Write([]byte{5}); err != nil {
 			return err
 		}
 		return nil
-	case "code-oversize":
+	case WorkExecResultCodeOversize:
 		if _, err := e.buf.Write([]byte{6}); err != nil {
 			return err
 		}

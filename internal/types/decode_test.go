@@ -100,13 +100,13 @@ func TestDecodeServiceId(t *testing.T) {
 	data := []byte{100, 0, 0, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 	decoder := types.NewDecoder()
-	serviceId := types.ServiceId(0)
+	serviceId := types.ServiceID(0)
 	err := decoder.Decode(data, &serviceId)
 	if err != nil {
 		t.Errorf("Error decoding ServiceId: %v", err)
 	}
 
-	expected := types.ServiceId(100)
+	expected := types.ServiceID(100)
 
 	if serviceId != expected {
 		t.Errorf("Decoded ServiceId does not match expected")
@@ -267,7 +267,7 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 	bundle := types.WorkPackageBundle{
 		Package: types.WorkPackage{
 			Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-			AuthCodeHost:     types.ServiceId(1),
+			AuthCodeHost:     types.ServiceID(1),
 			AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
 			AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 			Context: types.RefineContext{
@@ -280,7 +280,7 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 			},
 			Items: []types.WorkItem{
 				{
-					Service:            types.ServiceId(1),
+					Service:            types.ServiceID(1),
 					CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 					Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 					RefineGasLimit:     types.Gas(1000),
@@ -333,7 +333,7 @@ func TestWorkPackageBundle_EncodeDecode(t *testing.T) {
 func TestWorkPackage_EncodeDecode(t *testing.T) {
 	wp := types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -346,7 +346,7 @@ func TestWorkPackage_EncodeDecode(t *testing.T) {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),

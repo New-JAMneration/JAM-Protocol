@@ -12,6 +12,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_assurances "github.com/New-JAMneration/JAM-Protocol/jamtests/assurances"
@@ -337,7 +339,7 @@ func TestDecodeJamTestVectorsReports(t *testing.T) {
 		}
 
 		// Compare the two structs
-		if !reflect.DeepEqual(reports, jsonData) {
+		if !cmp.Equal(reports, jsonData, cmpopts.EquateEmpty()) {
 			log.Printf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Errorf("Error: %v", err)
 		} else {
@@ -892,7 +894,7 @@ func TestUnmarshalPrivileges(t *testing.T) {
 		{
 			name:     "always_acc has values",
 			jsonData: `{"bless":0,"assign":[1,2],"designate":0,"always_acc":[{"id": 4, "gas": 100},{"id": 5, "gas": 200}]}`,
-			expected: types.AlwaysAccumulateMap{types.ServiceId(4): types.Gas(100), types.ServiceId(5): types.Gas(200)},
+			expected: types.AlwaysAccumulateMap{types.ServiceID(4): types.Gas(100), types.ServiceID(5): types.Gas(200)},
 		},
 	}
 

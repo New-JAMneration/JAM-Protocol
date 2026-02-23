@@ -473,18 +473,13 @@ const (
 	WorkExecResultCodeOversize                      = "code-oversize"
 )
 
-type WorkExecResult map[WorkExecResultType][]byte
+type WorkExecResult struct {
+	Type WorkExecResultType
+	Data []byte // only meaningful when Type == WorkExecResultOk
+}
 
 func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResult {
-	if resultType == WorkExecResultOk {
-		return map[WorkExecResultType][]byte{
-			resultType: data,
-		}
-	}
-
-	return map[WorkExecResultType][]byte{
-		resultType: nil,
-	}
+	return WorkExecResult{Type: resultType, Data: data}
 }
 
 // Resource usage during refinement for a core
@@ -591,8 +586,8 @@ func (w *WorkReport) ValidateOutputSize() error {
 	totalSize := len(w.AuthOutput)
 	for _, result := range w.Results {
 		// only compute $\mathcal{B}$ => ok
-		if outputs, exists := result.Result["ok"]; exists {
-			totalSize += len(outputs)
+		if result.Result.Type == WorkExecResultOk {
+			totalSize += len(result.Result.Data)
 		}
 	}
 

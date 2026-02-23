@@ -1087,32 +1087,26 @@ func (w *WorkExecResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*w = make(WorkExecResult)
-
 	for key, value := range raw {
 		// To read test file from jam-test-vectors traces
 		// replace "_" with "-" in the key
 		key = strings.ReplaceAll(key, "_", "-")
-		resultType := WorkExecResultType(key)
+		w.Type = WorkExecResultType(key)
 
-		if key == "ok" {
+		if key == string(WorkExecResultOk) {
 			// "ok" is a byte sequence
 			decoded, err := hex.DecodeString(value[2:])
 			if err != nil {
 				return fmt.Errorf("failed to decode hex for key %s: %w", key, err)
 			}
 
-			// if decoded is empty, set to nil
-			if len(decoded) == 0 {
-				(*w)[resultType] = nil
-			} else {
-				(*w)[resultType] = decoded
+			if len(decoded) > 0 {
+				w.Data = decoded
 			}
 		}
 
-		if value == "" {
-			(*w)[resultType] = nil
-		}
+		// only one key expected, break after first
+		break
 	}
 
 	return nil
