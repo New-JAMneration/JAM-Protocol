@@ -1485,8 +1485,8 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 // Beta
 func (b *RecentBlocks) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		History BlocksHistory `json:"history,omitempty"`
-		Mmr     Mmr           `json:"mmr,omitempty"`
+		History BlocksHistory `json:"history"`
+		Mmr     Mmr           `json:"mmr"`
 	}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
