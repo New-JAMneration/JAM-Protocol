@@ -678,15 +678,15 @@ type RecentBlocks struct {
 // Types for tracking various statistics about validators, cores, and services.
 // ============================================================================
 
-// Record of a validator's activity
-// GP §13
+// Record of a validator's activity (per epoch)
+// GP §13.1, $\pi_V$, $\pi_L$
 type ValidatorActivityRecord struct {
-	Blocks        U32 `json:"blocks"`          // blocks: Number of blocks produced
-	Tickets       U32 `json:"tickets"`         // tickets: Number of Safrole tickets consumed
-	PreImages     U32 `json:"pre_images"`      // pre-images: Number of pre-images provided
-	PreImagesSize U32 `json:"pre_images_size"` // pre-images-size: Total size of provided pre-images in bytes
-	Guarantees    U32 `json:"guarantees"`      // guarantees: Number of guarantees provided
-	Assurances    U32 `json:"assurances"`      // assurances: Number of assurances provided
+	Blocks        U32 `json:"blocks"`          // $b$: Number of blocks produced
+	Tickets       U32 `json:"tickets"`         // $t$: Number of Safrole tickets consumed
+	PreImages     U32 `json:"pre_images"`      // $p$: Number of pre-images provided
+	PreImagesSize U32 `json:"pre_images_size"` // $d$: Total size of provided pre-images in bytes
+	Guarantees    U32 `json:"guarantees"`      // $g$: Number of guarantees provided
+	Assurances    U32 `json:"assurances"`      // $a$: Number of assurances provided
 }
 
 // Statistics for all validators
@@ -700,16 +700,16 @@ func (a *ValidatorsStatistics) Validate() error {
 }
 
 // Record of a per-block core's activity
-// GP §13.6
+// GP §13.6, $\pi_C$
 type CoreActivityRecord struct {
-	DALoad         U32 `json:"da_load"`         // da-load: Total bytes written in the Data Availability (DA) layer, includes work bundle, extrinsic, imports and exported segments
-	Popularity     U16 `json:"popularity"`      // popularity: Number of validators which formed super-majority for assurance
-	Imports        U16 `json:"imports"`         // imports: Number of segments imported from DA for block processing
-	ExtrinsicCount U16 `json:"extrinsic_count"` // extrinsic-count: Total number of extrinsics for reported work
-	ExtrinsicSize  U32 `json:"extrinsic_size"`  // extrinsic-size: Total size of extrinsics for reported work
-	Exports        U16 `json:"exports"`         // exports: Number of segments exported to DA during block processing
-	BundleSize     U32 `json:"bundle_size"`     // bundle-size: Serialized work bundle size written to DA
-	GasUsed        Gas `json:"gas_used"`        // gas-used: Total gas consumed during block processing (includes refinements and authorizations)
+	DALoad         U32 `json:"da_load"`         // $d$: Total bytes written in the Data Availability (DA) layer, includes work bundle, extrinsic, imports and exported segments
+	Popularity     U16 `json:"popularity"`      // $p$: Number of validators which formed super-majority for assurance
+	Imports        U16 `json:"imports"`         // $i$: Number of segments imported from DA for block processing
+	ExtrinsicCount U16 `json:"extrinsic_count"` // $x$: Total number of extrinsics for reported work
+	ExtrinsicSize  U32 `json:"extrinsic_size"`  // $z$: Total size of extrinsics for reported work
+	Exports        U16 `json:"exports"`         // $e$: Number of segments exported to DA during block processing
+	BundleSize     U32 `json:"bundle_size"`     // $l$: Serialized work bundle size written to DA
+	GasUsed        Gas `json:"gas_used"`        // $u$: Total gas consumed during block processing (includes refinements and authorizations)
 }
 
 // Statistics for all cores
@@ -723,18 +723,18 @@ func (c *CoresStatistics) Validate() error {
 }
 
 // Record of a service's activity
-// GP §13.7
+// GP §13.7, $\pi_S$
 type ServiceActivityRecord struct {
-	ProvidedCount     U16 `json:"provided_count"`      // provided-count: Number of preimages provided to this service
-	ProvidedSize      U32 `json:"provided_size"`       // provided-size: Total size of preimages provided to this service
-	RefinementCount   U32 `json:"refinement_count"`    // refinement-count: Number of work-items refined
-	RefinementGasUsed Gas `json:"refinement_gas_used"` // refinement-gas-used: Amount of gas used for refinement
-	Imports           U32 `json:"imports"`             // imports: Number of segments imported from the DL
-	ExtrinsicCount    U32 `json:"extrinsic_count"`     // extrinsic-count: Total number of extrinsics used
-	ExtrinsicSize     U32 `json:"extrinsic_size"`      // extrinsic-size: Total size of extrinsics used
-	Exports           U32 `json:"exports"`             // exports: Number of segments exported into the DL
-	AccumulateCount   U32 `json:"accumulate_count"`    // accumulate-count: Number of work-items accumulated
-	AccumulateGasUsed Gas `json:"accumulate_gas_used"` // accumulate-gas-used: Amount of gas used for accumulation
+	ProvidedCount     U16 `json:"provided_count"`      // $p$: Number of preimages provided to this service
+	ProvidedSize      U32 `json:"provided_size"`       // $p$: Total size of preimages provided to this service
+	RefinementCount   U32 `json:"refinement_count"`    // $r$: Number of work-items refined
+	RefinementGasUsed Gas `json:"refinement_gas_used"` // $r$: Amount of gas used for refinement
+	Imports           U32 `json:"imports"`             // $i$: Number of segments imported from the DL
+	ExtrinsicCount    U32 `json:"extrinsic_count"`     // $x$: Total number of extrinsics used
+	ExtrinsicSize     U32 `json:"extrinsic_size"`      // $z$: Total size of extrinsics used
+	Exports           U32 `json:"exports"`             // $e$: Number of segments exported into the DL
+	AccumulateCount   U32 `json:"accumulate_count"`    // $a$: Number of work-items accumulated
+	AccumulateGasUsed Gas `json:"accumulate_gas_used"` // $a$: Amount of gas used for accumulation
 }
 
 // Statistics for all services
@@ -742,12 +742,12 @@ type ServiceActivityRecord struct {
 type ServicesStatistics map[ServiceID]ServiceActivityRecord
 
 // Complete statistics for the system
-// GP §13.1
+// GP §13.1, $\pi$
 type Statistics struct {
-	ValsCurr ValidatorsStatistics `json:"vals-curr,omitempty"` // vals-curr: Current validator statistics
-	ValsLast ValidatorsStatistics `json:"vals-last,omitempty"` // vals-last: Previous validator statistics
-	Cores    CoresStatistics      `json:"cores,omitempty"`     // cores: Core statistics
-	Services ServicesStatistics   `json:"services,omitempty"`  // services: Service statistics
+	ValsCurr ValidatorsStatistics `json:"vals-curr,omitempty"` // $\pi_V$: Current validator statistics
+	ValsLast ValidatorsStatistics `json:"vals-last,omitempty"` // $\pi_L$: Previous validator statistics
+	Cores    CoresStatistics      `json:"cores,omitempty"`     // $\pi_C$: Core statistics
+	Services ServicesStatistics   `json:"services,omitempty"`  // $\pi_S$: Service statistics
 }
 
 // ============================================================================

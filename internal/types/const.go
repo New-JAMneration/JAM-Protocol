@@ -168,6 +168,7 @@ const (
 	// --- end ProtocolParameters ---
 
 	AccumulateQueueSize = 1024 // S v0.6.6 The maxixum number of entries in the accumulation queue
+	// W_G: The size of a segment in octets
 	SegmentSize         = 4104 // W_G = 4104: The size of a segment in octets
 )
 

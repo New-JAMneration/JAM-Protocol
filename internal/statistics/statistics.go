@@ -16,7 +16,6 @@
 package statistics
 
 import (
-	"math"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -26,7 +25,7 @@ import (
 
 // (13.3)
 func GetEpochIndex(t types.TimeSlot) types.TimeSlot {
-	return types.TimeSlot(math.Floor(float64(t) / float64(types.EpochLength)))
+	return t / types.TimeSlot(types.EpochLength)
 }
 
 // b: The number of blocks produced by the validator.
@@ -59,21 +58,27 @@ func UpdatePreimageOctetStatistics(statistics *types.Statistics, authorIndex typ
 // We note that the Ed25519 key of each validator whose
 // signature is in a credential is placed in the reporters set R.
 func UpdateReportStatistics(statistics *types.Statistics, guarantees types.GuaranteesExtrinsic, tau types.TimeSlot, validators types.ValidatorsData) {
-	var guarantor extrinsic.GuranatorAssignments
+	if len(guarantees) == 0 {
+		return
+	}
+
 	// Pre-allocate capacity: estimate based on guarantees count
 	reportersSet := make(map[types.Ed25519Public]bool, len(guarantees))
+	left := int(tau) / types.RotationPeriod
 
+	guarantorSame, _ := extrinsic.GFunc(nil)
+	guarantorDiff, _ := extrinsic.GStarFunc(nil)
 	for _, guarantee := range guarantees {
-		left := int(tau) / types.RotationPeriod
 		right := int(guarantee.Slot) / types.RotationPeriod
 
+		var guarantor extrinsic.GuranatorAssignments
 		if left == right {
-			guarantor, _ = extrinsic.GFunc(nil)
+			guarantor = guarantorSame
 		} else {
-			guarantor, _ = extrinsic.GStarFunc(nil)
+			guarantor = guarantorDiff
 		}
 
-		guarantorSlice := make(map[types.ValidatorIndex]bool, 3)
+		guarantorSlice := make(map[types.ValidatorIndex]bool, len(guarantee.Signatures))
 		for _, v := range guarantee.Signatures {
 			guarantorSlice[v.ValidatorIndex] = true
 		}
@@ -169,7 +174,7 @@ func CalculateDALoad(coreIndex types.CoreIndex, WMap CoreWorkReportMap) types.U3
 		return 0
 	}
 
-	ceilValue := types.U32((workReport.PackageSpec.ExportsCount*65 + 63) / 64)
+	ceilValue := (types.U32(workReport.PackageSpec.ExportsCount)*65 + 63) / 64
 	output := workReport.PackageSpec.Length + types.SegmentSize*ceilValue
 
 	return output
@@ -299,9 +304,7 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 
 	for _, preimage := range preimagesExtrinsic {
 		serviceId := preimage.Requester
-		if _, exists := servicesMap[serviceId]; !exists {
-			servicesMap[serviceId] = true
-		}
+		servicesMap[serviceId] = true
 	}
 
 	services := make([]types.ServiceID, 0, len(servicesMap))
@@ -382,39 +385,15 @@ func CalculateServiceResults(serviceId types.ServiceID, serviceWorkResultsMap Se
 }
 
 // v0.7.1
-// (13.12) p
-func CalculateProvidedStatistics(serviceId types.ServiceID, preimagesExtrinsic types.PreimagesExtrinsic) (providedCount types.U16, providedSize types.U32) {
-	providedCount = 0
-	providedSize = 0
-
-	for _, preimage := range preimagesExtrinsic {
-		if preimage.Requester != serviceId {
-			continue
-		}
-		providedCount += 1
-		providedSize += types.U32(len(preimage.Blob))
-	}
-
-	return providedCount, providedSize
-}
-
-// v0.7.1
 // (13.12) a
 // AccumulateCount, AccumulateGasUsed
 func CalculateAccumulationStatistics(serviceId types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
-	accumulateCount = 0
-	accumulateGasUsed = 0
-
 	value, ok := accumulationStatistics[serviceId]
 	if ok {
 		accumulateCount = types.U32(value.NumAccumulatedReports)
 		accumulateGasUsed = value.Gas
-	} else {
-		// If the service id is not found, return 0
-		accumulateCount = 0
-		accumulateGasUsed = 0
 	}
-
+	// else, the service id is not found, accumulateCount and accumulateGasUsed are 0
 	return accumulateCount, accumulateGasUsed
 }
 
@@ -428,6 +407,19 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	s := GetAllServices(extrinsic.Preimages)
 	serviceWorkResultsMap := CreateServiceWorkResultsMap()
 
+	// Precompute the preimage statistics for each service
+	type preimageStats struct {
+		count types.U16
+		size  types.U32
+	}
+	preimageStatsMap := make(map[types.ServiceID]preimageStats, len(extrinsic.Preimages))
+	for _, preimage := range extrinsic.Preimages {
+		ps := preimageStatsMap[preimage.Requester]
+		ps.count++
+		ps.size += types.U32(len(preimage.Blob))
+		preimageStatsMap[preimage.Requester] = ps
+	}
+
 	// Initialize the services statistics (13.7)
 	servicesStatistics := make(types.ServicesStatistics)
 
@@ -436,14 +428,14 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 		R := CalculateServiceResults(serviceId, serviceWorkResultsMap)
 
 		// p
-		providedCount, providedSize := CalculateProvidedStatistics(serviceId, extrinsic.Preimages)
+		ps := preimageStatsMap[serviceId]
 
 		// a
 		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
 
 		servicesStatistics[serviceId] = types.ServiceActivityRecord{
-			ProvidedCount:     providedCount,
-			ProvidedSize:      providedSize,
+			ProvidedCount:     ps.count,
+			ProvidedSize:      ps.size,
 			RefinementCount:   R.n,
 			RefinementGasUsed: R.GasUsed,
 			Imports:           R.Imports,
