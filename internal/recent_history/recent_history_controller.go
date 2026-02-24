@@ -48,9 +48,9 @@ func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.St
 */
 func serLastAccOut(lastAccOut types.LastAccOut) ([]types.ByteSequence, error) {
 	output := make([]types.ByteSequence, 0, len(lastAccOut))
+	encoder := types.NewEncoder()
 	for i := 0; i < len(lastAccOut); i++ {
-		enc := types.NewEncoder()
-		data, err := enc.Encode(&lastAccOut[i])
+		data, err := encoder.Encode(&lastAccOut[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode lastAccOut[%d]: %w", i, err)
 		}
@@ -126,17 +126,19 @@ func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPac
 	β′_H ≡ β†_H cat. ( p, h = H(H), b = MR(β′_B ), s = H^0 )
 */
 func AddItem2BetaHPrime(historyDagger types.BlocksHistory, item types.BlockInfo) types.BlocksHistory {
-	// Pre-allocate capacity: historyDagger length + 1 (for new item), capped at maxBlocksHistory
-	capacity := min(len(historyDagger)+1, maxBlocksHistory)
-	historyPrime := make(types.BlocksHistory, len(historyDagger), capacity)
-	copy(historyPrime, historyDagger)
-	historyPrime = append(historyPrime, item)
+	n := len(historyDagger)
+
+	if n < maxBlocksHistory {
+		historyPrime := make(types.BlocksHistory, n+1)
+		copy(historyPrime, historyDagger)
+		historyPrime[n] = item
+		return historyPrime
+	}
 
 	// Ensure beta^prime's length not exceed maxBlocksHistory
-	if historyPrime.Validate() != nil {
-		// Remove old states, with length is maxBlocksHistory
-		historyPrime = historyPrime[(len(historyPrime) - maxBlocksHistory):]
-	}
+	historyPrime := make(types.BlocksHistory, maxBlocksHistory)
+	copy(historyPrime, historyDagger[1:])
+	historyPrime[maxBlocksHistory-1] = item
 
 	return historyPrime
 }
@@ -149,8 +151,8 @@ func STFBetaH2BetaHDagger() {
 		block = cs.GetLatestBlock()
 	)
 	// logger.Debugf("Latest block got by (4.6): %+v", block)
-	if beta.History.Validate() != nil {
-		logger.Errorf("beta.History.Validate() failed: %v", beta.History.Validate())
+	if err := beta.History.Validate(); err != nil {
+		logger.Errorf("beta.History.Validate() failed: %v", err)
 	}
 	betaDagger := History2HistoryDagger(beta.History, block.Header.ParentStateRoot)
 

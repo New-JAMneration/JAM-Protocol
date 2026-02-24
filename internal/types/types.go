@@ -626,21 +626,28 @@ type MmrPeak *OpaqueHash
 // Merkle Mountain Range structure (Beefy Belt)
 // GP §7.3
 type Mmr struct {
-	Peaks []MmrPeak `json:"peaks,omitempty"` // peaks: Sequence of MMR peaks
+	Peaks []MmrPeak `json:"peaks"` // peaks: Sequence of MMR peaks
 }
 
 // Information about a work package that was reported
 type ReportedWorkPackage struct {
-	Hash        WorkReportHash `json:"hash,omitempty"`         // hash: Hash of the work report
-	ExportsRoot ExportsRoot    `json:"exports_root,omitempty"` // exports-root: Root hash of exported data
+	Hash        WorkReportHash `json:"hash"`         // hash: Hash of the work report
+	ExportsRoot ExportsRoot    `json:"exports_root"` // exports-root: Root hash of exported data
 }
 
 // Information about a block
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"` // $h$: Hash of the block header
-	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`  // $b$: Merkle Mountain Range root
-	StateRoot  StateRoot             `json:"state_root,omitempty"`  // $s$: Posterior state root
-	Reported   []ReportedWorkPackage `json:"reported,omitempty"`    // $\mathbf{p}$: Work packages reported in this block
+	HeaderHash HeaderHash            `json:"header_hash"` // $h$: Hash of the block header
+	BeefyRoot  OpaqueHash            `json:"beefy_root"`  // $b$: Merkle Mountain Range root
+	StateRoot  StateRoot             `json:"state_root"`  // $s$: Posterior state root
+	Reported   []ReportedWorkPackage `json:"reported"`    // $\mathbf{p}$: Work packages reported in this block (...Cores)
+}
+
+func (b *BlockInfo) Validate() error {
+	if len(b.Reported) > CoresCount {
+		return fmt.Errorf("BlockInfo Reported length %d is greater than CoresCount %d", len(b.Reported), CoresCount)
+	}
+	return nil
 }
 
 // History of recent blocks
@@ -651,14 +658,19 @@ func (b *BlocksHistory) Validate() error {
 	if len(*b) > MaxBlocksHistory {
 		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(*b), MaxBlocksHistory)
 	}
+	for _, blockInfo := range *b {
+		if err := blockInfo.Validate(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Imported Blocks Information
 // GP §7.1
 type RecentBlocks struct {
-	History BlocksHistory `json:"history,omitempty"` // history: Recent blocks history
-	Mmr     Mmr           `json:"mmr,omitempty"`     // mmr: MMR
+	History BlocksHistory `json:"history"` // history: Recent blocks history
+	Mmr     Mmr           `json:"mmr"`     // mmr: MMR
 }
 
 // ============================================================================
@@ -669,12 +681,12 @@ type RecentBlocks struct {
 // Record of a validator's activity
 // GP §13
 type ValidatorActivityRecord struct {
-	Blocks        U32 `json:"blocks,omitempty"`          // blocks: Number of blocks produced
-	Tickets       U32 `json:"tickets,omitempty"`         // tickets: Number of Safrole tickets consumed
-	PreImages     U32 `json:"pre_images,omitempty"`      // pre-images: Number of pre-images provided
-	PreImagesSize U32 `json:"pre_images_size,omitempty"` // pre-images-size: Total size of provided pre-images in bytes
-	Guarantees    U32 `json:"guarantees,omitempty"`      // guarantees: Number of guarantees provided
-	Assurances    U32 `json:"assurances,omitempty"`      // assurances: Number of assurances provided
+	Blocks        U32 `json:"blocks"`          // blocks: Number of blocks produced
+	Tickets       U32 `json:"tickets"`         // tickets: Number of Safrole tickets consumed
+	PreImages     U32 `json:"pre_images"`      // pre-images: Number of pre-images provided
+	PreImagesSize U32 `json:"pre_images_size"` // pre-images-size: Total size of provided pre-images in bytes
+	Guarantees    U32 `json:"guarantees"`      // guarantees: Number of guarantees provided
+	Assurances    U32 `json:"assurances"`      // assurances: Number of assurances provided
 }
 
 // Statistics for all validators
@@ -690,14 +702,14 @@ func (a *ValidatorsStatistics) Validate() error {
 // Record of a per-block core's activity
 // GP §13.6
 type CoreActivityRecord struct {
-	DALoad         U32 `json:"da_load,omitempty"`         // da-load: Total bytes written in the Data Availability (DA) layer, includes work bundle, extrinsic, imports and exported segments
-	Popularity     U16 `json:"popularity,omitempty"`      // popularity: Number of validators which formed super-majority for assurance
-	Imports        U16 `json:"imports,omitempty"`         // imports: Number of segments imported from DA for block processing
-	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // extrinsic-count: Total number of extrinsics for reported work
-	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // extrinsic-size: Total size of extrinsics for reported work
-	Exports        U16 `json:"exports,omitempty"`         // exports: Number of segments exported to DA during block processing
-	BundleSize     U32 `json:"bundle_size,omitempty"`     // bundle-size: Serialized work bundle size written to DA
-	GasUsed        Gas `json:"gas_used,omitempty"`        // gas-used: Total gas consumed during block processing (includes refinements and authorizations)
+	DALoad         U32 `json:"da_load"`         // da-load: Total bytes written in the Data Availability (DA) layer, includes work bundle, extrinsic, imports and exported segments
+	Popularity     U16 `json:"popularity"`      // popularity: Number of validators which formed super-majority for assurance
+	Imports        U16 `json:"imports"`         // imports: Number of segments imported from DA for block processing
+	ExtrinsicCount U16 `json:"extrinsic_count"` // extrinsic-count: Total number of extrinsics for reported work
+	ExtrinsicSize  U32 `json:"extrinsic_size"`  // extrinsic-size: Total size of extrinsics for reported work
+	Exports        U16 `json:"exports"`         // exports: Number of segments exported to DA during block processing
+	BundleSize     U32 `json:"bundle_size"`     // bundle-size: Serialized work bundle size written to DA
+	GasUsed        Gas `json:"gas_used"`        // gas-used: Total gas consumed during block processing (includes refinements and authorizations)
 }
 
 // Statistics for all cores
