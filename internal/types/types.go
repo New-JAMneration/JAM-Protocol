@@ -767,13 +767,14 @@ type TicketEnvelope struct {
 }
 
 // Body of a ticket
+// GP §6.6, $\mathbb{T}$
 type TicketBody struct {
-	Id      TicketId      `json:"id"`      // id: Ticket identifier
-	Attempt TicketAttempt `json:"attempt"` // attempt: Attempt number
+	Id      TicketId      `json:"id"`      // $y$: Ticket identifier
+	Attempt TicketAttempt `json:"attempt"` // $e$: Attempt number
 }
 
 // Accumulator for tickets within an epoch
-// GP §6.5
+// GP §6.5, $\gamma_A$
 type TicketsAccumulator []TicketBody
 
 func (t *TicketsAccumulator) Validate() error {
@@ -784,9 +785,10 @@ func (t *TicketsAccumulator) Validate() error {
 }
 
 // Either tickets or public keys
+// GP §6.5, $\gamma_S$
 type TicketsOrKeys struct {
-	Tickets []TicketBody         `json:"tickets,omitempty"` // tickets: Sequence of ticket bodies
-	Keys    []BandersnatchPublic `json:"keys,omitempty"`    // keys: Sequence of public keys
+	Tickets []TicketBody         `json:"tickets,omitempty"` // $\mathbb{T}$: Sequence of ticket bodies
+	Keys    []BandersnatchPublic `json:"keys,omitempty"`    // $\tilde{\mathbb{H}}$: Sequence of public keys
 }
 
 func (t *TicketsOrKeys) Validate() error {
@@ -801,7 +803,7 @@ func (t *TicketsOrKeys) Validate() error {
 }
 
 // Extrinsic containing ticket submissions
-// GP §6.29
+// GP §6.29, $\mathbf{E}_T$
 type TicketsExtrinsic []TicketEnvelope
 
 func (t *TicketsExtrinsic) Validate() error {
@@ -836,17 +838,17 @@ func (t *TicketsExtrinsic) ScaleEncode() ([]byte, error) {
 
 // A single validator's judgment on a disputed work report
 type Judgement struct {
-	Vote      bool             `json:"vote"`      // vote: True for valid, False for invalid
-	Index     ValidatorIndex   `json:"index"`     // index: Index of the validator making the judgment
-	Signature Ed25519Signature `json:"signature"` // signature: Signature of the validator
+	Vote      bool             `json:"vote"`      // $v$: True for valid, False for invalid
+	Index     ValidatorIndex   `json:"index"`     // $i$: Index of the validator making the judgment
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature of the validator
 }
 
 // A complete verdict on a disputed work report
-// GP §10.2
+// GP §10.2, $\mathbf{E}_V$
 type Verdict struct {
-	Target WorkReportHash `json:"target"` // target: Hash of the disputed work report
-	Age    U32            `json:"age"`    // age: Epoch index of the prior state or one less depending on the key set used to sign the votes
-	Votes  []Judgement    `json:"votes"`  // votes: Judgments from a super-majority of validators
+	Target WorkReportHash `json:"target"` // $r$: Hash of the disputed work report
+	Age    U32            `json:"age"`    // $a$: Epoch index of the prior state or one less depending on the key set used to sign the votes
+	Votes  []Judgement    `json:"votes"`  // $\mathbf{j}$: Judgments from a super-majority of validators
 }
 
 func (v *Verdict) Validate() error {
@@ -857,18 +859,20 @@ func (v *Verdict) Validate() error {
 }
 
 // Information about a validator who submitted an invalid report
+// GP §10.2, $\mathbf{E}_C$
 type Culprit struct {
-	Target    WorkReportHash   `json:"target"`    // target: Hash of the disputed work report
-	Key       Ed25519Public    `json:"key"`       // key: Public key of the culprit
-	Signature Ed25519Signature `json:"signature"` // signature: Signature proving culpability
+	Target    WorkReportHash   `json:"target"`    // $r$: Hash of the disputed work report
+	Key       Ed25519Public    `json:"key"`       // $f$: Public key of the culprit
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature proving culpability
 }
 
 // Information about a validator who made an incorrect judgment
+// GP §10.2, $\mathbf{E}_F$
 type Fault struct {
-	Target    WorkReportHash   `json:"target"`    // target: Hash of the disputed work report
-	Vote      bool             `json:"vote"`      // vote: The incorrect vote (True/False)
-	Key       Ed25519Public    `json:"key"`       // key: Public key of the validator
-	Signature Ed25519Signature `json:"signature"` // signature: Signature proving the fault
+	Target    WorkReportHash   `json:"target"`    // $r$: Hash of the disputed work report
+	Vote      bool             `json:"vote"`      // $v$: The incorrect vote (True/False)
+	Key       Ed25519Public    `json:"key"`       // $f$: Public key of the validator
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature proving the fault
 }
 
 // Records of dispute outcomes
@@ -921,9 +925,10 @@ func (d *DisputesExtrinsic) ScaleEncode() ([]byte, error) {
 // ============================================================================
 
 // A preimage with its requester
+// GP §12.35, $\mathbf{E}_P$
 type Preimage struct {
-	Requester ServiceID    `json:"requester"` // requester: ID of the service requesting the preimage
-	Blob      ByteSequence `json:"blob"`      // blob: The preimage data
+	Requester ServiceID    `json:"requester"` // $s$: ID of the service requesting the preimage
+	Blob      ByteSequence `json:"blob"`      // $\mathbf{d}$: The preimage data
 }
 
 func (p *Preimage) Validate() error {
@@ -931,7 +936,7 @@ func (p *Preimage) Validate() error {
 }
 
 // Extrinsic containing preimages
-// GP §12.28, §12.29
+// GP §12.35, $\mathbf{E}_P$
 type PreimagesExtrinsic []Preimage
 
 func (p *PreimagesExtrinsic) Validate() error {

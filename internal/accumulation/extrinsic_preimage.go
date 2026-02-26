@@ -3,7 +3,6 @@ package accumulation
 import (
 	"bytes"
 	"errors"
-	"maps"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -111,7 +110,11 @@ func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.Servic
 	if len(eps) == 0 {
 		return nil
 	}
-
+	// 12.39
+	err := validateSortUnique(eps)
+	if err != nil {
+		return err
+	}
 	// 12.40
 	for _, ep := range eps {
 		preimageHash := hash.Blake2bHash(ep.Blob)
@@ -123,11 +126,6 @@ func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.Servic
 		}
 	}
 
-	// 12.39
-	err := validateSortUnique(eps)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -141,17 +139,8 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 			return &errCode
 		}
 
-		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) > 0 {
-			// logger.Errorf("eps.Requester is not sorted by Blob")
-			errCode := PreimageErrorCode.PrimagesNotSortedUnique
-			return &errCode
-		}
-	}
-
-	// If eps have duplicates, return error
-	for i := 1; i < len(eps); i++ {
-		if eps[i].Requester == eps[i-1].Requester && bytes.Equal(eps[i].Blob, eps[i-1].Blob) {
-			// logger.Errorf("eps have duplicates")
+		if eps[i-1].Requester == eps[i].Requester && bytes.Compare(eps[i-1].Blob, eps[i].Blob) >= 0 {
+			// logger.Errorf("eps.Requester is not sorted by Blob or have duplicates")
 			errCode := PreimageErrorCode.PrimagesNotSortedUnique
 			return &errCode
 		}
@@ -256,8 +245,7 @@ func ProcessPreimageExtrinsics() error {
 // (map[N_s]A, (N_s, Y)) -> map[N_s]A
 // v0.6.5 (12.18)
 func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.ServiceAccountState, error) {
-	dPrime := maps.Clone(d)
-
+	tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
 	for _, serviceblob := range eps {
 		serviceId := serviceblob.ServiceID
 		serviceAccount, found := d[serviceId]
@@ -272,11 +260,11 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; !found || (found && len(timeSlotSet) > 0) {
 			continue
 		}
-		tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
+		
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
 		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
-		dPrime[serviceId] = serviceAccount
+		d[serviceId] = serviceAccount
 	}
 
-	return dPrime, nil
+	return d, nil
 }
