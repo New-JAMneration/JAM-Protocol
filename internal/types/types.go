@@ -1202,14 +1202,15 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 
 // Record of a work report that is ready for processing
 type ReadyRecord struct {
-	Report       WorkReport        // report: The work report
-	Dependencies []WorkPackageHash // dependencies: Dependencies required by this report
+	Report       WorkReport        // $\mathbb{R}$: The work report
+	Dependencies []WorkPackageHash // ${\mathbb{H}}$: Dependencies required by this report
 }
 
 // A group of records that became ready at a specific slot
 type ReadyQueueItem []ReadyRecord
 
 // A fixed-size FIFO queue of ready record groups (one per slot), with maximum size equal to the epoch length
+// GP §12.3, $w$
 type ReadyQueue []ReadyQueueItem
 
 func (r *ReadyQueue) Validate() error {
@@ -1223,7 +1224,15 @@ func (r *ReadyQueue) Validate() error {
 type AccumulatedQueueItem []WorkPackageHash
 
 // A fixed-size FIFO queue of accumulated work package groups (one per slot), with maximum size equal to the epoch length
+// GP §12.1, $\xi$
 type AccumulatedQueue []AccumulatedQueueItem
+
+func (a *AccumulatedQueue) Validate() error {
+	if len(*a) != EpochLength {
+		return fmt.Errorf("AccumulatedQueue length %d is not equal to EpochLength %d", len(*a), EpochLength)
+	}
+	return nil
+}
 
 // Map of services that are always accumulated
 type AlwaysAccumulateMap map[ServiceID]Gas
@@ -1244,18 +1253,17 @@ type Privileges struct {
 	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // always-acc: Services that are always accumulated
 }
 
-type AccumulateRoot OpaqueHash
-
-// (12.16) S
+// (12.16) \mathbb{S}, states that are needed and mutable by the accumulation process
 type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState // d
-	ValidatorKeys   ValidatorsData      // i
-	Authorizers     AuthQueues          // q
-	Bless           ServiceID           // m
-	Assign          ServiceIDList       // a
-	Designate       ServiceID           // v
-	CreateAcct      ServiceID           // r
-	AlwaysAccum     AlwaysAccumulateMap // z
+	ServiceAccounts ServiceAccountState // $\mathbf{d}$: Service accounts
+	ValidatorKeys   ValidatorsData      // $\mathbf{i}$: Upcoming validator keys $\iota$
+	Authorizers     AuthQueues          // $\mathbf{q}$: The queues of authorizers $\varphi$
+	// Privileges state $\chi$
+	Bless       ServiceID           // $m$: Bless
+	Assign      ServiceIDList       // $\mathbf{a}$: Assign
+	Designate   ServiceID           // $v$: Designate
+	CreateAcct  ServiceID           // $r$: Create account
+	AlwaysAccum AlwaysAccumulateMap // $\mathbf{z}$: Always accumulate
 }
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
@@ -1321,27 +1329,41 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		Bless:           origin.Bless,
 		Assign:          copiedAssign,
 		Designate:       origin.Designate,
+		CreateAcct:      origin.CreateAcct,
 		AlwaysAccum:     copiedAlwaysAccum,
 	}
 }
 
-// (12.19 0.7.0)
+// Operand tuple: salient information from digests and reports for accumulation
+// GP §12.13, $\mathbb{U}$
 type Operand struct {
-	Hash           WorkPackageHash // p
-	ExportsRoot    ExportsRoot     // e
-	AuthorizerHash OpaqueHash      // a
-	PayloadHash    OpaqueHash      // y
-	GasLimit       Gas             // g   0.6.5
-	Result         WorkExecResult  // l
-	AuthOutput     ByteSequence    // t
+	Hash           WorkPackageHash // $p$
+	ExportsRoot    ExportsRoot     // $e$
+	AuthorizerHash OpaqueHash      // $a$
+	PayloadHash    OpaqueHash      // $y$
+	GasLimit       Gas             // $g$
+	Result         WorkExecResult  // $\mathbf{l}$
+	AuthOutput     ByteSequence    // $\mathbf{t}$
 }
 
+// Deferred transfer
+// GP §12.14, $\mathbb{X}$
+type DeferredTransfer struct {
+	SenderID   ServiceID              // $s$
+	ReceiverID ServiceID              // $d$
+	Balance    U64                    // $a$
+	Memo       [TransferMemoSize]byte // $m$
+	GasLimit   Gas                    // $g$
+}
+
+// Accumulation input: operand or deferred transfer
+// GP §12.15, $\mathbb{I}$
 type OperandOrDeferredTransfer struct {
-	Operand          *Operand          // U
-	DeferredTransfer *DeferredTransfer // X
+	Operand          *Operand          // $\mathbb{U}$
+	DeferredTransfer *DeferredTransfer // $\mathbb{X}$
 }
 
-// (12.17) U
+// (12.17) $U$, list of service gas used
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
@@ -1349,6 +1371,8 @@ type ServiceGasUsed struct {
 	Gas       Gas
 }
 
+// Service-indexed commitments to accumulation output
+// GP §12.15, $B$
 type AccumulatedServiceHash struct {
 	ServiceID ServiceID
 	Hash      OpaqueHash // AccumulationOutput
@@ -1363,22 +1387,15 @@ type LastAccOut []AccumulatedServiceHash
 // - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
-// (12.23)
+// (12.28)
 type GasAndNumAccumulatedReports struct {
-	Gas                   Gas
-	NumAccumulatedReports U64
+	Gas                   Gas // $\mathbf{u}$: gas used by the service
+	NumAccumulatedReports U64 // $n$: number of work-reports accumulated by the service
 }
 
-// (12.26)
-// S: accumulation statistics
+// GP §12.26, $\mathbf{S}$: accumulation statistics
 // dictionary<ServiceID, (gas used, the number of work-reports accumulated)>
 type AccumulationStatistics map[ServiceID]GasAndNumAccumulatedReports
-
-// (12.29)
-type NumDeferredTransfersAndTotalGasUsed struct {
-	NumDeferredTransfers U64
-	TotalGasUsed         Gas
-}
 
 // ============================================================================
 // BLOCK
@@ -1548,18 +1565,6 @@ func (b *Block) ScaleDecode(data []byte) error {
 func (b *Block) ScaleEncode() ([]byte, error) {
 	return scale.Encode("block", b)
 }
-
-// (12.14) deferred transfer
-// X = deferred-transfer
-type DeferredTransfer struct {
-	SenderID   ServiceID `json:"senderid"`
-	ReceiverID ServiceID `json:"receiverid"`
-	Balance    U64       `json:"balance"`
-	Memo       [128]byte `json:"memo"`
-	GasLimit   Gas       `json:"gas"`
-}
-
-type DeferredTransfers []DeferredTransfer
 
 type AuditReport struct {
 	CoreID      CoreIndex

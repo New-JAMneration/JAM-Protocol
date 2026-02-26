@@ -2508,20 +2508,6 @@ func (a *AuthQueues) Decode(d *Decoder) error {
 	return nil
 }
 
-// AccumulateRoot
-func (a *AccumulateRoot) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding AccumulateRoot")
-
-	var val AccumulateRoot
-	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %x", val))
-
-	*a = val
-	return nil
-}
-
 // ReadyRecord
 func (r *ReadyRecord) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ReadyRecord")
@@ -3076,31 +3062,6 @@ func (d *DeferredTransfer) Decode(decoder *Decoder) error {
 	if err = d.GasLimit.Decode(decoder); err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func (d *DeferredTransfers) Decode(decoder *Decoder) error {
-	cLog(Cyan, "Decoding DeferredTransfers")
-
-	length, err := decoder.DecodeLength()
-	if err != nil {
-		return err
-	}
-
-	if length == 0 {
-		return nil
-	}
-
-	// make the slice with length
-	transfers := make([]DeferredTransfer, length)
-	for i := uint64(0); i < length; i++ {
-		if err = transfers[i].Decode(decoder); err != nil {
-			return err
-		}
-	}
-
-	*d = transfers
 
 	return nil
 }

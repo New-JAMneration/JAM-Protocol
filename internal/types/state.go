@@ -1,9 +1,5 @@
 package types
 
-import (
-	"fmt"
-)
-
 // (4.4)
 type State struct {
 	Alpha    AuthPools               `json:"alpha"`
@@ -89,37 +85,6 @@ type PrivilegedServices struct {
 	AlterPhiServiceIndex    U32         `json:"chi_a"`
 	AlterIotaServiceIndex   U32         `json:"chi_v"`
 	AutoAccumulateGasLimits map[U32]U64 `json:"chi_g"`
-}
-
-// (12.3)
-type (
-	AccumulationQueue       []UnaccumulateWorkReports
-	UnaccumulateWorkReports []UnaccumulateWorkReport
-)
-
-func (accumulationQueue AccumulationQueue) Validate() error {
-	if len(accumulationQueue) != EpochLength {
-		return fmt.Errorf("AccumulationQueue must have exactly %d items, but got %d", EpochLength, len(accumulationQueue))
-	}
-	return nil
-}
-
-type UnaccumulateWorkReport struct {
-	WorkReport        WorkReport        `json:"report"`
-	UnaccumulatedDeps []WorkPackageHash `json:"dependencies"`
-}
-
-// (12.1)
-// type (
-// 	AccumulatedQueue []AccumulatedQueueItem
-// 	AccumulatedQueueItem   []WorkPackageHash
-// )
-
-func (AccumulatedQueue AccumulatedQueue) Validate() error {
-	if len(AccumulatedQueue) != EpochLength {
-		return fmt.Errorf("AccumulatedQueue must have exactly %d items, but got %d", EpochLength, len(AccumulatedQueue))
-	}
-	return nil
 }
 
 var KeyValMap = map[StateKey]string{
