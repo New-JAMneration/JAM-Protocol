@@ -185,7 +185,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	}()
 	if err != nil {
 		// This error should not happen
-		logger.Fatalf("error creating verifiers: %v", err)
+		logger.Errorf("error creating verifiers: %v", err)
 	}
 
 	// Update GammaZ commitment (gammaZ)

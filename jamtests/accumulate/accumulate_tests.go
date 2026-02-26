@@ -85,7 +85,7 @@ type AccumulateInput struct {
 }
 
 type AccumulateOutput struct {
-	Ok  *types.AccumulateRoot `json:"ok,omitempty"`
+	Ok  *types.OpaqueHash     `json:"ok,omitempty"`
 	Err *AccumulatedErrorCode `json:"err,omitempty"` // err NULL
 }
 
@@ -323,7 +323,7 @@ func (a *AccumulateOutput) Decode(d *types.Decoder) error {
 		cLog(Cyan, "AccumulateOutput is ok")
 
 		if a.Ok == nil {
-			a.Ok = &types.AccumulateRoot{}
+			a.Ok = &types.OpaqueHash{}
 		}
 
 		if err = a.Ok.Decode(d); err != nil {

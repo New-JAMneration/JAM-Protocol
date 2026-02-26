@@ -54,7 +54,7 @@ func TestStateKeyContractorStateWrapper(t *testing.T) {
 func TestStateKeyContractorStateServiceWrapper(t *testing.T) {
 	testCases := []struct {
 		stateIndex                types.U8
-		serviceIndex              types.ServiceId
+		serviceIndex              types.ServiceID
 		expectedStateKeyHexString string
 	}{
 		{255, 0, "0xff000000000000000000000000000000000000000000000000000000000000"},
@@ -90,7 +90,7 @@ func TestStateKeyContractorStateServiceWrapper(t *testing.T) {
 }
 
 func TestStateKeyContractorServiceWrapper(t *testing.T) {
-	var serviceIndex types.ServiceId = 700
+	var serviceIndex types.ServiceID = 700
 	var h types.ByteSequence = types.ByteSequence{
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
