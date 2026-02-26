@@ -799,6 +799,9 @@ func (t *TicketsOrKeys) Validate() error {
 	if len(t.Keys) > 0 && len(t.Keys) != EpochLength {
 		return fmt.Errorf("TicketsOrKeys Keys length %d is not equal to EpochLength %d", len(t.Keys), EpochLength)
 	}
+	if len(t.Tickets) == 0 && len(t.Keys) == 0 {
+		return fmt.Errorf("TicketsOrKeys Tickets and Keys are empty")
+	}
 	return nil
 }
 
@@ -1405,15 +1408,16 @@ type AccumulationStatistics map[ServiceID]GasAndNumAccumulatedReports
 // Validator keys included in an epoch announcement
 // GP §6.27
 type EpochMarkValidatorKeys struct {
-	Bandersnatch BandersnatchPublic // bandersnatch: Bandersnatch public key
-	Ed25519      Ed25519Public      // ed25519: Ed25519 public key
+	Bandersnatch BandersnatchPublic // $k_b$: Bandersnatch public key
+	Ed25519      Ed25519Public      // $k_e$: Ed25519 public key
 }
 
 // Mark containing the next epoch parameters
+// GP §6.27, $\mathbf{H}_E$
 type EpochMark struct {
-	Entropy        Entropy                  `json:"entropy"`         // entropy: Entropy for the epoch
-	TicketsEntropy Entropy                  `json:"tickets_entropy"` // tickets-entropy: Entropy used to build the epoch's tickets
-	Validators     []EpochMarkValidatorKeys `json:"validators"`      // validators: Public keys of validators
+	Entropy        Entropy                  `json:"entropy"`         // $\eta_0$: Entropy for the epoch
+	TicketsEntropy Entropy                  `json:"tickets_entropy"` // $\eta_1$: Entropy used to build the epoch's tickets
+	Validators     []EpochMarkValidatorKeys `json:"validators"`      // Public keys of validators
 }
 
 func (e *EpochMark) Validate() error {
@@ -1425,16 +1429,18 @@ func (e *EpochMark) Validate() error {
 }
 
 // Mark containing the next epoch tickets
+// GP §6.28, $\mathbf{H}_W$
 type TicketsMark []TicketBody
 
 func (t *TicketsMark) Validate() error {
-	if len(*t) != EpochLength {
+	if len(*t) > 0 && len(*t) != EpochLength {
 		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(*t), EpochLength)
 	}
 	return nil
 }
 
 // Mark containing offenders
+// GP §10.20, $\mathbf{H}_O$
 type OffendersMark []Ed25519Public
 
 // Block header

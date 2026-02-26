@@ -44,7 +44,7 @@ func FallbackKeySequence(entropy types.Entropy, validators types.ValidatorsData)
 		// E^(-1) deserialization
 		validatorIndex, _ := utils.DeserializeFixedLength(types.ByteSequence(hash), types.U32(4))
 		// validatorIndex : jamtypes.U64
-		validatorIndex %= (types.U32(len(validators)))
+		validatorIndex %= (types.U32(types.ValidatorsCount))
 		// k[]_b : validatorData -> bandersnatch
 		keys[i] = validators[validatorIndex].Bandersnatch
 	}

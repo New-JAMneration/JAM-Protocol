@@ -94,6 +94,9 @@ func SealingByBandersnatchs() error {
 func SealingHeader() error {
 	cs := blockchain.GetInstance()
 	gammaS := cs.GetPosteriorStates().GetGammaS()
+	if err := gammaS.Validate(); err != nil {
+		return err
+	}
 	if len(gammaS.Keys) > 0 {
 		err := SealingByBandersnatchs()
 		if err != nil {
@@ -188,6 +191,10 @@ func ValidateHeaderEntropy(header types.Header, priorState *types.State) *types.
 
 func ValidateByBandersnatchs(header types.Header, state *types.State) *types.ErrorCode {
 	gammaSKeys := state.Gamma.GammaS.Keys
+	if len(gammaSKeys) == 0 {
+		logger.Errorf("ValidateByBandersnatchs gammaSKeys is empty")
+		return nil
+	}
 	// logger.Debugf("length of gammaSKeys:", len(gammaSKeys))
 	index := uint(header.Slot) % uint(len(gammaSKeys))
 
@@ -238,6 +245,10 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) *types.Err
 // Need test vectors to verify correctness
 func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode {
 	gammaSTickets := state.Gamma.GammaS.Tickets
+	if len(gammaSTickets) == 0 {
+		logger.Errorf("ValidateByTickets gammaSTickets is empty")
+		return nil
+	}
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
 	ticket := gammaSTickets[index]
@@ -249,7 +260,7 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 		return nil
 	}
 	if !bytes.Equal(vrfOutput, ticket.Id[:]) {
-		logger.Errorf(cmp.Diff(vrfOutput, ticket.Id[:]))
+		logger.Errorf("i_y != Y(Hs): %v", cmp.Diff(vrfOutput, ticket.Id[:]))
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
@@ -298,6 +309,10 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 
 func ValidateHeaderSeal(header types.Header, state *types.State) *types.ErrorCode {
 	gammaS := state.Gamma.GammaS
+	if err := gammaS.Validate(); err != nil {
+		logger.Errorf("ValidateHeaderSeal gammaS Validate: %v", err)
+		return nil
+	}
 	if len(gammaS.Tickets) > 0 {
 		// logger.Debugf("Validating by tickets")
 		return ValidateByTickets(header, state)
