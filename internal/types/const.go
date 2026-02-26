@@ -155,7 +155,7 @@ const (
 	MaxTotalSize     = 13_791_360 // W_B = W_M * W_F + 4096 + 64 + 64 (14.7)
 	SegmentFootprint = 4488       // W_F = W_G + 32 * math.Ceil(math.Log2(float64(W_M))	(14.6)
 	// MaxRefineGas            = 5_000_000_000 // G_R v0.6.4
-	
+
 	// G_A: The maximum gas allocated to the Accumulation function.
 	MaxAccumulateGas = 10_000_000 // G_A v0.6.4
 	IsAuthorizedGas  = 50_000_000 // G_I v0.6.4 The gas allocated to invoke a work-package’s Is-Authorized logic.
@@ -169,7 +169,7 @@ const (
 
 	AccumulateQueueSize = 1024 // S v0.6.6 The maxixum number of entries in the accumulation queue
 	// W_G: The size of a segment in octets
-	SegmentSize         = 4104 // W_G = 4104: The size of a segment in octets
+	SegmentSize = 4104 // W_G = 4104: The size of a segment in octets
 )
 
 // PVM constants
