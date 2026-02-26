@@ -348,13 +348,13 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise
-	importServiceID := input.Addition.ResultContextX.ImportServiceId
+	importServiceID := input.Addition.ResultContextX.ImportServiceID
 
 	// reg[7] = x_i
 	input.Interpreter.Registers[7] = uint64(importServiceID)
 	// i* = check(i)
 	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
-	input.Addition.ResultContextX.ImportServiceId = iStar
+	input.Addition.ResultContextX.ImportServiceID = iStar
 	// mathbb{d} : x_i -> a
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
 	// mathbb{d} : x_s -> s
