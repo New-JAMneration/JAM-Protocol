@@ -1164,16 +1164,6 @@ func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// unmarshal AccumulateRoot
-func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(a[:], decoded)
-	return nil
-}
-
 // SegmentRootLookup
 func (s *SegmentRootLookup) UnmarshalJSON(data []byte) error {
 	var temp []SegmentRootLookupItem

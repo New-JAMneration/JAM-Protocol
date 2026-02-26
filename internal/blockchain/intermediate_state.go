@@ -26,7 +26,8 @@ type IntermediateState struct {
 	QueuedWorkReports types.ReadyQueueItem
 	// (12.11) \mathbf{W}^* GP 0.6.4
 	AccumulatableWorkReports []types.WorkReport
-	AccumulationStatistics   types.AccumulationStatistics
+	// (12.28) $\mathbf{S}$: accumulation statistics
+	AccumulationStatistics types.AccumulationStatistics
 	// (7.7) b: MR(β′_B) GP 0.6.7 Only used for test-vector
 	MmrCommitment types.OpaqueHash
 }

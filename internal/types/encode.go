@@ -2396,18 +2396,6 @@ func (p *Privileges) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulateRoot
-func (a *AccumulateRoot) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulateRoot")
-	if _, err := e.buf.Write(a[:]); err != nil {
-		return err
-	}
-
-	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %v", a[:]))
-
-	return nil
-}
-
 // SafroleState
 func (g *SafroleState) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding SafroleState")
@@ -2798,22 +2786,6 @@ func (d *DeferredTransfer) Encode(e *Encoder) error {
 	// GasLimit
 	if err := d.GasLimit.Encode(e); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (d *DeferredTransfers) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding DeferredTransfers")
-
-	if err := e.EncodeLength(uint64(len(*d))); err != nil {
-		return err
-	}
-
-	for _, deferredTransfer := range *d {
-		if err := deferredTransfer.Encode(e); err != nil {
-			return err
-		}
 	}
 
 	return nil

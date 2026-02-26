@@ -240,15 +240,15 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	e := input.InitPartialStateSet
 	f := input.ServicesWithFreeAccumulation
 
-	gasSum := 0
+	gasSum := types.Gas(0)
 	i := 0
 
 	// Determine the maximal prefix of reports that fits within the gas limit
 	for idx, report := range r {
 		for _, result := range report.Results {
-			gasSum += int(result.AccumulateGas)
+			gasSum += result.AccumulateGas
 		}
-		if gasSum <= int(g) {
+		if gasSum <= g {
 			i = idx + 1
 		} else {
 			break
@@ -523,7 +523,7 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		// m = ⋃ (K(d) ∖ K((∆(s)e)d))
 		// m = union of (keys in d but missing in d_prime)
-		dExcludeSingleOutput := make(types.ServiceAccountState, len(d)-len(singleOutputD))
+		dExcludeSingleOutput := make(types.ServiceAccountState)
 		for key := range d {
 			if _, exists := singleOutputD[key]; !exists {
 				dExcludeSingleOutput[key] = d[key]
@@ -748,7 +748,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 		g = preset
 	}
 
-	// iT: all accumulate work result operands for service s
+	// iU: all accumulate work result operands for service s
 	for _, r := range r {
 		for _, d := range r.Results {
 			if d.ServiceID == s {
@@ -770,7 +770,7 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 		}
 	}
 
-	// iU: all deferred transfers for service s
+	// iT: all deferred transfers for service s
 	for _, deferredTransfer := range t {
 		if deferredTransfer.ReceiverID == input.ServiceID {
 			iT = append(iT, deferredTransfer)

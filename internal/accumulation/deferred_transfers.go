@@ -41,6 +41,7 @@ func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.Pa
 		Bless:       o.Bless,
 		Assign:      o.Assign,
 		Designate:   o.Designate,
+		CreateAcct:  o.CreateAcct,
 		AlwaysAccum: o.AlwaysAccum,
 	})
 	cs.GetIntermediateStates().SetDeltaDagger(deltaDagger)
@@ -154,17 +155,7 @@ func updateXi(cs *blockchain.ChainState, n types.U64) {
 	}
 	// WONDER: this sort is not mentioned in the graypaper
 	for _, x := range posteriorXi {
-		slices.SortStableFunc(x, func(a, b types.WorkPackageHash) int {
-			// Put empty slices at the end
-			if len(a) == 0 && len(b) == 0 {
-				return 0
-			}
-			if len(a) == 0 {
-				return 1
-			}
-			if len(b) == 0 {
-				return -1
-			}
+		slices.SortFunc(x, func(a, b types.WorkPackageHash) int {
 			return bytes.Compare(a[:], b[:])
 		})
 	}
