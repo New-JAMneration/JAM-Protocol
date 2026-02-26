@@ -60,11 +60,11 @@ func ReplaceOffenderKeys(validators types.ValidatorsData) types.ValidatorsData {
 	return validators
 }
 
-// GetBandersnatchRingRootCommmitment returns the root commitment of the
+// GetBandersnatchRingRootCommitment returns the root commitment of the
 // Bandersnatch ring.
 // O function: The Bandersnatch ring root function.
 // See section 3.8 and appendix G.
-func GetBandersnatchRingRootCommmitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
+func GetBandersnatchRingRootCommitment(bandersnatchKeys []types.BandersnatchPublic) (types.BandersnatchRingCommitment, error) {
 	// Pre-allocate capacity: each BandersnatchPublic is 32 bytes
 	ringBytes := make([]byte, 0, len(bandersnatchKeys)*len(types.BandersnatchPublic{}))
 	ringSize := uint(len(bandersnatchKeys))
@@ -97,7 +97,7 @@ func UpdateBandersnatchKeyRoot(validators types.ValidatorsData) (types.Bandersna
 		bandersnatchKeys = append(bandersnatchKeys, validator.Bandersnatch)
 	}
 
-	return GetBandersnatchRingRootCommmitment(bandersnatchKeys)
+	return GetBandersnatchRingRootCommitment(bandersnatchKeys)
 }
 
 // KeyRotate rotates the keys
@@ -185,7 +185,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 	}()
 	if err != nil {
 		// This error should not happen
-		logger.Errorf("error creating verifiers: %v", err)
+		logger.Fatalf("error creating verifiers: %v", err)
 	}
 
 	// Update GammaZ commitment (gammaZ)
