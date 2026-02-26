@@ -214,7 +214,7 @@ func I(partialState types.PartialStateSet, serviceId types.ServiceID, ht types.T
 	return ResultContext{
 		ServiceID:         serviceId,
 		PartialState:      partialState,
-		ImportServiceId:   result,
+		ImportServiceID:   result,
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
 		ServiceBlobs:      make(map[types.OpaqueHash]types.ServiceBlob),
@@ -235,7 +235,7 @@ type Psi_A_ReturnType struct {
 type ResultContext struct {
 	ServiceID         types.ServiceID                        // s
 	PartialState      types.PartialStateSet                  // u
-	ImportServiceId   types.ServiceID                        // i
+	ImportServiceID   types.ServiceID                        // i
 	DeferredTransfers []types.DeferredTransfer               // t
 	Exception         *types.OpaqueHash                      // y
 	ServiceBlobs      map[types.OpaqueHash]types.ServiceBlob // p   v0.6.5
@@ -249,8 +249,8 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	// PartialState
 	copiedPartialState := origin.PartialState.DeepCopy()
 
-	// ImportServiceId
-	copiedImportServiceId := origin.ImportServiceId
+	// ImportServiceID
+	copiedImportServiceID := origin.ImportServiceID
 
 	// DeferredTransfers
 	copiedDeferredTransfers := make([]types.DeferredTransfer, len(origin.DeferredTransfers))
@@ -289,7 +289,7 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	return ResultContext{
 		ServiceID:         copiedServiceId,
 		PartialState:      copiedPartialState,
-		ImportServiceId:   copiedImportServiceId,
+		ImportServiceID:   copiedImportServiceID,
 		DeferredTransfers: copiedDeferredTransfers,
 		Exception:         copiedException,
 		ServiceBlobs:      copiedServiceBlobs,
