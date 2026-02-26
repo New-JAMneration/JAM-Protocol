@@ -209,7 +209,7 @@ func TestRemoveDuplicates(t *testing.T) {
 		t.Fatalf("Expected 2 preimages, got %d", len(preimageController.Preimages))
 	}
 
-		expectedRequesters := []types.ServiceID{16909060, 16909061}
+	expectedRequesters := []types.ServiceID{16909060, 16909061}
 	for i, preimage := range preimageController.Preimages {
 		if preimage.Requester != expectedRequesters[i] {
 			t.Errorf("Expected requester %d, got %d", expectedRequesters[i], preimage.Requester)

@@ -260,7 +260,7 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; !found || (found && len(timeSlotSet) > 0) {
 			continue
 		}
-		
+
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
 		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
 		d[serviceId] = serviceAccount
