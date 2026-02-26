@@ -81,23 +81,24 @@ func TestPreimageTestVectors(t *testing.T) {
 		cs := blockchain.GetInstance()
 
 		block := types.Block{
-			Header: types.Header{
-				Slot: preimages.Input.Slot,
-			},
 			Extrinsic: types.Extrinsic{
 				Preimages: preimages.Input.Preimages,
 			},
 		}
 		cs.AddBlock(block)
-
+		cs.GetPriorStates().SetDelta(inputDelta)
 		cs.GetIntermediateStates().SetDeltaDoubleDagger(inputDelta)
 		cs.GetPosteriorStates().SetTau(preimages.Input.Slot)
 
 		/*
 			STF
 		*/
-		accumulateErr := ProcessPreimageExtrinsics()
-
+		// Preimage
+		unmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
+		accumulateErr := ValidatePreimageExtrinsics(preimages.Input.Preimages, inputDelta, &unmatchedKeyVals)
+		if accumulateErr == nil {
+			accumulateErr = ProcessPreimageExtrinsics()
+		}
 		// Get output state
 		outputDelta := cs.GetPosteriorStates().GetDelta()
 
@@ -200,7 +201,7 @@ func setupTestState(preState jamtests_accumulate.AccumulateState, input jamtests
 	cs.GetPosteriorStates().SetEta0(preState.Entropy)
 
 	// Set ready queue
-	cs.GetPriorStates().SetTheta(preState.ReadyQueue)
+	cs.GetPriorStates().SetVartheta(preState.ReadyQueue)
 
 	// Set accumulated reports
 	cs.GetPriorStates().SetXi(preState.Accumulated)
@@ -233,7 +234,7 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	ourTheta := cs.GetPosteriorStates().GetTheta()
+	ourTheta := cs.GetPosteriorStates().GetVartheta()
 	if !reflect.DeepEqual(ourTheta, expectedState.ReadyQueue) {
 		// log.Printf("len of queue reports expected: %d, got: %d", len(expectedState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
 		for i := range ourTheta {
@@ -269,7 +270,7 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := []types.ServiceId{}
+	serviceIds := []types.ServiceID{}
 	ourStatisticsServices := cs.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 
