@@ -11,24 +11,24 @@ import (
 )
 
 type CE133WorkPackageSubmission struct {
-	CoreIndex   uint32
+	CoreIndex   types.CoreIndex
 	WorkPackage []byte
 	Extrinsics  []byte
 }
 
 func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// Read first message: 4 bytes core index + work-package (rest of message)
+	// Read first message: 2 bytes core index (u16, little-endian) + work-package (rest of message)
 	firstMsg := make([]byte, 4096) // Arbitrary max size for demo; adjust as needed
 	n, err := stream.Read(firstMsg)
 	if err != nil && err != io.EOF {
 		return err
 	}
-	if n < 4 {
+	if n < 2 {
 		return io.ErrUnexpectedEOF
 	}
-	coreIndex := binary.LittleEndian.Uint32(firstMsg[:4])
-	workPackage := make([]byte, n-4)
-	copy(workPackage, firstMsg[4:n])
+	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(firstMsg[:2]))
+	workPackage := make([]byte, n-2)
+	copy(workPackage, firstMsg[2:n])
 
 	// Read second message: all extrinsic data (until FIN)
 	extra := make([]byte, 65536)
@@ -60,7 +60,7 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSubmission(message interface{
 
 	encoder := types.NewEncoder()
 
-	if err := h.writeBytes(encoder, encodeLE32(workpackage.CoreIndex)); err != nil {
+	if err := h.writeBytes(encoder, encodeLE16(uint16(workpackage.CoreIndex))); err != nil {
 
 		return nil, fmt.Errorf("failed to encode CoreIndex for WorkPackageSubmission: %w", err)
 	}
@@ -72,9 +72,9 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSubmission(message interface{
 		return nil, fmt.Errorf("failed to encode Extrinsics for WorkPackageSubmission: %w", err)
 	}
 
-	totalLen := 4 + len(workpackage.WorkPackage) + len(workpackage.Extrinsics)
+	totalLen := 2 + len(workpackage.WorkPackage) + len(workpackage.Extrinsics)
 	result := make([]byte, 0, totalLen)
-	result = append(result, encodeLE32(workpackage.CoreIndex)...)
+	result = append(result, encodeLE16(uint16(workpackage.CoreIndex))...)
 	result = append(result, workpackage.WorkPackage...)
 	result = append(result, workpackage.Extrinsics...)
 	return result, nil
