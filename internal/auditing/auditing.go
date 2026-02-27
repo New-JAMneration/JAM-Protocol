@@ -509,11 +509,8 @@ func SyncAssignmentMapFromOtherNodes(
 	return assignmentMap
 }
 
-// 17.17
-func GetJudgement(report types.AuditReport) bool {
-	// TODO : Implement the logic to evaluate the audit report
-	return true
-}
+// GetJudgement is defined in judgement.go — implements GP §17.16–17.17.
+// It fetches the original bundle, re-executes Ξ(p,c), and compares.
 
 func SingleNodeAuditingAndPublish(
 	validatorIndex types.ValidatorIndex,
