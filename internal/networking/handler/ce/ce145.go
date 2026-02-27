@@ -96,7 +96,7 @@ func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.Val
 	}
 	msg = append(msg, workReportHash[:]...)
 
-	validators := store.GetInstance().GetPriorStates().GetKappa()
+	validators := blockchain.GetInstance().GetPriorStates().GetKappa()
 	// In some test/bootstrap contexts we may not have a populated validator set yet.
 	// When unavailable, skip strict signature validation.
 	if len(validators) == 0 || int(validatorIndex) < 0 || int(validatorIndex) >= len(validators) {
