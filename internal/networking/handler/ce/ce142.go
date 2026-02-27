@@ -12,6 +12,43 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// HandlePreimageAnnouncement_Send sends CE142 (PreimageAnnouncement) over a stream.
+//
+// It writes the CE protocol ID (142) first, then the payload bytes, then "FIN",
+// and waits for a "FIN" response.
+func HandlePreimageAnnouncement_Send(stream io.ReadWriteCloser, payload *CE142Payload) error {
+	if payload == nil {
+		return fmt.Errorf("nil payload")
+	}
+
+	encoded, err := payload.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte{142}); err != nil {
+		return fmt.Errorf("failed to write protocol ID: %w", err)
+	}
+
+	if _, err := stream.Write(encoded); err != nil {
+		return fmt.Errorf("failed to write payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if _, err := io.ReadFull(stream, finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN response: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("unexpected FIN response: %q", string(finBuf))
+	}
+
+	return stream.Close()
+}
+
 // HandlePreimageAnnouncement handles the announcement of possession of a requested preimage.
 // This should be used by non-validator nodes to introduce preimages, and by validators
 // to gossip these preimages to other validators.

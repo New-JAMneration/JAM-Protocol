@@ -13,6 +13,43 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// HandleJudgmentAnnouncement_Send sends CE145 (JudgmentPublication) over a stream.
+//
+// It writes the CE protocol ID (145) first, then the payload bytes, then "FIN",
+// and waits for a "FIN" response.
+func HandleJudgmentAnnouncement_Send(stream io.ReadWriteCloser, payload *CE145Payload) error {
+	if payload == nil {
+		return fmt.Errorf("nil payload")
+	}
+
+	encoded, err := payload.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte{145}); err != nil {
+		return fmt.Errorf("failed to write protocol ID: %w", err)
+	}
+
+	if _, err := stream.Write(encoded); err != nil {
+		return fmt.Errorf("failed to write payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if _, err := io.ReadFull(stream, finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN response: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("unexpected FIN response: %q", string(finBuf))
+	}
+
+	return stream.Close()
+}
+
 // HandleJudgmentAnnouncement handles the announcement of a judgment, ready for inclusion
 // in a block and as a signal for potential further auditing.
 //
