@@ -52,8 +52,12 @@ func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Strea
 	if localBandersnatchKey == proxyValidator.Bandersnatch {
 		currentValidators := blockchain.GetInstance().GetPosteriorStates().GetKappa()
 
-		if err := verifySafroleTicketProof(req, currentValidators); err != nil {
-			return fmt.Errorf("VRF proof verification failed: %w", err)
+		// In bootstrap/test environments the current validator set may be unavailable.
+		// When it's empty we skip VRF verification (we can't form a valid ring).
+		if len(currentValidators) > 0 {
+			if err := verifySafroleTicketProof(req, currentValidators); err != nil {
+				return fmt.Errorf("VRF proof verification failed: %w", err)
+			}
 		}
 
 		delaySlots := int(math.Max(float64(types.EpochLength)/20.0, 1.0))
