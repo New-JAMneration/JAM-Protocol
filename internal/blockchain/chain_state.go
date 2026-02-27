@@ -236,6 +236,17 @@ func (cs *ChainState) GetStateRange(
 	return out, nil
 }
 
+func (cs *ChainState) GetBoundaryNodes(
+	_ types.HeaderHash,
+	_ types.StateKey,
+	_ types.StateKey,
+	_ uint32,
+) ([]types.BoundaryNode, error) {
+	// Boundary-node generation is not yet implemented for ChainState.
+	// Returning an empty set keeps CE129 compatible in bootstrap/test contexts.
+	return []types.BoundaryNode{}, nil
+}
+
 func (cs *ChainState) GetProcessingBlockPointer() *ProcessingBlock {
 	return cs.processingBlock
 }
