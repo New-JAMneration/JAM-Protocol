@@ -455,26 +455,45 @@ func IsBlockAudited(
 	return true
 }
 
+// NODE-TODO [CE145 send]: Broadcast signed judgment results to all validators.
+// The node layer should send each AuditReport (containing the validator's
+// judgment signature from BuildJudgements) to all other validators via CE145.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce145.go — HandleJudgmentAnnouncement_Auditor (send side)
+//   - CE145Payload: EpochIndex + ValidatorIndex + Validity + WorkReportHash + Ed25519Signature
 func BroadcastAuditReport(audit []types.AuditReport) {
-	// TODO: Implement the logic to publish the audit report
-	// This could involve sending the report to a network, saving it to a database, etc.
 }
 
-// CE144
+// NODE-TODO [CE144 send]: Broadcast audit announcement to all validators.
+// The node layer should send the validator's announcement (which cores it
+// will audit) along with VRF evidence so others can verify the assignment.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce144.go — HandleAuditAnnouncement_Send
+//   - CE144Payload: CE144Announcement + CE144Evidence (VRF proof + no-show list)
 func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8, assignment map[types.WorkPackageHash][]types.ValidatorIndex, signature types.Ed25519Signature) {
-	// TODO: Implement the logic to broadcast the announcement
-	// This could involve sending the announcement to a network, saving it to a database, etc.
 }
 
+// NODE-TODO [CE144 recv]: Merge incoming audit announcements from other validators.
+// On receiving CE144 messages, update the local assignment map so this node
+// knows which validators are auditing which work-reports.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce144.go — HandleAuditAnnouncement_Recv + validateAuditAnnouncement
+//   - GetAllAuditAnnouncementsForHeader returns all received announcements
 func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
-	// TODO: Implement the logic to update the assignment map from other nodes
-	// This could involve receiving messages from other nodes and merging their assignment maps.
 	return assignmentMap
 }
 
+// NODE-TODO [CE145 recv]: Merge incoming judgment results from other validators.
+// On receiving CE145 messages, update the local positive-judger map so this
+// node can track which validators have given positive judgments.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce145.go — HandleJudgmentAnnouncement_Validator + validateJudgmentAnnouncement
+//   - GetAllJudgmentsForWorkReport returns all received judgments
 func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
-	// TODO: Implement the logic to update the positive judgers from other nodes
-	// This could involve receiving messages from other nodes and merging their positive judgers.
 	return positiveJudgers
 }
 
@@ -491,21 +510,34 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	return positiveJudgers
 }
 
+// NODE-TODO [timer]: Wait until the next tranche period (A = 8 seconds) elapses.
+// GP §17.7: every A seconds after a new time slot, a new tranche begins.
+// The node layer should provide a timer/event mechanism for this.
 func WaitNextTranche(tranche types.U8) {
-	// TODO: Implement the logic to wait for the next tranche
-	// This could involve sleeping for a certain duration or waiting for an event.
 }
 
+// NODE-TODO [CE145 sync]: Synchronous version of judgment collection.
+// Called once per tranche to collect all CE145 judgment messages received
+// so far and merge them into the positive-judger map.
+// This may block until the tranche period expires or enough judgments arrive.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce145.go — GetAllJudgmentsForWorkReport / GetAllJudgmentsForEpoch
 func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
-	// TODO CE 145 QUIC, the final input types TBD
 	return positiveJudgers
 }
 
+// NODE-TODO [CE144 sync]: Synchronous version of announcement collection.
+// Called once per tranche to collect all CE144 announcement messages received
+// so far and merge them into the assignment map.
+// This determines no-show count for the next tranche's stochastic audit.
+//
+// Reference impl on feat/jam-np-ce-handler:
+//   - ce144.go — GetAllAuditAnnouncementsForHeader
 func SyncAssignmentMapFromOtherNodes(
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
 	validatorIndex types.ValidatorIndex, tranche types.U8,
 ) map[types.WorkPackageHash][]types.ValidatorIndex {
-	// TODO CE 144 QUIC, the final input types TBD
 	return assignmentMap
 }
 
