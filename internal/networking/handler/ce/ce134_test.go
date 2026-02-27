@@ -171,7 +171,8 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	}
 	workReportHash := resp[:32]
 	sig := resp[32:]
-	if !ed25519.Verify(pub, workReportHash, sig) {
+	msg := append([]byte(types.JamGuarantee), workReportHash...)
+	if !ed25519.Verify(pub, msg, sig) {
 		t.Errorf("signature verification failed")
 	}
 }
