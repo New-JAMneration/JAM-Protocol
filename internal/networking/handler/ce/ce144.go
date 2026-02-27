@@ -12,6 +12,44 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// HandleAuditAnnouncement_Send sends CE144 (AuditAnnouncement) over a stream.
+//
+// NOTE: Callers are expected to open the stream and choose the correct stream kind.
+// This function writes the CE protocol ID (144) first, then the payload bytes, then "FIN",
+// and waits for a "FIN" response.
+func HandleAuditAnnouncement_Send(stream io.ReadWriteCloser, payload *CE144Payload) error {
+	if payload == nil {
+		return fmt.Errorf("nil payload")
+	}
+
+	encoded, err := payload.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte{144}); err != nil {
+		return fmt.Errorf("failed to write protocol ID: %w", err)
+	}
+
+	if _, err := stream.Write(encoded); err != nil {
+		return fmt.Errorf("failed to write payload: %w", err)
+	}
+
+	if _, err := stream.Write([]byte("FIN")); err != nil {
+		return fmt.Errorf("failed to write FIN: %w", err)
+	}
+
+	finBuf := make([]byte, 3)
+	if _, err := io.ReadFull(stream, finBuf); err != nil {
+		return fmt.Errorf("failed to read FIN response: %w", err)
+	}
+	if string(finBuf) != "FIN" {
+		return fmt.Errorf("unexpected FIN response: %q", string(finBuf))
+	}
+
+	return stream.Close()
+}
+
 // HandleAuditAnnouncement handles the announcement of requirement to audit.
 // Auditors of a block (defined to be the prior validator set) should, at the beginning
 // of each tranche, broadcast an announcement to all other such auditors specifying
