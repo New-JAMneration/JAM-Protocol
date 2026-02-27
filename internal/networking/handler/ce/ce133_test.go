@@ -9,9 +9,9 @@ import (
 )
 
 func makeCE133FirstMsg(coreIndex uint32, workPackage []byte) []byte {
-	buf := make([]byte, 4+len(workPackage))
-	binary.LittleEndian.PutUint32(buf[:4], coreIndex)
-	copy(buf[4:], workPackage)
+	buf := make([]byte, 2+len(workPackage))
+	binary.LittleEndian.PutUint16(buf[:2], uint16(coreIndex))
+	copy(buf[2:], workPackage)
 	return buf
 }
 
