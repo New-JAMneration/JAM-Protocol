@@ -2,12 +2,12 @@ package ce
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"os"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestHandlePreimageRequest(t *testing.T) {
@@ -16,9 +16,7 @@ func TestHandlePreimageRequest(t *testing.T) {
 
 	testPreimage := []byte("This is a test preimage for CE143 protocol testing")
 
-	hash := sha256.Sum256(testPreimage)
-	opaqueHash := types.OpaqueHash{}
-	copy(opaqueHash[:], hash[:])
+	opaqueHash := hash.Blake2bHash(types.ByteSequence(testPreimage))
 
 	err := StorePreimage(opaqueHash, testPreimage)
 	if err != nil {
