@@ -27,7 +27,7 @@ type ServiceWrapper struct {
 	h            types.ByteSequence
 }
 
-func encodeServiceId(serviceId types.ServiceID) []byte {
+func encodeServiceID(serviceID types.ServiceID) []byte {
 	encoder := types.NewEncoder()
 	encoded, _ := encoder.EncodeUintWithLength(uint64(serviceId), 4)
 
