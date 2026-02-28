@@ -187,7 +187,7 @@ func (a *AvailabilityAssignment) Validate() error {
 	}
 
 	if a.AssignedSlot == 0 {
-		return errors.New("AvailabilityAssignment Timeout cannot be 0")
+		return errors.New("AvailabilityAssignment AssignedSlot cannot be 0")
 	}
 
 	return nil
@@ -479,7 +479,11 @@ type WorkExecResult struct {
 }
 
 func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResult {
-	return WorkExecResult{Type: resultType, Data: data}
+	if resultType == WorkExecResultOk {
+		return WorkExecResult{Type: resultType, Data: data}
+	}
+
+	return WorkExecResult{Type: resultType, Data: nil}
 }
 
 // Resource usage during refinement for a core
