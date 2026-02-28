@@ -244,7 +244,7 @@ type ResultContext struct {
 
 func (origin *ResultContext) DeepCopy() ResultContext {
 	// ServiceID
-	copiedServiceId := origin.ServiceID
+	copiedServiceID := origin.ServiceID
 
 	// PartialState
 	copiedPartialState := origin.PartialState.DeepCopy()
