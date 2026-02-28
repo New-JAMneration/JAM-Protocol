@@ -56,7 +56,7 @@ type GeneralArgs struct {
 	ServiceAccount      *types.ServiceAccount
 	ServiceID           *types.ServiceID
 	ServiceAccountState *types.ServiceAccountState
-	CoreId              *types.CoreIndex
+	CoreID              *types.CoreIndex
 	StorageKeyVal       *types.StateKeyVals
 }
 
