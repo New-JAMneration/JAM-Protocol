@@ -51,7 +51,7 @@ type AccountDataDTO struct {
 
 // We use this type to parse json file
 type AccountDTO struct {
-	Id   ServiceID      `json:"id"`
+	ID   ServiceID      `json:"id"`
 	Data AccountDataDTO `json:"data"`
 }
 

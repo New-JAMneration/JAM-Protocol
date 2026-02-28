@@ -566,11 +566,11 @@ func TicketBodySerialization(ticket_body types.TicketBody) (output types.ByteSeq
 		(C.27) E(x ∈ C) ≡ E(xy, xr)
 
 		type TicketBody struct {
-			Id      TicketId      `json:"id,omitempty"`
+			ID      TicketID      `json:"id,omitempty"`
 			Attempt TicketAttempt `json:"attempt,omitempty"`
 		}
 	*/
-	output = append(output, SerializeByteSequence(ticket_body.Id[:])...)
+	output = append(output, SerializeByteSequence(ticket_body.ID[:])...)
 	output = append(output, SerializeU64(types.U64(ticket_body.Attempt))...)
 	return output
 }

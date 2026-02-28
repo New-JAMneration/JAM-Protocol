@@ -76,7 +76,7 @@ type Account struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceID `json:"id"`
+	ID   types.ServiceID `json:"id"`
 	Info Account         `json:"data"`
 }
 
@@ -133,7 +133,7 @@ const (
 	WrongAssignment                                     // 6
 	CoreEngaged                                         // 7
 	AnchorNotRecent                                     // 8
-	BadServiceId                                        // 9
+	BadServiceID                                        // 9
 	BadCodeHash                                         // 10
 	DependencyMissing                                   // 11
 	DuplicatePackage                                    // 12
@@ -160,7 +160,7 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 	"wrong_assignment":                WrongAssignment,
 	"core_engaged":                    CoreEngaged,
 	"anchor_not_recent":               AnchorNotRecent,
-	"bad_service_id":                  BadServiceId,
+	"bad_service_id":                  BadServiceID,
 	"bad_code_hash":                   BadCodeHash,
 	"dependency_missing":              DependencyMissing,
 	"duplicate_package":               DuplicatePackage,
@@ -381,7 +381,7 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Decode(d); err != nil {
+	if err = a.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -610,7 +610,7 @@ func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Encode(e); err != nil {
+	if err = a.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -758,7 +758,7 @@ func (r *ReportsTestCase) Dump() error {
 		serviceAccount := types.ServiceAccount{
 			ServiceInfo: v.Info.Service,
 		}
-		accounts[v.Id] = serviceAccount
+		accounts[v.ID] = serviceAccount
 	}
 
 	cs.GetPriorStates().SetDelta(accounts)

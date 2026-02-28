@@ -79,7 +79,7 @@ func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrins
 		}
 
 		newTickets = append(newTickets, types.TicketBody{
-			Id:      types.TicketId(result.Output),
+			ID:      types.TicketID(result.Output),
 			Attempt: tickets[i].Attempt,
 		})
 	}
@@ -91,7 +91,7 @@ func VerifyTicketsProof(ringVerifier *vrf.Verifier, tickets types.TicketsExtrins
 // Tickets must be sorted by ticket signature
 func VerifyTicketsOrder(tickets types.TicketsAccumulator) *types.ErrorCode {
 	for i := 1; i < len(tickets); i++ {
-		if bytes.Compare(tickets[i-1].Id[:], tickets[i].Id[:]) > 0 {
+		if bytes.Compare(tickets[i-1].ID[:], tickets[i].ID[:]) > 0 {
 			err := SafroleErrorCode.BadTicketOrder
 			return &err
 		}
@@ -105,7 +105,7 @@ func VerifyTicketsOrder(tickets types.TicketsAccumulator) *types.ErrorCode {
 // (Validators should not submit the same ticket)
 func VerifyTicketsDuplicate(tickets types.TicketsAccumulator) *types.ErrorCode {
 	for i := 1; i < len(tickets); i++ {
-		if bytes.Equal(tickets[i-1].Id[:], tickets[i].Id[:]) {
+		if bytes.Equal(tickets[i-1].ID[:], tickets[i].ID[:]) {
 			err := SafroleErrorCode.DuplicateTicket
 			return &err
 		}
@@ -152,12 +152,12 @@ func RemoveAndSortDuplicateTickets(tickets types.TicketsAccumulator) types.Ticke
 	}
 
 	sort.Slice(tickets, func(i, j int) bool {
-		return bytes.Compare(tickets[i].Id[:], tickets[j].Id[:]) < 0
+		return bytes.Compare(tickets[i].ID[:], tickets[j].ID[:]) < 0
 	})
 
 	j := 0
 	for i := 1; i < len(tickets); i++ {
-		if !bytes.Equal(tickets[i].Id[:], tickets[j].Id[:]) {
+		if !bytes.Equal(tickets[i].ID[:], tickets[j].ID[:]) {
 			j++
 			tickets[j] = tickets[i]
 		}
@@ -166,9 +166,9 @@ func RemoveAndSortDuplicateTickets(tickets types.TicketsAccumulator) types.Ticke
 	return tickets[:j+1]
 }
 
-func Contains(tickets types.TicketsAccumulator, ticketId types.TicketId) bool {
+func Contains(tickets types.TicketsAccumulator, ticketID types.TicketID) bool {
 	for _, ticket := range tickets {
-		if bytes.Equal(ticket.Id[:], ticketId[:]) {
+		if bytes.Equal(ticket.ID[:], ticketID[:]) {
 			return true
 		}
 	}
@@ -183,7 +183,7 @@ func RemoveTicketsInGammaA(tickets, gammaA types.TicketsAccumulator) types.Ticke
 	// Pre-allocate capacity: worst case is all tickets are kept
 	result := make(types.TicketsAccumulator, 0, len(tickets))
 	for _, ticket := range tickets {
-		if !Contains(gammaA, ticket.Id) {
+		if !Contains(gammaA, ticket.ID) {
 			result = append(result, ticket)
 		}
 	}
@@ -274,7 +274,7 @@ func CreateNewTicketAccumulator(ringVerifier *vrf.Verifier) *types.ErrorCode {
 	// We already verified the duplicate tickets, so the newTicketsAccumulator
 	// should not contain any duplicate tickets
 	sort.Slice(newTicketsAccumulator, func(i, j int) bool {
-		return bytes.Compare(newTicketsAccumulator[i].Id[:], newTicketsAccumulator[j].Id[:]) < 0
+		return bytes.Compare(newTicketsAccumulator[i].ID[:], newTicketsAccumulator[j].ID[:]) < 0
 	})
 
 	// (6.33) Verify the new tickets accmuulator

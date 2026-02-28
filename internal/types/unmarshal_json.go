@@ -666,7 +666,7 @@ func (t *TicketEnvelope) UnmarshalJSON(data []byte) error {
 
 func (t *TicketBody) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Id      string `json:"id,omitempty"`
+		ID      string `json:"id,omitempty"`
 		Attempt U8     `json:"attempt,omitempty"`
 	}
 
@@ -674,11 +674,11 @@ func (t *TicketBody) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	idBytes, err := hex.DecodeString(temp.Id[2:])
+	idBytes, err := hex.DecodeString(temp.ID[2:])
 	if err != nil {
 		return err
 	}
-	t.Id = TicketId(idBytes)
+	t.ID = TicketID(idBytes)
 	t.Attempt = TicketAttempt(temp.Attempt)
 
 	return nil
@@ -1578,7 +1578,7 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 
 		serviceAccount.StorageDict = account.Data.Storage
 
-		(*a)[account.Id] = serviceAccount
+		(*a)[account.ID] = serviceAccount
 	}
 
 	return nil
@@ -1587,7 +1587,7 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 // Account
 func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Id   U32            `json:"id"`
+		ID   U32            `json:"id"`
 		Data AccountDataDTO `json:"data"`
 	}
 
@@ -1595,7 +1595,7 @@ func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.Id = ServiceID(temp.Id)
+	a.ID = ServiceID(temp.ID)
 	a.Data = temp.Data
 
 	return nil
@@ -1759,7 +1759,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 // ServicesStatistics
 func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 	var temp []struct {
-		Id     U32                   `json:"id"`
+		ID     U32                   `json:"id"`
 		Record ServiceActivityRecord `json:"record"`
 	}
 
@@ -1774,7 +1774,7 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 
 	*s = make(ServicesStatistics, len(temp))
 	for _, item := range temp {
-		(*s)[ServiceID(item.Id)] = item.Record
+		(*s)[ServiceID(item.ID)] = item.Record
 	}
 
 	return nil

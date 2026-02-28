@@ -114,17 +114,17 @@ func TestEncodeCustomContent(t *testing.T) {
 	// η': entropy
 	// H_t: time slot index
 
-	serviceId := ServiceID(1)
+	serviceID := ServiceID(1)
 	entropy := Entropy{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	timeSlot := TimeSlot(100)
 
 	output := []byte{}
 	encoder := NewEncoder()
 
-	// Encode serviceId
-	encoded, err := encoder.Encode(&serviceId)
+	// Encode serviceID
+	encoded, err := encoder.Encode(&serviceID)
 	if err != nil {
-		t.Errorf("Error encoding ServiceId: %v", err)
+		t.Errorf("Error encoding ServiceID: %v", err)
 	}
 	output = append(output, encoded...)
 

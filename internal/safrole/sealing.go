@@ -263,8 +263,8 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}
-	if !bytes.Equal(vrfOutput, ticket.Id[:]) {
-		logger.Errorf("i_y != Y(Hs): %v", cmp.Diff(vrfOutput, ticket.Id[:]))
+	if !bytes.Equal(vrfOutput, ticket.ID[:]) {
+		logger.Errorf("i_y != Y(Hs): %v", cmp.Diff(vrfOutput, ticket.ID[:]))
 		errCode := SafroleErrorCode.VrfSealInvalid
 		return &errCode
 	}

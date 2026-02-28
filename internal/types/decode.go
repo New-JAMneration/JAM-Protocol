@@ -162,16 +162,16 @@ func (b *BandersnatchPublic) Decode(d *Decoder) error {
 	return nil
 }
 
-// TicketId
-func (t *TicketId) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding TicketId")
+// TicketID
+func (t *TicketID) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketID")
 
-	var val TicketId
+	var val TicketID
 	err := binary.Read(d.buf, binary.LittleEndian, &val)
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("TicketId: %x", val))
+	cLog(Yellow, fmt.Sprintf("TicketID: %x", val))
 
 	*t = val
 	return nil
@@ -196,7 +196,7 @@ func (t *TicketBody) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding TicketBody")
 
 	var err error
-	if err = t.Id.Decode(d); err != nil {
+	if err = t.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -1818,8 +1818,8 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 	services := make(ServicesStatistics)
 
 	for i := uint64(0); i < length; i++ {
-		var serviceId ServiceID
-		if err = serviceId.Decode(d); err != nil {
+		var serviceID ServiceID
+		if err = serviceID.Decode(d); err != nil {
 			return err
 		}
 
@@ -1828,7 +1828,7 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 			return err
 		}
 
-		services[ServiceID(serviceId)] = serviceActivityRecord
+		services[ServiceID(serviceID)] = serviceActivityRecord
 	}
 
 	*s = services

@@ -109,7 +109,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 		GeneralArgs: GeneralArgs{
 			ServiceID:           &workItem.Service,
 			ServiceAccountState: &input.ServiceAccounts,
-			CoreId:              &input.CoreIndex,
+			CoreID:              &input.CoreIndex,
 		},
 		RefineArgs: RefineArgs{
 			WorkItemIndex:       types.Some(input.WorkItemIndex),

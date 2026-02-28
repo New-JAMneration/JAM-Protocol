@@ -249,7 +249,7 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 
 type ServiceWorkResultsMap map[types.ServiceID][]types.WorkResult
 
-// Create a map (service Id -> []work result)
+// Create a map (service ID -> []work result)
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	cs := blockchain.GetInstance()
 	w := cs.GetIntermediateStates().GetPresentWorkReports()
@@ -264,8 +264,8 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 		}
 	}
 	serviceWorkResultsMap := make(ServiceWorkResultsMap, len(serviceCount))
-	for serviceId, count := range serviceCount {
-		serviceWorkResultsMap[serviceId] = make([]types.WorkResult, 0, count)
+	for serviceID, count := range serviceCount {
+		serviceWorkResultsMap[serviceID] = make([]types.WorkResult, 0, count)
 	}
 
 	// Get all work reports from work results
@@ -303,8 +303,8 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 	servicesMap := make(map[types.ServiceID]bool, len(preimagesExtrinsic))
 
 	for _, preimage := range preimagesExtrinsic {
-		serviceId := preimage.Requester
-		servicesMap[serviceId] = true
+		serviceID := preimage.Requester
+		servicesMap[serviceID] = true
 	}
 
 	services := make([]types.ServiceID, 0, len(servicesMap))
@@ -341,16 +341,16 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 
 	// Merge all services (without duplicates)
 	servicesMap := make(map[types.ServiceID]bool, len(sR)+len(sP)+len(keyOfS))
-	for _, serviceId := range sR {
-		servicesMap[serviceId] = true
+	for _, serviceID := range sR {
+		servicesMap[serviceID] = true
 	}
 
-	for _, serviceId := range sP {
-		servicesMap[serviceId] = true
+	for _, serviceID := range sP {
+		servicesMap[serviceID] = true
 	}
 
-	for _, serviceId := range keyOfS {
-		servicesMap[serviceId] = true
+	for _, serviceID := range keyOfS {
+		servicesMap[serviceID] = true
 	}
 
 	services := make([]types.ServiceID, 0, len(servicesMap))
@@ -363,8 +363,8 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 
 // v0.7.1
 // (13.16)
-func CalculateServiceResults(serviceId types.ServiceID, serviceWorkResultsMap ServiceWorkResultsMap) Pi_S_R_Output {
-	workResults, ok := serviceWorkResultsMap[serviceId]
+func CalculateServiceResults(serviceID types.ServiceID, serviceWorkResultsMap ServiceWorkResultsMap) Pi_S_R_Output {
+	workResults, ok := serviceWorkResultsMap[serviceID]
 	if !ok {
 		return Pi_S_R_Output{}
 	}
@@ -387,8 +387,8 @@ func CalculateServiceResults(serviceId types.ServiceID, serviceWorkResultsMap Se
 // v0.7.1
 // (13.12) a
 // AccumulateCount, AccumulateGasUsed
-func CalculateAccumulationStatistics(serviceId types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
-	value, ok := accumulationStatistics[serviceId]
+func CalculateAccumulationStatistics(serviceID types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
+	value, ok := accumulationStatistics[serviceID]
 	if ok {
 		accumulateCount = types.U32(value.NumAccumulatedReports)
 		accumulateGasUsed = value.Gas
@@ -423,17 +423,17 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	// Initialize the services statistics (13.7)
 	servicesStatistics := make(types.ServicesStatistics)
 
-	for _, serviceId := range s {
+	for _, serviceID := range s {
 		// Calculate the service results (R)
-		R := CalculateServiceResults(serviceId, serviceWorkResultsMap)
+		R := CalculateServiceResults(serviceID, serviceWorkResultsMap)
 
 		// p
-		ps := preimageStatsMap[serviceId]
+		ps := preimageStatsMap[serviceID]
 
 		// a
-		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
 
-		servicesStatistics[serviceId] = types.ServiceActivityRecord{
+		servicesStatistics[serviceID] = types.ServiceActivityRecord{
 			ProvidedCount:     ps.count,
 			ProvidedSize:      ps.size,
 			RefinementCount:   R.n,

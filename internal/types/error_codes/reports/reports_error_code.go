@@ -12,7 +12,7 @@ const (
 	WrongAssignment                                    // 6
 	CoreEngaged                                        // 7
 	AnchorNotRecent                                    // 8
-	BadServiceId                                       // 9
+	BadServiceID                                       // 9
 	BadCodeHash                                        // 10
 	DependencyMissing                                  // 11
 	DuplicatePackage                                   // 12
@@ -45,7 +45,7 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"wrong_assignment":                WrongAssignment,
 	"core_engaged":                    CoreEngaged,
 	"anchor_not_recent":               AnchorNotRecent,
-	"bad_service_id":                  BadServiceId,
+	"bad_service_id":                  BadServiceID,
 	"bad_code_hash":                   BadCodeHash,
 	"dependency_missing":              DependencyMissing,
 	"duplicate_package":               DuplicatePackage,
@@ -76,7 +76,7 @@ var ReportsErrorCodeMessages = map[types.ErrorCode]string{
 	WrongAssignment:             "wrong core assignment", // matches fuzz-proto example
 	CoreEngaged:                 "core engaged",
 	AnchorNotRecent:             "anchor not recent",
-	BadServiceId:                "bad service id",
+	BadServiceID:                "bad service id",
 	BadCodeHash:                 "bad code hash",
 	DependencyMissing:           "dependency missing",
 	DuplicatePackage:            "duplicate package",

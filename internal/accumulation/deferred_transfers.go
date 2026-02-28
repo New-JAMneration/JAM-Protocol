@@ -54,7 +54,7 @@ func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.Pa
 // W^*: accumulatableWorkReports
 // w_r: work result
 // r_s: the index of the service whose state is to be altered and thus whose refine code was already executed
-// s: serviceId
+// s: serviceID
 // NOTE: While it is possible to refactor the function to use a map where the key is the service ID and the value is the number of work results,
 // this approach would differ from the graypaper and is not being implemented at this time.
 func getWorkResultByService(s types.ServiceID, n types.U64) []types.WorkResult {
@@ -126,12 +126,12 @@ func updateDeltaDoubleDagger(cs *blockchain.ChainState, accumulationStatistics t
 
 	deltaDoubleDagger := types.ServiceAccountState{}
 
-	for serviceId, acc := range deltaDagger {
+	for serviceID, acc := range deltaDagger {
 		// If this service was actually accumulated this round
-		if _, ok := accumulationStatistics[serviceId]; ok {
+		if _, ok := accumulationStatistics[serviceID]; ok {
 			acc.ServiceInfo.LastAccumulationSlot = tauPrime
 		}
-		deltaDoubleDagger[serviceId] = acc
+		deltaDoubleDagger[serviceID] = acc
 	}
 	cs.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 }

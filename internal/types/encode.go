@@ -203,14 +203,14 @@ func (em *EpochMark) Encode(e *Encoder) error {
 	return nil
 }
 
-// TicketId
-func (t *TicketId) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding TicketId")
+// TicketID
+func (t *TicketID) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding TicketID")
 	if _, err := e.buf.Write(t[:]); err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketId: %v", t[:]))
+	cLog(Yellow, fmt.Sprintf("TicketID: %v", t[:]))
 
 	return nil
 }
@@ -231,7 +231,7 @@ func (t *TicketAttempt) Encode(e *Encoder) error {
 // TicketBody
 func (tb *TicketBody) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding TicketBody")
-	if err := tb.Id.Encode(e); err != nil {
+	if err := tb.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -466,8 +466,8 @@ func (s *ServiceID) Encode(e *Encoder) error {
 // ServiceIDList
 func (s *ServiceIDList) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceIDList")
-	for _, serviceId := range *s {
-		if err := serviceId.Encode(e); err != nil {
+	for _, serviceID := range *s {
+		if err := serviceID.Encode(e); err != nil {
 			return err
 		}
 	}

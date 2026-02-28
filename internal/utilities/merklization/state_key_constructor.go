@@ -29,7 +29,7 @@ type ServiceWrapper struct {
 
 func encodeServiceID(serviceID types.ServiceID) []byte {
 	encoder := types.NewEncoder()
-	encoded, _ := encoder.EncodeUintWithLength(uint64(serviceId), 4)
+	encoded, _ := encoder.EncodeUintWithLength(uint64(serviceID), 4)
 
 	return encoded
 }
@@ -46,7 +46,7 @@ func (w StateServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	output[0] = byte(w.StateIndex)
 
 	// Encode the service index
-	n := encodeServiceId(w.ServiceIndex)
+	n := encodeServiceID(w.ServiceIndex)
 
 	for i := 0; i <= 3; i++ {
 		output[2*i+1] = n[i]
@@ -59,7 +59,7 @@ func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	// [n_0, h_0, n_1, h_1, n_2, h_2, n_3, h_3, h_4, h_5,...,h_26] where n = encode_4(service_id)
 
 	// Encode the service index
-	n := encodeServiceId(w.ServiceIndex)
+	n := encodeServiceID(w.ServiceIndex)
 
 	a := hash.Blake2bHashPartial(w.h[:], 27)
 

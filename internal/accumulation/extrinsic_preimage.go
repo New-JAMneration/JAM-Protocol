@@ -59,12 +59,12 @@ func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceID, h t
 	return !isInPreimageMap && (len(timeSlotSet) == 0)
 }
 
-func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceID) bool {
+func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceID types.ServiceID) bool {
 	if len(keyVals) == 0 {
 		return false
 	}
 
-	lookupStateKey := m.EncodeDelta4Key(serviceId, lookupKey)
+	lookupStateKey := m.EncodeDelta4Key(serviceID, lookupKey)
 	for _, v := range keyVals {
 		if v.Key == lookupStateKey {
 			if len(v.Value) == 1 && v.Value[0] == 0 {
@@ -78,12 +78,12 @@ func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey
 	return false
 }
 
-func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceId types.ServiceID) bool {
+func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceID types.ServiceID) bool {
 	if len(*keyVals) == 0 {
 		return false
 	}
 
-	lookupStateKey := m.EncodeDelta4Key(serviceId, lookupKey)
+	lookupStateKey := m.EncodeDelta4Key(serviceID, lookupKey)
 	for k, v := range *keyVals {
 		if v.Key == lookupStateKey {
 			if len(v.Value) == 1 && v.Value[0] == 0 {
@@ -247,8 +247,8 @@ func ProcessPreimageExtrinsics() error {
 func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.ServiceAccountState, error) {
 	tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
 	for _, serviceblob := range eps {
-		serviceId := serviceblob.ServiceID
-		serviceAccount, found := d[serviceId]
+		serviceID := serviceblob.ServiceID
+		serviceAccount, found := d[serviceID]
 		if !found {
 			continue
 		}
@@ -263,7 +263,7 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 
 		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
 		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
-		d[serviceId] = serviceAccount
+		d[serviceID] = serviceAccount
 	}
 
 	return d, nil
