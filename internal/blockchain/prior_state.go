@@ -487,7 +487,7 @@ func (s *PriorStates) GetServicesStatistics() types.ServicesStatistics {
 }
 
 // SetVartheta sets the varTheta value
-func (s *PriorStates) SetVartheta(varTheta types.ReadyQueue) {
+func (s *PriorStates) SetVartheta(vartheta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Vartheta = varTheta
