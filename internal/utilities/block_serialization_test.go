@@ -23,7 +23,7 @@ type heder struct {
 		Validators     []string `json:"validators,omitempty"`
 	} `json:"epoch_mark,omitempty"`
 	TicketsMark *[]struct {
-		Id      string `json:"id,omitempty"`
+		ID      string `json:"id,omitempty"`
 		Attempt int    `json:"attempt,omitempty"`
 	} `json:"tickets_mark,omitempty"`
 	OffendersMark []string `json:"offenders_mark,omitempty"`
@@ -58,7 +58,7 @@ type guarantee struct {
 }
 
 type workResult struct {
-	ServiceId     int               `json:"service_id,omitempty"`
+	ServiceID     int               `json:"service_id,omitempty"`
 	CodeHash      string            `json:"code_hash,omitempty"`
 	PayloadHash   string            `json:"payload_hash,omitempty"`
 	AccumulateGas int               `json:"accumulate_gas,omitempty"`
@@ -209,7 +209,7 @@ func readHeaderFromJson(filename string, data heder) (outputData types.Header) {
 
 		for _, data := range *data.TicketsMark {
 			*outputData.TicketsMark = append(*outputData.TicketsMark, types.TicketBody{
-				Id:      types.TicketId(stringToHex(data.Id)),
+				ID:      types.TicketID(stringToHex(data.ID)),
 				Attempt: types.TicketAttempt(data.Attempt),
 			})
 		}
@@ -266,7 +266,7 @@ func readExtrinsicWorkResultFromJson(filename string, data workResult) (outputDa
 		break // only one key expected
 	}
 	outputData = types.WorkResult{
-		ServiceID:     types.ServiceID(data.ServiceId),
+		ServiceID:     types.ServiceID(data.ServiceID),
 		CodeHash:      types.OpaqueHash(stringToHex(data.CodeHash)),
 		PayloadHash:   types.OpaqueHash(stringToHex(data.PayloadHash)),
 		AccumulateGas: types.Gas(data.AccumulateGas),
@@ -374,7 +374,7 @@ func readExtrinsicGuaranteeFromJson(filename string, data guaranteesExtrinsic) (
 				break // only one key expected
 			}
 			outputData[num].Report.Results = append(outputData[num].Report.Results, types.WorkResult{
-				ServiceID:     types.ServiceID(data.ServiceId),
+				ServiceID:     types.ServiceID(data.ServiceID),
 				CodeHash:      types.OpaqueHash(stringToHex(data.CodeHash)),
 				PayloadHash:   types.OpaqueHash(stringToHex(data.PayloadHash)),
 				AccumulateGas: types.Gas(data.AccumulateGas),

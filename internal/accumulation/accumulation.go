@@ -349,8 +349,8 @@ func set_s(r []types.WorkReport, f types.AlwaysAccumulateMap, t []types.Deferred
 	}
 
 	// K(f)
-	for serviceId := range f {
-		s[serviceId] = true
+	for serviceID := range f {
+		s[serviceID] = true
 	}
 
 	// td S t ∈ t
@@ -467,12 +467,12 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 	{
 		g := new(errgroup.Group)
 		g.SetLimit(types.MaxWorkers)
-		for serviceId := range s {
-			serviceId := serviceId
+		for serviceID := range s {
+			serviceID := serviceID
 			g.Go(func() error {
-				_, err := runSingleReplaceService(serviceId, singleInput)
+				_, err := runSingleReplaceService(serviceID, singleInput)
 				if err != nil {
-					return fmt.Errorf("single service accumulation for service %d failed: %w", serviceId, err)
+					return fmt.Errorf("single service accumulation for service %d failed: %w", serviceID, err)
 				}
 				return nil
 			})
@@ -601,13 +601,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		for c := range types.CoresCount {
 			c := c
-			serviceId := a[c]
+			serviceID := a[c]
 			g.Go(func() error {
-				singleOutput, err := runSingleReplaceService(serviceId, singleInput)
+				singleOutput, err := runSingleReplaceService(serviceID, singleInput)
 				if err != nil {
 					return fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
 				}
-				aPrime[c] = R(serviceId, eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
+				aPrime[c] = R(serviceID, eStar.Assign[c], singleOutput.PartialStateSet.Assign[c])
 				return nil
 			})
 		}
@@ -652,13 +652,13 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		{
 			g := new(errgroup.Group)
 			g.SetLimit(types.MaxWorkers)
-			for c, serviceId := range input.PartialStateSet.Assign {
+			for c, serviceID := range input.PartialStateSet.Assign {
 				c := c
-				serviceId := serviceId
+				serviceID := serviceID
 
 				g.Go(func() error {
 
-					singleOutput, err := runSingleReplaceService(serviceId, singleInput)
+					singleOutput, err := runSingleReplaceService(serviceID, singleInput)
 					if err != nil {
 						return fmt.Errorf("single service accumulation for assign[%d] failed: %w", c, err)
 					}

@@ -906,11 +906,11 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	var logMsg string
 	if input.Interpreter.Registers[8] == 0 && input.Interpreter.Registers[9] == 0 {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceID), string(message))
+			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), string(message))
 	} else {
 		target := input.Interpreter.Memory.Read(input.Interpreter.Registers[8], input.Interpreter.Registers[9])
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceID), target, string(message))
+			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), target, string(message))
 	}
 
 	input.Interpreter.Registers[7] = WHAT

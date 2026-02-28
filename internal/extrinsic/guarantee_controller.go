@@ -188,7 +188,7 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
 			if _, serviceExists := delta[workResult.ServiceID]; !serviceExists {
-				err := ReportsErrorCode.BadServiceId
+				err := ReportsErrorCode.BadServiceID
 				return &err
 			}
 			if workResult.AccumulateGas < delta[workResult.ServiceID].ServiceInfo.MinItemGas {

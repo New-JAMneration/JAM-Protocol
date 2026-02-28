@@ -58,10 +58,10 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	alwaysAccum := make(types.AlwaysAccumulateMap)
 	var accumErr error
 	for len(rawData) > 0 {
-		var alwaysAccumServiceId types.ServiceID
+		var alwaysAccumServiceID types.ServiceID
 		var alwaysAccumServiceGas types.Gas
 		alwaysAccumRawData := rawData[:12]
-		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceId)
+		accumErr = decoder.Decode(alwaysAccumRawData[:4], &alwaysAccumServiceID)
 		if accumErr != nil {
 			pvmLogger.Errorf("host-call function \"bless\" decode alwaysAccum error : %v", accumErr)
 			return OmegaOutput{
@@ -78,7 +78,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 			}
 		}
 		rawData = rawData[12:]
-		alwaysAccum[alwaysAccumServiceId] = alwaysAccumServiceGas
+		alwaysAccum[alwaysAccumServiceID] = alwaysAccumServiceGas
 	}
 
 	if accumErr != nil {

@@ -73,7 +73,7 @@ func TestPreimageTestVectors(t *testing.T) {
 			}
 
 			// Store ServiceAccount into inputDelta
-			inputDelta[delta.Id] = serviceAccount
+			inputDelta[delta.ID] = serviceAccount
 		}
 
 		// Get store instance and required states
@@ -270,32 +270,32 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := []types.ServiceID{}
+	serviceIDs := []types.ServiceID{}
 	ourStatisticsServices := cs.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 
-	for serviceId := range accumulationStatisitcs {
-		serviceIds = append(serviceIds, serviceId)
+	for serviceID := range accumulationStatisitcs {
+		serviceIDs = append(serviceIDs, serviceID)
 	}
 
-	for _, serviceId := range serviceIds {
-		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+	for _, serviceID := range serviceIDs {
+		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
 		// Skip if the service has no accumulated reports or gas used
 		if accumulateCount == 0 && accumulateGasUsed == 0 {
 			continue
 		}
 		// Update the statistics for the service
-		thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
+		thisServiceActivityRecord, ok := ourStatisticsServices[serviceID]
 		if ok {
 			thisServiceActivityRecord.AccumulateCount = accumulateCount
 			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
-			ourStatisticsServices[serviceId] = thisServiceActivityRecord
+			ourStatisticsServices[serviceID] = thisServiceActivityRecord
 		} else {
 			newServiceActivityRecord := types.ServiceActivityRecord{
 				AccumulateCount:   accumulateCount,
 				AccumulateGasUsed: accumulateGasUsed,
 			}
-			ourStatisticsServices[serviceId] = newServiceActivityRecord
+			ourStatisticsServices[serviceID] = newServiceActivityRecord
 		}
 	}
 	// const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
@@ -327,14 +327,14 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	for key, expectedAcc := range expectedDelta {
 		actualAcc, ok := actualDelta[key]
 		if !ok {
-			t.Errorf("serviceId %v missing in actualDelta", key)
+			t.Errorf("serviceID %v missing in actualDelta", key)
 		}
 
 		// ServiceInfo
 		// 0.7.0 davxy test lack loockupdict will  cause error for calculate item and byte length
 		// lack of lookup dict -> item ( 2 -> 1 ), Bytes ( only compute storage )
 		/*if !reflect.DeepEqual(expectedAcc.ServiceInfo, actualAcc.ServiceInfo) {
-			return fmt.Errorf("mismatch in ServiceInfo for serviceId %v:\n expected=%+v\n actual=%+v",
+			return fmt.Errorf("mismatch in ServiceInfo for serviceID %v:\n expected=%+v\n actual=%+v",
 				key, expectedAcc.ServiceInfo, actualAcc.ServiceInfo)
 		}*/
 
@@ -342,16 +342,16 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 		for h, expectedBlob := range expectedAcc.PreimageLookup {
 			actualBlob, ok := actualAcc.PreimageLookup[h]
 			if !ok {
-				t.Errorf("serviceId %v missing Preimage hash %x in actualDelta", key, h)
+				t.Errorf("serviceID %v missing Preimage hash %x in actualDelta", key, h)
 			}
 			if !bytes.Equal(expectedBlob, actualBlob) {
-				t.Errorf("mismatch for serviceId %v, Preimage hash %x:\n expected=%x\n actual=%x",
+				t.Errorf("mismatch for serviceID %v, Preimage hash %x:\n expected=%x\n actual=%x",
 					key, h, expectedBlob, actualBlob)
 			}
 		}
 		for h := range actualAcc.PreimageLookup {
 			if _, ok := expectedAcc.PreimageLookup[h]; !ok {
-				t.Errorf("serviceId %v has extra Preimage hash %x in actualDelta", key, h)
+				t.Errorf("serviceID %v has extra Preimage hash %x in actualDelta", key, h)
 			}
 		}
 
@@ -359,16 +359,16 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 		for storageKey, expectedValue := range expectedAcc.StorageDict {
 			actualValue, ok := actualAcc.StorageDict[storageKey]
 			if !ok {
-				t.Errorf("serviceId %v missing Storage key %q in actualDelta", key, storageKey)
+				t.Errorf("serviceID %v missing Storage key %q in actualDelta", key, storageKey)
 			}
 			if !bytes.Equal(expectedValue, actualValue) {
-				t.Errorf("mismatch for serviceId %v, Storage key %q:\n expected=%x\n actual=%x",
+				t.Errorf("mismatch for serviceID %v, Storage key %q:\n expected=%x\n actual=%x",
 					key, storageKey, expectedValue, actualValue)
 			}
 		}
 		for storageKey := range actualAcc.StorageDict {
 			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
-				t.Errorf("serviceId %v has extra Storage key %q in actualDelta", key, storageKey)
+				t.Errorf("serviceID %v has extra Storage key %q in actualDelta", key, storageKey)
 			}
 		}
 	}

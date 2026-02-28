@@ -760,7 +760,7 @@ type Statistics struct {
 // ============================================================================
 
 type (
-	TicketId      OpaqueHash // Unique identifier for a ticket
+	TicketID      OpaqueHash // Unique identifier for a ticket
 	TicketAttempt U8         // Attempt counter for ticket submissions
 )
 
@@ -773,7 +773,7 @@ type TicketEnvelope struct {
 // Body of a ticket
 // GP §6.6, $\mathbb{T}$
 type TicketBody struct {
-	Id      TicketId      `json:"id"`      // $y$: Ticket identifier
+	ID      TicketID      `json:"id"`      // $y$: Ticket identifier
 	Attempt TicketAttempt `json:"attempt"` // $e$: Attempt number
 }
 

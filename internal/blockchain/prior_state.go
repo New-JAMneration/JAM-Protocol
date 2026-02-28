@@ -284,10 +284,10 @@ func (s *PriorStates) GetChi() types.Privileges {
 }
 
 // SetManagerServiceIndex sets the managerServiceIndex value
-func (s *PriorStates) SetManagerServiceIndex(serviceId types.ServiceID) {
+func (s *PriorStates) SetManagerServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Bless = serviceId
+	s.state.Chi.Bless = serviceID
 }
 
 // GetManagerServiceIndex returns the managerServiceIndex value
@@ -298,10 +298,10 @@ func (s *PriorStates) GetManagerServiceIndex() types.ServiceID {
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PriorStates) SetAlterPhiServiceIndex(serviceId []types.ServiceID) {
+func (s *PriorStates) SetAlterPhiServiceIndex(serviceID []types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Assign = serviceId
+	s.state.Chi.Assign = serviceID
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
@@ -312,10 +312,10 @@ func (s *PriorStates) GetAlterPhiServiceIndex() []types.ServiceID {
 }
 
 // SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
-func (s *PriorStates) SetAlterIotaServiceIndex(serviceId types.ServiceID) {
+func (s *PriorStates) SetAlterIotaServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Designate = serviceId
+	s.state.Chi.Designate = serviceID
 }
 
 // GetAlterIotaServiceIndex returns the alterIotaServiceIndex value
@@ -486,14 +486,14 @@ func (s *PriorStates) GetServicesStatistics() types.ServicesStatistics {
 	return s.state.Pi.Services
 }
 
-// SetVartheta sets the varTheta value
+// SetVartheta sets the vartheta value
 func (s *PriorStates) SetVartheta(vartheta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Vartheta = varTheta
+	s.state.Vartheta = vartheta
 }
 
-// GetVartheta returns the varTheta value
+// GetVartheta returns the vartheta value
 func (s *PriorStates) GetVartheta() types.ReadyQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

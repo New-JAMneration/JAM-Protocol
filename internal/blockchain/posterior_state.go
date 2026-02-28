@@ -302,10 +302,10 @@ func (s *PosteriorStates) GetChi() types.Privileges {
 }
 
 // SetManagerServiceIndex sets the managerServiceIndex value
-func (s *PosteriorStates) SetManagerServiceIndex(serviceId types.ServiceID) {
+func (s *PosteriorStates) SetManagerServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Bless = serviceId
+	s.state.Chi.Bless = serviceID
 }
 
 // GetManagerServiceIndex returns the managerServiceIndex value
@@ -316,10 +316,10 @@ func (s *PosteriorStates) GetManagerServiceIndex() types.ServiceID {
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PosteriorStates) SetAlterPhiServiceIndex(serviceId []types.ServiceID) {
+func (s *PosteriorStates) SetAlterPhiServiceIndex(serviceID []types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Assign = serviceId
+	s.state.Chi.Assign = serviceID
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
@@ -330,10 +330,10 @@ func (s *PosteriorStates) GetAlterPhiServiceIndex() []types.ServiceID {
 }
 
 // SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
-func (s *PosteriorStates) SetAlterIotaServiceIndex(serviceId types.ServiceID) {
+func (s *PosteriorStates) SetAlterIotaServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Designate = serviceId
+	s.state.Chi.Designate = serviceID
 }
 
 // GetAlterIotaServiceIndex returns the alterIotaServiceIndex value

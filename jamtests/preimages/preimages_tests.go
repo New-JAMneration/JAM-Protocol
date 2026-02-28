@@ -77,7 +77,7 @@ type Account struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceID `json:"id"`
+	ID   types.ServiceID `json:"id"`
 	Data Account         `json:"data"`
 }
 
@@ -407,7 +407,7 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 
 	var err error
 
-	if err = a.Id.Decode(d); err != nil {
+	if err = a.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -612,7 +612,7 @@ func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Encode(e); err != nil {
+	if err = a.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -697,7 +697,7 @@ func (p *PreimageTestCase) Dump() error {
 		}
 
 		// Store ServiceAccount into inputDelta
-		inputDelta[delta.Id] = serviceAccount
+		inputDelta[delta.ID] = serviceAccount
 	}
 
 	// Add block with PreimagesExtrinsic
