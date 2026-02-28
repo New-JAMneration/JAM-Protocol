@@ -193,7 +193,8 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) *types.Err
 	gammaSKeys := state.Gamma.GammaS.Keys
 	if len(gammaSKeys) == 0 {
 		logger.Errorf("ValidateByBandersnatchs gammaSKeys is empty")
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 	// logger.Debugf("length of gammaSKeys:", len(gammaSKeys))
 	index := uint(header.Slot) % uint(len(gammaSKeys))
@@ -211,7 +212,8 @@ func ValidateByBandersnatchs(header types.Header, state *types.State) *types.Err
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		logger.Errorf("ValidateByBandersnatchs HeaderUSerialization err: %v", err)
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 	// Pre-allocate context: JamFallbackSeal (17) + state.Eta[3] (32) = 49 bytes
 	context := make(types.ByteSequence, 0, len(types.JamFallbackSeal)+32)
@@ -247,7 +249,8 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 	gammaSTickets := state.Gamma.GammaS.Tickets
 	if len(gammaSTickets) == 0 {
 		logger.Errorf("ValidateByTickets gammaSTickets is empty")
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 
 	index := uint(header.Slot) % uint(len(gammaSTickets))
@@ -257,7 +260,8 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 	vrfOutput, err := vrf.VRFIetfOutput(header.Seal[:])
 	if err != nil {
 		logger.Errorf("ValidateByTickets VRFIetfOutput err: %v", err)
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 	if !bytes.Equal(vrfOutput, ticket.Id[:]) {
 		logger.Errorf("i_y != Y(Hs): %v", cmp.Diff(vrfOutput, ticket.Id[:]))
@@ -269,7 +273,8 @@ func ValidateByTickets(header types.Header, state *types.State) *types.ErrorCode
 	message, err := utilities.HeaderUSerialization(header)
 	if err != nil {
 		logger.Errorf("ValidateByTickets HeaderUSerialization err: %v", err)
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 	eta_prime := state.Eta
 
@@ -311,7 +316,8 @@ func ValidateHeaderSeal(header types.Header, state *types.State) *types.ErrorCod
 	gammaS := state.Gamma.GammaS
 	if err := gammaS.Validate(); err != nil {
 		logger.Errorf("ValidateHeaderSeal gammaS Validate: %v", err)
-		return nil
+		errCode := SafroleErrorCode.VrfSealInvalid
+		return &errCode
 	}
 	if len(gammaS.Tickets) > 0 {
 		// logger.Debugf("Validating by tickets")

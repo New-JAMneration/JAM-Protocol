@@ -758,6 +758,8 @@ func (s *SegmentRootLookup) Decode(d *Decoder) error {
 func (w *WorkExecResult) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding WorkExecResult")
 
+	*w = WorkExecResult{}
+
 	// Get the first byte
 	firstByte, err := d.buf.ReadByte()
 	if err != nil {
@@ -794,6 +796,8 @@ func (w *WorkExecResult) Decode(d *Decoder) error {
 	case 6:
 		cLog(Yellow, "WorkExecResultCodeOversize")
 		w.Type = WorkExecResultCodeOversize
+	default:
+		return errors.New("invalid WorkExecResultType")
 	}
 
 	return nil

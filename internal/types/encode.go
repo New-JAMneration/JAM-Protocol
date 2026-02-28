@@ -446,7 +446,7 @@ func (t *TicketsExtrinsic) Encode(e *Encoder) error {
 	return nil
 }
 
-// SerivceId
+// ServiceID
 func (s *ServiceID) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceID")
 	encoded, err := e.EncodeUintWithLength(uint64(*s), 4)
@@ -463,7 +463,7 @@ func (s *ServiceID) Encode(e *Encoder) error {
 	return nil
 }
 
-// SerivceIdList
+// ServiceIDList
 func (s *ServiceIDList) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServiceIDList")
 	for _, serviceId := range *s {

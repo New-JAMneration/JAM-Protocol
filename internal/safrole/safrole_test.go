@@ -398,12 +398,12 @@ func validateFinalState(t *testing.T, binFile string,
 		t.Logf("input safroleOkInfo: %v", *expectedOk)
 
 		if !reflect.DeepEqual(expectedOk.EpochMark, ourEpochMarker) {
-			diff := cmp.Diff(*expectedOk.EpochMark, *ourEpochMarker)
+			diff := cmp.Diff(expectedOk.EpochMark, ourEpochMarker)
 			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Fatalf("epoch marker mismatch: %v", diff)
 		}
 		if !reflect.DeepEqual(expectedOk.TicketsMark, ourTicketsMark) {
-			diff := cmp.Diff(*expectedOk.TicketsMark, *ourTicketsMark)
+			diff := cmp.Diff(expectedOk.TicketsMark, ourTicketsMark)
 			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 			t.Fatalf("tickets mark mismatch: %v", diff)
 		}
