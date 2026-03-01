@@ -490,17 +490,54 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	return positiveJudgers
 }
 
-// NODE-TODO [timer]: Wait for next tranche (A = 8s per GP §17.7).
+// NODE-TODO [timer]: Block until the current tranche period ends.
+//
+// Tranche timing (GP §17.7): each tranche lasts A = 8 seconds, counted
+// from the start of the current time-slot. So tranche n starts at
+// slot_start + n*8s. This function should sleep/select until that deadline.
+//
+// Typical impl:
+//   deadline := slotStartTime.Add(time.Duration(tranche+1) * 8 * time.Second)
+//   time.Sleep(time.Until(deadline))           // or use a context/timer
+//
+// Called at the bottom of the tranche loop (Step 18 in SingleNodeAuditingAndPublish),
+// right after IsBlockAudited check. The next iteration will then call
+// SyncAssignmentMapFromOtherNodes + SyncPositiveJudgersFromOtherNodes
+// to pick up CE144/CE145 messages that arrived during the wait.
 func WaitNextTranche(tranche types.U8) {
 }
 
-// NODE-TODO [CE145 sync]: Collect all CE145 judgments received this tranche.
+// NODE-TODO [CE145 sync]: Drain all CE145 judgment messages received so far
+// and merge them into positiveJudgers.
+//
+// This is called right after broadcasting our own judgments (Step 16/9).
+// It should read from whatever buffer/channel the CE145 recv handler
+// writes into, and merge each (WorkPackageHash, ValidatorIndex) pair.
+//
+// Expected flow:
+//   1. CE145 recv handler (running in background) pushes incoming judgments
+//      into a thread-safe buffer (channel / mutex-guarded map).
+//   2. This function drains that buffer and merges into positiveJudgers.
+//   3. The merged map is then used by ComputeAnForValidator (next tranche)
+//      to determine which reports still need auditing (no-show detection).
+//
 // Ref: feat/jam-np-ce-handler — ce145.go GetAllJudgmentsForWorkReport
 func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	return positiveJudgers
 }
 
-// NODE-TODO [CE144 sync]: Collect all CE144 announcements received this tranche.
+// NODE-TODO [CE144 sync]: Drain all CE144 announcement messages received so far
+// and merge them into assignmentMap.
+//
+// Same pattern as SyncPositiveJudgersFromOtherNodes but for announcements.
+// The merged map feeds into ComputeAnForValidator to count no-shows
+// (validators who announced but didn't judge → triggers more auditors).
+//
+// Expected flow:
+//   1. CE144 recv handler pushes incoming announcements into a buffer.
+//   2. This function drains and merges into assignmentMap.
+//   3. No-show count = announced validators - judged validators per report.
+//
 // Ref: feat/jam-np-ce-handler — ce144.go GetAllAuditAnnouncementsForHeader
 func SyncAssignmentMapFromOtherNodes(
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
