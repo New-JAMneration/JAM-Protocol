@@ -497,8 +497,9 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 // slot_start + n*8s. This function should sleep/select until that deadline.
 //
 // Typical impl:
-//   deadline := slotStartTime.Add(time.Duration(tranche+1) * 8 * time.Second)
-//   time.Sleep(time.Until(deadline))           // or use a context/timer
+//
+//	deadline := slotStartTime.Add(time.Duration(tranche+1) * 8 * time.Second)
+//	time.Sleep(time.Until(deadline))           // or use a context/timer
 //
 // Called at the bottom of the tranche loop (Step 18 in SingleNodeAuditingAndPublish),
 // right after IsBlockAudited check. The next iteration will then call
@@ -515,11 +516,11 @@ func WaitNextTranche(tranche types.U8) {
 // writes into, and merge each (WorkPackageHash, ValidatorIndex) pair.
 //
 // Expected flow:
-//   1. CE145 recv handler (running in background) pushes incoming judgments
-//      into a thread-safe buffer (channel / mutex-guarded map).
-//   2. This function drains that buffer and merges into positiveJudgers.
-//   3. The merged map is then used by ComputeAnForValidator (next tranche)
-//      to determine which reports still need auditing (no-show detection).
+//  1. CE145 recv handler (running in background) pushes incoming judgments
+//     into a thread-safe buffer (channel / mutex-guarded map).
+//  2. This function drains that buffer and merges into positiveJudgers.
+//  3. The merged map is then used by ComputeAnForValidator (next tranche)
+//     to determine which reports still need auditing (no-show detection).
 //
 // Ref: feat/jam-np-ce-handler — ce145.go GetAllJudgmentsForWorkReport
 func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
@@ -534,9 +535,9 @@ func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash
 // (validators who announced but didn't judge → triggers more auditors).
 //
 // Expected flow:
-//   1. CE144 recv handler pushes incoming announcements into a buffer.
-//   2. This function drains and merges into assignmentMap.
-//   3. No-show count = announced validators - judged validators per report.
+//  1. CE144 recv handler pushes incoming announcements into a buffer.
+//  2. This function drains and merges into assignmentMap.
+//  3. No-show count = announced validators - judged validators per report.
 //
 // Ref: feat/jam-np-ce-handler — ce144.go GetAllAuditAnnouncementsForHeader
 func SyncAssignmentMapFromOtherNodes(
