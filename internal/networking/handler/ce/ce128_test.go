@@ -306,17 +306,16 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	}
 
 	// CE 128
-	// Create a block request payload:
-	// 32 bytes header hash (using genesis), 1 byte direction (0 for ascending), 4 bytes max blocks.
+	// Create a block request payload: HeaderHash (HashSize) + Direction (1) + MaxBlocks (U32Size).
 	var req CE128Payload
 	req.HeaderHash = fakeBC.GenesisBlockHash()
 	req.Direction = 0 // ascending exclusive
 	req.MaxBlocks = 3
 
-	reqPayload := make([]byte, 32+1+4)
-	copy(reqPayload[:32], req.HeaderHash[:])
-	reqPayload[32] = req.Direction
-	binary.LittleEndian.PutUint32(reqPayload[33:37], req.MaxBlocks)
+	reqPayload := make([]byte, CE128MinRequestSize)
+	copy(reqPayload[:HashSize], req.HeaderHash[:])
+	reqPayload[HashSize] = req.Direction
+	binary.LittleEndian.PutUint32(reqPayload[HashSize+1:HashSize+1+U32Size], req.MaxBlocks)
 
 	// Write the request as one length-prefixed message, then close write half.
 	_, err = stream.Write(framePayload(reqPayload))

@@ -31,29 +31,29 @@ import (
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Request: single message = erasure-root (32) + shard index (2) + segment indices length (2) + segment indices
+	// Request: single message = erasure-root (HashSize) + shard index (U16Size) + segment indices length (U16Size) + segment indices
 	payload, err := stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-	if len(payload) < 36 {
+	if len(payload) < CE139140MinRequestSize {
 		return errors.New("segment shard request too short")
 	}
-	erasureRoot := payload[:32]
-	shardIndex := uint32(binary.LittleEndian.Uint16(payload[32:34]))
-	segmentIndicesLen := binary.LittleEndian.Uint16(payload[34:36])
+	erasureRoot := payload[:HashSize]
+	shardIndex := uint32(binary.LittleEndian.Uint16(payload[HashSize : HashSize+U16Size]))
+	segmentIndicesLen := binary.LittleEndian.Uint16(payload[HashSize+U16Size : CE139140MinRequestSize])
 
-	if segmentIndicesLen > 6144 {
+	if segmentIndicesLen > MaxSegmentIndicesCount {
 		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
 	}
 
-	rest := payload[36:]
-	if len(rest) < int(segmentIndicesLen)*2 {
+	rest := payload[CE139140MinRequestSize:]
+	if len(rest) < int(segmentIndicesLen)*SegmentIndexSize {
 		return errors.New("segment shard request truncated")
 	}
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	for i := uint16(0); i < segmentIndicesLen; i++ {
-		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*2 : (i+1)*2])
+		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*SegmentIndexSize : (i+1)*SegmentIndexSize])
 	}
 
 	bundle, err := lookupWorkPackageBundle(erasureRoot)
@@ -113,7 +113,7 @@ func extractSegmentShards(bundle *types.WorkPackageBundle, shardIndex uint32, se
 
 	// Tests may request more segments than a small bundle produces when split across TotalShards.
 	// Ensure the shard is long enough for the maximum requested segment index.
-	const segmentSize = 32
+	const segmentSize = HashSize
 	maxIndex := uint16(0)
 	for _, idx := range segmentIndices {
 		if idx > maxIndex {
@@ -171,8 +171,8 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{})
 
 	encoder := types.NewEncoder()
 
-	if len(segmentReq.ErasureRoot) != 32 {
-		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	if len(segmentReq.ErasureRoot) != HashSize {
+		return nil, fmt.Errorf("erasure root must be exactly %d bytes, got %d", HashSize, len(segmentReq.ErasureRoot))
 	}
 	if err := h.writeBytes(encoder, segmentReq.ErasureRoot); err != nil {
 		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
@@ -193,7 +193,7 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{})
 		}
 	}
 
-	result := make([]byte, 0, 36+len(segmentReq.SegmentIndices)*2)
+	result := make([]byte, 0, CE139140MinRequestSize+len(segmentReq.SegmentIndices)*SegmentIndexSize)
 	result = append(result, segmentReq.ErasureRoot...)
 	result = append(result, encodeLE16(uint16(segmentReq.ShardIndex))...)
 	result = append(result, encodeLE16(segmentIndicesLen)...)

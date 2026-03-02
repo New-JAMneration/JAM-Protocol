@@ -10,7 +10,7 @@ import (
 
 func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 	// Erasure root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes) + segment indices + FIN
-	erasureRoot := make([]byte, 32)
+	erasureRoot := make([]byte, HashSize)
 	for i := range erasureRoot {
 		erasureRoot[i] = byte(i)
 	}
@@ -45,8 +45,8 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 	}
 
 	response := mockStream.w.Bytes()
-	// Response is [4][segmentShards][4][j1][4][j2]... so at least length prefix + 64 bytes of shards
-	if len(response) < 4+64 {
+	// Response is [U32Size][segmentShards][U32Size][j1]... so at least length prefix + 64 bytes of shards
+	if len(response) < U32Size+64 {
 		t.Errorf("Expected response to contain segment shards, got length %d", len(response))
 	}
 }
