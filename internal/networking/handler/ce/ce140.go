@@ -108,7 +108,7 @@ func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream 
 }
 
 // constructJustification constructs the justification for a segment shard using the formula:
-// j ^ [b] ^ T(s, i, H)
+// j ++ [b] ++ T(s, i, H)
 func constructJustification(bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
 	// Get the CE137 justification (j) - this would come from the assurer's CE137 response
 	ce137Justification, err := getCE137Justification(erasureRoot, shardIndex)
@@ -248,33 +248,15 @@ func constructMerkleCoPath(segmentShardSequence [][]byte, segmentIndex uint16) (
 	return result, nil
 }
 
-// combineJustifications combines multiple justifications using XOR operation.
-// The formula is: j ^ [b] ^ T(s, i, H)
+// combineJustifications concatenates justifications per JAMNP: j ++ [b] ++ T(s, i, H).
+// ++ is concatenation; [b] is the bundle shard hash entry (discriminator 0x00 + 32-byte hash).
 func combineJustifications(ce137Justification, bundleShardHash, merkleCoPath []byte) []byte {
-	// Find the maximum length among all justifications
-	maxLen := len(ce137Justification)
-	if len(bundleShardHash) > maxLen {
-		maxLen = len(bundleShardHash)
-	}
-	if len(merkleCoPath) > maxLen {
-		maxLen = len(merkleCoPath)
-	}
-
-	paddedCE137 := make([]byte, maxLen)
-	copy(paddedCE137, ce137Justification)
-
-	paddedBundleHash := make([]byte, maxLen)
-	copy(paddedBundleHash, bundleShardHash)
-
-	paddedMerkleCoPath := make([]byte, maxLen)
-	copy(paddedMerkleCoPath, merkleCoPath)
-
-	combined := make([]byte, maxLen)
-	for i := 0; i < maxLen; i++ {
-		combined[i] = paddedCE137[i] ^ paddedBundleHash[i] ^ paddedMerkleCoPath[i]
-	}
-
-	return combined
+	result := make([]byte, 0, len(ce137Justification)+1+len(bundleShardHash)+len(merkleCoPath))
+	result = append(result, ce137Justification...)
+	result = append(result, 0x00) // discriminator for single hash
+	result = append(result, bundleShardHash...)
+	result = append(result, merkleCoPath...)
+	return result
 }
 
 type CE140Payload struct {
