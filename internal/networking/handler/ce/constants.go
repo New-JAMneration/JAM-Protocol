@@ -17,6 +17,8 @@ const (
 	// CE133 Work Package Submission: minimum first message = CoreIndex (u16)
 	CE133MinFirstMessageSize = U16Size
 
+	// CE137 EC Shard Request: ErasureRoot (32) + ShardIndex (u16)
+	CE137RequestSize = HashSize + U16Size
 	// CE138 Audit Shard Request: ErasureRoot (32) + ShardIndex (u16)
 	CE138RequestSize = HashSize + U16Size
 

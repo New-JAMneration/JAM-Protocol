@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // readFramedMessage reads one JAMNP message (4-byte LE length + payload) from b at offset; returns payload and new offset.
@@ -20,62 +23,69 @@ func readFramedMessage(b []byte, offset int) (payload []byte, next int, ok bool)
 }
 
 func TestHandleECShardRequest_Basic(t *testing.T) {
-	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
-	// Test parameters for AssignShardIndex
-	coreIndex := 1
-	recoveryThreshold := 5
-	validatorIndex := 3
-	totalValidators := 10
-	shardIndex := uint32(AssignShardIndex(coreIndex, recoveryThreshold, validatorIndex, totalValidators))
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
-	computedIndex := AssignShardIndex(coreIndex, recoveryThreshold, validatorIndex, totalValidators)
-	if int(shardIndex) != computedIndex {
-		t.Fatalf("shardIndex (%d) does not match AssignShardIndex result (%d)", shardIndex, computedIndex)
+	erasureRoot := make([]byte, HashSize)
+	for i := range erasureRoot {
+		erasureRoot[i] = byte(i)
 	}
 
-	// Prepare a real WorkReportBundle with mock data
-	bundle := &CE137Payload{
-		BundleShard: []byte("BUNDLE_SHARD_MOCK"),
-		SegmentShards: [][]byte{
-			[]byte("SEGMENT_SHARD1_MOCK"),
-			[]byte("SEGMENT_SHARD2_MOCK"),
-		},
-		Justification: append([]byte{0x00}, make([]byte, 32)...), // 0 discriminator + 32 zero bytes
+	testBundle := CreateTestWorkPackageBundle()
+	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
+	bundleBytes, err := encoder.Encode(testBundle)
+	if err != nil {
+		t.Fatalf("encode bundle: %v", err)
 	}
-	lookup := func(root []byte) (*CE137Payload, bool) {
-		if bytes.Equal(root, erasureRoot) {
-			return bundle, true
-		}
-		return nil, false
+	if err := PutKV(db, wpBundleKey(erasureRoot), bundleBytes); err != nil {
+		t.Fatalf("PutKV: %v", err)
 	}
 
-	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE); peer closes after
-	req := make([]byte, 0, 32+2)
+	shardIndex := uint16(0)
+	req := make([]byte, 0, CE137RequestSize)
 	req = append(req, erasureRoot...)
 	req = append(req, byte(shardIndex), byte(shardIndex>>8))
 	stream := newMockStream(req)
 
-	err := HandleECShardRequest(stream, lookup)
+	fakeBlockchain := SetupFakeBlockchain()
+
+	err = HandleECShardRequest(fakeBlockchain, stream)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
 
 	resp := stream.w.Bytes()
 	offset := 0
-	msg, offset, ok := readFramedMessage(resp, offset)
-	if !ok || !bytes.Equal(msg, bundle.BundleShard) {
-		t.Fatalf("response message 1 (bundle shard) mismatch")
+
+	bundleShard, offset, ok := readFramedMessage(resp, offset)
+	if !ok || len(bundleShard) == 0 {
+		t.Fatalf("response message 1 (bundle shard): missing or empty")
 	}
-	msg, offset, ok = readFramedMessage(resp, offset)
-	if !ok || !bytes.Equal(msg, bundle.SegmentShards[0]) {
-		t.Fatalf("response message 2 (segment shard 1) mismatch")
+
+	segmentShards, offset, ok := readFramedMessage(resp, offset)
+	if !ok || len(segmentShards) == 0 {
+		t.Fatalf("response message 2 (segment shards): missing or empty")
 	}
-	msg, offset, ok = readFramedMessage(resp, offset)
-	if !ok || !bytes.Equal(msg, bundle.SegmentShards[1]) {
-		t.Fatalf("response message 3 (segment shard 2) mismatch")
+
+	justification, _, ok := readFramedMessage(resp, offset)
+	if !ok || len(justification) == 0 {
+		t.Fatalf("response message 3 (justification): missing or empty")
 	}
-	msg, _, ok = readFramedMessage(resp, offset)
-	if !ok || !bytes.Equal(msg, bundle.Justification) {
-		t.Fatalf("response message 4 (justification) mismatch")
+
+	// Verify bundle shard matches expected (extractBundleShard for shard 0)
+	expectedShard, err := extractBundleShard(testBundle, uint32(shardIndex))
+	if err != nil {
+		t.Fatalf("extractBundleShard: %v", err)
+	}
+	if !bytes.Equal(bundleShard, expectedShard) {
+		t.Errorf("bundle shard mismatch: expected %d bytes, got %d", len(expectedShard), len(bundleShard))
+	}
+
+	// Justification should have 0x00 discriminator or valid structure
+	if justification[0] != 0x00 && justification[0] != 0x01 {
+		t.Errorf("justification first byte should be 0x00 or 0x01, got %x", justification[0])
 	}
 }
