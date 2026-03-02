@@ -1,56 +1,62 @@
-# 開發文件
+# Development Guide
 
-## 環境
+## 1. Environment
 
 go 1.23.3
 
-## 可用的第三方庫
+## 2. Available Third-Party Libraries
 
-加密原語
+### 2.1 Cryptographic Primitives
 
-- Hash :
-  - [Blake2b256 and keccak256 from gosammer](https://github.com/ChainSafe/gossamer/blob/development/lib/common/hasher.go)
+- Hash:
+  - [Blake2b256 and keccak256 from gossamer](https://github.com/ChainSafe/gossamer/blob/development/lib/common/hasher.go)
   - [golang crypto blake2b 256-bit](https://pkg.go.dev/golang.org/x/crypto/blake2b#New256)
-  - [golang crypto sha3 keccak 256-bit](https://pkg.go.dev/golang.org/x/crypto/sha3#NewLegacyKeccak256) (using NewLegacyKeccak256 function to generate LegacyKeccak256 object)
-  - 測試參照 [波卡官方](https://polkadot.js.org/docs/util-crypto/examples/hash-data/)：
-    - [Polkadot.js](https://polkadot.js.org/) -> Devolop -> Utility -> hash 可以測試 Blake2b 的 hash
+  - [golang crypto sha3 keccak 256-bit](https://pkg.go.dev/golang.org/x/crypto/sha3#NewLegacyKeccak256) (use `NewLegacyKeccak256` to get a LegacyKeccak256 hash object)
+  - You can verify Blake2b hash output at [Polkadot.js](https://polkadot.js.org/) → Develop → Utility → hash
 
-- 糾刪碼（Erasure Coding）：
-  - 可以使用 [klauspost/reedsolomon](https://github.com/klauspost/reedsolomon) 庫，該庫提供高效的 Reed-Solomon 編碼實現，適用於資料恢復和錯誤校正。
-  
-- Bandersnatch：
-  - 目前 Go 語言中尚無 Bandersnatch 曲線的主流實現。 (https://github.com/Consensys/gnark-crypto/tree/master/ecc/bls12-381)
+- Erasure Coding:
+  - [klauspost/reedsolomon](https://github.com/klauspost/reedsolomon) — efficient Reed-Solomon encoding for data recovery and error correction.
 
-- Ed25519：
-  - Go 標準庫的 `crypto/ed25519` 包提供了 Ed25519 簽名演算法的實現，可用於生成密鑰對、簽名和驗證。
+- Bandersnatch:
+  - No mainstream Go implementation exists yet. (ref: https://github.com/Consensys/gnark-crypto/tree/master/ecc/bls12-381)
 
-- RingVRF
+- Ed25519:
+  - The Go standard library `crypto/ed25519` package provides key generation, signing, and verification.
+
+- RingVRF:
   - [VRF and RingVRF Spec](https://github.com/davxy/bandersnatch-vrfs-spec)
-  - [Davxy (暫)指定測試用](https://github.com/davxy/ark-ec-vrfs)
+  - [Davxy reference implementation (for testing)](https://github.com/davxy/ark-ec-vrfs)
   - [RingVRF proof by w3f](https://github.com/w3f/ring-proof)
 
+### 2.2 Codec
 
-編解碼器
+- **SCALE (Simple Concatenated Aggregate Little-Endian):**
+  - A binary encoding format designed by Parity Technologies for the Substrate framework. The [ChainSafe/gossamer](https://github.com/ChainSafe/gossamer) project provides a Go SCALE codec implementation.
 
-- **SCALE（Simple Concatenated Aggregate Little-Endian）：**
-  - SCALE 是由 Parity Technologies 為 Substrate 區塊鏈框架設計的編解碼格式。 Go 語言中有 [ChainSafe/gossamer](https://github.com/ChainSafe/gossamer) 等專案實現了 SCALE 編解碼器，可用於與 Substrate 節點進行互操作。
+### 2.3 Network Protocol
 
-網路協議
+- **QUIC (Quick UDP Internet Connections):**
+  - [quic-go](https://github.com/quic-go/quic-go) — a pure-Go QUIC implementation supporting HTTP/3 and several related RFCs.
 
-- **QUIC（Quick UDP Internet Connections）：**
-  - [quic-go](https://github.com/quic-go/quic-go) 是用純 Go 語言實現的 QUIC 協議庫，支持 HTTP/3，並實現了多個相關的 RFC 標準。 
+#### JAMNP Stream Implementation Conventions
 
+In the JAM Network Protocol (JAMNP), `FIN` means **clean termination of the QUIC stream's send half** (the QUIC FIN bit). It is **not** a message byte.
 
-## 路徑
+| Operation | Correct approach |
+|---|---|
+| Send FIN | `stream.Close()` |
+| Detect remote FIN | `expectRemoteFIN(stream)` — reads 1 byte; `io.EOF` = OK, any data = error |
+| Send a message | `stream.WriteMessage(payload)` — prepends a 4-byte LE size prefix per JAMNP spec |
+| Read a message | `stream.ReadMessage()` — parses the 4-byte LE size prefix and returns the payload |
+
+## 3. Milestones
 
 ### M0
 
-- [參考 davxy 的 M1 conference](https://github.com/w3f/jamtestvectors/issues/21)
+- [Reference: davxy M1 conference](https://github.com/w3f/jamtestvectors/issues/21)
 
+### M1 — Prove that the block stream is correctly converted to state
 
-### M1 只要證明你讀進來的 block stream 轉換成 state 是正確的就好
+- [JAM Network Protocol](https://github.com/zdave-parity/jam-np/blob/main/simple.md)
 
-- [JAMNetworkProtocol](https://github.com/zdave-parity/jam-np/blob/main/simple.md)
-
-### M2 之後會有網路測試環境 (測試沙盒), 不只要告訴 state 還要有什麼東西他發送出去
-
+### M2 — Network test environment (test sandbox); must demonstrate both correct state and correct outgoing messages
