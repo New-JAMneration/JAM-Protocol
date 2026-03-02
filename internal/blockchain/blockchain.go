@@ -32,7 +32,7 @@ type Blockchain interface {
 	SetCurrentHead(types.HeaderHash)
 	// GetStateAt returns the posterior state at the given block hash
 	GetStateAt(types.HeaderHash) (types.StateKeyVals, error)
-	// GetStateRange returns state values in the given key range at the specified block hash
+	// GetStateRange returns posterior state values in the given key range at the specified block hash
 	GetStateRange(types.HeaderHash, types.StateKey, types.StateKey, uint32) (types.StateKeyVals, error)
 	// GetBoundaryNodes returns the boundary nodes covering the paths from the root to the start key and to the last key/value pair included in the response.
 	// The returned nodes should be ordered parent-first, with no duplicates.
