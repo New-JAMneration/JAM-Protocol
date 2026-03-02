@@ -7,8 +7,8 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
