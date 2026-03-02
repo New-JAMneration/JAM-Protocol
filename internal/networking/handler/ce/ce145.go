@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -76,6 +77,13 @@ func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteClo
 	}
 	validity := validityBuf[0]
 
+	// When Validity==0 (Invalid), a Guarantee message precedes: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
+	if validity == 0 {
+		if err := readGuaranteeMessage(stream); err != nil {
+			return fmt.Errorf("failed to read guarantee message: %w", err)
+		}
+	}
+
 	workReportHash := types.WorkReportHash{}
 	if _, err := io.ReadFull(stream, workReportHash[:]); err != nil {
 		return fmt.Errorf("failed to read work report hash: %w", err)
@@ -96,6 +104,50 @@ func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteClo
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
 	}
 	return stream.Close()
+}
+
+// readGuaranteeMessage reads: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
+func readGuaranteeMessage(r io.Reader) error {
+	slotBuf := make([]byte, 4)
+	if _, err := io.ReadFull(r, slotBuf); err != nil {
+		return err
+	}
+	_ = binary.LittleEndian.Uint32(slotBuf) // Slot, not used for validation in handler
+
+	count, err := readCompactLength(r)
+	if err != nil {
+		return err
+	}
+	for i := uint64(0); i < count; i++ {
+		validatorIndexBuf := make([]byte, 2)
+		if _, err := io.ReadFull(r, validatorIndexBuf); err != nil {
+			return err
+		}
+		_ = binary.LittleEndian.Uint16(validatorIndexBuf) // ValidatorIndex
+		sig := make([]byte, 64)
+		if _, err := io.ReadFull(r, sig); err != nil {
+			return err
+		}
+		_ = sig // Ed25519Signature
+	}
+	return nil
+}
+
+func readCompactLength(r io.Reader) (uint64, error) {
+	prefix := make([]byte, 1)
+	if _, err := io.ReadFull(r, prefix); err != nil {
+		return 0, err
+	}
+	l := bits.LeadingZeros8(^prefix[0])
+	if l > 0 {
+		extra := make([]byte, l)
+		if _, err := io.ReadFull(r, extra); err != nil {
+			return 0, err
+		}
+		prefix = append(prefix, extra...)
+	}
+	decoder := types.NewDecoder()
+	return decoder.DecodeUint(prefix)
 }
 
 func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
