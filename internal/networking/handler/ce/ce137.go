@@ -1,9 +1,11 @@
 package ce
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 )
 
@@ -23,37 +25,56 @@ import (
 //	FIN (stream close)
 //
 // The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
-//
-// This function should use AssignShardIndex to determine the correct shard index.
-func HandleECShardRequest(stream quic.MessageStream, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
-	// Read erasure-root (32 bytes) + shard index (2 bytes, u16); FIN = peer closes send half (EOF)
-	buf := make([]byte, 32+2)
+func HandleECShardRequest(bc blockchain.Blockchain, stream quic.MessageStream) error {
+	// Read erasure-root (HashSize) + shard index (U16Size); FIN = peer closes send half (EOF)
+	buf := make([]byte, CE137RequestSize)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
 	if err := expectRemoteFIN(stream); err != nil {
 		return err
 	}
+	erasureRoot := buf[:HashSize]
+	shardIndex := uint32(binary.LittleEndian.Uint16(buf[HashSize:CE137RequestSize]))
 
-	// Response: each part sent as a framed message (4-byte LE length + payload)
-	bundleShard := []byte("BUNDLE_SHARD_MOCK")
+	bundle, err := lookupWorkPackageBundle(bc, erasureRoot)
+	if err != nil {
+		return fmt.Errorf("lookup work-package bundle: %w", err)
+	}
+
+	bundleShard, err := extractBundleShard(bundle, shardIndex)
+	if err != nil {
+		return fmt.Errorf("extract bundle shard: %w", err)
+	}
+	if len(bundleShard) == 0 {
+		return fmt.Errorf("bundle shard is empty")
+	}
+
+	// Segment shards: all HashSize-byte segments within the bundle shard
+	numSegments := (len(bundleShard) + HashSize - 1) / HashSize
+	segmentIndices := make([]uint16, numSegments)
+	for i := range segmentIndices {
+		segmentIndices[i] = uint16(i)
+	}
+	segmentShards, err := extractSegmentShards(bundle, shardIndex, segmentIndices)
+	if err != nil {
+		return fmt.Errorf("extract segment shards: %w", err)
+	}
+
+	justification, err := constructAuditJustification(bc, erasureRoot, shardIndex, bundleShard)
+	if err != nil {
+		return fmt.Errorf("construct justification: %w", err)
+	}
+
 	if err := stream.WriteMessage(bundleShard); err != nil {
 		return err
 	}
-	// Write mock segment shards (simulate 2 segments)
-	segmentShard1 := []byte("SEGMENT_SHARD1_MOCK")
-	segmentShard2 := []byte("SEGMENT_SHARD2_MOCK")
-	if err := stream.WriteMessage(segmentShard1); err != nil {
+	if err := stream.WriteMessage(segmentShards); err != nil {
 		return err
 	}
-	if err := stream.WriteMessage(segmentShard2); err != nil {
-		return err
-	}
-	justification := append([]byte{0x00}, make([]byte, 32)...) // 0 discriminator + 32 zero bytes
 	if err := stream.WriteMessage(justification); err != nil {
 		return err
 	}
-	// Send FIN by closing write half
 	return stream.Close()
 }
 
