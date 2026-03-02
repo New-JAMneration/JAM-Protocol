@@ -44,7 +44,6 @@ func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.
 		WorkPackage: workPackage,
 		Extrinsics:  extrinsics,
 	}
-	stream.Write([]byte{0x01})
 	return stream.Close()
 }
 
