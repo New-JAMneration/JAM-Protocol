@@ -52,11 +52,11 @@ func HandleAuditShardRequest(bc blockchain.Blockchain, stream *quic.Stream) erro
 		return fmt.Errorf("failed to construct justification: %w", err)
 	}
 
-	// Response: one message = bundle shard + justification
-	response := make([]byte, 0, len(bundleShard)+len(justification))
-	response = append(response, bundleShard...)
-	response = append(response, justification...)
-	if err := stream.WriteMessage(response); err != nil {
+	// Response: Bundle Shard (message 1), Justification (message 2), then FIN
+	if err := stream.WriteMessage(bundleShard); err != nil {
+		return err
+	}
+	if err := stream.WriteMessage(justification); err != nil {
 		return err
 	}
 	return stream.Close()
