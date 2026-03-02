@@ -14,8 +14,8 @@ type CE134Payload struct {
 }
 
 type CE135Payload struct {
-	Report    types.WorkReport
-	Slot      types.TimeSlot
+	Report     types.WorkReport
+	Slot       types.TimeSlot
 	Signatures []types.ValidatorSignature // ValidatorIndex ++ Ed25519Signature per entry
 }
 
