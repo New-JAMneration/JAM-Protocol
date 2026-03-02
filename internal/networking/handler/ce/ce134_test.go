@@ -1,11 +1,13 @@
 package ce
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
@@ -120,11 +122,18 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		t.Fatalf("failed to build work-package bundle: %v", err)
 	}
 
-	// Compose input: coreIndex ++ mappingCount ++ mapping ++ bundle
-	input := append(coreIndexBytes, mappingCount)
-	input = append(input, wpHash...)
-	input = append(input, segRoot...)
-	input = append(input, bundle...)
+	// Compose input as two JAMNP-framed messages: msg1 = Core Index ++ Mappings, msg2 = Bundle
+	msg1 := append(coreIndexBytes, mappingCount)
+	msg1 = append(msg1, wpHash...)
+	msg1 = append(msg1, segRoot...)
+	var inputBuf bytes.Buffer
+	if err := quic.WriteMessageFrame(&inputBuf, msg1); err != nil {
+		t.Fatalf("frame msg1: %v", err)
+	}
+	if err := quic.WriteMessageFrame(&inputBuf, bundle); err != nil {
+		t.Fatalf("frame bundle: %v", err)
+	}
+	input := inputBuf.Bytes()
 
 	// Set up service account state so the handler can verify the work-package
 	lookupKey := types.LookupMetaMapkey{
@@ -164,13 +173,14 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 
-	// Check output: should be 32 bytes hash + 64 bytes signature
+	// Check output: one framed message with 32 bytes hash + 64 bytes signature
 	resp := stream.w.Bytes()
-	if len(resp) != 96 {
-		t.Fatalf("expected 96 bytes response, got %d", len(resp))
+	if len(resp) < 4+96 {
+		t.Fatalf("expected at least 4+96 bytes (framed response), got %d", len(resp))
 	}
-	workReportHash := resp[:32]
-	sig := resp[32:]
+	payload := resp[4 : 4+96]
+	workReportHash := payload[:32]
+	sig := payload[32:]
 	msg := append([]byte(types.JamGuarantee), workReportHash...)
 	if !ed25519.Verify(pub, msg, sig) {
 		t.Errorf("signature verification failed")
