@@ -136,7 +136,7 @@ func getCE137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error
 	// For now, create a mock justification that simulates a real CE137 response
 	// TODO:  the justification received from the guarantor via CE137
 	mockJustification := make([]byte, JustificationHashEntrySize) // 1 byte discriminator + HashSize bytes hash
-	mockJustification[0] = 0x00           // Type 0: single hash
+	mockJustification[0] = 0x00                                   // Type 0: single hash
 
 	// Create a deterministic hash based on erasure root and shard index
 	// TODO: actual hash from the CE137 response

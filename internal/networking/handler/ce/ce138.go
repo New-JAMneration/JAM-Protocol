@@ -139,7 +139,7 @@ func getCE137JustificationForAudit(erasureRoot []byte, shardIndex uint32) ([]byt
 	}
 
 	mockJustification := make([]byte, JustificationHashEntrySize) // 1 byte discriminator + HashSize bytes hash
-	mockJustification[0] = 0x00           // Type 0: single hash
+	mockJustification[0] = 0x00                                   // Type 0: single hash
 
 	hashInput := append(erasureRoot, byte(shardIndex), byte(shardIndex>>8), byte(shardIndex>>16), byte(shardIndex>>24))
 	mockHash := hash.Blake2bHash(types.ByteSequence(hashInput))
