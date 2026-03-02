@@ -36,7 +36,8 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 		buf.Write(indexBytes)
 	}
 
-	mockStream := newMockStream(buf.Bytes())
+	// Request is one length-prefixed message
+	mockStream := newMockStream(framePayload(buf.Bytes()))
 
 	err := HandleSegmentShardRequestWithJustification(nil, &quic.Stream{Stream: mockStream})
 	if err != nil {
@@ -44,7 +45,8 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 	}
 
 	response := mockStream.w.Bytes()
-	if len(response) < 64 {
+	// Response is [4][segmentShards][4][j1][4][j2]... so at least length prefix + 64 bytes of shards
+	if len(response) < 4+64 {
 		t.Errorf("Expected response to contain segment shards, got length %d", len(response))
 	}
 }

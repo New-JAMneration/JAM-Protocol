@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -80,14 +79,10 @@ func HandleBlockRequest(blockchain blockchain.Blockchain, req CE128Payload) ([]t
 }
 
 func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// The quic.DefaultCEHandler has already read the protocol ID (1 byte).
-	// Now we need to read the remaining payload from the stream.
-	reqPayload, err := io.ReadAll(stream)
+	reqPayload, err := stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-
-	// The payload should be at least 37 bytes (32 + 1 + 4)
 	if len(reqPayload) < 32+1+4 {
 		return errors.New("invalid block request length")
 	}
@@ -103,31 +98,19 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 	}
 
 	fmt.Printf("number of blocks: %v\n", len(blocks))
-
 	encoder := types.NewEncoder()
 
 	for _, blk := range blocks {
-
 		blkData, err := encoder.Encode(&blk)
 		if err != nil {
 			log.Printf("failed to encode block: %v", err)
 			continue
 		}
-
-		sizeBuf := make([]byte, 4)
-		binary.LittleEndian.PutUint32(sizeBuf, uint32(len(blkData)))
-		if _, err := stream.Write(sizeBuf); err != nil {
-			log.Printf("failed to write length prefix: %v", err)
+		if err := stream.WriteMessage(blkData); err != nil {
 			return err
 		}
-		if _, err := stream.Write(blkData); err != nil {
-			log.Printf("failed to write block data: %v", err)
-			return err
-		}
-
 		log.Printf("Writing block %v\n", blk.Header)
 	}
-
 	return stream.Close()
 }
 

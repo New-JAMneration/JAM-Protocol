@@ -318,8 +318,8 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	reqPayload[32] = req.Direction
 	binary.LittleEndian.PutUint32(reqPayload[33:37], req.MaxBlocks)
 
-	// Write the request payload.
-	_, err = stream.Write(reqPayload)
+	// Write the request as one length-prefixed message, then close write half.
+	_, err = stream.Write(framePayload(reqPayload))
 	if err != nil {
 		t.Fatalf("Client write error: %v", err)
 	}
@@ -491,9 +491,10 @@ func TestCE128RequestWithPeer(t *testing.T) {
 		t.Fatalf("Failed to encode block request: %v", err)
 	}
 
-	reqPayload := make([]byte, 1+len(encodedReq))
-	reqPayload[0] = 128 // CE128 protocol ID
-	copy(reqPayload[1:], encodedReq)
+	// Send protocol ID then one length-prefixed message (CE handler reads protocol byte, then handler uses ReadMessage).
+	reqPayload := make([]byte, 0, 1+4+len(encodedReq))
+	reqPayload = append(reqPayload, 128)
+	reqPayload = append(reqPayload, framePayload(encodedReq)...)
 
 	t.Logf("Encoded request payload: %x", reqPayload)
 

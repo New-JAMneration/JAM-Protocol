@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"encoding/binary"
 	"os"
 	"testing"
 
@@ -15,11 +16,11 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
 	shardIndex := uint32(5)
 
-	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE); peer closes after
+	// Prepare request: one length-prefixed message = erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE)
 	req := make([]byte, 0, 32+2)
 	req = append(req, erasureRoot...)
 	req = append(req, byte(shardIndex), byte(shardIndex>>8))
-	stream := newMockStream(req)
+	stream := newMockStream(framePayload(req))
 
 	err := HandleAuditShardRequest(nil, &quic.Stream{Stream: stream})
 	if err != nil {
@@ -27,15 +28,22 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	}
 
 	resp := stream.w.Bytes()
-	if len(resp) == 0 {
-		t.Fatalf("response is empty")
+	if len(resp) < 4 {
+		t.Fatalf("response too short")
 	}
+	msgLen := binary.LittleEndian.Uint32(resp[:4])
+	if 4+msgLen > uint32(len(resp)) {
+		t.Fatalf("response truncated")
+	}
+	payload := resp[4 : 4+msgLen]
 
 	justificationStart := -1
-	for i := 0; i < len(resp); i++ {
-		if resp[i] == 0x00 {
-			if i+33 <= len(resp) {
+	var justification []byte
+	for i := 0; i < len(payload); i++ {
+		if payload[i] == 0x00 {
+			if i+33 <= len(payload) {
 				justificationStart = i
+				justification = payload[i:]
 				break
 			}
 		}
@@ -45,7 +53,6 @@ func TestHandleAuditShardRequest(t *testing.T) {
 		t.Fatalf("could not find justification start (0x00 discriminator)")
 	}
 
-	justification := resp[justificationStart:]
 	if len(justification) < 1 {
 		t.Fatalf("justification is too short")
 	}

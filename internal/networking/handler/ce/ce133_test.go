@@ -20,8 +20,9 @@ func TestHandleWorkPackageSubmission_Basic(t *testing.T) {
 	extrinsics := []byte{0x11, 0x22, 0x33, 0x44}
 
 	firstMsg := makeCE133FirstMsg(coreIndex, workPackage)
-	stream := newMockStream(firstMsg)
-	stream.r.Write(extrinsics)
+	// Handler reads two messages: length-prefixed first message, then length-prefixed extrinsics.
+	input := append(framePayload(firstMsg), framePayload(extrinsics)...)
+	stream := newMockStream(input)
 
 	err := HandleWorkPackageSubmission(nil, &quic.Stream{Stream: stream})
 	if err != nil {
@@ -40,8 +41,8 @@ func TestHandleWorkPackageSubmission_Minimal(t *testing.T) {
 	extrinsics := []byte{}
 
 	firstMsg := makeCE133FirstMsg(coreIndex, workPackage)
-	stream := newMockStream(firstMsg)
-	stream.r.Write(extrinsics)
+	input := append(framePayload(firstMsg), framePayload(extrinsics)...)
+	stream := newMockStream(input)
 
 	err := HandleWorkPackageSubmission(nil, &quic.Stream{Stream: stream})
 	if err != nil {
