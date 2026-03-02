@@ -87,7 +87,7 @@ func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Strea
 			}
 		}()
 
-		stream.Write([]byte{0x01})
+		// Spec: <-- FIN only (no ack byte)
 	}
 
 	return stream.Close()
@@ -127,15 +127,7 @@ func forwardSafroleTicket(validator types.Validator, payload []byte) error {
 		return fmt.Errorf("failed to write payload: %w", err)
 	}
 
-	ack := make([]byte, 1)
-	if _, err := stream.Read(ack); err != nil {
-		return fmt.Errorf("failed to read acknowledgment: %w", err)
-	}
-
-	if ack[0] != 0x01 {
-		return fmt.Errorf("received invalid acknowledgment: %x", ack[0])
-	}
-
+	// Spec: <-- FIN only (acceptor sends no ack byte). Close our write half; done.
 	return nil
 }
 
