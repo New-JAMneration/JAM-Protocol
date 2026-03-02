@@ -121,7 +121,7 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) 
 
 	requestType := byte(WorkPackageSharing)
 
-	coreIndexBytes := encodeLE32(workPackage.CoreIndex)
+	coreIndexBytes := encodeLE16(uint16(workPackage.CoreIndex))
 
 	// Get WorkPackage bytes using ScaleEncode
 	wpBytes, err := workPackage.WorkPackage.ScaleEncode()
@@ -129,13 +129,13 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) 
 		return nil, fmt.Errorf("failed to encode WorkPackage: %w", err)
 	}
 
-	totalLen := 1 + 4 + 32 + len(wpBytes) // 1 byte for request type + 4 bytes for CoreIndex + 32 bytes for HeaderHash + WorkPackage bytes
+	// CE134 spec: Core Index ++ Segments-Root Mappings (Core Index = u16); no HeaderHash
+	totalLen := 1 + 2 + len(wpBytes)
 
 	result := make([]byte, 0, totalLen)
 
 	result = append(result, requestType)
 	result = append(result, coreIndexBytes...)
-	result = append(result, workPackage.HeaderHash[:]...)
 	result = append(result, wpBytes...)
 
 	return result, nil
