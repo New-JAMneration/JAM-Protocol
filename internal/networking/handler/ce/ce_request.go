@@ -8,23 +8,29 @@ import (
 
 type CERequestID uint8
 
+// CE protocol IDs use explicit values (no iota) because CE130 is officially reserved/empty
+// and CE131/CE132 are both Safrole ticket distribution (one protocol, two IDs).
 const (
-	BlockRequest CERequestID = 128 + iota
-	StateRequest
-	SafroleTicketDistribution
-	WorkPackageSubmission
-	WorkPackageSharing
-	WorkReportDistribution
-	WorkReportRequest
-	ShardDistribution
-	AuditShardReqeust
-	SegmentShardRequest
-	SegmentShardRequestWithJustification
-	AssuranceDistribution
-	PreimageAnnouncement
-	PreimageRequest
-	AuditAnnouncement
-	JudgmentPublication
+	BlockRequest CERequestID = 128
+	StateRequest CERequestID = 129
+
+	// Missing CE130, officially empty, do not use
+
+	CE131SafroleTicketDistribution       CERequestID = 131
+	CE132SafroleTicketDistribution       CERequestID = 132
+	WorkPackageSubmission                CERequestID = 133
+	WorkPackageSharing                   CERequestID = 134
+	WorkReportDistribution               CERequestID = 135
+	WorkReportRequest                    CERequestID = 136
+	ShardDistribution                    CERequestID = 137
+	AuditShardReqeust                    CERequestID = 138
+	SegmentShardRequest                  CERequestID = 139
+	SegmentShardRequestWithJustification CERequestID = 140
+	AssuranceDistribution                CERequestID = 141
+	PreimageAnnouncement                 CERequestID = 142
+	PreimageRequest                      CERequestID = 143
+	AuditAnnouncement                    CERequestID = 144
+	JudgmentPublication                  CERequestID = 145
 )
 
 type CERequestHandler interface {
@@ -63,7 +69,7 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 		return h.encodeBlockRequest(message)
 	case StateRequest:
 		return h.encodeStateRequest(message)
-	case SafroleTicketDistribution:
+	case CE131SafroleTicketDistribution, CE132SafroleTicketDistribution:
 		return h.encodeSafroleTicketDistribution(message)
 	case WorkPackageSubmission:
 		return h.encodeWorkPackageSubmission(message)

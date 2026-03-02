@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
+	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 

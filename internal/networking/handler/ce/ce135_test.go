@@ -4,7 +4,7 @@ import (
 	"crypto/ed25519"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store/keystore"
+	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
