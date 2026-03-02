@@ -7,6 +7,16 @@ In the graypaper, you will see the following symbols:
 - Encode function: $\mathcal{E}$
 - Decode function: $\mathcal{E}^{-1}$
 
+## Encoding Method Reference
+
+When implementing JAMNP-related features, three distinct encoding approaches are used depending on context:
+
+| Use case | Correct approach |
+|---|---|
+| Fixed-size integer (u8 / u16 / u32) | `binary.LittleEndian.PutUintN` or `EncodeUintWithLength` |
+| Variable-length sequence length (`len++`, GP compact integer) | `readCompactLength()` / `encoder.EncodeUint(n)` |
+| JAMNP message size prefix (message framing) | `stream.WriteMessage(payload)` — handled transparently by the stream layer |
+
 ## How to use the encoder and decoder
 
 ## Encoder
