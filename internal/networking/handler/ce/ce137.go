@@ -11,7 +11,7 @@ import (
 // Request (from Assurer to Guarantor):
 //
 //	Erasure-Root (hash, []byte)
-//	Shard Index (uint32 or int)
+//	Shard Index (u16)
 //	'FIN' (3 bytes)
 //
 // Response (from Guarantor to Assurer):
@@ -25,12 +25,12 @@ import (
 //
 // This function should use AssignShardIndex to determine the correct shard index.
 func HandleECShardRequest(stream io.ReadWriter, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
-	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
-	buf := make([]byte, 32+4+3)
+	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + 'FIN' (3 bytes)
+	buf := make([]byte, 32+2+3)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
-	fin := buf[36:]
+	fin := buf[34:]
 	if string(fin) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}

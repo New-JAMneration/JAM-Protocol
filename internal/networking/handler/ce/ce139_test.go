@@ -25,8 +25,8 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 
 	buf.Write(erasureRoot)
 
-	shardIndexBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(shardIndexBytes, shardIndex)
+	shardIndexBytes := make([]byte, 2)
+	binary.LittleEndian.PutUint16(shardIndexBytes, uint16(shardIndex))
 	buf.Write(shardIndexBytes)
 
 	segmentIndicesLenBytes := make([]byte, 2)

@@ -15,10 +15,10 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
 	shardIndex := uint32(5)
 
-	// Prepare request: erasureRoot (32 bytes) + shardIndex (4 bytes LE) + 'FIN'
-	req := make([]byte, 0, 32+4+3)
+	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE) + 'FIN'
+	req := make([]byte, 0, 32+2+3)
 	req = append(req, erasureRoot...)
-	req = append(req, byte(shardIndex), byte(shardIndex>>8), byte(shardIndex>>16), byte(shardIndex>>24))
+	req = append(req, byte(shardIndex), byte(shardIndex>>8))
 	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
