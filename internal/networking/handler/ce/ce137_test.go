@@ -35,11 +35,10 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 		return nil, false
 	}
 
-	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE) + 'FIN'
-	req := make([]byte, 0, 32+2+3)
+	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE); peer closes after
+	req := make([]byte, 0, 32+2)
 	req = append(req, erasureRoot...)
 	req = append(req, byte(shardIndex), byte(shardIndex>>8))
-	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
 	err := HandleECShardRequest(stream, lookup)
@@ -48,13 +47,6 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 	}
 
 	resp := stream.w.Bytes()
-	if len(resp) < 3 || string(resp[len(resp)-3:]) != "FIN" {
-		t.Fatalf("expected response to end with FIN, got %x", resp)
-	}
-
-	// Parse and check the response content
-	resp = resp[:len(resp)-3] // remove FIN
-	// Should be: BundleShard + SegmentShard1 + SegmentShard2 + Justification
 	offset := 0
 	if !bytes.HasPrefix(resp[offset:], bundle.BundleShard) {
 		t.Fatalf("response does not start with bundle shard")

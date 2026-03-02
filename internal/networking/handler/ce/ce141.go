@@ -3,7 +3,6 @@ package ce
 import (
 	"crypto/ed25519"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 
@@ -52,12 +51,8 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 	signature := types.Ed25519Signature{}
 	copy(signature[:], assuranceData[32+bitfieldSize:])
 
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	if err := validateAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
@@ -67,11 +62,6 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 	if err := storeAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
 		return fmt.Errorf("failed to store availability assurance: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
-	}
-
 	return stream.Close()
 }
 

@@ -3,7 +3,6 @@ package ce
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -33,16 +32,15 @@ import (
 // The assurer should construct this by appending the corresponding segment shard root
 // to the justification received via CE 137.
 func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + 'FIN' (3 bytes)
-	buf := make([]byte, 32+2+3)
+	// Read erasure-root (32 bytes) + shard index (2 bytes, u16); FIN = peer closes send half (EOF)
+	buf := make([]byte, 32+2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
 	shardIndex := uint32(binary.LittleEndian.Uint16(buf[32:34]))
-	fin := buf[34:]
-	if string(fin) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	// Look up the work-package bundle shard for the given erasure root and shard index
@@ -65,11 +63,7 @@ func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error
 	if _, err := stream.Write(justification); err != nil {
 		return err
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return err
-	}
-
+	// Send FIN by closing write half
 	return stream.Close()
 }
 

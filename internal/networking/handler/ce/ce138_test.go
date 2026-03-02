@@ -15,11 +15,10 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
 	shardIndex := uint32(5)
 
-	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE) + 'FIN'
-	req := make([]byte, 0, 32+2+3)
+	// Prepare request: erasureRoot (32 bytes) + shardIndex (2 bytes u16 LE); peer closes after
+	req := make([]byte, 0, 32+2)
 	req = append(req, erasureRoot...)
 	req = append(req, byte(shardIndex), byte(shardIndex>>8))
-	req = append(req, []byte("FIN")...)
 	stream := newMockStream(req)
 
 	err := HandleAuditShardRequest(nil, &quic.Stream{Stream: stream})
@@ -28,12 +27,6 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	}
 
 	resp := stream.w.Bytes()
-	if len(resp) < 3 || string(resp[len(resp)-3:]) != "FIN" {
-		t.Fatalf("expected response to end with FIN, got %x", resp)
-	}
-
-	resp = resp[:len(resp)-3] // remove FIN
-
 	if len(resp) == 0 {
 		t.Fatalf("response is empty")
 	}

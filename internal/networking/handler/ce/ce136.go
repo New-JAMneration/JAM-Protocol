@@ -25,12 +25,8 @@ func HandleWorkReportRequest(
 	var hash types.WorkReportHash
 	copy(hash[:], hashBuf)
 
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return fmt.Errorf("expected FIN, got %q", finBuf)
+	if err := expectRemoteFIN(stream); err != nil {
+		return fmt.Errorf("expected FIN after hash: %w", err)
 	}
 
 	workReport, found := lookup(hash)
@@ -47,11 +43,7 @@ func HandleWorkReportRequest(
 	if _, err := stream.Write(data); err != nil {
 		return fmt.Errorf("failed to write work-report: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN: %w", err)
-	}
-
+	// Send FIN by closing write half
 	return stream.Close()
 }
 

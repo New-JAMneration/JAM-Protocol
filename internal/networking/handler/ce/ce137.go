@@ -1,7 +1,6 @@
 package ce
 
 import (
-	"errors"
 	"fmt"
 	"io"
 )
@@ -12,27 +11,26 @@ import (
 //
 //	Erasure-Root (hash, []byte)
 //	Shard Index (u16)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // Response (from Guarantor to Assurer):
 //
 //	Bundle Shard ([]byte)
 //	[Segment Shard] ([]byte, exported and proof segment shards with the given index)
 //	Justification ([]byte, Merkle co-path proof)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
 //
 // This function should use AssignShardIndex to determine the correct shard index.
-func HandleECShardRequest(stream io.ReadWriter, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
-	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + 'FIN' (3 bytes)
-	buf := make([]byte, 32+2+3)
+func HandleECShardRequest(stream io.ReadWriteCloser, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
+	// Read erasure-root (32 bytes) + shard index (2 bytes, u16); FIN = peer closes send half (EOF)
+	buf := make([]byte, 32+2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
-	fin := buf[34:]
-	if string(fin) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	// Write mock bundle shard
@@ -53,10 +51,8 @@ func HandleECShardRequest(stream io.ReadWriter, lookup func(erasureRoot []byte) 
 	if _, err := stream.Write(justification); err != nil {
 		return err
 	}
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return err
-	}
-	return nil
+	// Send FIN by closing write half
+	return stream.Close()
 }
 
 type CE137Payload struct {

@@ -36,8 +36,6 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 		buf.Write(indexBytes)
 	}
 
-	buf.Write([]byte("FIN"))
-
 	mockStream := newMockStream(buf.Bytes())
 
 	err := HandleSegmentShardRequestWithJustification(nil, &quic.Stream{Stream: mockStream})
@@ -46,25 +44,7 @@ func TestHandleSegmentShardRequestWithJustification(t *testing.T) {
 	}
 
 	response := mockStream.w.Bytes()
-
-	// The response should contain the concatenated segment shards (2 segments * 32 bytes = 64 bytes minimum)
 	if len(response) < 64 {
 		t.Errorf("Expected response to contain segment shards, got length %d", len(response))
-	}
-
-	if !bytes.HasSuffix(response, []byte("FIN")) {
-		t.Error("Response does not end with FIN")
-	}
-
-	// Each justification should contain the combined justifications from CE137, bundle shard hash, and Merkle co-path
-	// For 3 segment indices, we should have 3 justifications
-	// The justifications should be after the segment shards and before FIN
-	finIndex := bytes.LastIndex(response, []byte("FIN"))
-	if finIndex == -1 {
-		t.Error("Response does not end with FIN")
-	}
-
-	if finIndex <= 64 {
-		t.Error("Expected justifications between segment shards and FIN")
 	}
 }

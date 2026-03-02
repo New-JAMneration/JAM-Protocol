@@ -38,26 +38,8 @@ func TestHandlePreimageRequest(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	expectedResponse := append(testPreimage, []byte("FIN")...)
-
-	if !bytes.Equal(response, expectedResponse) {
+	if !bytes.Equal(response, testPreimage) {
 		t.Errorf("Response mismatch.\nExpected: %s\nGot: %s",
-			string(expectedResponse), string(response))
-	}
-
-	if len(response) < 3 {
-		t.Fatal("Response too short")
-	}
-
-	responsePreimage := response[:len(response)-3] // Remove FIN
-	responseFin := response[len(response)-3:]
-
-	if !bytes.Equal(responsePreimage, testPreimage) {
-		t.Errorf("Preimage content mismatch.\nExpected: %s\nGot: %s",
-			string(testPreimage), string(responsePreimage))
-	}
-
-	if string(responseFin) != "FIN" {
-		t.Errorf("Expected FIN suffix, got: %s", string(responseFin))
+			string(testPreimage), string(response))
 	}
 }

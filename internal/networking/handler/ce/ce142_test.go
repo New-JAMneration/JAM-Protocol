@@ -27,7 +27,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 		t.Fatalf("Failed to create preimage announcement: %v", err)
 	}
 
-	stream := newMockStream(append(announcement, []byte("FIN")...))
+	stream := newMockStream(announcement)
 
 	fakeBlockchain := SetupFakeBlockchain()
 
@@ -37,8 +37,8 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	if string(response) != "FIN" {
-		t.Errorf("Expected FIN response, got: %s", string(response))
+	if len(response) != 0 {
+		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
 	redisBackend, err := store.GetRedisBackend()

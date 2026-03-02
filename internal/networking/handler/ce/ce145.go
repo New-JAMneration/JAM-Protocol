@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 
@@ -34,19 +33,9 @@ func HandleJudgmentAnnouncement_Send(stream io.ReadWriteCloser, payload *CE145Pa
 	if _, err := stream.Write(encoded); err != nil {
 		return fmt.Errorf("failed to write payload: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN: %w", err)
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
-
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN response: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return fmt.Errorf("unexpected FIN response: %q", string(finBuf))
-	}
-
 	return stream.Close()
 }
 
@@ -98,12 +87,8 @@ func HandleJudgmentAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 	if _, err := io.ReadFull(stream, signature[:]); err != nil {
 		return fmt.Errorf("failed to read Ed25519 signature: %w", err)
 	}
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
@@ -112,11 +97,6 @@ func HandleJudgmentAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 	if err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
-	}
-
 	return stream.Close()
 }
 

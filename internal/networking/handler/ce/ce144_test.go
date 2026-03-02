@@ -46,8 +46,7 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 		t.Fatalf("Failed to create audit announcement: %v", err)
 	}
 
-	fullMessage := append(announcementMsg, []byte("FIN")...)
-
+	fullMessage := announcementMsg
 	stream := newMockStream(fullMessage)
 
 	fakeBlockchain := SetupFakeBlockchain()
@@ -58,8 +57,8 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	if string(response) != "FIN" {
-		t.Errorf("Expected FIN response, got: %s", string(response))
+	if len(response) != 0 {
+		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 	storedAnnouncement, err := GetAuditAnnouncement(headerHash, tranche)
 	if err != nil {
@@ -130,8 +129,7 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 		t.Fatalf("Failed to create audit announcement: %v", err)
 	}
 
-	fullMessage := append(announcementMsg, []byte("FIN")...)
-
+	fullMessage := announcementMsg
 	stream := newMockStream(fullMessage)
 
 	fakeBlockchain := SetupFakeBlockchain()
