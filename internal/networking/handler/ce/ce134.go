@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -46,35 +47,42 @@ func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
 	return mappings, nil
 }
 
+// ce134Stream is the stream interface for CE134: supports JAMNP message framing (ReadMessage, WriteMessage).
+type ce134Stream interface {
+	io.ReadWriteCloser
+	ReadMessage() ([]byte, error)
+	WriteMessage(payload []byte) error
+}
+
 // Handler for CE 134: Guarantor <-> Guarantor work-package sharing
-// Accepts any io.ReadWriteCloser for testability, and allows injection of a PVMExecutor for unit tests.
+// Message 1: Core Index ++ Segments-Root Mappings; Message 2: Work-Package Bundle.
 func HandleWorkPackageShare(
 	_ blockchain.Blockchain,
-	stream io.ReadWriteCloser,
+	stream ce134Stream,
 	keypair keystore.KeyPair,
 	pvmExecutor work_package.PVMExecutor,
 ) error {
-	// 1. Read core index (2 bytes, little endian)
-	coreIndexBuf := make([]byte, 2)
-	if _, err := io.ReadFull(stream, coreIndexBuf); err != nil {
-		return err
+	// 1. Read first framed message: Core Index (2 bytes) + Segment-Root Mappings
+	msg1, err := stream.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("failed to read core index and mappings: %w", err)
 	}
-	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(coreIndexBuf))
+	if len(msg1) < 2 {
+		return fmt.Errorf("first message too short for core index")
+	}
+	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(msg1[:2]))
 
-	// 2. Read segment-root mappings
-	_, err := readSegmentRootMappings(stream)
+	// 2. Parse segment-root mappings from the rest of message 1
+	_, err = readSegmentRootMappings(bytes.NewReader(msg1[2:]))
 	if err != nil {
 		return fmt.Errorf("failed to read segment-root mappings: %w", err)
 	}
-	// (Note: mappings are not used in this minimal handler; add logic as needed)
 
-	// 3. Read work-package bundle (rest of stream until FIN)
-	bundle := make([]byte, 65536)
-	n, err := stream.Read(bundle)
-	if err != nil && err != io.EOF {
+	// 3. Read second framed message: Work-Package Bundle
+	bundle, err := stream.ReadMessage()
+	if err != nil {
 		return fmt.Errorf("failed to read bundle: %w", err)
 	}
-	bundle = bundle[:n]
 
 	// 4. Basic verification: decode bundle, check authorization, check mappings
 	controller := work_package.NewSharedController(bundle, coreIndex)
@@ -99,7 +107,7 @@ func HandleWorkPackageShare(
 	}
 
 	resp := append(workReportHash[:], sig...)
-	if _, err := stream.Write(resp); err != nil {
+	if err := stream.WriteMessage(resp); err != nil {
 		return fmt.Errorf("failed to write response: %w", err)
 	}
 	return stream.Close()
