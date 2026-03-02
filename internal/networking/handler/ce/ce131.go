@@ -121,7 +121,7 @@ func forwardSafroleTicket(validator types.Validator, payload []byte) error {
 	defer stream.Close()
 
 	quicStream := &quic.Stream{Stream: stream}
-	protocolID := byte(SafroleTicketDistribution) // 130
+	protocolID := byte(CE132SafroleTicketDistribution) // 132 when forwarding; initiator uses 131
 	if _, err := quicStream.Write([]byte{protocolID}); err != nil {
 		return fmt.Errorf("failed to write protocol ID: %w", err)
 	}
