@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -32,16 +31,16 @@ import (
 // The assurer should construct this by appending the corresponding segment shard root
 // to the justification received via CE 137.
 func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Read erasure-root (32 bytes) + shard index (2 bytes, u16); FIN = peer closes send half (EOF)
-	buf := make([]byte, 32+2)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	// Request: single message = erasure-root (32 bytes) + shard index (2 bytes, u16)
+	payload, err := stream.ReadMessage()
+	if err != nil {
 		return err
 	}
-	erasureRoot := buf[:32]
-	shardIndex := uint32(binary.LittleEndian.Uint16(buf[32:34]))
-	if err := expectRemoteFIN(stream); err != nil {
-		return err
+	if len(payload) < 34 {
+		return fmt.Errorf("audit shard request too short")
 	}
+	erasureRoot := payload[:32]
+	shardIndex := uint32(binary.LittleEndian.Uint16(payload[32:34]))
 
 	// Look up the work-package bundle shard for the given erasure root and shard index
 	bundleShard, err := lookupWorkPackageBundleShard(erasureRoot, shardIndex)
@@ -49,21 +48,19 @@ func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error
 		return fmt.Errorf("failed to lookup work package bundle shard: %w", err)
 	}
 
-	// Write the bundle shard
-	if _, err := stream.Write(bundleShard); err != nil {
-		return err
-	}
-
-	// Construct the justification by appending segment shard roots to the CE137 justification
+	// Construct the justification
 	justification, err := constructAuditJustification(erasureRoot, shardIndex, bundleShard)
 	if err != nil {
 		return fmt.Errorf("failed to construct justification: %w", err)
 	}
 
-	if _, err := stream.Write(justification); err != nil {
+	// Response: one message = bundle shard + justification
+	response := make([]byte, 0, len(bundleShard)+len(justification))
+	response = append(response, bundleShard...)
+	response = append(response, justification...)
+	if err := stream.WriteMessage(response); err != nil {
 		return err
 	}
-	// Send FIN by closing write half
 	return stream.Close()
 }
 

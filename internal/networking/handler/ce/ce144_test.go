@@ -139,8 +139,8 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	if string(response) != "FIN" {
-		t.Errorf("Expected FIN response, got: %s", string(response))
+	if len(response) != 0 {
+		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
 	storedAnnouncement, err := GetAuditAnnouncement(headerHash, tranche)

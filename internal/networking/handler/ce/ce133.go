@@ -3,7 +3,6 @@ package ce
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -17,27 +16,23 @@ type CE133WorkPackageSubmission struct {
 }
 
 func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.Stream) error {
-	// Read first message: 2 bytes core index (u16, little-endian) + work-package (rest of message)
-	firstMsg := make([]byte, 4096) // Arbitrary max size for demo; adjust as needed
-	n, err := stream.Read(firstMsg)
-	if err != nil && err != io.EOF {
+	// First message: 2 bytes core index (u16, little-endian) + work-package
+	msg1, err := stream.ReadMessage()
+	if err != nil {
 		return err
 	}
-	if n < 2 {
-		return io.ErrUnexpectedEOF
+	if len(msg1) < 2 {
+		return fmt.Errorf("work package message too short")
 	}
-	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(firstMsg[:2]))
-	workPackage := make([]byte, n-2)
-	copy(workPackage, firstMsg[2:n])
+	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(msg1[:2]))
+	workPackage := make([]byte, len(msg1)-2)
+	copy(workPackage, msg1[2:])
 
-	// Read second message: all extrinsic data (until FIN)
-	extra := make([]byte, 65536)
-	exLen, err := stream.Read(extra)
-	if err != nil && err != io.EOF {
+	// Second message: extrinsic data
+	extrinsics, err := stream.ReadMessage()
+	if err != nil {
 		return err
 	}
-	extrinsics := make([]byte, exLen)
-	copy(extrinsics, extra[:exLen])
 
 	_ = CE133WorkPackageSubmission{
 		CoreIndex:   coreIndex,

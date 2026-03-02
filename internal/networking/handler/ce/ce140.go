@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -43,33 +42,29 @@ import (
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + segment indices length (2 bytes)
-	buf := make([]byte, 32+2+2)
-	if _, err := io.ReadFull(stream, buf); err != nil {
+	// Request: single message = erasure-root (32) + shard index (2) + segment indices length (2) + segment indices
+	payload, err := stream.ReadMessage()
+	if err != nil {
 		return err
 	}
-	erasureRoot := buf[:32]
-	shardIndex := uint32(binary.LittleEndian.Uint16(buf[32:34]))
-	segmentIndicesLen := binary.LittleEndian.Uint16(buf[34:36])
+	if len(payload) < 36 {
+		return errors.New("segment shard request too short")
+	}
+	erasureRoot := payload[:32]
+	shardIndex := uint32(binary.LittleEndian.Uint16(payload[32:34]))
+	segmentIndicesLen := binary.LittleEndian.Uint16(payload[34:36])
 
-	// Validate segment indices length (should not exceed 2W_M = 6144)
 	if segmentIndicesLen > 6144 {
 		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
 	}
 
-	segmentIndices := make([]uint16, segmentIndicesLen)
-	if segmentIndicesLen > 0 {
-		indicesBuf := make([]byte, segmentIndicesLen*2)
-		if _, err := io.ReadFull(stream, indicesBuf); err != nil {
-			return err
-		}
-		for i := uint16(0); i < segmentIndicesLen; i++ {
-			segmentIndices[i] = binary.LittleEndian.Uint16(indicesBuf[i*2 : (i+1)*2])
-		}
+	rest := payload[36:]
+	if len(rest) < int(segmentIndicesLen)*2 {
+		return errors.New("segment shard request truncated")
 	}
-
-	if err := expectRemoteFIN(stream); err != nil {
-		return err
+	segmentIndices := make([]uint16, segmentIndicesLen)
+	for i := uint16(0); i < segmentIndicesLen; i++ {
+		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*2 : (i+1)*2])
 	}
 
 	bundle, err := lookupWorkPackageBundle(erasureRoot)
@@ -82,7 +77,7 @@ func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream 
 		return fmt.Errorf("failed to extract segment shards: %w", err)
 	}
 
-	if _, err := stream.Write(segmentShards); err != nil {
+	if err := stream.WriteMessage(segmentShards); err != nil {
 		return err
 	}
 
@@ -91,11 +86,10 @@ func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream 
 		if err != nil {
 			return fmt.Errorf("failed to construct justification for segment %d: %w", segmentIndex, err)
 		}
-		if _, err := stream.Write(justification); err != nil {
+		if err := stream.WriteMessage(justification); err != nil {
 			return err
 		}
 	}
-	// Send FIN by closing write half
 	return stream.Close()
 }
 
