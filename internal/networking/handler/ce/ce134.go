@@ -24,15 +24,15 @@ type CE134WorkPackageShare struct {
 	Bundle              []byte
 }
 
-// Helper to decode segment-root mappings from the stream
+// Helper to decode segment-root mappings from the stream.
+// Count uses GP len++ (compact) encoding per spec.
 func readSegmentRootMappings(r io.Reader) ([]SegmentRootMapping, error) {
 	var mappings []SegmentRootMapping
-	var countBuf [1]byte
-	if _, err := io.ReadFull(r, countBuf[:]); err != nil {
+	count, err := readCompactLength(r)
+	if err != nil {
 		return nil, err
 	}
-	count := int(countBuf[0])
-	for i := 0; i < count; i++ {
+	for i := uint64(0); i < count; i++ {
 		var wpHash types.WorkPackageHash
 		var segRoot types.OpaqueHash
 		if _, err := io.ReadFull(r, wpHash[:]); err != nil {
