@@ -82,7 +82,7 @@ func HandleSegmentShardRequestWithJustification(bc blockchain.Blockchain, stream
 	}
 
 	for _, segmentIndex := range segmentIndices {
-		justification, err := constructJustification(bundle, erasureRoot, shardIndex, segmentIndex)
+		justification, err := constructJustification(bc, bundle, erasureRoot, shardIndex, segmentIndex)
 		if err != nil {
 			return fmt.Errorf("failed to construct justification for segment %d: %w", segmentIndex, err)
 		}
@@ -95,9 +95,9 @@ func HandleSegmentShardRequestWithJustification(bc blockchain.Blockchain, stream
 
 // constructJustification constructs the justification for a segment shard using the formula:
 // j ++ [b] ++ T(s, i, H)
-func constructJustification(bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
-	// Get the CE137 justification (j) - this would come from the assurer's CE137 response
-	ce137Justification, err := getCE137Justification(erasureRoot, shardIndex)
+func constructJustification(bc blockchain.Blockchain, bundle *types.WorkPackageBundle, erasureRoot []byte, shardIndex uint32, segmentIndex uint16) ([]byte, error) {
+	// Get the CE137 justification (j) from DB (same as ce138)
+	ce137Justification, err := getCE137Justification(bc, erasureRoot, shardIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CE137 justification: %w", err)
 	}
@@ -126,23 +126,31 @@ func constructJustification(bundle *types.WorkPackageBundle, erasureRoot []byte,
 	return combinedJustification, nil
 }
 
-// getCE137Justification retrieves the CE137 justification for the given erasure root and shard index.
-func getCE137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error) {
-	// TODO: Implement actual CE137 justification lookup
-	// 1. Look up the CE137 justification from the assurer's local storage
-	// 2. The justification would have been received when the assurer requested their shard via CE137
-	// 3. Return the stored justification or an error if not found
+// getCE137Justification retrieves the CE137 justification for the given erasure root and shard index from DB (same as ce138).
+func getCE137Justification(bc blockchain.Blockchain, erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	db := DB(bc)
+	if db != nil {
+		justification, err := GetJustification(db, erasureRoot, shardIndex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get CE137 justification from storage: %w", err)
+		}
+		if justification != nil {
+			return justification, nil
+		}
+	}
 
-	// For now, create a mock justification that simulates a real CE137 response
-	// TODO:  the justification received from the guarantor via CE137
 	mockJustification := make([]byte, JustificationHashEntrySize) // 1 byte discriminator + HashSize bytes hash
 	mockJustification[0] = 0x00                                   // Type 0: single hash
 
-	// Create a deterministic hash based on erasure root and shard index
-	// TODO: actual hash from the CE137 response
 	hashInput := append(erasureRoot, byte(shardIndex), byte(shardIndex>>8), byte(shardIndex>>16), byte(shardIndex>>24))
 	mockHash := hash.Blake2bHash(types.ByteSequence(hashInput))
 	copy(mockJustification[1:], mockHash[:])
+
+	if db != nil {
+		if err := PutJustification(db, erasureRoot, shardIndex, mockJustification); err != nil {
+			return nil, fmt.Errorf("failed to store CE137 justification: %w", err)
+		}
+	}
 
 	return mockJustification, nil
 }
