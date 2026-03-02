@@ -2,6 +2,7 @@ package ce
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
@@ -39,8 +40,17 @@ func TestHandlePreimageRequest(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	if !bytes.Equal(response, testPreimage) {
+	if len(response) < 4 {
+		t.Fatalf("response too short for message frame")
+	}
+	n := binary.LittleEndian.Uint32(response[:4])
+	payload := response[4:]
+	if uint32(len(payload)) < n {
+		t.Fatalf("response truncated: want %d payload bytes, got %d", n, len(payload))
+	}
+	payload = payload[:n]
+	if !bytes.Equal(payload, testPreimage) {
 		t.Errorf("Response mismatch.\nExpected: %s\nGot: %s",
-			string(testPreimage), string(response))
+			string(testPreimage), string(payload))
 	}
 }

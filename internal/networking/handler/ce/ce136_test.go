@@ -1,6 +1,7 @@
 package ce
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -29,9 +30,18 @@ func TestHandleWorkReportRequest_Basic(t *testing.T) {
 	}
 
 	resp := stream.w.Bytes()
+	if len(resp) < 4 {
+		t.Fatalf("response too short for message frame")
+	}
+	n := binary.LittleEndian.Uint32(resp[:4])
+	payload := resp[4:]
+	if uint32(len(payload)) < n {
+		t.Fatalf("response truncated: want %d payload bytes, got %d", n, len(payload))
+	}
+	payload = payload[:n]
 	decoder := types.NewDecoder()
 	var got types.WorkReport
-	if err := decoder.Decode(resp, &got); err != nil {
+	if err := decoder.Decode(payload, &got); err != nil {
 		t.Fatalf("failed to decode work-report: %v", err)
 	}
 }

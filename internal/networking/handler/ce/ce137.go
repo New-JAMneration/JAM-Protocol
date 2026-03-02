@@ -3,6 +3,8 @@ package ce
 import (
 	"fmt"
 	"io"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 )
 
 // HandleECShardRequest handles an assurer's request for their erasure coded shards from a guarantor.
@@ -23,7 +25,7 @@ import (
 // The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
 //
 // This function should use AssignShardIndex to determine the correct shard index.
-func HandleECShardRequest(stream io.ReadWriteCloser, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
+func HandleECShardRequest(stream quic.MessageStream, lookup func(erasureRoot []byte) (*CE137Payload, bool)) error {
 	// Read erasure-root (32 bytes) + shard index (2 bytes, u16); FIN = peer closes send half (EOF)
 	buf := make([]byte, 32+2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
@@ -33,22 +35,22 @@ func HandleECShardRequest(stream io.ReadWriteCloser, lookup func(erasureRoot []b
 		return err
 	}
 
-	// Write mock bundle shard
+	// Response: each part sent as a framed message (4-byte LE length + payload)
 	bundleShard := []byte("BUNDLE_SHARD_MOCK")
-	if _, err := stream.Write(bundleShard); err != nil {
+	if err := stream.WriteMessage(bundleShard); err != nil {
 		return err
 	}
 	// Write mock segment shards (simulate 2 segments)
 	segmentShard1 := []byte("SEGMENT_SHARD1_MOCK")
 	segmentShard2 := []byte("SEGMENT_SHARD2_MOCK")
-	if _, err := stream.Write(segmentShard1); err != nil {
+	if err := stream.WriteMessage(segmentShard1); err != nil {
 		return err
 	}
-	if _, err := stream.Write(segmentShard2); err != nil {
+	if err := stream.WriteMessage(segmentShard2); err != nil {
 		return err
 	}
 	justification := append([]byte{0x00}, make([]byte, 32)...) // 0 discriminator + 32 zero bytes
-	if _, err := stream.Write(justification); err != nil {
+	if err := stream.WriteMessage(justification); err != nil {
 		return err
 	}
 	// Send FIN by closing write half
