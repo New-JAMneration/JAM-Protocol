@@ -517,7 +517,7 @@ package merklization
 // 					accountInfoMap := parseServiceAccountInfo(keyVal[3])
 // 					// ∀(s ↦ a) ∈ δ
 // 					if accountID, exist := accountInfoMap["s"]; exist {
-// 						accountID := types.ServiceId(accountID.(int))
+// 						accountID := types.ServiceID(accountID.(int))
 // 						if account, exists := state.Delta[accountID]; exists {
 // 							// (h, l) ↦ t ∈ al
 // 							if hashStr, exist := accountInfoMap["h"]; exist {
@@ -551,7 +551,7 @@ package merklization
 // 					accountInfoMap := parseServiceAccountInfo(keyVal[3])
 // 					// ∀(s ↦ a) ∈ δ
 // 					if accountID, exist := accountInfoMap["s"]; exist {
-// 						accountID := types.ServiceId(accountID.(int))
+// 						accountID := types.ServiceID(accountID.(int))
 // 						if account, exists := state.Delta[accountID]; exists {
 // 							// (h ↦ p) ∈ ap
 // 							if hashStr, exist := accountInfoMap["h"]; exist {
@@ -579,7 +579,7 @@ package merklization
 // 					accountInfoMap := parseServiceAccountInfo(keyVal[3])
 // 					// ∀(s ↦ a) ∈ δ
 // 					if accountID, exist := accountInfoMap["s"]; exist {
-// 						accountID := types.ServiceId(accountID.(int))
+// 						accountID := types.ServiceID(accountID.(int))
 // 						if account, exists := state.Delta[accountID]; exists {
 // 							// (k ↦ v) ∈ ap
 // 							if hashStr, exist := accountInfoMap["h"]; exist {
@@ -787,7 +787,7 @@ package merklization
 // 					accountInfoMap := parseServiceAccountInfo(keyVal[3])
 // 					// ∀(s ↦ a) ∈ δ
 // 					if accountID, exist := accountInfoMap["s"]; exist {
-// 						accountID := types.ServiceId(accountID.(int))
+// 						accountID := types.ServiceID(accountID.(int))
 // 						if account, exists := state.Delta[accountID]; exists {
 // 							key16, delta1Output := encodeDelta1KeyVal(accountID, account)
 // 							if !reflect.DeepEqual(key16, types.OpaqueHash(hex2Bytes(keyVal[0]))) {

@@ -348,7 +348,7 @@ func TestWrapStatisticsServiceMap_EdgeCases(t *testing.T) {
 	// Test cases
 	tests := []struct {
 		name  string
-		input map[types.ServiceId]types.ServiceActivityRecord
+		input map[types.ServiceID]types.ServiceActivityRecord
 	}{
 		{
 			name:  "nil map",
@@ -356,11 +356,11 @@ func TestWrapStatisticsServiceMap_EdgeCases(t *testing.T) {
 		},
 		{
 			name:  "empty map",
-			input: make(map[types.ServiceId]types.ServiceActivityRecord),
+			input: make(map[types.ServiceID]types.ServiceActivityRecord),
 		},
 		{
 			name: "map with zero values",
-			input: map[types.ServiceId]types.ServiceActivityRecord{
+			input: map[types.ServiceID]types.ServiceActivityRecord{
 				0: {},
 			},
 		},

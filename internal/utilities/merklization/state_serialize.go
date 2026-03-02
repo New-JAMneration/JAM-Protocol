@@ -62,7 +62,7 @@ func encodeGammaKey() types.StateKey {
 	return gammaWrapper.StateKeyConstruct()
 }
 
-func encodeGamma(gamma types.Gamma) types.ByteSequence {
+func encodeGamma(gamma types.SafroleState) types.ByteSequence {
 	encoder := types.NewEncoder()
 	encodedGamma, err := encoder.Encode(&gamma)
 	if err != nil {
@@ -206,19 +206,19 @@ func encodePi(pi types.Statistics) types.ByteSequence {
 	return encodedPi
 }
 
-// key 14: theta
-func encodeThetaKey() types.StateKey {
-	thetaWrapper := StateWrapper{StateIndex: 14}
-	return thetaWrapper.StateKeyConstruct()
+// key 14: vartheta
+func encodeVarthetaKey() types.StateKey {
+	varthetaWrapper := StateWrapper{StateIndex: 14}
+	return varthetaWrapper.StateKeyConstruct()
 }
 
-func encodeTheta(theta types.ReadyQueue) types.ByteSequence {
+func encodeVartheta(vartheta types.ReadyQueue) types.ByteSequence {
 	encoder := types.NewEncoder()
-	encodedTheta, err := encoder.Encode(&theta)
+	encodedVartheta, err := encoder.Encode(&vartheta)
 	if err != nil {
 		return nil
 	}
-	return encodedTheta
+	return encodedVartheta
 }
 
 // key 15: xi
@@ -236,21 +236,21 @@ func encodeXi(xi types.AccumulatedQueue) types.ByteSequence {
 	return encodedXi
 }
 
-// key 16: lastaccount (theta)
-func encodeLastAccKey() types.StateKey {
-	lastAccountWrapper := StateWrapper{StateIndex: 16}
-	return lastAccountWrapper.StateKeyConstruct()
+// key 16: theta (LastAccOut)
+func encodeThetaKey() types.StateKey {
+	thetaWrapper := StateWrapper{StateIndex: 16}
+	return thetaWrapper.StateKeyConstruct()
 }
 
-// value 16: lastaccount (theta)
-func encodeLastAccOut(lastAccOut types.LastAccOut) (output types.ByteSequence) {
+// value 16: theta (LastAccOut)
+func encodeTheta(theta types.LastAccOut) (output types.ByteSequence) {
 	encoder := types.NewEncoder()
-	encodedLastAccount, err := encoder.Encode(&lastAccOut)
+	encodedTheta, err := encoder.Encode(&theta)
 	if err != nil {
 		return nil
 	}
 
-	return encodedLastAccount
+	return encodedTheta
 }
 
 func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequence) {
@@ -335,8 +335,8 @@ func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequenc
 	return output
 }
 
-func encodeDelta1KeyVal(id types.ServiceId, delta types.ServiceAccount) (stateKeyVal types.StateKeyVal) {
-	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceId(id)}
+func encodeDelta1KeyVal(id types.ServiceID, delta types.ServiceAccount) (stateKeyVal types.StateKeyVal) {
+	serviceWrapper := StateServiceWrapper{StateIndex: 255, ServiceIndex: types.ServiceID(id)}
 	stateKeyVal = types.StateKeyVal{
 		Key:   serviceWrapper.StateKeyConstruct(),
 		Value: encodeDelta1(delta),
@@ -356,11 +356,11 @@ var (
 
 const uint32EncodedLen = 4
 
-func WrapEncodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func WrapEncodeDelta2KeyVal(id types.ServiceID, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	return encodeDelta2KeyVal(id, key, value)
 }
 
-func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func encodeDelta2KeyVal(id types.ServiceID, key types.ByteSequence, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, delta2PrefixLen+len(key))
 	copy(h[:delta2PrefixLen], delta2Prefix)
 	copy(h[delta2PrefixLen:], key)
@@ -374,7 +374,7 @@ func encodeDelta2KeyVal(id types.ServiceId, key types.ByteSequence, value types.
 	return stateKeyVal
 }
 
-func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
+func encodeDelta3KeyVal(id types.ServiceID, key types.OpaqueHash, value types.ByteSequence) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, delta3PrefixLen+len(key))
 	copy(h[:delta3PrefixLen], delta3Prefix)
 	copy(h[delta3PrefixLen:], key[:])
@@ -388,7 +388,7 @@ func encodeDelta3KeyVal(id types.ServiceId, key types.OpaqueHash, value types.By
 	return stateKeyVal
 }
 
-func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.StateKey {
+func EncodeDelta4Key(id types.ServiceID, key types.LookupMetaMapkey) types.StateKey {
 	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
 	v := uint32(key.Length)
 	h[0] = byte(v)
@@ -401,7 +401,7 @@ func EncodeDelta4Key(id types.ServiceId, key types.LookupMetaMapkey) types.State
 	return serviceWrapper.StateKeyConstruct()
 }
 
-func EncodeDelta4KeyVal(id types.ServiceId, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
+func EncodeDelta4KeyVal(id types.ServiceID, key types.LookupMetaMapkey, value types.TimeSlotSet) (stateKeyVal types.StateKeyVal) {
 	h := make(types.ByteSequence, uint32EncodedLen+len(key.Hash))
 	v := uint32(key.Length)
 	h[0] = byte(v)
@@ -521,10 +521,10 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval13)
 
-	// key 14: theta
+	// key 14: vartheta
 	keyval14 := types.StateKeyVal{
-		Key:   encodeThetaKey(),
-		Value: encodeTheta(state.Theta),
+		Key:   encodeVarthetaKey(),
+		Value: encodeVartheta(state.Vartheta),
 	}
 	encoded = append(encoded, keyval14)
 
@@ -535,11 +535,10 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 	}
 	encoded = append(encoded, keyval15)
 
-	// key 16 theta lastaccout
-	// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+	// key 16 theta (LastAccOut)
 	keyval16 := types.StateKeyVal{
-		Key:   encodeLastAccKey(),
-		Value: encodeLastAccOut(state.LastAccOut),
+		Key:   encodeThetaKey(),
+		Value: encodeTheta(state.Theta),
 	}
 	encoded = append(encoded, keyval16)
 

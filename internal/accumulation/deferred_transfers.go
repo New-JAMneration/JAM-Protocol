@@ -41,6 +41,7 @@ func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.Pa
 		Bless:       o.Bless,
 		Assign:      o.Assign,
 		Designate:   o.Designate,
+		CreateAcct:  o.CreateAcct,
 		AlwaysAccum: o.AlwaysAccum,
 	})
 	cs.GetIntermediateStates().SetDeltaDagger(deltaDagger)
@@ -53,10 +54,10 @@ func updatePartialStateSetToPosteriorState(cs *blockchain.ChainState, o types.Pa
 // W^*: accumulatableWorkReports
 // w_r: work result
 // r_s: the index of the service whose state is to be altered and thus whose refine code was already executed
-// s: serviceId
+// s: serviceID
 // NOTE: While it is possible to refactor the function to use a map where the key is the service ID and the value is the number of work results,
 // this approach would differ from the graypaper and is not being implemented at this time.
-func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
+func getWorkResultByService(s types.ServiceID, n types.U64) []types.WorkResult {
 	// Get W^*
 	cs := blockchain.GetInstance()
 	accumulatableWorkReports := cs.GetIntermediateStates().GetAccumulatableWorkReports()
@@ -65,7 +66,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	count := 0
 	for _, workReport := range accumulatableWorkReports[:n] {
 		for _, result := range workReport.Results {
-			if result.ServiceId == s {
+			if result.ServiceID == s {
 				count++
 			}
 		}
@@ -75,7 +76,7 @@ func getWorkResultByService(s types.ServiceId, n types.U64) []types.WorkResult {
 	output := make([]types.WorkResult, 0, count)
 	for _, workReport := range accumulatableWorkReports[:n] {
 		for _, result := range workReport.Results {
-			if result.ServiceId == s {
+			if result.ServiceID == s {
 				output = append(output, result)
 			}
 		}
@@ -94,9 +95,9 @@ func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList
 	// where:
 	//   G(s) ≡ Σ₍ₛ,ᵤ₎∈ᵤ(u)
 	//   N(s) ≡ [[d | r ∈ R*...n, d ∈ r_d, dₛ = s]]
-	G := map[types.ServiceId]types.Gas{} // G(s)
+	G := map[types.ServiceID]types.Gas{} // G(s)
 	for _, serviceGasUsed := range serviceGasUsedList {
-		G[serviceGasUsed.ServiceId] += serviceGasUsed.Gas
+		G[serviceGasUsed.ServiceID] += serviceGasUsed.Gas
 	}
 
 	// calcualte the number of work reports accumulated
@@ -125,12 +126,12 @@ func updateDeltaDoubleDagger(cs *blockchain.ChainState, accumulationStatistics t
 
 	deltaDoubleDagger := types.ServiceAccountState{}
 
-	for serviceId, acc := range deltaDagger {
+	for serviceID, acc := range deltaDagger {
 		// If this service was actually accumulated this round
-		if _, ok := accumulationStatistics[serviceId]; ok {
+		if _, ok := accumulationStatistics[serviceID]; ok {
 			acc.ServiceInfo.LastAccumulationSlot = tauPrime
 		}
-		deltaDoubleDagger[serviceId] = acc
+		deltaDoubleDagger[serviceID] = acc
 	}
 	cs.GetIntermediateStates().SetDeltaDoubleDagger(deltaDoubleDagger)
 }
@@ -154,17 +155,7 @@ func updateXi(cs *blockchain.ChainState, n types.U64) {
 	}
 	// WONDER: this sort is not mentioned in the graypaper
 	for _, x := range posteriorXi {
-		slices.SortStableFunc(x, func(a, b types.WorkPackageHash) int {
-			// Put empty slices at the end
-			if len(a) == 0 && len(b) == 0 {
-				return 0
-			}
-			if len(a) == 0 {
-				return 1
-			}
-			if len(b) == 0 {
-				return -1
-			}
+		slices.SortFunc(x, func(a, b types.WorkPackageHash) int {
 			return bytes.Compare(a[:], b[:])
 		})
 	}
@@ -174,8 +165,8 @@ func updateXi(cs *blockchain.ChainState, n types.U64) {
 }
 
 // (12.33)
-// Update ReadyQueue(Theta)
-func updateTheta(cs *blockchain.ChainState) {
+// Update ReadyQueue(Vartheta)
+func updateVartheta(cs *blockchain.ChainState) {
 	// (12.10) let m = H_t mode E
 	headerSlot := cs.GetLatestBlock().Header.Slot
 	m := int(headerSlot) % types.EpochLength
@@ -192,9 +183,9 @@ func updateTheta(cs *blockchain.ChainState) {
 	// Get queued work reports
 	queueWorkReports := cs.GetIntermediateStates().GetQueuedWorkReports()
 
-	// Get prior theta and posterior theta (ReadyQueue)
-	priorTheta := cs.GetPriorStates().GetTheta()
-	posteriorTheta := cs.GetPosteriorStates().GetTheta()
+	// Get prior Vartheta and posterior Vartheta (ReadyQueue)
+	priorVartheta := cs.GetPriorStates().GetVartheta()
+	posteriorVartheta := cs.GetPosteriorStates().GetVartheta()
 
 	// Get posterior xi
 	posteriorXi := cs.GetPosteriorStates().GetXi()
@@ -202,23 +193,23 @@ func updateTheta(cs *blockchain.ChainState) {
 	for i := 0; i < types.EpochLength; i++ {
 		// s[i]↺ ≡ s[ i % ∣s∣ ]
 		index := (m - i + types.EpochLength) % types.EpochLength
-		index = index % len(posteriorTheta)
+		index = index % len(posteriorVartheta)
 
 		firstCondition := i == 0
 		secondCondition := (1 <= i) && (i < int(tauOffset))
 		thirdCondition := i >= int(tauOffset)
 
 		if firstCondition {
-			posteriorTheta[index] = QueueEditingFunction(queueWorkReports, posteriorXi[types.EpochLength-1])
+			posteriorVartheta[index] = QueueEditingFunction(queueWorkReports, posteriorXi[types.EpochLength-1])
 		} else if secondCondition {
-			posteriorTheta[index] = types.ReadyQueueItem{}
+			posteriorVartheta[index] = types.ReadyQueueItem{}
 		} else if thirdCondition {
-			posteriorTheta[index] = QueueEditingFunction(priorTheta[index], posteriorXi[types.EpochLength-1])
+			posteriorVartheta[index] = QueueEditingFunction(priorVartheta[index], posteriorXi[types.EpochLength-1])
 		}
 	}
 
-	// Update posterior theta
-	cs.GetPosteriorStates().SetTheta(posteriorTheta)
+	// Update posterior Vartheta
+	cs.GetPosteriorStates().SetVartheta(posteriorVartheta)
 }
 
 // (12.20) (12.21)
@@ -274,13 +265,13 @@ func executeOuterAccumulation(cs *blockchain.ChainState) (OuterAccumulationOutpu
 	// Convert accumulated service output (b) to the accumulation output log (θ′)
 	thetaPrime := make(types.LastAccOut, 0, len(b))
 	for accumulatedServiceHash := range b {
-		// append accumulatedServiceHash to lastAccOut
+		// append accumulatedServiceHash to theta
 		thetaPrime = append(thetaPrime, accumulatedServiceHash)
 	}
 
 	sort.Slice(thetaPrime, func(i, j int) bool {
-		if thetaPrime[i].ServiceId != thetaPrime[j].ServiceId {
-			return thetaPrime[i].ServiceId < thetaPrime[j].ServiceId
+		if thetaPrime[i].ServiceID != thetaPrime[j].ServiceID {
+			return thetaPrime[i].ServiceID < thetaPrime[j].ServiceID
 		}
 		return bytes.Compare(thetaPrime[i].Hash[:], thetaPrime[j].Hash[:]) < 0
 	})
@@ -316,8 +307,8 @@ func DeferredTransfers() error {
 	updateXi(cs, n)
 
 	// (12.33)
-	// Update ReadyQueue(Theta)
-	updateTheta(cs)
+	// Update ReadyQueue(Vartheta)
+	updateVartheta(cs)
 
 	return nil
 }

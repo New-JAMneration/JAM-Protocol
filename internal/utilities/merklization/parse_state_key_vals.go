@@ -49,8 +49,8 @@ func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, err
 	// The preimage value is a ByteSequence
 	preimageValue := stateVal
 
-	// Get ServiceId from state key
-	serviceId, err := DecodeServiceIdFromType3(stateKey)
+	// Get ServiceID from state key
+	serviceID, err := DecodeServiceIDFromType3(stateKey)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse service ID from state key: %w", err)
 	}
@@ -58,8 +58,8 @@ func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, err
 	// Create preimage key (hash of the preimage value)
 	preimageKey := hash.Blake2bHash(preimageValue)
 
-	// Create a new state key using the serviceId, preimageKey, and preimageValue
-	preimageStateKeyVal := encodeDelta3KeyVal(serviceId, preimageKey, preimageValue)
+	// Create a new state key using the serviceID, preimageKey, and preimageValue
+	preimageStateKeyVal := encodeDelta3KeyVal(serviceID, preimageKey, preimageValue)
 
 	isPreimage := preimageStateKeyVal.Key == stateKey
 
@@ -67,8 +67,8 @@ func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, err
 }
 
 func IsLookup(stateKey types.StateKey, stateVal types.ByteSequence) bool {
-	// Get ServiceId from state key
-	serviceId, _ := DecodeServiceIdFromType3(stateKey)
+	// Get ServiceID from state key
+	serviceID, _ := DecodeServiceIDFromType3(stateKey)
 
 	// Lookup key = (preimage hash, preimage length)
 	lookupKey := types.LookupMetaMapkey{
@@ -77,14 +77,14 @@ func IsLookup(stateKey types.StateKey, stateVal types.ByteSequence) bool {
 	}
 
 	// Create the lookup state key
-	lookupStateKeyVal := EncodeDelta4KeyVal(serviceId, lookupKey, types.TimeSlotSet{})
+	lookupStateKeyVal := EncodeDelta4KeyVal(serviceID, lookupKey, types.TimeSlotSet{})
 	lookupStateKey := lookupStateKeyVal.Key
 	return lookupStateKey == stateKey
 }
 
-func updateServiceInfo(state *types.State, serviceId types.ServiceId, serviceInfo types.ServiceInfo) {
+func updateServiceInfo(state *types.State, serviceID types.ServiceID, serviceInfo types.ServiceInfo) {
 	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceId]
+	serviceAccount, exists := state.Delta[serviceID]
 	if !exists {
 		serviceAccount = types.ServiceAccount{
 			PreimageLookup: make(types.PreimagesMapEntry),
@@ -97,12 +97,12 @@ func updateServiceInfo(state *types.State, serviceId types.ServiceId, serviceInf
 	serviceAccount.ServiceInfo = serviceInfo
 
 	// Assign the updated service account back to the state
-	state.Delta[serviceId] = serviceAccount
+	state.Delta[serviceID] = serviceAccount
 }
 
-func updatePreimage(state *types.State, serviceId types.ServiceId, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
+func updatePreimage(state *types.State, serviceID types.ServiceID, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
 	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceId]
+	serviceAccount, exists := state.Delta[serviceID]
 	if !exists {
 		serviceAccount = types.ServiceAccount{
 			PreimageLookup: make(types.PreimagesMapEntry),
@@ -115,12 +115,12 @@ func updatePreimage(state *types.State, serviceId types.ServiceId, preimageKey t
 	serviceAccount.PreimageLookup[preimageKey] = preimageValue
 
 	// Assign the updated service account back to the state
-	state.Delta[serviceId] = serviceAccount
+	state.Delta[serviceID] = serviceAccount
 }
 
-func updateLookup(state *types.State, serviceId types.ServiceId, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
+func updateLookup(state *types.State, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
 	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceId]
+	serviceAccount, exists := state.Delta[serviceID]
 	if !exists {
 		serviceAccount = types.ServiceAccount{
 			PreimageLookup: make(types.PreimagesMapEntry),
@@ -133,7 +133,7 @@ func updateLookup(state *types.State, serviceId types.ServiceId, lookupKey types
 	serviceAccount.LookupDict[lookupKey] = lookupValue
 
 	// Assign the updated service account back to the state
-	state.Delta[serviceId] = serviceAccount
+	state.Delta[serviceID] = serviceAccount
 }
 
 func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, error) {
@@ -332,15 +332,15 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 		}
 		return pi, nil
 	case C(14):
-		// Decode the theta
+		// Decode the vartheta
 		cLog(Yellow, "[C(14)]")
 		printStateKey(Cyan, stateKey)
 		printStateValue(stateVal)
-		theta, err := decodeTheta(stateVal)
+		vartheta, err := decodeVartheta(stateVal)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode theta: %w", err)
+			return nil, fmt.Errorf("failed to decode vartheta: %w", err)
 		}
-		return theta, nil
+		return vartheta, nil
 	case C(15):
 		// Decode the xi
 		cLog(Yellow, "[C(15)]")
@@ -356,11 +356,11 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 		cLog(Yellow, "[C(16)]")
 		printStateKey(Cyan, stateKey)
 		printStateValue(stateVal)
-		lastAccOut, err := decodeThetaAccOut(stateVal)
+		theta, err := decodeTheta(stateVal)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode theta: %w", err)
 		}
-		return lastAccOut, nil
+		return theta, nil
 	default:
 		// C(255, s)
 		if IsServiceInfoKey(stateKey) {
@@ -368,8 +368,8 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
 			delta := types.ServiceAccountState{}
-			// ServiceId
-			serviceId, err := DecodeServiceIdFromType2(stateKey)
+			// ServiceID
+			serviceID, err := DecodeServiceIDFromType2(stateKey)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode service ID: %w", err)
 			}
@@ -382,7 +382,7 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 
 			service := types.ServiceAccount{}
 			service.ServiceInfo = serviceInfo
-			delta[serviceId] = service
+			delta[serviceID] = service
 			return delta, nil
 		}
 	}
@@ -557,15 +557,15 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			state.Pi = pi
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(14):
-			// Decode the theta
+			// Decode the vartheta
 			cLog(Yellow, "[C(14)]")
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
-			theta, err := decodeTheta(stateVal)
+			vartheta, err := decodeVartheta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
+				return state, nil, fmt.Errorf("failed to decode vartheta: %w", err)
 			}
-			state.Theta = theta
+			state.Vartheta = vartheta
 			delete(unmatchedStateKeyVals, stateKey)
 		case C(15):
 			// Decode the xi
@@ -583,11 +583,11 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			cLog(Yellow, "[C(16)]")
 			printStateKey(Cyan, stateKey)
 			printStateValue(stateVal)
-			lastAccOut, err := decodeThetaAccOut(stateVal)
+			theta, err := decodeTheta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
 			}
-			state.LastAccOut = lastAccOut
+			state.Theta = theta
 			delete(unmatchedStateKeyVals, stateKey)
 		default:
 			// C(255, s)
@@ -596,24 +596,24 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				printStateKey(Cyan, stateKey)
 				printStateValue(stateVal)
 
-				// ServiceId
-				serviceId, err := DecodeServiceIdFromType2(stateKey)
+				// ServiceID
+				serviceID, err := DecodeServiceIDFromType2(stateKey)
 				if err != nil {
 					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 				}
 				// Decode the value
 				serviceInfo, err := DecodeServiceInfo(stateVal)
 				if err != nil {
-					return state, nil, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceId, err)
+					return state, nil, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceID, err)
 				}
 				// Update the service info in the state
-				updateServiceInfo(&state, serviceId, serviceInfo)
+				updateServiceInfo(&state, serviceID, serviceInfo)
 				delete(unmatchedStateKeyVals, stateKey)
 				continue
 			}
 
-			// ServiceId
-			serviceId, err := DecodeServiceIdFromType3(stateKey)
+			// ServiceID
+			serviceID, err := DecodeServiceIDFromType3(stateKey)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 			}
@@ -630,7 +630,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				preimageKey := hash.Blake2bHash(preimageValue)
 
 				// Update the preimage in the state
-				updatePreimage(&state, serviceId, preimageKey, preimageValue)
+				updatePreimage(&state, serviceID, preimageKey, preimageValue)
 				delete(unmatchedStateKeyVals, stateKey)
 				continue
 			}
@@ -644,7 +644,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 	// so that after obtaining all preimages, we can construct the corresponding Lookup keys.
 
 	// After updating the preimages, we can now process the Lookup entries.
-	for serviceId, serviceAccount := range state.Delta {
+	for serviceID, serviceAccount := range state.Delta {
 		for preimageKey, preimageValue := range serviceAccount.PreimageLookup {
 			cLog(Yellow, "[Lookup]")
 
@@ -655,7 +655,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			}
 
 			// Create the lookup state key
-			lookupStateKeyVal := EncodeDelta4KeyVal(serviceId, lookupKey, types.TimeSlotSet{})
+			lookupStateKeyVal := EncodeDelta4KeyVal(serviceID, lookupKey, types.TimeSlotSet{})
 			lookupStateKey := lookupStateKeyVal.Key
 
 			// Find the lookup state key in unmatchedStateKeyVals
@@ -671,7 +671,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 					return state, nil, fmt.Errorf("failed to decode lookup value: %w", err)
 				}
 
-				updateLookup(&state, serviceId, lookupKey, timeSlotSet)
+				updateLookup(&state, serviceID, lookupKey, timeSlotSet)
 				delete(unmatchedStateKeyVals, lookupStateKey)
 			}
 		}
@@ -712,7 +712,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 			logger.ColorDebug("state %s exp/act diff: %+v", state, diff)
 			continue
 		} else if IsServiceInfoKey(v.Key) { // Type 2: C(255, s), ServiceInfo
-			serviceID, err := DecodeServiceIdFromType2(v.Key)
+			serviceID, err := DecodeServiceIDFromType2(v.Key)
 			if err != nil {
 				return fmt.Errorf("failed to decode service ID from state key 0x%x by type 2: %w", v.Key, err)
 			}
@@ -728,14 +728,14 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 			logger.ColorDebug("ServiceID %d Info exp/act diff: %+v", serviceID, diff)
 			continue
 		} else { // Rest of the keys are service-related (type3)
-			serviceId, err := DecodeServiceIdFromType3(v.Key)
+			serviceID, err := DecodeServiceIDFromType3(v.Key)
 			if err != nil {
 				return fmt.Errorf("failed to decode service ID from state key 0x%x by type 3: %w", v.Key, err)
 			}
 			// a_p: Preimage
 			if isPreimage, _ := IsPreimage(v.Key, v.ExpectedValue); isPreimage {
 				preimageKey := hash.Blake2bHash(v.ExpectedValue)
-				logger.ColorDebug("serviceID %v state key 0x%x is preimage key 0x%x, value exp/act diff: %v", serviceId, v.Key, preimageKey, cmp.Diff(v.ExpectedValue, v.ActualValue))
+				logger.ColorDebug("serviceID %v state key 0x%x is preimage key 0x%x, value exp/act diff: %v", serviceID, v.Key, preimageKey, cmp.Diff(v.ExpectedValue, v.ActualValue))
 
 				// Store the preimage and related lookup key for later lookup
 
@@ -746,7 +746,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 				}
 
 				// Create the lookup state key
-				lookupStateKeyVal := EncodeDelta4KeyVal(serviceId, lookupKey, types.TimeSlotSet{})
+				lookupStateKeyVal := EncodeDelta4KeyVal(serviceID, lookupKey, types.TimeSlotSet{})
 
 				LookupStatekeyVal[lookupStateKeyVal.Key] = lookupKey
 				continue
@@ -758,7 +758,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 	} // End of for _, v := range diffs
 
 	for _, v := range unmatchedStateKeyVals { // a_l, a_s
-		serviceId, err := DecodeServiceIdFromType3(v.Key)
+		serviceID, err := DecodeServiceIDFromType3(v.Key)
 		if err != nil {
 			return fmt.Errorf("failed to decode service ID from state key 0x%x by type 3: %w", v.Key, err)
 		}
@@ -767,7 +767,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 		// If it exists, imply that a lookup entry for this preimage
 		if lookupKey, exists := LookupStatekeyVal[v.Key]; exists {
 			logger.ColorDebug("serviceID %d state key 0x%x is Lookup entry hash 0x%x len %d, exp/act diff: %v",
-				serviceId, v.Key, lookupKey.Hash, lookupKey.Length, cmp.Diff(v.ExpectedValue, v.ActualValue))
+				serviceID, v.Key, lookupKey.Hash, lookupKey.Length, cmp.Diff(v.ExpectedValue, v.ActualValue))
 			// // Decode the lookup state value
 			// timeSlotSet := types.TimeSlotSet{}
 			// decoder := types.NewDecoder()
@@ -786,7 +786,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 		if len(act) > 8 {
 			act = act[:8]
 		}
-		logger.ColorDebug("serviceID %d state key 0x%x is storage or unmatched lookup diff: %v", serviceId, v.Key, cmp.Diff(exp, act))
+		logger.ColorDebug("serviceID %d state key 0x%x is storage or unmatched lookup diff: %v", serviceID, v.Key, cmp.Diff(exp, act))
 	}
 	return nil
 }

@@ -23,7 +23,7 @@ type heder struct {
 		Validators     []string `json:"validators,omitempty"`
 	} `json:"epoch_mark,omitempty"`
 	TicketsMark *[]struct {
-		Id      string `json:"id,omitempty"`
+		ID      string `json:"id,omitempty"`
 		Attempt int    `json:"attempt,omitempty"`
 	} `json:"tickets_mark,omitempty"`
 	OffendersMark []string `json:"offenders_mark,omitempty"`
@@ -58,7 +58,7 @@ type guarantee struct {
 }
 
 type workResult struct {
-	ServiceId     int               `json:"service_id,omitempty"`
+	ServiceID     int               `json:"service_id,omitempty"`
 	CodeHash      string            `json:"code_hash,omitempty"`
 	PayloadHash   string            `json:"payload_hash,omitempty"`
 	AccumulateGas int               `json:"accumulate_gas,omitempty"`
@@ -209,7 +209,7 @@ func readHeaderFromJson(filename string, data heder) (outputData types.Header) {
 
 		for _, data := range *data.TicketsMark {
 			*outputData.TicketsMark = append(*outputData.TicketsMark, types.TicketBody{
-				Id:      types.TicketId(stringToHex(data.Id)),
+				ID:      types.TicketID(stringToHex(data.ID)),
 				Attempt: types.TicketAttempt(data.Attempt),
 			})
 		}
@@ -245,7 +245,7 @@ func readExtrinsicPreimageFromJson(filename string, data preimagesExtrinsic) (ou
 	for _, data := range data {
 		preimage := stringToHex(data.Blob)
 		outputData = append(outputData, types.Preimage{
-			Requester: types.ServiceId(data.Requester),
+			Requester: types.ServiceID(data.Requester),
 			Blob:      types.ByteSequence(preimage),
 		})
 	}
@@ -256,20 +256,21 @@ func readExtrinsicPreimageFromJson(filename string, data preimagesExtrinsic) (ou
 func readExtrinsicWorkResultFromJson(filename string, data workResult) (outputData types.WorkResult) {
 	unmarshalDataFromJson(filename, &data)
 
-	myMap := make(map[types.WorkExecResultType][]byte)
+	var result types.WorkExecResult
 	for key, value := range data.Result {
-		if value == "" {
-			myMap[types.WorkExecResultType(key)] = []byte{}
-		} else {
-			myMap[types.WorkExecResultType(key)] = stringToHex(value)
+		resultType := types.WorkExecResultType(key)
+		result.Type = resultType
+		if resultType == types.WorkExecResultOk {
+			result.Data = stringToHex(value)
 		}
+		break // only one key expected
 	}
 	outputData = types.WorkResult{
-		ServiceId:     types.ServiceId(data.ServiceId),
+		ServiceID:     types.ServiceID(data.ServiceID),
 		CodeHash:      types.OpaqueHash(stringToHex(data.CodeHash)),
 		PayloadHash:   types.OpaqueHash(stringToHex(data.PayloadHash)),
 		AccumulateGas: types.Gas(data.AccumulateGas),
-		Result:        myMap,
+		Result:        result,
 	}
 
 	return outputData
@@ -363,20 +364,21 @@ func readExtrinsicGuaranteeFromJson(filename string, data guaranteesExtrinsic) (
 		}
 
 		for _, data := range data.Report.Results {
-			myMap := make(map[types.WorkExecResultType][]byte)
+			var result types.WorkExecResult
 			for key, value := range data.Result {
-				if value == "" {
-					myMap[types.WorkExecResultType(key)] = []byte{}
-				} else {
-					myMap[types.WorkExecResultType(key)] = stringToHex(value)
+				resultType := types.WorkExecResultType(key)
+				result.Type = resultType
+				if resultType == types.WorkExecResultOk {
+					result.Data = stringToHex(value)
 				}
+				break // only one key expected
 			}
 			outputData[num].Report.Results = append(outputData[num].Report.Results, types.WorkResult{
-				ServiceId:     types.ServiceId(data.ServiceId),
+				ServiceID:     types.ServiceID(data.ServiceID),
 				CodeHash:      types.OpaqueHash(stringToHex(data.CodeHash)),
 				PayloadHash:   types.OpaqueHash(stringToHex(data.PayloadHash)),
 				AccumulateGas: types.Gas(data.AccumulateGas),
-				Result:        myMap,
+				Result:        result,
 			})
 		}
 
@@ -397,7 +399,7 @@ func readExtrinsicAssurancesFromJson(filename string, data assurancesExtrinsic) 
 	for _, data := range data {
 		signature := stringToHex(data.Signature)
 		outputData = append(outputData, types.AvailAssurance{
-			Anchor:         types.OpaqueHash(stringToHex(data.Anchor)),
+			Anchor:         types.HeaderHash(stringToHex(data.Anchor)),
 			Bitfield:       types.MustMakeBitfieldFromHexString(data.Bitfield),
 			ValidatorIndex: types.ValidatorIndex(data.ValidatorIndex),
 			Signature:      types.Ed25519Signature(signature),
@@ -412,7 +414,7 @@ func readExtrinsicDisputesFromJson(filename string, data disputesExtrinsic) (out
 
 	for num, data := range data.Verdicts {
 		outputData.Verdicts = append(outputData.Verdicts, types.Verdict{
-			Target: types.OpaqueHash(stringToHex(data.Target)),
+			Target: types.WorkReportHash(stringToHex(data.Target)),
 			Age:    types.U32(data.Age),
 		})
 		for _, vote := range data.Votes {
@@ -448,7 +450,7 @@ func readWorkItemFromJson(filename string, data workItem) (outputData types.Work
 	unmarshalDataFromJson(filename, &data)
 
 	outputData = types.WorkItem{
-		Service:            types.ServiceId(data.Service),
+		Service:            types.ServiceID(data.Service),
 		CodeHash:           types.OpaqueHash(stringToHex(data.CodeHash)),
 		Payload:            types.ByteSequence(stringToHex(data.Payload)),
 		RefineGasLimit:     types.Gas(data.RefineGasLimit),
@@ -478,7 +480,7 @@ func readWorkPackageFromJson(filename string, data workPackage) (outputData type
 
 	outputData = types.WorkPackage{
 		Authorization:    types.ByteSequence(stringToHex(data.Authorization)),
-		AuthCodeHost:     types.ServiceId(data.AuthCodeHost),
+		AuthCodeHost:     types.ServiceID(data.AuthCodeHost),
 		AuthCodeHash:     types.OpaqueHash(data.AuthCodeHash),
 		AuthorizerConfig: types.ByteSequence(data.AuthorizerConfig),
 	}

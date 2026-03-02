@@ -375,7 +375,7 @@ func WrapOpaqueHashMap(input map[types.OpaqueHash]types.ByteSequence) MapWarpper
 }
 
 // For serialize preImageLookup
-func WrapStatisticsServiceMap(input map[types.ServiceId]types.ServiceActivityRecord) MapWarpper {
+func WrapStatisticsServiceMap(input map[types.ServiceID]types.ServiceActivityRecord) MapWarpper {
 	serializableMap := map[Comparable]Serializable{}
 
 	for key, value := range input {

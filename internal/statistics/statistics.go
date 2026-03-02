@@ -16,7 +16,6 @@
 package statistics
 
 import (
-	"math"
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -26,7 +25,7 @@ import (
 
 // (13.3)
 func GetEpochIndex(t types.TimeSlot) types.TimeSlot {
-	return types.TimeSlot(math.Floor(float64(t) / float64(types.EpochLength)))
+	return t / types.TimeSlot(types.EpochLength)
 }
 
 // b: The number of blocks produced by the validator.
@@ -59,21 +58,27 @@ func UpdatePreimageOctetStatistics(statistics *types.Statistics, authorIndex typ
 // We note that the Ed25519 key of each validator whose
 // signature is in a credential is placed in the reporters set R.
 func UpdateReportStatistics(statistics *types.Statistics, guarantees types.GuaranteesExtrinsic, tau types.TimeSlot, validators types.ValidatorsData) {
-	var guarantor extrinsic.GuranatorAssignments
+	if len(guarantees) == 0 {
+		return
+	}
+
 	// Pre-allocate capacity: estimate based on guarantees count
 	reportersSet := make(map[types.Ed25519Public]bool, len(guarantees))
+	left := int(tau) / types.RotationPeriod
 
+	guarantorSame, _ := extrinsic.GFunc(nil)
+	guarantorDiff, _ := extrinsic.GStarFunc(nil)
 	for _, guarantee := range guarantees {
-		left := int(tau) / types.RotationPeriod
 		right := int(guarantee.Slot) / types.RotationPeriod
 
+		var guarantor extrinsic.GuranatorAssignments
 		if left == right {
-			guarantor, _ = extrinsic.GFunc(nil)
+			guarantor = guarantorSame
 		} else {
-			guarantor, _ = extrinsic.GStarFunc(nil)
+			guarantor = guarantorDiff
 		}
 
-		guarantorSlice := make(map[types.ValidatorIndex]bool, 3)
+		guarantorSlice := make(map[types.ValidatorIndex]bool, len(guarantee.Signatures))
 		for _, v := range guarantee.Signatures {
 			guarantorSlice[v.ValidatorIndex] = true
 		}
@@ -169,7 +174,7 @@ func CalculateDALoad(coreIndex types.CoreIndex, WMap CoreWorkReportMap) types.U3
 		return 0
 	}
 
-	ceilValue := types.U32((workReport.PackageSpec.ExportsCount*65 + 63) / 64)
+	ceilValue := (types.U32(workReport.PackageSpec.ExportsCount)*65 + 63) / 64
 	output := workReport.PackageSpec.Length + types.SegmentSize*ceilValue
 
 	return output
@@ -242,9 +247,9 @@ func UpdateCoreActivityStatistics(extrinsic types.Extrinsic) {
 	cs.GetPosteriorStates().SetCoresStatistics(coreActivityStatisitics)
 }
 
-type ServiceWorkResultsMap map[types.ServiceId][]types.WorkResult
+type ServiceWorkResultsMap map[types.ServiceID][]types.WorkResult
 
-// Create a map (service Id -> []work result)
+// Create a map (service ID -> []work result)
 func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	cs := blockchain.GetInstance()
 	w := cs.GetIntermediateStates().GetPresentWorkReports()
@@ -252,21 +257,21 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 	// Create a map to cs the service id map to work results
 
 	// Estimate capacity
-	serviceCount := make(map[types.ServiceId]int)
+	serviceCount := make(map[types.ServiceID]int)
 	for _, workReport := range w {
 		for _, result := range workReport.Results {
-			serviceCount[result.ServiceId]++
+			serviceCount[result.ServiceID]++
 		}
 	}
 	serviceWorkResultsMap := make(ServiceWorkResultsMap, len(serviceCount))
-	for serviceId, count := range serviceCount {
-		serviceWorkResultsMap[serviceId] = make([]types.WorkResult, 0, count)
+	for serviceID, count := range serviceCount {
+		serviceWorkResultsMap[serviceID] = make([]types.WorkResult, 0, count)
 	}
 
 	// Get all work reports from work results
 	for _, workReport := range w {
 		for _, result := range workReport.Results {
-			serviceWorkResultsMap[result.ServiceId] = append(serviceWorkResultsMap[result.ServiceId], result)
+			serviceWorkResultsMap[result.ServiceID] = append(serviceWorkResultsMap[result.ServiceID], result)
 		}
 	}
 
@@ -276,15 +281,15 @@ func CreateServiceWorkResultsMap() ServiceWorkResultsMap {
 // v0.7.1
 // (13.14) s^R -> Get services from the coming work reports
 // (11.28) I to be the set of work-reports in the present extrinsic E:
-func GetServicesFromPresentWorkReport() []types.ServiceId {
+func GetServicesFromPresentWorkReport() []types.ServiceID {
 	cs := blockchain.GetInstance()
 	I := cs.GetIntermediateStates().GetPresentWorkReports()
 
-	services := make([]types.ServiceId, 0, len(I))
+	services := make([]types.ServiceID, 0, len(I))
 
 	for _, workReport := range I {
 		for _, workResult := range workReport.Results {
-			services = append(services, workResult.ServiceId)
+			services = append(services, workResult.ServiceID)
 		}
 	}
 
@@ -293,18 +298,16 @@ func GetServicesFromPresentWorkReport() []types.ServiceId {
 
 // v0.7.1
 // (13.15) s^P
-func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
+func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceID {
 	// Pre-allocate capacity: estimate based on preimages count
-	servicesMap := make(map[types.ServiceId]bool, len(preimagesExtrinsic))
+	servicesMap := make(map[types.ServiceID]bool, len(preimagesExtrinsic))
 
 	for _, preimage := range preimagesExtrinsic {
-		serviceId := preimage.Requester
-		if _, exists := servicesMap[serviceId]; !exists {
-			servicesMap[serviceId] = true
-		}
+		serviceID := preimage.Requester
+		servicesMap[serviceID] = true
 	}
 
-	services := make([]types.ServiceId, 0, len(servicesMap))
+	services := make([]types.ServiceID, 0, len(servicesMap))
 	for key := range servicesMap {
 		services = append(services, key)
 	}
@@ -312,13 +315,13 @@ func GetServicesFromPreimagesExtrinsic(preimagesExtrinsic types.PreimagesExtrins
 	return services
 }
 
-func GetServicesFromAccumulationStatistics() []types.ServiceId {
+func GetServicesFromAccumulationStatistics() []types.ServiceID {
 	cs := blockchain.GetInstance()
 
 	// Get the accumulation statistics (S)
 	accumulationStatistics := cs.GetIntermediateStates().GetAccumulationStatistics()
 
-	services := make([]types.ServiceId, 0, len(accumulationStatistics))
+	services := make([]types.ServiceID, 0, len(accumulationStatistics))
 	for key := range accumulationStatistics {
 		services = append(services, key)
 	}
@@ -328,7 +331,7 @@ func GetServicesFromAccumulationStatistics() []types.ServiceId {
 
 // v0.7.1
 // s (13.13)
-func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceId {
+func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.ServiceID {
 	// sR: services from the incoming work-reports (13.14)
 	sR := GetServicesFromPresentWorkReport()
 	// sP: services from the preimages extrinsic (13.15)
@@ -337,20 +340,20 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 	keyOfS := GetServicesFromAccumulationStatistics()
 
 	// Merge all services (without duplicates)
-	servicesMap := make(map[types.ServiceId]bool, len(sR)+len(sP)+len(keyOfS))
-	for _, serviceId := range sR {
-		servicesMap[serviceId] = true
+	servicesMap := make(map[types.ServiceID]bool, len(sR)+len(sP)+len(keyOfS))
+	for _, serviceID := range sR {
+		servicesMap[serviceID] = true
 	}
 
-	for _, serviceId := range sP {
-		servicesMap[serviceId] = true
+	for _, serviceID := range sP {
+		servicesMap[serviceID] = true
 	}
 
-	for _, serviceId := range keyOfS {
-		servicesMap[serviceId] = true
+	for _, serviceID := range keyOfS {
+		servicesMap[serviceID] = true
 	}
 
-	services := make([]types.ServiceId, 0, len(servicesMap))
+	services := make([]types.ServiceID, 0, len(servicesMap))
 	for key := range servicesMap {
 		services = append(services, key)
 	}
@@ -360,8 +363,8 @@ func GetAllServices(preimagesExtrinsic types.PreimagesExtrinsic) []types.Service
 
 // v0.7.1
 // (13.16)
-func CalculateServiceResults(serviceId types.ServiceId, serviceWorkResultsMap ServiceWorkResultsMap) Pi_S_R_Output {
-	workResults, ok := serviceWorkResultsMap[serviceId]
+func CalculateServiceResults(serviceID types.ServiceID, serviceWorkResultsMap ServiceWorkResultsMap) Pi_S_R_Output {
+	workResults, ok := serviceWorkResultsMap[serviceID]
 	if !ok {
 		return Pi_S_R_Output{}
 	}
@@ -382,39 +385,15 @@ func CalculateServiceResults(serviceId types.ServiceId, serviceWorkResultsMap Se
 }
 
 // v0.7.1
-// (13.12) p
-func CalculateProvidedStatistics(serviceId types.ServiceId, preimagesExtrinsic types.PreimagesExtrinsic) (providedCount types.U16, providedSize types.U32) {
-	providedCount = 0
-	providedSize = 0
-
-	for _, preimage := range preimagesExtrinsic {
-		if preimage.Requester != serviceId {
-			continue
-		}
-		providedCount += 1
-		providedSize += types.U32(len(preimage.Blob))
-	}
-
-	return providedCount, providedSize
-}
-
-// v0.7.1
 // (13.12) a
 // AccumulateCount, AccumulateGasUsed
-func CalculateAccumulationStatistics(serviceId types.ServiceId, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
-	accumulateCount = 0
-	accumulateGasUsed = 0
-
-	value, ok := accumulationStatistics[serviceId]
+func CalculateAccumulationStatistics(serviceID types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
+	value, ok := accumulationStatistics[serviceID]
 	if ok {
 		accumulateCount = types.U32(value.NumAccumulatedReports)
 		accumulateGasUsed = value.Gas
-	} else {
-		// If the service id is not found, return 0
-		accumulateCount = 0
-		accumulateGasUsed = 0
 	}
-
+	// else, the service id is not found, accumulateCount and accumulateGasUsed are 0
 	return accumulateCount, accumulateGasUsed
 }
 
@@ -428,22 +407,35 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 	s := GetAllServices(extrinsic.Preimages)
 	serviceWorkResultsMap := CreateServiceWorkResultsMap()
 
+	// Precompute the preimage statistics for each service
+	type preimageStats struct {
+		count types.U16
+		size  types.U32
+	}
+	preimageStatsMap := make(map[types.ServiceID]preimageStats, len(extrinsic.Preimages))
+	for _, preimage := range extrinsic.Preimages {
+		ps := preimageStatsMap[preimage.Requester]
+		ps.count++
+		ps.size += types.U32(len(preimage.Blob))
+		preimageStatsMap[preimage.Requester] = ps
+	}
+
 	// Initialize the services statistics (13.7)
 	servicesStatistics := make(types.ServicesStatistics)
 
-	for _, serviceId := range s {
+	for _, serviceID := range s {
 		// Calculate the service results (R)
-		R := CalculateServiceResults(serviceId, serviceWorkResultsMap)
+		R := CalculateServiceResults(serviceID, serviceWorkResultsMap)
 
 		// p
-		providedCount, providedSize := CalculateProvidedStatistics(serviceId, extrinsic.Preimages)
+		ps := preimageStatsMap[serviceID]
 
 		// a
-		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
 
-		servicesStatistics[serviceId] = types.ServiceActivityRecord{
-			ProvidedCount:     providedCount,
-			ProvidedSize:      providedSize,
+		servicesStatistics[serviceID] = types.ServiceActivityRecord{
+			ProvidedCount:     ps.count,
+			ProvidedSize:      ps.size,
 			RefinementCount:   R.n,
 			RefinementGasUsed: R.GasUsed,
 			Imports:           R.Imports,

@@ -25,8 +25,8 @@ func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequ
 
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
-			ServiceId: nil,
-			CoreId:    &c,
+			ServiceID: nil,
+			CoreID:    &c,
 		},
 	}
 

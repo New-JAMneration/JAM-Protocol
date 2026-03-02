@@ -162,16 +162,16 @@ func (b *BandersnatchPublic) Decode(d *Decoder) error {
 	return nil
 }
 
-// TicketId
-func (t *TicketId) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding TicketId")
+// TicketID
+func (t *TicketID) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding TicketID")
 
-	var val TicketId
+	var val TicketID
 	err := binary.Read(d.buf, binary.LittleEndian, &val)
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("TicketId: %x", val))
+	cLog(Yellow, fmt.Sprintf("TicketID: %x", val))
 
 	*t = val
 	return nil
@@ -196,7 +196,7 @@ func (t *TicketBody) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding TicketBody")
 
 	var err error
-	if err = t.Id.Decode(d); err != nil {
+	if err = t.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -427,32 +427,32 @@ func (t *TicketsExtrinsic) Decode(d *Decoder) error {
 	return nil
 }
 
-// ServiceId
-func (s *ServiceId) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding ServiceId")
+// ServiceID
+func (s *ServiceID) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceID")
 
-	var val ServiceId
+	var val ServiceID
 	err := binary.Read(d.buf, binary.LittleEndian, &val)
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
 
 	*s = val
 	return nil
 }
 
-// ServiceIdList
-func (s *ServiceIdList) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding ServiceIdList")
-	val := make([]ServiceId, CoresCount)
+// ServiceIDList
+func (s *ServiceIDList) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding ServiceIDList")
+	val := make([]ServiceID, CoresCount)
 	for i := 0; i < CoresCount; i++ {
 		var err error
 		if err = val[i].Decode(d); err != nil {
 			return err
 		}
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", val))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
 	*s = val
 	return nil
 }
@@ -758,16 +758,13 @@ func (s *SegmentRootLookup) Decode(d *Decoder) error {
 func (w *WorkExecResult) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding WorkExecResult")
 
-	var err error
+	*w = WorkExecResult{}
 
 	// Get the first byte
 	firstByte, err := d.buf.ReadByte()
 	if err != nil {
 		return err
 	}
-
-	// make the map
-	*w = WorkExecResult{}
 
 	switch firstByte {
 	case 0:
@@ -779,26 +776,28 @@ func (w *WorkExecResult) Decode(d *Decoder) error {
 			return err
 		}
 
-		// set the map
-		(*w)["ok"] = byteSequence
+		w.Type = WorkExecResultOk
+		w.Data = byteSequence
 	case 1:
 		cLog(Yellow, "WorkExecResultOutOfGas")
-		(*w)["out-of-gas"] = nil
+		w.Type = WorkExecResultOutOfGas
 	case 2:
 		cLog(Yellow, "WorkExecResultPanic")
-		(*w)["panic"] = nil
+		w.Type = WorkExecResultPanic
 	case 3:
 		cLog(Yellow, "WorkExecResultBadExports")
-		(*w)["bad-exports"] = nil
+		w.Type = WorkExecResultBadExports
 	case 4:
 		cLog(Yellow, "WorkExecResultReportOversize")
-		(*w)["output-oversize"] = nil
+		w.Type = WorkExecResultReportOversize
 	case 5:
 		cLog(Yellow, "WorkExecResultBadCode")
-		(*w)["bad-code"] = nil
+		w.Type = WorkExecResultBadCode
 	case 6:
 		cLog(Yellow, "WorkExecResultCodeOversize")
-		(*w)["code-oversize"] = nil
+		w.Type = WorkExecResultCodeOversize
+	default:
+		return errors.New("invalid WorkExecResultType")
 	}
 
 	return nil
@@ -867,7 +866,7 @@ func (w *WorkResult) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = w.ServiceId.Decode(d); err != nil {
+	if err = w.ServiceID.Decode(d); err != nil {
 		return err
 	}
 
@@ -1819,8 +1818,8 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 	services := make(ServicesStatistics)
 
 	for i := uint64(0); i < length; i++ {
-		var serviceId ServiceId
-		if err = serviceId.Decode(d); err != nil {
+		var serviceID ServiceID
+		if err = serviceID.Decode(d); err != nil {
 			return err
 		}
 
@@ -1829,7 +1828,7 @@ func (s *ServicesStatistics) Decode(d *Decoder) error {
 			return err
 		}
 
-		services[ServiceId(serviceId)] = serviceActivityRecord
+		services[ServiceID(serviceID)] = serviceActivityRecord
 	}
 
 	*s = services
@@ -2057,7 +2056,7 @@ func (a *AvailabilityAssignment) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = a.Timeout.Decode(d); err != nil {
+	if err = a.AssignedSlot.Decode(d); err != nil {
 		return err
 	}
 
@@ -2513,20 +2512,6 @@ func (a *AuthQueues) Decode(d *Decoder) error {
 	return nil
 }
 
-// AccumulateRoot
-func (a *AccumulateRoot) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding AccumulateRoot")
-
-	var val AccumulateRoot
-	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
-		return err
-	}
-	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %x", val))
-
-	*a = val
-	return nil
-}
-
 // ReadyRecord
 func (r *ReadyRecord) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ReadyRecord")
@@ -2667,7 +2652,7 @@ func (a *AlwaysAccumulateMap) Decode(d *Decoder) error {
 	*a = make(AlwaysAccumulateMap, length)
 
 	for i := uint64(0); i < length; i++ {
-		var key ServiceId
+		var key ServiceID
 		if err = key.Decode(d); err != nil {
 			return err
 		}
@@ -2712,9 +2697,9 @@ func (p *Privileges) Decode(d *Decoder) error {
 	return nil
 }
 
-// Gamma
-func (g *Gamma) Decode(d *Decoder) error {
-	cLog(Cyan, "Decoding Gamma")
+// SafroleState
+func (g *SafroleState) Decode(d *Decoder) error {
+	cLog(Cyan, "Decoding SafroleState")
 
 	var err error
 
@@ -2921,8 +2906,8 @@ func (a *ServiceAccountState) Decode(d *Decoder) error {
 	*a = make(ServiceAccountState, length)
 
 	for i := uint64(0); i < length; i++ {
-		// Decode key (ServiceId)
-		var key ServiceId
+		// Decode key (ServiceID)
+		var key ServiceID
 		if err = key.Decode(d); err != nil {
 			return err
 		}
@@ -3040,7 +3025,7 @@ func (s *State) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err = s.Theta.Decode(d); err != nil {
+	if err = s.Vartheta.Decode(d); err != nil {
 		return err
 	}
 
@@ -3081,31 +3066,6 @@ func (d *DeferredTransfer) Decode(decoder *Decoder) error {
 	if err = d.GasLimit.Decode(decoder); err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func (d *DeferredTransfers) Decode(decoder *Decoder) error {
-	cLog(Cyan, "Decoding DeferredTransfers")
-
-	length, err := decoder.DecodeLength()
-	if err != nil {
-		return err
-	}
-
-	if length == 0 {
-		return nil
-	}
-
-	// make the slice with length
-	transfers := make([]DeferredTransfer, length)
-	for i := uint64(0); i < length; i++ {
-		if err = transfers[i].Decode(decoder); err != nil {
-			return err
-		}
-	}
-
-	*d = transfers
 
 	return nil
 }
@@ -3381,7 +3341,7 @@ func (a *AccumulatedServiceHash) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = a.ServiceId.Decode(d); err != nil {
+	if err = a.ServiceID.Decode(d); err != nil {
 		return err
 	}
 

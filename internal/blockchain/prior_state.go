@@ -16,13 +16,13 @@ type PriorStates struct {
 func NewPriorStates() *PriorStates {
 	return &PriorStates{
 		state: &types.State{
-			Theta:      make([]types.ReadyQueueItem, types.EpochLength),
-			Xi:         make(types.AccumulatedQueue, types.EpochLength),
-			Varphi:     make(types.AuthQueues, types.CoresCount),
-			LastAccOut: make(types.LastAccOut, 0, 16), // Pre-allocate with small initial capacity
-			Rho:        make(types.AvailabilityAssignments, types.CoresCount),
-			Alpha:      make(types.AuthPools, types.CoresCount),
-			Delta:      make(types.ServiceAccountState),
+			Vartheta: make([]types.ReadyQueueItem, types.EpochLength),
+			Xi:       make(types.AccumulatedQueue, types.EpochLength),
+			Varphi:   make(types.AuthQueues, types.CoresCount),
+			Theta:    make(types.LastAccOut, 0, 16), // Pre-allocate with small initial capacity
+			Rho:      make(types.AvailabilityAssignments, types.CoresCount),
+			Alpha:    make(types.AuthPools, types.CoresCount),
+			Delta:    make(types.ServiceAccountState),
 		},
 	}
 }
@@ -88,14 +88,14 @@ func (s *PriorStates) GetBeta() types.RecentBlocks {
 }
 
 // SetGamma sets the gamma value
-func (s *PriorStates) SetGamma(gamma types.Gamma) {
+func (s *PriorStates) SetGamma(gamma types.SafroleState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Gamma = gamma
 }
 
 // GetGamma returns the gamma value
-func (s *PriorStates) GetGamma() types.Gamma {
+func (s *PriorStates) GetGamma() types.SafroleState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Gamma
@@ -284,42 +284,42 @@ func (s *PriorStates) GetChi() types.Privileges {
 }
 
 // SetManagerServiceIndex sets the managerServiceIndex value
-func (s *PriorStates) SetManagerServiceIndex(serviceId types.ServiceId) {
+func (s *PriorStates) SetManagerServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Bless = serviceId
+	s.state.Chi.Bless = serviceID
 }
 
 // GetManagerServiceIndex returns the managerServiceIndex value
-func (s *PriorStates) GetManagerServiceIndex() types.ServiceId {
+func (s *PriorStates) GetManagerServiceIndex() types.ServiceID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi.Bless
 }
 
 // SetAlterPhiServiceIndex sets the alterPhiServiceIndex value
-func (s *PriorStates) SetAlterPhiServiceIndex(serviceId []types.ServiceId) {
+func (s *PriorStates) SetAlterPhiServiceIndex(serviceID []types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Assign = serviceId
+	s.state.Chi.Assign = serviceID
 }
 
 // GetAlterPhiServiceIndex returns the alterPhiServiceIndex value
-func (s *PriorStates) GetAlterPhiServiceIndex() []types.ServiceId {
+func (s *PriorStates) GetAlterPhiServiceIndex() []types.ServiceID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi.Assign
 }
 
 // SetAlterIotaServiceIndex sets the alterIotaServiceIndex value
-func (s *PriorStates) SetAlterIotaServiceIndex(serviceId types.ServiceId) {
+func (s *PriorStates) SetAlterIotaServiceIndex(serviceID types.ServiceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Chi.Designate = serviceId
+	s.state.Chi.Designate = serviceID
 }
 
 // GetAlterIotaServiceIndex returns the alterIotaServiceIndex value
-func (s *PriorStates) GetAlterIotaServiceIndex() types.ServiceId {
+func (s *PriorStates) GetAlterIotaServiceIndex() types.ServiceID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.Chi.Designate
@@ -486,18 +486,18 @@ func (s *PriorStates) GetServicesStatistics() types.ServicesStatistics {
 	return s.state.Pi.Services
 }
 
-// SetTheta sets the theta value
-func (s *PriorStates) SetTheta(theta types.ReadyQueue) {
+// SetVartheta sets the vartheta value
+func (s *PriorStates) SetVartheta(vartheta types.ReadyQueue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.Theta = theta
+	s.state.Vartheta = vartheta
 }
 
-// GetTheta returns the theta value
-func (s *PriorStates) GetTheta() types.ReadyQueue {
+// GetVartheta returns the vartheta value
+func (s *PriorStates) GetVartheta() types.ReadyQueue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.Theta
+	return s.state.Vartheta
 }
 
 // SetXi sets the xi value
@@ -517,11 +517,11 @@ func (s *PriorStates) GetXi() types.AccumulatedQueue {
 func (s *PriorStates) SetLastAccOut(c types.LastAccOut) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.state.LastAccOut = c
+	s.state.Theta = c
 }
 
 func (s *PriorStates) GetLastAccOut() types.LastAccOut {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.state.LastAccOut
+	return s.state.Theta
 }

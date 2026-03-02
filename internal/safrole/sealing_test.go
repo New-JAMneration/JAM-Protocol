@@ -69,6 +69,7 @@ func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 
 // v0.7.0
 func TestValidateSealUsingTraceFile(t *testing.T) {
+	t.Skip("Skipping outdated 0.7.0 fuzz reports")
 	runSealValidationTraceTest(t, "1758621879", "00000347.bin")
 	runSealValidationTraceTest(t, "1758621879", "00000348.bin")
 	runSealValidationTraceTest(t, "1758622313", "00000012.bin")

@@ -54,9 +54,9 @@ const (
 
 type GeneralArgs struct {
 	ServiceAccount      *types.ServiceAccount
-	ServiceId           *types.ServiceId
+	ServiceID           *types.ServiceID
 	ServiceAccountState *types.ServiceAccountState
-	CoreId              *types.CoreIndex
+	CoreID              *types.CoreIndex
 	StorageKeyVal       *types.StateKeyVals
 }
 
@@ -77,7 +77,7 @@ type RefineArgs struct {
 	ExtrinsicDataMap    ExtrinsicDataMap        // extrinsic data map
 	IntegratedPVMMap    IntegratedPVMMap        // D ( N -> M ) : N -> (p(program_code), u, i)
 	ExportSegment       []types.ExportSegment   // e
-	// ServiceID           types.ServiceId         // s
+	// ServiceID           types.ServiceID         // s
 	TimeSlot   types.TimeSlot          // t
 	Extrinsics [][]types.ExtrinsicSpec // overline{x}, used in fetch
 }
@@ -528,14 +528,14 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	serviceID := *input.Addition.ServiceId
+	serviceID := *input.Addition.ServiceID
 	serviceAccount := *input.Addition.ServiceAccount
 	delta := *input.Addition.ServiceAccountState
 
 	var a *types.ServiceAccount
 	if input.Interpreter.Registers[7] == 0xffffffffffffffff || input.Interpreter.Registers[7] == uint64(serviceID) {
 		a = &serviceAccount
-	} else if value, exists := delta[types.ServiceId(input.Interpreter.Registers[7])]; exists {
+	} else if value, exists := delta[types.ServiceID(input.Interpreter.Registers[7])]; exists {
 		a = &value
 	}
 
@@ -597,15 +597,15 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(italic): ServiceId
-d: ServiceAccountState (map[ServiceId]ServiceAccount)
+s(italic): ServiceID
+d: ServiceAccountState (map[ServiceID]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 
-	serviceID := *input.Addition.GeneralArgs.ServiceId
+	serviceID := *input.Addition.GeneralArgs.ServiceID
 	delta := *input.Addition.GeneralArgs.ServiceAccountState
 	var sStar uint64
 	// assign s*
@@ -629,9 +629,9 @@ func read(input OmegaInput) (output OmegaOutput) {
 	// assign a
 	if sStar == uint64(serviceID) {
 		a = delta[serviceID]
-	} else if value, exists := delta[types.ServiceId(sStar)]; exists {
+	} else if value, exists := delta[types.ServiceID(sStar)]; exists {
 		a = value
-		serviceID = types.ServiceId(sStar)
+		serviceID = types.ServiceID(sStar)
 	} else {
 		// a = nil , v not panic, => v = nil
 		input.Interpreter.Registers[7] = NONE
@@ -712,7 +712,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	// compute \mathbb{k}
 	storageRawKey := input.Interpreter.Memory.Read(ko, kz)
 
-	serviceID := *input.Addition.GeneralArgs.ServiceId
+	serviceID := *input.Addition.GeneralArgs.ServiceID
 	a := *input.Addition.GeneralArgs.ServiceAccount
 
 	value, storageRawKeyExists := a.StorageDict[string(storageRawKey)]
@@ -790,22 +790,22 @@ func write(input OmegaInput) (output OmegaOutput) {
 ω: registers
 μ:  memory
 s: ServiceAccount
-s(italic): ServiceId
-d: ServiceAccountState (map[ServiceId]ServiceAccount)
+s(italic): ServiceID
+d: ServiceAccountState (map[ServiceID]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 
-	serviceID := *input.Addition.ServiceId
+	serviceID := *input.Addition.ServiceID
 	delta := *input.Addition.ServiceAccountState
 
 	var a types.ServiceAccount
 	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
 		a = delta[serviceID]
 	} else {
-		value, exist := delta[types.ServiceId(input.Interpreter.Registers[7])]
+		value, exist := delta[types.ServiceID(input.Interpreter.Registers[7])]
 		if exist {
 			a = value
 		} else {
@@ -906,11 +906,11 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	var logMsg string
 	if input.Interpreter.Registers[8] == 0 && input.Interpreter.Registers[9] == 0 {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), string(message))
+			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), string(message))
 	} else {
 		target := input.Interpreter.Memory.Read(input.Interpreter.Registers[8], input.Interpreter.Registers[9])
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
-			derefernceOrNil(input.Addition.CoreId), derefernceOrNil(input.Addition.ServiceId), target, string(message))
+			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), target, string(message))
 	}
 
 	input.Interpreter.Registers[7] = WHAT
@@ -938,7 +938,7 @@ func S(encoder *types.Encoder, item types.WorkItem) ([]byte, error) {
 }
 
 // B.14
-func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountState) types.ServiceId {
+func check(serviceID types.ServiceID, serviceAccountState types.ServiceAccountState) types.ServiceID {
 	for {
 		if _, accountExists := serviceAccountState[serviceID]; !accountExists {
 			return serviceID
@@ -951,7 +951,7 @@ func check(serviceID types.ServiceId, serviceAccountState types.ServiceAccountSt
 // 0.7.0 later, fuzzer (forks) needs to recover state, storage, part of lookupData cannot be recover,
 // Thus, needs to check storage, part of lookupData from KeyVal
 // return storage val and add storage state into ResultContextX
-func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) *types.ByteSequence {
+func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, storageKey types.ByteSequence) *types.ByteSequence {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
 	for _, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
@@ -962,7 +962,7 @@ func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId,
 	return nil
 }
 
-func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, storageKey types.ByteSequence) {
+func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, storageKey types.ByteSequence) {
 	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
 	for k, v := range *keyVal {
 		if v.Key == requestedStorageStateKey.Key {
@@ -977,7 +977,7 @@ func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.Service
 	}
 }
 
-func getLookupItemFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceId, lookupKey types.LookupMetaMapkey) []byte {
+func getLookupItemFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey) []byte {
 	lookupStateKey := merklization.EncodeDelta4Key(serviceID, lookupKey)
 	for k, v := range *keyVal {
 		if v.Key == lookupStateKey {

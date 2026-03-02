@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/extrinsic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	reportsErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 )
 
 // ANSI color codes
@@ -43,7 +44,7 @@ type ReportsTestCase struct {
 }
 
 type ServiceItem struct {
-	ServiceId   types.ServiceId   `json:"service_id"`
+	ServiceID   types.ServiceID   `json:"service_id"`
 	ServiceInfo types.ServiceInfo `json:"service_info"`
 }
 
@@ -75,7 +76,7 @@ type Account struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	ID   types.ServiceID `json:"id"`
 	Info Account         `json:"data"`
 }
 
@@ -132,7 +133,7 @@ const (
 	WrongAssignment                                     // 6
 	CoreEngaged                                         // 7
 	AnchorNotRecent                                     // 8
-	BadServiceId                                        // 9
+	BadServiceID                                        // 9
 	BadCodeHash                                         // 10
 	DependencyMissing                                   // 11
 	DuplicatePackage                                    // 12
@@ -159,7 +160,7 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 	"wrong_assignment":                WrongAssignment,
 	"core_engaged":                    CoreEngaged,
 	"anchor_not_recent":               AnchorNotRecent,
-	"bad_service_id":                  BadServiceId,
+	"bad_service_id":                  BadServiceID,
 	"bad_code_hash":                   BadCodeHash,
 	"dependency_missing":              DependencyMissing,
 	"duplicate_package":               DuplicatePackage,
@@ -179,8 +180,8 @@ var ReportsErrorMap = map[string]ReportsErrorCode{
 func (e *ReportsErrorCode) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err == nil {
-		if val, ok := ReportsErrorMap[str]; ok {
-			*e = val
+		if val, ok := reportsErrorCodes.ReportsErrorMap[str]; ok {
+			*e = ReportsErrorCode(val)
 			return nil
 		}
 		return errors.New("invalid error code name: " + str)
@@ -380,7 +381,7 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Decode(d); err != nil {
+	if err = a.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -609,7 +610,7 @@ func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Encode(e); err != nil {
+	if err = a.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -724,7 +725,7 @@ func (r *ReportsTestCase) Dump() error {
 	cs.GetPosteriorStates().SetTau(r.Input.Slot)
 
 	// set known_packages
-	// known_packages can be either xi or theta
+	// known_packages can be either xi or vartheta
 	item := types.AccumulatedQueueItem(r.Input.KnownPackages)
 	xi := types.AccumulatedQueue{item}
 	cs.GetPriorStates().SetXi(xi)
@@ -757,7 +758,7 @@ func (r *ReportsTestCase) Dump() error {
 		serviceAccount := types.ServiceAccount{
 			ServiceInfo: v.Info.Service,
 		}
-		accounts[v.Id] = serviceAccount
+		accounts[v.ID] = serviceAccount
 	}
 
 	cs.GetPriorStates().SetDelta(accounts)

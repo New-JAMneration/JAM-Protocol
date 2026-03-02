@@ -65,7 +65,7 @@ type ServiceAccount struct {
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	ID   types.ServiceID `json:"id"`
 	Data ServiceAccount  `json:"data"`
 }
 
@@ -85,7 +85,7 @@ type AccumulateInput struct {
 }
 
 type AccumulateOutput struct {
-	Ok  *types.AccumulateRoot `json:"ok,omitempty"`
+	Ok  *types.OpaqueHash     `json:"ok,omitempty"`
 	Err *AccumulatedErrorCode `json:"err,omitempty"` // err NULL
 }
 
@@ -265,7 +265,7 @@ func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
 	cLog(Cyan, "Unmarshalling AccountsMapEntry")
 
 	var temp struct {
-		Id   types.ServiceId `json:"id"`
+		ID   types.ServiceID `json:"id"`
 		Data ServiceAccount  `json:"data"`
 	}
 
@@ -273,7 +273,7 @@ func (a *AccountsMapEntry) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.Id = temp.Id
+	a.ID = temp.ID
 	a.Data = temp.Data
 
 	return nil
@@ -323,7 +323,7 @@ func (a *AccumulateOutput) Decode(d *types.Decoder) error {
 		cLog(Cyan, "AccumulateOutput is ok")
 
 		if a.Ok == nil {
-			a.Ok = &types.AccumulateRoot{}
+			a.Ok = &types.OpaqueHash{}
 		}
 
 		if err = a.Ok.Decode(d); err != nil {
@@ -466,7 +466,7 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 	cLog(Cyan, "Decoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Decode(d); err != nil {
+	if err = a.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -687,7 +687,7 @@ func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Encode(e); err != nil {
+	if err = a.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -818,8 +818,8 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 		}
 
 		// Store ServiceAccount into inputDelta
-		serviceId := types.ServiceId(delta.Id)
-		output[serviceId] = serviceAccount
+		serviceID := types.ServiceID(delta.ID)
+		output[serviceID] = serviceAccount
 	}
 	return output
 }
@@ -846,7 +846,7 @@ func (a *AccumulateTestCase) Dump() error {
 	cs.GetPosteriorStates().SetEta0(a.PreState.Entropy)
 
 	// Set ready queue
-	cs.GetPriorStates().SetTheta(a.PreState.ReadyQueue)
+	cs.GetPriorStates().SetVartheta(a.PreState.ReadyQueue)
 
 	// Set accumulated reports
 	cs.GetPriorStates().SetXi(a.PreState.Accumulated)
@@ -895,20 +895,20 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	// Validate ready queue reports (passed expect nil and [])
-	ourTheta := cs.GetPosteriorStates().GetTheta()
-	if !reflect.DeepEqual(ourTheta, a.PostState.ReadyQueue) {
-		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetTheta()))
-		for i := range ourTheta {
+	ourVartheta := cs.GetPosteriorStates().GetVartheta()
+	if !reflect.DeepEqual(ourVartheta, a.PostState.ReadyQueue) {
+		// log.Printf("len of queue reports expected: %d, got: %d", len(a.PostState.ReadyQueue), len(s.GetPosteriorStates().GetVartheta()))
+		for i := range ourVartheta {
 			if a.PostState.ReadyQueue[i] == nil {
 				a.PostState.ReadyQueue[i] = []types.ReadyRecord{}
 			}
-			if ourTheta[i] == nil {
-				ourTheta[i] = []types.ReadyRecord{}
+			if ourVartheta[i] == nil {
+				ourVartheta[i] = []types.ReadyRecord{}
 			}
-			diff := cmp.Diff(ourTheta[i], a.PostState.ReadyQueue[i])
+			diff := cmp.Diff(ourVartheta[i], a.PostState.ReadyQueue[i])
 			if len(diff) != 0 {
-				log.Printf(Red+"Ready queue reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.ReadyQueue[i], ourTheta[i], diff)
-				return fmt.Errorf("theta[%d] diff:\n%v", i, diff)
+				log.Printf(Red+"Ready queue reports do not match expected:\n%v,\nbut got %v\nDiff:\n%v"+Reset, a.PostState.ReadyQueue[i], ourVartheta[i], diff)
+				return fmt.Errorf("Vartheta[%d] diff:\n%v", i, diff)
 			}
 		}
 	}
@@ -931,32 +931,32 @@ func (a *AccumulateTestCase) Validate() error {
 	// Validate Statistics (types.Statistics.Services, PI_S)
 	// Calculate the actual statistics
 	// INFO: This step will be executed in the UpdateStatistics function, but we can do it here for validation
-	serviceIds := []types.ServiceId{}
+	serviceIDs := []types.ServiceID{}
 	ourStatisticsServices := cs.GetPosteriorStates().GetServicesStatistics()
 	accumulationStatisitcs := cs.GetIntermediateStates().GetAccumulationStatistics()
 
-	for serviceId := range accumulationStatisitcs {
-		serviceIds = append(serviceIds, serviceId)
+	for serviceID := range accumulationStatisitcs {
+		serviceIDs = append(serviceIDs, serviceID)
 	}
 
-	for _, serviceId := range serviceIds {
-		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceId, accumulationStatisitcs)
+	for _, serviceID := range serviceIDs {
+		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
 		// Skip if the service has no accumulated reports or gas used
 		if accumulateCount == 0 && accumulateGasUsed == 0 {
 			continue
 		}
 		// Update the statistics for the service
-		thisServiceActivityRecord, ok := ourStatisticsServices[serviceId]
+		thisServiceActivityRecord, ok := ourStatisticsServices[serviceID]
 		if ok {
 			thisServiceActivityRecord.AccumulateCount = accumulateCount
 			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
-			ourStatisticsServices[serviceId] = thisServiceActivityRecord
+			ourStatisticsServices[serviceID] = thisServiceActivityRecord
 		} else {
 			newServiceActivityRecord := types.ServiceActivityRecord{
 				AccumulateCount:   accumulateCount,
 				AccumulateGasUsed: accumulateGasUsed,
 			}
-			ourStatisticsServices[serviceId] = newServiceActivityRecord
+			ourStatisticsServices[serviceID] = newServiceActivityRecord
 		}
 	}
 	// const EjectedServiceIDException = 2 // TEMP FIX: service 2 should not appear in R* statistics (issue #101 jam-test-vectors)
@@ -988,14 +988,14 @@ func (a *AccumulateTestCase) Validate() error {
 	for key, expectedAcc := range expectedDelta {
 		actualAcc, ok := actualDelta[key]
 		if !ok {
-			return fmt.Errorf("serviceId %v missing in actualDelta", key)
+			return fmt.Errorf("serviceID %v missing in actualDelta", key)
 		}
 
 		// ServiceInfo
 		// 0.7.0 davxy test lack loockupdict will  cause error for calculate item and byte length
 		// lack of lookup dict -> item ( 2 -> 1 ), Bytes ( only compute storage )
 		/*if !reflect.DeepEqual(expectedAcc.ServiceInfo, actualAcc.ServiceInfo) {
-			return fmt.Errorf("mismatch in ServiceInfo for serviceId %v:\n expected=%+v\n actual=%+v",
+			return fmt.Errorf("mismatch in ServiceInfo for serviceID %v:\n expected=%+v\n actual=%+v",
 				key, expectedAcc.ServiceInfo, actualAcc.ServiceInfo)
 		}*/
 
@@ -1003,16 +1003,16 @@ func (a *AccumulateTestCase) Validate() error {
 		for h, expectedBlob := range expectedAcc.PreimageLookup {
 			actualBlob, ok := actualAcc.PreimageLookup[h]
 			if !ok {
-				return fmt.Errorf("serviceId %v missing Preimage hash %x in actualDelta", key, h)
+				return fmt.Errorf("serviceID %v missing Preimage hash %x in actualDelta", key, h)
 			}
 			if !bytes.Equal(expectedBlob, actualBlob) {
-				return fmt.Errorf("mismatch for serviceId %v, Preimage hash %x:\n expected=%x\n actual=%x",
+				return fmt.Errorf("mismatch for serviceID %v, Preimage hash %x:\n expected=%x\n actual=%x",
 					key, h, expectedBlob, actualBlob)
 			}
 		}
 		for h := range actualAcc.PreimageLookup {
 			if _, ok := expectedAcc.PreimageLookup[h]; !ok {
-				return fmt.Errorf("serviceId %v has extra Preimage hash %x in actualDelta", key, h)
+				return fmt.Errorf("serviceID %v has extra Preimage hash %x in actualDelta", key, h)
 			}
 		}
 
@@ -1020,16 +1020,16 @@ func (a *AccumulateTestCase) Validate() error {
 		for storageKey, expectedValue := range expectedAcc.StorageDict {
 			actualValue, ok := actualAcc.StorageDict[storageKey]
 			if !ok {
-				return fmt.Errorf("serviceId %v missing Storage key %q in actualDelta", key, storageKey)
+				return fmt.Errorf("serviceID %v missing Storage key %q in actualDelta", key, storageKey)
 			}
 			if !bytes.Equal(expectedValue, actualValue) {
-				return fmt.Errorf("mismatch for serviceId %v, Storage key %q:\n expected=%x\n actual=%x",
+				return fmt.Errorf("mismatch for serviceID %v, Storage key %q:\n expected=%x\n actual=%x",
 					key, storageKey, expectedValue, actualValue)
 			}
 		}
 		for storageKey := range actualAcc.StorageDict {
 			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
-				return fmt.Errorf("serviceId %v has extra Storage key %q in actualDelta", key, storageKey)
+				return fmt.Errorf("serviceID %v has extra Storage key %q in actualDelta", key, storageKey)
 			}
 		}
 	}

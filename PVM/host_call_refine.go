@@ -25,14 +25,14 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 
 	codeHash := types.OpaqueHash(input.Interpreter.Memory.Read(h, offset))
 
-	s := input.Addition.ServiceId
+	s := input.Addition.ServiceID
 	// assign a
 	var a *types.ServiceAccount
 	var v types.ByteSequence
 
 	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.Interpreter.Registers[7] == 0xffffffffffffffff {
 		a = &account
-	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceId(input.Interpreter.Registers[7])]; accountExists {
+	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.Interpreter.Registers[7])]; accountExists {
 		a = &account
 	}
 

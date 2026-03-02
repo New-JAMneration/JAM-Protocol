@@ -134,7 +134,7 @@ func WorkReportCompute(
 	rSum := 0
 	for j, item := range workPackage.Items {
 		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum, coreIndex)
-		rSum += len(r)
+		rSum += len(r.Data)
 		result := C(item, r, u)
 		results = append(results, result)
 		exports = append(exports, e)
@@ -189,23 +189,15 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 	z := len(o) + rSum
 	if len(r)+z > types.WorkReportOutputBlobsMaximumSize {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{
-			types.WorkExecResultReportOversize: nil,
-		}, u, emptyExport
+		return types.WorkExecResult{Type: types.WorkExecResultReportOversize}, u, emptyExport
 	} else if len(e) != int(workItem.ExportCount) {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{
-			types.WorkExecResultBadExports: nil,
-		}, u, emptyExport
+		return types.WorkExecResult{Type: types.WorkExecResultBadExports}, u, emptyExport
 	} else if refineOuput.WorkResult != types.WorkExecResultOk {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{
-			refineOuput.WorkResult: r,
-		}, u, emptyExport
+		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, emptyExport
 	} else {
-		return types.WorkExecResult{
-			refineOuput.WorkResult: r,
-		}, u, e
+		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, e
 	}
 }
 
@@ -219,7 +211,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 		zSum += types.U16(v.Len)
 	}
 	return types.WorkResult{
-		ServiceId:     item.Service,
+		ServiceID:     item.Service,
 		CodeHash:      item.CodeHash,
 		PayloadHash:   payloadHash,
 		AccumulateGas: item.AccumulateGasLimit,

@@ -96,7 +96,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04}))
 
 	inputDelta := types.ServiceAccountState{
-		types.ServiceId(1): {
+		types.ServiceID(1): {
 			ServiceInfo: types.ServiceInfo{
 				CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
 				Balance:    1000,
@@ -115,7 +115,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -128,7 +128,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),
@@ -192,7 +192,7 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 
 	require.Equal(t, report.AuthOutput, types.ByteSequence("auth output"))
 
-	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
+	require.Equal(t, report.Results[0].Result.Data, []byte("refine output"))
 
 	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
@@ -225,7 +225,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 	require.NoError(t, cs.SetSegmentErasureMap(types.OpaqueHash{0x03}, types.OpaqueHash{0x04}))
 
 	inputDelta := types.ServiceAccountState{
-		types.ServiceId(1): {
+		types.ServiceID(1): {
 			ServiceInfo: types.ServiceInfo{
 				CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
 				Balance:    1000,
@@ -244,7 +244,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -257,7 +257,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),
@@ -330,7 +330,7 @@ func TestPrepareInputs_Shared(t *testing.T) {
 
 	require.Equal(t, report.AuthOutput, types.ByteSequence("auth output"))
 
-	require.Equal(t, report.Results[0].Result[types.WorkExecResultOk], []byte("refine output"))
+	require.Equal(t, report.Results[0].Result.Data, []byte("refine output"))
 
 	encode := types.NewEncoder()
 	encode.SetHashSegmentMap(hashSegmentMap)

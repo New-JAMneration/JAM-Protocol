@@ -28,7 +28,7 @@ func TestNode_SetupJAMProtocol_SeedsGenesisFromChainSpec_ToRedis(t *testing.T) {
 	kvs, err := spec.GenesisStateKeyVals()
 	require.NoError(t, err)
 
-	wantInputKVs, wantRoot, err := blockchain.BuildStateRootInputKeyValsAndRoot(kvs)
+	wantInputKVs, wantRoot, err := blockchain.GetInstance().BuildStateRootInputKeyValsAndRoot(kvs)
 	require.NoError(t, err)
 
 	genesisHashBytes, err := hash.ComputeBlockHeaderHash(*hdr)

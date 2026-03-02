@@ -153,7 +153,7 @@ func TestKeyRotate(t *testing.T) {
 	// Simulate previous time slot to trigger key rotation
 	priorState.SetTau(tauPrime - types.TimeSlot(types.EpochLength))
 
-	fakeValidators := safrole.LoadFakeValidators()
+	fakeValidators := safrole.LoadTinyValidators()
 
 	priorKappa := types.ValidatorsData{}
 	for _, fakeValidator := range fakeValidators {
@@ -226,7 +226,7 @@ func TestKeyRotate(t *testing.T) {
 
 func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 	// Load fake validators
-	fakeValidators := safrole.LoadFakeValidators()
+	fakeValidators := safrole.LoadTinyValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}
@@ -254,7 +254,7 @@ func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 
 func TestReplaceOffenderKeys(t *testing.T) {
 	// Load fake validators
-	fakeValidators := safrole.LoadFakeValidators()
+	fakeValidators := safrole.LoadTinyValidators()
 
 	// Create validators data
 	validatorsData := types.ValidatorsData{}
@@ -305,6 +305,8 @@ func TestMain(m *testing.M) {
 func TestSafroleTestVectors(t *testing.T) {
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
+	types.SetTestMode()
+
 	// Read binary files
 	binFiles, err := utils.GetTargetExtensionFiles(dir, utils.BIN_EXTENTION)
 	if err != nil {
@@ -329,7 +331,7 @@ func testSafroleFile(t *testing.T, binPath string, binFile string) {
 	testCase := &jamtests_safrole.SafroleTestCase{}
 	err := utils.GetTestFromBin(binPath, testCase)
 	if err != nil {
-		t.Errorf("Error: %v", err)
+		t.Fatalf("Error: %v", err)
 	}
 
 	setupTestState(testCase.PreState, testCase.Input)
@@ -391,46 +393,27 @@ func validateFinalState(t *testing.T, binFile string,
 	// Handle safrole output error
 	safroleOutputErrCode := -1 // -1 indicates invalid error code
 
-	if expectedErr == nil && expectedOk != nil { // OK case
-		log.Printf("input safroleOkInfo: %v", *expectedOk)
+	switch {
+	case expectedOk != nil: // OK case
+		t.Logf("input safroleOkInfo: %v", *expectedOk)
 
 		if !reflect.DeepEqual(expectedOk.EpochMark, ourEpochMarker) {
-			if expectedOk.EpochMark != nil && ourEpochMarker != nil {
-				diff := cmp.Diff(*expectedOk.EpochMark, *ourEpochMarker)
-				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
-				t.Fatalf("epoch marker mismatch: %v", diff)
-			} else {
-				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
-				t.Fatalf("epoch marker mismatch: expected %v\n, got %v\n", expectedOk.EpochMark, ourEpochMarker)
-			}
+			diff := cmp.Diff(expectedOk.EpochMark, ourEpochMarker)
+			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Fatalf("epoch marker mismatch: %v", diff)
 		}
-
 		if !reflect.DeepEqual(expectedOk.TicketsMark, ourTicketsMark) {
-			if expectedOk.TicketsMark != nil && ourTicketsMark != nil {
-				diff := cmp.Diff(*expectedOk.TicketsMark, *ourTicketsMark)
-				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
-				t.Fatalf("tickets mark mismatch: %v", diff)
-			} else {
-				t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
-				t.Fatalf("tickets mark mismatch: expected %v\n, got %v\n", expectedOk.TicketsMark, ourTicketsMark)
-			}
+			diff := cmp.Diff(expectedOk.TicketsMark, ourTicketsMark)
+			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
+			t.Fatalf("tickets mark mismatch: %v", diff)
 		}
-
-		/*
-			Validate iota doesn't change
-		*/
-		// if !reflect.DeepEqual(testCase.PostState.Iota, testCase.PreState.Iota) {
-		// 	diff := cmp.Diff(testCase.PreState.Iota, testCase.PostState.Iota)
-		// 	t.Logf("[%s] %s: iota should change: %v", types.TEST_MODE, binFile, diff)
-		// } else {
-		// 	t.Logf("[%s] %s: iota should not change", types.TEST_MODE, binFile)
-		// }
 		validateState(t, testCase.PostState)
 
 		t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
-	} else { // Error case
+
+	case expectedErr != nil: // Error case
 		safroleOutputErrCode = int(*expectedErr)
-		log.Printf("input ErrCode: %v", safroleOutputErrCode)
+		t.Logf("input ErrCode: %v", safroleOutputErrCode)
 
 		if errCode != nil && safroleOutputErrCode == int(*errCode) {
 			if !reflect.DeepEqual(testCase.PreState, testCase.PostState) {
@@ -442,6 +425,8 @@ func validateFinalState(t *testing.T, binFile string,
 			t.Errorf("error code mismatch: expected %v, got %v", safroleOutputErrCode, *errCode)
 			t.Logf("❌ [%s] %s", types.TEST_MODE, binFile)
 		}
+	default:
+		t.Fatalf("unexpected output: expected Ok: %v, expected Err: %v", expectedOk, expectedErr)
 	}
 }
 

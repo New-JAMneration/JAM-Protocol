@@ -7,6 +7,96 @@ import (
 	"strings"
 )
 
+func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *HeaderHash) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Signature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 64)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *Ed25519Public) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 32)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BlsPublic) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 96)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingVrfSignature) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 784)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *BandersnatchRingCommitment) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 144)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
+func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
+	decoded, err := parseFixedByteArray(data, 128)
+	if err != nil {
+		return err
+	}
+	copy(o[:], decoded)
+	return nil
+}
+
 func (v *Validator) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Bandersnatch string `json:"bandersnatch,omitempty"`
@@ -58,7 +148,7 @@ func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 		Items                U32       `json:"items,omitempty"`
 		CreationSlot         TimeSlot  `json:"creation_slot,omitempty"`
 		LastAccumulationSlot TimeSlot  `json:"last_accumulation_slot,omitempty"`
-		ParentService        ServiceId `json:"parent_service,omitempty"`
+		ParentService        ServiceID `json:"parent_service,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -219,7 +309,7 @@ func (w *WorkItem) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	w.Service = ServiceId(temp.Service)
+	w.Service = ServiceID(temp.Service)
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -262,7 +352,7 @@ func (w *WorkPackage) UnmarshalJSON(data []byte) error {
 	}
 	w.Authorization = ByteSequence(authorizationBytes)
 
-	w.AuthCodeHost = ServiceId(temp.AuthCodeHost)
+	w.AuthCodeHost = ServiceID(temp.AuthCodeHost)
 
 	codeHashBytes, err := hex.DecodeString(temp.AuthCodeHash[2:])
 	if err != nil {
@@ -307,7 +397,7 @@ func (r *RefineLoad) UnmarshalJSON(data []byte) error {
 
 func (w *WorkResult) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		ServiceId     U32            `json:"service_id,omitempty"`
+		ServiceID     U32            `json:"service_id,omitempty"`
 		CodeHash      string         `json:"code_hash,omitempty"`
 		PayloadHash   string         `json:"payload_hash,omitempty"`
 		AccumulateGas Gas            `json:"accumulate_gas,omitempty"`
@@ -319,7 +409,7 @@ func (w *WorkResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	w.ServiceId = ServiceId(temp.ServiceId)
+	w.ServiceID = ServiceID(temp.ServiceID)
 
 	codeHashBytes, err := hex.DecodeString(temp.CodeHash[2:])
 	if err != nil {
@@ -576,7 +666,7 @@ func (t *TicketEnvelope) UnmarshalJSON(data []byte) error {
 
 func (t *TicketBody) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Id      string `json:"id,omitempty"`
+		ID      string `json:"id,omitempty"`
 		Attempt U8     `json:"attempt,omitempty"`
 	}
 
@@ -584,11 +674,11 @@ func (t *TicketBody) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	idBytes, err := hex.DecodeString(temp.Id[2:])
+	idBytes, err := hex.DecodeString(temp.ID[2:])
 	if err != nil {
 		return err
 	}
-	t.Id = TicketId(idBytes)
+	t.ID = TicketID(idBytes)
 	t.Attempt = TicketAttempt(temp.Attempt)
 
 	return nil
@@ -653,7 +743,7 @@ func (v *Verdict) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	v.Target = OpaqueHash(targetBytes)
+	v.Target = WorkReportHash(targetBytes)
 
 	v.Age = temp.Age
 	v.Votes = temp.Votes
@@ -786,7 +876,7 @@ func (p *Preimage) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	p.Requester = ServiceId(temp.Requester)
+	p.Requester = ServiceID(temp.Requester)
 
 	blobBytes, err := hex.DecodeString(temp.Blob[2:])
 	if err != nil {
@@ -818,7 +908,7 @@ func (a *AvailAssurance) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.Anchor = OpaqueHash(anchorBytes)
+	a.Anchor = HeaderHash(anchorBytes)
 
 	bitfield, err := MakeBitfieldFromHexString(temp.Bitfield)
 	if err != nil {
@@ -997,32 +1087,26 @@ func (w *WorkExecResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*w = make(WorkExecResult)
-
 	for key, value := range raw {
 		// To read test file from jam-test-vectors traces
 		// replace "_" with "-" in the key
 		key = strings.ReplaceAll(key, "_", "-")
-		resultType := WorkExecResultType(key)
+		w.Type = WorkExecResultType(key)
 
-		if key == "ok" {
+		if key == string(WorkExecResultOk) {
 			// "ok" is a byte sequence
 			decoded, err := hex.DecodeString(value[2:])
 			if err != nil {
 				return fmt.Errorf("failed to decode hex for key %s: %w", key, err)
 			}
 
-			// if decoded is empty, set to nil
-			if len(decoded) == 0 {
-				(*w)[resultType] = nil
-			} else {
-				(*w)[resultType] = decoded
+			if len(decoded) > 0 {
+				w.Data = decoded
 			}
 		}
 
-		if value == "" {
-			(*w)[resultType] = nil
-		}
+		// only one key expected, break after first
+		break
 	}
 
 	return nil
@@ -1077,16 +1161,6 @@ func (aih *AccountInfoHistory) UnmarshalJSON(data []byte) error {
 		(*aih)[item.Key] = item.Value
 	}
 
-	return nil
-}
-
-// unmarshal AccumulateRoot
-func (a *AccumulateRoot) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(a[:], decoded)
 	return nil
 }
 
@@ -1252,8 +1326,8 @@ func (a *AuthPools) UnmarshalJSON(data []byte) error {
 // AvailabilityAssignment
 func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Report  WorkReport `json:"report"`
-		Timeout TimeSlot   `json:"timeout,omitempty"`
+		Report       WorkReport `json:"report"`
+		AssignedSlot TimeSlot   `json:"timeout"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -1261,7 +1335,7 @@ func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Report = temp.Report
-	a.Timeout = temp.Timeout
+	a.AssignedSlot = temp.AssignedSlot
 
 	return nil
 }
@@ -1401,8 +1475,8 @@ func (b *BlocksHistory) UnmarshalJSON(data []byte) error {
 // Beta
 func (b *RecentBlocks) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		History BlocksHistory `json:"history,omitempty"`
-		Mmr     Mmr           `json:"mmr,omitempty"`
+		History BlocksHistory `json:"history"`
+		Mmr     Mmr           `json:"mmr"`
 	}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
@@ -1504,7 +1578,7 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 
 		serviceAccount.StorageDict = account.Data.Storage
 
-		(*a)[account.Id] = serviceAccount
+		(*a)[account.ID] = serviceAccount
 	}
 
 	return nil
@@ -1513,7 +1587,7 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 // Account
 func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Id   U32            `json:"id"`
+		ID   U32            `json:"id"`
 		Data AccountDataDTO `json:"data"`
 	}
 
@@ -1521,7 +1595,7 @@ func (a *AccountDTO) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.Id = ServiceId(temp.Id)
+	a.ID = ServiceID(temp.ID)
 	a.Data = temp.Data
 
 	return nil
@@ -1667,16 +1741,16 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	p.Bless = ServiceId(temp.Bless)
-	p.Assign = make(ServiceIdList, len(temp.Assign))
+	p.Bless = ServiceID(temp.Bless)
+	p.Assign = make(ServiceIDList, len(temp.Assign))
 	for i, id := range temp.Assign {
-		p.Assign[i] = ServiceId(id)
+		p.Assign[i] = ServiceID(id)
 	}
-	p.Designate = ServiceId(temp.Designate)
-	p.CreateAcct = ServiceId(temp.CreateAcct)
+	p.Designate = ServiceID(temp.Designate)
+	p.CreateAcct = ServiceID(temp.CreateAcct)
 	p.AlwaysAccum = make(AlwaysAccumulateMap, len(temp.AlwaysAccum))
 	for _, entry := range temp.AlwaysAccum {
-		p.AlwaysAccum[entry.ServiceId] = entry.Gas
+		p.AlwaysAccum[entry.ServiceID] = entry.Gas
 	}
 
 	return nil
@@ -1685,7 +1759,7 @@ func (p *Privileges) UnmarshalJSON(data []byte) error {
 // ServicesStatistics
 func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 	var temp []struct {
-		Id     U32                   `json:"id"`
+		ID     U32                   `json:"id"`
 		Record ServiceActivityRecord `json:"record"`
 	}
 
@@ -1700,7 +1774,7 @@ func (s *ServicesStatistics) UnmarshalJSON(data []byte) error {
 
 	*s = make(ServicesStatistics, len(temp))
 	for _, item := range temp {
-		(*s)[ServiceId(item.Id)] = item.Record
+		(*s)[ServiceID(item.ID)] = item.Record
 	}
 
 	return nil

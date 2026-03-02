@@ -157,7 +157,7 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 	extrinsicHash2 := hash.Blake2bHash([]byte("12345"))
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     types.OpaqueHash{0x04, 0x05, 0x06},
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -170,7 +170,7 @@ func TestBuildWorkPackageBundle(t *testing.T) {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),

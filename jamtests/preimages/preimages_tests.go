@@ -72,12 +72,12 @@ type LookupMetaMapEntry struct {
 }
 
 type Account struct {
-	Preimages  []PreimagesMapEntry  `json:"preimages"`
-	LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+	Preimages  []PreimagesMapEntry  `json:"preimage_blobs"`
+	LookupMeta []LookupMetaMapEntry `json:"preimage_requests"`
 }
 
 type AccountsMapEntry struct {
-	Id   types.ServiceId `json:"id"`
+	ID   types.ServiceID `json:"id"`
 	Data Account         `json:"data"`
 }
 
@@ -227,8 +227,8 @@ func (l *LookupMetaMapEntry) UnmarshalJSON(data []byte) error {
 
 func (a *Account) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Preimages  []PreimagesMapEntry  `json:"preimages"`
-		LookupMeta []LookupMetaMapEntry `json:"lookup_meta"`
+		Preimages  []PreimagesMapEntry  `json:"preimage_blobs"`
+		LookupMeta []LookupMetaMapEntry `json:"preimage_requests"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -407,7 +407,7 @@ func (a *AccountsMapEntry) Decode(d *types.Decoder) error {
 
 	var err error
 
-	if err = a.Id.Decode(d); err != nil {
+	if err = a.ID.Decode(d); err != nil {
 		return err
 	}
 
@@ -612,7 +612,7 @@ func (a *AccountsMapEntry) Encode(e *types.Encoder) error {
 	cLog(Cyan, "Encoding AccountsMapEntry")
 	var err error
 
-	if err = a.Id.Encode(e); err != nil {
+	if err = a.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -697,7 +697,7 @@ func (p *PreimageTestCase) Dump() error {
 		}
 
 		// Store ServiceAccount into inputDelta
-		inputDelta[delta.Id] = serviceAccount
+		inputDelta[delta.ID] = serviceAccount
 	}
 
 	// Add block with PreimagesExtrinsic

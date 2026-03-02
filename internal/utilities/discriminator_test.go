@@ -11,7 +11,7 @@ func TestEmptyOrPair(t *testing.T) {
 			type TicketsMark []TicketBody
 
 			type TicketBody struct {
-			Id      TicketId      = OpaqueHash = ByteArray32 = [32]byte 	`json:"id,omitempty"`
+			ID      TicketID      = OpaqueHash = ByteArray32 = [32]byte 	`json:"id,omitempty"`
 			Attempt TicketAttempt = U8										`json:"attempt,omitempty"`
 		}
 	*/
@@ -33,8 +33,8 @@ func TestEmptyOrPair(t *testing.T) {
 
 	// test 3 not empty
 	ticketsMark = []types.TicketBody{
-		{Id: types.TicketId{0x01}, Attempt: types.TicketAttempt(1)},
-		{Id: types.TicketId{0x02}, Attempt: types.TicketAttempt(2)},
+		{ID: types.TicketID{0x01}, Attempt: types.TicketAttempt(1)},
+		{ID: types.TicketID{0x02}, Attempt: types.TicketAttempt(2)},
 	}
 	result, _ = EmptyOrPair(ticketsMark)
 	expected = 1

@@ -10,9 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"maps"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -21,24 +19,30 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale"
 )
 
-// Simple
-
-type U8 uint8
-
-type U16 uint16
-
-type U32 uint32
+// ============================================================================
+// SIMPLE TYPES
+// Basic integer and byte array types used throughout the protocol.
+// These provide type-safe wrappers around primitive values.
+// ============================================================================
 
 type (
-	U64          uint64
-	ByteSequence []byte
-	ByteArray32  [32]byte
-	ByteString   string
+	U8  uint8  // Unsigned 8-bit integer (0-255)
+	U16 uint16 // Unsigned 16-bit integer (0-65535)
+	U32 uint32 // Unsigned 32-bit integer (0-4294967295)
+	U64 uint64 // Unsigned 64-bit integer (0-18446744073709551615)
+)
+
+type (
+	ByteSequence []byte   // Variable-length byte sequence
+	ByteArray32  [32]byte // Fixed-size 32-byte array, commonly used for hashes
 )
 
 type BitSequence []bool
 
-// Crypto
+// ============================================================================
+// CRYPTOGRAPHIC TYPES
+// Public keys and signatures used for various cryptographic operations.
+// ============================================================================
 
 type BandersnatchPublic [32]byte
 
@@ -54,24 +58,30 @@ type Ed25519Signature [64]byte
 
 type BandersnatchRingCommitment [144]byte
 
-// Application Specific Core
+// ============================================================================
+// APPLICATION SPECIFIC CORE TYPES
+// Core types that define the fundamental structures of the JAM protocol,
+// including time representation, validator identification, and various
+// hash types used throughout the system.
+// ============================================================================
 
+// Generic 32-byte hash
 type OpaqueHash ByteArray32
 
 type (
-	TimeSlot       U32
-	ValidatorIndex U16
-	CoreIndex      U16
+	TimeSlot       U32 // Protocol time unit
+	ValidatorIndex U16 // Index identifying a validator in the current set
+	CoreIndex      U16 // Index identifying a core in the system
 )
 
 type (
-	HeaderHash      OpaqueHash
-	StateRoot       OpaqueHash
-	BeefyRoot       OpaqueHash
-	WorkPackageHash OpaqueHash
-	WorkReportHash  OpaqueHash
-	ExportsRoot     OpaqueHash
-	ErasureRoot     OpaqueHash
+	HeaderHash      OpaqueHash // Hash of a block header
+	StateRoot       OpaqueHash // Hash of the state root
+	BeefyRoot       OpaqueHash // BEEFY consensus root hash
+	WorkPackageHash OpaqueHash // Hash of a work package
+	WorkReportHash  OpaqueHash // Hash of a work report
+	ExportsRoot     OpaqueHash // Root hash of exported data
+	ErasureRoot     OpaqueHash // Root hash of erasure-coded data
 )
 
 type (
@@ -87,12 +97,14 @@ func (e *ErrorCode) Error() string {
 }
 
 type (
-	Entropy       OpaqueHash
-	EntropyBuffer [4]Entropy
+	Entropy       OpaqueHash // Randomness seed used for various protocol operations
+	EntropyBuffer [4]Entropy // Buffer of entropy values
 )
 
+// Additional validator-specific metadata
 type ValidatorMetadata [128]byte
 
+// Complete set of data associated with a validator
 type Validator struct {
 	Bandersnatch BandersnatchPublic `json:"bandersnatch,omitempty"`
 	Ed25519      Ed25519Public      `json:"ed25519,omitempty"`
@@ -100,42 +112,47 @@ type Validator struct {
 	Metadata     ValidatorMetadata  `json:"metadata,omitempty"`
 }
 
+// Complete set of validator data for all validators
 type ValidatorsData []Validator
 
-func (v ValidatorsData) Validate() error {
-	if len(v) != ValidatorsCount {
-		return fmt.Errorf("ValidatorsData must have exactly %v ValidatorData entries, got %v", ValidatorsCount, len(v))
+func (v *ValidatorsData) Validate() error {
+	if len(*v) != ValidatorsCount {
+		return fmt.Errorf("ValidatorsData must have exactly %v ValidatorData entries, got %v", ValidatorsCount, len(*v))
 	}
 	return nil
 }
 
-// Service
+// ============================================================================
+// SERVICE TYPES
+// Types related to services.
+// ============================================================================
 
 type (
-	ServiceId     U32
-	ServiceIdList []ServiceId
+	ServiceID     U32 // Unique identifier for a service
+	ServiceIDList []ServiceID
 )
 
-// ServiceInfo is part of (9.3) ServiceAccount and (9.8) ServiceAccountDerivatives
-// GP 0.6.7
+// Information about a deployed service
+// ServiceInfo is part of GP §9.3 and GP §9.8
 type ServiceInfo struct {
-	Version              U8         `json:"version,omitempty"`                // new in v0.7.1
-	DepositOffset        U64        `json:"deposit_offset,omitempty"`         // a_f
-	CodeHash             OpaqueHash `json:"code_hash,omitempty"`              // a_c
-	Balance              U64        `json:"balance,omitempty"`                // a_b
-	MinItemGas           Gas        `json:"min_item_gas,omitempty"`           // a_g
-	MinMemoGas           Gas        `json:"min_memo_gas,omitempty"`           // a_m
-	CreationSlot         TimeSlot   `json:"creation_slot,omitempty"`          // a_r
-	LastAccumulationSlot TimeSlot   `json:"last_accumulation_slot,omitempty"` // a_a
-	ParentService        ServiceId  `json:"parent_service,omitempty"`         // a_p
-	Bytes                U64        `json:"bytes,omitempty"`                  // a_o
-	Items                U32        `json:"items,omitempty"`                  // a_i
+	Version              U8         `json:"version"`                // version: Service information version
+	CodeHash             OpaqueHash `json:"code_hash"`              // a_c: Hash of the service's code
+	Balance              U64        `json:"balance"`                // a_b: Current balance of the service
+	MinItemGas           Gas        `json:"min_item_gas"`           // a_g: Minimum gas required for processing an item
+	MinMemoGas           Gas        `json:"min_memo_gas"`           // a_m: Minimum gas required for processing a memo
+	Bytes                U64        `json:"bytes"`                  // a_o: Total bytes stored by the service
+	DepositOffset        U64        `json:"deposit_offset"`         // a_f: Offset of storage footprint only above which a minimum deposit is needed.
+	Items                U32        `json:"items"`                  // a_i: Number of items stored by the service
+	CreationSlot         TimeSlot   `json:"creation_slot"`          // a_r: Creation time slot
+	LastAccumulationSlot TimeSlot   `json:"last_accumulation_slot"` // a_a: Most recent accumulation time slot
+	ParentService        ServiceID  `json:"parent_service"`         // a_p: Parent service identifier
 }
 
+// GP §9.8
 type ServiceAccountDerivatives struct {
-	Items      U32 `json:"items,omitempty"` // a_i
-	Bytes      U64 `json:"bytes,omitempty"` // a_o
-	Minbalance U64 // a_t
+	Items      U32 `json:"items"` // a_i: Number of items stored by the service
+	Bytes      U64 `json:"bytes"` // a_o: Total bytes stored by the service
+	Minbalance U64 // a_t: Threshold balance of the service in terms of storage footprint
 }
 
 type MetaCode struct {
@@ -143,44 +160,55 @@ type MetaCode struct {
 	Code     ByteSequence
 }
 
-// Availability Assignments
+// ============================================================================
+// AVAILABILITY ASSIGNMENTS
+// Types related to the assignment of work reports to cores and tracking their
+// availability status.
+// ============================================================================
 
-type AvailabilityAssignment struct {
-	Report  WorkReport `json:"report"`
-	Timeout TimeSlot   `json:"timeout,omitempty"`
-}
+// GP §11.1, $\rho$
+type (
+	// Assignment of a work report with reported timeslot
+	AvailabilityAssignment struct {
+		Report       WorkReport `json:"report"`  // $\mathbf{r}$: The work report being assigned
+		AssignedSlot TimeSlot   `json:"timeout"` // $t$: Reported timeslot of the work report
+	}
 
-func (a AvailabilityAssignment) Validate() error {
+	// Optional availability assignment (Some/None pattern)
+	AvailabilityAssignmentsItem *AvailabilityAssignment
+
+	// Assignments for all cores in the system
+	AvailabilityAssignments []AvailabilityAssignmentsItem
+)
+
+func (a *AvailabilityAssignment) Validate() error {
 	if err := a.Report.Validate(); err != nil {
 		return fmt.Errorf("AvailabilityAssignment Report validation failed: %v", err)
 	}
 
-	if a.Timeout == 0 {
-		return errors.New("AvailabilityAssignment Timeout cannot be 0")
+	if a.AssignedSlot == 0 {
+		return errors.New("AvailabilityAssignment AssignedSlot cannot be 0")
 	}
 
 	return nil
 }
 
-type AvailabilityAssignmentsItem *AvailabilityAssignment
-
-type AvailabilityAssignments []AvailabilityAssignmentsItem
-
-func (assignments AvailabilityAssignments) Validate() error {
-	if len(assignments) != CoresCount {
-		return fmt.Errorf("AvailabilityAssignments length %d is not equal to CoresCount %d", len(assignments), CoresCount)
+func (assignments *AvailabilityAssignments) Validate() error {
+	if len(*assignments) != CoresCount {
+		return fmt.Errorf("AvailabilityAssignments length %d is not equal to CoresCount %d", len(*assignments), CoresCount)
 	}
 	return nil
 }
 
-// v0.6.3 (11.4) Refine Context $\mathbb{X}$
+// Context for the refinement process when executing a work package
+// GP §11.4, $\mathbb{C}$
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor,omitempty"`             // anchor header hash a
-	StateRoot        StateRoot    `json:"state_root,omitempty"`         // posterior state root s
-	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`         // posterior beefy root b
-	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`      // lookup anchor header hash l
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"` // lookup anchor time slot t
-	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`      // hash of prerequisite work packages p
+	Anchor           HeaderHash   `json:"anchor"`             // $a$: Anchor block hash
+	StateRoot        StateRoot    `json:"state_root"`         // $s$: Posterior state root at the anchor
+	BeefyRoot        BeefyRoot    `json:"beefy_root"`         // $b$: Posterior BEEFY consensus root ( accumulation output log super-peak )
+	LookupAnchor     HeaderHash   `json:"lookup_anchor"`      // $l$: Block hash for preimage lookups
+	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot"` // $t$: Time slot of the lookup anchor
+	Prerequisites    []OpaqueHash `json:"prerequisites"`      // $\mathbf{p}$: Hashes of prerequisite work packages
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {
@@ -196,22 +224,29 @@ func (r *RefineContext) ScaleEncode() ([]byte, error) {
 	return scale.Encode("refinecontext", r)
 }
 
-// --- Chapter 8. Authorization ---
+// ============================================================================
+// AUTHORIZATION
+// Types related to the authorization of work packages.
+// ============================================================================
 
-// Used in v0.6.3 (14.2)
+// Entity that can authorize work packages
+// GP §14.2
 type Authorizer struct {
-	CodeHash OpaqueHash   `json:"code_hash,omitempty"` // authorization code hash
-	Params   ByteSequence `json:"params,omitempty"`    // parameterization blob, the term is updated to auth config in 0.6.5
+	CodeHash OpaqueHash   `json:"code_hash"` // code-hash: Hash of the authorizer's code
+	Params   ByteSequence `json:"params"`    // params: Parameters for the authorizer
 }
 
+// Hash of encoded Authorizer
+// GP §8.1
 type AuthorizerHash OpaqueHash
 
+// Pool of authorizer hashes for a core
+// GP §8.1
 type AuthPool []AuthorizerHash
 
-// (8.1) AuthPool and AuthQueue
-func (a AuthPool) Validate() error {
-	if len(a) > AuthPoolMaxSize {
-		return fmt.Errorf("AuthPool length %d is greater than AuthPoolMaxSize %d", len(a), AuthPoolMaxSize)
+func (a *AuthPool) Validate() error {
+	if len(*a) > AuthPoolMaxSize {
+		return fmt.Errorf("AuthPool length %d is greater than AuthPoolMaxSize %d", len(*a), AuthPoolMaxSize)
 	}
 	return nil
 }
@@ -229,14 +264,16 @@ func (a *AuthPool) RemoveLeftMostPairedValue(h OpaqueHash) {
 	*a = result
 }
 
+// Pools of authorizers for all cores
+// GP §8.1
 type AuthPools []AuthPool
 
-func (a AuthPools) Validate() error {
-	if len(a) != CoresCount {
-		return fmt.Errorf("AuthPools length %d is not equal to CoresCount %d", len(a), CoresCount)
+func (a *AuthPools) Validate() error {
+	if len(*a) != CoresCount {
+		return fmt.Errorf("AuthPools length %d is not equal to CoresCount %d", len(*a), CoresCount)
 	}
 
-	for _, pool := range a {
+	for _, pool := range *a {
 		err := pool.Validate()
 		if err != nil {
 			return err
@@ -246,25 +283,29 @@ func (a AuthPools) Validate() error {
 	return nil
 }
 
+// Queue of authorizer hashes for a core
+// GP §8.1
 type AuthQueue []AuthorizerHash
 
-func (a AuthQueue) Validate() error {
+func (a *AuthQueue) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
-	if len(a) != AuthQueueSize {
-		return fmt.Errorf("AuthQueue length %d is not equal to AuthQueueSize %d", len(a), AuthQueueSize)
+	if len(*a) != AuthQueueSize {
+		return fmt.Errorf("AuthQueue length %d is not equal to AuthQueueSize %d", len(*a), AuthQueueSize)
 	}
 	return nil
 }
 
+// Queues of authorizers for all cores
+// GP §8.1
 type AuthQueues []AuthQueue
 
-func (a AuthQueues) Validate() error {
+func (a *AuthQueues) Validate() error {
 	// (8.1) φ ∈ ⟦⟦H⟧_Q⟧_C
-	if len(a) != CoresCount {
-		return fmt.Errorf("AuthQueues length %d is not equal to CoresCount %d", len(a), CoresCount)
+	if len(*a) != CoresCount {
+		return fmt.Errorf("AuthQueues length %d is not equal to CoresCount %d", len(*a), CoresCount)
 	}
 
-	for _, queue := range a {
+	for _, queue := range *a {
 		err := queue.Validate()
 		if err != nil {
 			return err
@@ -274,34 +315,43 @@ func (a AuthQueues) Validate() error {
 	return nil
 }
 
-// --- v0.6.3 Chapter 14.3. Packages and Items ---
+/*
+	--- Work Packages and Items ---
+	Types defining work packages, which are sequences of Work Items, the units
+	of computation that can be submitted to the JAM protocol.
+*/
 
 type (
-	ExportSegment       [SegmentSize]byte
-	ExportSegmentMatrix [][]ExportSegment
-	OpaqueHashMatrix    [][]OpaqueHash
+	ExportSegment       [SegmentSize]byte // segment of data exported from a work item
+	ExportSegmentMatrix [][]ExportSegment // matrix of exported segments
+	OpaqueHashMatrix    [][]OpaqueHash    // matrix of opaque hashes
 )
 
+// Specification for importing a segment
+// GP §14.3
 type ImportSpec struct {
-	TreeRoot OpaqueHash `json:"tree_root,omitempty"` // hash of segment root or work package
-	Index    U16        `json:"index,omitempty"`     // index of prior exported segments
+	TreeRoot OpaqueHash `json:"tree_root"` // tree-root: Root hash of the segment tree
+	Index    U16        `json:"index"`     // index: Index of the segment
 }
 
+// Specification for an extrinsic
+// GP §14.3
 type ExtrinsicSpec struct {
-	Hash OpaqueHash `json:"hash,omitempty"`
-	Len  U32        `json:"len,omitempty"`
+	Hash OpaqueHash `json:"hash"` // hash: Hash of the extrinsic
+	Len  U32        `json:"len"`  // len: Length of the extrinsic in bytes
 }
 
-// v0.6.3 (14.3) Work Item $\mathbb{I}$
+// Individual work item within a package
+// GP §14.3, $\mathbb{I}$
 type WorkItem struct {
-	Service            ServiceId       `json:"service,omitempty"`              // service index $s$
-	CodeHash           OpaqueHash      `json:"code_hash,omitempty"`            // code hash of the service $c$
-	Payload            ByteSequence    `json:"payload,omitempty"`              // payload blob $\mathbf{y}$
-	RefineGasLimit     Gas             `json:"refine_gas_limit,omitempty"`     // refinement gas limit $g$
-	AccumulateGasLimit Gas             `json:"accumulate_gas_limit,omitempty"` // accumulatation gas limit $a$
-	ExportCount        U16             `json:"export_count,omitempty"`         // number of exported data segments $e$
-	ImportSegments     []ImportSpec    `json:"import_segments,omitempty"`      // sequence of imported data segments $\mathbf{i}$
-	Extrinsic          []ExtrinsicSpec `json:"extrinsic,omitempty"`            // sequence of blob hashes and lengths $\mathbf{x}$
+	Service            ServiceID       `json:"service"`              // $s$: Service ID that will process this item
+	CodeHash           OpaqueHash      `json:"code_hash"`            // $c$: Hash of the code to execute
+	RefineGasLimit     Gas             `json:"refine_gas_limit"`     // $g$: Gas limit for refinement phase
+	AccumulateGasLimit Gas             `json:"accumulate_gas_limit"` // $a$: Gas limit for accumulation phase
+	ExportCount        U16             `json:"export_count"`         // $e$: Number of exported segments
+	Payload            ByteSequence    `json:"payload"`              // $\mathbf{y}$: Input payload for the work item
+	ImportSegments     []ImportSpec    `json:"import_segments"`      // $\mathbf{i}$: Segments to import
+	Extrinsic          []ExtrinsicSpec `json:"extrinsic"`            // $\mathbf{x}$: Extrinsics to include
 }
 
 func (w *WorkItem) ScaleDecode(data []byte) error {
@@ -317,14 +367,15 @@ func (w *WorkItem) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workitem", w)
 }
 
-// v0.7.0 (14.2) Work Package
+// Complete work package containing multiple work items
+// GP §14.2, $\mathbb{P}$
 type WorkPackage struct {
-	AuthCodeHost     ServiceId     `json:"auth_code_host,omitempty"`    // host service index h
-	AuthCodeHash     OpaqueHash    `json:"auth_code_hash,omitempty"`    // u
-	Context          RefineContext `json:"context"`                     // c
-	Authorization    ByteSequence  `json:"authorization,omitempty"`     // authorization token j
-	AuthorizerConfig ByteSequence  `json:"authorizer_config,omitempty"` // f
-	Items            []WorkItem    `json:"items,omitempty"`             // w
+	AuthCodeHost     ServiceID     `json:"auth_code_host"`    // $h$: Service ID hosting the authorization code
+	AuthCodeHash     OpaqueHash    `json:"auth_code_hash"`    // $u$: Hash of the authorizer's code
+	Context          RefineContext `json:"context"`           // $c$: Refinement context
+	Authorization    ByteSequence  `json:"authorization"`     // $j$: Authorization data
+	AuthorizerConfig ByteSequence  `json:"authorizer_config"` // $f$: Parameters for the authorizer
+	Items            []WorkItem    `json:"items"`             // $w$: Work items to process (1-16)
 }
 
 func (w *WorkPackage) ScaleDecode(data []byte) error {
@@ -341,7 +392,7 @@ func (w *WorkPackage) ScaleEncode() ([]byte, error) {
 }
 
 func (wp *WorkPackage) Validate() error {
-	// v0.6.3 (14.2)
+	// (14.2) Validate the number of work items (1-16)
 	if len(wp.Items) < 1 || len(wp.Items) > MaximumWorkItems {
 		return fmt.Errorf("WorkPackage items length %d is not between 1 and %d", len(wp.Items), MaximumWorkItems)
 	}
@@ -403,9 +454,13 @@ func (wp *WorkPackage) Validate() error {
 	return nil
 }
 
-// --- v0.6.3 Chapter 11.1.4. Work Result ---
+/*
+	--- Work Report ---
+	Types defining work reports, which contain the results of executing work packages.
+*/
 
-// v0.6.3 (11.7) WorkExecResultType
+// Result of executing a work item
+// GP §11.7
 type WorkExecResultType string
 
 const (
@@ -418,37 +473,38 @@ const (
 	WorkExecResultCodeOversize                      = "code-oversize"
 )
 
-type WorkExecResult map[WorkExecResultType][]byte
+type WorkExecResult struct {
+	Type WorkExecResultType
+	Data []byte // only meaningful when Type == WorkExecResultOk
+}
 
 func GetWorkExecResult(resultType WorkExecResultType, data []byte) WorkExecResult {
 	if resultType == WorkExecResultOk {
-		return map[WorkExecResultType][]byte{
-			resultType: data,
-		}
+		return WorkExecResult{Type: resultType, Data: data}
 	}
 
-	return map[WorkExecResultType][]byte{
-		resultType: nil,
-	}
+	return WorkExecResult{Type: resultType, Data: nil}
 }
 
+// Resource usage during refinement for a core
+// GP §11.6, part of $\mathbb{D}$
 type RefineLoad struct {
-	GasUsed        Gas `json:"gas_used,omitempty"`        // u
-	Imports        U16 `json:"imports,omitempty"`         // i
-	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"` // x
-	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`  // z
-	Exports        U16 `json:"exports,omitempty"`         // e
+	GasUsed        Gas `json:"gas_used"`        // $u$: Gas used during refinement
+	Imports        U16 `json:"imports"`         // $i$: Number of import segments from D3L processed
+	ExtrinsicCount U16 `json:"extrinsic_count"` // $x$: Number of extrinsics processed
+	ExtrinsicSize  U32 `json:"extrinsic_size"`  // $z$: Total size of extrinsics in bytes
+	Exports        U16 `json:"exports"`         // $e$: Number of export segments generated into D3L
 }
 
-// v0.6.4 (11.6) WorkResult $\mathbb{L}$
-// v0.7.0 (11.6) Work Digest
+// Result(digest) of executing a single work item
+// GP §11.6, $\mathbb{D}$
 type WorkResult struct {
-	ServiceId     ServiceId      `json:"service_id,omitempty"`     // s
-	CodeHash      OpaqueHash     `json:"code_hash,omitempty"`      // c
-	PayloadHash   OpaqueHash     `json:"payload_hash,omitempty"`   // y
-	AccumulateGas Gas            `json:"accumulate_gas,omitempty"` // g
-	Result        WorkExecResult `json:"result,omitempty"`         // $\mathbf{d}$
-	RefineLoad    RefineLoad     `json:"refine_load,omitempty"`    // ASN.1 specific field
+	ServiceID     ServiceID      `json:"service_id"`     // $s$: Service ID that processed this item
+	CodeHash      OpaqueHash     `json:"code_hash"`      // $c$: Hash of the code that was executed
+	PayloadHash   OpaqueHash     `json:"payload_hash"`   // $y$: Hash of the input payload
+	AccumulateGas Gas            `json:"accumulate_gas"` // $g$: Gas used during accumulation
+	Result        WorkExecResult `json:"result"`         // $\mathbf{l}$: Execution result
+	RefineLoad    RefineLoad     `json:"refine_load"`    // ASN.1 specific field: Resource usage during refinement
 }
 
 func (w *WorkResult) Validate() error {
@@ -472,67 +528,75 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workresult", w)
 }
 
-// --- v0.6.3 Chapter 11.1.1. Work Report ---
-
-// v0.6.3 (11.5) Availability specifications $\mathbb{S}$
+// Availability specification of a work package
+// GP §11.5, $\mathbb{Y}$
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash,omitempty"`          // p
-	Length       U32             `json:"length,omitempty"`        // l
-	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`  // u
-	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`  // e
-	ExportsCount U16             `json:"exports_count,omitempty"` // n
+	Hash         WorkPackageHash `json:"hash"`          // $p$: Hash of the work package
+	Length       U32             `json:"length"`        // $l$: Length of the work package in bytes
+	ErasureRoot  ErasureRoot     `json:"erasure_root"`  // $u$: Root hash of erasure-coded data
+	ExportsRoot  ExportsRoot     `json:"exports_root"`  // $e$: Root hash of exported data
+	ExportsCount U16             `json:"exports_count"` // $n$: Number of exports
 }
 
+// Mapping between work package hash and segment tree root
 type SegmentRootLookupItem struct {
-	WorkPackageHash WorkPackageHash `json:"work_package_hash,omitempty"`
-	SegmentTreeRoot OpaqueHash      `json:"segment_tree_root,omitempty"`
+	WorkPackageHash WorkPackageHash `json:"work_package_hash"` // work-package-hash: Hash of the work package
+	SegmentTreeRoot OpaqueHash      `json:"segment_tree_root"` // segment-tree-root: Root hash of the segment tree
 }
 
+// Segment root lookups map
 type SegmentRootLookup []SegmentRootLookupItem // segment-tree-root
 
-// v0.6.4 (11.2) WorkReport $\mathbb{W}$
+// Complete report of work package execution
+// GP §11.2, $\mathbb{R}$
 type WorkReport struct {
-	PackageSpec       WorkPackageSpec   `json:"package_spec"`                  // \mathbf{s}
-	Context           RefineContext     `json:"context"`                       // \mathbf{c}
-	CoreIndex         CoreIndex         `json:"core_index,omitempty"`          // c
-	AuthorizerHash    OpaqueHash        `json:"authorizer_hash,omitempty"`     // a
-	AuthOutput        ByteSequence      `json:"auth_output,omitempty"`         // \mathbf{t}
-	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup,omitempty"` // \mathbf{l}
-	Results           []WorkResult      `json:"results,omitempty"`             // \mathbf{d}
-	AuthGasUsed       Gas               `json:"auth_gas_used,omitempty"`       // g
+	PackageSpec       WorkPackageSpec   `json:"package_spec"`        // $\mathbf{s}$: Specification of the work package
+	Context           RefineContext     `json:"context"`             // $\mathbf{c}$: Refinement context
+	CoreIndex         CoreIndex         `json:"core_index"`          // $c$: Index of the core that executed this work
+	AuthorizerHash    OpaqueHash        `json:"authorizer_hash"`     // $a$: Hash of the authorizer
+	AuthGasUsed       Gas               `json:"auth_gas_used"`       // $g$: Gas used during authorization
+	AuthOutput        ByteSequence      `json:"auth_output"`         // $\mathbf{t}$: Output from the authorization process
+	SegmentRootLookup SegmentRootLookup `json:"segment_root_lookup"` // $\mathbf{l}$: Segment root lookups
+	Results           []WorkResult      `json:"results"`             // $\mathbf{d}$: Results of executing each work item (1-16)
 }
 
 func (w *WorkReport) Validate() error {
 	if len(w.Results) < 1 {
+		logger.Warnf("WorkReport Results must have at least 1 item, but got %d", len(w.Results))
 		return errors.New("missing_work_results")
 	}
 
 	if len(w.Results) > MaximumWorkItems {
+		logger.Warnf("WorkReport Results must have at most %d items, but got %d", MaximumWorkItems, len(w.Results))
 		return errors.New("too_many_work_results")
 	}
 
 	return nil
 }
 
-// ValidateLookupDictAndPrerequisites checks the number of SegmentRootLookup and Prerequisites < J | Eq. 11.3
+// ValidateLookupDictAndPrerequisites checks the number of SegmentRootLookup and Prerequisites < J
+// GP §11.3
 func (w *WorkReport) ValidateLookupDictAndPrerequisites() error {
 	if len(w.SegmentRootLookup)+len(w.Context.Prerequisites) > MaximumDependencyItems {
-		// return fmt.Errorf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", MaximumDependencyItems, len(w.SegmentRootLookup)+len(w.Context.Prerequisites))
+		logger.Warnf("SegmentRootLookup and Prerequisites must have a total at most %d, but got %d", MaximumDependencyItems, len(w.SegmentRootLookup)+len(w.Context.Prerequisites))
 		return errors.New("too_many_dependencies")
 	}
 	return nil
 }
 
-// ValidateOutputSize checks the total size of the output | Eq. 11.8
+// ValidateOutputSize checks the total size of the output
+// GP §11.8
 func (w *WorkReport) ValidateOutputSize() error {
 	totalSize := len(w.AuthOutput)
 	for _, result := range w.Results {
-		for _, outputs := range result.Result {
-			totalSize += len(outputs)
+		// only compute $\mathcal{B}$ => ok
+		if result.Result.Type == WorkExecResultOk {
+			totalSize += len(result.Result.Data)
 		}
 	}
 
 	if totalSize > WorkReportOutputBlobsMaximumSize {
+		logger.Warnf("total size %d is greater than WorkReportOutputBlobsMaximumSize %d", totalSize, WorkReportOutputBlobsMaximumSize)
 		return errors.New("work_report_too_big")
 	}
 	return nil
@@ -555,141 +619,183 @@ func (w *WorkReport) ScaleEncode() ([]byte, error) {
 	return scale.Encode("workreport", w)
 }
 
-// Block History   ??
+// ============================================================================
+// BLOCK HISTORY
+// Types for tracking the history of blocks and their associated work reports.
+// ============================================================================
 
+// Optional Merkle Mountain Range peak
 type MmrPeak *OpaqueHash
 
-// Beefy Belt (7.3) GP 0.6.7
+// Merkle Mountain Range structure (Beefy Belt)
+// GP §7.3
 type Mmr struct {
-	Peaks []MmrPeak `json:"peaks,omitempty"`
+	Peaks []MmrPeak `json:"peaks"` // peaks: Sequence of MMR peaks
 }
 
+// Information about a work package that was reported
 type ReportedWorkPackage struct {
-	Hash        WorkReportHash `json:"hash,omitempty"`
-	ExportsRoot ExportsRoot    `json:"exports_root,omitempty"`
+	Hash        WorkReportHash `json:"hash"`         // hash: Hash of the work report
+	ExportsRoot ExportsRoot    `json:"exports_root"` // exports-root: Root hash of exported data
 }
 
+// Information about a block
 type BlockInfo struct {
-	HeaderHash HeaderHash            `json:"header_hash,omitempty"` // h
-	BeefyRoot  OpaqueHash            `json:"beefy_root,omitempty"`  // b
-	StateRoot  StateRoot             `json:"state_root,omitempty"`  // s
-	Reported   []ReportedWorkPackage `json:"reported,omitempty"`    // p
+	HeaderHash HeaderHash            `json:"header_hash"` // $h$: Hash of the block header
+	BeefyRoot  OpaqueHash            `json:"beefy_root"`  // $b$: Merkle Mountain Range root
+	StateRoot  StateRoot             `json:"state_root"`  // $s$: Posterior state root
+	Reported   []ReportedWorkPackage `json:"reported"`    // $\mathbf{p}$: Work packages reported in this block (...Cores)
 }
 
-// (7.2) GP 0.6.7
+func (b *BlockInfo) Validate() error {
+	if len(b.Reported) > CoresCount {
+		return fmt.Errorf("BlockInfo Reported length %d is greater than CoresCount %d", len(b.Reported), CoresCount)
+	}
+	return nil
+}
+
+// History of recent blocks
+// GP §7.2
 type BlocksHistory []BlockInfo
 
-func (b BlocksHistory) Validate() error {
-	if len(b) > MaxBlocksHistory {
-		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(b), MaxBlocksHistory)
+func (b *BlocksHistory) Validate() error {
+	if len(*b) > MaxBlocksHistory {
+		return fmt.Errorf("BlocksHistory length %d is greater than MaxBlocksHistory %d", len(*b), MaxBlocksHistory)
+	}
+	for _, blockInfo := range *b {
+		if err := blockInfo.Validate(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// (7.1) GP 0.6.7
+// Imported Blocks Information
+// GP §7.1
 type RecentBlocks struct {
-	History BlocksHistory `json:"history,omitempty"`
-	Mmr     Mmr           `json:"mmr,omitempty"`
+	History BlocksHistory `json:"history"` // history: Recent blocks history
+	Mmr     Mmr           `json:"mmr"`     // mmr: MMR
 }
 
-// Statistics
+// ============================================================================
+// STATISTICS
+// Types for tracking various statistics about validators, cores, and services.
+// ============================================================================
 
+// Record of a validator's activity (per epoch)
+// GP §13.1, $\pi_V$, $\pi_L$
 type ValidatorActivityRecord struct {
-	Blocks        U32 `json:"blocks,omitempty"`
-	Tickets       U32 `json:"tickets,omitempty"`
-	PreImages     U32 `json:"pre_images,omitempty"`
-	PreImagesSize U32 `json:"pre_images_size,omitempty"`
-	Guarantees    U32 `json:"guarantees,omitempty"`
-	Assurances    U32 `json:"assurances,omitempty"`
+	Blocks        U32 `json:"blocks"`          // $b$: Number of blocks produced
+	Tickets       U32 `json:"tickets"`         // $t$: Number of Safrole tickets consumed
+	PreImages     U32 `json:"pre_images"`      // $p$: Number of pre-images provided
+	PreImagesSize U32 `json:"pre_images_size"` // $d$: Total size of provided pre-images in bytes
+	Guarantees    U32 `json:"guarantees"`      // $g$: Number of guarantees provided
+	Assurances    U32 `json:"assurances"`      // $a$: Number of assurances provided
 }
 
+// Statistics for all validators
 type ValidatorsStatistics []ValidatorActivityRecord
 
-func (a ValidatorsStatistics) Validate() error {
-	if len(a) != ValidatorsCount {
-		return fmt.Errorf("ActivityRecords length %d is not equal to ValidatorsCount %d", len(a), ValidatorsCount)
+func (a *ValidatorsStatistics) Validate() error {
+	if len(*a) != ValidatorsCount {
+		return fmt.Errorf("ActivityRecords length %d is not equal to ValidatorsCount %d", len(*a), ValidatorsCount)
 	}
 	return nil
 }
 
-// v0.6.4 (13.6)
+// Record of a per-block core's activity
+// GP §13.6, $\pi_C$
 type CoreActivityRecord struct {
-	DALoad         U32 `json:"da_load,omitempty"`
-	Popularity     U16 `json:"popularity,omitempty"`
-	Imports        U16 `json:"imports,omitempty"`
-	Exports        U16 `json:"exports,omitempty"`
-	ExtrinsicSize  U32 `json:"extrinsic_size,omitempty"`
-	ExtrinsicCount U16 `json:"extrinsic_count,omitempty"`
-	BundleSize     U32 `json:"bundle_size,omitempty"`
-	GasUsed        Gas `json:"gas_used,omitempty"`
+	DALoad         U32 `json:"da_load"`         // $d$: Total bytes written in the Data Availability (DA) layer, includes work bundle, extrinsic, imports and exported segments
+	Popularity     U16 `json:"popularity"`      // $p$: Number of validators which formed super-majority for assurance
+	Imports        U16 `json:"imports"`         // $i$: Number of segments imported from DA for block processing
+	ExtrinsicCount U16 `json:"extrinsic_count"` // $x$: Total number of extrinsics for reported work
+	ExtrinsicSize  U32 `json:"extrinsic_size"`  // $z$: Total size of extrinsics for reported work
+	Exports        U16 `json:"exports"`         // $e$: Number of segments exported to DA during block processing
+	BundleSize     U32 `json:"bundle_size"`     // $l$: Serialized work bundle size written to DA
+	GasUsed        Gas `json:"gas_used"`        // $u$: Total gas consumed during block processing (includes refinements and authorizations)
 }
 
+// Statistics for all cores
 type CoresStatistics []CoreActivityRecord
 
-func (c CoresStatistics) Validate() error {
-	if len(c) != CoresCount {
-		return fmt.Errorf("CoresStatisitics length %d is not equal to CoresCount %d", len(c), CoresCount)
+func (c *CoresStatistics) Validate() error {
+	if len(*c) != CoresCount {
+		return fmt.Errorf("CoresStatisitics length %d is not equal to CoresCount %d", len(*c), CoresCount)
 	}
 	return nil
 }
 
-// v0.7.1 (13.7)
+// Record of a service's activity
+// GP §13.7, $\pi_S$
 type ServiceActivityRecord struct {
-	ProvidedCount     U16 `json:"provided_count,omitempty"`
-	ProvidedSize      U32 `json:"provided_size,omitempty"`
-	RefinementCount   U32 `json:"refinement_count,omitempty"`
-	RefinementGasUsed Gas `json:"refinement_gas_used,omitempty"`
-	Imports           U32 `json:"imports,omitempty"`
-	Exports           U32 `json:"exports,omitempty"`
-	ExtrinsicSize     U32 `json:"extrinsic_size,omitempty"`
-	ExtrinsicCount    U32 `json:"extrinsic_count,omitempty"`
-	AccumulateCount   U32 `json:"accumulate_count,omitempty"`
-	AccumulateGasUsed Gas `json:"accumulate_gas_used,omitempty"`
+	ProvidedCount     U16 `json:"provided_count"`      // $p$: Number of preimages provided to this service
+	ProvidedSize      U32 `json:"provided_size"`       // $p$: Total size of preimages provided to this service
+	RefinementCount   U32 `json:"refinement_count"`    // $r$: Number of work-items refined
+	RefinementGasUsed Gas `json:"refinement_gas_used"` // $r$: Amount of gas used for refinement
+	Imports           U32 `json:"imports"`             // $i$: Number of segments imported from the DL
+	ExtrinsicCount    U32 `json:"extrinsic_count"`     // $x$: Total number of extrinsics used
+	ExtrinsicSize     U32 `json:"extrinsic_size"`      // $z$: Total size of extrinsics used
+	Exports           U32 `json:"exports"`             // $e$: Number of segments exported into the DL
+	AccumulateCount   U32 `json:"accumulate_count"`    // $a$: Number of work-items accumulated
+	AccumulateGasUsed Gas `json:"accumulate_gas_used"` // $a$: Amount of gas used for accumulation
 }
 
-type ServicesStatistics map[ServiceId]ServiceActivityRecord
+// Statistics for all services
+// Map entry for service statistics
+type ServicesStatistics map[ServiceID]ServiceActivityRecord
 
-// v0.6.4 (13.1)
+// Complete statistics for the system
+// GP §13.1, $\pi$
 type Statistics struct {
-	ValsCurr ValidatorsStatistics `json:"vals-curr,omitempty"`
-	ValsLast ValidatorsStatistics `json:"vals-last,omitempty"`
-	Cores    CoresStatistics      `json:"cores,omitempty"`
-	Services ServicesStatistics   `json:"services,omitempty"`
+	ValsCurr ValidatorsStatistics `json:"vals-curr,omitempty"` // $\pi_V$: Current validator statistics
+	ValsLast ValidatorsStatistics `json:"vals-last,omitempty"` // $\pi_L$: Previous validator statistics
+	Cores    CoresStatistics      `json:"cores,omitempty"`     // $\pi_C$: Core statistics
+	Services ServicesStatistics   `json:"services,omitempty"`  // $\pi_S$: Service statistics
 }
 
-// Tickets   (6.5)   or  6.7.  ?
+// ============================================================================
+// TICKETS
+// Types related to the Safrole ticket system used for validator selection.
+// ============================================================================
 
 type (
-	TicketId      OpaqueHash
-	TicketAttempt U8
+	TicketID      OpaqueHash // Unique identifier for a ticket
+	TicketAttempt U8         // Attempt counter for ticket submissions
 )
 
+// Envelope containing a ticket submission
 type TicketEnvelope struct {
-	Attempt   TicketAttempt                `json:"attempt,omitempty"`
-	Signature BandersnatchRingVrfSignature `json:"signature,omitempty"`
+	Attempt   TicketAttempt                `json:"attempt"`   // attempt: Attempt number
+	Signature BandersnatchRingVrfSignature `json:"signature"` // signature: Ring VRF signature (VRF output maps to a TicketID)
 }
 
+// Body of a ticket
+// GP §6.6, $\mathbb{T}$
 type TicketBody struct {
-	Id      TicketId      `json:"id,omitempty"`
-	Attempt TicketAttempt `json:"attempt,omitempty"`
+	ID      TicketID      `json:"id"`      // $y$: Ticket identifier
+	Attempt TicketAttempt `json:"attempt"` // $e$: Attempt number
 }
 
-// (6.5)
+// Accumulator for tickets within an epoch
+// GP §6.5, $\gamma_A$
 type TicketsAccumulator []TicketBody
 
-func (t TicketsAccumulator) Validate() error {
-	if len(t) > EpochLength {
-		return fmt.Errorf("TicketsAccumulator length %d is greater than EpochLength %d", len(t), EpochLength)
+func (t *TicketsAccumulator) Validate() error {
+	if len(*t) > EpochLength {
+		return fmt.Errorf("TicketsAccumulator length %d is greater than EpochLength %d", len(*t), EpochLength)
 	}
 	return nil
 }
 
+// Either tickets or public keys
+// GP §6.5, $\gamma_S$
 type TicketsOrKeys struct {
-	Tickets []TicketBody         `json:"tickets,omitempty"`
-	Keys    []BandersnatchPublic `json:"keys,omitempty"`
+	Tickets []TicketBody         `json:"tickets,omitempty"` // $\mathbb{T}$: Sequence of ticket bodies
+	Keys    []BandersnatchPublic `json:"keys,omitempty"`    // $\tilde{\mathbb{H}}$: Sequence of public keys
 }
 
-func (t TicketsOrKeys) Validate() error {
+func (t *TicketsOrKeys) Validate() error {
 	if len(t.Tickets) > 0 && len(t.Tickets) != EpochLength {
 		return fmt.Errorf("TicketsOrKeys Tickets length %d is not equal to EpochLength %d", len(t.Tickets), EpochLength)
 	}
@@ -697,10 +803,14 @@ func (t TicketsOrKeys) Validate() error {
 	if len(t.Keys) > 0 && len(t.Keys) != EpochLength {
 		return fmt.Errorf("TicketsOrKeys Keys length %d is not equal to EpochLength %d", len(t.Keys), EpochLength)
 	}
+	if len(t.Tickets) == 0 && len(t.Keys) == 0 {
+		return fmt.Errorf("TicketsOrKeys Tickets and Keys are empty")
+	}
 	return nil
 }
 
-// (6.29)
+// Extrinsic containing ticket submissions
+// GP §6.29, $\mathbf{E}_T$
 type TicketsExtrinsic []TicketEnvelope
 
 func (t *TicketsExtrinsic) Validate() error {
@@ -728,57 +838,65 @@ func (t *TicketsExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("ticketsextrinsic", t)
 }
 
-// 10. Disputes
+// ============================================================================
+// DISPUTES
+// Types related to the dispute resolution system.
+// ============================================================================
 
+// A single validator's judgment on a disputed work report
 type Judgement struct {
-	Vote      bool             `json:"vote,omitempty"`
-	Index     ValidatorIndex   `json:"index,omitempty"`
-	Signature Ed25519Signature `json:"signature,omitempty"`
+	Vote      bool             `json:"vote"`      // $v$: True for valid, False for invalid
+	Index     ValidatorIndex   `json:"index"`     // $i$: Index of the validator making the judgment
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature of the validator
 }
 
-// (10.2)   E_D ≡ (v,c,f)
-// v = Verdict
+// A complete verdict on a disputed work report
+// GP §10.2, $\mathbf{E}_V$
 type Verdict struct {
-	Target OpaqueHash  `json:"target,omitempty"`
-	Age    U32         `json:"age,omitempty"`
-	Votes  []Judgement `json:"votes,omitempty"`
+	Target WorkReportHash `json:"target"` // $r$: Hash of the disputed work report
+	Age    U32            `json:"age"`    // $a$: Epoch index of the prior state or one less depending on the key set used to sign the votes
+	Votes  []Judgement    `json:"votes"`  // $\mathbf{j}$: Judgments from a super-majority of validators
 }
 
-func (v Verdict) Validate() error {
+func (v *Verdict) Validate() error {
 	if len(v.Votes) != ValidatorsSuperMajority {
 		return fmt.Errorf("verdict Votes length %d is not equal to ValidatorsSuperMajority %d", len(v.Votes), ValidatorsSuperMajority)
 	}
 	return nil
 }
 
-// c = Culprit
+// Information about a validator who submitted an invalid report
+// GP §10.2, $\mathbf{E}_C$
 type Culprit struct {
-	Target    WorkReportHash   `json:"target,omitempty"`
-	Key       Ed25519Public    `json:"key,omitempty"`
-	Signature Ed25519Signature `json:"signature,omitempty"`
+	Target    WorkReportHash   `json:"target"`    // $r$: Hash of the disputed work report
+	Key       Ed25519Public    `json:"key"`       // $f$: Public key of the culprit
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature proving culpability
 }
 
-// f = Fault
+// Information about a validator who made an incorrect judgment
+// GP §10.2, $\mathbf{E}_F$
 type Fault struct {
-	Target    WorkReportHash   `json:"target,omitempty"`
-	Vote      bool             `json:"vote,omitempty"`
-	Key       Ed25519Public    `json:"key,omitempty"`
-	Signature Ed25519Signature `json:"signature,omitempty"`
+	Target    WorkReportHash   `json:"target"`    // $r$: Hash of the disputed work report
+	Vote      bool             `json:"vote"`      // $v$: The incorrect vote (True/False)
+	Key       Ed25519Public    `json:"key"`       // $f$: Public key of the validator
+	Signature Ed25519Signature `json:"signature"` // $s$: Signature proving the fault
 }
 
-// (10.1)
+// Records of dispute outcomes
+// GP §10.1
 type DisputesRecords struct {
-	Good      []WorkReportHash `json:"good,omitempty"`      // Good verdicts (psi_g)
-	Bad       []WorkReportHash `json:"bad,omitempty"`       // Bad verdicts (psi_b)
-	Wonky     []WorkReportHash `json:"wonky,omitempty"`     // Wonky verdicts (psi_w)
-	Offenders []Ed25519Public  `json:"offenders,omitempty"` // Offenders (psi_o)
+	Good      []WorkReportHash `json:"good"`      // $psi_g$: Reports deemed valid
+	Bad       []WorkReportHash `json:"bad"`       // $psi_b$: Reports deemed invalid
+	Wonky     []WorkReportHash `json:"wonky"`     // $psi_w$: Reports with conflicting judgments
+	Offenders []Ed25519Public  `json:"offenders"` // $psi_o$: Validators who submitted invalid reports
 }
 
-// 10.2. (10.2)
+// Extrinsic containing dispute information
+// GP §10.2, $E_D$ ≡ (v,c,f)
 type DisputesExtrinsic struct {
-	Verdicts []Verdict `json:"verdicts,omitempty"`
-	Culprits []Culprit `json:"culprits,omitempty"`
-	Faults   []Fault   `json:"faults,omitempty"`
+	Verdicts []Verdict `json:"verdicts"` // verdicts: Verdicts on disputed items
+	Culprits []Culprit `json:"culprits"` // culprits: Information about culprits
+	Faults   []Fault   `json:"faults"`   // faults: Information about faulty judgments
 }
 
 func (d *DisputesExtrinsic) Validate() error {
@@ -808,18 +926,24 @@ func (d *DisputesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("disputesextrinsic", d)
 }
 
-// Preimages
+// ============================================================================
+// PREIMAGES
+// Types related to preimages blobs provided to services.
+// ============================================================================
 
+// A preimage with its requester
+// GP §12.35, $\mathbf{E}_P$
 type Preimage struct {
-	Requester ServiceId    `json:"requester,omitempty"`
-	Blob      ByteSequence `json:"blob,omitempty"`
+	Requester ServiceID    `json:"requester"` // $s$: ID of the service requesting the preimage
+	Blob      ByteSequence `json:"blob"`      // $\mathbf{d}$: The preimage data
 }
 
 func (p *Preimage) Validate() error {
 	return nil
 }
 
-// (12.28) (12.29)
+// Extrinsic containing preimages
+// GP §12.35, $\mathbf{E}_P$
 type PreimagesExtrinsic []Preimage
 
 func (p *PreimagesExtrinsic) Validate() error {
@@ -873,15 +997,21 @@ func (p *PreimagesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("preimagesextrinsic", p)
 }
 
-// 11.2.1 Assurances
+// ============================================================================
+// ASSURANCES
+// Types related to data availability assurances provided by validators.
+// ============================================================================
+
+// Assurance of data availability from a validator
+// GP §11.2.1
 type AvailAssurance struct {
-	Anchor         OpaqueHash       `json:"anchor,omitempty"`
-	Bitfield       Bitfield         `json:"bitfield,omitempty"`
-	ValidatorIndex ValidatorIndex   `json:"validator_index,omitempty"`
-	Signature      Ed25519Signature `json:"signature,omitempty"`
+	Anchor         HeaderHash       `json:"anchor"`          // $s$: The block to which this availability attestation corresponds
+	Bitfield       Bitfield         `json:"bitfield"`        // $f$: The bitfield of whether any given core's reported package at anchor block is helped made available by this validator.
+	ValidatorIndex ValidatorIndex   `json:"validator_index"` // $v$: Index of the validator providing the assurance
+	Signature      Ed25519Signature `json:"signature"`       // $s$: Signature of the validator proving the assurance
 }
 
-func (a AvailAssurance) Validate() error {
+func (a *AvailAssurance) Validate() error {
 	return a.Bitfield.Validate()
 }
 
@@ -938,15 +1068,16 @@ func (bf Bitfield) GetBit(index int) byte {
 	return bf[index]
 }
 
-func (bf Bitfield) Validate() error {
-	if len(bf) != CoresCount {
-		return fmt.Errorf("Bitfield length %d is not equal to CoresCount %d", len(bf), CoresCount)
+func (bf *Bitfield) Validate() error {
+	if len(*bf) != CoresCount {
+		return fmt.Errorf("Bitfield length %d is not equal to CoresCount %d", len(*bf), CoresCount)
 	}
 
 	return nil
 }
 
-// (11.10)
+// Extrinsic containing assurances from validators
+// GP §11.10, $\mathbf{E}_A$
 type AssurancesExtrinsic []AvailAssurance
 
 func (a *AssurancesExtrinsic) Validate() error {
@@ -973,26 +1104,32 @@ func (a *AssurancesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("assurancesextrinsic", a)
 }
 
-// Guarantees
+// ============================================================================
+// GUARANTEES
+// Types related to guarantees provided by validators for work reports.
+// ============================================================================
 
+// Credential: Signature from a validator
+// GP §11.25 $a$
 type ValidatorSignature struct {
-	ValidatorIndex ValidatorIndex   `json:"validator_index,omitempty"`
-	Signature      Ed25519Signature `json:"signature,omitempty"`
+	ValidatorIndex ValidatorIndex   `json:"validator_index"` // $v$: Index of the validator
+	Signature      Ed25519Signature `json:"signature"`       // $s$: Signature of the validator
 }
 
-func (v ValidatorSignature) Validate() error {
+func (v *ValidatorSignature) Validate() error {
 	if int(v.ValidatorIndex) >= ValidatorsCount {
 		// return fmt.Errorf("ValidatorIndex %v must be less than %v", v.ValidatorIndex, ValidatorsCount)
-		return fmt.Errorf("bad_validator_index")
+		return errors.New("bad_validator_index")
 	}
 	return nil
 }
 
-// (11.23)  Work Report Guarantee
+// Guarantee for a work report
+// GP §11.23
 type ReportGuarantee struct {
-	Report     WorkReport           `json:"report"`               // g_w
-	Slot       TimeSlot             `json:"slot,omitempty"`       // g_t
-	Signatures []ValidatorSignature `json:"signatures,omitempty"` // g_a
+	Report     WorkReport           `json:"report"`     // $\mathbf{r}$: The work report being guaranteed
+	Slot       TimeSlot             `json:"slot"`       // $t$: Time slot following production of the report
+	Signatures []ValidatorSignature `json:"signatures"` // $a$: Signatures from validators
 }
 
 func (r *ReportGuarantee) Validate() error {
@@ -1006,12 +1143,6 @@ func (r *ReportGuarantee) Validate() error {
 
 	if len(r.Signatures) > 3 {
 		logger.Warn("too_many_guarantees")
-	}
-
-	for _, sig := range r.Signatures {
-		if err := sig.Validate(); err != nil {
-			return err
-		}
 	}
 
 	for _, sig := range r.Signatures {
@@ -1036,6 +1167,8 @@ func (r *ReportGuarantee) Validate() error {
 	return nil
 }
 
+// Extrinsic containing guarantees for work reports
+// GP §11.23
 type GuaranteesExtrinsic []ReportGuarantee
 
 // (11.23)
@@ -1068,437 +1201,76 @@ func (g *GuaranteesExtrinsic) ScaleEncode() ([]byte, error) {
 	return scale.Encode("guaranteesextrinsic", g)
 }
 
-// Header
-// (6.27)
-type EpochMarkValidatorKeys struct {
-	Bandersnatch BandersnatchPublic
-	Ed25519      Ed25519Public
-}
-
-type EpochMark struct {
-	Entropy        Entropy                  `json:"entropy,omitempty"`
-	TicketsEntropy Entropy                  `json:"tickets_entropy,omitempty"`
-	Validators     []EpochMarkValidatorKeys `json:"validators,omitempty"`
-}
-
-func (e EpochMark) Validate() error {
-	if len(e.Validators) != ValidatorsCount {
-		return fmt.Errorf("EpochMark Validators length %d is not equal to ValidatorsCount %d", len(e.Validators), ValidatorsCount)
-	}
-
-	return nil
-}
-
-type TicketsMark []TicketBody
-
-func (t TicketsMark) Validate() error {
-	if len(t) != EpochLength {
-		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(t), EpochLength)
-	}
-	return nil
-}
-
-type OffendersMark []Ed25519Public
-
-// (5.1)
-type Header struct {
-	Parent          HeaderHash               `json:"parent,omitempty"`            // H_p
-	ParentStateRoot StateRoot                `json:"parent_state_root,omitempty"` // H_r
-	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash,omitempty"`    // H_x
-	Slot            TimeSlot                 `json:"slot,omitempty"`              // H_t
-	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`        // H_e
-	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"`      // H_w
-	OffendersMark   OffendersMark            `json:"offenders_mark,omitempty"`    // H_o
-	AuthorIndex     ValidatorIndex           `json:"author_index,omitempty"`      // H_i
-	EntropySource   BandersnatchVrfSignature `json:"entropy_source,omitempty"`    // H_v
-	Seal            BandersnatchVrfSignature `json:"seal,omitempty"`              // H_s
-}
-
-func (h *Header) Validate() error {
-	if h.EpochMark != nil {
-		if err := h.EpochMark.Validate(); err != nil {
-			return err
-		}
-	}
-
-	if h.TicketsMark != nil {
-		if err := h.TicketsMark.Validate(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (h *Header) ScaleDecode(data []byte) error {
-	_, err := scale.Decode("header", data, h)
-	if err != nil {
-		return err
-	}
-
-	if err := h.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (h *Header) ScaleEncode() ([]byte, error) {
-	return scale.Encode("header", h)
-}
-
-// Block
-
-type Extrinsic struct {
-	Tickets    TicketsExtrinsic    `json:"tickets,omitempty"`
-	Preimages  PreimagesExtrinsic  `json:"preimages"`
-	Guarantees GuaranteesExtrinsic `json:"guarantees"`
-	Assurances AssurancesExtrinsic `json:"assurances,omitempty"`
-	Disputes   DisputesExtrinsic   `json:"disputes"`
-}
-
-func (e *Extrinsic) Validate() error {
-	if err := e.Tickets.Validate(); err != nil {
-		return err
-	}
-
-	if err := e.Preimages.Validate(); err != nil {
-		return err
-	}
-
-	if err := e.Guarantees.Validate(); err != nil {
-		return err
-	}
-
-	if err := e.Assurances.Validate(); err != nil {
-		return err
-	}
-
-	if err := e.Disputes.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (e *Extrinsic) ScaleDecode(data []byte) error {
-	_, err := scale.Decode("extrinsic", data, e)
-	if err != nil {
-		return err
-	}
-
-	if err := e.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (e *Extrinsic) ScaleEncode() ([]byte, error) {
-	return scale.Encode("extrinsic", e)
-}
-
-type Block struct {
-	Header    Header    `json:"header"`
-	Extrinsic Extrinsic `json:"extrinsic"`
-}
-
-func (b *Block) Validate() error {
-	if err := b.Header.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (b *Block) ScaleDecode(data []byte) error {
-	_, err := scale.Decode("block", data, b)
-	if err != nil {
-		return err
-	}
-
-	if err := b.Validate(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (b *Block) ScaleEncode() ([]byte, error) {
-	return scale.Encode("block", b)
-}
-
-// Safrole
-
-// type State struct {
-// 	Tau           TimeSlot                   `json:"tau"`            // Most recent block's timeslot
-// 	Eta           EntropyBuffer              `json:"eta"`            // Entropy accumulator and epochal randomness
-// 	Lambda        ValidatorsData             `json:"lambda"`         // Validator keys and metadata which were active in the prior epoch
-// 	Kappa         ValidatorsData             `json:"kappa"`          // Validator keys and metadata currently active
-// 	GammaK        ValidatorsData             `json:"gamma_k"`        // Validator keys for the following epoch
-// 	Iota          ValidatorsData             `json:"iota"`           // Validator keys and metadata to be drawn from next
-// 	GammaA        TicketsAccumulator         `json:"gamma_a"`        // Sealing-key contest ticket accumulator
-// 	GammaS        TicketsOrKeys              `json:"gamma_s"`        // Sealing-key series of the current epoch
-// 	GammaZ        BandersnatchRingCommitment `json:"gamma_z"`        // Bandersnatch ring commitment
-// 	PostOffenders []Ed25519Public            `json:"post_offendors"` // Posterior offenders sequence
-// }
-
-type Input struct {
-	Slot      TimeSlot         `json:"slot"`      // Current slot
-	Entropy   Entropy          `json:"entropy"`   // Per block entropy (originated from block entropy source VRF)
-	Extrinsic TicketsExtrinsic `json:"extrinsic"` // Safrole extrinsic
-}
-
-type OutputData struct {
-	EpochMark   *EpochMark   `json:"epoch_mark,omitempty"`   // New epoch marker (optional).
-	TicketsMark *TicketsMark `json:"tickets_mark,omitempty"` // Winning tickets marker (optional).
-}
-
-type Output struct {
-	Ok  *OutputData `json:"ok,omitempty"`
-	Err *ErrorCode  `json:"err,omitempty"`
-}
-
-type TestCase struct {
-	Input     Input  `json:"input"`
-	PreState  State  `json:"pre_state"`
-	Output    Output `json:"output"`
-	PostState State  `json:"post_state"`
-}
-
-type InputWrapper[T any] struct {
-	Input T
-}
-
-func ParseData[t any](fileName string) (InputWrapper[t], error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		logger.Errorf("Error opening file %s: %v", fileName, err)
-		return InputWrapper[t]{}, err
-	}
-	defer file.Close()
-
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		logger.Errorf("Error reading file: %s: %v", fileName, err)
-		return InputWrapper[t]{}, err
-	}
-	var wrapper InputWrapper[t]
-	err = json.Unmarshal(bytes, &wrapper)
-	if err != nil {
-		logger.Errorf("Error unmarshalling JSON:: %v", err)
-	}
-	return wrapper, nil
-}
-
-func DecodeJSONByte(input []byte) []byte {
-	toJSON, _ := json.Marshal(input)
-	out := string(toJSON)[1 : len(string(toJSON))-1]
-	return hexToBytes(out)
-}
-
-func hexToBytes(hexString string) []byte {
-	bytes, err := hex.DecodeString(hexString[2:])
-	if err != nil {
-		logger.Errorf("failed to decode hex string: %v", err)
-	}
-	return bytes
-}
-
-func parseFixedByteArray(data []byte, expectedLen int) ([]byte, error) {
-	// Peek at first byte to see if it starts with '[' or '"'
-	if len(data) > 0 && data[0] == '[' {
-		arr, err := parseNormalByteArray(data, expectedLen)
-		if err != nil {
-			return nil, err
-		}
-		return arr, nil
-	}
-
-	var hexStr string
-	if err := json.Unmarshal(data, &hexStr); err != nil {
-		return nil, err
-	}
-
-	if len(hexStr) < 2 || hexStr[:2] != "0x" {
-		return nil, fmt.Errorf("invalid hex format: %s", hexStr)
-	}
-
-	decoded, err := hex.DecodeString(hexStr[2:])
-	if err != nil {
-		return nil, err
-	}
-
-	if len(decoded) != expectedLen {
-		return nil, fmt.Errorf("invalid length: expected %v bytes, got %v", expectedLen, len(decoded))
-	}
-
-	return decoded, nil
-}
-
-func parseNormalByteArray(data []byte, size int) ([]byte, error) {
-	// Peek at first byte to see if it starts with '[' or '"'
-	if len(data) > 0 && data[0] == '[' {
-		// Data is an array like [0,255,34,...]
-		var arr []byte
-		if err := json.Unmarshal(data, &arr); err != nil {
-			return arr, err
-		}
-		if len(arr) != size {
-			return nil, fmt.Errorf("invalid length: expected %d bytes, got %d", size, len(arr))
-		}
-		return arr, nil
-	}
-
-	return nil, fmt.Errorf("invalid format for parseNormalByteArray: expected %d bytes, got %d", size, len(data))
-}
-
-func (o *OpaqueHash) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *HeaderHash) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *Ed25519Signature) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 64)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *BandersnatchPublic) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *Ed25519Public) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 32)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *BlsPublic) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 144)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *BandersnatchVrfSignature) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 96)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *BandersnatchRingVrfSignature) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 784)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *BandersnatchRingCommitment) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 144)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-func (o *ValidatorMetadata) UnmarshalJSON(data []byte) error {
-	decoded, err := parseFixedByteArray(data, 128)
-	if err != nil {
-		return err
-	}
-	copy(o[:], decoded)
-	return nil
-}
-
-// (12.14) deferred transfer
-// X = deferred-transfer
-type DeferredTransfer struct {
-	SenderID   ServiceId `json:"senderid"`
-	ReceiverID ServiceId `json:"receiverid"`
-	Balance    U64       `json:"balance"`
-	Memo       [128]byte `json:"memo"`
-	GasLimit   Gas       `json:"gas"`
-}
-
-type DeferredTransfers []DeferredTransfer
-
-// --------------------------------------------
-// -- Accumulation
-// --------------------------------------------
-
+// ============================================================================
+// ACCUMULATION
+// Types related to the accumulation of work reports and tracking of
+// dependencies between work packages.
+// ============================================================================
+
+// Record of a work report that is ready for processing
 type ReadyRecord struct {
-	Report       WorkReport
-	Dependencies []WorkPackageHash
+	Report       WorkReport        // $\mathbb{R}$: The work report
+	Dependencies []WorkPackageHash // ${\mathbb{H}}$: Dependencies required by this report
 }
 
-type (
-	ReadyQueueItem       []ReadyRecord
-	ReadyQueue           []ReadyQueueItem // SEQUENCE (SIZE(epoch-length)) OF ReadyQueueItem
-	AccumulatedQueueItem []WorkPackageHash
-	AccumulatedQueue     []AccumulatedQueueItem // SEQUENCE (SIZE(epoch-length)) OF AccumulatedQueueItem
-)
+// A group of records that became ready at a specific slot
+type ReadyQueueItem []ReadyRecord
 
-type AlwaysAccumulateMap map[ServiceId]Gas
+// A fixed-size FIFO queue of ready record groups (one per slot), with maximum size equal to the epoch length
+// GP §12.3, $w$
+type ReadyQueue []ReadyQueueItem
 
-// jam-types.asn AlwaysAccumulateMapEntry
+func (r *ReadyQueue) Validate() error {
+	if len(*r) != EpochLength {
+		return fmt.Errorf("ReadyQueue length %d is not equal to EpochLength %d", len(*r), EpochLength)
+	}
+	return nil
+}
+
+// A group of accumulated work packages for a specific slot
+type AccumulatedQueueItem []WorkPackageHash
+
+// A fixed-size FIFO queue of accumulated work package groups (one per slot), with maximum size equal to the epoch length
+// GP §12.1, $\xi$
+type AccumulatedQueue []AccumulatedQueueItem
+
+func (a *AccumulatedQueue) Validate() error {
+	if len(*a) != EpochLength {
+		return fmt.Errorf("AccumulatedQueue length %d is not equal to EpochLength %d", len(*a), EpochLength)
+	}
+	return nil
+}
+
+// Map of services that are always accumulated
+type AlwaysAccumulateMap map[ServiceID]Gas
+
+// Entry in the always-accumulate map
 type AlwaysAccumulateMapDTO struct {
-	ServiceId ServiceId `json:"id"`
-	Gas       Gas       `json:"gas"`
+	ServiceID ServiceID `json:"id"`  // id: Service ID
+	Gas       Gas       `json:"gas"` // gas: Gas limit for accumulation
 }
 
+// Special privileges for certain services
+// GP §9.9~9.11, $\chi$
 type Privileges struct {
-	Bless       ServiceId           `json:"chi_m"` // XM
-	Designate   ServiceId           `json:"chi_v"` // XV
-	CreateAcct  ServiceId           `json:"chi_r"` // XR
-	Assign      ServiceIdList       `json:"chi_a"` // XA
-	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // XZ
+	Bless       ServiceID           `json:"chi_m"` // bless: Service ID with blessing privileges
+	Designate   ServiceID           `json:"chi_v"` // designate: Service ID with designation privileges
+	CreateAcct  ServiceID           `json:"chi_r"` // register: Service ID with registrar privileges
+	Assign      ServiceIDList       `json:"chi_a"` // assign: Service ID with assignment privileges
+	AlwaysAccum AlwaysAccumulateMap `json:"chi_g"` // always-acc: Services that are always accumulated
 }
 
-type AccumulateRoot OpaqueHash
-
-// (12.16) S
+// (12.16) \mathbb{S}, states that are needed and mutable by the accumulation process
 type PartialStateSet struct {
-	ServiceAccounts ServiceAccountState // d
-	ValidatorKeys   ValidatorsData      // i
-	Authorizers     AuthQueues          // q
-	Bless           ServiceId           // m
-	Assign          ServiceIdList       // a
-	Designate       ServiceId           // v
-	CreateAcct      ServiceId           // r
-	AlwaysAccum     AlwaysAccumulateMap // z
+	ServiceAccounts ServiceAccountState // $\mathbf{d}$: Service accounts
+	ValidatorKeys   ValidatorsData      // $\mathbf{i}$: Upcoming validator keys $\iota$
+	Authorizers     AuthQueues          // $\mathbf{q}$: The queues of authorizers $\varphi$
+	// Privileges state $\chi$
+	Bless       ServiceID           // $m$: Bless
+	Assign      ServiceIDList       // $\mathbf{a}$: Assign
+	Designate   ServiceID           // $v$: Designate
+	CreateAcct  ServiceID           // $r$: Create account
+	AlwaysAccum AlwaysAccumulateMap // $\mathbf{z}$: Always accumulate
 }
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
@@ -1547,7 +1319,7 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 	}
 
 	// Assign
-	copiedAssign := make(ServiceIdList, len(origin.Assign))
+	copiedAssign := make(ServiceIDList, len(origin.Assign))
 	copy(copiedAssign, origin.Assign)
 	/*
 		for idx, serviceID := range copiedAssign {
@@ -1564,41 +1336,56 @@ func (origin *PartialStateSet) DeepCopy() PartialStateSet {
 		Bless:           origin.Bless,
 		Assign:          copiedAssign,
 		Designate:       origin.Designate,
+		CreateAcct:      origin.CreateAcct,
 		AlwaysAccum:     copiedAlwaysAccum,
 	}
 }
 
-// (12.19 0.7.0)
+// Operand tuple: salient information from digests and reports for accumulation
+// GP §12.13, $\mathbb{U}$
 type Operand struct {
-	Hash           WorkPackageHash // p
-	ExportsRoot    ExportsRoot     // e
-	AuthorizerHash OpaqueHash      // a
-	PayloadHash    OpaqueHash      // y
-	GasLimit       Gas             // g   0.6.5
-	Result         WorkExecResult  // l
-	AuthOutput     ByteSequence    // t
+	Hash           WorkPackageHash // $p$
+	ExportsRoot    ExportsRoot     // $e$
+	AuthorizerHash OpaqueHash      // $a$
+	PayloadHash    OpaqueHash      // $y$
+	GasLimit       Gas             // $g$
+	Result         WorkExecResult  // $\mathbf{l}$
+	AuthOutput     ByteSequence    // $\mathbf{t}$
 }
 
+// Deferred transfer
+// GP §12.14, $\mathbb{X}$
+type DeferredTransfer struct {
+	SenderID   ServiceID              // $s$
+	ReceiverID ServiceID              // $d$
+	Balance    U64                    // $a$
+	Memo       [TransferMemoSize]byte // $m$
+	GasLimit   Gas                    // $g$
+}
+
+// Accumulation input: operand or deferred transfer
+// GP §12.15, $\mathbb{I}$
 type OperandOrDeferredTransfer struct {
-	Operand          *Operand          // U
-	DeferredTransfer *DeferredTransfer // X
+	Operand          *Operand          // $\mathbb{U}$
+	DeferredTransfer *DeferredTransfer // $\mathbb{X}$
 }
 
-// (12.17) U
+// (12.17) $U$, list of service gas used
 type ServiceGasUsedList []ServiceGasUsed
 
 type ServiceGasUsed struct {
-	ServiceId ServiceId
+	ServiceID ServiceID
 	Gas       Gas
 }
 
+// Service-indexed commitments to accumulation output
+// GP §12.15, $B$
 type AccumulatedServiceHash struct {
-	ServiceId ServiceId
+	ServiceID ServiceID
 	Hash      OpaqueHash // AccumulationOutput
 }
 
 // v0.6.7 (7.4)
-// TODO: rename LastAccOut to Theta, and Theta to Vartheta
 type LastAccOut []AccumulatedServiceHash
 
 // (12.15) B
@@ -1607,21 +1394,186 @@ type LastAccOut []AccumulatedServiceHash
 // - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
-// (12.23)
+// (12.28)
 type GasAndNumAccumulatedReports struct {
-	Gas                   Gas
-	NumAccumulatedReports U64
+	Gas                   Gas // $\mathbf{u}$: gas used by the service
+	NumAccumulatedReports U64 // $n$: number of work-reports accumulated by the service
 }
 
-// (12.26)
-// S: accumulation statistics
-// dictionary<serviceId, (gas used, the number of work-reports accumulated)>
-type AccumulationStatistics map[ServiceId]GasAndNumAccumulatedReports
+// GP §12.26, $\mathbf{S}$: accumulation statistics
+// dictionary<ServiceID, (gas used, the number of work-reports accumulated)>
+type AccumulationStatistics map[ServiceID]GasAndNumAccumulatedReports
 
-// (12.29)
-type NumDeferredTransfersAndTotalGasUsed struct {
-	NumDeferredTransfers U64
-	TotalGasUsed         Gas
+// ============================================================================
+// BLOCK
+// Types defining the block structure, including the header and all extrinsics.
+// ============================================================================
+
+// Validator keys included in an epoch announcement
+// GP §6.27
+type EpochMarkValidatorKeys struct {
+	Bandersnatch BandersnatchPublic // $k_b$: Bandersnatch public key
+	Ed25519      Ed25519Public      // $k_e$: Ed25519 public key
+}
+
+// Mark containing the next epoch parameters
+// GP §6.27, $\mathbf{H}_E$
+type EpochMark struct {
+	Entropy        Entropy                  `json:"entropy"`         // $\eta_0$: Entropy for the epoch
+	TicketsEntropy Entropy                  `json:"tickets_entropy"` // $\eta_1$: Entropy used to build the epoch's tickets
+	Validators     []EpochMarkValidatorKeys `json:"validators"`      // Public keys of validators
+}
+
+func (e *EpochMark) Validate() error {
+	if len(e.Validators) != ValidatorsCount {
+		return fmt.Errorf("EpochMark Validators length %d is not equal to ValidatorsCount %d", len(e.Validators), ValidatorsCount)
+	}
+
+	return nil
+}
+
+// Mark containing the next epoch tickets
+// GP §6.28, $\mathbf{H}_W$
+type TicketsMark []TicketBody
+
+func (t *TicketsMark) Validate() error {
+	if len(*t) > 0 && len(*t) != EpochLength {
+		return fmt.Errorf("TicketsMark length %d is not equal to EpochLength %d", len(*t), EpochLength)
+	}
+	return nil
+}
+
+// Mark containing offenders
+// GP §10.20, $\mathbf{H}_O$
+type OffendersMark []Ed25519Public
+
+// Block header
+// GP §5.1
+type Header struct {
+	Parent          HeaderHash               `json:"parent"`                 // $H_p$: Hash of the parent block header
+	ParentStateRoot StateRoot                `json:"parent_state_root"`      // $H_r$: State root associated to the parent block
+	ExtrinsicHash   OpaqueHash               `json:"extrinsic_hash"`         // $H_x$: Hash of the extrinsic data
+	Slot            TimeSlot                 `json:"slot"`                   // $H_t$: Time slot of this block
+	EpochMark       *EpochMark               `json:"epoch_mark,omitempty"`   // $H_e$: Mark for epoch transition
+	TicketsMark     *TicketsMark             `json:"tickets_mark,omitempty"` // $H_w$: Mark for tickets
+	AuthorIndex     ValidatorIndex           `json:"author_index"`           // $H_i$: Index of the validator who authored this block
+	EntropySource   BandersnatchVrfSignature `json:"entropy_source"`         // $H_v$: Source of entropy for this block
+	OffendersMark   OffendersMark            `json:"offenders_mark"`         // $H_o$: Mark for offenders
+	Seal            BandersnatchVrfSignature `json:"seal"`                   // $H_s$: Seal signature for this block
+}
+
+func (h *Header) Validate() error {
+	if h.EpochMark != nil {
+		if err := h.EpochMark.Validate(); err != nil {
+			return err
+		}
+	}
+
+	if h.TicketsMark != nil {
+		if err := h.TicketsMark.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *Header) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("header", data, h)
+	if err != nil {
+		return err
+	}
+
+	if err := h.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Header) ScaleEncode() ([]byte, error) {
+	return scale.Encode("header", h)
+}
+
+// Collection of all extrinsics in a block
+type Extrinsic struct {
+	Tickets    TicketsExtrinsic    `json:"tickets"`    // tickets: Ticket submissions
+	Preimages  PreimagesExtrinsic  `json:"preimages"`  // preimages: Preimage submissions
+	Guarantees GuaranteesExtrinsic `json:"guarantees"` // guarantees: Work report guarantees
+	Assurances AssurancesExtrinsic `json:"assurances"` // assurances: Data availability assurances
+	Disputes   DisputesExtrinsic   `json:"disputes"`   // disputes: Dispute resolutions
+}
+
+func (e *Extrinsic) Validate() error {
+	if err := e.Tickets.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Preimages.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Guarantees.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Assurances.Validate(); err != nil {
+		return err
+	}
+
+	if err := e.Disputes.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Extrinsic) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("extrinsic", data, e)
+	if err != nil {
+		return err
+	}
+
+	if err := e.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Extrinsic) ScaleEncode() ([]byte, error) {
+	return scale.Encode("extrinsic", e)
+}
+
+// Complete block structure
+type Block struct {
+	Header    Header    `json:"header"`    // header: Block header
+	Extrinsic Extrinsic `json:"extrinsic"` // extrinsic: Block extrinsics
+}
+
+func (b *Block) Validate() error {
+	if err := b.Header.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Block) ScaleDecode(data []byte) error {
+	_, err := scale.Decode("block", data, b)
+	if err != nil {
+		return err
+	}
+
+	if err := b.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Block) ScaleEncode() ([]byte, error) {
+	return scale.Encode("block", b)
 }
 
 type AuditReport struct {
@@ -1655,7 +1607,7 @@ type WorkPackageBundle struct {
 
 // v0.6.5
 type ServiceBlob struct {
-	ServiceID ServiceId
+	ServiceID ServiceID
 	Blob      []byte
 }
 type ServiceBlobs []ServiceBlob
@@ -1709,8 +1661,9 @@ type AncestryItem struct {
 	HeaderHash HeaderHash
 }
 
+type Ancestry []AncestryItem
+
 type (
-	Ancestry           []AncestryItem
 	ProtocolParameters struct {
 		BI U64 // B_I
 		BL U64 // B_L

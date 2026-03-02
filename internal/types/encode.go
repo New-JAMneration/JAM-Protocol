@@ -203,14 +203,14 @@ func (em *EpochMark) Encode(e *Encoder) error {
 	return nil
 }
 
-// TicketId
-func (t *TicketId) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding TicketId")
+// TicketID
+func (t *TicketID) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding TicketID")
 	if _, err := e.buf.Write(t[:]); err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketId: %v", t[:]))
+	cLog(Yellow, fmt.Sprintf("TicketID: %v", t[:]))
 
 	return nil
 }
@@ -231,7 +231,7 @@ func (t *TicketAttempt) Encode(e *Encoder) error {
 // TicketBody
 func (tb *TicketBody) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding TicketBody")
-	if err := tb.Id.Encode(e); err != nil {
+	if err := tb.ID.Encode(e); err != nil {
 		return err
 	}
 
@@ -446,15 +446,15 @@ func (t *TicketsExtrinsic) Encode(e *Encoder) error {
 	return nil
 }
 
-// SerivceId
-func (s *ServiceId) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding ServiceId")
+// ServiceID
+func (s *ServiceID) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceID")
 	encoded, err := e.EncodeUintWithLength(uint64(*s), 4)
 	if err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ServiceId: %v", encoded))
+	cLog(Yellow, fmt.Sprintf("ServiceID: %v", encoded))
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -463,11 +463,11 @@ func (s *ServiceId) Encode(e *Encoder) error {
 	return nil
 }
 
-// SerivceIdList
-func (s *ServiceIdList) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding ServiceIdList")
-	for _, serviceId := range *s {
-		if err := serviceId.Encode(e); err != nil {
+// ServiceIDList
+func (s *ServiceIDList) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding ServiceIDList")
+	for _, serviceID := range *s {
+		if err := serviceID.Encode(e); err != nil {
 			return err
 		}
 	}
@@ -720,67 +720,49 @@ func (g *Gas) Encode(e *Encoder) error {
 func (w *WorkExecResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkExecResult")
 
-	// Check the size of map
-	if len(*w) != 1 {
-		return errors.New("WorkExecResult size is not equal to 1")
-	}
-
-	var key WorkExecResultType
-	for k := range *w {
-		key = k
-		break // Get the first key and exit loop
-	}
-
-	cLog(Yellow, fmt.Sprintf("WorkExecResultType: %v", key))
-
-	switch key {
-	case "ok":
-		// Encode the first byte
+	switch w.Type {
+	case WorkExecResultOk:
 		if _, err := e.buf.Write([]byte{0}); err != nil {
 			return err
 		}
 
-		// Get the value and encode it.
-		byteSequence := (*w)["ok"]
-
-		// Encode the length of byte sequence
-		if err := e.EncodeLength(uint64(len(byteSequence))); err != nil {
+		if err := e.EncodeLength(uint64(len(w.Data))); err != nil {
 			return err
 		}
 
-		if _, err := e.buf.Write(byteSequence); err != nil {
+		if _, err := e.buf.Write(w.Data); err != nil {
 			return err
 		}
 
-		cLog(Yellow, fmt.Sprintf("WorkExecResult: %v", byteSequence))
+		cLog(Yellow, fmt.Sprintf("WorkExecResult: %v", w.Data))
 
 		return nil
-	case "out-of-gas":
+	case WorkExecResultOutOfGas:
 		if _, err := e.buf.Write([]byte{1}); err != nil {
 			return err
 		}
 		return nil
-	case "panic":
+	case WorkExecResultPanic:
 		if _, err := e.buf.Write([]byte{2}); err != nil {
 			return err
 		}
 		return nil
-	case "bad-exports":
+	case WorkExecResultBadExports:
 		if _, err := e.buf.Write([]byte{3}); err != nil {
 			return err
 		}
 		return nil
-	case "output-oversize":
+	case WorkExecResultReportOversize:
 		if _, err := e.buf.Write([]byte{4}); err != nil {
 			return err
 		}
 		return nil
-	case "bad-code":
+	case WorkExecResultBadCode:
 		if _, err := e.buf.Write([]byte{5}); err != nil {
 			return err
 		}
 		return nil
-	case "code-oversize":
+	case WorkExecResultCodeOversize:
 		if _, err := e.buf.Write([]byte{6}); err != nil {
 			return err
 		}
@@ -828,8 +810,8 @@ func (r *RefineLoad) Encode(e *Encoder) error {
 func (w *WorkResult) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding WorkResult")
 
-	// ServiceId (s)
-	if err := w.ServiceId.Encode(e); err != nil {
+	// ServiceID (s)
+	if err := w.ServiceID.Encode(e); err != nil {
 		return err
 	}
 
@@ -1623,7 +1605,7 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	return nil
 }
 
-// type ServicesStatistics map[ServiceId]ServiceActivityRecord
+// type ServicesStatistics map[ServiceID]ServiceActivityRecord
 func (s *ServicesStatistics) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding ServicesStatistics")
 
@@ -1633,12 +1615,12 @@ func (s *ServicesStatistics) Encode(e *Encoder) error {
 	}
 
 	// Before encoding the map, sort the keys
-	keys := make([]ServiceId, 0, len(*s))
+	keys := make([]ServiceID, 0, len(*s))
 	for k := range *s {
 		keys = append(keys, k)
 	}
 
-	// Sort the keys (ServiceId)
+	// Sort the keys (ServiceID)
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
@@ -1880,8 +1862,8 @@ func (a *AvailabilityAssignment) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Timeout
-	if err := a.Timeout.Encode(e); err != nil {
+	// AssignedSlot
+	if err := a.AssignedSlot.Encode(e); err != nil {
 		return err
 	}
 
@@ -2356,19 +2338,19 @@ func (a *AlwaysAccumulateMap) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	key := make([]ServiceId, 0, len(*a))
+	key := make([]ServiceID, 0, len(*a))
 	for k := range *a {
 		key = append(key, k)
 	}
 
-	// Sort the keys (ServiceId)
+	// Sort the keys (ServiceID)
 	sort.Slice(key, func(i, j int) bool {
 		return key[i] < key[j]
 	})
 
 	// Iterate over the map and encode the key and value
 	for _, k := range key {
-		// ServiceId
+		// ServiceID
 		if err := k.Encode(e); err != nil {
 			return err
 		}
@@ -2414,21 +2396,9 @@ func (p *Privileges) Encode(e *Encoder) error {
 	return nil
 }
 
-// AccumulateRoot
-func (a *AccumulateRoot) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding AccumulateRoot")
-	if _, err := e.buf.Write(a[:]); err != nil {
-		return err
-	}
-
-	cLog(Yellow, fmt.Sprintf("AccumulateRoot: %v", a[:]))
-
-	return nil
-}
-
-// Gamma
-func (g *Gamma) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding Gamma")
+// SafroleState
+func (g *SafroleState) Encode(e *Encoder) error {
+	cLog(Cyan, "Encoding SafroleState")
 
 	// GammaK
 	if err := g.GammaK.Encode(e); err != nil {
@@ -2675,18 +2645,18 @@ func (s *ServiceAccountState) Encode(e *Encoder) error {
 	}
 
 	// Before encoding, sort the map by key
-	keys := make([]ServiceId, 0, len(*s))
+	keys := make([]ServiceID, 0, len(*s))
 	for k := range *s {
 		keys = append(keys, k)
 	}
 
-	// Sort the keys (ServiceId, U32)
+	// Sort the keys (ServiceID, U32)
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
 
 	for _, k := range keys {
-		// Encode the key (ServiceId)
+		// Encode the key (ServiceID)
 		if err := k.Encode(e); err != nil {
 			return err
 		}
@@ -2771,8 +2741,8 @@ func (s *State) Encode(e *Encoder) error {
 		return err
 	}
 
-	// Theta
-	if err := s.Theta.Encode(e); err != nil {
+	// Vartheta
+	if err := s.Vartheta.Encode(e); err != nil {
 		return err
 	}
 
@@ -2816,22 +2786,6 @@ func (d *DeferredTransfer) Encode(e *Encoder) error {
 	// GasLimit
 	if err := d.GasLimit.Encode(e); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (d *DeferredTransfers) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding DeferredTransfers")
-
-	if err := e.EncodeLength(uint64(len(*d))); err != nil {
-		return err
-	}
-
-	for _, deferredTransfer := range *d {
-		if err := deferredTransfer.Encode(e); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -3130,8 +3084,8 @@ func (s *StateKeyVals) Encode(e *Encoder) error {
 func (ash *AccumulatedServiceHash) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AccumulatedServiceHash")
 
-	// ServiceId
-	if err := ash.ServiceId.Encode(e); err != nil {
+	// ServiceID
+	if err := ash.ServiceID.Encode(e); err != nil {
 		return err
 	}
 
@@ -3161,10 +3115,9 @@ func (a *AccumulatedServiceOutput) Encode(e *Encoder) error {
 	return nil
 }
 
-// (7.4) LastAccOut
-// TODO: rename LastAccOut to Theta, and Theta to Vartheta
+// (7.4) Theta
 func (l *LastAccOut) Encode(e *Encoder) error {
-	cLog(Cyan, "Encoding LastAccOut")
+	cLog(Cyan, "Encoding Theta")
 
 	// Encode the size of the slice
 	if err := e.EncodeLength(uint64(len(*l))); err != nil {

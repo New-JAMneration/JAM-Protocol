@@ -1,6 +1,6 @@
 # JAM Protocol Implemetation
 
-![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/workflows/Go%20Format%20Check/badge.svg)
+[![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml)
 [![Release](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml)
 
 ## Documentation
@@ -13,8 +13,9 @@ If you want to update the mindmap, you can go to the [JAM-mindmap repository](ht
 
 ### Access Documentation
 
+- **Full documentation index**: [READMERef/INDEX.md](./READMERef/INDEX.md)
 - Main documentation: [HackMD Development Guide](https://hackmd.io/8ckvpUULSp-HqThsxXE3jg)
-- Development documentation: [Github Document](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/development-doc.md)
+- Development documentation: [Github Document](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/DEVELOPMENT_DOC.md)
 - Requires team member access - please contact project maintainers if you need access
 
 ## Set up
@@ -61,15 +62,15 @@ make test-jam-test-vectors-trace
 
 ## Release and Publish
 
-You can find the release and publish guide [here](./READMERef/release-and-publish.md).
+You can find the release and publish guide [here](./READMERef/RELEASE_AND_PUBLISH.md).
 
 ## Rust Submodule Guide
 
-For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/rust-vrf-compile-guide.md).
+For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/RUST_VRF_COMPILE_GUIDE.md).
 
 ## Encoder/Decoder
 
-For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/encoder-and-decoder.md).
+For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/ENCODER_AND_DECODER.md).
 
 ## Coding Style
 
@@ -79,11 +80,11 @@ Following these guidelines helps maintain code quality and ensures consistency a
 
 ## Code Formatting
 
-We use `gofmt` to maintain consistent code formatting. [Here](./READMERef/code-formatting.md) are the commands you can use.
+We use `gofmt` to maintain consistent code formatting. [Here](./READMERef/CODE_FORMATTING.md) are the commands you can use.
 
 ## Commit massage
 
-Please stick to [here](./READMERef/semantic-commit-messages.md) when you are going to submit a commit.
+Please stick to [here](./READMERef/SEMANTIC_COMMIT_MESSAGES.md) when you are going to submit a commit.
 
 ## Pull Request
 

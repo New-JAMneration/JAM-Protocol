@@ -158,7 +158,7 @@ func (g *GuaranteeController) ValidateSignatures() error {
 	return eg.Wait()
 }
 
-// WorkReportSet | Eq. 11.28
+// WorkReportSet | Eq. 11.28, $\mathbf{I}$
 func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 	workReports := make([]types.WorkReport, 0, len(g.Guarantees))
 	for _, guarantee := range g.Guarantees {
@@ -187,11 +187,11 @@ func (g *GuaranteeController) ValidateWorkReports() error {
 		totalGas := types.U64(0)
 		for _, workResult := range workReport.Results {
 			totalGas += types.U64(workResult.AccumulateGas)
-			if _, serviceExists := delta[workResult.ServiceId]; !serviceExists {
-				err := ReportsErrorCode.BadServiceId
+			if _, serviceExists := delta[workResult.ServiceID]; !serviceExists {
+				err := ReportsErrorCode.BadServiceID
 				return &err
 			}
-			if workResult.AccumulateGas < delta[workResult.ServiceId].ServiceInfo.MinItemGas {
+			if workResult.AccumulateGas < delta[workResult.ServiceID].ServiceInfo.MinItemGas {
 				err := ReportsErrorCode.ServiceItemGasTooLow
 				return &err
 			}
@@ -326,18 +326,18 @@ func (g *GuaranteeController) ValidateContexts() error {
 func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	workPackageHashes := g.WorkPackageHashSet()
 	cs := blockchain.GetInstance()
-	theta := cs.GetPriorStates().GetTheta()
+	vartheta := cs.GetPriorStates().GetVartheta()
 	rho := cs.GetPriorStates().GetRho()
 	xi := cs.GetPriorStates().GetXi()
 	beta := cs.GetPriorStates().GetBeta()
 	// Pre-allocate capacity based on total queued items
 	qCap := 0
-	for _, slot := range theta {
+	for _, slot := range vartheta {
 		qCap += len(slot)
 	}
 	qMap := make(map[types.WorkPackageHash]bool, qCap)
 	// q
-	for _, v := range theta {
+	for _, v := range vartheta {
 		for _, w := range v {
 			qMap[w.Report.PackageSpec.Hash] = true
 		}
@@ -460,7 +460,7 @@ func (g *GuaranteeController) CheckWorkResult() error {
 	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
 	for _, v := range w {
 		for _, w := range v.Results {
-			if w.CodeHash != delta[w.ServiceId].ServiceInfo.CodeHash {
+			if w.CodeHash != delta[w.ServiceID].ServiceInfo.CodeHash {
 				err := ReportsErrorCode.BadCodeHash
 				return &err
 			}
@@ -477,8 +477,8 @@ func (g *GuaranteeController) TransitionWorkReport() {
 
 	for _, guarantee := range g.Guarantees {
 		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
-			Report:  guarantee.Report,
-			Timeout: posteriorTau,
+			Report:       guarantee.Report,
+			AssignedSlot: posteriorTau,
 		}
 	}
 
