@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"time"
 
@@ -17,8 +16,8 @@ import (
 
 type CE131Payload struct {
 	EpochIndex uint32
-	Attempt    uint8     // 0 or 1 (single byte)
-	Proof      [784]byte // RingVRF
+	Attempt    uint8 // 0 or 1 (single byte)
+	Proof      [CE131ProofSize]byte
 }
 
 var localBandersnatchKey types.BandersnatchPublic
@@ -29,16 +28,19 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 }
 
 func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Stream) error {
-	payload := make([]byte, 789)
-	if _, err := io.ReadFull(stream, payload); err != nil {
+	payload, err := stream.ReadMessage()
+	if err != nil {
 		return err
 	}
+	if len(payload) != CE131PayloadSize {
+		return fmt.Errorf("invalid ticket payload length: got %d, want %d", len(payload), CE131PayloadSize)
+	}
 	var req CE131Payload
-	req.EpochIndex = binary.LittleEndian.Uint32(payload[:4])
-	req.Attempt = payload[4]
-	copy(req.Proof[:], payload[5:789])
+	req.EpochIndex = binary.LittleEndian.Uint32(payload[:U32Size])
+	req.Attempt = payload[U32Size]
+	copy(req.Proof[:], payload[U32Size+1:CE131PayloadSize])
 
-	proxyIndexBytes := req.Proof[780:784]
+	proxyIndexBytes := req.Proof[CE131ProofSize-U32Size : CE131ProofSize]
 	proxyIndex := binary.BigEndian.Uint32(proxyIndexBytes) % uint32(types.ValidatorsCount)
 
 	// Get next epoch's validator set (GammaK)
@@ -118,17 +120,16 @@ func forwardSafroleTicket(validator types.Validator, payload []byte) error {
 	}
 	defer stream.Close()
 
-	protocolID := []byte{132}
-	if _, err := stream.Write(protocolID); err != nil {
+	quicStream := &quic.Stream{Stream: stream}
+	protocolID := byte(SafroleTicketDistribution) // 130
+	if _, err := quicStream.Write([]byte{protocolID}); err != nil {
 		return fmt.Errorf("failed to write protocol ID: %w", err)
 	}
-
-	if _, err := stream.Write(payload); err != nil {
-		return fmt.Errorf("failed to write payload: %w", err)
+	if err := quicStream.WriteMessage(payload); err != nil {
+		return fmt.Errorf("failed to write ticket message: %w", err)
 	}
-
 	// Spec: <-- FIN only (acceptor sends no ack byte). Close our write half; done.
-	return nil
+	return quicStream.Close()
 }
 
 func verifySafroleTicketProof(req CE131Payload, validators types.ValidatorsData) error {
@@ -174,7 +175,7 @@ func (h *DefaultCERequestHandler) encodeSafroleTicketDistribution(message interf
 		return nil, fmt.Errorf("failed to encode Proof: %w", err)
 	}
 
-	result := make([]byte, 0, 789) // 4 + 1 + 784 bytes
+	result := make([]byte, 0, CE131PayloadSize)
 	result = append(result, encodeLE32(ticketDist.EpochIndex)...)
 	result = append(result, ticketDist.Attempt)
 	result = append(result, ticketDist.Proof[:]...)
