@@ -30,7 +30,7 @@ type Blockchain interface {
 	GetCurrentHead() (types.Block, error)
 	// SetCurrentHead sets the current head.
 	SetCurrentHead(types.HeaderHash)
-	// GetStateAt returns the state at the given block hash
+	// GetStateAt returns the posterior state at the given block hash
 	GetStateAt(types.HeaderHash) (types.StateKeyVals, error)
 	// GetStateRange returns state values in the given key range at the specified block hash
 	GetStateRange(types.HeaderHash, types.StateKey, types.StateKey, uint32) (types.StateKeyVals, error)
