@@ -84,7 +84,7 @@ func HandleStateRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 	copy(req.HeaderHash[:], reqPayload[:HashSize])
 	copy(req.KeyStart[:], reqPayload[HashSize:HashSize+StateKeySize])
 	copy(req.KeyEnd[:], reqPayload[HashSize+StateKeySize:HashSize+StateKeySize*2])
-	req.MaxSize = binary.LittleEndian.Uint32(reqPayload[CE129RequestSize-U32Size:CE129RequestSize])
+	req.MaxSize = binary.LittleEndian.Uint32(reqPayload[CE129RequestSize-U32Size : CE129RequestSize])
 
 	return HandleStateRequest(blockchain, req, stream)
 }

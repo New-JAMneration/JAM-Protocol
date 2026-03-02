@@ -28,5 +28,5 @@ const (
 
 	// Justification encoding: 1-byte discriminator + 32-byte hash per entry
 	JustificationDiscriminatorSize = 1
-	JustificationHashEntrySize    = JustificationDiscriminatorSize + HashSize
+	JustificationHashEntrySize     = JustificationDiscriminatorSize + HashSize
 )
