@@ -82,22 +82,22 @@ func TestHandleJudgmentAnnouncementInvalidWithGuarantee(t *testing.T) {
 
 	epochIndex := types.U32(111)
 	validatorIndex := types.ValidatorIndex(5)
-	validity := uint8(0) // Invalid - requires Guarantee message before WorkReportHash
+	validity := uint8(0) // Invalid - requires optional Guarantee message after main message
 	workReportHash := createTestWorkReportHash([]byte("test-invalid"))
 	signature := createTestEd25519Signature([]byte("test-sig-invalid"))
 
-	// Build message: EpochIndex + ValidatorIndex + Validity + Guarantee(Slot u32 ++ len++[ValidatorIndex++Sig]) + WorkReportHash + Signature
+	// Spec: EpochIndex + ValidatorIndex + Validity + WorkReportHash + Signature, then Guarantee (when Validity==0)
 	buf := make([]byte, 0, 200)
 	buf = append(buf, byte(epochIndex), byte(epochIndex>>8), byte(epochIndex>>16), byte(epochIndex>>24))
 	buf = append(buf, byte(validatorIndex), byte(validatorIndex>>8))
 	buf = append(buf, validity)
+	buf = append(buf, workReportHash[:]...)
+	buf = append(buf, signature[:]...)
 
-	// Guarantee: Slot (4) + len++ (0 = 1 byte 0x00)
+	// Guarantee (optional when Validity==0): Slot (4) + len++ (0 = 1 byte 0x00)
 	slot := uint32(999)
 	buf = append(buf, byte(slot), byte(slot>>8), byte(slot>>16), byte(slot>>24))
 	buf = append(buf, 0) // len++ = 0 (no guarantors)
-	buf = append(buf, workReportHash[:]...)
-	buf = append(buf, signature[:]...)
 
 	stream := newMockStream(buf)
 	fakeBlockchain := SetupFakeBlockchain()
