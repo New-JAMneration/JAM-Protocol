@@ -77,21 +77,21 @@ func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteClo
 	}
 	validity := validityBuf[0]
 
-	// When Validity==0 (Invalid), a Guarantee message precedes: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
-	if validity == 0 {
-		if err := readGuaranteeMessage(stream); err != nil {
-			return fmt.Errorf("failed to read guarantee message: %w", err)
-		}
-	}
-
+	// First message continues: Work-Report Hash (32) + Ed25519 Signature (64)
 	workReportHash := types.WorkReportHash{}
 	if _, err := io.ReadFull(stream, workReportHash[:]); err != nil {
 		return fmt.Errorf("failed to read work report hash: %w", err)
 	}
-
 	signature := types.Ed25519Signature{}
 	if _, err := io.ReadFull(stream, signature[:]); err != nil {
 		return fmt.Errorf("failed to read Ed25519 signature: %w", err)
+	}
+
+	// When Validity==0 (Invalid), optional Guarantee message: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
+	if validity == 0 {
+		if err := readGuaranteeMessage(stream); err != nil {
+			return fmt.Errorf("failed to read guarantee message: %w", err)
+		}
 	}
 	if err := expectRemoteFIN(stream); err != nil {
 		return err
