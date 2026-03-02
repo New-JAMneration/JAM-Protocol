@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -8,6 +9,9 @@ import (
 // TODO: Implement the Blockchain interface.
 // Blockchain defines the required interface for retrieving blocks.
 type Blockchain interface {
+	// Database returns the persistent database for chain and CE storage, or nil if not available.
+	Database() database.Database
+
 	// GetBlockNumber returns the block number for the given block hash.
 	GetBlockNumber(types.HeaderHash) (uint32, error)
 	// GetBlockHashByNumber returns candidate block hashes for the specified block number.

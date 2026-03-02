@@ -3,11 +3,11 @@ package ce
 import (
 	"bytes"
 	"encoding/binary"
-	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestHandleSegmentShardRequest(t *testing.T) {
@@ -55,74 +55,38 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 	}
 }
 
-func TestLookupWorkPackageBundleWithRedis(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer os.Unsetenv("USE_MINI_REDIS")
-
-	store.ResetWorkPackageBundleStore()
+// TestLookupWorkPackageBundleWithCEStorage verifies bundle lookup via CE persistent db (no Redis).
+func TestLookupWorkPackageBundleWithCEStorage(t *testing.T) {
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	erasureRoot := make([]byte, HashSize)
 	for i := range erasureRoot {
 		erasureRoot[i] = byte(i)
 	}
 
-	bundle, err := lookupWorkPackageBundle(erasureRoot)
-	if err != nil {
-		t.Fatalf("lookupWorkPackageBundle failed: %v", err)
-	}
-	if bundle == nil {
-		t.Fatal("Expected bundle to be returned, got nil")
-	}
-
-	workPackageBundleStore := store.GetWorkPackageBundleStore()
-	if workPackageBundleStore != nil {
-		t.Fatal("Expected work package bundle store to be nil initially")
-	}
-
-	bundle, err = lookupWorkPackageBundle(erasureRoot)
-	if err != nil {
-		t.Fatalf("lookupWorkPackageBundle failed: %v", err)
-	}
-	if bundle == nil {
-		t.Fatal("Expected bundle to be returned, got nil")
-	}
-
-	if bundle.Package.Authorization == nil {
-		t.Error("Expected bundle to have authorization data")
-	}
-	if len(bundle.Package.Items) == 0 {
-		t.Error("Expected bundle to have work items")
-	}
-
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		t.Fatalf("Failed to get Redis backend: %v", err)
-	}
-
-	// Create a work package bundle store
-	workPackageBundleStore = store.NewWorkPackageBundleStore(redisBackend.GetClient())
-	store.SetWorkPackageBundleStore(workPackageBundleStore)
-
-	// Create a test bundle to store using the shared test utility
 	testBundle := CreateTestWorkPackageBundle()
-
-	// Store the test bundle
-	err = workPackageBundleStore.Save(testBundle)
+	encoder := types.NewEncoder()
+	encoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
+	bundleBytes, err := encoder.Encode(testBundle)
 	if err != nil {
-		t.Fatalf("Failed to save test bundle: %v", err)
+		t.Fatalf("encode bundle: %v", err)
+	}
+	if err := PutKV(db, wpBundleKey(erasureRoot), bundleBytes); err != nil {
+		t.Fatalf("PutKV: %v", err)
 	}
 
-	retrievedBundle, err := lookupWorkPackageBundle(erasureRoot)
+	// DB(nil) returns GetDatabase() which we set above
+	retrieved, err := lookupWorkPackageBundle(nil, erasureRoot)
 	if err != nil {
-		t.Fatalf("lookupWorkPackageBundle failed after storing bundle: %v", err)
+		t.Fatalf("lookupWorkPackageBundle: %v", err)
 	}
-	if retrievedBundle == nil {
-		t.Fatal("Expected retrieved bundle to be returned, got nil")
+	if retrieved == nil {
+		t.Fatal("expected bundle, got nil")
 	}
-
-	if len(retrievedBundle.Package.Items) != len(testBundle.Package.Items) {
-		t.Errorf("Expected %d work items, got %d", len(testBundle.Package.Items), len(retrievedBundle.Package.Items))
+	if len(retrieved.Package.Items) != len(testBundle.Package.Items) {
+		t.Errorf("expected %d items, got %d", len(testBundle.Package.Items), len(retrieved.Package.Items))
 	}
-
-	store.CloseMiniRedis()
 }

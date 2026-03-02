@@ -1,13 +1,11 @@
 package ce
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	erasurecoding "github.com/New-JAMneration/JAM-Protocol/pkg/erasure_coding"
@@ -30,7 +28,7 @@ import (
 // The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
 // The assurer should construct this by appending the corresponding segment shard root
 // to the justification received via CE 137.
-func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
+func HandleAuditShardRequest(bc blockchain.Blockchain, stream *quic.Stream) error {
 	// Request: single message = erasure-root (HashSize bytes) + shard index (U16Size bytes, u16)
 	payload, err := stream.ReadMessage()
 	if err != nil {
@@ -43,13 +41,13 @@ func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error
 	shardIndex := uint32(binary.LittleEndian.Uint16(payload[HashSize:CE138RequestSize]))
 
 	// Look up the work-package bundle shard for the given erasure root and shard index
-	bundleShard, err := lookupWorkPackageBundleShard(erasureRoot, shardIndex)
+	bundleShard, err := lookupWorkPackageBundleShard(bc, erasureRoot, shardIndex)
 	if err != nil {
 		return fmt.Errorf("failed to lookup work package bundle shard: %w", err)
 	}
 
 	// Construct the justification
-	justification, err := constructAuditJustification(erasureRoot, shardIndex, bundleShard)
+	justification, err := constructAuditJustification(bc, erasureRoot, shardIndex, bundleShard)
 	if err != nil {
 		return fmt.Errorf("failed to construct justification: %w", err)
 	}
@@ -65,8 +63,8 @@ func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error
 }
 
 // lookupWorkPackageBundleShard looks up a work package bundle by its erasure root and extracts the specific shard.
-func lookupWorkPackageBundleShard(erasureRoot []byte, shardIndex uint32) ([]byte, error) {
-	bundle, err := lookupWorkPackageBundle(erasureRoot)
+func lookupWorkPackageBundleShard(bc blockchain.Blockchain, erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	bundle, err := lookupWorkPackageBundle(bc, erasureRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup work package bundle: %w", err)
 	}
@@ -102,9 +100,9 @@ func extractBundleShard(bundle *types.WorkPackageBundle, shardIndex uint32) ([]b
 
 // constructAuditJustification constructs the justification for the audit shard request.
 // The justification should be constructed by appending segment shard roots to the CE137 justification.
-func constructAuditJustification(erasureRoot []byte, shardIndex uint32, bundleShard []byte) ([]byte, error) {
+func constructAuditJustification(bc blockchain.Blockchain, erasureRoot []byte, shardIndex uint32, bundleShard []byte) ([]byte, error) {
 	// Get the CE137 justification (j) - this would come from the assurer's CE137 response
-	ce137Justification, err := getCE137JustificationForAudit(erasureRoot, shardIndex)
+	ce137Justification, err := getCE137JustificationForAudit(bc, erasureRoot, shardIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CE137 justification: %w", err)
 	}
@@ -123,13 +121,9 @@ func constructAuditJustification(erasureRoot []byte, shardIndex uint32, bundleSh
 }
 
 // getCE137JustificationForAudit retrieves the CE137 justification for the given erasure root and shard index.
-func getCE137JustificationForAudit(erasureRoot []byte, shardIndex uint32) ([]byte, error) {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
-	justification, err := redisBackend.GetJustification(context.Background(), erasureRoot, shardIndex)
+func getCE137JustificationForAudit(bc blockchain.Blockchain, erasureRoot []byte, shardIndex uint32) ([]byte, error) {
+	db := DB(bc)
+	justification, err := GetJustification(db, erasureRoot, shardIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CE137 justification from storage: %w", err)
 	}
@@ -145,8 +139,7 @@ func getCE137JustificationForAudit(erasureRoot []byte, shardIndex uint32) ([]byt
 	mockHash := hash.Blake2bHash(types.ByteSequence(hashInput))
 	copy(mockJustification[1:], mockHash[:])
 
-	err = redisBackend.PutJustification(context.Background(), erasureRoot, shardIndex, mockJustification)
-	if err != nil {
+	if err := PutJustification(db, erasureRoot, shardIndex, mockJustification); err != nil {
 		return nil, fmt.Errorf("failed to store CE137 justification: %w", err)
 	}
 

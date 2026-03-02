@@ -2,13 +2,11 @@ package ce
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -27,7 +25,7 @@ import (
 // - Hash: 32 bytes (OpaqueHash)
 //
 // Total request message size: 32 bytes
-func HandlePreimageRequest(_ blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandlePreimageRequest(bc blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	hashSize := 32
 	hashData := make([]byte, hashSize)
 
@@ -42,7 +40,7 @@ func HandlePreimageRequest(_ blockchain.Blockchain, stream io.ReadWriteCloser) e
 		return err
 	}
 
-	preimage, err := getPreimageFromStorage(hash)
+	preimage, err := getPreimageFromStorage(bc, hash)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve preimage: %w", err)
 	}
@@ -53,59 +51,36 @@ func HandlePreimageRequest(_ blockchain.Blockchain, stream io.ReadWriteCloser) e
 	return stream.Close()
 }
 
-// getPreimageFromStorage retrieves the preimage from the preimage database
-func getPreimageFromStorage(hash types.OpaqueHash) ([]byte, error) {
-	redisBackend, err := store.GetRedisBackend()
+// getPreimageFromStorage retrieves the preimage from the CE database
+func getPreimageFromStorage(bc blockchain.Blockchain, hash types.OpaqueHash) ([]byte, error) {
+	db := DB(bc)
+	preimage, err := GetKV(db, cePreimageKey(hash))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get preimage from storage: %w", err)
 	}
-
-	hashHex := hex.EncodeToString(hash[:])
-	key := fmt.Sprintf("preimage:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	preimage, err := client.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get preimage from Redis: %w", err)
-	}
-
 	if preimage == nil {
 		return nil, fmt.Errorf("preimage not found for hash: %x", hash)
 	}
-
 	return preimage, nil
 }
 
-// StorePreimage stores a preimage in the preimage database
-func StorePreimage(hashValue types.OpaqueHash, preimage []byte) error {
+// StorePreimage stores a preimage in the CE database
+func StorePreimage(bc blockchain.Blockchain, hashValue types.OpaqueHash, preimage []byte) error {
 	if len(preimage) == 0 {
 		return errors.New("preimage cannot be empty")
 	}
-
 	const maxPreimageSize = 100 * 1024 * 1024
 	if len(preimage) > maxPreimageSize {
 		return fmt.Errorf("preimage too large: %d bytes (max: %d)", len(preimage), maxPreimageSize)
 	}
-
 	preimageHash := hash.Blake2bHash(types.ByteSequence(preimage))
 	if preimageHash != hashValue {
 		return fmt.Errorf("preimage hash mismatch: expected %x, got %x", hashValue, preimageHash)
 	}
-
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
+	db := DB(bc)
+	if err := PutKV(db, cePreimageKey(hashValue), preimage); err != nil {
+		return fmt.Errorf("failed to store preimage: %w", err)
 	}
-
-	hashHex := hex.EncodeToString(hashValue[:])
-	key := fmt.Sprintf("preimage:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	err = client.Put(key, preimage)
-	if err != nil {
-		return fmt.Errorf("failed to store preimage in Redis: %w", err)
-	}
-
 	return nil
 }
 

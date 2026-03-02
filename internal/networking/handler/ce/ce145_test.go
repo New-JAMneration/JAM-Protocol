@@ -2,16 +2,17 @@ package ce
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestHandleJudgmentAnnouncementValid(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	epochIndex := types.U32(12345)
 	validatorIndex := types.ValidatorIndex(67)
@@ -39,7 +40,7 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
-	storedJudgment, err := GetJudgment(workReportHash, epochIndex, validatorIndex)
+	storedJudgment, err := GetJudgment(fakeBlockchain, workReportHash, epochIndex, validatorIndex)
 	if err != nil {
 		t.Fatalf("Failed to retrieve stored judgment: %v", err)
 	}
@@ -74,8 +75,12 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 }
 
 func TestGetAllJudgmentsForWorkReport(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
+
+	fakeBlockchain := SetupFakeBlockchain()
 
 	workReportHash := createTestWorkReportHash([]byte("test-work-report-multiple"))
 
@@ -91,13 +96,13 @@ func TestGetAllJudgmentsForWorkReport(t *testing.T) {
 
 	for _, j := range judgments {
 		signature := createTestEd25519Signature([]byte("test-signature"))
-		err := storeJudgmentAnnouncement(j.epochIndex, j.validatorIndex, j.validity, workReportHash, signature)
+		err := storeJudgmentAnnouncement(fakeBlockchain, j.epochIndex, j.validatorIndex, j.validity, workReportHash, signature)
 		if err != nil {
 			t.Fatalf("Failed to store judgment for validator %d: %v", j.validatorIndex, err)
 		}
 	}
 
-	retrievedJudgments, err := GetAllJudgmentsForWorkReport(workReportHash)
+	retrievedJudgments, err := GetAllJudgmentsForWorkReport(fakeBlockchain, workReportHash)
 	if err != nil {
 		t.Fatalf("Failed to retrieve judgments: %v", err)
 	}
@@ -127,8 +132,12 @@ func TestGetAllJudgmentsForWorkReport(t *testing.T) {
 }
 
 func TestGetAllJudgmentsForEpoch(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
+
+	fakeBlockchain := SetupFakeBlockchain()
 
 	epochIndex := types.U32(200)
 
@@ -138,13 +147,13 @@ func TestGetAllJudgmentsForEpoch(t *testing.T) {
 		validity := uint8(i % 2)
 		signature := createTestEd25519Signature([]byte("test-signature"))
 
-		err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature)
+		err := storeJudgmentAnnouncement(fakeBlockchain, epochIndex, validatorIndex, validity, workReportHash, signature)
 		if err != nil {
 			t.Fatalf("Failed to store judgment %d: %v", i, err)
 		}
 	}
 
-	retrievedJudgments, err := GetAllJudgmentsForEpoch(epochIndex)
+	retrievedJudgments, err := GetAllJudgmentsForEpoch(fakeBlockchain, epochIndex)
 	if err != nil {
 		t.Fatalf("Failed to retrieve judgments: %v", err)
 	}

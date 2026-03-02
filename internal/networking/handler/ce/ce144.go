@@ -2,13 +2,11 @@ package ce
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -86,7 +84,7 @@ func HandleAuditAnnouncement(blockchain blockchain.Blockchain, stream io.ReadWri
 	if err := validateAuditAnnouncement(headerHash, tranche, announcement, evidence); err != nil {
 		return fmt.Errorf("invalid audit announcement: %w", err)
 	}
-	if err := storeAuditAnnouncement(headerHash, tranche, announcement, evidence); err != nil {
+	if err := storeAuditAnnouncement(blockchain, headerHash, tranche, announcement, evidence); err != nil {
 		return fmt.Errorf("failed to store audit announcement: %w", err)
 	}
 	return stream.Close()
@@ -227,12 +225,8 @@ func validateAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, annou
 	return nil
 }
 
-func storeAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
+func storeAuditAnnouncement(bc blockchain.Blockchain, headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
+	db := DB(bc)
 	announcementData := &CE144Payload{
 		HeaderHash:   headerHash,
 		Tranche:      tranche,
@@ -245,21 +239,12 @@ func storeAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announce
 		return fmt.Errorf("failed to encode announcement data: %w", err)
 	}
 
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("audit_announcement:%s:%d", headerHashHex, tranche)
-
-	client := redisBackend.GetClient()
-	err = client.Put(key, encodedAnnouncement)
-	if err != nil {
-		return fmt.Errorf("failed to store announcement in Redis: %w", err)
+	if err := PutKV(db, ceAuditAnnKey(headerHash, tranche), encodedAnnouncement); err != nil {
+		return fmt.Errorf("failed to store announcement: %w", err)
 	}
-
-	headerKey := fmt.Sprintf("header_audit_announcements:%s", headerHashHex)
-	err = client.SAdd(headerKey, encodedAnnouncement)
-	if err != nil {
+	if err := SAdd(db, ceAuditAnnHeaderSetKey(headerHash), encodedAnnouncement); err != nil {
 		return fmt.Errorf("failed to add announcement to header set: %w", err)
 	}
-
 	return nil
 }
 
@@ -279,59 +264,36 @@ func CreateAuditAnnouncement(
 	return payload.Encode()
 }
 
-func GetAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8) (*CE144Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
+func GetAuditAnnouncement(bc blockchain.Blockchain, headerHash types.OpaqueHash, tranche uint8) (*CE144Payload, error) {
+	db := DB(bc)
+	encodedAnnouncement, err := GetKV(db, ceAuditAnnKey(headerHash, tranche))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get announcement: %w", err)
 	}
-
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("audit_announcement:%s:%d", headerHashHex, tranche)
-
-	client := redisBackend.GetClient()
-	encodedAnnouncement, err := client.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get announcement from Redis: %w", err)
-	}
-
 	if encodedAnnouncement == nil {
 		return nil, fmt.Errorf("audit announcement not found for header: %x, tranche: %d", headerHash, tranche)
 	}
-
 	announcementData := &CE144Payload{}
-	err = announcementData.Decode(encodedAnnouncement)
-	if err != nil {
+	if err := announcementData.Decode(encodedAnnouncement); err != nil {
 		return nil, fmt.Errorf("failed to decode announcement data: %w", err)
 	}
-
 	return announcementData, nil
 }
 
-func GetAllAuditAnnouncementsForHeader(headerHash types.OpaqueHash) ([]*CE144Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
+func GetAllAuditAnnouncementsForHeader(bc blockchain.Blockchain, headerHash types.OpaqueHash) ([]*CE144Payload, error) {
+	db := DB(bc)
+	encodedAnnouncements, err := SMembers(db, ceAuditAnnHeaderSetKey(headerHash))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get announcements set: %w", err)
 	}
-
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	headerKey := fmt.Sprintf("header_audit_announcements:%s", headerHashHex)
-
-	client := redisBackend.GetClient()
-	encodedAnnouncements, err := client.SMembers(headerKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get announcements set from Redis: %w", err)
-	}
-
 	var announcements []*CE144Payload
 	for _, encodedAnnouncement := range encodedAnnouncements {
 		announcementData := &CE144Payload{}
-		err := announcementData.Decode(encodedAnnouncement)
-		if err != nil {
+		if err := announcementData.Decode(encodedAnnouncement); err != nil {
 			return nil, fmt.Errorf("failed to decode announcement data: %w", err)
 		}
 		announcements = append(announcements, announcementData)
 	}
-
 	return announcements, nil
 }
 

@@ -3,16 +3,17 @@ package ce
 import (
 	"bytes"
 	"crypto/sha256"
-	"os"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	headerHash := types.OpaqueHash{}
 	for i := range headerHash {
@@ -60,7 +61,7 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 	if len(response) != 0 {
 		t.Errorf("Expected no response bytes, got: %x", response)
 	}
-	storedAnnouncement, err := GetAuditAnnouncement(headerHash, tranche)
+	storedAnnouncement, err := GetAuditAnnouncement(fakeBlockchain, headerHash, tranche)
 	if err != nil {
 		t.Fatalf("Failed to retrieve stored announcement: %v", err)
 	}
@@ -84,8 +85,10 @@ func TestHandleAuditAnnouncementFirstTranche(t *testing.T) {
 }
 
 func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	headerHash := types.OpaqueHash{}
 	for i := range headerHash {
@@ -143,7 +146,7 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
-	storedAnnouncement, err := GetAuditAnnouncement(headerHash, tranche)
+	storedAnnouncement, err := GetAuditAnnouncement(fakeBlockchain, headerHash, tranche)
 	if err != nil {
 		t.Fatalf("Failed to retrieve stored announcement: %v", err)
 	}
@@ -162,8 +165,12 @@ func TestHandleAuditAnnouncementSubsequentTranche(t *testing.T) {
 }
 
 func TestGetAllAuditAnnouncementsForHeader(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
+
+	fakeBlockchain := SetupFakeBlockchain()
 
 	headerHash := types.OpaqueHash{}
 	for i := range headerHash {
@@ -203,14 +210,14 @@ func TestGetAllAuditAnnouncementsForHeader(t *testing.T) {
 			}
 		}
 
-		err := storeAuditAnnouncement(headerHash, tranche, announcement, evidence)
+		err := storeAuditAnnouncement(fakeBlockchain, headerHash, tranche, announcement, evidence)
 		if err != nil {
 			t.Fatalf("Failed to store announcement for tranche %d: %v", tranche, err)
 		}
 	}
 
 	// Retrieve all announcements
-	announcements, err := GetAllAuditAnnouncementsForHeader(headerHash)
+	announcements, err := GetAllAuditAnnouncementsForHeader(fakeBlockchain, headerHash)
 	if err != nil {
 		t.Fatalf("Failed to retrieve announcements: %v", err)
 	}

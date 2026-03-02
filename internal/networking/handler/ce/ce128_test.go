@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -127,6 +128,11 @@ func (f *fakeBlockchain) GetStateRange(hash types.HeaderHash, startKey, endKey t
 
 func (f *fakeBlockchain) GetBoundaryNodes(headerHash types.HeaderHash, keyStart types.StateKey, keyEnd types.StateKey, maxSize uint32) ([]types.BoundaryNode, error) {
 	return nil, nil
+}
+
+// Database implements blockchain.Blockchain; returns nil (tests use SetDatabase when db is needed).
+func (f *fakeBlockchain) Database() database.Database {
+	return nil
 }
 
 // SetupFakeBlockchain creates a simple chain:

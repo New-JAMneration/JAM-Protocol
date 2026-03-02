@@ -2,16 +2,17 @@ package ce
 
 import (
 	"encoding/binary"
-	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 )
 
 func TestHandleAuditShardRequest(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
 	shardIndex := uint32(5)
