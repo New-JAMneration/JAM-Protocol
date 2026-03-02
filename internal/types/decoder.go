@@ -49,6 +49,17 @@ func (d *Decoder) Decode(data []byte, v interface{}) error {
 	return d.decodeStruct(v)
 }
 
+// DecodeWithConsumed decodes one value from data and returns the number of bytes consumed.
+// Use this to decode a sequence of concatenated values (e.g. message = whole [T] sequence).
+func (d *Decoder) DecodeWithConsumed(data []byte, v interface{}) (int, error) {
+	r := bytes.NewReader(data)
+	d.buf = r
+	if err := d.decodeStruct(v); err != nil {
+		return 0, err
+	}
+	return len(data) - r.Len(), nil
+}
+
 func (d *Decoder) ReadPointerFlag() (byte, error) {
 	cLog(Cyan, "Reading pointer flag")
 	firstByte, err := d.buf.ReadByte()

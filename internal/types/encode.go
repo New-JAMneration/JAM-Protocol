@@ -3044,6 +3044,38 @@ func (s *StateKey) Encode(e *Encoder) error {
 	return nil
 }
 
+// Encode BoundaryNode
+func (b *BoundaryNode) Encode(e *Encoder) error {
+	if err := b.Key.Encode(e); err != nil {
+		return err
+	}
+	if _, err := e.buf.Write(b.Hash[:]); err != nil {
+		return err
+	}
+	if b.Parent == nil {
+		if _, err := e.buf.Write([]byte{0}); err != nil {
+			return err
+		}
+	} else {
+		if _, err := e.buf.Write([]byte{1}); err != nil {
+			return err
+		}
+		if err := b.Parent.Encode(e); err != nil {
+			return err
+		}
+	}
+	if b.IsLeaf {
+		if _, err := e.buf.Write([]byte{1}); err != nil {
+			return err
+		}
+	} else {
+		if _, err := e.buf.Write([]byte{0}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Encode StateKeyVal
 func (s *StateKeyVal) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding StateKeyVal")
