@@ -3201,6 +3201,34 @@ func (s *StateKey) Decode(d *Decoder) error {
 	return nil
 }
 
+// Decode BoundaryNode
+func (b *BoundaryNode) Decode(d *Decoder) error {
+	if err := b.Key.Decode(d); err != nil {
+		return err
+	}
+	if err := binary.Read(d.buf, binary.LittleEndian, &b.Hash); err != nil {
+		return err
+	}
+	parentFlag, err := d.ReadPointerFlag()
+	if err != nil {
+		return err
+	}
+	if parentFlag == 0 {
+		b.Parent = nil
+	} else {
+		b.Parent = &StateKey{}
+		if err := b.Parent.Decode(d); err != nil {
+			return err
+		}
+	}
+	isLeafByte, err := d.buf.ReadByte()
+	if err != nil {
+		return err
+	}
+	b.IsLeaf = (isLeafByte != 0)
+	return nil
+}
+
 func (m *ExportSegmentMatrix) Decode(d *Decoder) error {
 	outerLen, err := d.DecodeLength()
 	if err != nil {
@@ -3266,6 +3294,14 @@ func (b *WorkPackageBundle) Decode(d *Decoder) error {
 		return err
 	}
 	return nil
+}
+
+// Decode StateKeyVal (single Key+Value, no length prefix)
+func (s *StateKeyVal) Decode(d *Decoder) error {
+	if err := s.Key.Decode(d); err != nil {
+		return err
+	}
+	return s.Value.Decode(d)
 }
 
 // Decode StateKeyVals

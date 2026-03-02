@@ -33,29 +33,23 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 
 	encoder := types.NewEncoder()
 
-	// Build boundary message: 4-byte count + for each node 4-byte length + encoded node
-	numBoundary := uint32(len(boundaryNodes))
-	boundaryBlob := make([]byte, 0, U32Size+len(boundaryNodes)*(U32Size+256))
-	boundaryBlob = append(boundaryBlob, encodeLE32(numBoundary)...)
+	// Build boundary message: whole [BoundaryNode] sequence (length from message size)
+	boundaryBlob := make([]byte, 0)
 	for _, node := range boundaryNodes {
 		encodedNode, err := encoder.Encode(&node)
 		if err != nil {
 			return fmt.Errorf("failed to encode boundary node: %w", err)
 		}
-		boundaryBlob = append(boundaryBlob, encodeLE32(uint32(len(encodedNode)))...)
 		boundaryBlob = append(boundaryBlob, encodedNode...)
 	}
 
-	// Build key/values message: 4-byte count + for each 4-byte length + encoded value
-	numValues := uint32(len(stateValues))
-	keyValuesBlob := make([]byte, 0, U32Size+len(stateValues)*(U32Size+256))
-	keyValuesBlob = append(keyValuesBlob, encodeLE32(numValues)...)
+	// Build key/values message: whole [Key++Value] sequence (length from message size)
+	keyValuesBlob := make([]byte, 0)
 	for _, stateVal := range stateValues {
 		encodedVal, err := encoder.Encode(&stateVal)
 		if err != nil {
 			return fmt.Errorf("failed to encode state value: %w", err)
 		}
-		keyValuesBlob = append(keyValuesBlob, encodeLE32(uint32(len(encodedVal)))...)
 		keyValuesBlob = append(keyValuesBlob, encodedVal...)
 	}
 

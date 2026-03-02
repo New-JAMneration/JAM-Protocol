@@ -61,40 +61,38 @@ func TestHandleStateRequest(t *testing.T) {
 	}
 	keyValuesBlob := response[4+boundaryLen+4 : 4+boundaryLen+4+keyValuesLen]
 
-	numBoundaryNodes := binary.LittleEndian.Uint32(boundaryBlob[:4])
+	// Parse boundaryBlob: whole [BoundaryNode] sequence (no count/length prefix)
+	decoder := types.NewDecoder()
+	offset := 0
+	var numBoundaryNodes int
+	for offset < len(boundaryBlob) {
+		var node types.BoundaryNode
+		n, err := decoder.DecodeWithConsumed(boundaryBlob[offset:], &node)
+		if err != nil {
+			t.Fatalf("Failed to decode boundary node at offset %d: %v", offset, err)
+		}
+		offset += n
+		numBoundaryNodes++
+		t.Logf("Boundary node %d: Key=%x Hash=%x", numBoundaryNodes-1, node.Key, node.Hash)
+	}
 	t.Logf("Number of boundary nodes: %d", numBoundaryNodes)
 
-	offset := 4
-	for i := uint32(0); i < numBoundaryNodes; i++ {
-		if offset+4 > len(boundaryBlob) {
-			t.Fatalf("Response truncated in boundary nodes section")
+	// Parse keyValuesBlob: whole [Key++Value] sequence (no count/length prefix)
+	var stateValues types.StateKeyVals
+	offset = 0
+	for offset < len(keyValuesBlob) {
+		var kv types.StateKeyVal
+		n, err := decoder.DecodeWithConsumed(keyValuesBlob[offset:], &kv)
+		if err != nil {
+			t.Fatalf("Failed to decode state value at offset %d: %v", offset, err)
 		}
-		nodeLen := binary.LittleEndian.Uint32(boundaryBlob[offset : offset+4])
-		offset += 4 + int(nodeLen)
+		offset += n
+		stateValues = append(stateValues, kv)
+		t.Logf("State value %d: key=%x value=%s", len(stateValues)-1, kv.Key, kv.Value)
 	}
 
-	numValues := binary.LittleEndian.Uint32(keyValuesBlob[:4])
-	t.Logf("Number of state values returned: %d", numValues)
-
-	if numValues == 0 {
+	if len(stateValues) == 0 {
 		t.Errorf("Expected some state values, got 0")
-	}
-
-	// Parse and verify each state value (inside keyValuesBlob)
-	offset = 4
-	for i := uint32(0); i < numValues; i++ {
-		if offset+4 > len(keyValuesBlob) {
-			t.Fatalf("Response truncated in state values section")
-		}
-		valueLen := binary.LittleEndian.Uint32(keyValuesBlob[offset : offset+4])
-		offset += 4
-
-		if offset+int(valueLen) > len(keyValuesBlob) {
-			t.Fatalf("Response truncated in state value data")
-		}
-		valueData := keyValuesBlob[offset : offset+int(valueLen)]
-		t.Logf("State value %d: length=%d data=%x", i, valueLen, valueData)
-		offset += int(valueLen)
 	}
 }
 
@@ -248,55 +246,42 @@ func TestCE129RequestWithPeer(t *testing.T) {
 	}
 	keyValuesBlob := respData[4+boundaryLen+4 : 4+boundaryLen+4+keyValuesLen]
 
-	numBoundaryNodes := binary.LittleEndian.Uint32(boundaryBlob[:4])
-	t.Logf("Number of boundary nodes: %d", numBoundaryNodes)
-
-	offset := 4
-	for i := uint32(0); i < numBoundaryNodes; i++ {
-		if offset+4 > len(boundaryBlob) {
-			t.Fatalf("Response truncated in boundary nodes section at node %d", i)
+	// Parse boundaryBlob: whole [BoundaryNode] sequence (no count/length prefix)
+	decoder := types.NewDecoder()
+	offset := 0
+	for offset < len(boundaryBlob) {
+		var node types.BoundaryNode
+		n, err := decoder.DecodeWithConsumed(boundaryBlob[offset:], &node)
+		if err != nil {
+			t.Fatalf("Failed to decode boundary node at offset %d: %v", offset, err)
 		}
-		nodeLen := binary.LittleEndian.Uint32(boundaryBlob[offset : offset+4])
-		t.Logf("Boundary node %d length: %d", i, nodeLen)
-		offset += 4
-		if offset+int(nodeLen) > len(boundaryBlob) {
-			t.Fatalf("Response truncated in boundary node data at node %d", i)
-		}
-		nodeData := boundaryBlob[offset : offset+int(nodeLen)]
-		t.Logf("Boundary node %d data: %x", i, nodeData)
-		offset += int(nodeLen)
+		offset += n
+		t.Logf("Boundary node decoded: Key=%x Hash=%x", node.Key, node.Hash)
 	}
 
-	if len(keyValuesBlob) < 4 {
-		t.Fatalf("Key/values blob too short at offset %d", 4+boundaryLen+4)
+	// Parse keyValuesBlob: whole [Key++Value] sequence (no count/length prefix)
+	var stateValues types.StateKeyVals
+	offset = 0
+	for offset < len(keyValuesBlob) {
+		var kv types.StateKeyVal
+		n, err := decoder.DecodeWithConsumed(keyValuesBlob[offset:], &kv)
+		if err != nil {
+			t.Fatalf("Failed to decode state value at offset %d: %v", offset, err)
+		}
+		offset += n
+		stateValues = append(stateValues, kv)
 	}
-	numValues := binary.LittleEndian.Uint32(keyValuesBlob[:4])
 
-	if numValues == 0 {
+	if len(stateValues) == 0 {
 		t.Errorf("Expected some state values, got 0")
 	}
 
-	offset = 4 // within keyValuesBlob
-	var parsedValues []string
-	for i := uint32(0); i < numValues; i++ {
-		if offset+4 > len(keyValuesBlob) {
-			t.Fatalf("Response truncated in state values section at value %d offset %d", i, offset)
+	t.Logf("Successfully received and parsed %d state values", len(stateValues))
+	if len(stateValues) > 0 {
+		var parsedValues []string
+		for _, kv := range stateValues {
+			parsedValues = append(parsedValues, fmt.Sprintf("%x", kv.Value))
 		}
-		valueLen := binary.LittleEndian.Uint32(keyValuesBlob[offset : offset+4])
-		t.Logf("State value %d length: %d (at offset %d)", i, valueLen, offset)
-		offset += 4
-
-		if offset+int(valueLen) > len(keyValuesBlob) {
-			t.Fatalf("Response truncated in state value data at value %d offset %d", i, offset)
-		}
-		valueData := keyValuesBlob[offset : offset+int(valueLen)]
-		t.Logf("State value %d data: %x", i, valueData)
-		parsedValues = append(parsedValues, fmt.Sprintf("%x", valueData))
-		offset += int(valueLen)
-	}
-
-	t.Logf("Successfully received and parsed %d state values", numValues)
-	if len(parsedValues) > 0 {
 		t.Logf("Parsed values: %v", parsedValues)
 	}
 }
