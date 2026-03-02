@@ -42,29 +42,29 @@ import (
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Request: single message = erasure-root (32) + shard index (2) + segment indices length (2) + segment indices
+	// Request: single message = erasure-root (HashSize) + shard index (U16Size) + segment indices length (U16Size) + segment indices
 	payload, err := stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-	if len(payload) < 36 {
+	if len(payload) < CE139140MinRequestSize {
 		return errors.New("segment shard request too short")
 	}
-	erasureRoot := payload[:32]
-	shardIndex := uint32(binary.LittleEndian.Uint16(payload[32:34]))
-	segmentIndicesLen := binary.LittleEndian.Uint16(payload[34:36])
+	erasureRoot := payload[:HashSize]
+	shardIndex := uint32(binary.LittleEndian.Uint16(payload[HashSize : HashSize+U16Size]))
+	segmentIndicesLen := binary.LittleEndian.Uint16(payload[HashSize+U16Size : CE139140MinRequestSize])
 
-	if segmentIndicesLen > 6144 {
+	if segmentIndicesLen > MaxSegmentIndicesCount {
 		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
 	}
 
-	rest := payload[36:]
-	if len(rest) < int(segmentIndicesLen)*2 {
+	rest := payload[CE139140MinRequestSize:]
+	if len(rest) < int(segmentIndicesLen)*SegmentIndexSize {
 		return errors.New("segment shard request truncated")
 	}
 	segmentIndices := make([]uint16, segmentIndicesLen)
 	for i := uint16(0); i < segmentIndicesLen; i++ {
-		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*2 : (i+1)*2])
+		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*SegmentIndexSize : (i+1)*SegmentIndexSize])
 	}
 
 	bundle, err := lookupWorkPackageBundle(erasureRoot)
@@ -135,7 +135,7 @@ func getCE137Justification(erasureRoot []byte, shardIndex uint32) ([]byte, error
 
 	// For now, create a mock justification that simulates a real CE137 response
 	// TODO:  the justification received from the guarantor via CE137
-	mockJustification := make([]byte, 33) // 1 byte discriminator + 32 bytes hash
+	mockJustification := make([]byte, JustificationHashEntrySize) // 1 byte discriminator + HashSize bytes hash
 	mockJustification[0] = 0x00           // Type 0: single hash
 
 	// Create a deterministic hash based on erasure root and shard index
@@ -190,7 +190,7 @@ func getSegmentShardSequence(bundle *types.WorkPackageBundle, shardIndex uint32,
 	}
 	requestedShard := shards[shardIndex]
 
-	segmentSize := 32
+	segmentSize := HashSize
 	requiredLen := int(minSegments+1) * segmentSize
 	if len(requestedShard) < requiredLen {
 		padded := make([]byte, requiredLen)
@@ -225,8 +225,8 @@ func constructMerkleCoPath(segmentShardSequence [][]byte, segmentIndex uint16) (
 	coPath := merkle_tree.T(byteSequences, types.U32(segmentIndex), hash.Blake2bHash)
 
 	// In this codebase, merkle_tree.T returns a sequence of sibling hashes as ByteSequence.
-	// Encode as repeated (0x00 ++ 32-byte-hash).
-	result := make([]byte, 0, len(coPath)*(1+32))
+	// Encode as repeated (0x00 ++ HashSize-byte-hash).
+	result := make([]byte, 0, len(coPath)*JustificationHashEntrySize)
 	for _, h := range coPath {
 		result = append(result, 0x00)
 		result = append(result, h...)
@@ -235,7 +235,7 @@ func constructMerkleCoPath(segmentShardSequence [][]byte, segmentIndex uint16) (
 }
 
 // combineJustifications concatenates justifications per JAMNP: j ++ [b] ++ T(s, i, H).
-// ++ is concatenation; [b] is the bundle shard hash entry (discriminator 0x00 + 32-byte hash).
+// ++ is concatenation; [b] is the bundle shard hash entry (discriminator 0x00 + HashSize-byte hash).
 func combineJustifications(ce137Justification, bundleShardHash, merkleCoPath []byte) []byte {
 	result := make([]byte, 0, len(ce137Justification)+1+len(bundleShardHash)+len(merkleCoPath))
 	result = append(result, ce137Justification...)
@@ -259,9 +259,9 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequestWithJustification(mes
 
 	encoder := types.NewEncoder()
 
-	// Encode ErasureRoot (32 bytes)
-	if len(segmentReq.ErasureRoot) != 32 {
-		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(segmentReq.ErasureRoot))
+	// Encode ErasureRoot (HashSize bytes)
+	if len(segmentReq.ErasureRoot) != HashSize {
+		return nil, fmt.Errorf("erasure root must be exactly %d bytes, got %d", HashSize, len(segmentReq.ErasureRoot))
 	}
 	if err := h.writeBytes(encoder, segmentReq.ErasureRoot); err != nil {
 		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
@@ -285,7 +285,7 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequestWithJustification(mes
 		}
 	}
 
-	result := make([]byte, 0, 36+len(segmentReq.SegmentIndices)*2)
+	result := make([]byte, 0, CE139140MinRequestSize+len(segmentReq.SegmentIndices)*SegmentIndexSize)
 	result = append(result, segmentReq.ErasureRoot...)
 	result = append(result, encodeLE16(uint16(segmentReq.ShardIndex))...)
 	result = append(result, encodeLE16(segmentIndicesLen)...)

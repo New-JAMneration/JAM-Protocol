@@ -12,7 +12,7 @@ import (
 
 func TestHandleSegmentShardRequest(t *testing.T) {
 	// Erasure root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes) + segment indices + FIN
-	erasureRoot := make([]byte, 32)
+	erasureRoot := make([]byte, HashSize)
 	for i := range erasureRoot {
 		erasureRoot[i] = byte(i)
 	}
@@ -49,8 +49,8 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 
 	response := mockStream.w.Bytes()
 
-	// Response is one length-prefixed message: [4][segmentShards]
-	if len(response) < 4+64 {
+	// Response is one length-prefixed message: [U32Size][segmentShards]
+	if len(response) < U32Size+64 {
 		t.Errorf("Expected response to contain length prefix + segment shards (at least 64 bytes), got length %d", len(response))
 	}
 }
@@ -61,7 +61,7 @@ func TestLookupWorkPackageBundleWithRedis(t *testing.T) {
 
 	store.ResetWorkPackageBundleStore()
 
-	erasureRoot := make([]byte, 32)
+	erasureRoot := make([]byte, HashSize)
 	for i := range erasureRoot {
 		erasureRoot[i] = byte(i)
 	}

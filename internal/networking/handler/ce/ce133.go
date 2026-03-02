@@ -21,12 +21,12 @@ func HandleWorkPackageSubmission(blockchain blockchain.Blockchain, stream *quic.
 	if err != nil {
 		return err
 	}
-	if len(msg1) < 2 {
+	if len(msg1) < CE133MinFirstMessageSize {
 		return fmt.Errorf("work package message too short")
 	}
-	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(msg1[:2]))
-	workPackage := make([]byte, len(msg1)-2)
-	copy(workPackage, msg1[2:])
+	coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(msg1[:U16Size]))
+	workPackage := make([]byte, len(msg1)-U16Size)
+	copy(workPackage, msg1[U16Size:])
 
 	// Second message: extrinsic data
 	extrinsics, err := stream.ReadMessage()

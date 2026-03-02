@@ -31,16 +31,16 @@ import (
 // The assurer should construct this by appending the corresponding segment shard root
 // to the justification received via CE 137.
 func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Request: single message = erasure-root (32 bytes) + shard index (2 bytes, u16)
+	// Request: single message = erasure-root (HashSize bytes) + shard index (U16Size bytes, u16)
 	payload, err := stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-	if len(payload) < 34 {
+	if len(payload) < CE138RequestSize {
 		return fmt.Errorf("audit shard request too short")
 	}
-	erasureRoot := payload[:32]
-	shardIndex := uint32(binary.LittleEndian.Uint16(payload[32:34]))
+	erasureRoot := payload[:HashSize]
+	shardIndex := uint32(binary.LittleEndian.Uint16(payload[HashSize:CE138RequestSize]))
 
 	// Look up the work-package bundle shard for the given erasure root and shard index
 	bundleShard, err := lookupWorkPackageBundleShard(erasureRoot, shardIndex)
@@ -138,7 +138,7 @@ func getCE137JustificationForAudit(erasureRoot []byte, shardIndex uint32) ([]byt
 		return justification, nil
 	}
 
-	mockJustification := make([]byte, 33) // 1 byte discriminator + 32 bytes hash
+	mockJustification := make([]byte, JustificationHashEntrySize) // 1 byte discriminator + HashSize bytes hash
 	mockJustification[0] = 0x00           // Type 0: single hash
 
 	hashInput := append(erasureRoot, byte(shardIndex), byte(shardIndex>>8), byte(shardIndex>>16), byte(shardIndex>>24))
@@ -155,7 +155,7 @@ func getCE137JustificationForAudit(erasureRoot []byte, shardIndex uint32) ([]byt
 
 // getSegmentShardRoots computes the hashes of all segment shards within the bundle shard.
 func getSegmentShardRoots(bundleShard []byte) ([]byte, error) {
-	segmentSize := 32
+	segmentSize := HashSize
 	var segmentRoots []byte
 
 	// Split the bundle shard into segments and hash each segment
@@ -215,8 +215,8 @@ func (h *DefaultCERequestHandler) encodeAuditShardRequest(message interface{}) (
 		return nil
 	}
 
-	if len(auditReq.ErasureRoot) != 32 {
-		return nil, fmt.Errorf("erasure root must be exactly 32 bytes, got %d", len(auditReq.ErasureRoot))
+	if len(auditReq.ErasureRoot) != HashSize {
+		return nil, fmt.Errorf("erasure root must be exactly %d bytes, got %d", HashSize, len(auditReq.ErasureRoot))
 	}
 	if err := writeRaw(auditReq.ErasureRoot); err != nil {
 		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
@@ -227,7 +227,7 @@ func (h *DefaultCERequestHandler) encodeAuditShardRequest(message interface{}) (
 		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
 	}
 
-	result := make([]byte, 0, 34)
+	result := make([]byte, 0, CE138RequestSize)
 	result = append(result, auditReq.ErasureRoot...)
 	result = append(result, shardIndexBytes...)
 

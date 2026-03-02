@@ -35,7 +35,7 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 
 	// Build boundary message: 4-byte count + for each node 4-byte length + encoded node
 	numBoundary := uint32(len(boundaryNodes))
-	boundaryBlob := make([]byte, 0, 4+len(boundaryNodes)*(4+256))
+	boundaryBlob := make([]byte, 0, U32Size+len(boundaryNodes)*(U32Size+256))
 	boundaryBlob = append(boundaryBlob, encodeLE32(numBoundary)...)
 	for _, node := range boundaryNodes {
 		encodedNode, err := encoder.Encode(&node)
@@ -48,7 +48,7 @@ func HandleStateRequest(blockchain blockchain.Blockchain, req CE129Payload, stre
 
 	// Build key/values message: 4-byte count + for each 4-byte length + encoded value
 	numValues := uint32(len(stateValues))
-	keyValuesBlob := make([]byte, 0, 4+len(stateValues)*(4+256))
+	keyValuesBlob := make([]byte, 0, U32Size+len(stateValues)*(U32Size+256))
 	keyValuesBlob = append(keyValuesBlob, encodeLE32(numValues)...)
 	for _, stateVal := range stateValues {
 		encodedVal, err := encoder.Encode(&stateVal)
@@ -75,16 +75,16 @@ func HandleStateRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 		return err
 	}
 
-	// The payload should be 32 (header hash) + 31 (key start) + 31 (key end) + 4 (max size) = 98 bytes
-	if len(reqPayload) < 98 {
+	// The payload should be HeaderHash (32) + KeyStart (31) + KeyEnd (31) + MaxSize (4) = CE129RequestSize bytes
+	if len(reqPayload) < CE129RequestSize {
 		return errors.New("invalid state request length")
 	}
 
 	var req CE129Payload
-	copy(req.HeaderHash[:], reqPayload[:32])
-	copy(req.KeyStart[:], reqPayload[32:63])
-	copy(req.KeyEnd[:], reqPayload[63:94])
-	req.MaxSize = binary.LittleEndian.Uint32(reqPayload[94:98])
+	copy(req.HeaderHash[:], reqPayload[:HashSize])
+	copy(req.KeyStart[:], reqPayload[HashSize:HashSize+StateKeySize])
+	copy(req.KeyEnd[:], reqPayload[HashSize+StateKeySize:HashSize+StateKeySize*2])
+	req.MaxSize = binary.LittleEndian.Uint32(reqPayload[CE129RequestSize-U32Size:CE129RequestSize])
 
 	return HandleStateRequest(blockchain, req, stream)
 }
@@ -102,7 +102,7 @@ func (h *DefaultCERequestHandler) encodeStateRequest(message interface{}) ([]byt
 		byte(maxSize >> 16),
 		byte(maxSize >> 24),
 	}
-	result := make([]byte, 0, 98)
+	result := make([]byte, 0, CE129RequestSize)
 	result = append(result, stateReq.HeaderHash[:]...)
 	result = append(result, stateReq.KeyStart[:]...)
 	result = append(result, stateReq.KeyEnd[:]...)

@@ -83,14 +83,14 @@ func HandleBlockRequestStream(blockchain blockchain.Blockchain, stream *quic.Str
 	if err != nil {
 		return err
 	}
-	if len(reqPayload) < 32+1+4 {
+	if len(reqPayload) < CE128MinRequestSize {
 		return errors.New("invalid block request length")
 	}
 
 	var req CE128Payload
-	copy(req.HeaderHash[:], reqPayload[:32])
-	req.Direction = reqPayload[32]
-	req.MaxBlocks = binary.LittleEndian.Uint32(reqPayload[33:37])
+	copy(req.HeaderHash[:], reqPayload[:HashSize])
+	req.Direction = reqPayload[HashSize]
+	req.MaxBlocks = binary.LittleEndian.Uint32(reqPayload[HashSize+1 : HashSize+1+U32Size])
 
 	blocks, err := HandleBlockRequest(blockchain, req)
 	if err != nil {
