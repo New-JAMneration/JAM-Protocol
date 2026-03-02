@@ -56,12 +56,8 @@ func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) err
 		}
 	}
 
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
+	if err := expectRemoteFIN(stream); err != nil {
 		return err
-	}
-	if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
 	}
 
 	bundle, err := lookupWorkPackageBundle(erasureRoot)
@@ -77,11 +73,7 @@ func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) err
 	if _, err := stream.Write(segmentShards); err != nil {
 		return err
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return err
-	}
-
+	// Send FIN by closing write half
 	return stream.Close()
 }
 

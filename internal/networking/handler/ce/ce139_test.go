@@ -39,8 +39,6 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 		buf.Write(indexBytes)
 	}
 
-	buf.Write([]byte("FIN"))
-
 	mockStream := newMockStream(buf.Bytes())
 
 	err := HandleSegmentShardRequest(nil, &quic.Stream{Stream: mockStream})
@@ -54,10 +52,6 @@ func TestHandleSegmentShardRequest(t *testing.T) {
 	// The response should contain the concatenated segment shards (2 segments * 32 bytes = 64 bytes minimum)
 	if len(response) < 64 {
 		t.Errorf("Expected response to contain segment shards, got length %d", len(response))
-	}
-
-	if !bytes.HasSuffix(response, []byte("FIN")) {
-		t.Error("Response does not end with FIN")
 	}
 }
 

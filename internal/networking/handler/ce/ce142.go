@@ -33,19 +33,9 @@ func HandlePreimageAnnouncement_Send(stream io.ReadWriteCloser, payload *CE142Pa
 	if _, err := stream.Write(encoded); err != nil {
 		return fmt.Errorf("failed to write payload: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN: %w", err)
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
-
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN response: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return fmt.Errorf("unexpected FIN response: %q", string(finBuf))
-	}
-
 	return stream.Close()
 }
 
@@ -83,12 +73,8 @@ func HandlePreimageAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 
 	preimageLength := types.U32(binary.LittleEndian.Uint32(announcementData[36:40]))
 
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	if err := validatePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
@@ -98,11 +84,6 @@ func HandlePreimageAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 	if err := storePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
 		return fmt.Errorf("failed to store preimage announcement: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
-	}
-
 	return stream.Close()
 }
 

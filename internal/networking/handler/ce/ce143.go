@@ -38,12 +38,8 @@ func HandlePreimageRequest(_ blockchain.Blockchain, stream io.ReadWriteCloser) e
 	hash := types.OpaqueHash{}
 	copy(hash[:], hashData)
 
-	finBuf := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finBuf); err != nil {
-		return fmt.Errorf("failed to read FIN: %w", err)
-	}
-	if string(finBuf) != "FIN" {
-		return errors.New("request does not end with FIN")
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
 
 	preimage, err := getPreimageFromStorage(hash)
@@ -54,11 +50,6 @@ func HandlePreimageRequest(_ blockchain.Blockchain, stream io.ReadWriteCloser) e
 	if _, err := stream.Write(preimage); err != nil {
 		return fmt.Errorf("failed to write preimage response: %w", err)
 	}
-
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN response: %w", err)
-	}
-
 	return stream.Close()
 }
 
@@ -118,13 +109,10 @@ func StorePreimage(hashValue types.OpaqueHash, preimage []byte) error {
 	return nil
 }
 
-// CreatePreimageRequest creates a preimage request message
+// CreatePreimageRequest creates a preimage request message (hash only; sender closes after write).
 func CreatePreimageRequest(hash types.OpaqueHash) ([]byte, error) {
-	request := make([]byte, 32+3) // Hash + FIN
-
+	request := make([]byte, 32)
 	copy(request[:32], hash[:])
-	copy(request[32:35], []byte("FIN"))
-
 	return request, nil
 }
 

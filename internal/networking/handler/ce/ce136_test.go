@@ -20,8 +20,7 @@ func TestHandleWorkReportRequest_Basic(t *testing.T) {
 		return wr, ok
 	}
 
-	// Prepare the request: 32-byte hash + 'FIN'
-	input := append(hash[:], []byte("FIN")...)
+	input := hash[:]
 	stream := newMockStream(input)
 
 	err := HandleWorkReportRequest(stream, lookup)
@@ -29,16 +28,10 @@ func TestHandleWorkReportRequest_Basic(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 
-	// Check the response: should be the encoded work-report + 'FIN'
 	resp := stream.w.Bytes()
-	if len(resp) < 3 || string(resp[len(resp)-3:]) != "FIN" {
-		t.Fatalf("expected response to end with FIN, got %x", resp)
-	}
-
-	data := resp[:len(resp)-3]
 	decoder := types.NewDecoder()
 	var got types.WorkReport
-	if err := decoder.Decode(data, &got); err != nil {
+	if err := decoder.Decode(resp, &got); err != nil {
 		t.Fatalf("failed to decode work-report: %v", err)
 	}
 }

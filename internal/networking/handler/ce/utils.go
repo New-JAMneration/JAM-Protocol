@@ -2,6 +2,8 @@ package ce
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -223,4 +225,17 @@ func encodeLE32(value uint32) []byte {
 		byte(value >> 16),
 		byte(value >> 24),
 	}
+}
+
+// expectRemoteFIN: next read must get io.EOF (peer closed send half).
+func expectRemoteFIN(stream io.Reader) error {
+	var b [1]byte
+	_, err := stream.Read(b[:])
+	if err == nil {
+		return fmt.Errorf("expected FIN (stream close), got extra data")
+	}
+	if err != io.EOF {
+		return err
+	}
+	return nil
 }

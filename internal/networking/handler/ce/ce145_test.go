@@ -24,8 +24,7 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 		t.Fatalf("Failed to create judgment announcement: %v", err)
 	}
 
-	fullMessage := append(announcementMsg, []byte("FIN")...)
-
+	fullMessage := announcementMsg
 	stream := newMockStream(fullMessage)
 
 	fakeBlockchain := SetupFakeBlockchain()
@@ -36,8 +35,8 @@ func TestHandleJudgmentAnnouncementValid(t *testing.T) {
 	}
 
 	response := stream.w.Bytes()
-	if string(response) != "FIN" {
-		t.Errorf("Expected FIN response, got: %s", string(response))
+	if len(response) != 0 {
+		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
 	storedJudgment, err := GetJudgment(workReportHash, epochIndex, validatorIndex)

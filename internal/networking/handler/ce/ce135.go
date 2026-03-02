@@ -41,18 +41,10 @@ func HandleWorkReportDistribution(
 	_ = currentVals
 	_ = nextVals
 
-	if _, err := stream.Write([]byte("FIN")); err != nil {
-		return fmt.Errorf("failed to write FIN: %w", err)
+	// Peer signals FIN by closing send half; we expect EOF after the message
+	if err := expectRemoteFIN(stream); err != nil {
+		return err
 	}
-
-	finResp := make([]byte, 3)
-	if _, err := io.ReadFull(stream, finResp); err != nil {
-		return fmt.Errorf("failed to read FIN response: %w", err)
-	}
-	if string(finResp) != "FIN" {
-		return fmt.Errorf("expected FIN response, got %q", finResp)
-	}
-
 	return stream.Close()
 }
 
