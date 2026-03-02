@@ -22,12 +22,12 @@ import (
 //	Shard Index (u16)
 //	Segment Indices Length (uint16)
 //	Segment Indices ([]uint16)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // Response (from Assurer to Guarantor):
 //
 //	Segment Shards ([]byte, concatenated)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequest(bc blockchain.Blockchain, stream *quic.Stream) error {

@@ -12,8 +12,8 @@ import (
 
 // HandlePreimageAnnouncement_Send sends CE142 (PreimageAnnouncement) over a stream.
 //
-// It writes the CE protocol ID (142) first, then the payload bytes, then "FIN",
-// and waits for a "FIN" response.
+// It writes the CE protocol ID (142) first, then the payload bytes, then closes the stream (FIN).
+// It waits for the peer to close the stream (remote FIN).
 func HandlePreimageAnnouncement_Send(stream io.ReadWriteCloser, payload *CE142Payload) error {
 	if payload == nil {
 		return fmt.Errorf("nil payload")

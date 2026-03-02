@@ -13,8 +13,8 @@ import (
 // HandleAuditAnnouncement_Send sends CE144 (AuditAnnouncement) over a stream.
 //
 // NOTE: Callers are expected to open the stream and choose the correct stream kind.
-// This function writes the CE protocol ID (144) first, then the payload bytes, then "FIN",
-// and waits for a "FIN" response.
+// This function writes the CE protocol ID (144) first, then the payload bytes, then closes the stream (FIN).
+// It waits for the peer to close the stream (remote FIN).
 func HandleAuditAnnouncement_Send(stream io.ReadWriteCloser, payload *CE144Payload) error {
 	if payload == nil {
 		return fmt.Errorf("nil payload")
