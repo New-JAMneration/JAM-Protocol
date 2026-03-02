@@ -19,16 +19,9 @@ import (
 //	--> FIN
 //	<-- FIN
 //
-// The bitfield is [u8; ceil(C / 8)] where C is the total number of cores.
-// One bit per core indicates availability.
-//
-// The assurance structure is:
-// - Header Hash (Anchor): 32 bytes
-// - Bitfield: ceil(C / 8) bytes (where C = CoresCount)
-// - Ed25519 Signature: 64 bytes
-//
-// Total message size: 32 + ceil(C/8) + 64 bytes
-func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, stream io.ReadWriteCloser) error {
+// When peerEd25519 is provided (e.g. from the TLS peer certificate), the signature is verified
+// against the message Header Hash ++ Bitfield. When nil, signature verification is skipped (e.g. tests).
+func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, stream io.ReadWriteCloser, peerEd25519 ...ed25519.PublicKey) error {
 	bitfieldSize := (types.CoresCount + 7) / 8 // ceil(C / 8)
 
 	// Header Hash (32 bytes) + Bitfield (ceil(C/8) bytes) + Ed25519 Signature (64 bytes)
@@ -53,7 +46,7 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 		return err
 	}
 
-	if err := validateAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
+	if err := validateAvailabilityAssurance(headerHash, bitfield, signature, peerEd25519); err != nil {
 		return fmt.Errorf("invalid availability assurance: %w", err)
 	}
 
@@ -63,8 +56,9 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 	return stream.Close()
 }
 
-// validateAvailabilityAssurance validates the received availability assurance
-func validateAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte, signature types.Ed25519Signature) error {
+// validateAvailabilityAssurance validates the received availability assurance.
+// When peerEd25519 is non-empty, the signature is verified using the first key (assurer's cert key).
+func validateAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte, signature types.Ed25519Signature, peerEd25519 []ed25519.PublicKey) error {
 	// Validate bitfield size
 	expectedBitfieldSize := (types.CoresCount + 7) / 8
 	if len(bitfield) != expectedBitfieldSize {
@@ -77,6 +71,15 @@ func validateAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte,
 
 	if err := validateBitfieldFormat(bitfield); err != nil {
 		return fmt.Errorf("invalid bitfield format: %w", err)
+	}
+
+	if len(peerEd25519) > 0 && peerEd25519[0] != nil {
+		message := make([]byte, 32+len(bitfield))
+		copy(message[:32], headerHash[:])
+		copy(message[32:], bitfield)
+		if !ed25519.Verify(peerEd25519[0], message, signature[:]) {
+			return fmt.Errorf("invalid Ed25519 signature")
+		}
 	}
 
 	return nil

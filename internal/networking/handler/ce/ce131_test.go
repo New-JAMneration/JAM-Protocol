@@ -39,8 +39,9 @@ func TestHandleSafroleTicketDistribution_Proxy(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
-	if !bytes.Contains(resp, []byte{0x01}) {
-		t.Errorf("expected proxy to write response, got %x", resp)
+	// Spec: <-- FIN only (no ack byte). Proxy just closes the stream.
+	if len(resp) != 0 {
+		t.Errorf("expected no response bytes (FIN only), got %x", resp)
 	}
 }
 
@@ -65,7 +66,8 @@ func TestHandleSafroleTicketDistribution_NotProxy(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
+	// Spec: non-proxy also sends <-- FIN only; no 0x01 ack in either case.
 	if bytes.Contains(resp, []byte{0x01}) {
-		t.Errorf("expected no response for non-proxy, got %x", resp)
+		t.Errorf("expected no ack byte, got %x", resp)
 	}
 }
