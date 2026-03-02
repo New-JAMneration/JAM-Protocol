@@ -14,6 +14,10 @@ const (
 	StateKeySize     = 31
 	CE129RequestSize = HashSize + StateKeySize + StateKeySize + U32Size
 
+	// CE131 Safrole Ticket Distribution: EpochIndex (4) + Attempt (1) + RingVRF Proof (784)
+	CE131ProofSize   = 784 // RingVRF proof size in bytes
+	CE131PayloadSize = U32Size + 1 + CE131ProofSize // 789
+
 	// CE133 Work Package Submission: minimum first message = CoreIndex (u16)
 	CE133MinFirstMessageSize = U16Size
 
