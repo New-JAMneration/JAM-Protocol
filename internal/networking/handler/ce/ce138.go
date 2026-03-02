@@ -20,7 +20,7 @@ import (
 // Request (from Auditor to Assurer):
 //
 //	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
+//	Shard Index (u16)
 //	'FIN' (3 bytes)
 //
 // Response (from Assurer to Auditor):
@@ -33,14 +33,14 @@ import (
 // The assurer should construct this by appending the corresponding segment shard root
 // to the justification received via CE 137.
 func HandleAuditShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Read erasure-root (32 bytes) + shard index (4 bytes) + 'FIN' (3 bytes)
-	buf := make([]byte, 32+4+3)
+	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + 'FIN' (3 bytes)
+	buf := make([]byte, 32+2+3)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
-	shardIndex := binary.LittleEndian.Uint32(buf[32:36])
-	fin := buf[36:]
+	shardIndex := uint32(binary.LittleEndian.Uint16(buf[32:34]))
+	fin := buf[34:]
 	if string(fin) != "FIN" {
 		return errors.New("request does not end with FIN")
 	}
@@ -231,17 +231,12 @@ func (h *DefaultCERequestHandler) encodeAuditShardRequest(message interface{}) (
 		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
 	}
 
-	shardIndexBytes := []byte{
-		byte(auditReq.ShardIndex),
-		byte(auditReq.ShardIndex >> 8),
-		byte(auditReq.ShardIndex >> 16),
-		byte(auditReq.ShardIndex >> 24),
-	}
+	shardIndexBytes := encodeLE16(uint16(auditReq.ShardIndex))
 	if err := writeRaw(shardIndexBytes); err != nil {
 		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
 	}
 
-	result := make([]byte, 0, 36)
+	result := make([]byte, 0, 34)
 	result = append(result, auditReq.ErasureRoot...)
 	result = append(result, shardIndexBytes...)
 

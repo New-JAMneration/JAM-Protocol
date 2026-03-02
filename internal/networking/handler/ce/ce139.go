@@ -20,7 +20,7 @@ import (
 // Request (from Guarantor to Assurer):
 //
 //	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
+//	Shard Index (u16)
 //	Segment Indices Length (uint16)
 //	Segment Indices ([]uint16)
 //	'FIN' (3 bytes)
@@ -32,14 +32,14 @@ import (
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
 func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
-	// Read erasure-root (32 bytes) + shard index (4 bytes) + segment indices length (2 bytes)
-	buf := make([]byte, 32+4+2)
+	// Read erasure-root (32 bytes) + shard index (2 bytes, u16) + segment indices length (2 bytes)
+	buf := make([]byte, 32+2+2)
 	if _, err := io.ReadFull(stream, buf); err != nil {
 		return err
 	}
 	erasureRoot := buf[:32]
-	shardIndex := binary.LittleEndian.Uint32(buf[32:36])
-	segmentIndicesLen := binary.LittleEndian.Uint16(buf[36:38])
+	shardIndex := uint32(binary.LittleEndian.Uint16(buf[32:34]))
+	segmentIndicesLen := binary.LittleEndian.Uint16(buf[34:36])
 
 	if segmentIndicesLen > 6144 {
 		return errors.New("segment indices length exceeds maximum allowed (2W_M)")
@@ -191,7 +191,7 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{})
 		return nil, fmt.Errorf("failed to encode ErasureRoot: %w", err)
 	}
 
-	if err := h.writeBytes(encoder, encodeLE32(segmentReq.ShardIndex)); err != nil {
+	if err := h.writeBytes(encoder, encodeLE16(uint16(segmentReq.ShardIndex))); err != nil {
 		return nil, fmt.Errorf("failed to encode ShardIndex: %w", err)
 	}
 
@@ -206,9 +206,9 @@ func (h *DefaultCERequestHandler) encodeSegmentShardRequest(message interface{})
 		}
 	}
 
-	result := make([]byte, 0, 38+len(segmentReq.SegmentIndices)*2)
+	result := make([]byte, 0, 36+len(segmentReq.SegmentIndices)*2)
 	result = append(result, segmentReq.ErasureRoot...)
-	result = append(result, encodeLE32(segmentReq.ShardIndex)...)
+	result = append(result, encodeLE16(uint16(segmentReq.ShardIndex))...)
 	result = append(result, encodeLE16(segmentIndicesLen)...)
 	for _, segmentIndex := range segmentReq.SegmentIndices {
 		result = append(result, encodeLE16(segmentIndex)...)
