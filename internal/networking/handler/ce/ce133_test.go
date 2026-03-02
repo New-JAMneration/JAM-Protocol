@@ -1,7 +1,6 @@
 package ce
 
 import (
-	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -29,8 +28,9 @@ func TestHandleWorkPackageSubmission_Basic(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
-	if !bytes.Contains(resp, []byte{0x01}) {
-		t.Errorf("expected handler to write response 0xEF, got %x", resp)
+	// CE133 spec: response is FIN only (stream close); no message bytes
+	if len(resp) != 0 {
+		t.Errorf("expected no response bytes (FIN only), got %x", resp)
 	}
 }
 
@@ -48,7 +48,8 @@ func TestHandleWorkPackageSubmission_Minimal(t *testing.T) {
 		t.Fatalf("handler error: %v", err)
 	}
 	resp := stream.w.Bytes()
-	if !bytes.Contains(resp, []byte{0x01}) {
-		t.Errorf("expected handler to write response 0xEF, got %x", resp)
+	// CE133 spec: response is FIN only (stream close); no message bytes
+	if len(resp) != 0 {
+		t.Errorf("expected no response bytes (FIN only), got %x", resp)
 	}
 }
