@@ -32,27 +32,23 @@ func TestHandleAuditShardRequest(t *testing.T) {
 	if len(resp) < 4 {
 		t.Fatalf("response too short")
 	}
-	msgLen := binary.LittleEndian.Uint32(resp[:4])
-	if 4+msgLen > uint32(len(resp)) {
-		t.Fatalf("response truncated")
+	// First framed message: bundle shard
+	msg1Len := binary.LittleEndian.Uint32(resp[:4])
+	if 4+msg1Len > uint32(len(resp)) {
+		t.Fatalf("first message truncated")
 	}
-	payload := resp[4 : 4+msgLen]
+	_ = resp[4 : 4+msg1Len] // bundle shard
 
-	justificationStart := -1
-	var justification []byte
-	for i := 0; i < len(payload); i++ {
-		if payload[i] == 0x00 {
-			if i+33 <= len(payload) {
-				justificationStart = i
-				justification = payload[i:]
-				break
-			}
-		}
+	// Second framed message: justification
+	rest := resp[4+msg1Len:]
+	if len(rest) < 4 {
+		t.Fatalf("response too short for second message")
 	}
-
-	if justificationStart == -1 {
-		t.Fatalf("could not find justification start (0x00 discriminator)")
+	msg2Len := binary.LittleEndian.Uint32(rest[:4])
+	if 4+msg2Len > uint32(len(rest)) {
+		t.Fatalf("second message truncated")
 	}
+	justification := rest[4 : 4+msg2Len]
 
 	if len(justification) < 1 {
 		t.Fatalf("justification is too short")
@@ -66,5 +62,5 @@ func TestHandleAuditShardRequest(t *testing.T) {
 		t.Fatalf("justification is too short, expected at least 33 bytes, got %d", len(justification))
 	}
 
-	t.Logf("Success: Found justification starting at position %d, length %d bytes", justificationStart, len(justification))
+	t.Logf("Success: bundle shard %d bytes, justification %d bytes", msg1Len, msg2Len)
 }
