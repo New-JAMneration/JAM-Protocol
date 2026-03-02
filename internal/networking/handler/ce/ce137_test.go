@@ -2,8 +2,22 @@ package ce
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
+
+// readFramedMessage reads one JAMNP message (4-byte LE length + payload) from b at offset; returns payload and new offset.
+func readFramedMessage(b []byte, offset int) (payload []byte, next int, ok bool) {
+	if offset+4 > len(b) {
+		return nil, offset, false
+	}
+	n := binary.LittleEndian.Uint32(b[offset : offset+4])
+	offset += 4
+	if offset+int(n) > len(b) {
+		return nil, offset, false
+	}
+	return b[offset : offset+int(n)], offset + int(n), true
+}
 
 func TestHandleECShardRequest_Basic(t *testing.T) {
 	erasureRoot := []byte("fake-erasure-root-32bytes-long!!")
@@ -48,19 +62,20 @@ func TestHandleECShardRequest_Basic(t *testing.T) {
 
 	resp := stream.w.Bytes()
 	offset := 0
-	if !bytes.HasPrefix(resp[offset:], bundle.BundleShard) {
-		t.Fatalf("response does not start with bundle shard")
+	msg, offset, ok := readFramedMessage(resp, offset)
+	if !ok || !bytes.Equal(msg, bundle.BundleShard) {
+		t.Fatalf("response message 1 (bundle shard) mismatch")
 	}
-	offset += len(bundle.BundleShard)
-	if !bytes.HasPrefix(resp[offset:], bundle.SegmentShards[0]) {
-		t.Fatalf("response does not contain segment shard 1 at expected position")
+	msg, offset, ok = readFramedMessage(resp, offset)
+	if !ok || !bytes.Equal(msg, bundle.SegmentShards[0]) {
+		t.Fatalf("response message 2 (segment shard 1) mismatch")
 	}
-	offset += len(bundle.SegmentShards[0])
-	if !bytes.HasPrefix(resp[offset:], bundle.SegmentShards[1]) {
-		t.Fatalf("response does not contain segment shard 2 at expected position")
+	msg, offset, ok = readFramedMessage(resp, offset)
+	if !ok || !bytes.Equal(msg, bundle.SegmentShards[1]) {
+		t.Fatalf("response message 3 (segment shard 2) mismatch")
 	}
-	offset += len(bundle.SegmentShards[1])
-	if !bytes.Equal(resp[offset:], bundle.Justification) {
-		t.Fatalf("response does not contain justification at expected position")
+	msg, _, ok = readFramedMessage(resp, offset)
+	if !ok || !bytes.Equal(msg, bundle.Justification) {
+		t.Fatalf("response message 4 (justification) mismatch")
 	}
 }

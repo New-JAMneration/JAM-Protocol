@@ -89,18 +89,30 @@ func (s *Stream) ReadStreamKind() (byte, error) {
 	return b[0], nil
 }
 
-// Message format: [len][payload...]
-func (s *Stream) WriteMessage(payload []byte) error {
+// Message format: [len][payload...]. WriteMessageFrame writes this to any io.Writer (single place for framing logic).
+func WriteMessageFrame(w io.Writer, payload []byte) error {
 	if uint64(len(payload)) > MaxMsgSize {
 		return fmt.Errorf("payload too large: %d > %d", len(payload), MaxMsgSize)
 	}
-
 	var hdr [4]byte
 	binary.LittleEndian.PutUint32(hdr[:], uint32(len(payload)))
-	if err := s.writeFull(hdr[:]); err != nil {
+	if _, err := w.Write(hdr[:]); err != nil {
 		return err
 	}
-	return s.writeFull(payload)
+	_, err := w.Write(payload)
+	return err
+}
+
+// MessageStream is the common interface for streams that support JAMNP message framing.
+// Implemented by *Stream and by test mocks so handlers can use WriteMessage uniformly.
+type MessageStream interface {
+	io.ReadWriteCloser
+	WriteMessage(payload []byte) error
+}
+
+// Message format: [len][payload...]
+func (s *Stream) WriteMessage(payload []byte) error {
+	return WriteMessageFrame(s.Stream, payload)
 }
 
 // Message format: [len][payload...]

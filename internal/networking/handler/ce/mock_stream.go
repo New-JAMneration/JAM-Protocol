@@ -5,13 +5,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	quicgo "github.com/quic-go/quic-go"
 )
 
-// --- mockStream implements a minimal in-memory quic.Stream.
+// --- mockStream implements quic.MessageStream for tests (Read, Write, Close, WriteMessage).
 type mockStream struct {
-	r      *bytes.Buffer // used for reading incoming request bytes
-	w      *bytes.Buffer // used for capturing written response bytes
+	r      *bytes.Buffer
+	w      *bytes.Buffer
 	closed bool
 }
 
@@ -35,6 +36,10 @@ func (m *mockStream) Close() error {
 	return nil
 }
 
+func (m *mockStream) WriteMessage(payload []byte) error {
+	return quic.WriteMessageFrame(m.w, payload)
+}
+
 func (m *mockStream) Context() context.Context {
 	return context.Background()
 }
@@ -43,7 +48,7 @@ func (m *mockStream) SetDeadline(t time.Time) error      { return nil }
 func (m *mockStream) SetReadDeadline(t time.Time) error  { return nil }
 func (m *mockStream) SetWriteDeadline(t time.Time) error { return nil }
 
-// Added to satisfy quic.Stream interface.
+// Satisfy quicgo.Stream for tests that type-assert.
 func (m *mockStream) CancelRead(quicgo.StreamErrorCode)  {}
 func (m *mockStream) CancelWrite(quicgo.StreamErrorCode) {}
 func (m *mockStream) StreamID() quicgo.StreamID          { return 0 }

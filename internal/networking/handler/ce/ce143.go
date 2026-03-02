@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
@@ -25,7 +26,7 @@ import (
 // - Hash: 32 bytes (OpaqueHash)
 //
 // Total request message size: 32 bytes
-func HandlePreimageRequest(bc blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandlePreimageRequest(bc blockchain.Blockchain, stream quic.MessageStream) error {
 	hashSize := 32
 	hashData := make([]byte, hashSize)
 
@@ -45,7 +46,7 @@ func HandlePreimageRequest(bc blockchain.Blockchain, stream io.ReadWriteCloser) 
 		return fmt.Errorf("failed to retrieve preimage: %w", err)
 	}
 
-	if _, err := stream.Write(preimage); err != nil {
+	if err := stream.WriteMessage(preimage); err != nil {
 		return fmt.Errorf("failed to write preimage response: %w", err)
 	}
 	return stream.Close()

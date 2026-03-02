@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -13,9 +14,9 @@ import (
 type WorkReportLookupFunc func(hash types.WorkReportHash) (*types.WorkReport, bool)
 
 // HandleWorkReportRequest implements CE 136: Auditor -> Auditor work-report request
-// Reads a 32-byte work-report hash and 'FIN', looks up the work-report, writes the encoded work-report and 'FIN'.
+// Reads a 32-byte work-report hash and FIN, looks up the work-report, writes the encoded work-report as a framed message and FIN.
 func HandleWorkReportRequest(
-	stream io.ReadWriteCloser,
+	stream quic.MessageStream,
 	lookup WorkReportLookupFunc,
 ) error {
 	hashBuf := make([]byte, 32)
@@ -40,7 +41,7 @@ func HandleWorkReportRequest(
 		return fmt.Errorf("failed to encode work-report: %w", err)
 	}
 
-	if _, err := stream.Write(data); err != nil {
+	if err := stream.WriteMessage(data); err != nil {
 		return fmt.Errorf("failed to write work-report: %w", err)
 	}
 	// Send FIN by closing write half
