@@ -3,6 +3,9 @@ package ce
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
+	"fmt"
+	"io"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
@@ -38,6 +41,26 @@ func (m *mockStream) Close() error {
 
 func (m *mockStream) WriteMessage(payload []byte) error {
 	return quic.WriteMessageFrame(m.w, payload)
+}
+
+// ReadMessage reads one JAMNP-framed message (4-byte LE length + payload) from the stream.
+func (m *mockStream) ReadMessage() ([]byte, error) {
+	var hdr [4]byte
+	if n, err := m.r.Read(hdr[:]); err != nil || n != 4 {
+		if err != nil {
+			return nil, err
+		}
+		return nil, io.ErrUnexpectedEOF
+	}
+	msgLen := binary.LittleEndian.Uint32(hdr[:])
+	if msgLen > quic.MaxMsgSize {
+		return nil, fmt.Errorf("message too large: %d", msgLen)
+	}
+	buf := make([]byte, msgLen)
+	if _, err := io.ReadFull(m.r, buf); err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 func (m *mockStream) Context() context.Context {
