@@ -7,15 +7,16 @@ import "github.com/New-JAMneration/JAM-Protocol/internal/types"
 // They are kept small and local to the CE handler package.
 
 type CE134Payload struct {
-	CoreIndex   uint32
-	HeaderHash  types.HeaderHash
-	WorkPackage *types.WorkPackage
+	CoreIndex           uint32
+	HeaderHash          types.HeaderHash
+	WorkPackage         *types.WorkPackage
+	SegmentRootMappings []SegmentRootMapping // optional; nil encodes as len++ 0
 }
 
 type CE135Payload struct {
-	CoreIndex uint32
 	Report    types.WorkReport
-	Signature types.Ed25519Signature
+	Slot      types.TimeSlot
+	Signatures []types.ValidatorSignature // ValidatorIndex ++ Ed25519Signature per entry
 }
 
 type CE136Payload struct {

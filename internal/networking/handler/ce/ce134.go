@@ -120,22 +120,32 @@ func (h *DefaultCERequestHandler) encodeWorkPackageSharing(message interface{}) 
 	}
 
 	requestType := byte(WorkPackageSharing)
-
 	coreIndexBytes := encodeLE16(uint16(workPackage.CoreIndex))
 
-	// Get WorkPackage bytes using ScaleEncode
+	// Segments-Root Mappings: len++ [(WorkPackageHash ++ SegmentRoot)...]
+	mappings := workPackage.SegmentRootMappings
+	if mappings == nil {
+		mappings = []SegmentRootMapping{}
+	}
+	enc := types.NewEncoder()
+	mappingsLenBytes, err := enc.EncodeUint(uint64(len(mappings)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode mappings length: %w", err)
+	}
+
 	wpBytes, err := workPackage.WorkPackage.ScaleEncode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode WorkPackage: %w", err)
 	}
 
-	// CE134 spec: Core Index ++ Segments-Root Mappings (Core Index = u16); no HeaderHash
-	totalLen := 1 + 2 + len(wpBytes)
-
-	result := make([]byte, 0, totalLen)
-
+	result := make([]byte, 0, 1+2+len(mappingsLenBytes)+len(mappings)*(32+32)+len(wpBytes))
 	result = append(result, requestType)
 	result = append(result, coreIndexBytes...)
+	result = append(result, mappingsLenBytes...)
+	for _, m := range mappings {
+		result = append(result, m.WorkPackageHash[:]...)
+		result = append(result, m.SegmentRoot[:]...)
+	}
 	result = append(result, wpBytes...)
 
 	return result, nil
