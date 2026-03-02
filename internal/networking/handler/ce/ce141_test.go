@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/hex"
-	"os"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestHandleAvailabilityAssuranceDistribution(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	types.CoresCount = 2
 
@@ -49,22 +49,13 @@ func TestHandleAvailabilityAssuranceDistribution(t *testing.T) {
 		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
-	redisBackend, err := store.GetRedisBackend()
+	storedData, err := GetKV(db, ceAssuranceKey(headerHash))
 	if err != nil {
-		t.Fatalf("Failed to get Redis backend: %v", err)
-	}
-
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := "availability_assurance:" + headerHashHex
-
-	client := redisBackend.GetClient()
-	storedData, err := client.Get(key)
-	if err != nil {
-		t.Fatalf("Failed to get stored assurance from Redis: %v", err)
+		t.Fatalf("Failed to get stored assurance: %v", err)
 	}
 
 	if storedData == nil {
-		t.Fatal("Assurance was not stored in Redis")
+		t.Fatal("Assurance was not stored")
 	}
 
 	decodedPayload := &CE141Payload{}
@@ -81,8 +72,7 @@ func TestHandleAvailabilityAssuranceDistribution(t *testing.T) {
 		t.Error("Stored bitfield doesn't match original")
 	}
 
-	setKey := "availability_assurances_set:" + headerHashHex
-	isMember, err := client.SIsMember(setKey, storedData)
+	isMember, err := SIsMember(db, ceAssuranceSetKey(headerHash), storedData)
 	if err != nil {
 		t.Fatalf("Failed to check if assurance is in set: %v", err)
 	}

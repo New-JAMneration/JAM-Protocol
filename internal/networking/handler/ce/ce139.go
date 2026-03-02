@@ -30,7 +30,7 @@ import (
 //	'FIN' (3 bytes)
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
-func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) error {
+func HandleSegmentShardRequest(bc blockchain.Blockchain, stream *quic.Stream) error {
 	// Request: single message = erasure-root (HashSize) + shard index (U16Size) + segment indices length (U16Size) + segment indices
 	payload, err := stream.ReadMessage()
 	if err != nil {
@@ -56,7 +56,7 @@ func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) err
 		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*SegmentIndexSize : (i+1)*SegmentIndexSize])
 	}
 
-	bundle, err := lookupWorkPackageBundle(erasureRoot)
+	bundle, err := lookupWorkPackageBundle(bc, erasureRoot)
 	if err != nil {
 		return fmt.Errorf("failed to lookup work package bundle: %w", err)
 	}
@@ -73,7 +73,25 @@ func HandleSegmentShardRequest(_ blockchain.Blockchain, stream *quic.Stream) err
 }
 
 // lookupWorkPackageBundle looks up a work package bundle by its erasure root.
-func lookupWorkPackageBundle(erasureRoot []byte) (*types.WorkPackageBundle, error) {
+// Prefers CE persistent db (DB(bc)); falls back to store singleton when db is nil (e.g. tests using Redis).
+func lookupWorkPackageBundle(bc blockchain.Blockchain, erasureRoot []byte) (*types.WorkPackageBundle, error) {
+	db := DB(bc)
+	if db != nil {
+		data, err := GetKV(db, wpBundleKey(erasureRoot))
+		if err != nil {
+			return nil, err
+		}
+		if len(data) > 0 {
+			var bundle types.WorkPackageBundle
+			decoder := types.NewDecoder()
+			decoder.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
+			if err := decoder.Decode(data, &bundle); err != nil {
+				return nil, fmt.Errorf("decode bundle: %w", err)
+			}
+			return &bundle, nil
+		}
+	}
+
 	workPackageBundleStore := store.GetWorkPackageBundleStore()
 	if workPackageBundleStore == nil {
 		// If the work package bundle store is not initialized, fall back to creating a mock bundle

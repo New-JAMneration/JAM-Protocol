@@ -2,23 +2,24 @@ package ce
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 func TestHandlePreimageRequest(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	testPreimage := []byte("This is a test preimage for CE143 protocol testing")
 
 	opaqueHash := hash.Blake2bHash(types.ByteSequence(testPreimage))
 
-	err := StorePreimage(opaqueHash, testPreimage)
+	err := StorePreimage(nil, opaqueHash, testPreimage)
 	if err != nil {
 		t.Fatalf("Failed to store preimage: %v", err)
 	}

@@ -41,7 +41,7 @@ import (
 // - T is as defined in the General Merklization appendix of the GP
 //
 // The number of segment shards requested should not exceed 2W_M (W_M=3072).
-func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream *quic.Stream) error {
+func HandleSegmentShardRequestWithJustification(bc blockchain.Blockchain, stream *quic.Stream) error {
 	// Request: single message = erasure-root (HashSize) + shard index (U16Size) + segment indices length (U16Size) + segment indices
 	payload, err := stream.ReadMessage()
 	if err != nil {
@@ -67,7 +67,7 @@ func HandleSegmentShardRequestWithJustification(_ blockchain.Blockchain, stream 
 		segmentIndices[i] = binary.LittleEndian.Uint16(rest[i*SegmentIndexSize : (i+1)*SegmentIndexSize])
 	}
 
-	bundle, err := lookupWorkPackageBundle(erasureRoot)
+	bundle, err := lookupWorkPackageBundle(bc, erasureRoot)
 	if err != nil {
 		return fmt.Errorf("failed to lookup work package bundle: %w", err)
 	}

@@ -141,6 +141,17 @@ func ResetInstance() {
 
 // Blockchain interface implementation
 
+// Database returns the persistent database (same as PersistentDatabase). Implements Blockchain.
+func (cs *ChainState) Database() database.Database {
+	return cs.persistentRepo.Database()
+}
+
+// PersistentDatabase returns the persistent database (same as used by persistentRepo).
+// Used by CE handlers via type assertion when bc is *ChainState.
+func (cs *ChainState) PersistentDatabase() database.Database {
+	return cs.persistentRepo.Database()
+}
+
 func (cs *ChainState) GetBlock(hash types.HeaderHash) (types.Block, error) {
 	return cs.GetBlockByHash(hash)
 }

@@ -3,12 +3,10 @@ package ce
 import (
 	"crypto/ed25519"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -59,7 +57,7 @@ func HandleJudgmentAnnouncement_Send(stream io.ReadWriteCloser, payload *CE145Pa
 // - Validity: 1 byte (0 = Invalid, 1 = Valid)
 // - Work-Report Hash: 32 bytes (WorkReportHash)
 // - Ed25519 Signature: 64 bytes
-func HandleJudgmentAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	epochIndexBuf := make([]byte, 4)
 	if _, err := io.ReadFull(stream, epochIndexBuf); err != nil {
 		return fmt.Errorf("failed to read epoch index: %w", err)
@@ -94,7 +92,7 @@ func HandleJudgmentAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("invalid judgment announcement: %w", err)
 	}
-	if err := storeJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
+	if err := storeJudgmentAnnouncement(bc, epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
 	}
 	return stream.Close()
@@ -139,12 +137,8 @@ func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.Val
 	return nil
 }
 
-func storeJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
+func storeJudgmentAnnouncement(bc blockchain.Blockchain, epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
+	db := DB(bc)
 	judgmentData := &CE145Payload{
 		EpochIndex:     epochIndex,
 		ValidatorIndex: validatorIndex,
@@ -158,33 +152,18 @@ func storeJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.Valida
 		return fmt.Errorf("failed to encode judgment data: %w", err)
 	}
 
-	workReportHashHex := hex.EncodeToString(workReportHash[:])
-	key := fmt.Sprintf("judgment:%s:%d:%d", workReportHashHex, epochIndex, validatorIndex)
-
-	client := redisBackend.GetClient()
-	err = client.Put(key, encodedJudgment)
-	if err != nil {
-		return fmt.Errorf("failed to store judgment in Redis: %w", err)
+	if err := PutKV(db, ceJudgmentKey(workReportHash, epochIndex, validatorIndex), encodedJudgment); err != nil {
+		return fmt.Errorf("failed to store judgment: %w", err)
 	}
-
-	workReportKey := fmt.Sprintf("work_report_judgments:%s", workReportHashHex)
-	err = client.SAdd(workReportKey, encodedJudgment)
-	if err != nil {
+	if err := SAdd(db, ceJudgmentWorkReportSetKey(workReportHash), encodedJudgment); err != nil {
 		return fmt.Errorf("failed to add judgment to work report set: %w", err)
 	}
-
-	epochKey := fmt.Sprintf("epoch_judgments:%d", epochIndex)
-	err = client.SAdd(epochKey, encodedJudgment)
-	if err != nil {
+	if err := SAdd(db, ceJudgmentEpochSetKey(epochIndex), encodedJudgment); err != nil {
 		return fmt.Errorf("failed to add judgment to epoch set: %w", err)
 	}
-
-	validatorKey := fmt.Sprintf("validator_judgments:%d", validatorIndex)
-	err = client.SAdd(validatorKey, encodedJudgment)
-	if err != nil {
+	if err := SAdd(db, ceJudgmentValidatorSetKey(validatorIndex), encodedJudgment); err != nil {
 		return fmt.Errorf("failed to add judgment to validator set: %w", err)
 	}
-
 	return nil
 }
 
@@ -206,86 +185,53 @@ func CreateJudgmentAnnouncement(
 	return payload.Encode()
 }
 
-func GetJudgment(workReportHash types.WorkReportHash, epochIndex types.U32, validatorIndex types.ValidatorIndex) (*CE145Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
+func GetJudgment(bc blockchain.Blockchain, workReportHash types.WorkReportHash, epochIndex types.U32, validatorIndex types.ValidatorIndex) (*CE145Payload, error) {
+	db := DB(bc)
+	encodedJudgment, err := GetKV(db, ceJudgmentKey(workReportHash, epochIndex, validatorIndex))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get judgment: %w", err)
 	}
-
-	workReportHashHex := hex.EncodeToString(workReportHash[:])
-	key := fmt.Sprintf("judgment:%s:%d:%d", workReportHashHex, epochIndex, validatorIndex)
-
-	client := redisBackend.GetClient()
-	encodedJudgment, err := client.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get judgment from Redis: %w", err)
-	}
-
 	if encodedJudgment == nil {
 		return nil, fmt.Errorf("judgment not found for work report: %x, epoch: %d, validator: %d", workReportHash, epochIndex, validatorIndex)
 	}
-
 	judgmentData := &CE145Payload{}
-	err = judgmentData.Decode(encodedJudgment)
-	if err != nil {
+	if err := judgmentData.Decode(encodedJudgment); err != nil {
 		return nil, fmt.Errorf("failed to decode judgment data: %w", err)
 	}
-
 	return judgmentData, nil
 }
 
-func GetAllJudgmentsForWorkReport(workReportHash types.WorkReportHash) ([]*CE145Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
+func GetAllJudgmentsForWorkReport(bc blockchain.Blockchain, workReportHash types.WorkReportHash) ([]*CE145Payload, error) {
+	db := DB(bc)
+	encodedJudgments, err := SMembers(db, ceJudgmentWorkReportSetKey(workReportHash))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get judgments set: %w", err)
 	}
-
-	workReportHashHex := hex.EncodeToString(workReportHash[:])
-	workReportKey := fmt.Sprintf("work_report_judgments:%s", workReportHashHex)
-
-	client := redisBackend.GetClient()
-	encodedJudgments, err := client.SMembers(workReportKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get judgments set from Redis: %w", err)
-	}
-
 	var judgments []*CE145Payload
 	for _, encodedJudgment := range encodedJudgments {
 		judgmentData := &CE145Payload{}
-		err := judgmentData.Decode(encodedJudgment)
-		if err != nil {
+		if err := judgmentData.Decode(encodedJudgment); err != nil {
 			return nil, fmt.Errorf("failed to decode judgment data: %w", err)
 		}
 		judgments = append(judgments, judgmentData)
 	}
-
 	return judgments, nil
 }
 
-func GetAllJudgmentsForEpoch(epochIndex types.U32) ([]*CE145Payload, error) {
-	redisBackend, err := store.GetRedisBackend()
+func GetAllJudgmentsForEpoch(bc blockchain.Blockchain, epochIndex types.U32) ([]*CE145Payload, error) {
+	db := DB(bc)
+	encodedJudgments, err := SMembers(db, ceJudgmentEpochSetKey(epochIndex))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Redis backend: %w", err)
+		return nil, fmt.Errorf("failed to get judgments set: %w", err)
 	}
-
-	epochKey := fmt.Sprintf("epoch_judgments:%d", epochIndex)
-
-	client := redisBackend.GetClient()
-	encodedJudgments, err := client.SMembers(epochKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get judgments set from Redis: %w", err)
-	}
-
 	var judgments []*CE145Payload
 	for _, encodedJudgment := range encodedJudgments {
 		judgmentData := &CE145Payload{}
-		err := judgmentData.Decode(encodedJudgment)
-		if err != nil {
+		if err := judgmentData.Decode(encodedJudgment); err != nil {
 			return nil, fmt.Errorf("failed to decode judgment data: %w", err)
 		}
 		judgments = append(judgments, judgmentData)
 	}
-
 	return judgments, nil
 }
 

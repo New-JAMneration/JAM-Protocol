@@ -2,12 +2,10 @@ package ce
 
 import (
 	"crypto/ed25519"
-	"encoding/hex"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -59,7 +57,7 @@ func HandleAvailabilityAssuranceDistribution(blockchain blockchain.Blockchain, s
 		return fmt.Errorf("invalid availability assurance: %w", err)
 	}
 
-	if err := storeAvailabilityAssurance(headerHash, bitfield, signature); err != nil {
+	if err := storeAvailabilityAssurance(blockchain, headerHash, bitfield, signature); err != nil {
 		return fmt.Errorf("failed to store availability assurance: %w", err)
 	}
 	return stream.Close()
@@ -108,12 +106,8 @@ func validateBitfieldFormat(bitfield []byte) error {
 }
 
 // storeAvailabilityAssurance stores the received availability assurance
-func storeAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte, signature types.Ed25519Signature) error {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
+func storeAvailabilityAssurance(bc blockchain.Blockchain, headerHash types.HeaderHash, bitfield []byte, signature types.Ed25519Signature) error {
+	db := DB(bc)
 	assuranceData := &CE141Payload{
 		HeaderHash: headerHash,
 		Bitfield:   bitfield,
@@ -125,21 +119,12 @@ func storeAvailabilityAssurance(headerHash types.HeaderHash, bitfield []byte, si
 		return fmt.Errorf("failed to encode assurance data: %w", err)
 	}
 
-	headerHashHex := hex.EncodeToString(headerHash[:])
-	key := fmt.Sprintf("availability_assurance:%s", headerHashHex)
-
-	client := redisBackend.GetClient()
-	err = client.Put(key, encodedAssurance)
-	if err != nil {
-		return fmt.Errorf("failed to store assurance in Redis: %w", err)
+	if err := PutKV(db, ceAssuranceKey(headerHash), encodedAssurance); err != nil {
+		return fmt.Errorf("failed to store assurance: %w", err)
 	}
-
-	setKey := fmt.Sprintf("availability_assurances_set:%s", headerHashHex)
-	err = client.SAdd(setKey, encodedAssurance)
-	if err != nil {
+	if err := SAdd(db, ceAssuranceSetKey(headerHash), encodedAssurance); err != nil {
 		return fmt.Errorf("failed to add assurance to set: %w", err)
 	}
-
 	return nil
 }
 

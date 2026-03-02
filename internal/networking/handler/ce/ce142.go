@@ -2,13 +2,11 @@ package ce
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -56,7 +54,7 @@ func HandlePreimageAnnouncement_Send(stream io.ReadWriteCloser, payload *CE142Pa
 // - Preimage Length: 4 bytes (u32)
 //
 // Total message size: 4 + 32 + 4 = 40 bytes
-func HandlePreimageAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteCloser) error {
+func HandlePreimageAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteCloser) error {
 	// Service ID (4 bytes) + Hash (32 bytes) + Preimage Length (4 bytes)
 	announcementSize := 4 + 32 + 4
 	announcementData := make([]byte, announcementSize)
@@ -81,7 +79,7 @@ func HandlePreimageAnnouncement(_ blockchain.Blockchain, stream io.ReadWriteClos
 		return fmt.Errorf("invalid preimage announcement: %w", err)
 	}
 
-	if err := storePreimageAnnouncement(serviceID, hash, preimageLength); err != nil {
+	if err := storePreimageAnnouncement(bc, serviceID, hash, preimageLength); err != nil {
 		return fmt.Errorf("failed to store preimage announcement: %w", err)
 	}
 	return stream.Close()
@@ -102,12 +100,8 @@ func validatePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHa
 }
 
 // storePreimageAnnouncement stores the received preimage announcement
-func storePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHash, preimageLength types.U32) error {
-	redisBackend, err := store.GetRedisBackend()
-	if err != nil {
-		return fmt.Errorf("failed to get Redis backend: %w", err)
-	}
-
+func storePreimageAnnouncement(bc blockchain.Blockchain, serviceID types.ServiceId, hash types.OpaqueHash, preimageLength types.U32) error {
+	db := DB(bc)
 	announcementData := &CE142Payload{
 		ServiceID:      serviceID,
 		Hash:           hash,
@@ -119,22 +113,12 @@ func storePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHash,
 		return fmt.Errorf("failed to encode announcement data: %w", err)
 	}
 
-	hashHex := hex.EncodeToString(hash[:])
-	key := fmt.Sprintf("preimage_announcement:%s", hashHex)
-
-	client := redisBackend.GetClient()
-	err = client.Put(key, encodedAnnouncement)
-	if err != nil {
-		return fmt.Errorf("failed to store announcement in Redis: %w", err)
+	if err := PutKV(db, cePreimageAnnKey(hash), encodedAnnouncement); err != nil {
+		return fmt.Errorf("failed to store announcement: %w", err)
 	}
-
-	// Store in a set for service-based lookups
-	serviceKey := fmt.Sprintf("service_preimage_announcements:%d", serviceID)
-	err = client.SAdd(serviceKey, encodedAnnouncement)
-	if err != nil {
+	if err := SAdd(db, cePreimageAnnServiceSetKey(serviceID), encodedAnnouncement); err != nil {
 		return fmt.Errorf("failed to add announcement to service set: %w", err)
 	}
-
 	return nil
 }
 

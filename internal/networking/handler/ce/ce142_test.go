@@ -2,18 +2,17 @@ package ce
 
 import (
 	"bytes"
-	"encoding/hex"
-	"fmt"
-	"os"
 	"testing"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/store"
+	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 func TestHandlePreimageAnnouncement(t *testing.T) {
-	os.Setenv("USE_MINI_REDIS", "true")
-	defer store.CloseMiniRedis()
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
 
 	serviceID := types.ServiceId(12345)
 	hash := types.OpaqueHash{}
@@ -41,22 +40,13 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 		t.Errorf("Expected no response bytes, got: %x", response)
 	}
 
-	redisBackend, err := store.GetRedisBackend()
+	storedData, err := GetKV(db, cePreimageAnnKey(hash))
 	if err != nil {
-		t.Fatalf("Failed to get Redis backend: %v", err)
-	}
-
-	hashHex := hex.EncodeToString(hash[:])
-	key := "preimage_announcement:" + hashHex
-
-	client := redisBackend.GetClient()
-	storedData, err := client.Get(key)
-	if err != nil {
-		t.Fatalf("Failed to get stored announcement from Redis: %v", err)
+		t.Fatalf("Failed to get stored announcement: %v", err)
 	}
 
 	if storedData == nil {
-		t.Fatal("Announcement was not stored in Redis")
+		t.Fatal("Announcement was not stored")
 	}
 
 	// Verify decoded data matches original
@@ -78,8 +68,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 		t.Errorf("Stored preimage length doesn't match original: expected %d, got %d", preimageLength, decodedPayload.PreimageLength)
 	}
 
-	serviceKey := fmt.Sprintf("service_preimage_announcements:%d", serviceID)
-	isMember, err := client.SIsMember(serviceKey, storedData)
+	isMember, err := SIsMember(db, cePreimageAnnServiceSetKey(serviceID), storedData)
 	if err != nil {
 		t.Fatalf("Failed to check if announcement is in service set: %v", err)
 	}
