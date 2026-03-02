@@ -19,16 +19,16 @@ import (
 // Request (from Guarantor to Assurer):
 //
 //	Erasure-Root (hash, []byte)
-//	Shard Index (uint32)
+//	Shard Index (u16)
 //	Segment Indices Length (uint16)
 //	Segment Indices ([]uint16)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // Response (from Assurer to Guarantor):
 //
 //	Segment Shards ([]byte, concatenated)
 //	Justifications ([]byte, concatenated justifications for each segment shard)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // The justification for a segment shard should be the co-path from the erasure-root to the shard,
 // given by: j ^ [b] ^ T(s, i, H)

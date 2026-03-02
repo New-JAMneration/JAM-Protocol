@@ -13,8 +13,8 @@ import (
 
 // HandleJudgmentAnnouncement_Send sends CE145 (JudgmentPublication) over a stream.
 //
-// It writes the CE protocol ID (145) first, then the payload bytes, then "FIN",
-// and waits for a "FIN" response.
+// It writes the CE protocol ID (145) first, then the payload bytes, then closes the stream (FIN).
+// It waits for the peer to close the stream (remote FIN).
 func HandleJudgmentAnnouncement_Send(stream io.ReadWriteCloser, payload *CE145Payload) error {
 	if payload == nil {
 		return fmt.Errorf("nil payload")

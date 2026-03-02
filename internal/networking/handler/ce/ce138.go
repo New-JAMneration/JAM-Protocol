@@ -17,13 +17,13 @@ import (
 //
 //	Erasure-Root (hash, []byte)
 //	Shard Index (u16)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // Response (from Assurer to Auditor):
 //
 //	Bundle Shard ([]byte)
 //	Justification ([]byte, Merkle co-path proof)
-//	'FIN' (3 bytes)
+//	FIN (stream close)
 //
 // The justification is a sequence of [0 ++ Hash OR 1 ++ Hash ++ Hash] as per the protocol.
 // The assurer should construct this by appending the corresponding segment shard root
