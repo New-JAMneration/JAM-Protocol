@@ -19,5 +19,5 @@ type CE135Payload struct {
 }
 
 type CE136Payload struct {
-	CoreIndex uint32
+	WorkReportHash types.WorkReportHash
 }
