@@ -13,7 +13,7 @@ When implementing JAMNP-related features, three distinct encoding approaches are
 
 | Use case | Correct approach |
 |---|---|
-| Fixed-size integer (u8 / u16 / u32) | `binary.LittleEndian.PutUintN` or `EncodeUintWithLength` |
+| Fixed-size integer (u8 / u16 / u32) | `binary.LittleEndian.PutUint{16,32,64}` or `EncodeUintWithLength` |
 | Variable-length sequence length (`len++`, GP compact integer) | `readCompactLength()` / `encoder.EncodeUint(n)` |
 | JAMNP message size prefix (message framing) | `stream.WriteMessage(payload)` — handled transparently by the stream layer |
 
