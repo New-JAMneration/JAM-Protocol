@@ -24,7 +24,7 @@ This is the central index for all project documentation in the `READMERef/` dire
 
 | Document | Description |
 |----------|-------------|
-| [ENCODER_AND_DECODER.md](./ENCODER_AND_DECODER.md) | SCALE codec encoder/decoder usage |
+| [ENCODER_AND_DECODER.md](./ENCODER_AND_DECODER.md) | SCALE codec and JAMNP encoding reference |
 | [LOGGER_USAGE.md](./LOGGER_USAGE.md) | Logger usage instructions |
 | [RUST_VRF_COMPILE_GUIDE.md](./RUST_VRF_COMPILE_GUIDE.md) | Rust VRF library compilation guide |
 
