@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
@@ -164,7 +166,10 @@ func main() {
 
 	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
-	if err := cmd.Run(context.Background(), os.Args); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	if err := cmd.Run(ctx, os.Args); err != nil {
 		logger.Fatalf("error: %v", err)
 	}
 }
