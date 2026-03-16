@@ -52,19 +52,22 @@ func (s *FuzzServer) ListenAndServe(ctx context.Context) error {
 		}
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			conn, err := s.Listener.Accept()
-			if err != nil {
-				logger.Warnf("[fuzz-server] error accepting connection: %v", err)
-				continue
-			}
+	go func() {
+		<-ctx.Done()
+		s.Listener.Close()
+	}()
 
-			go s.serve(ctx, conn)
+	for {
+		conn, err := s.Listener.Accept()
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			logger.Warnf("[fuzz-server] error accepting connection: %v", err)
+			continue
 		}
+
+		go s.serve(ctx, conn)
 	}
 }
 
