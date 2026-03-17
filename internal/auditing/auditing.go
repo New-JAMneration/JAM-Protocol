@@ -1,8 +1,10 @@
 package auditing
 
 import (
+	"context"
 	"crypto/ed25519"
 	"fmt"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
@@ -465,14 +467,13 @@ func BroadcastAuditReport(audit []types.AuditReport) {
 func BroadcastAnnouncement(validatorIndex types.ValidatorIndex, tranche types.U8, assignment map[types.WorkPackageHash][]types.ValidatorIndex, signature types.Ed25519Signature) {
 }
 
-// NODE-TODO [CE144 recv]: Merge incoming CE144 announcements into assignment map.
-// Ref: feat/jam-np-ce-handler — ce144.go HandleAuditAnnouncement_Recv
+// Deprecated: UpdateAssignmentMapFromOtherNode — replaced by SyncAssignmentMapFromBus in audit_bus.go.
+// Kept for backward compatibility; delegates to no-op if bus is nil.
 func UpdateAssignmentMapFromOtherNode(assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex) map[types.WorkPackageHash][]types.ValidatorIndex {
 	return assignmentMap
 }
 
-// NODE-TODO [CE145 recv]: Merge incoming CE145 judgments into positive-judger map.
-// Ref: feat/jam-np-ce-handler — ce145.go HandleJudgmentAnnouncement_Validator
+// Deprecated: UpdatePositiveJudgersFromOtherNode — replaced by SyncPositiveJudgersFromBus in audit_bus.go.
 func UpdatePositiveJudgersFromOtherNode(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	return positiveJudgers
 }
@@ -490,56 +491,31 @@ func UpdatePositiveJudgersFromAudit(audits []types.AuditReport, positiveJudgers 
 	return positiveJudgers
 }
 
-// NODE-TODO [timer]: Block until the current tranche period ends.
+// WaitNextTranche blocks until the deadline for the given tranche elapses, or
+// ctx is cancelled (e.g. block fully audited, slot change).
 //
-// Tranche timing (GP §17.7): each tranche lasts A = 8 seconds, counted
-// from the start of the current time-slot. So tranche n starts at
-// slot_start + n*8s. This function should sleep/select until that deadline.
-//
-// Typical impl:
-//
-//	deadline := slotStartTime.Add(time.Duration(tranche+1) * 8 * time.Second)
-//	time.Sleep(time.Until(deadline))           // or use a context/timer
-//
-// Called at the bottom of the tranche loop (Step 18 in SingleNodeAuditingAndPublish),
-// right after IsBlockAudited check. The next iteration will then call
-// SyncAssignmentMapFromOtherNodes + SyncPositiveJudgersFromOtherNodes
-// to pick up CE144/CE145 messages that arrived during the wait.
-func WaitNextTranche(tranche types.U8) {
+// GP §17.7: tranche n occupies [slotStart + n*A, slotStart + (n+1)*A).
+// This function waits until slotStart + (tranche+1)*A so the *next* tranche
+// can begin with fresh CE144/CE145 data.
+func WaitNextTranche(tranche types.U8, slotStartTime time.Time, ctx context.Context) error {
+	deadline := slotStartTime.Add(time.Duration(tranche+1) * time.Duration(types.TranchePeriod) * time.Second)
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
-// NODE-TODO [CE145 sync]: Drain all CE145 judgment messages received so far
-// and merge them into positiveJudgers.
-//
-// This is called right after broadcasting our own judgments (Step 16/9).
-// It should read from whatever buffer/channel the CE145 recv handler
-// writes into, and merge each (WorkPackageHash, ValidatorIndex) pair.
-//
-// Expected flow:
-//  1. CE145 recv handler (running in background) pushes incoming judgments
-//     into a thread-safe buffer (channel / mutex-guarded map).
-//  2. This function drains that buffer and merges into positiveJudgers.
-//  3. The merged map is then used by ComputeAnForValidator (next tranche)
-//     to determine which reports still need auditing (no-show detection).
-//
-// Ref: feat/jam-np-ce-handler — ce145.go GetAllJudgmentsForWorkReport
+// Deprecated: SyncPositiveJudgersFromOtherNodes — replaced by SyncPositiveJudgersFromBus.
 func SyncPositiveJudgersFromOtherNodes(positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool, validatorIndex types.ValidatorIndex, tranche types.U8) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
 	return positiveJudgers
 }
 
-// NODE-TODO [CE144 sync]: Drain all CE144 announcement messages received so far
-// and merge them into assignmentMap.
-//
-// Same pattern as SyncPositiveJudgersFromOtherNodes but for announcements.
-// The merged map feeds into ComputeAnForValidator to count no-shows
-// (validators who announced but didn't judge → triggers more auditors).
-//
-// Expected flow:
-//  1. CE144 recv handler pushes incoming announcements into a buffer.
-//  2. This function drains and merges into assignmentMap.
-//  3. No-show count = announced validators - judged validators per report.
-//
-// Ref: feat/jam-np-ce-handler — ce144.go GetAllAuditAnnouncementsForHeader
+// Deprecated: SyncAssignmentMapFromOtherNodes — replaced by SyncAssignmentMapFromBus.
 func SyncAssignmentMapFromOtherNodes(
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
 	validatorIndex types.ValidatorIndex, tranche types.U8,
@@ -550,11 +526,25 @@ func SyncAssignmentMapFromOtherNodes(
 // GetJudgement is defined in judgement.go — implements GP §17.16–17.17.
 // It fetches the original bundle, re-executes Ξ(p,c), and compares.
 
+// SingleNodeAuditingAndPublish runs the full audit lifecycle for one block.
+// It is designed to run as a goroutine — one per block. Pass a cancellable
+// ctx so that it exits early when the block is superseded or fully audited
+// from the outside.
+//
+// Flow:
+//
+//	tranche 0 (deterministic):
+//	  ComputeInitialAuditAssignment → announce (CE144) → judge → broadcast (CE145) → sync → check
+//	tranche n≥1 (stochastic, loop):
+//	  wait 8s → sync CE144/CE145 → ComputeAnForValidator → judge → announce → broadcast → check
 func SingleNodeAuditingAndPublish(
 	validatorIndex types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey,
+	slotStartTime time.Time,
+	bus *AuditMessageBus,
+	ctx context.Context,
 ) error {
-	// Step 1: (17.1–17.2) Collect one assigned report per core (Q)
+	// ── Step 1: Collect audit candidates Q (GP §17.1–17.2) ──
 	Q := CollectAuditReportCandidates()
 	var workReports []types.WorkReport
 	for _, report := range Q {
@@ -562,89 +552,80 @@ func SingleNodeAuditingAndPublish(
 			workReports = append(workReports, *report)
 		}
 	}
+	if len(workReports) == 0 {
+		return nil
+	}
 
-	// Step 2: Initialize assignment map A and positive judger state J⊤
-	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)          // key = work report hash, value = validator index assigned to the report
-	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool) // key = work report hash, value = positive judgers
+	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
+	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
 
-	// Step 3: (17.3–17.7) Compute initial deterministic assignment a₀
-	a0, err := ComputeInitialAuditAssignment(Q, validatorIndex) // a0: assigned reports for local validator
+	// ── Tranche 0: deterministic initial assignment (GP §17.3–17.7) ──
+	a0, err := ComputeInitialAuditAssignment(Q, validatorIndex)
 	if err != nil {
 		return fmt.Errorf("failed to compute a₀: %w", err)
 	}
 
-	// Step 4: Update local validator's assignment into the assignment map
 	for _, audit := range a0 {
-		hash := audit.Report.PackageSpec.Hash
-		assignmentMap[hash] = append(assignmentMap[hash], types.ValidatorIndex(validatorIndex))
+		h := audit.Report.PackageSpec.Hash
+		assignmentMap[h] = append(assignmentMap[h], validatorIndex)
 	}
 
-	// Step 5: Sign and broadcast A0 assignment (CE144)
-	a0Announcement, err := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	a0Ann, err := BuildAnnouncement(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
 	if err != nil {
 		return err
 	}
+	BroadcastAnnouncement(validatorIndex, 0, assignmentMap, a0Ann)
 
-	BroadcastAnnouncement(validatorIndex, 0, assignmentMap, a0Announcement)
-
-	// Step 6: (17.17) Evaluate judgment for each assigned report in a0
 	for i := range a0 {
 		a0[i].AuditResult = GetJudgement(a0[i])
 	}
+	positiveJudgers = UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
 
-	// Step 7: Update positive judger map with local judgement results
-	UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
+	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
+	BroadcastAuditReport(signed)
 
-	// Step 8: Sign and broadcast local judgement results (CE145)
-	signedA0 := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
-	BroadcastAuditReport(signedA0)
+	// Drain any CE messages that arrived during tranche-0 execution.
+	assignmentMap = SyncAssignmentMapFromBus(bus, assignmentMap)
+	positiveJudgers = SyncPositiveJudgersFromBus(bus, positiveJudgers)
 
-	// Step 9: Receive CE144 and CE145 from other nodes to update state
-	assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, 0)
-	positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, 0)
-
-	// Step 10: (17.20) Check if all reports from the current block have passed audit
-	if IsBlockAudited(workReports, signedA0, assignmentMap) {
-		return nil // Auditing complete
+	if IsBlockAudited(workReports, signed, assignmentMap) {
+		return nil
 	}
 
-	// Step 11: Begin tranche loop for stochastic audit (n ≥ 1)
+	// ── Tranche loop (n ≥ 1): wait → sync → compute → judge → broadcast → check ──
 	for tranche := types.U8(1); ; tranche++ {
-		// (17.15–17.16) Compute stochastic assignment aₙ based on no-shows
-		an, err := ComputeAnForValidator(tranche, Q, assignmentMap, positiveJudgers, hash.Blake2bHash, validatorIndex)
-		if err != nil {
-			return fmt.Errorf("failed to compute aₙ: %w", err)
+		// Wait until the current tranche period ends (8s boundary).
+		// During this wait CE handlers keep pushing into the bus channels.
+		if err := WaitNextTranche(tranche-1, slotStartTime, ctx); err != nil {
+			return err
 		}
 
-		// Step 12: Evaluate each report in aₙ
+		// Drain CE144/CE145 messages accumulated during the wait.
+		assignmentMap = SyncAssignmentMapFromBus(bus, assignmentMap)
+		positiveJudgers = SyncPositiveJudgersFromBus(bus, positiveJudgers)
+
+		// Compute stochastic assignment based on latest no-show data.
+		an, err := ComputeAnForValidator(tranche, Q, assignmentMap, positiveJudgers, hash.Blake2bHash, validatorIndex)
+		if err != nil {
+			return fmt.Errorf("failed to compute aₙ at tranche %d: %w", tranche, err)
+		}
+
 		for i := range an {
 			an[i].AuditResult = GetJudgement(an[i])
 		}
 
-		// Step 13: Broadcast CE144 announcement for aₙ
-		anAnnouncement, err := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		anAnn, err := BuildAnnouncement(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
 		if err != nil {
 			return err
 		}
-		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnnouncement)
+		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnn)
 
-		// Step 14: Update positive judgers
-		UpdatePositiveJudgersFromAudit(an, positiveJudgers)
-
-		// Step 15: Sign and broadcast CE145 judgments
+		positiveJudgers = UpdatePositiveJudgersFromAudit(an, positiveJudgers)
 		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex)
 		BroadcastAuditReport(signedAn)
 
-		// Step 16: Update local assignment and judgement state with messages from other nodes
-		assignmentMap = SyncAssignmentMapFromOtherNodes(assignmentMap, validatorIndex, tranche)
-		positiveJudgers = SyncPositiveJudgersFromOtherNodes(positiveJudgers, validatorIndex, tranche)
-
-		// Step 17: Check if audit condition has been satisfied for all reports for single block
 		if IsBlockAudited(workReports, signedAn, assignmentMap) {
-			break
+			return nil
 		}
-		WaitNextTranche(tranche)
 	}
-
-	return nil
 }
