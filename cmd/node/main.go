@@ -5,6 +5,10 @@ import (
 	"encoding/hex"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/rpc"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -72,6 +76,22 @@ func init() {
 func node(ctx context.Context, cmd *cli.Command) error {
 	config.InitConfig(configPath, mode)
 	SetupJAMProtocol(chainPath)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		rpcServer := rpc.NewRPCServer(":19800")
+		if err := rpcServer.Start(ctx); err != nil {
+			logger.Fatalf("RPC server error: %v", err)
+		}
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down JAM Protocol node...")
 	return nil
 }
 
