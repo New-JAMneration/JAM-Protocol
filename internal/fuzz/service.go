@@ -96,7 +96,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest state root
 	latestState := cs.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
-	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
+	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyValsRef()
 	combinedState := make(types.StateKeyVals, 0, len(priorUnmatchedKeyVals)+len(serializedState))
 	combinedState = append(combinedState, priorUnmatchedKeyVals...)
 	combinedState = append(combinedState, serializedState...)
@@ -126,7 +126,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		logger.Errorf("%s state encoder error: %v", ctx, err)
 		return types.StateRoot{}, err
 	}
-	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyVals()
+	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyValsRef()
 	combinedState = make(types.StateKeyVals, 0, len(postUnmatchedKeyVals)+len(serializedState))
 	combinedState = append(combinedState, postUnmatchedKeyVals...)
 	combinedState = append(combinedState, serializedState...)

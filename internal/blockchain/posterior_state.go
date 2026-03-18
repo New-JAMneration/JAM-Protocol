@@ -33,8 +33,8 @@ func NewPosteriorStates() *PosteriorStates {
 }
 
 func (s *PosteriorStates) SetState(state types.State) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.state = &state
 }
 

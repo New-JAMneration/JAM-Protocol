@@ -16,7 +16,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -427,7 +426,7 @@ func (cs *ChainState) StateCommit() {
 	posterState := cs.GetPosteriorStates().GetState()
 	cs.GetPriorStates().SetState(posterState)
 	postUnmatchedKeyVal := cs.GetPostStateUnmatchedKeyVals()
-	cs.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal.DeepCopy())
+	cs.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal)
 	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
@@ -500,6 +499,18 @@ func (cs *ChainState) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.State
 
 func (cs *ChainState) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
 	return cs.postStateUnmatchedKeyVals.DeepCopy()
+}
+
+// GetPriorStateUnmatchedKeyValsRef returns a direct reference without DeepCopy.
+// The caller MUST NOT modify the returned slice.
+func (cs *ChainState) GetPriorStateUnmatchedKeyValsRef() types.StateKeyVals {
+	return cs.preStateUnmatchedKeyVals
+}
+
+// GetPostStateUnmatchedKeyValsRef returns a direct reference without DeepCopy.
+// The caller MUST NOT modify the returned slice.
+func (cs *ChainState) GetPostStateUnmatchedKeyValsRef() types.StateKeyVals {
+	return cs.postStateUnmatchedKeyVals
 }
 
 func (cs *ChainState) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
@@ -621,10 +632,7 @@ func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) 
 		if cs.keyLevelCache.Len() >= types.MaxKeyLevelCacheSize {
 			cs.ClearKeyLevelCache()
 		}
-		// Cache miss: compute once, store, and return so merklization uses it
-		leftEncoding := m.LeafEncoding(key, value)
-		bytes, _ := utilities.BitsToBytes(leftEncoding)
-		leafHash = hash.Blake2bHash(bytes)
+		leafHash = m.EncodeLeafNodeHash(key, value)
 		cs.keyLevelCache.PutLeafHash(key, valueHash, leafHash)
 		return leafHash
 	}
