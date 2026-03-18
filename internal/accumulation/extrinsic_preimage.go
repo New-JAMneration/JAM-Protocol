@@ -152,8 +152,7 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, types.ServiceAccountState) {
 	cs := blockchain.GetInstance()
 	j := 0
-	keyVals := cs.GetPostStateUnmatchedKeyVals()
-	copiedKeyVals := keyVals.DeepCopy()
+	copiedKeyVals := cs.GetPostStateUnmatchedKeyVals()
 	for i, ep := range eps {
 		// Calculate preimage hash and length
 		preimageHash := hash.Blake2bHash(ep.Blob)

@@ -2,161 +2,120 @@ package merklization
 
 import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-const NODE_SIZE = 512
-
-// BranchEncoding encodes a branch node.
-func BranchEncoding(left, right types.OpaqueHash) types.BitSequence {
-	branchPrefixBit := types.BitSequence{false}
-	leftBits := utilities.BytesToBits(left[:])[1:]
-	rightBits := utilities.BytesToBits(right[:])
-
-	encoding := types.BitSequence{}
-	encoding = append(encoding, branchPrefixBit...) // 1 bit
-	encoding = append(encoding, leftBits...)        // 255 bits
-	encoding = append(encoding, rightBits...)       // 256 bits
-
-	return encoding // 512 bits
+// encodeBranchNode encodes a branch node as [64]byte with zero heap allocation.
+// Layout: {left[0] & 0x7F, left[1:32], right[0:32]}
+func encodeBranchNode(left, right types.OpaqueHash) [64]byte {
+	var node [64]byte
+	node[0] = left[0] & 0x7F
+	copy(node[1:32], left[1:])
+	copy(node[32:], right[:])
+	return node
 }
 
-func embeddedValueLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence {
-	leftPrefixBit := types.BitSequence{true}                       // 1 bit
-	embeddedValueLeafPrefixBit := types.BitSequence{false}         // 1 bit
-	prefix := append(leftPrefixBit, embeddedValueLeafPrefixBit...) // 2 bits
-
-	valueSize := types.U32(len(value))
-	serializedValueSize := utilities.SerializeFixedLength(valueSize, 1)
-	valueSizeBits := utilities.BytesToBits(serializedValueSize)
-
-	// Estimate capacity: prefix + valueSizeBits + key + value
-	estimatedSize := len(prefix) + len(valueSizeBits) + len(key) + len(value)
-	encoding := make(types.BitSequence, 0, estimatedSize)
-	encoding = append(encoding, prefix...)
-	encoding = append(encoding, valueSizeBits[2:]...)
-	encoding = append(encoding, utilities.BytesToBits(key[:])...)
-	encoding = append(encoding, utilities.BytesToBits(value)...)
-
-	// Calculate the size, if it has space left, fill it with 0
-	if len(encoding) < NODE_SIZE {
-		encoding = append(encoding, make(types.BitSequence, NODE_SIZE-len(encoding))...)
-	}
-
-	return encoding
-}
-
-func regularLeaf(key types.StateKey, value types.ByteSequence) types.BitSequence {
-	leftPrefixBit := types.BitSequence{true}                                    // 1 bit
-	regularLeafPrefixBit := types.BitSequence{true}                             // 1 bit
-	fillZeroBits := types.BitSequence{false, false, false, false, false, false} // 6 bits
-
-	// Estimate capacity: prefix bits + key + hash
-	estimatedSize := 8 + len(key)*8 + 32*8 // 8 prefix bits + key bits + hash bits
-	encoding := make(types.BitSequence, 0, estimatedSize)
-	encoding = append(encoding, leftPrefixBit...)
-	encoding = append(encoding, regularLeafPrefixBit...)
-	encoding = append(encoding, fillZeroBits...)
-	encoding = append(encoding, utilities.BytesToBits(key[:])...)
-	valueHash := hash.Blake2bHash(value)
-	encoding = append(encoding, utilities.BytesToBits(valueHash[:])...)
-
-	return encoding
-}
-
-func LeafEncoding(key types.StateKey, value types.ByteSequence) types.BitSequence {
+// encodeLeafNode encodes a leaf node as [64]byte with zero heap allocation.
+// Embedded leaf (value <= 32 bytes): {0x80 | len(value), key[:31], value, zero-padding}
+// Regular leaf (value > 32 bytes):   {0xC0, key[:31], blake2b(value)}
+func encodeLeafNode(key types.StateKey, value []byte) [64]byte {
+	var node [64]byte
 	if len(value) <= 32 {
-		return embeddedValueLeaf(key, value)
+		node[0] = 0x80 | byte(len(value))
+		copy(node[1:32], key[:])
+		copy(node[32:], value)
 	} else {
-		return regularLeaf(key, value)
+		node[0] = 0xC0
+		copy(node[1:32], key[:])
+		h := hash.Blake2bHash(value)
+		copy(node[32:], h[:])
 	}
+	return node
 }
 
-// Convert a types.BitSequence to a string
-func bitSequenceToString(bitSequence types.BitSequence) string {
-	str := ""
-	for _, bit := range bitSequence {
-		if bit {
-			str += "1"
-		} else {
-			str += "0"
+// EncodeLeafNodeHash computes the leaf hash for (key, value) using [64]byte encoding.
+func EncodeLeafNodeHash(key types.StateKey, value []byte) types.OpaqueHash {
+	node := encodeLeafNode(key, value)
+	return hash.Blake2bHash(node[:])
+}
+
+// partitionByBit partitions entries in-place based on the bit at position depth.
+// Returns pivot index: entries[:pivot] have bit=0 (left), entries[pivot:] have bit=1 (right).
+func partitionByBit(entries []types.StateKeyVal, depth int) int {
+	byteIdx := depth / 8
+	bitMask := byte(1 << (7 - depth%8))
+	left := 0
+	for right := range entries {
+		if entries[right].Key[byteIdx]&bitMask == 0 {
+			entries[left], entries[right] = entries[right], entries[left]
+			left++
 		}
 	}
-	return str
+	return left
 }
 
-func BitSequenceToString(bitSequence types.BitSequence) string {
-	return bitSequenceToString(bitSequence)
-}
-
-type MerklizationInput map[[31]byte]types.StateKeyVal
-
-// Shift the key left by 1 bit
-func shiftKeyLeft(key [31]byte) [31]byte {
-	var result [31]byte
-	for i := 0; i < 30; i++ {
-		result[i] = (key[i] << 1) | (key[i+1] >> 7)
-	}
-	result[30] = key[30] << 1
-	return result
-}
-
-func Merklization(d MerklizationInput) types.OpaqueHash {
-	if len(d) == 0 {
-		// zero hash
+// merklize computes the Merkle root hash using in-place partition and [64]byte encoding.
+func merklize(entries []types.StateKeyVal, depth int) types.OpaqueHash {
+	if len(entries) == 0 {
 		return types.OpaqueHash{}
 	}
-
-	// FIXME: 為什麼 graypaper 要寫 {(k, v)}, 而不是判斷長度？
-	if len(d) == 1 {
-		for _, stateKeyVal := range d {
-			leftEncoding := LeafEncoding(stateKeyVal.Key, stateKeyVal.Value)
-			bytes, _ := utilities.BitsToBytes(leftEncoding)
-			return hash.Blake2bHash(bytes)
-		}
+	if len(entries) == 1 {
+		node := encodeLeafNode(entries[0].Key, entries[0].Value)
+		return hash.Blake2bHash(node[:])
 	}
 
-	l := make(MerklizationInput)
-	r := make(MerklizationInput)
-	for key, value := range d {
-		// check the first bit: 0 -> left, 1 -> right
-		firstBit := (key[0] & 0x80) == 0
+	pivot := partitionByBit(entries, depth)
+	leftHash := merklize(entries[:pivot], depth+1)
+	rightHash := merklize(entries[pivot:], depth+1)
 
-		shiftedKey := shiftKeyLeft(key)
-
-		if firstBit {
-			l[shiftedKey] = value
-		} else {
-			r[shiftedKey] = value
-		}
-	}
-
-	branchEncoding := BranchEncoding(Merklization(l), Merklization(r))
-	bytes, _ := utilities.BitsToBytes(branchEncoding)
-	return hash.Blake2bHash(bytes)
+	node := encodeBranchNode(leftHash, rightHash)
+	return hash.Blake2bHash(node[:])
 }
 
-// basic Merklization function
-// $M_{\sigma}(\sigma)$
-// Input: $T(\sigma)$ a dictionary, serialized states
+// merklizeWithCache computes the Merkle root hash with leaf-level caching.
+func merklizeWithCache(entries []types.StateKeyVal, depth int, cache LeafHashCache) types.OpaqueHash {
+	if len(entries) == 0 {
+		return types.OpaqueHash{}
+	}
+	if len(entries) == 1 {
+		if cache != nil {
+			return cache(entries[0].Key, entries[0].Value)
+		}
+		node := encodeLeafNode(entries[0].Key, entries[0].Value)
+		return hash.Blake2bHash(node[:])
+	}
+
+	pivot := partitionByBit(entries, depth)
+	leftHash := merklizeWithCache(entries[:pivot], depth+1, cache)
+	rightHash := merklizeWithCache(entries[pivot:], depth+1, cache)
+
+	node := encodeBranchNode(leftHash, rightHash)
+	return hash.Blake2bHash(node[:])
+}
+
+// MerklizationSerializedState computes the Merkle root from serialized state key-vals.
 func MerklizationSerializedState(serializedState types.StateKeyVals) types.StateRoot {
-	merklizationInput := make(MerklizationInput)
-
-	// Convert the StateKeyVals to merklization input
-	for _, stateKeyVal := range serializedState {
-		merklizationInput[stateKeyVal.Key] = stateKeyVal
-	}
-
-	return types.StateRoot(Merklization(merklizationInput))
+	entries := make([]types.StateKeyVal, len(serializedState))
+	copy(entries, serializedState)
+	return types.StateRoot(merklize(entries, 0))
 }
 
-// MerklizationState is a function that takes a state and returns the
-// Merklization of the state.
-// (D.5)
-func MerklizationState(state types.State) types.StateRoot {
-	// serializedState, err := StateSerialize(state)
-	serializedState, _ := StateEncoder(state)
+// MerklizationSerializedStateWithCache computes the Merkle root with key-level caching.
+func MerklizationSerializedStateWithCache(
+	serializedState types.StateKeyVals,
+	cache LeafHashCache,
+) types.StateRoot {
+	entries := make([]types.StateKeyVal, len(serializedState))
+	copy(entries, serializedState)
 
+	if cache != nil {
+		return types.StateRoot(merklizeWithCache(entries, 0, cache))
+	}
+	return types.StateRoot(merklize(entries, 0))
+}
+
+// MerklizationState computes the Merkle root from a State.
+func MerklizationState(state types.State) types.StateRoot {
+	serializedState, _ := StateEncoder(state)
 	return MerklizationSerializedState(serializedState)
 }
