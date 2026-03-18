@@ -356,7 +356,6 @@ func TestEncodeLeafNodeHash(t *testing.T) {
 // 	}
 // }
 
-
 func TestMerklizationState(t *testing.T) {
 	testState := types.State{}
 
