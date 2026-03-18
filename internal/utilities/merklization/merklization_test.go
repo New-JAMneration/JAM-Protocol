@@ -146,45 +146,54 @@ func TestBitsToBytes(t *testing.T) {
 	}
 }
 
-func TestBranchEncoding(t *testing.T) {
+func TestEncodeLeafNodeHash(t *testing.T) {
 	testCases := []struct {
-		left  types.OpaqueHash
-		right types.OpaqueHash
+		name  string
+		key   types.StateKey
+		value []byte
 	}{
-		{types.OpaqueHash{}, types.OpaqueHash{}},
-		{hash.Blake2bHash([]byte("left")), hash.Blake2bHash([]byte("right"))},
+		{
+			name:  "empty key and value (embedded)",
+			key:   types.StateKey{},
+			value: []byte{},
+		},
+		{
+			name:  "embedded leaf with small value",
+			key:   types.StateKey{0x01, 0x02, 0x03},
+			value: []byte{1, 2, 3},
+		},
+		{
+			name:  "embedded leaf at max size (32 bytes)",
+			key:   types.StateKey{0xFF},
+			value: make([]byte, 32),
+		},
+		{
+			name:  "regular leaf with 33-byte value",
+			key:   types.StateKey{0xAB},
+			value: make([]byte, 33),
+		},
 	}
 
 	for _, tc := range testCases {
-		actual := merklization.BranchEncoding(tc.left, tc.right)
-
-		if len(actual) != merklization.NODE_SIZE {
-			t.Errorf("Expected %v, got %v", merklization.NODE_SIZE, actual)
-		}
-
-		// Branch encoding first bit should be 0 (The node is branch)
-		if actual[0] != false {
-			t.Errorf("Expected %v, got %v", false, actual[0])
-		}
-
-		leftBits := utilities.BytesToBits(tc.left[:])
-		rightBits := utilities.BytesToBits(tc.right[:])
-
-		// Left bits should be 255 bits
-		// Branch encoding [1:256] should be equal to left bits
-		for i := 1; i < 256; i++ {
-			if actual[i] != leftBits[i] {
-				t.Errorf("Expected %v, got %v", leftBits[i], actual[i])
+		t.Run(tc.name, func(t *testing.T) {
+			var expectedNode [64]byte
+			if len(tc.value) <= 32 {
+				expectedNode[0] = 0x80 | byte(len(tc.value))
+				copy(expectedNode[1:32], tc.key[:])
+				copy(expectedNode[32:], tc.value)
+			} else {
+				expectedNode[0] = 0xC0
+				copy(expectedNode[1:32], tc.key[:])
+				h := hash.Blake2bHash(tc.value)
+				copy(expectedNode[32:], h[:])
 			}
-		}
+			expectedHash := hash.Blake2bHash(expectedNode[:])
 
-		// Right bits should be 256 bits
-		// Branch encoding [256:512] should be equal to right bits
-		for i := 256; i < 512; i++ {
-			if actual[i] != rightBits[i-256] {
-				t.Errorf("Expected %v, got %v", rightBits[i-256], actual[i])
+			actual := merklization.EncodeLeafNodeHash(tc.key, tc.value)
+			if actual != expectedHash {
+				t.Errorf("%s: expected %x, got %x", tc.name, expectedHash, actual)
 			}
-		}
+		})
 	}
 }
 
@@ -347,28 +356,6 @@ func TestBranchEncoding(t *testing.T) {
 // 	}
 // }
 
-func TestBitSequenceToString(t *testing.T) {
-	testCases := []struct {
-		input    types.BitSequence
-		expected string
-	}{
-		{types.BitSequence{}, ""},
-		{types.BitSequence{false, false, false, false, false, false, false, false}, "00000000"},
-		{types.BitSequence{false, false, false, false, false, false, false, true}, "00000001"},
-		{types.BitSequence{false, false, false, false, true, false, true, false}, "00001010"},
-		{types.BitSequence{false, true, true, false, false, true, false, false}, "01100100"},
-		{types.BitSequence{true, false, false, false, false, false, false, false}, "10000000"},
-		{types.BitSequence{true, true, true, true, true, true, true, true}, "11111111"},
-	}
-
-	for _, tc := range testCases {
-		actual := merklization.BitSequenceToString(tc.input)
-
-		if actual != tc.expected {
-			t.Errorf("Expected %v, got %v", tc.expected, actual)
-		}
-	}
-}
 
 func TestMerklizationState(t *testing.T) {
 	testState := types.State{}
