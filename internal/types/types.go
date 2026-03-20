@@ -33,8 +33,8 @@ type (
 )
 
 type (
-	ByteSequence []byte   // Variable-length byte sequence
-	ByteArray32  [32]byte // Fixed-size 32-byte array, commonly used for hashes
+	ByteSequence []byte         // Variable-length byte sequence
+	ByteArray32  [HashSize]byte // Fixed-size 32-byte array, commonly used for hashes
 )
 
 type BitSequence []bool
@@ -50,11 +50,11 @@ type Ed25519Public [32]byte
 
 type BlsPublic [144]byte
 
-type BandersnatchVrfSignature [96]byte
+type BandersnatchVrfSignature [BandersnatchSigSize]byte
 
 type BandersnatchRingVrfSignature [784]byte
 
-type Ed25519Signature [64]byte
+type Ed25519Signature [Ed25519SigSize]byte
 
 type BandersnatchRingCommitment [144]byte
 
@@ -1124,6 +1124,22 @@ func (v *ValidatorSignature) Validate() error {
 	return nil
 }
 
+func ValidateGuaranteeSignatures(sigs []ValidatorSignature) error {
+	count := len(sigs)
+	if count < GuaranteeMinCount {
+		return errors.New("insufficient_guarantees")
+	}
+	if count > GuaranteeMaxCount {
+		return errors.New("too_many_guarantees")
+	}
+	for i := range sigs {
+		if err := sigs[i].Validate(); err != nil {
+			return fmt.Errorf("guarantee signature[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
 // Guarantee for a work report
 // GP §11.23
 type ReportGuarantee struct {
@@ -1137,11 +1153,11 @@ func (r *ReportGuarantee) Validate() error {
 		return err
 	}
 
-	if len(r.Signatures) < 2 {
+	if len(r.Signatures) < GuaranteeMinCount {
 		return errors.New("insufficient_guarantees")
 	}
 
-	if len(r.Signatures) > 3 {
+	if len(r.Signatures) > GuaranteeMaxCount {
 		logger.Warn("too_many_guarantees")
 	}
 
