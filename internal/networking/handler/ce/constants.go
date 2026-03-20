@@ -4,6 +4,7 @@ package ce
 const (
 	// Common: hash and integer sizes
 	HashSize = 32 // OpaqueHash, HeaderHash, ErasureRoot, etc.
+	U8Size   = 1  // uint8 little-endian
 	U16Size  = 2  // uint16 little-endian
 	U32Size  = 4  // uint32 little-endian
 

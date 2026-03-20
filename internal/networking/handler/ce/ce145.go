@@ -1,158 +1,268 @@
 package ce
 
 import (
-	"crypto/ed25519"
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/hdevalence/ed25519consensus"
 )
 
-// HandleJudgmentAnnouncement_Send sends CE145 (JudgmentPublication) over a stream.
-//
-// It writes the CE protocol ID (145) first, then the payload bytes, then closes the stream (FIN).
-// It waits for the peer to close the stream (remote FIN).
-func HandleJudgmentAnnouncement_Send(stream io.ReadWriteCloser, payload *CE145Payload) error {
+// Field sizes and offsets within the CE145 judgment header (103 bytes total).
+const (
+	ce145HeaderSize   = U32Size + U16Size + 1 + HashSize + types.Ed25519SigSize // 103
+	ce145OffEpoch     = 0
+	ce145OffValidator = ce145OffEpoch + U32Size        // 4
+	ce145OffValidity  = ce145OffValidator + U16Size    // 6
+	ce145OffHash      = ce145OffValidity + 1           // 7
+	ce145OffSig       = ce145OffHash + HashSize        // 39
+	ce145SigEntrySize = U16Size + types.Ed25519SigSize // 66 (per guarantee entry)
+)
+
+// ce145Stream supports JAMNP message framing (ReadMessage / WriteMessage).
+type ce145Stream interface {
+	io.ReadWriteCloser
+	ReadMessage() ([]byte, error)
+	WriteMessage(payload []byte) error
+}
+
+// CE145Guarantee is the optional second message sent with an invalid judgment.
+// Wire: Slot ++ len++[ValidatorIndex ++ Ed25519Signature]  (2 or 3 entries only)
+type CE145Guarantee struct {
+	Slot       types.TimeSlot
+	Signatures []types.ValidatorSignature
+}
+
+// Validate checks count range [GuaranteeMinCount, GuaranteeMaxCount] and each
+// ValidatorIndex via types.ValidateGuaranteeSignatures.
+func (g *CE145Guarantee) Validate() error {
+	return types.ValidateGuaranteeSignatures(g.Signatures)
+}
+
+// CE145Payload carries all data for a CE 145 judgment publication.
+type CE145Payload struct {
+	EpochIndex     types.U32
+	ValidatorIndex types.ValidatorIndex
+	Validity       uint8 // 0 = Invalid, 1 = Valid
+	WorkReportHash types.WorkReportHash
+	Signature      types.Ed25519Signature
+	Guarantee      *CE145Guarantee // non-nil iff Validity == 0
+}
+
+// ── Public handlers ───────────────────────────────────────────────────────────
+
+// HandleJudgmentAnnouncement_Send sends CE145 over a stream.
+// The stream kind byte (145) is written raw; both messages use WriteMessage framing.
+func HandleJudgmentAnnouncement_Send(stream ce145Stream, payload *CE145Payload) error {
 	if payload == nil {
 		return fmt.Errorf("nil payload")
 	}
-
-	encoded, err := payload.Encode()
-	if err != nil {
-		return fmt.Errorf("failed to encode payload: %w", err)
+	if err := payload.Validate(); err != nil {
+		return fmt.Errorf("invalid payload: %w", err)
 	}
 
+	// Stream kind byte — raw, not framed.
 	if _, err := stream.Write([]byte{145}); err != nil {
 		return fmt.Errorf("failed to write protocol ID: %w", err)
 	}
 
-	if _, err := stream.Write(encoded); err != nil {
-		return fmt.Errorf("failed to write payload: %w", err)
+	firstMsg, err := encodeJudgmentHeader(payload)
+	if err != nil {
+		return fmt.Errorf("failed to encode judgment header: %w", err)
 	}
+	if err := stream.WriteMessage(firstMsg); err != nil {
+		return fmt.Errorf("failed to write judgment header: %w", err)
+	}
+
+	// For invalid judgments, encode and write the second message (guarantee).
+	if payload.Validity == 0 {
+		if payload.Guarantee == nil {
+			return fmt.Errorf("guarantee required for invalid judgment")
+		}
+		guaranteeBytes, err := encodeGuarantee(payload.Guarantee)
+		if err != nil {
+			return fmt.Errorf("failed to encode guarantee: %w", err)
+		}
+		if err := stream.WriteMessage(guaranteeBytes); err != nil {
+			return fmt.Errorf("failed to write guarantee: %w", err)
+		}
+	}
+
 	if err := expectRemoteFIN(stream); err != nil {
 		return err
 	}
 	return stream.Close()
 }
 
-// HandleJudgmentAnnouncement handles the announcement of a judgment, ready for inclusion
-// in a block and as a signal for potential further auditing.
+// HandleJudgmentAnnouncement handles incoming CE145 judgment publication.
 //
-// An announcement declaring intention to audit a particular work-report must be followed
-// by a judgment, declaring the work-report to either be valid or invalid, as soon as
-// this has been determined.
-//
-// Protocol CE145:
-// Auditor -> Validator
+// Protocol CE145: Auditor → Validator
 //
 //	--> Epoch Index ++ Validator Index ++ Validity ++ Work-Report Hash ++ Ed25519 Signature
+//	--> Guarantee [present iff Validity == 0]
 //	--> FIN
 //	<-- FIN
-//
-// The transmission format includes:
-// - Epoch Index: 4 bytes (u32)
-// - Validator Index: 2 bytes (u16)
-// - Validity: 1 byte (0 = Invalid, 1 = Valid)
-// - Work-Report Hash: 32 bytes (WorkReportHash)
-// - Ed25519 Signature: 64 bytes
-func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteCloser) error {
-	epochIndexBuf := make([]byte, 4)
-	if _, err := io.ReadFull(stream, epochIndexBuf); err != nil {
-		return fmt.Errorf("failed to read epoch index: %w", err)
+func HandleJudgmentAnnouncement(bc blockchain.Blockchain, stream ce145Stream) error {
+	// Message 1: fixed-size judgment header.
+	firstMsg, err := stream.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("failed to read first message: %w", err)
 	}
-	epochIndex := types.U32(binary.LittleEndian.Uint32(epochIndexBuf))
-
-	validatorIndexBuf := make([]byte, 2)
-	if _, err := io.ReadFull(stream, validatorIndexBuf); err != nil {
-		return fmt.Errorf("failed to read validator index: %w", err)
-	}
-	validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(validatorIndexBuf))
-
-	validityBuf := make([]byte, 1)
-	if _, err := io.ReadFull(stream, validityBuf); err != nil {
-		return fmt.Errorf("failed to read validity: %w", err)
-	}
-	validity := validityBuf[0]
-
-	// First message continues: Work-Report Hash (32) + Ed25519 Signature (64)
-	workReportHash := types.WorkReportHash{}
-	if _, err := io.ReadFull(stream, workReportHash[:]); err != nil {
-		return fmt.Errorf("failed to read work report hash: %w", err)
-	}
-	signature := types.Ed25519Signature{}
-	if _, err := io.ReadFull(stream, signature[:]); err != nil {
-		return fmt.Errorf("failed to read Ed25519 signature: %w", err)
+	if len(firstMsg) != ce145HeaderSize {
+		return fmt.Errorf("invalid first message size: expected %d, got %d", ce145HeaderSize, len(firstMsg))
 	}
 
-	// When Validity==0 (Invalid), optional Guarantee message: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
+	epochIndex := types.U32(binary.LittleEndian.Uint32(firstMsg[ce145OffEpoch:]))
+	validatorIndex := types.ValidatorIndex(binary.LittleEndian.Uint16(firstMsg[ce145OffValidator:]))
+	validity := firstMsg[ce145OffValidity]
+	var workReportHash types.WorkReportHash
+	copy(workReportHash[:], firstMsg[ce145OffHash:ce145OffSig])
+	var signature types.Ed25519Signature
+	copy(signature[:], firstMsg[ce145OffSig:ce145HeaderSize])
+
+	// Message 2: guarantee (mandatory when validity == 0).
+	var guarantee *CE145Guarantee
 	if validity == 0 {
-		if err := readGuaranteeMessage(stream); err != nil {
+		guaranteeMsg, err := stream.ReadMessage()
+		if err != nil {
 			return fmt.Errorf("failed to read guarantee message: %w", err)
 		}
+		if guarantee, err = decodeGuaranteeBytes(guaranteeMsg); err != nil {
+			return fmt.Errorf("failed to decode guarantee: %w", err)
+		}
 	}
+
 	if err := expectRemoteFIN(stream); err != nil {
 		return err
 	}
-
-	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
+	if err := validateJudgmentAnnouncement(epochIndex, validatorIndex, validity, workReportHash, signature, guarantee); err != nil {
 		return fmt.Errorf("invalid judgment announcement: %w", err)
 	}
-	if err := storeJudgmentAnnouncement(bc, epochIndex, validatorIndex, validity, workReportHash, signature); err != nil {
+	if err := storeJudgmentAnnouncement(bc, epochIndex, validatorIndex, validity, workReportHash, signature, guarantee); err != nil {
 		return fmt.Errorf("failed to store judgment announcement: %w", err)
 	}
 	return stream.Close()
 }
 
-// readGuaranteeMessage reads: Slot u32 ++ len++[ValidatorIndex ++ Ed25519Signature]
-func readGuaranteeMessage(r io.Reader) error {
-	slotBuf := make([]byte, 4)
-	if _, err := io.ReadFull(r, slotBuf); err != nil {
-		return err
-	}
-	_ = binary.LittleEndian.Uint32(slotBuf) // Slot, not used for validation in handler
+// ── Codec helpers ─────────────────────────────────────────────────────────────
 
-	count, err := readCompactLength(r)
+func encodeJudgmentHeader(p *CE145Payload) ([]byte, error) {
+	buf := make([]byte, ce145HeaderSize)
+	binary.LittleEndian.PutUint32(buf[ce145OffEpoch:], uint32(p.EpochIndex))
+	binary.LittleEndian.PutUint16(buf[ce145OffValidator:], uint16(p.ValidatorIndex))
+	buf[ce145OffValidity] = p.Validity
+	copy(buf[ce145OffHash:ce145OffSig], p.WorkReportHash[:])
+	copy(buf[ce145OffSig:ce145HeaderSize], p.Signature[:])
+	return buf, nil
+}
+
+func encodeGuarantee(g *CE145Guarantee) ([]byte, error) {
+	if g == nil {
+		return nil, fmt.Errorf("nil guarantee")
+	}
+	if err := g.Validate(); err != nil {
+		return nil, err
+	}
+	count := len(g.Signatures)
+	countBytes, err := types.NewEncoder().EncodeUint(uint64(count))
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to encode count: %w", err)
 	}
+	buf := make([]byte, 0, U32Size+len(countBytes)+count*ce145SigEntrySize)
+	buf = binary.LittleEndian.AppendUint32(buf, uint32(g.Slot))
+	buf = append(buf, countBytes...)
+	for _, s := range g.Signatures {
+		buf = binary.LittleEndian.AppendUint16(buf, uint16(s.ValidatorIndex))
+		buf = append(buf, s.Signature[:]...)
+	}
+	return buf, nil
+}
+
+// decodeGuaranteeBytes parses the wire bytes of a guarantee message.
+// Used by both HandleJudgmentAnnouncement (stream path) and CE145Payload.Decode (persistence).
+func decodeGuaranteeBytes(data []byte) (*CE145Guarantee, error) {
+	if len(data) < U32Size+1 { // Slot(4) + at least 1 byte for compact count
+		return nil, fmt.Errorf("incomplete guarantee data: %d bytes", len(data))
+	}
+	slot := types.TimeSlot(binary.LittleEndian.Uint32(data[:U32Size]))
+	rest := data[U32Size:]
+
+	count, n, err := decodeCompactUint(rest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode count: %w", err)
+	}
+	rest = rest[n:]
+
+	// Check count before allocating to guard against malicious input.
+	if count < types.GuaranteeMinCount || count > types.GuaranteeMaxCount {
+		return nil, fmt.Errorf("guarantee signature count %d out of range [%d, %d]",
+			count, types.GuaranteeMinCount, types.GuaranteeMaxCount)
+	}
+
+	sigs := make([]types.ValidatorSignature, count)
 	for i := uint64(0); i < count; i++ {
-		validatorIndexBuf := make([]byte, 2)
-		if _, err := io.ReadFull(r, validatorIndexBuf); err != nil {
-			return err
+		if len(rest) < ce145SigEntrySize {
+			return nil, fmt.Errorf("insufficient data for guarantee signature %d", i)
 		}
-		_ = binary.LittleEndian.Uint16(validatorIndexBuf) // ValidatorIndex
-		sig := make([]byte, 64)
-		if _, err := io.ReadFull(r, sig); err != nil {
-			return err
+		var sig types.Ed25519Signature
+		copy(sig[:], rest[U16Size:ce145SigEntrySize])
+		sigs[i] = types.ValidatorSignature{
+			ValidatorIndex: types.ValidatorIndex(binary.LittleEndian.Uint16(rest[:U16Size])),
+			Signature:      sig,
 		}
-		_ = sig // Ed25519Signature
+		rest = rest[ce145SigEntrySize:]
 	}
-	return nil
+
+	g := &CE145Guarantee{Slot: slot, Signatures: sigs}
+	if err := g.Validate(); err != nil {
+		return nil, err
+	}
+	return g, nil
 }
 
-func readCompactLength(r io.Reader) (uint64, error) {
-	prefix := make([]byte, 1)
-	if _, err := io.ReadFull(r, prefix); err != nil {
-		return 0, err
+// decodeCompactUint decodes a len++ compact integer from data.
+// Returns (value, bytes consumed, error).
+func decodeCompactUint(data []byte) (value uint64, consumed int, err error) {
+	if len(data) < 1 {
+		return 0, 0, fmt.Errorf("no data for compact uint")
 	}
-	l := bits.LeadingZeros8(^prefix[0])
-	if l > 0 {
-		extra := make([]byte, l)
-		if _, err := io.ReadFull(r, extra); err != nil {
-			return 0, err
-		}
-		prefix = append(prefix, extra...)
+	l := bits.LeadingZeros8(^data[0])
+	needed := l + 1
+	if len(data) < needed {
+		return 0, 0, fmt.Errorf("insufficient data for compact uint: need %d, have %d", needed, len(data))
 	}
-	decoder := types.NewDecoder()
-	return decoder.DecodeUint(prefix)
+	v, e := types.NewDecoder().DecodeUint(data[:needed])
+	return v, needed, e
 }
 
-func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
+// ── Validation ────────────────────────────────────────────────────────────────
+
+func validateJudgmentAnnouncement(
+	epochIndex types.U32,
+	validatorIndex types.ValidatorIndex,
+	validity uint8,
+	workReportHash types.WorkReportHash,
+	signature types.Ed25519Signature,
+	guarantee *CE145Guarantee,
+) error {
 	if validity != 0 && validity != 1 {
 		return fmt.Errorf("invalid validity value: %d (must be 0 or 1)", validity)
+	}
+	if validity == 0 && guarantee == nil {
+		return fmt.Errorf("guarantee is required for invalid judgments")
+	}
+	if validity == 1 && guarantee != nil {
+		return fmt.Errorf("guarantee must not be present for valid judgments")
+	}
+	if guarantee != nil {
+		if err := guarantee.Validate(); err != nil {
+			return err
+		}
 	}
 
 	var msg []byte
@@ -164,32 +274,92 @@ func validateJudgmentAnnouncement(epochIndex types.U32, validatorIndex types.Val
 	msg = append(msg, workReportHash[:]...)
 
 	validators := blockchain.GetInstance().GetPriorStates().GetKappa()
-	// In some test/bootstrap contexts we may not have a populated validator set yet.
-	// When unavailable, skip strict signature validation.
-	if len(validators) == 0 || int(validatorIndex) < 0 || int(validatorIndex) >= len(validators) {
+	if len(validators) == 0 || int(validatorIndex) >= len(validators) {
 		return nil
 	}
-
 	pub := validators[validatorIndex].Ed25519[:]
-	allZero := true
-	for _, b := range pub {
-		if b != 0 {
-			allZero = false
-			break
+	if !bytes.Equal(pub, make([]byte, len(pub))) {
+		if !ed25519consensus.Verify(pub, msg, signature[:]) {
+			return errors.New("bad_signature")
 		}
 	}
-	if allZero {
-		return nil
-	}
-
-	if !ed25519.Verify(pub, msg, signature[:]) {
-		return fmt.Errorf("bad_signature")
-	}
-
 	return nil
 }
 
-func storeJudgmentAnnouncement(bc blockchain.Blockchain, epochIndex types.U32, validatorIndex types.ValidatorIndex, validity uint8, workReportHash types.WorkReportHash, signature types.Ed25519Signature) error {
+// ── Payload methods ───────────────────────────────────────────────────────────
+
+// Validate checks validity flag. Invalid judgments (Validity==0) must carry a non-nil Guarantee.
+func (p *CE145Payload) Validate() error {
+	if p.Validity != 0 && p.Validity != 1 {
+		return fmt.Errorf("invalid validity value: %d (must be 0 or 1)", p.Validity)
+	}
+	if p.Validity == 0 && p.Guarantee == nil {
+		return fmt.Errorf("guarantee is required for invalid judgments")
+	}
+	if p.Guarantee != nil {
+		return p.Guarantee.Validate()
+	}
+	return nil
+}
+
+// Encode serialises the judgment header; invalid judgments (Validity==0) also append guarantee bytes.
+func (p *CE145Payload) Encode() ([]byte, error) {
+	if err := p.Validate(); err != nil {
+		return nil, err
+	}
+	header, err := encodeJudgmentHeader(p)
+	if err != nil {
+		return nil, err
+	}
+	if p.Validity == 0 {
+		g, err := encodeGuarantee(p.Guarantee)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode guarantee: %w", err)
+		}
+		return append(header, g...), nil
+	}
+	return header, nil
+}
+
+// Decode deserialises a CE145Payload.  The fixed header is always ce145HeaderSize bytes;
+// invalid judgments (Validity==0) must be followed by guarantee bytes.
+func (p *CE145Payload) Decode(data []byte) error {
+	if len(data) < ce145HeaderSize {
+		return fmt.Errorf("data too short: expected at least %d, got %d", ce145HeaderSize, len(data))
+	}
+	p.EpochIndex = types.U32(binary.LittleEndian.Uint32(data[ce145OffEpoch:]))
+	p.ValidatorIndex = types.ValidatorIndex(binary.LittleEndian.Uint16(data[ce145OffValidator:]))
+	p.Validity = data[ce145OffValidity]
+	copy(p.WorkReportHash[:], data[ce145OffHash:ce145OffSig])
+	copy(p.Signature[:], data[ce145OffSig:ce145HeaderSize])
+
+	if p.Validity == 0 {
+		if len(data) <= ce145HeaderSize {
+			return fmt.Errorf("invalid judgment must include guarantee bytes")
+		}
+		g, err := decodeGuaranteeBytes(data[ce145HeaderSize:])
+		if err != nil {
+			return fmt.Errorf("failed to decode guarantee: %w", err)
+		}
+		p.Guarantee = g
+	}
+	return p.Validate()
+}
+
+func (p *CE145Payload) IsValid() bool   { return p.Validity == 1 }
+func (p *CE145Payload) IsInvalid() bool { return p.Validity == 0 }
+
+// ── Storage & retrieval ───────────────────────────────────────────────────────
+
+func storeJudgmentAnnouncement(
+	bc blockchain.Blockchain,
+	epochIndex types.U32,
+	validatorIndex types.ValidatorIndex,
+	validity uint8,
+	workReportHash types.WorkReportHash,
+	signature types.Ed25519Signature,
+	guarantee *CE145Guarantee,
+) error {
 	db := DB(bc)
 	judgmentData := &CE145Payload{
 		EpochIndex:     epochIndex,
@@ -197,13 +367,12 @@ func storeJudgmentAnnouncement(bc blockchain.Blockchain, epochIndex types.U32, v
 		Validity:       validity,
 		WorkReportHash: workReportHash,
 		Signature:      signature,
+		Guarantee:      guarantee,
 	}
-
 	encodedJudgment, err := judgmentData.Encode()
 	if err != nil {
 		return fmt.Errorf("failed to encode judgment data: %w", err)
 	}
-
 	if err := PutKV(db, ceJudgmentKey(workReportHash, epochIndex, validatorIndex), encodedJudgment); err != nil {
 		return fmt.Errorf("failed to store judgment: %w", err)
 	}
@@ -233,7 +402,6 @@ func CreateJudgmentAnnouncement(
 		WorkReportHash: workReportHash,
 		Signature:      signature,
 	}
-
 	return payload.Encode()
 }
 
@@ -292,94 +460,11 @@ func (h *DefaultCERequestHandler) encodeJudgmentPublication(message interface{})
 	if !ok {
 		return nil, fmt.Errorf("unsupported message type for JudgmentPublication: %T", message)
 	}
-
 	if judgment == nil {
 		return nil, fmt.Errorf("nil payload for JudgmentPublication")
 	}
-
-	// Validate the judgment payload
 	if err := judgment.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid judgment payload: %w", err)
 	}
-
-	// Encode the judgment data using the CE145Payload's Encode method
-	judgmentBytes, err := judgment.Encode()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode judgment data: %w", err)
-	}
-
-	// Build the final result
-	// The message structure includes: Epoch Index + Validator Index + Validity + Work-Report Hash + Ed25519 Signature
-	totalLen := len(judgmentBytes)
-	result := make([]byte, 0, totalLen)
-
-	// Append the encoded judgment data
-	result = append(result, judgmentBytes...)
-
-	return result, nil
-}
-
-// Data structures for CE145
-
-type CE145Payload struct {
-	EpochIndex     types.U32
-	ValidatorIndex types.ValidatorIndex
-	Validity       uint8 // 0 = Invalid, 1 = Valid
-	WorkReportHash types.WorkReportHash
-	Signature      types.Ed25519Signature
-}
-
-func (p *CE145Payload) Validate() error {
-	if p.Validity != 0 && p.Validity != 1 {
-		return fmt.Errorf("invalid validity value: %d (must be 0 or 1)", p.Validity)
-	}
-
-	return nil
-}
-
-func (p *CE145Payload) Encode() ([]byte, error) {
-	if err := p.Validate(); err != nil {
-		return nil, err
-	}
-
-	encoded := make([]byte, 4+2+1+32+64) // EpochIndex + ValidatorIndex + Validity + WorkReportHash + Signature
-
-	binary.LittleEndian.PutUint32(encoded[:4], uint32(p.EpochIndex))
-
-	binary.LittleEndian.PutUint16(encoded[4:6], uint16(p.ValidatorIndex))
-
-	encoded[6] = p.Validity
-
-	copy(encoded[7:39], p.WorkReportHash[:])
-
-	copy(encoded[39:103], p.Signature[:])
-
-	return encoded, nil
-}
-
-func (p *CE145Payload) Decode(data []byte) error {
-	expectedSize := 4 + 2 + 1 + 32 + 64 // EpochIndex + ValidatorIndex + Validity + WorkReportHash + Signature
-
-	if len(data) != expectedSize {
-		return fmt.Errorf("invalid data size: expected %d, got %d", expectedSize, len(data))
-	}
-
-	p.EpochIndex = types.U32(binary.LittleEndian.Uint32(data[:4]))
-
-	p.ValidatorIndex = types.ValidatorIndex(binary.LittleEndian.Uint16(data[4:6]))
-
-	p.Validity = data[6]
-
-	copy(p.WorkReportHash[:], data[7:39])
-	copy(p.Signature[:], data[39:103])
-
-	return p.Validate()
-}
-
-func (p *CE145Payload) IsValid() bool {
-	return p.Validity == 1
-}
-
-func (p *CE145Payload) IsInvalid() bool {
-	return p.Validity == 0
+	return judgment.Encode()
 }
