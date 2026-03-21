@@ -31,6 +31,7 @@ const (
 	PreimageRequest                      CERequestID = 143
 	AuditAnnouncement                    CERequestID = 144
 	JudgmentPublication                  CERequestID = 145
+	BundleRequest                        CERequestID = 147
 )
 
 type CERequestHandler interface {
@@ -97,6 +98,8 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 		return h.encodeAuditAnnouncement(message)
 	case JudgmentPublication:
 		return h.encodeJudgmentPublication(message)
+	case BundleRequest:
+		return h.encodeBundleRequest(message)
 	default:
 		return nil, fmt.Errorf("unknown request type: %d", req)
 	}

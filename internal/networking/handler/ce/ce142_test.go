@@ -14,7 +14,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 	SetDatabase(db)
 	defer SetDatabase(nil)
 
-	serviceID := types.ServiceId(12345)
+	serviceID := types.ServiceID(12345)
 	hash := types.OpaqueHash{}
 	for i := range hash {
 		hash[i] = byte(i + 1)
@@ -80,7 +80,7 @@ func TestHandlePreimageAnnouncement(t *testing.T) {
 
 func TestCE142Payload(t *testing.T) {
 	payload := &CE142Payload{
-		ServiceID:      types.ServiceId(54321),
+		ServiceID:      types.ServiceID(54321),
 		Hash:           types.OpaqueHash{},
 		PreimageLength: types.U32(2048),
 	}
