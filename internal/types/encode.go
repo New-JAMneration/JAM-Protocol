@@ -218,12 +218,11 @@ func (t *TicketID) Encode(e *Encoder) error {
 // TicketAttempt
 func (t *TicketAttempt) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding TicketAttempt")
-	bytes := []byte{byte(*t)}
-	if _, err := e.buf.Write(bytes); err != nil {
+	if err := e.EncodeLength(uint64(*t)); err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", bytes))
+	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", *t))
 
 	return nil
 }

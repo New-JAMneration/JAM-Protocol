@@ -206,7 +206,7 @@ func InitScaleRegistry() {
 
 		// Tickets
 		"ticketid":      NewOpaqueHash,
-		"ticketattempt": types.NewU8,
+		"ticketattempt": types.NewCompact,
 		"ticketenvelope": func() types.IType {
 			maps := []types.TypeMap{
 				{Name: "attempt", Type: "ticketattempt"},
