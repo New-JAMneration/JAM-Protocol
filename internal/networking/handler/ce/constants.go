@@ -26,6 +26,9 @@ const (
 	// CE138 Audit Shard Request: ErasureRoot (32) + ShardIndex (u16)
 	CE138RequestSize = HashSize + U16Size
 
+	// CE147 Bundle Request: ErasureRoot (32) only
+	CE147RequestSize = HashSize
+
 	// CE139/CE140 Segment Shard Request: ErasureRoot (32) + ShardIndex (u16) + SegmentIndicesLen (u16)
 	CE139140MinRequestSize = HashSize + U16Size + U16Size
 	// Max segment indices per request (2*W_M, W_M=3072 per JAMNP)

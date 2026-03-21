@@ -14,7 +14,7 @@ import (
 func CreateTestWorkPackageBundle() *types.WorkPackageBundle {
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     hash.Blake2bHash([]byte("auth_code")),
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -27,7 +27,7 @@ func CreateTestWorkPackageBundle() *types.WorkPackageBundle {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),
@@ -85,7 +85,7 @@ func CreateTestWorkPackageBundle() *types.WorkPackageBundle {
 func CreateTestWorkPackageBundleWithCustomExtrinsics(extrinsicData map[string][]byte) *types.WorkPackageBundle {
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     hash.Blake2bHash([]byte("auth_code")),
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -98,7 +98,7 @@ func CreateTestWorkPackageBundleWithCustomExtrinsics(extrinsicData map[string][]
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),
@@ -161,7 +161,7 @@ func CreateTestWorkPackageBundleWithCustomExtrinsics(extrinsicData map[string][]
 func CreateTestWorkPackageBundleForCE134(extrinsicHash types.OpaqueHash, extrinsicData []byte) ([]byte, error) {
 	wp := &types.WorkPackage{
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     hash.Blake2bHash([]byte("auth_code")),
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
 		Context: types.RefineContext{
@@ -174,7 +174,7 @@ func CreateTestWorkPackageBundleForCE134(extrinsicHash types.OpaqueHash, extrins
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),

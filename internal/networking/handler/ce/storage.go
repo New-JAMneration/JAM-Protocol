@@ -88,7 +88,7 @@ func cePreimageAnnKey(h types.OpaqueHash) []byte {
 	return k
 }
 
-func cePreimageAnnServiceSetKey(serviceID types.ServiceId) string {
+func cePreimageAnnServiceSetKey(serviceID types.ServiceID) string {
 	return "service_preimage_announcements:" + strconv.FormatUint(uint64(serviceID), 10)
 }
 
