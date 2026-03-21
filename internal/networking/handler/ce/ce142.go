@@ -64,7 +64,7 @@ func HandlePreimageAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteClo
 	}
 
 	// Parse the announcement components
-	serviceID := types.ServiceId(binary.LittleEndian.Uint32(announcementData[:4]))
+	serviceID := types.ServiceID(binary.LittleEndian.Uint32(announcementData[:4]))
 
 	hash := types.OpaqueHash{}
 	copy(hash[:], announcementData[4:36])
@@ -86,7 +86,7 @@ func HandlePreimageAnnouncement(bc blockchain.Blockchain, stream io.ReadWriteClo
 }
 
 // validatePreimageAnnouncement validates the received preimage announcement
-func validatePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHash, preimageLength types.U32) error {
+func validatePreimageAnnouncement(serviceID types.ServiceID, hash types.OpaqueHash, preimageLength types.U32) error {
 	if preimageLength == 0 {
 		return errors.New("preimage length cannot be zero")
 	}
@@ -100,7 +100,7 @@ func validatePreimageAnnouncement(serviceID types.ServiceId, hash types.OpaqueHa
 }
 
 // storePreimageAnnouncement stores the received preimage announcement
-func storePreimageAnnouncement(bc blockchain.Blockchain, serviceID types.ServiceId, hash types.OpaqueHash, preimageLength types.U32) error {
+func storePreimageAnnouncement(bc blockchain.Blockchain, serviceID types.ServiceID, hash types.OpaqueHash, preimageLength types.U32) error {
 	db := DB(bc)
 	announcementData := &CE142Payload{
 		ServiceID:      serviceID,
@@ -124,7 +124,7 @@ func storePreimageAnnouncement(bc blockchain.Blockchain, serviceID types.Service
 
 // CreatePreimageAnnouncement creates a preimage announcement message
 func CreatePreimageAnnouncement(
-	serviceID types.ServiceId,
+	serviceID types.ServiceID,
 	hash types.OpaqueHash,
 	preimageLength types.U32,
 ) ([]byte, error) {
@@ -150,7 +150,7 @@ func CreatePreimageAnnouncement(
 }
 
 type CE142Payload struct {
-	ServiceID      types.ServiceId
+	ServiceID      types.ServiceID
 	Hash           types.OpaqueHash
 	PreimageLength types.U32
 }
@@ -192,7 +192,7 @@ func (p *CE142Payload) Decode(data []byte) error {
 		return fmt.Errorf("invalid data size: expected %d, got %d", expectedSize, len(data))
 	}
 
-	p.ServiceID = types.ServiceId(binary.LittleEndian.Uint32(data[:4]))
+	p.ServiceID = types.ServiceID(binary.LittleEndian.Uint32(data[:4]))
 
 	copy(p.Hash[:], data[4:36])
 

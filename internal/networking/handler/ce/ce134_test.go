@@ -74,7 +74,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		t.Fatalf("failed to encode MetaCode: %v", err)
 	}
 	wp := &types.WorkPackage{
-		AuthCodeHost:     types.ServiceId(1),
+		AuthCodeHost:     types.ServiceID(1),
 		AuthCodeHash:     authCodeHash,
 		Authorization:    types.ByteSequence{0x01, 0x02, 0x03},
 		AuthorizerConfig: types.ByteSequence{0x07, 0x08, 0x09},
@@ -88,7 +88,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		},
 		Items: []types.WorkItem{
 			{
-				Service:            types.ServiceId(1),
+				Service:            types.ServiceID(1),
 				CodeHash:           types.OpaqueHash{0x16, 0x17, 0x18},
 				Payload:            types.ByteSequence{0x19, 0x1A, 0x1B},
 				RefineGasLimit:     types.Gas(1000),
@@ -141,7 +141,7 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		Length: types.U32(len(metaCodeBytes)),
 	}
 	inputDelta := types.ServiceAccountState{
-		types.ServiceId(1): {
+		types.ServiceID(1): {
 			ServiceInfo: types.ServiceInfo{
 				CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
 				Balance:    1000,
