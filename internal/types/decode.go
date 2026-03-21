@@ -181,14 +181,13 @@ func (t *TicketID) Decode(d *Decoder) error {
 func (t *TicketAttempt) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding TicketAttempt")
 
-	var val TicketAttempt
-	err := binary.Read(d.buf, binary.LittleEndian, &val)
+	val, err := d.DecodeLength()
 	if err != nil {
 		return err
 	}
 	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", val))
 
-	*t = val
+	*t = TicketAttempt(val)
 	return nil
 }
 
