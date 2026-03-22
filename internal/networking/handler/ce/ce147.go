@@ -5,7 +5,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 // HandleBundleRequest handles CE147: an auditor's request for a full work-package bundle from a guarantor.
@@ -31,19 +30,12 @@ func HandleBundleRequest(bc blockchain.Blockchain, stream *quic.Stream) error {
 	}
 	erasureRoot := payload
 
-	bundle, err := lookupWorkPackageBundle(bc, erasureRoot)
+	bundleBytes, err := GetKV(DB(bc), wpBundleKey(erasureRoot))
 	if err != nil {
-		return fmt.Errorf("lookup work-package bundle: %w", err)
-	}
-
-	enc := types.NewEncoder()
-	enc.SetHashSegmentMap(map[types.OpaqueHash]types.OpaqueHash{})
-	bundleBytes, err := enc.Encode(bundle)
-	if err != nil {
-		return fmt.Errorf("encode work-package bundle: %w", err)
+		return fmt.Errorf("get work-package bundle: %w", err)
 	}
 	if len(bundleBytes) == 0 {
-		return fmt.Errorf("encoded work-package bundle is empty")
+		return fmt.Errorf("work-package bundle not found for erasure root")
 	}
 
 	if err := stream.WriteMessage(bundleBytes); err != nil {

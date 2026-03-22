@@ -68,6 +68,20 @@ func TestHandleBundleRequest_RequestTooShort(t *testing.T) {
 	}
 }
 
+func TestHandleBundleRequest_NotFound(t *testing.T) {
+	db := memory.NewDatabase()
+	defer db.Close()
+	SetDatabase(db)
+	defer SetDatabase(nil)
+
+	erasureRoot := make([]byte, HashSize)
+	stream := newMockStream(framePayload(erasureRoot))
+	err := HandleBundleRequest(SetupFakeBlockchain(), &quic.Stream{Stream: stream})
+	if err == nil {
+		t.Fatal("expected error when bundle is missing from db")
+	}
+}
+
 func TestEncodeBundleRequest(t *testing.T) {
 	h := NewDefaultCERequestHandler()
 	root := make([]byte, HashSize)
