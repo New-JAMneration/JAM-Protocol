@@ -646,7 +646,7 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 
 func (t *TicketEnvelope) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Attempt   U8     `json:"attempt,omitempty"`
+		Attempt   U64    `json:"attempt,omitempty"`
 		Signature string `json:"signature,omitempty"`
 	}
 
@@ -667,7 +667,7 @@ func (t *TicketEnvelope) UnmarshalJSON(data []byte) error {
 func (t *TicketBody) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		ID      string `json:"id,omitempty"`
-		Attempt U8     `json:"attempt,omitempty"`
+		Attempt U64    `json:"attempt,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {

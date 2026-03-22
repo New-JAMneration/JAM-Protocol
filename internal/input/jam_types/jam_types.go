@@ -466,7 +466,7 @@ func (b BlocksHistory) Validate() error {
 // Tickets
 
 type TicketId OpaqueHash
-type TicketAttempt U8
+type TicketAttempt U64
 
 type TicketEnvelope struct {
 	Attempt   TicketAttempt                `json:"attempt,omitempty"`
