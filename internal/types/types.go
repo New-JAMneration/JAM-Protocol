@@ -761,7 +761,7 @@ type Statistics struct {
 
 type (
 	TicketID      OpaqueHash // Unique identifier for a ticket
-	TicketAttempt U8         // Attempt counter for ticket submissions
+	TicketAttempt U64        // Attempt counter for ticket submissions
 )
 
 // Envelope containing a ticket submission

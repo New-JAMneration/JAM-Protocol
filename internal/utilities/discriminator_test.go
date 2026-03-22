@@ -12,7 +12,7 @@ func TestEmptyOrPair(t *testing.T) {
 
 			type TicketBody struct {
 			ID      TicketID      = OpaqueHash = ByteArray32 = [32]byte 	`json:"id,omitempty"`
-			Attempt TicketAttempt = U8										`json:"attempt,omitempty"`
+			Attempt TicketAttempt = U64										`json:"attempt,omitempty"`
 		}
 	*/
 	// test 1 empty
