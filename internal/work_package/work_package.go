@@ -233,7 +233,7 @@ func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []
 		exports = append(exports, types.ByteSequence(export[:]))
 	}
 	exportsRoot := merkle_tree.M(exports, hash.Blake2bHash)
-	erasureRoot, err := computeErasureRoot(workPackgeBundle, exportsData)
+	erasureRoot, err := ComputeErasureRoot(workPackgeBundle, exportsData)
 	if err != nil {
 		return types.WorkPackageSpec{}, fmt.Errorf("failed to compute erasure root: %w", err)
 	}
@@ -246,7 +246,7 @@ func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []
 	}, nil
 }
 
-func computeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
+func ComputeErasureRoot(bundle []byte, exportsData []types.ExportSegment) (types.OpaqueHash, error) {
 	bcloud, err := buildBCloud(bundle)
 	if err != nil {
 		return types.OpaqueHash{}, err
