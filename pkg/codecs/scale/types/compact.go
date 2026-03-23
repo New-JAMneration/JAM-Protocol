@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"reflect"
+
 	bytes2 "github.com/New-JAMneration/JAM-Protocol/pkg/codecs/scale/scale_bytes"
 )
 
@@ -111,13 +114,24 @@ func (c *Compact) encodeTo(x uint64) ([]byte, error) {
 }
 
 func (c *Compact) ProcessEncode(value interface{}) ([]byte, error) {
-	data, ok := value.(int)
-	if !ok {
-		return nil, errors.New("value is not int")
+	v := reflect.ValueOf(value)
+	if !v.IsValid() {
+		return nil, errors.New("compact encode: nil value")
 	}
-
-	to, err := c.encodeTo(uint64(data))
-	return to, err
+	var x uint64
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		iv := v.Int()
+		if iv < 0 {
+			return nil, errors.New("compact encode: negative integer")
+		}
+		x = uint64(iv)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		x = v.Uint()
+	default:
+		return nil, fmt.Errorf("compact encode: unsupported type %T", value)
+	}
+	return c.encodeTo(x)
 }
 
 func NewCompact() IType {
