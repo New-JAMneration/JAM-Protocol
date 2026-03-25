@@ -170,8 +170,11 @@ func (p *CE144Payload) encodeMsg2() ([]byte, error) {
 // bytesConsumed is useful for Decode() which processes msg1 + msg2 as a flat blob.
 func parseMsg1(data []byte) (headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, consumed int, err error) {
 	const minSize = HashSize + U8Size + U8Size + types.Ed25519SigSize // 32+1+1(min len++)+64 = 98
+	announcement = nil
+	consumed = 0
+
 	if len(data) < minSize {
-		return headerHash, 0, nil, 0, fmt.Errorf("msg1 too short: %d bytes", len(data))
+		return headerHash, tranche, announcement, consumed, fmt.Errorf("msg1 too short: %d bytes", len(data))
 	}
 
 	offset := 0
@@ -183,14 +186,14 @@ func parseMsg1(data []byte) (headerHash types.OpaqueHash, tranche uint8, announc
 
 	count, n, err := decodeCompactUint(data[offset:])
 	if err != nil {
-		return headerHash, 0, nil, 0, fmt.Errorf("failed to decode work reports count: %w", err)
+		return headerHash, tranche, announcement, consumed, fmt.Errorf("failed to decode work reports count: %w", err)
 	}
 	offset += n
 
 	workReports := make([]WorkReportEntry, count)
 	for i := uint64(0); i < count; i++ {
 		if offset+U16Size+HashSize > len(data) {
-			return headerHash, 0, nil, 0, fmt.Errorf("insufficient data for work report %d", i)
+			return headerHash, tranche, announcement, consumed, fmt.Errorf("insufficient data for work report %d", i)
 		}
 		coreIndex := types.CoreIndex(binary.LittleEndian.Uint16(data[offset:]))
 		offset += U16Size
@@ -201,7 +204,7 @@ func parseMsg1(data []byte) (headerHash types.OpaqueHash, tranche uint8, announc
 	}
 
 	if offset+types.Ed25519SigSize > len(data) {
-		return headerHash, 0, nil, 0, errors.New("insufficient data for Ed25519 signature")
+		return headerHash, tranche, announcement, consumed, errors.New("insufficient data for Ed25519 signature")
 	}
 	var sig types.Ed25519Signature
 	copy(sig[:], data[offset:offset+types.Ed25519SigSize])
@@ -213,8 +216,8 @@ func parseMsg1(data []byte) (headerHash types.OpaqueHash, tranche uint8, announc
 // parseMsg2 parses CE144 message 2 (evidence) bytes.
 func parseMsg2(data []byte, tranche uint8, workReportsCount int) (*CE144Evidence, error) {
 	if tranche == 0 {
-		if len(data) < types.BandersnatchSigSize {
-			return nil, fmt.Errorf("msg2 too short for first-tranche evidence: %d bytes", len(data))
+		if len(data) != types.BandersnatchSigSize {
+			return nil, fmt.Errorf("invalid first-tranche evidence size: expected %d, got %d", types.BandersnatchSigSize, len(data))
 		}
 		var bsSig types.BandersnatchVrfSignature
 		copy(bsSig[:], data[:types.BandersnatchSigSize])

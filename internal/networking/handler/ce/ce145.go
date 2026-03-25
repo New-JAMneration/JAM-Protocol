@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -225,21 +224,6 @@ func decodeGuaranteeBytes(data []byte) (*CE145Guarantee, error) {
 	return g, nil
 }
 
-// decodeCompactUint decodes a len++ compact integer from data.
-// Returns (value, bytes consumed, error).
-func decodeCompactUint(data []byte) (value uint64, consumed int, err error) {
-	if len(data) < 1 {
-		return 0, 0, fmt.Errorf("no data for compact uint")
-	}
-	l := bits.LeadingZeros8(^data[0])
-	needed := l + 1
-	if len(data) < needed {
-		return 0, 0, fmt.Errorf("insufficient data for compact uint: need %d, have %d", needed, len(data))
-	}
-	v, e := types.NewDecoder().DecodeUint(data[:needed])
-	return v, needed, e
-}
-
 // ── Validation ────────────────────────────────────────────────────────────────
 
 func validateJudgmentAnnouncement(
@@ -274,8 +258,11 @@ func validateJudgmentAnnouncement(
 	msg = append(msg, workReportHash[:]...)
 
 	validators := blockchain.GetInstance().GetPriorStates().GetKappa()
-	if len(validators) == 0 || int(validatorIndex) >= len(validators) {
+	if len(validators) == 0 {
 		return nil
+	}
+	if int(validatorIndex) >= len(validators) {
+		return fmt.Errorf("validator index out of range: index=%d validators=%d", validatorIndex, len(validators))
 	}
 	pub := validators[validatorIndex].Ed25519[:]
 	if !bytes.Equal(pub, make([]byte, len(pub))) {
@@ -295,6 +282,9 @@ func (p *CE145Payload) Validate() error {
 	}
 	if p.Validity == 0 && p.Guarantee == nil {
 		return fmt.Errorf("guarantee is required for invalid judgments")
+	}
+	if p.Validity == 1 && p.Guarantee != nil {
+		return fmt.Errorf("guarantee must not be present for valid judgments")
 	}
 	if p.Guarantee != nil {
 		return p.Guarantee.Validate()

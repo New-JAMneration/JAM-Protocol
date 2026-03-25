@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -238,4 +239,19 @@ func expectRemoteFIN(stream io.Reader) error {
 		return err
 	}
 	return nil
+}
+
+// decodeCompactUint decodes a len++ compact integer from data.
+// Returns (value, bytes consumed, error).
+func decodeCompactUint(data []byte) (value uint64, consumed int, err error) {
+	if len(data) < 1 {
+		return 0, 0, fmt.Errorf("no data for compact uint")
+	}
+	l := bits.LeadingZeros8(^data[0])
+	needed := l + 1
+	if len(data) < needed {
+		return 0, 0, fmt.Errorf("insufficient data for compact uint: need %d, have %d", needed, len(data))
+	}
+	v, e := types.NewDecoder().DecodeUint(data[:needed])
+	return v, needed, e
 }
