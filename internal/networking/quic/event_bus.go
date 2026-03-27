@@ -43,12 +43,12 @@ type Handler func(ctx context.Context, event Event) error
 
 type EventBus struct {
 	sync.RWMutex
-	handlers map[Event][]Handler
+	handlers map[EventType][]Handler
 }
 
 func NewEventBus() *EventBus {
 	return &EventBus{
-		handlers: make(map[Event][]Handler),
+		handlers: make(map[EventType][]Handler),
 	}
 }
 
@@ -70,9 +70,9 @@ func (eb *EventBus) Unsubscribe(eventType EventType) {
 	}
 }
 
-func (eb *EventBus) Publish(ctx context.Context, event Event) error {
+func (eb *EventBus) Publish(ctx context.Context, eventType EventType, event Event) error {
 	eb.RLock()
-	handlers := eb.handlers[fmt.Sprintf("%T", event)]
+	handlers := eb.handlers[eventType]
 	eb.RUnlock()
 
 	if len(handlers) == 0 {
@@ -116,7 +116,7 @@ func (eb *EventBus) WaitFor(ctx context.Context, eventType EventType, timeout in
 // PublishPeerAdded publishes a PeerAdded event
 func (eb *EventBus) PublishPeerAdded(ctx context.Context, peer *Peer) error {
 	event := &PeerAddedEvent{Peer: peer}
-	return eb.Publish(ctx, event)
+	return eb.Publish(ctx, PeerAdded, event)
 }
 
 // PublishPeerUpdated publishes a PeerUpdated event
@@ -125,5 +125,5 @@ func (eb *EventBus) PublishPeerUpdated(ctx context.Context, peer *Peer, newBlock
 		Peer:           peer,
 		NewBlockHeader: newBlockHeader,
 	}
-	return eb.Publish(ctx, event)
+	return eb.Publish(ctx, PeerUpdated, event)
 }

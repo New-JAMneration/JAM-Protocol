@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 )
@@ -55,6 +56,7 @@ func (c *Connection) Close() error {
 }
 
 type ConnectionManager struct {
+	mu      sync.RWMutex
 	addrMap map[string]*Connection
 }
 
@@ -65,10 +67,37 @@ func NewConnectionManager() *ConnectionManager {
 }
 
 func (cm *ConnectionManager) GetByAddr(addr string) (*Connection, bool) {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
 	conn, exists := cm.addrMap[addr]
 	return conn, exists
 }
 
+func (cm *ConnectionManager) Add(addr string, conn *Connection) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	cm.addrMap[addr] = conn
+}
+
+func (cm *ConnectionManager) Remove(addr string) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	delete(cm.addrMap, addr)
+}
+
+func (cm *ConnectionManager) All() []*Connection {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	conns := make([]*Connection, 0, len(cm.addrMap))
+	for _, c := range cm.addrMap {
+		conns = append(conns, c)
+	}
+	return conns
+}
+
 func (cm *ConnectionManager) Update(f func(*ConnectionManager) (interface{}, error)) (interface{}, error) {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
 	return f(cm)
 }

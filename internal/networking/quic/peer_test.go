@@ -87,8 +87,8 @@ func TestNewPeer(t *testing.T) {
 				return
 			}
 			if peer != nil {
-				if peer.publicKey == nil {
-					t.Error("Peer public key is nil")
+				if peer.Ed25519Key == nil {
+					t.Error("Peer Ed25519Key is nil")
 				}
 				if peer.Listener == nil {
 					t.Error("Peer listener is nil")
@@ -136,7 +136,7 @@ func TestPeerConnect(t *testing.T) {
 
 	t.Run("Connect to non-existent address", func(t *testing.T) {
 		nonExistentAddr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9999}
-		_, err := peer.Connect(nonExistentAddr, *peer)
+		_, err := peer.Connect(nonExistentAddr, Validator)
 		if err == nil {
 			t.Error("Expected error when connecting to non-existent address")
 		}
@@ -159,7 +159,7 @@ func TestPeerConnect(t *testing.T) {
 			t.Fatalf("Failed to resolve address: %v", err)
 		}
 
-		conn, err := peer.Connect(tcpAddr, *peer)
+		conn, err := peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to connect: %v", err)
 		}
@@ -177,7 +177,7 @@ func TestPeerConnect(t *testing.T) {
 			t.Error("Server timeout")
 		}
 
-		conn2, err := peer.Connect(tcpAddr, *peer)
+		conn2, err := peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to reconnect: %v", err)
 		}
@@ -255,14 +255,14 @@ func TestPeerBroadcast(t *testing.T) {
 
 			buf := make([]byte, 1024)
 			n, err := stream.Read(buf)
-			if err != nil {
+			if err != nil && n == 0 {
 				serverDone <- err
 				return
 			}
 
-			expected := "broadcast message"
-			if string(buf[:n]) != expected {
-				serverDone <- fmt.Errorf("expected %s, got %s", expected, string(buf[:n]))
+			expected := append([]byte{0}, []byte("broadcast message")...)
+			if string(buf[:n]) != string(expected) {
+				serverDone <- fmt.Errorf("expected %x, got %x", expected, buf[:n])
 				return
 			}
 
@@ -270,7 +270,7 @@ func TestPeerBroadcast(t *testing.T) {
 			serverDone <- nil
 		}()
 
-		_, err = peer.Connect(tcpAddr, *peer)
+		_, err = peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to connect: %v", err)
 		}
