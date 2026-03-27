@@ -183,7 +183,7 @@ func TestCE129RequestWithPeer(t *testing.T) {
 		t.Fatalf("Failed to resolve server address: %v", err)
 	}
 
-	conn, err := clientPeer.Connect(serverNetAddr, *serverPeer)
+	conn, err := clientPeer.Connect(serverNetAddr, quic.Validator)
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
