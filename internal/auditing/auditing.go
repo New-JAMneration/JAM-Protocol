@@ -558,6 +558,7 @@ func SingleNodeAuditingAndPublish(
 
 	assignmentMap := make(map[types.WorkPackageHash][]types.ValidatorIndex)
 	positiveJudgers := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
+	var allJudgments []types.AuditReport // accumulated across all tranches
 
 	// ── Tranche 0: deterministic initial assignment (GP §17.3–17.7) ──
 	a0, err := ComputeInitialAuditAssignment(Q, validatorIndex)
@@ -582,13 +583,14 @@ func SingleNodeAuditingAndPublish(
 	positiveJudgers = UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
 
 	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
+	allJudgments = append(allJudgments, signed...)
 	BroadcastAuditReport(signed)
 
 	// Drain any CE messages that arrived during tranche-0 execution.
 	assignmentMap = SyncAssignmentMapFromBus(bus, assignmentMap)
 	positiveJudgers = SyncPositiveJudgersFromBus(bus, positiveJudgers)
 
-	if IsBlockAudited(workReports, signed, assignmentMap) {
+	if IsBlockAudited(workReports, allJudgments, assignmentMap) {
 		return nil
 	}
 
@@ -622,9 +624,10 @@ func SingleNodeAuditingAndPublish(
 
 		positiveJudgers = UpdatePositiveJudgersFromAudit(an, positiveJudgers)
 		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex)
+		allJudgments = append(allJudgments, signedAn...)
 		BroadcastAuditReport(signedAn)
 
-		if IsBlockAudited(workReports, signedAn, assignmentMap) {
+		if IsBlockAudited(workReports, allJudgments, assignmentMap) {
 			return nil
 		}
 	}

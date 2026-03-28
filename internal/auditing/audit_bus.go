@@ -53,6 +53,13 @@ func NewAuditMessageBusWithSize(bufferSize int) *AuditMessageBus {
 
 // OnAuditAnnouncementReceived is called by the CE144 recv handler goroutine.
 // Non-blocking: drops the message if the channel is full.
+//
+// Dropping is safe because the audit loop uses a conservative no-show count:
+// a dropped announcement means the auditor appears as a no-show, which triggers
+// additional stochastic auditors in subsequent tranches — the system errs on
+// the side of more auditing, not less. The buffer (default 2048) comfortably
+// fits V=1023 validators per tranche, so drops should only happen under
+// extreme network bursts.
 func (bus *AuditMessageBus) OnAuditAnnouncementReceived(msg CE144Announcement) {
 	select {
 	case bus.announcementCh <- msg:
@@ -63,6 +70,12 @@ func (bus *AuditMessageBus) OnAuditAnnouncementReceived(msg CE144Announcement) {
 
 // OnJudgmentReceived is called by the CE145 recv handler goroutine.
 // Non-blocking: drops the message if the channel is full.
+//
+// Dropping a positive judgment is safe: the auditor won't be counted toward
+// the supermajority threshold, which may delay but never skip the audit.
+// Dropping a negative judgment is also safe: missing it means the local node
+// won't escalate as quickly, but the sender will have broadcast to all
+// validators — enough honest nodes will still trigger dispute resolution.
 func (bus *AuditMessageBus) OnJudgmentReceived(msg CE145Judgment) {
 	select {
 	case bus.judgmentCh <- msg:
@@ -78,6 +91,9 @@ func SyncAssignmentMapFromBus(
 	bus *AuditMessageBus,
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
 ) map[types.WorkPackageHash][]types.ValidatorIndex {
+	if bus == nil {
+		return assignmentMap
+	}
 	for {
 		select {
 		case msg := <-bus.announcementCh:
@@ -96,6 +112,9 @@ func SyncPositiveJudgersFromBus(
 	bus *AuditMessageBus,
 	positiveJudgers map[types.WorkPackageHash]map[types.ValidatorIndex]bool,
 ) map[types.WorkPackageHash]map[types.ValidatorIndex]bool {
+	if bus == nil {
+		return positiveJudgers
+	}
 	for {
 		select {
 		case msg := <-bus.judgmentCh:
