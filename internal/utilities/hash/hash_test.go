@@ -3,6 +3,7 @@ package hash
 import (
 	"bytes"
 	"encoding/hex"
+	"sync"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -84,5 +85,109 @@ func TestKeccakHash(t *testing.T) {
 		if hex.EncodeToString(hash[:]) != tc.expectedHex {
 			t.Errorf("Expected: %v, got: %v", tc.expectedHex, hex.EncodeToString(hash[:]))
 		}
+	}
+}
+
+// TestHashEncode verifies that HashEncode produces the same result as
+// the manual NewEncoder -> Encode -> Blake2bHash pattern.
+func TestHashEncode(t *testing.T) {
+	header := types.Header{}
+
+	// Manual encode-then-hash (the old pattern).
+	encoder := types.NewEncoder()
+	encoded, err := encoder.Encode(&header)
+	if err != nil {
+		t.Fatalf("manual encode failed: %v", err)
+	}
+	expected := Blake2bHash(encoded)
+
+	// HashEncode (the new pattern).
+	got, err := HashEncode(&header)
+	if err != nil {
+		t.Fatalf("HashEncode failed: %v", err)
+	}
+
+	if !bytes.Equal(expected[:], got[:]) {
+		t.Errorf("HashEncode result mismatch: expected %x, got %x", expected, got)
+	}
+}
+
+// TestHashEncodeMatchesComputeBlockHeaderHash verifies backward compatibility
+// with the existing ComputeBlockHeaderHash helper.
+func TestHashEncodeMatchesComputeBlockHeaderHash(t *testing.T) {
+	header := types.Header{}
+
+	fromCompute, err := ComputeBlockHeaderHash(header)
+	if err != nil {
+		t.Fatalf("ComputeBlockHeaderHash failed: %v", err)
+	}
+
+	fromHashEncode, err := HashEncode(&header)
+	if err != nil {
+		t.Fatalf("HashEncode failed: %v", err)
+	}
+
+	if !bytes.Equal(fromCompute[:], fromHashEncode[:]) {
+		t.Errorf("results differ: ComputeBlockHeaderHash=%x, HashEncode=%x",
+			fromCompute, fromHashEncode)
+	}
+}
+
+// TestEncoderPoolConcurrency ensures the encoder pool is safe under concurrent
+// access by encoding the same value from multiple goroutines and checking that
+// all results are identical.
+func TestEncoderPoolConcurrency(t *testing.T) {
+	header := types.Header{}
+
+	// Compute the expected hash once.
+	expected, err := HashEncode(&header)
+	if err != nil {
+		t.Fatalf("HashEncode failed: %v", err)
+	}
+
+	const goroutines = 100
+	var wg sync.WaitGroup
+	errs := make(chan string, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := HashEncode(&header)
+			if err != nil {
+				errs <- "HashEncode error: " + err.Error()
+				return
+			}
+			if !bytes.Equal(expected[:], got[:]) {
+				errs <- "hash mismatch in concurrent goroutine"
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errs)
+
+	for msg := range errs {
+		t.Error(msg)
+	}
+}
+
+// BenchmarkHashEncode_Pooled benchmarks the pooled HashEncode path.
+func BenchmarkHashEncode_Pooled(b *testing.B) {
+	header := types.Header{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = HashEncode(&header)
+	}
+}
+
+// BenchmarkHashEncode_NoPool benchmarks the old non-pooled pattern for comparison.
+func BenchmarkHashEncode_NoPool(b *testing.B) {
+	header := types.Header{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		encoder := types.NewEncoder()
+		encoded, _ := encoder.Encode(&header)
+		_ = Blake2bHash(encoded)
 	}
 }
