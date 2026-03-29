@@ -277,7 +277,7 @@ func parseMsg2(data []byte, tranche uint8, workReportsCount int) (*CE144Evidence
 // ── Validation ────────────────────────────────────────────────────────────────
 
 func validateAuditAnnouncement(headerHash types.OpaqueHash, tranche uint8, announcement *CE144Announcement, evidence *CE144Evidence) error {
-	// We should validate headerHash by checking if this headerHash is in the database
+	// TODO: We should validate headerHash by checking if this headerHash is in the database
 
 	if len(announcement.WorkReports) == 0 {
 		return errors.New("announcement must contain at least one work report")
