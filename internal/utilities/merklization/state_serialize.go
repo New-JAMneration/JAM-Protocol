@@ -17,7 +17,8 @@ func encodeAlphaKey() types.StateKey {
 }
 
 func encodeAlpha(alpha types.AuthPools) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedAlpha, err := encoder.Encode(&alpha)
 	if err != nil {
 		return nil
@@ -32,7 +33,8 @@ func encodeVarphiKey() types.StateKey {
 }
 
 func encodeVarphi(varphi types.AuthQueues) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedVarphi, err := encoder.Encode(&varphi)
 	if err != nil {
 		return nil
@@ -47,12 +49,12 @@ func encodeBetaKey() types.StateKey {
 }
 
 func encodeBeta(beta types.RecentBlocks) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedBeta, err := encoder.Encode(&beta)
 	if err != nil {
 		return nil
 	}
-
 	return encodedBeta
 }
 
@@ -63,7 +65,8 @@ func encodeGammaKey() types.StateKey {
 }
 
 func encodeGamma(gamma types.SafroleState) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedGamma, err := encoder.Encode(&gamma)
 	if err != nil {
 		return nil
@@ -78,7 +81,8 @@ func encodePsiKey() types.StateKey {
 }
 
 func encodePsi(psi types.DisputesRecords) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedPsi, err := encoder.Encode(&psi)
 	if err != nil {
 		return nil
@@ -93,7 +97,8 @@ func encodeEtaKey() types.StateKey {
 }
 
 func encodeEta(eta types.EntropyBuffer) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedEta, err := encoder.Encode(&eta)
 	if err != nil {
 		return nil
@@ -108,7 +113,8 @@ func encodeIotaKey() types.StateKey {
 }
 
 func encodeIota(iota types.ValidatorsData) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedIota, err := encoder.Encode(&iota)
 	if err != nil {
 		return nil
@@ -123,7 +129,8 @@ func encodeKappaKey() types.StateKey {
 }
 
 func encodeKappa(kappa types.ValidatorsData) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedKappa, err := encoder.Encode(&kappa)
 	if err != nil {
 		return nil
@@ -138,7 +145,8 @@ func encodeLambdaKey() types.StateKey {
 }
 
 func encodeLambda(lambda types.ValidatorsData) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedLambda, err := encoder.Encode(&lambda)
 	if err != nil {
 		return nil
@@ -153,7 +161,8 @@ func encodeRhoKey() types.StateKey {
 }
 
 func encodeRho(rho types.AvailabilityAssignments) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedRho, err := encoder.Encode(&rho)
 	if err != nil {
 		return nil
@@ -168,7 +177,8 @@ func encodeTauKey() types.StateKey {
 }
 
 func encodeTau(tau types.TimeSlot) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedTau, err := encoder.Encode(&tau)
 	if err != nil {
 		return nil
@@ -183,7 +193,8 @@ func encodeChiKey() types.StateKey {
 }
 
 func encodeChi(chi types.Privileges) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedChi, err := encoder.Encode(&chi)
 	if err != nil {
 		return nil
@@ -198,7 +209,8 @@ func encodePiKey() types.StateKey {
 }
 
 func encodePi(pi types.Statistics) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedPi, err := encoder.Encode(&pi)
 	if err != nil {
 		return nil
@@ -213,7 +225,8 @@ func encodeVarthetaKey() types.StateKey {
 }
 
 func encodeVartheta(vartheta types.ReadyQueue) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedVartheta, err := encoder.Encode(&vartheta)
 	if err != nil {
 		return nil
@@ -228,7 +241,8 @@ func encodeXiKey() types.StateKey {
 }
 
 func encodeXi(xi types.AccumulatedQueue) types.ByteSequence {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedXi, err := encoder.Encode(&xi)
 	if err != nil {
 		return nil
@@ -244,17 +258,18 @@ func encodeThetaKey() types.StateKey {
 
 // value 16: theta (LastAccOut)
 func encodeTheta(theta types.LastAccOut) (output types.ByteSequence) {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encodedTheta, err := encoder.Encode(&theta)
 	if err != nil {
 		return nil
 	}
-
 	return encodedTheta
 }
 
 func encodeDelta1(serviceAccount types.ServiceAccount) (output types.ByteSequence) {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	// Version
 	serviceAccount.ServiceInfo.Version = types.ServiceInfoVersion
 	encodedVersion, err := encoder.Encode(&serviceAccount.ServiceInfo.Version)
