@@ -315,6 +315,27 @@ func TestAuditMessageBus_CE144_PushAndDrain(t *testing.T) {
 	assert.ElementsMatch(t, am[h2], []types.ValidatorIndex{10})
 }
 
+func TestAuditMessageBus_CE144_DeduplicateValidator(t *testing.T) {
+	bus := NewAuditMessageBusWithSize(16)
+	h := makeWPHash(0x01)
+
+	// Same validator announces the same report twice.
+	bus.OnAuditAnnouncementReceived(CE144Announcement{
+		ValidatorIndex: 10,
+		WorkReports:    []types.WorkPackageHash{h},
+	})
+	bus.OnAuditAnnouncementReceived(CE144Announcement{
+		ValidatorIndex: 10,
+		WorkReports:    []types.WorkPackageHash{h},
+	})
+
+	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
+	am = SyncAssignmentMapFromBus(bus, am)
+
+	assert.Equal(t, []types.ValidatorIndex{10}, am[h],
+		"duplicate validator should appear only once")
+}
+
 func TestAuditMessageBus_CE145_PushAndDrain(t *testing.T) {
 	bus := NewAuditMessageBusWithSize(16)
 

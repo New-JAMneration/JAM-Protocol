@@ -86,7 +86,9 @@ func (bus *AuditMessageBus) OnJudgmentReceived(msg CE145Judgment) {
 
 // SyncAssignmentMapFromBus drains all pending CE144 announcements and merges
 // them into assignmentMap. Called once per tranche to batch-process messages
-// that arrived since the last drain.
+// that arrived since the last drain. Duplicate validator entries are skipped
+// so that a validator announcing the same report multiple times does not
+// inflate the assignment count.
 func SyncAssignmentMapFromBus(
 	bus *AuditMessageBus,
 	assignmentMap map[types.WorkPackageHash][]types.ValidatorIndex,
@@ -98,12 +100,25 @@ func SyncAssignmentMapFromBus(
 		select {
 		case msg := <-bus.announcementCh:
 			for _, wpHash := range msg.WorkReports {
-				assignmentMap[wpHash] = append(assignmentMap[wpHash], msg.ValidatorIndex)
+				if !containsValidator(assignmentMap[wpHash], msg.ValidatorIndex) {
+					assignmentMap[wpHash] = append(assignmentMap[wpHash], msg.ValidatorIndex)
+				}
 			}
 		default:
 			return assignmentMap
 		}
 	}
+}
+
+// containsValidator checks whether the given validator index already exists
+// in the slice. Used to deduplicate CE144 announcements.
+func containsValidator(validators []types.ValidatorIndex, v types.ValidatorIndex) bool {
+	for _, existing := range validators {
+		if existing == v {
+			return true
+		}
+	}
+	return false
 }
 
 // SyncPositiveJudgersFromBus drains all pending CE145 judgments and merges
