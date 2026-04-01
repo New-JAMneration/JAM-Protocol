@@ -10,11 +10,9 @@ bin/
 
 # Rust build artifacts
 target/
-Cargo.lock
 
 # Common
-.git
-.gitignore
+/.git
 *.log
 *.md
 *.env

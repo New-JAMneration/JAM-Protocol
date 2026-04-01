@@ -8,7 +8,6 @@
 *.out
 
 # Go Modules
-/go.sum
 /go.work.sum
 
 # Vendor directory
