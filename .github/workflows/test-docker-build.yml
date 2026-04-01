@@ -1,0 +1,75 @@
+name: Test Docker Build
+
+on:
+  pull_request:
+    paths:
+      - 'docker/Dockerfile'
+      - '.dockerignore'
+      - '.gitignore'
+      - 'scripts/release.sh'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/test-docker-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: macos-latest
+            name: macOS
+          - os: windows-latest
+            name: Windows
+    runs-on: ${{ matrix.os }}
+    name: Docker Build (${{ matrix.name }})
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init submodule (Rust-VRF only)
+        run: git submodule update --init pkg/Rust-VRF
+
+      - name: Generate go.sum (simulate local dev)
+        if: runner.os != 'Windows'
+        run: |
+          # Simulate the condition where go.sum exists on disk
+          # (as it would after any local go build/tidy)
+          cp go.sum go.sum.exists 2>/dev/null && echo "go.sum already tracked" || echo "go.sum not present (expected on old branches)"
+
+      - name: Show environment info
+        shell: bash
+        run: |
+          echo "=== OS ==="
+          uname -a || true
+          echo "=== Docker ==="
+          docker version
+          echo "=== BuildKit ==="
+          docker buildx version
+          echo "=== Git ==="
+          git --version
+          echo "=== Submodule status ==="
+          git submodule status
+          echo "=== .git files in submodules ==="
+          find . -name ".git" -not -path "./.git" -not -path "./.git/*" 2>/dev/null || true
+
+      - name: Test standard docker build
+        run: >
+          docker build
+          --build-arg GP_VERSION=0.7.2
+          --build-arg TARGET_VERSION=0.1.0
+          --build-arg OUTPUT=new-jamneration-target
+          -t new-jamneration-target:test
+          -f docker/Dockerfile .
+
+      - name: Verify image
+        run: docker run --rm new-jamneration-target:test --version
+
+      - name: Test release script (Linux/macOS only)
+        if: runner.os != 'Windows'
+        run: bash scripts/release.sh 0.7.2 0.1.0
