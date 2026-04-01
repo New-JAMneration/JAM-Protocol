@@ -69,7 +69,7 @@ func (e *Encoder) EncodeMany(vs ...any) ([]byte, error) {
 		}
 	}
 
-	return e.buf.Bytes(), nil
+	return bytes.Clone(e.buf.Bytes()), nil
 }
 
 type Encodable interface {
