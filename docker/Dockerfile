@@ -8,7 +8,7 @@ WORKDIR /
 COPY pkg/Rust-VRF /pkg/Rust-VRF
 WORKDIR /pkg/Rust-VRF/vrf-func-ffi
 RUN rustup target add x86_64-unknown-linux-musl && \
-    cargo build --release --target x86_64-unknown-linux-musl --locked
+    cargo build --release --target x86_64-unknown-linux-musl
 
 # Second stage: use golang image to build the main project
 FROM golang:1.25-alpine AS go-builder
