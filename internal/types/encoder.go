@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/bits"
+	"sync"
 )
 
 type Encoder struct {
@@ -11,12 +12,40 @@ type Encoder struct {
 	HashSegmentMap HashSegmentMap
 }
 
+// encoderPool is a sync.Pool that caches Encoder instances to reduce
+// memory allocations. Since Encoder.Encode already calls buf.Reset(),
+// pooled encoders are safe to reuse without additional cleanup.
+var encoderPool = sync.Pool{
+	New: func() any {
+		return &Encoder{
+			buf:            new(bytes.Buffer),
+			HashSegmentMap: nil,
+		}
+	},
+}
+
+// NewEncoder creates a new Encoder instance.
+// Deprecated: prefer GetEncoder/PutEncoder for pooled allocation,
+// or use HashEncode for the common encode-then-hash pattern.
 func NewEncoder() *Encoder {
 	cLog(Cyan, "Creating new encoder")
 	return &Encoder{
 		buf:            new(bytes.Buffer),
 		HashSegmentMap: nil,
 	}
+}
+
+// GetEncoder retrieves a pooled Encoder instance. Callers must return
+// the encoder via PutEncoder when done to avoid leaking pool objects.
+func GetEncoder() *Encoder {
+	return encoderPool.Get().(*Encoder)
+}
+
+// PutEncoder returns an Encoder to the pool for reuse. The encoder's
+// HashSegmentMap is cleared before pooling to avoid retaining references.
+func PutEncoder(e *Encoder) {
+	e.HashSegmentMap = nil
+	encoderPool.Put(e)
 }
 
 func (e *Encoder) Encode(v interface{}) ([]byte, error) {
@@ -40,7 +69,7 @@ func (e *Encoder) EncodeMany(vs ...any) ([]byte, error) {
 		}
 	}
 
-	return e.buf.Bytes(), nil
+	return bytes.Clone(e.buf.Bytes()), nil
 }
 
 type Encodable interface {

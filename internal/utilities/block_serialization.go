@@ -49,7 +49,8 @@ func EncodeExtrinsicTickets(tickets types.TicketsExtrinsic) (output types.ByteSe
 	/*
 	   (C.14) E(↕ET)
 	*/
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	// Encode the tickets
 	encodedTickets, err := encoder.Encode(&tickets)
@@ -85,7 +86,8 @@ func EncodeExtrinsicPreimages(preimages types.PreimagesExtrinsic) (output types.
 	/*
 	   (C.15) E(↕[s, ↕p])
 	*/
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	// Encode the preimages
 	encodedPreimages, err := encoder.Encode(&preimages)
@@ -127,7 +129,8 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 // g (5.6)
 // INFO: This is different between Appendix C (C.16) and (5.6).
 func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	// Encode the length of the guarantees
 	guaranteesLength := uint64(len(guaranteesExtrinsic))
@@ -208,7 +211,8 @@ func EncodeExtrinsicAssurances(assurances types.AssurancesExtrinsic) (output typ
 	/*
 	   (C.17) ↕[a, f, E2(v), s]
 	*/
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	// Encode the assurances
 	encodedAssurances, err := encoder.Encode(&assurances)
@@ -271,7 +275,8 @@ func EncodeExtrinsicDisputes(disputes types.DisputesExtrinsic) (output types.Byt
 	/*
 	   (C.18) E(↕[(r, E4(a), [(v, E2(i), s)]] , ↕c, ↕f)
 	*/
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	// Encode the disputes
 	encodedDisputes, err := encoder.Encode(&disputes)
@@ -336,7 +341,8 @@ func CreateExtrinsicHash(extrinsic types.Extrinsic) (extrinsicHash types.OpaqueH
 // (C.22)
 func HeaderSerialization(header types.Header) (output types.ByteSequence, err error) {
 	// Encode the header
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	output, err = encoder.Encode(&header)
 	if err != nil {
 		return nil, err
@@ -349,7 +355,8 @@ func HeaderSerialization(header types.Header) (output types.ByteSequence, err er
 // This function encodes the header's properties without the seal
 // I still use header encoding function, but remove the length of the encoded seal
 func HeaderUSerialization(header types.Header) (output types.ByteSequence, err error) {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 
 	serializedHeader, err := encoder.Encode(&header)
 	if err != nil {

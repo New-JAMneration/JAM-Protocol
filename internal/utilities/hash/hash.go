@@ -31,11 +31,25 @@ func KeccakHash(input types.ByteSequence) types.OpaqueHash {
 	return types.OpaqueHash(res[:])
 }
 
+// HashEncode encodes the given Encodable value using a pooled encoder and
+// returns its BLAKE2b-256 hash. This replaces the common 3-line pattern of
+// NewEncoder() -> Encode() -> Blake2bHash() with a single call.
+func HashEncode(v types.Encodable) (types.OpaqueHash, error) {
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
+
+	encoded, err := encoder.Encode(v)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	return Blake2bHash(encoded), nil
+}
+
+// ComputeBlockHeaderHash encodes the header and returns its BLAKE2b-256 hash.
 func ComputeBlockHeaderHash(header types.Header) (types.HeaderHash, error) {
-	encoder := types.NewEncoder()
-	encodedHeader, err := encoder.Encode(&header)
+	h, err := HashEncode(&header)
 	if err != nil {
 		return types.HeaderHash{}, err
 	}
-	return types.HeaderHash(Blake2bHash(encodedHeader)), nil
+	return types.HeaderHash(h), nil
 }

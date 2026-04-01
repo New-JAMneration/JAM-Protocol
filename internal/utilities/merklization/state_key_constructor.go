@@ -28,9 +28,9 @@ type ServiceWrapper struct {
 }
 
 func encodeServiceID(serviceID types.ServiceID) []byte {
-	encoder := types.NewEncoder()
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
 	encoded, _ := encoder.EncodeUintWithLength(uint64(serviceID), 4)
-
 	return encoded
 }
 
