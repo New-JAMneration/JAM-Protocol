@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/bits"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
@@ -23,6 +24,23 @@ type CE134WorkPackageShare struct {
 	CoreIndex           types.CoreIndex
 	SegmentRootMappings []SegmentRootMapping
 	Bundle              []byte
+}
+
+// readCompactLength reads a GP len++ compact integer from an io.Reader.
+func readCompactLength(r io.Reader) (uint64, error) {
+	prefix := make([]byte, 1)
+	if _, err := io.ReadFull(r, prefix); err != nil {
+		return 0, err
+	}
+	l := bits.LeadingZeros8(^prefix[0])
+	if l > 0 {
+		extra := make([]byte, l)
+		if _, err := io.ReadFull(r, extra); err != nil {
+			return 0, err
+		}
+		prefix = append(prefix, extra...)
+	}
+	return types.NewDecoder().DecodeUint(prefix)
 }
 
 // Helper to decode segment-root mappings from the stream.

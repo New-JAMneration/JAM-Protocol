@@ -202,3 +202,14 @@ const SegmentErasureTTL = 28 * 24 * time.Hour // 28 days
 
 // Maximum number of concurrent workers for parallel tasks
 var MaxWorkers = runtime.NumCPU() * 2
+
+const (
+	GuaranteeMinCount = 2
+	GuaranteeMaxCount = 3
+)
+
+const (
+	HashSize            = 32
+	Ed25519SigSize      = 64
+	BandersnatchSigSize = 96
+)
