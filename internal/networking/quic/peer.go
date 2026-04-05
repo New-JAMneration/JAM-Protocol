@@ -224,8 +224,8 @@ func (p *Peer) Broadcast(kind string, message interface{}) {
 			continue
 		}
 
-		if _, err := wrapped.Write(msg); err != nil {
-			log.Println("error writing to stream:", err)
+		if err := wrapped.WriteMessage(msg); err != nil {
+			log.Println("error writing message frame:", err)
 			_ = wrapped.Close()
 			continue
 		}

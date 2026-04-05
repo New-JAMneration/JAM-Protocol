@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -260,8 +261,12 @@ func TestPeerBroadcast(t *testing.T) {
 				return
 			}
 
-			expected := append([]byte{0}, []byte("broadcast message")...)
-			if string(buf[:n]) != string(expected) {
+			payload := []byte("broadcast message")
+			expected := make([]byte, 1+4+len(payload))
+			expected[0] = 0 // stream kind: Broadcast("test", ...) leaves kindByte 0
+			binary.LittleEndian.PutUint32(expected[1:5], uint32(len(payload)))
+			copy(expected[5:], payload)
+			if n != len(expected) || string(buf[:n]) != string(expected) {
 				serverDone <- fmt.Errorf("expected %x, got %x", expected, buf[:n])
 				return
 			}
