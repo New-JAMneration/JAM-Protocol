@@ -27,11 +27,11 @@ func (vm *ValidatorManager) IsNeighbor(key types.Ed25519Public) bool {
 		return false
 	}
 
-	peerIdx, ok := vm.Grid.FindIndex(key)
-	if !ok {
-		return false
+	if peerIdx, ok := vm.Grid.FindIndex(key); ok {
+		return vm.Grid.IsNeighborInEpoch(vm.SelfIndex, peerIdx)
 	}
-	return vm.Grid.IsNeighborInEpoch(vm.SelfIndex, peerIdx)
+	// Not in current set: may still be a grid neighbour at the same index in Previous/Next epoch.
+	return vm.Grid.IsSameIndexCrossEpoch(vm.SelfIndex, key)
 }
 
 // P(a, b) \in a, b

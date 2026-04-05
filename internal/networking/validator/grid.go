@@ -66,6 +66,8 @@ func (g *GridMapper) AllNeighborValidators(index int) []types.Validator {
 	return result
 }
 
+// IsNeighborInEpoch reports whether indices a and b are grid neighbours within the current epoch
+// (same row or same column in the sqrt(V) grid).
 func (g *GridMapper) IsNeighborInEpoch(a, b int) bool {
 	n := len(g.Current)
 	if n == 0 || a < 0 || b < 0 || a >= n || b >= n || a == b {
@@ -74,6 +76,21 @@ func (g *GridMapper) IsNeighborInEpoch(a, b int) bool {
 
 	width := ComputeWidth(n)
 	return (a/width) == (b/width) || (a%width) == (b%width)
+}
+
+// IsSameIndexCrossEpoch reports whether key is the Ed25519 public key of the validator at the
+// same index in Previous or Next
+func (g *GridMapper) IsSameIndexCrossEpoch(index int, key types.Ed25519Public) bool {
+	if index < 0 {
+		return false
+	}
+	if index < len(g.Previous) && g.Previous[index].Ed25519 == key {
+		return true
+	}
+	if index < len(g.Next) && g.Next[index].Ed25519 == key {
+		return true
+	}
+	return false
 }
 
 func (g *GridMapper) FindIndex(key types.Ed25519Public) (int, bool) {
