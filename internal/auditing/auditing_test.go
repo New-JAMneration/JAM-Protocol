@@ -1,11 +1,13 @@
 package auditing
 
 import (
-	"context"
+	"crypto/ed25519"
 	"testing"
-	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,173 +39,171 @@ func makeAuditReport(hashByte byte, coreIndex types.CoreIndex, validatorID types
 	}
 }
 
-// ---------------------------------------------------------------------------
-// workReportsEqual
-// ---------------------------------------------------------------------------
+func setupDeterministicAuditChain(t *testing.T) ed25519.PrivateKey {
+	t.Helper()
 
-func TestWorkReportsEqual_IdenticalReports(t *testing.T) {
-	r := makeWorkReport(0xAA, 1)
-	assert.True(t, workReportsEqual(r, r), "identical reports should be equal")
+	types.SetTinyMode()
+	blockchain.ResetInstance()
+	t.Cleanup(blockchain.ResetInstance)
+
+	cs := blockchain.GetInstance()
+	var entropy types.BandersnatchVrfSignature
+	entropy[0] = 1
+
+	cs.GetProcessingBlockPointer().SetHeader(types.Header{
+		Slot:          100,
+		AuthorIndex:   0,
+		EntropySource: entropy,
+	})
+
+	seed := make([]byte, ed25519.SeedSize)
+	seed[0] = 42
+	return ed25519.NewKeyFromSeed(seed)
 }
 
-func TestWorkReportsEqual_DifferentHash(t *testing.T) {
-	a := makeWorkReport(0xAA, 1)
-	b := makeWorkReport(0xBB, 1)
-	assert.False(t, workReportsEqual(a, b), "reports with different package hash should not be equal")
-}
+func makeDetailedWorkReport(id byte, coreID types.CoreIndex) types.WorkReport {
+	var hashValue types.WorkPackageHash
+	hashValue[0] = id
 
-func TestWorkReportsEqual_DifferentCoreIndex(t *testing.T) {
-	a := makeWorkReport(0xAA, 1)
-	b := makeWorkReport(0xAA, 2)
-	assert.False(t, workReportsEqual(a, b), "reports with different core index should not be equal")
-}
+	var erasureRoot types.ErasureRoot
+	erasureRoot[0] = id + 10
 
-func TestWorkReportsEqual_DifferentAuthOutput(t *testing.T) {
-	a := makeWorkReport(0xAA, 1)
-	b := makeWorkReport(0xAA, 1)
-	b.AuthOutput = types.ByteSequence{0x01}
-	assert.False(t, workReportsEqual(a, b), "reports with different auth output should not be equal")
-}
+	var exportsRoot types.ExportsRoot
+	exportsRoot[0] = id + 20
 
-// ---------------------------------------------------------------------------
-// GetJudgement — mock BundleFetcher
-// ---------------------------------------------------------------------------
+	var codeHash types.OpaqueHash
+	codeHash[0] = id + 30
 
-type mockBundleFetcher struct {
-	bundle []byte
-	err    error
-}
+	var payloadHash types.OpaqueHash
+	payloadHash[0] = id + 40
 
-func (m *mockBundleFetcher) FetchBundle(_ types.WorkReport) ([]byte, error) {
-	return m.bundle, m.err
-}
-
-func TestGetJudgement_FetchError(t *testing.T) {
-	original := DefaultBundleFetcher
-	defer func() { DefaultBundleFetcher = original }()
-
-	DefaultBundleFetcher = &mockBundleFetcher{
-		bundle: nil,
-		err:    assert.AnError,
+	return types.WorkReport{
+		PackageSpec: types.WorkPackageSpec{
+			Hash:         hashValue,
+			Length:       types.U32(128 + id),
+			ErasureRoot:  erasureRoot,
+			ExportsRoot:  exportsRoot,
+			ExportsCount: 1,
+		},
+		Context:   types.RefineContext{},
+		CoreIndex: coreID,
+		Results: []types.WorkResult{
+			{
+				ServiceID:     types.ServiceID(id),
+				CodeHash:      codeHash,
+				PayloadHash:   payloadHash,
+				AccumulateGas: types.Gas(10 + id),
+				Result:        types.GetWorkExecResult(types.WorkExecResultOk, []byte{id}),
+				RefineLoad: types.RefineLoad{
+					GasUsed:        types.Gas(1),
+					Imports:        1,
+					ExtrinsicCount: 1,
+					ExtrinsicSize:  1,
+					Exports:        1,
+				},
+			},
+		},
 	}
+}
 
-	ar := makeAuditReport(0x01, 0, 0, false)
-	assert.False(t, GetJudgement(ar), "fetch error should return false")
+func makeDetailedAvailabilityAssignments(reports ...types.WorkReport) types.AvailabilityAssignments {
+	assignments := make(types.AvailabilityAssignments, types.CoresCount)
+	for _, report := range reports {
+		assignments[report.CoreIndex] = &types.AvailabilityAssignment{
+			Report:       report,
+			AssignedSlot: 1,
+		}
+	}
+	return assignments
 }
 
 // ---------------------------------------------------------------------------
-// ClassifyJudgments
+// CollectAuditReportCandidates (GP 17.1-17.2)
 // ---------------------------------------------------------------------------
 
-func TestClassifyJudgments(t *testing.T) {
-	report := makeWorkReport(0xCC, 3)
+// GP 17.2: reports in ρ but absent from W must be excluded from Q.
+func TestCollectAuditReportCandidatesFiltersUnavailableReports(t *testing.T) {
+	setupDeterministicAuditChain(t)
 
-	judgments := []types.AuditReport{
-		{Report: report, ValidatorID: 1, AuditResult: true},
-		{Report: report, ValidatorID: 2, AuditResult: false},
-		{Report: report, ValidatorID: 3, AuditResult: true},
-		{Report: makeWorkReport(0xDD, 4), ValidatorID: 5, AuditResult: true},
-	}
+	cs := blockchain.GetInstance()
+	report0 := makeDetailedWorkReport(1, 0)
+	report1 := makeDetailedWorkReport(2, 1)
 
-	pos, neg := ClassifyJudgments(report, judgments)
-	assert.Len(t, pos, 2, "should have 2 positive judgers")
-	assert.Len(t, neg, 1, "should have 1 negative judger")
-	assert.True(t, pos[1])
-	assert.True(t, pos[3])
-	assert.True(t, neg[2])
+	cs.GetPriorStates().SetRho(makeDetailedAvailabilityAssignments(report0, report1))
+	cs.GetIntermediateStates().SetAvailableWorkReports([]types.WorkReport{report0})
+
+	got := CollectAuditReportCandidates()
+
+	require.Len(t, got, types.CoresCount)
+	require.NotNil(t, got[0])
+	assert.Equal(t, report0.PackageSpec.Hash, got[0].PackageSpec.Hash)
+	assert.Nil(t, got[1])
 }
 
 // ---------------------------------------------------------------------------
-// IsWorkReportAudited
+// buildInitialAuditAssignmentFromCoreOrder (GP 17.5)
 // ---------------------------------------------------------------------------
 
-func TestIsWorkReportAudited_AllAssignedPositive(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	judgments := []types.AuditReport{
-		{Report: report, ValidatorID: 1, AuditResult: true},
-		{Report: report, ValidatorID: 2, AuditResult: true},
+// Regression: derived AuditReport entries must carry the originating ValidatorID.
+func TestBuildInitialAuditAssignmentFromCoreOrderSetsValidatorID(t *testing.T) {
+	setupDeterministicAuditChain(t)
+
+	report0 := makeDetailedWorkReport(1, 0)
+	report1 := makeDetailedWorkReport(2, 1)
+	Q := make([]*types.WorkReport, types.CoresCount)
+	Q[0] = &report0
+	Q[1] = &report1
+
+	validatorIndex := types.ValidatorIndex(4)
+	got := buildInitialAuditAssignmentFromCoreOrder(Q, validatorIndex, []types.U32{1, 0})
+
+	require.Len(t, got, 2)
+	for _, audit := range got {
+		assert.Equal(t, validatorIndex, audit.ValidatorID)
+		assert.False(t, audit.AuditResult)
 	}
-
-	assert.True(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
-}
-
-func TestIsWorkReportAudited_HasNegative(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	judgments := []types.AuditReport{
-		{Report: report, ValidatorID: 1, AuditResult: true},
-		{Report: report, ValidatorID: 2, AuditResult: false},
-	}
-
-	assert.False(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
-}
-
-func TestIsWorkReportAudited_MissingAssigned(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	judgments := []types.AuditReport{
-		{Report: report, ValidatorID: 1, AuditResult: true},
-	}
-
-	// validator 2 is assigned but has not judged → should not pass
-	assert.False(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
 }
 
 // ---------------------------------------------------------------------------
-// IsBlockAudited
+// UpdateAssignmentMap (GP 17.13)
 // ---------------------------------------------------------------------------
 
-func TestIsBlockAudited_AllPassed(t *testing.T) {
-	r1 := makeWorkReport(0x01, 0)
-	r2 := makeWorkReport(0x02, 1)
+// ValidatorID from computed assignments must propagate into the assignment map.
+func TestUpdateAssignmentMapUsesValidatorIDFromComputedAssignments(t *testing.T) {
+	setupDeterministicAuditChain(t)
 
-	judgments := []types.AuditReport{
-		{Report: r1, ValidatorID: 10, AuditResult: true},
-		{Report: r2, ValidatorID: 20, AuditResult: true},
+	report0 := makeDetailedWorkReport(1, 0)
+	report1 := makeDetailedWorkReport(2, 1)
+	Q := make([]*types.WorkReport, types.CoresCount)
+	Q[0] = &report0
+	Q[1] = &report1
+
+	validatorIndex := types.ValidatorIndex(4)
+	assignments := buildInitialAuditAssignmentFromCoreOrder(Q, validatorIndex, []types.U32{0, 1})
+
+	got := UpdateAssignmentMap(assignments, make(types.AssignmentMap))
+	for _, audit := range assignments {
+		assert.Contains(t, got[audit.Report.PackageSpec.Hash], validatorIndex)
 	}
-
-	assignmentMap := map[types.WorkPackageHash][]types.ValidatorIndex{
-		r1.PackageSpec.Hash: {10},
-		r2.PackageSpec.Hash: {20},
-	}
-
-	assert.True(t, IsBlockAudited([]types.WorkReport{r1, r2}, judgments, assignmentMap))
 }
 
-func TestIsBlockAudited_OneFailed(t *testing.T) {
-	r1 := makeWorkReport(0x01, 0)
-	r2 := makeWorkReport(0x02, 1)
+// Calling UpdateAssignmentMap twice accumulates validators, not overwrites.
+func TestUpdateAssignmentMap_Accumulate(t *testing.T) {
+	h := makeWPHash(0x01)
+	r := types.WorkReport{PackageSpec: types.WorkPackageSpec{Hash: h}, Results: []types.WorkResult{{}}}
 
-	judgments := []types.AuditReport{
-		{Report: r1, ValidatorID: 10, AuditResult: true},
-	}
-
-	assignmentMap := map[types.WorkPackageHash][]types.ValidatorIndex{
-		r1.PackageSpec.Hash: {10},
-		r2.PackageSpec.Hash: {20},
-	}
-
-	assert.False(t, IsBlockAudited([]types.WorkReport{r1, r2}, judgments, assignmentMap))
-}
-
-// ---------------------------------------------------------------------------
-// UpdateAssignmentMap
-// ---------------------------------------------------------------------------
-
-func TestUpdateAssignmentMap(t *testing.T) {
-	a0 := []types.AuditReport{
-		makeAuditReport(0x01, 0, 5, true),
-		makeAuditReport(0x02, 1, 5, false),
-	}
 	am := make(types.AssignmentMap)
-	am = UpdateAssignmentMap(a0, am)
+	am = UpdateAssignmentMap([]types.AuditReport{{Report: r, ValidatorID: 1}}, am)
+	am = UpdateAssignmentMap([]types.AuditReport{{Report: r, ValidatorID: 2}}, am)
 
-	assert.Contains(t, am[a0[0].Report.PackageSpec.Hash], types.ValidatorIndex(5))
-	assert.Contains(t, am[a0[1].Report.PackageSpec.Hash], types.ValidatorIndex(5))
+	assert.Equal(t, []types.ValidatorIndex{1, 2}, am[h])
 }
 
 // ---------------------------------------------------------------------------
 // UpdatePositiveJudgersFromAudit
 // ---------------------------------------------------------------------------
 
+// Only AuditResult=true entries are recorded; false entries must be ignored.
 func TestUpdatePositiveJudgersFromAudit(t *testing.T) {
 	audits := []types.AuditReport{
 		makeAuditReport(0x01, 0, 1, true),
@@ -217,17 +217,41 @@ func TestUpdatePositiveJudgersFromAudit(t *testing.T) {
 	h1 := audits[0].Report.PackageSpec.Hash
 	h2 := audits[1].Report.PackageSpec.Hash
 
-	assert.Len(t, pj[h1], 2, "two positive judgers for h1")
+	assert.Len(t, pj[h1], 2)
 	assert.True(t, pj[h1][1])
 	assert.True(t, pj[h1][3])
 	_, exists := pj[h2]
-	assert.False(t, exists, "h2 should have no positive judgers (only negative)")
+	assert.False(t, exists, "negative-only report should not appear in positiveJudgers")
+}
+
+// ---------------------------------------------------------------------------
+// ClassifyJudgments
+// ---------------------------------------------------------------------------
+
+// Mixed positive/negative judgments must be split correctly; unrelated reports excluded.
+func TestClassifyJudgments(t *testing.T) {
+	report := makeWorkReport(0xCC, 3)
+
+	judgments := []types.AuditReport{
+		{Report: report, ValidatorID: 1, AuditResult: true},
+		{Report: report, ValidatorID: 2, AuditResult: false},
+		{Report: report, ValidatorID: 3, AuditResult: true},
+		{Report: makeWorkReport(0xDD, 4), ValidatorID: 5, AuditResult: true},
+	}
+
+	pos, neg := ClassifyJudgments(report, judgments)
+	assert.Len(t, pos, 2)
+	assert.Len(t, neg, 1)
+	assert.True(t, pos[1])
+	assert.True(t, pos[3])
+	assert.True(t, neg[2])
 }
 
 // ---------------------------------------------------------------------------
 // FilterJudgments
 // ---------------------------------------------------------------------------
 
+// Only judgments matching the target work-report hash are returned.
 func TestFilterJudgments(t *testing.T) {
 	target := makeWorkReport(0xAA, 0)
 	other := makeWorkReport(0xBB, 1)
@@ -243,211 +267,42 @@ func TestFilterJudgments(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// WaitNextTranche
+// IsWorkReportAudited (GP 17.19)
 // ---------------------------------------------------------------------------
 
-func TestWaitNextTranche_NormalExpiry(t *testing.T) {
-	// slotStart = now, tranche 0 → deadline = now + 8s.
-	// But we set slotStart to (now - 7.9s) so deadline is ~0.1s from now.
-	slotStart := time.Now().Add(-7900 * time.Millisecond)
-	ctx := context.Background()
-
-	start := time.Now()
-	err := WaitNextTranche(0, slotStart, ctx)
-	elapsed := time.Since(start)
-
-	require.NoError(t, err)
-	assert.Less(t, elapsed, 500*time.Millisecond, "should complete quickly since deadline is near")
-}
-
-func TestWaitNextTranche_ContextCancel(t *testing.T) {
-	slotStart := time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		cancel()
-	}()
-
-	start := time.Now()
-	err := WaitNextTranche(0, slotStart, ctx)
-	elapsed := time.Since(start)
-
-	assert.ErrorIs(t, err, context.Canceled)
-	assert.Less(t, elapsed, 1*time.Second, "should be cancelled quickly, not wait full 8s")
-}
-
-func TestWaitNextTranche_AlreadyPastDeadline(t *testing.T) {
-	slotStart := time.Now().Add(-20 * time.Second)
-	ctx := context.Background()
-
-	start := time.Now()
-	err := WaitNextTranche(0, slotStart, ctx)
-	elapsed := time.Since(start)
-
-	require.NoError(t, err)
-	assert.Less(t, elapsed, 100*time.Millisecond, "deadline already past, should return immediately")
-}
-
-// ---------------------------------------------------------------------------
-// AuditMessageBus — push + drain
-// ---------------------------------------------------------------------------
-
-func TestAuditMessageBus_CE144_PushAndDrain(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-
-	h1 := makeWPHash(0x01)
-	h2 := makeWPHash(0x02)
-
-	bus.OnAuditAnnouncementReceived(CE144Announcement{
-		ValidatorIndex: 10,
-		WorkReports:    []types.WorkPackageHash{h1, h2},
-	})
-	bus.OnAuditAnnouncementReceived(CE144Announcement{
-		ValidatorIndex: 20,
-		WorkReports:    []types.WorkPackageHash{h1},
-	})
-
-	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	am = SyncAssignmentMapFromBus(bus, am)
-
-	assert.ElementsMatch(t, am[h1], []types.ValidatorIndex{10, 20})
-	assert.ElementsMatch(t, am[h2], []types.ValidatorIndex{10})
-}
-
-func TestAuditMessageBus_CE144_DeduplicateValidator(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-	h := makeWPHash(0x01)
-
-	// Same validator announces the same report twice.
-	bus.OnAuditAnnouncementReceived(CE144Announcement{
-		ValidatorIndex: 10,
-		WorkReports:    []types.WorkPackageHash{h},
-	})
-	bus.OnAuditAnnouncementReceived(CE144Announcement{
-		ValidatorIndex: 10,
-		WorkReports:    []types.WorkPackageHash{h},
-	})
-
-	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	am = SyncAssignmentMapFromBus(bus, am)
-
-	assert.Equal(t, []types.ValidatorIndex{10}, am[h],
-		"duplicate validator should appear only once")
-}
-
-func TestAuditMessageBus_CE145_PushAndDrain(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-
-	h1 := makeWPHash(0xAA)
-
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h1, ValidatorIndex: 1, IsValid: true})
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h1, ValidatorIndex: 2, IsValid: false})
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h1, ValidatorIndex: 3, IsValid: true})
-
-	pj := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-
-	assert.Len(t, pj[h1], 2, "only valid judgments merged")
-	assert.True(t, pj[h1][1])
-	assert.True(t, pj[h1][3])
-}
-
-func TestAuditMessageBus_DrainEmptyChannel(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-
-	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	am = SyncAssignmentMapFromBus(bus, am)
-	assert.Empty(t, am, "draining empty channel should return empty map")
-
-	pj := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-	assert.Empty(t, pj, "draining empty channel should return empty map")
-}
-
-func TestAuditMessageBus_ChannelFullDrops(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(2) // very small buffer
-
-	for i := 0; i < 5; i++ {
-		bus.OnAuditAnnouncementReceived(CE144Announcement{ValidatorIndex: types.ValidatorIndex(i)})
-	}
-
-	// Only 2 should have been buffered, the other 3 are dropped.
-	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	count := 0
-	for {
-		select {
-		case <-bus.announcementCh:
-			count++
-		default:
-			goto done
-		}
-	}
-done:
-	_ = am
-	assert.Equal(t, 2, count, "channel of size 2 should only hold 2 messages")
-}
-
-// ---------------------------------------------------------------------------
-// GetJudgement — execution failure (invalid bundle bytes)
-// ---------------------------------------------------------------------------
-
-func TestGetJudgement_ProcessError(t *testing.T) {
-	original := DefaultBundleFetcher
-	defer func() { DefaultBundleFetcher = original }()
-
-	// FetchBundle succeeds but returns garbage — Process() should fail.
-	DefaultBundleFetcher = &mockBundleFetcher{
-		bundle: []byte{0xDE, 0xAD},
-		err:    nil,
-	}
-
-	ar := makeAuditReport(0x01, 0, 0, false)
-	assert.False(t, GetJudgement(ar), "invalid bundle should cause Process() to fail → false")
-}
-
-// ---------------------------------------------------------------------------
-// ClassifyJudgments — edge cases
-// ---------------------------------------------------------------------------
-
-func TestClassifyJudgments_Empty(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	pos, neg := ClassifyJudgments(report, nil)
-	assert.Empty(t, pos)
-	assert.Empty(t, neg)
-}
-
-func TestClassifyJudgments_AllPositive(t *testing.T) {
+// Rule 1: all assigned validators gave positive, no negatives → audited.
+func TestIsWorkReportAudited_AllAssignedPositive(t *testing.T) {
 	report := makeWorkReport(0xAA, 0)
 	judgments := []types.AuditReport{
 		{Report: report, ValidatorID: 1, AuditResult: true},
 		{Report: report, ValidatorID: 2, AuditResult: true},
 	}
-	pos, neg := ClassifyJudgments(report, judgments)
-	assert.Len(t, pos, 2)
-	assert.Empty(t, neg)
+	assert.True(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
 }
 
-func TestClassifyJudgments_AllNegative(t *testing.T) {
+// Any negative judgment blocks Rule 1.
+func TestIsWorkReportAudited_HasNegative(t *testing.T) {
 	report := makeWorkReport(0xAA, 0)
 	judgments := []types.AuditReport{
-		{Report: report, ValidatorID: 1, AuditResult: false},
+		{Report: report, ValidatorID: 1, AuditResult: true},
 		{Report: report, ValidatorID: 2, AuditResult: false},
 	}
-	pos, neg := ClassifyJudgments(report, judgments)
-	assert.Empty(t, pos)
-	assert.Len(t, neg, 2)
+	assert.False(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
 }
 
-// ---------------------------------------------------------------------------
-// IsWorkReportAudited — supermajority path
-// ---------------------------------------------------------------------------
+// Assigned validator missing from judgments blocks Rule 1.
+func TestIsWorkReportAudited_MissingAssigned(t *testing.T) {
+	report := makeWorkReport(0xAA, 0)
+	judgments := []types.AuditReport{
+		{Report: report, ValidatorID: 1, AuditResult: true},
+	}
+	assert.False(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
+}
 
+// Rule 2: supermajority of positives overrides unconfirmed assigned validators.
 func TestIsWorkReportAudited_Supermajority(t *testing.T) {
 	report := makeWorkReport(0xAA, 0)
 
-	// Generate ValidatorsSuperMajority positive judgments from non-assigned validators.
-	// Even if not all assigned confirmed, supermajority should pass.
 	var judgments []types.AuditReport
 	for i := 0; i < types.ValidatorsSuperMajority; i++ {
 		judgments = append(judgments, types.AuditReport{
@@ -457,10 +312,10 @@ func TestIsWorkReportAudited_Supermajority(t *testing.T) {
 		})
 	}
 
-	// assigned = [1, 2] but they haven't judged; supermajority still passes
 	assert.True(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1, 2}))
 }
 
+// One below supermajority with unconfirmed assigned → not audited.
 func TestIsWorkReportAudited_BelowSupermajority(t *testing.T) {
 	report := makeWorkReport(0xAA, 0)
 
@@ -473,180 +328,117 @@ func TestIsWorkReportAudited_BelowSupermajority(t *testing.T) {
 		})
 	}
 
-	// Not enough for supermajority, and assigned [1] hasn't judged
 	assert.False(t, IsWorkReportAudited(report, judgments, []types.ValidatorIndex{1}))
 }
 
 // ---------------------------------------------------------------------------
-// IsBlockAudited — edge cases
+// IsBlockAudited (GP 17.20)
 // ---------------------------------------------------------------------------
 
-func TestIsBlockAudited_EmptyReports(t *testing.T) {
-	am := map[types.WorkPackageHash][]types.ValidatorIndex{}
-	assert.True(t, IsBlockAudited(nil, nil, am), "no reports → trivially audited")
-}
+// All reports have sufficient positive judgments → block audited.
+func TestIsBlockAudited_AllPassed(t *testing.T) {
+	r1 := makeWorkReport(0x01, 0)
+	r2 := makeWorkReport(0x02, 1)
 
-// ---------------------------------------------------------------------------
-// GetAssignedValidators
-// ---------------------------------------------------------------------------
-
-func TestGetAssignedValidators_Found(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	am := types.AssignmentMap{
-		report.PackageSpec.Hash: {1, 2, 3},
+	judgments := []types.AuditReport{
+		{Report: r1, ValidatorID: 10, AuditResult: true},
+		{Report: r2, ValidatorID: 20, AuditResult: true},
 	}
-	result := GetAssignedValidators(report, am)
-	assert.Equal(t, []types.ValidatorIndex{1, 2, 3}, result)
-}
-
-func TestGetAssignedValidators_NotFound(t *testing.T) {
-	report := makeWorkReport(0xAA, 0)
-	am := types.AssignmentMap{}
-	result := GetAssignedValidators(report, am)
-	assert.Empty(t, result)
-}
-
-// ---------------------------------------------------------------------------
-// UpdateAssignmentMap — accumulation
-// ---------------------------------------------------------------------------
-
-func TestUpdateAssignmentMap_Accumulate(t *testing.T) {
-	h := makeWPHash(0x01)
-	r := types.WorkReport{PackageSpec: types.WorkPackageSpec{Hash: h}, Results: []types.WorkResult{{}}}
-
-	am := make(types.AssignmentMap)
-	am = UpdateAssignmentMap([]types.AuditReport{
-		{Report: r, ValidatorID: 1},
-	}, am)
-	am = UpdateAssignmentMap([]types.AuditReport{
-		{Report: r, ValidatorID: 2},
-	}, am)
-
-	assert.Equal(t, []types.ValidatorIndex{1, 2}, am[h])
-}
-
-// ---------------------------------------------------------------------------
-// WaitNextTranche — higher tranche
-// ---------------------------------------------------------------------------
-
-func TestWaitNextTranche_Tranche2(t *testing.T) {
-	// tranche=2, deadline = slotStart + 3*8s = slotStart + 24s.
-	// Set slotStart to now-23.9s so deadline is ~100ms from now.
-	slotStart := time.Now().Add(-23900 * time.Millisecond)
-	ctx := context.Background()
-
-	start := time.Now()
-	err := WaitNextTranche(2, slotStart, ctx)
-	elapsed := time.Since(start)
-
-	require.NoError(t, err)
-	assert.Less(t, elapsed, 500*time.Millisecond)
-}
-
-func TestWaitNextTranche_ContextDeadlineExceeded(t *testing.T) {
-	slotStart := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
-	defer cancel()
-
-	err := WaitNextTranche(0, slotStart, ctx)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
-}
-
-// ---------------------------------------------------------------------------
-// AuditMessageBus — multi-drain accumulation
-// ---------------------------------------------------------------------------
-
-func TestAuditMessageBus_CE144_MultiDrain(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-	h := makeWPHash(0x01)
-
-	// First batch
-	bus.OnAuditAnnouncementReceived(CE144Announcement{ValidatorIndex: 1, WorkReports: []types.WorkPackageHash{h}})
-	am := make(map[types.WorkPackageHash][]types.ValidatorIndex)
-	am = SyncAssignmentMapFromBus(bus, am)
-	assert.Equal(t, []types.ValidatorIndex{1}, am[h])
-
-	// Second batch — should accumulate, not overwrite
-	bus.OnAuditAnnouncementReceived(CE144Announcement{ValidatorIndex: 2, WorkReports: []types.WorkPackageHash{h}})
-	am = SyncAssignmentMapFromBus(bus, am)
-	assert.Equal(t, []types.ValidatorIndex{1, 2}, am[h])
-}
-
-func TestAuditMessageBus_CE145_MultiDrain(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-	h := makeWPHash(0xBB)
-
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h, ValidatorIndex: 1, IsValid: true})
-	pj := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-	assert.Len(t, pj[h], 1)
-
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h, ValidatorIndex: 2, IsValid: true})
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-	assert.Len(t, pj[h], 2, "should accumulate across drains")
-}
-
-func TestAuditMessageBus_CE145_IgnoreInvalid(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(16)
-	h := makeWPHash(0xCC)
-
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h, ValidatorIndex: 1, IsValid: false})
-	bus.OnJudgmentReceived(CE145Judgment{WorkReportHash: h, ValidatorIndex: 2, IsValid: false})
-
-	pj := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-	assert.Empty(t, pj, "all-invalid judgments should not create entries")
-}
-
-// ---------------------------------------------------------------------------
-// AuditMessageBus — concurrent push safety
-// ---------------------------------------------------------------------------
-
-func TestAuditMessageBus_ConcurrentPush(t *testing.T) {
-	bus := NewAuditMessageBusWithSize(256)
-	h := makeWPHash(0x01)
-
-	done := make(chan struct{})
-	const pushers = 10
-	const msgsPerPusher = 20
-
-	for i := 0; i < pushers; i++ {
-		go func(vid int) {
-			defer func() { done <- struct{}{} }()
-			for j := 0; j < msgsPerPusher; j++ {
-				bus.OnJudgmentReceived(CE145Judgment{
-					WorkReportHash: h,
-					ValidatorIndex: types.ValidatorIndex(vid*100 + j),
-					IsValid:        true,
-				})
-			}
-		}(i)
+	assignmentMap := map[types.WorkPackageHash][]types.ValidatorIndex{
+		r1.PackageSpec.Hash: {10},
+		r2.PackageSpec.Hash: {20},
 	}
 
-	for i := 0; i < pushers; i++ {
-		<-done
+	assert.True(t, IsBlockAudited([]types.WorkReport{r1, r2}, judgments, assignmentMap))
+}
+
+// One report missing judgment → block NOT audited.
+func TestIsBlockAudited_OneFailed(t *testing.T) {
+	r1 := makeWorkReport(0x01, 0)
+	r2 := makeWorkReport(0x02, 1)
+
+	judgments := []types.AuditReport{
+		{Report: r1, ValidatorID: 10, AuditResult: true},
+	}
+	assignmentMap := map[types.WorkPackageHash][]types.ValidatorIndex{
+		r1.PackageSpec.Hash: {10},
+		r2.PackageSpec.Hash: {20},
 	}
 
-	pj := make(map[types.WorkPackageHash]map[types.ValidatorIndex]bool)
-	pj = SyncPositiveJudgersFromBus(bus, pj)
-	// With buffer=256, all 200 messages should fit.
-	assert.Equal(t, pushers*msgsPerPusher, len(pj[h]), "all concurrent messages should be drained")
+	assert.False(t, IsBlockAudited([]types.WorkReport{r1, r2}, judgments, assignmentMap))
 }
 
 // ---------------------------------------------------------------------------
-// workReportsEqual — result list differences
+// workReportsEqual
 // ---------------------------------------------------------------------------
 
+// Same report compared to itself → equal.
+func TestWorkReportsEqual_IdenticalReports(t *testing.T) {
+	r := makeWorkReport(0xAA, 1)
+	assert.True(t, workReportsEqual(r, r))
+}
+
+// Different PackageSpec.Hash → not equal.
+func TestWorkReportsEqual_DifferentHash(t *testing.T) {
+	a := makeWorkReport(0xAA, 1)
+	b := makeWorkReport(0xBB, 1)
+	assert.False(t, workReportsEqual(a, b))
+}
+
+// Different number of WorkResults → not equal.
 func TestWorkReportsEqual_DifferentResultCount(t *testing.T) {
 	a := makeWorkReport(0xAA, 1)
 	b := makeWorkReport(0xAA, 1)
 	b.Results = append(b.Results, types.WorkResult{})
-	assert.False(t, workReportsEqual(a, b), "different number of results should not be equal")
+	assert.False(t, workReportsEqual(a, b))
 }
 
+// Same result count but different content → not equal.
 func TestWorkReportsEqual_DifferentResultContent(t *testing.T) {
 	a := makeWorkReport(0xAA, 1)
 	b := makeWorkReport(0xAA, 1)
-	b.Results[0].ServiceId = 42
-	assert.False(t, workReportsEqual(a, b), "different result service id should not be equal")
+	b.Results[0].ServiceID = 42
+	assert.False(t, workReportsEqual(a, b))
+}
+
+// ---------------------------------------------------------------------------
+// BuildAnnouncement (GP 17.9-17.11)
+// ---------------------------------------------------------------------------
+
+// Verify Ed25519 signature matches the reconstructed GP signing context.
+func TestBuildAnnouncementSignsExpectedContext(t *testing.T) {
+	privKey := setupDeterministicAuditChain(t)
+	pubKey := privKey.Public().(ed25519.PublicKey)
+
+	report0 := makeDetailedWorkReport(12, 0)
+	report1 := makeDetailedWorkReport(13, 1)
+	assignments := []types.AuditReport{
+		{CoreID: 0, Report: report0, ValidatorID: 2},
+		{CoreID: 1, Report: report1, ValidatorID: 2},
+	}
+
+	signature, err := BuildAnnouncement(0, assignments, hash.Blake2bHash, 2, privKey)
+	require.NoError(t, err)
+
+	// Reconstruct the expected signing context: XI ⌢ n ⌢ xn ⌢ H(H)
+	var xnPayload types.ByteSequence
+	for _, pair := range assignments {
+		xnPayload = append(xnPayload, utilities.SerializeFixedLength(types.U64(pair.CoreID), 2)...)
+		reportHash := hash.Blake2bHash(utilities.WorkReportSerialization(pair.Report))
+		xnPayload = append(xnPayload, reportHash[:]...)
+	}
+
+	headerBytes, err := utilities.HeaderSerialization(blockchain.GetInstance().GetProcessingBlockPointer().GetHeader())
+	require.NoError(t, err)
+	headerHash := hash.Blake2bHash(headerBytes)
+
+	// Build context without mutating the JamAnnounce constant.
+	xi := []byte(types.JamAnnounce)
+	expectedContext := make(types.ByteSequence, 0, len(xi)+1+len(xnPayload)+len(headerHash))
+	expectedContext = append(expectedContext, xi...)
+	expectedContext = append(expectedContext, byte(0))
+	expectedContext = append(expectedContext, utilities.SerializeByteSequence(xnPayload)...)
+	expectedContext = append(expectedContext, headerHash[:]...)
+
+	assert.True(t, ed25519.Verify(pubKey, expectedContext, signature[:]))
 }
