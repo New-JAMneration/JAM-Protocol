@@ -541,3 +541,56 @@ func TestGetAllJudgmentsForEpoch(t *testing.T) {
 		require.Equal(t, epochIndex, j.EpochIndex, "wrong epoch index")
 	}
 }
+
+// --------------------------------------------------------------------------
+// Stage 3: validity=2 must be rejected
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_InvalidValidity(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       2,
+		WorkReportHash: createTestWorkReportHash([]byte("bad-validity")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+	}
+	require.Error(t, payload.Validate())
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Decode with wrong size must fail
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_Decode_WrongSize(t *testing.T) {
+	err := (&CE145Payload{}).Decode(make([]byte, 50))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "expected")
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Decode truncated guarantee must fail
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_Decode_TruncatedGuarantee(t *testing.T) {
+	// Build a valid invalid-judgment payload then chop the guarantee
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       0,
+		WorkReportHash: createTestWorkReportHash([]byte("trunc-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+		Guarantee: &CE145Guarantee{
+			Slot: 100,
+			Signatures: []types.ValidatorSignature{
+				{ValidatorIndex: 1, Signature: createTestEd25519Signature([]byte("g1"))},
+				{ValidatorIndex: 2, Signature: createTestEd25519Signature([]byte("g2"))},
+			},
+		},
+	}
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	// Chop last 30 bytes — guarantee becomes incomplete
+	err = (&CE145Payload{}).Decode(encoded[:len(encoded)-30])
+	require.Error(t, err)
+}

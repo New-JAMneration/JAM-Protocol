@@ -419,6 +419,66 @@ func TestCE144PayloadEncodeDecodeSubsequentTranche(t *testing.T) {
 	require.True(t, bytes.Equal(noShow.PreviousAnnouncement, []byte("prev-ann")), "no-show previous announcement mismatch")
 }
 
+// --------------------------------------------------------------------------
+// Stage 3: Truncated bytes must fail with descriptive error
+// --------------------------------------------------------------------------
+
+func TestCE144Payload_Decode_TruncatedHeader(t *testing.T) {
+	// Less than minimum msg1 size (32 header + 1 tranche + 1 count + 64 sig = 98)
+	err := (&CE144Payload{}).Decode(make([]byte, 10))
+	require.Error(t, err)
+}
+
+func TestCE144Payload_Decode_TruncatedEvidence(t *testing.T) {
+	// Valid msg1 for tranche 0 but evidence truncated (need 96 bytes Bandersnatch sig)
+	payload := &CE144Payload{
+		HeaderHash: types.OpaqueHash{},
+		Tranche:    0,
+		Announcement: CE144Announcement{
+			WorkReports: []WorkReportEntry{{CoreIndex: 1, WorkReportHash: createTestWorkReportHash([]byte("trunc"))}},
+			Signature:   createTestEd25519Signature([]byte("sig")),
+		},
+		Evidence: CE144Evidence{IsFirstTranche: true, BandersnatchSig: createTestBandersnatchSignature([]byte("bs"))},
+	}
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	// Chop off last 50 bytes from evidence
+	err = (&CE144Payload{}).Decode(encoded[:len(encoded)-50])
+	require.Error(t, err)
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Tiny mode cores full — roundtrip with CoresCount work reports
+// --------------------------------------------------------------------------
+
+func TestCE144Payload_TinyCoresFull(t *testing.T) {
+	var workReports []WorkReportEntry
+	for i := 0; i < types.CoresCount; i++ {
+		workReports = append(workReports, WorkReportEntry{
+			CoreIndex:      types.CoreIndex(i),
+			WorkReportHash: createTestWorkReportHash([]byte{byte(i)}),
+		})
+	}
+
+	payload := &CE144Payload{
+		HeaderHash: types.OpaqueHash{1},
+		Tranche:    0,
+		Announcement: CE144Announcement{
+			WorkReports: workReports,
+			Signature:   createTestEd25519Signature([]byte("full")),
+		},
+		Evidence: CE144Evidence{IsFirstTranche: true, BandersnatchSig: createTestBandersnatchSignature([]byte("full-bs"))},
+	}
+
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	decoded := &CE144Payload{}
+	require.NoError(t, decoded.Decode(encoded))
+	require.Len(t, decoded.Announcement.WorkReports, types.CoresCount)
+}
+
 // Helper functions for creating test data
 
 func createTestWorkReportHash(data []byte) types.WorkReportHash {
