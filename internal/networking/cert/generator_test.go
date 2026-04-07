@@ -2,7 +2,9 @@ package cert
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"os"
 	"reflect"
@@ -424,5 +426,36 @@ func TestTLSConfigGen(t *testing.T) {
 				tt.checkFunc(t, got)
 			}
 		})
+	}
+}
+
+func TestTLSConfigFromPrivateKey_leafPublicKeyMatches(t *testing.T) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPub := priv.Public().(ed25519.PublicKey)
+
+	for _, isServer := range []bool{true, false} {
+		for _, isBuilder := range []bool{false, true} {
+			cfg, err := TLSConfigFromPrivateKey(priv, isServer, isBuilder)
+			if err != nil {
+				t.Fatalf("TLSConfigFromPrivateKey(server=%v builder=%v): %v", isServer, isBuilder, err)
+			}
+			if len(cfg.Certificates) != 1 {
+				t.Fatalf("expected one certificate, got %d", len(cfg.Certificates))
+			}
+			leaf, err := x509.ParseCertificate(cfg.Certificates[0].Certificate[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotPub, ok := leaf.PublicKey.(ed25519.PublicKey)
+			if !ok {
+				t.Fatal("leaf public key is not Ed25519")
+			}
+			if !wantPub.Equal(gotPub) {
+				t.Fatalf("leaf public key mismatch (server=%v builder=%v)", isServer, isBuilder)
+			}
+		}
 	}
 }

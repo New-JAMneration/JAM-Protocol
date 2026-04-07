@@ -402,16 +402,16 @@ func TestCE128RequestWithPeer(t *testing.T) {
 
 	ceHandler.RegisterCEHandler(128, HandleBlockRequestStream)
 
-	publicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, serverSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate public key: %v", err)
+		t.Fatalf("Failed to generate server key: %v", err)
 	}
 
 	serverConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     publicKey,
+		PrivateKey:    serverSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}
@@ -448,16 +448,16 @@ func TestCE128RequestWithPeer(t *testing.T) {
 		}
 	}()
 
-	clientPublicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, clientSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate client public key: %v", err)
+		t.Fatalf("Failed to generate client key: %v", err)
 	}
 
 	clientConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     clientPublicKey,
+		PrivateKey:    clientSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}

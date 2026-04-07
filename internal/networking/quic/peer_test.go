@@ -3,7 +3,6 @@ package quic
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -39,7 +38,9 @@ func (m *mockCEHandler) HandleStream(stream *Stream) error {
 }
 
 func createTestPeerConfig(role PeerRole) PeerConfig {
-	publicKey, _, _ := ed25519.GenerateKey(rand.Reader)
+	seed := make([]byte, ed25519.SeedSize)
+	seed[0] = byte(role[0]) // make server/client seeds distinct
+	sk := ed25519.NewKeyFromSeed(seed)
 
 	hash := "5c743dbc514284b2ea57798787c5a155ef9d7ac1e9499ec65910a7a3d65897b7"
 	byteArray, _ := hex.DecodeString(hash)
@@ -49,7 +50,7 @@ func createTestPeerConfig(role PeerRole) PeerConfig {
 		Role:          role,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: genesisHeader,
-		PublicKey:     publicKey,
+		PrivateKey:    sk,
 		UPHandler:     &mockUPHandler{},
 		CEHandler:     &mockCEHandler{},
 	}
