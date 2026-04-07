@@ -112,16 +112,16 @@ func TestCE129RequestWithPeer(t *testing.T) {
 	// Register CE129 handler
 	ceHandler.RegisterCEHandler(129, HandleStateRequestStream)
 
-	publicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, serverSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate public key: %v", err)
+		t.Fatalf("Failed to generate server key: %v", err)
 	}
 
 	serverConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     publicKey,
+		PrivateKey:    serverSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}
@@ -156,16 +156,16 @@ func TestCE129RequestWithPeer(t *testing.T) {
 		}
 	}()
 
-	clientPublicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, clientSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate client public key: %v", err)
+		t.Fatalf("Failed to generate client key: %v", err)
 	}
 
 	clientConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     clientPublicKey,
+		PrivateKey:    clientSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}
@@ -183,7 +183,7 @@ func TestCE129RequestWithPeer(t *testing.T) {
 		t.Fatalf("Failed to resolve server address: %v", err)
 	}
 
-	conn, err := clientPeer.Connect(serverNetAddr, *serverPeer)
+	conn, err := clientPeer.Connect(serverNetAddr, quic.Validator)
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}

@@ -3,7 +3,7 @@ package quic
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -38,7 +38,9 @@ func (m *mockCEHandler) HandleStream(stream *Stream) error {
 }
 
 func createTestPeerConfig(role PeerRole) PeerConfig {
-	publicKey, _, _ := ed25519.GenerateKey(rand.Reader)
+	seed := make([]byte, ed25519.SeedSize)
+	seed[0] = byte(role[0]) // make server/client seeds distinct
+	sk := ed25519.NewKeyFromSeed(seed)
 
 	hash := "5c743dbc514284b2ea57798787c5a155ef9d7ac1e9499ec65910a7a3d65897b7"
 	byteArray, _ := hex.DecodeString(hash)
@@ -48,7 +50,7 @@ func createTestPeerConfig(role PeerRole) PeerConfig {
 		Role:          role,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: genesisHeader,
-		PublicKey:     publicKey,
+		PrivateKey:    sk,
 		UPHandler:     &mockUPHandler{},
 		CEHandler:     &mockCEHandler{},
 	}
@@ -87,8 +89,8 @@ func TestNewPeer(t *testing.T) {
 				return
 			}
 			if peer != nil {
-				if peer.publicKey == nil {
-					t.Error("Peer public key is nil")
+				if peer.Ed25519Key == nil {
+					t.Error("Peer Ed25519Key is nil")
 				}
 				if peer.Listener == nil {
 					t.Error("Peer listener is nil")
@@ -136,7 +138,7 @@ func TestPeerConnect(t *testing.T) {
 
 	t.Run("Connect to non-existent address", func(t *testing.T) {
 		nonExistentAddr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9999}
-		_, err := peer.Connect(nonExistentAddr, *peer)
+		_, err := peer.Connect(nonExistentAddr, Validator)
 		if err == nil {
 			t.Error("Expected error when connecting to non-existent address")
 		}
@@ -159,7 +161,7 @@ func TestPeerConnect(t *testing.T) {
 			t.Fatalf("Failed to resolve address: %v", err)
 		}
 
-		conn, err := peer.Connect(tcpAddr, *peer)
+		conn, err := peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to connect: %v", err)
 		}
@@ -177,7 +179,7 @@ func TestPeerConnect(t *testing.T) {
 			t.Error("Server timeout")
 		}
 
-		conn2, err := peer.Connect(tcpAddr, *peer)
+		conn2, err := peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to reconnect: %v", err)
 		}
@@ -255,14 +257,18 @@ func TestPeerBroadcast(t *testing.T) {
 
 			buf := make([]byte, 1024)
 			n, err := stream.Read(buf)
-			if err != nil {
+			if err != nil && n == 0 {
 				serverDone <- err
 				return
 			}
 
-			expected := "broadcast message"
-			if string(buf[:n]) != expected {
-				serverDone <- fmt.Errorf("expected %s, got %s", expected, string(buf[:n]))
+			payload := []byte("broadcast message")
+			expected := make([]byte, 1+4+len(payload))
+			expected[0] = 0 // stream kind: Broadcast("test", ...) leaves kindByte 0
+			binary.LittleEndian.PutUint32(expected[1:5], uint32(len(payload)))
+			copy(expected[5:], payload)
+			if n != len(expected) || string(buf[:n]) != string(expected) {
+				serverDone <- fmt.Errorf("expected %x, got %x", expected, buf[:n])
 				return
 			}
 
@@ -270,7 +276,7 @@ func TestPeerBroadcast(t *testing.T) {
 			serverDone <- nil
 		}()
 
-		_, err = peer.Connect(tcpAddr, *peer)
+		_, err = peer.Connect(tcpAddr, Validator)
 		if err != nil {
 			t.Fatalf("Failed to connect: %v", err)
 		}
