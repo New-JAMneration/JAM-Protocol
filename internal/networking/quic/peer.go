@@ -293,8 +293,6 @@ func (p *Peer) StartValidatorConnections(ctx context.Context, neighbors []types.
 	}
 }
 
-
-
 func extractPeerKey(conn quic.Connection) (ed25519.PublicKey, error) {
 	peerCerts := conn.ConnectionState().TLS.PeerCertificates
 	if len(peerCerts) == 0 {
