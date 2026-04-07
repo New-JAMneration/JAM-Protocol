@@ -1,14 +1,13 @@
 package quic
 
 import (
-	"crypto/tls"
-	"time"
-
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"math/big"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/cert"
 	"github.com/quic-go/quic-go"
@@ -70,5 +69,6 @@ func GenerateSelfSignedCert() (tls.Certificate, error) {
 func NewQuicConfig() *quic.Config {
 	return &quic.Config{
 		MaxIncomingStreams: 100,
+		MaxIdleTimeout:     30 * time.Minute,
 	}
 }

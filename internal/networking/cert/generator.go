@@ -207,14 +207,8 @@ func generateTLSCertificate(seed []byte) (tls.Certificate, error) {
 	return selfSignedCert, nil
 }
 
-// ServerTLSConfigGen creates a TLS configuration for servers.
-// Servers always accept both base and builder ALPN protocols.
-func ServerTLSConfigGen(seed []byte) (*tls.Config, error) {
-	selfSignedCert, err := generateTLSCertificate(seed)
-	if err != nil {
-		return nil, err
-	}
-
+// serverTLSConfigFromCert builds a server-side tls.Config from a pre-generated certificate.
+func serverTLSConfigFromCert(selfSignedCert tls.Certificate) (*tls.Config, error) {
 	// The /builder suffix should always be permitted by the side accepting the connection (server)
 	// https://jam-docs.onrender.com/knowledge/advanced/simple-networking/spec#alpn
 	baseALPN, err := ALPNGen(false)
@@ -226,13 +220,12 @@ func ServerTLSConfigGen(seed []byte) (*tls.Config, error) {
 		return nil, fmt.Errorf("error generating builder ALPN: %v", err)
 	}
 
-	tlsConfig := &tls.Config{
+	return &tls.Config{
 		Certificates: []tls.Certificate{selfSignedCert},
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			if len(rawCerts) == 0 {
 				return errors.New("no certificate provided")
 			}
-
 			cert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
 				return err
@@ -250,45 +243,33 @@ func ServerTLSConfigGen(seed []byte) (*tls.Config, error) {
 				log.Printf("peer did not present any certificates")
 				return errors.New("peer did not present any certificates")
 			}
-
 			if len(state.NegotiatedProtocol) == 0 {
 				log.Printf("ALPN negotiation failed, no protocol negotiated")
 				return errors.New("failed to negotiate protocol (ALPN)")
 			}
-
 			if state.Version != tls.VersionTLS13 {
 				log.Printf("TLS version is not 1.3, got: %s", tls.VersionName(state.Version))
 				return errors.New("TLS version is not 1.3")
 			}
-
 			log.Printf("TLS connection established with protocol: %s", state.NegotiatedProtocol)
 			return nil
 		},
-	}
-
-	return tlsConfig, nil
+	}, nil
 }
 
-// ClientTLSConfigGen creates a TLS configuration for clients.
-// isBuilder determines whether to use builder ALPN or base ALPN.
-func ClientTLSConfigGen(seed []byte, isBuilder bool) (*tls.Config, error) {
-	selfSignedCert, err := generateTLSCertificate(seed)
-	if err != nil {
-		return nil, err
-	}
-
-	clientALPN, err := ALPNGen(isBuilder) // Use builder ALPN if isBuilder is true
+// clientTLSConfigFromCert builds a client-side tls.Config from a pre-generated certificate.
+func clientTLSConfigFromCert(selfSignedCert tls.Certificate, isBuilder bool) (*tls.Config, error) {
+	clientALPN, err := ALPNGen(isBuilder)
 	if err != nil {
 		return nil, fmt.Errorf("error generating ALPN: %v", err)
 	}
 
-	tlsConfig := &tls.Config{
+	return &tls.Config{
 		Certificates: []tls.Certificate{selfSignedCert},
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			if len(rawCerts) == 0 {
 				return errors.New("no certificate provided")
 			}
-
 			cert, err := x509.ParseCertificate(rawCerts[0])
 			if err != nil {
 				return err
@@ -300,9 +281,27 @@ func ClientTLSConfigGen(seed []byte, isBuilder bool) (*tls.Config, error) {
 		MaxVersion:       tls.VersionTLS13,
 		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
 		NextProtos:       clientALPN,
-	}
+	}, nil
+}
 
-	return tlsConfig, nil
+// ServerTLSConfigGen creates a TLS configuration for servers.
+// Servers always accept both base and builder ALPN protocols.
+func ServerTLSConfigGen(seed []byte) (*tls.Config, error) {
+	selfSignedCert, err := generateTLSCertificate(seed)
+	if err != nil {
+		return nil, err
+	}
+	return serverTLSConfigFromCert(selfSignedCert)
+}
+
+// ClientTLSConfigGen creates a TLS configuration for clients.
+// isBuilder determines whether to use builder ALPN or base ALPN.
+func ClientTLSConfigGen(seed []byte, isBuilder bool) (*tls.Config, error) {
+	selfSignedCert, err := generateTLSCertificate(seed)
+	if err != nil {
+		return nil, err
+	}
+	return clientTLSConfigFromCert(selfSignedCert, isBuilder)
 }
 
 // TLSConfigGen creates a new TLS configuration with a self-signed certificate.
@@ -312,4 +311,22 @@ func TLSConfigGen(seed []byte, isServer bool, isBuilder bool) (*tls.Config, erro
 		return ServerTLSConfigGen(seed)
 	}
 	return ClientTLSConfigGen(seed, isBuilder)
+}
+
+// TLSConfigFromPrivateKey builds a TLS configuration using the validator's actual Ed25519
+// private key. The resulting cert's DNS SAN encodes the public key via AlternativeName, making
+// the validator's identity stable across restarts and verifiable by peer nodes.
+//
+// Use this instead of TLSConfigGen for production validator nodes. TLSConfigGen generates a
+// random ephemeral key that changes on every restart, preventing peers from recognising the node.
+func TLSConfigFromPrivateKey(sk ed25519.PrivateKey, isServer, isBuilder bool) (*tls.Config, error) {
+	pk := sk.Public().(ed25519.PublicKey)
+	tlsCert, err := SelfSignedCertGen(sk, pk)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate TLS certificate from private key: %v", err)
+	}
+	if isServer {
+		return serverTLSConfigFromCert(tlsCert)
+	}
+	return clientTLSConfigFromCert(tlsCert, isBuilder)
 }

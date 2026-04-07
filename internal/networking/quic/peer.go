@@ -8,8 +8,10 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 
 	networkcert "github.com/New-JAMneration/JAM-Protocol/internal/networking/cert"
+	validatorpkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/quic-go/quic-go"
 )
@@ -31,9 +33,11 @@ type PeerConfig struct {
 	Role          PeerRole
 	Addr          net.Addr
 	GenesisHeader types.HeaderHash
-	PublicKey     ed25519.PublicKey
-	UPHandler     UPHandler
-	CEHandler     CEHandler
+	// PrivateKey is this node's Ed25519 identity key, derived from the node's seed.
+	// The TLS certificate and Peer ID (Ed25519Key) are both derived from it.
+	PrivateKey ed25519.PrivateKey
+	UPHandler  UPHandler
+	CEHandler  CEHandler
 }
 
 type StreamHandlerFunc func(ctx context.Context, stream *Stream, peerKey ed25519.PublicKey) error
@@ -59,25 +63,27 @@ type Peer struct {
 }
 
 func NewPeer(config PeerConfig) (*Peer, error) {
-
 	isBuilder := config.Role == Builder
+	pubKey := config.PrivateKey.Public().(ed25519.PublicKey)
+	sk := config.PrivateKey
+	tlsProvider := func(isServer, isBuilder bool) (*tls.Config, error) {
+		return networkcert.TLSConfigFromPrivateKey(sk, isServer, isBuilder)
+	}
 
-	tlsConfig, err := NewTLSConfig(false, isBuilder)
-
+	tlsConfig, err := tlsProvider(false, isBuilder)
 	if err != nil {
 		return nil, err
 	}
 
 	quicConfig := NewQuicConfig()
 
-	listener, err := NewListener(config.Addr.String(), isBuilder, NewTLSConfig, quicConfig)
-
+	listener, err := NewListener(config.Addr.String(), isBuilder, tlsProvider, quicConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Peer{
-		Ed25519Key:  config.PublicKey,
+		Ed25519Key:  pubKey,
 		Listener:    listener,
 		tlsConfig:   tlsConfig,
 		quicConfig:  quicConfig,
@@ -88,7 +94,7 @@ func NewPeer(config PeerConfig) (*Peer, error) {
 		UPHandler:   config.UPHandler,
 
 		// TODO: use a better ID
-		ID: config.Addr.String() + string(config.PublicKey),
+		ID: config.Addr.String() + string(pubKey),
 	}, nil
 }
 
@@ -240,6 +246,54 @@ func (p *Peer) SetTLSInsecureSkipVerify(skip bool) {
 		p.tlsConfig.InsecureSkipVerify = skip
 	}
 }
+
+// StartValidatorConnections initiates outbound QUIC connections to the given validator neighbors
+// following the Preferred Initiator rule from JAMNP-S § Required connectivity:
+//
+//	P(a, b) = a  when (a[31] > 127) XOR (b[31] > 127) XOR (a < b); otherwise b
+//
+// If we are the Preferred Initiator for a peer, we connect immediately.
+// If we are not, we wait 5 seconds to give the peer a chance to initiate first.
+//
+// selfKey must match the Ed25519 public key this node uses in its TLS certificate (i.e.
+// the key from PeerConfig.PrivateKey, not an arbitrary key).
+//
+// Callers should cancel ctx when the Peer is shutting down so waiting goroutines exit promptly.
+// Entries equal to selfKey are skipped so the node does not dial itself.
+func (p *Peer) StartValidatorConnections(ctx context.Context, neighbors []types.Validator, selfKey types.Ed25519Public) {
+	for _, v := range neighbors {
+		if v.Ed25519 == selfKey {
+			continue
+		}
+		addr, err := validatorpkg.PeerAddressFromMetadata(v.Metadata)
+		if err != nil {
+			log.Printf("StartValidatorConnections: invalid metadata for validator %x: %v", v.Ed25519[:4], err)
+			continue
+		}
+
+		preferred := validatorpkg.PreferredInitiator(selfKey, v.Ed25519)
+		isInitiator := preferred == selfKey
+
+		go func(addr net.Addr, peerID types.Ed25519Public, initiator bool) {
+			if !initiator {
+				select {
+				case <-time.After(5 * time.Second):
+				case <-ctx.Done():
+					return
+				}
+			}
+			if ctx.Err() != nil {
+				return
+			}
+			if _, err := p.Connect(addr, Validator); err != nil {
+				log.Printf("StartValidatorConnections: failed to connect to %s (validator %x): %v",
+					addr, peerID[:4], err)
+			}
+		}(addr, v.Ed25519, isInitiator)
+	}
+}
+
+
 
 func extractPeerKey(conn quic.Connection) (ed25519.PublicKey, error) {
 	peerCerts := conn.ConnectionState().TLS.PeerCertificates
