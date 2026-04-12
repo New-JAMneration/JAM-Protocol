@@ -647,6 +647,6 @@ func TestWorkReportsEqual_DifferentResultCount(t *testing.T) {
 func TestWorkReportsEqual_DifferentResultContent(t *testing.T) {
 	a := makeWorkReport(0xAA, 1)
 	b := makeWorkReport(0xAA, 1)
-	b.Results[0].ServiceId = 42
+	b.Results[0].ServiceID = 42
 	assert.False(t, workReportsEqual(a, b), "different result service id should not be equal")
 }
