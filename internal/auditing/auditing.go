@@ -124,7 +124,14 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 	}
 	shuffled := shuffle.Shuffle(coreIndices, types.OpaqueHash(vrfOutput))
 
-	// Step 4: Select top 10 assigned reports (17.5)
+	return buildInitialAuditAssignmentFromCoreOrder(Q, validatorIndex, shuffled), nil
+}
+
+func buildInitialAuditAssignmentFromCoreOrder(
+	Q []*types.WorkReport,
+	validatorIndex types.ValidatorIndex,
+	shuffled []types.U32,
+) []types.AuditReport {
 	var a0 []types.AuditReport
 	for _, coreIdx := range shuffled {
 		report := Q[coreIdx]
@@ -132,6 +139,7 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 			a0 = append(a0, types.AuditReport{
 				CoreID:      types.CoreIndex(coreIdx),
 				Report:      *report,
+				ValidatorID: validatorIndex,
 				AuditResult: false,
 			})
 			if len(a0) == 10 {
@@ -140,7 +148,7 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 		}
 	}
 
-	return a0, nil
+	return a0
 }
 
 // (17.8) let n = (T − P ⋅ Ht) / A
