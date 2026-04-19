@@ -76,10 +76,13 @@ func (h *DefaultCEHandler) HandleStream(stream *Stream) error {
 	if _, err := stream.Read(protocolID); err != nil {
 		return fmt.Errorf("failed to read protocol ID: %w", err)
 	}
+	return h.HandleStreamByKind(protocolID[0], stream)
+}
 
-	handler, exists := h.handlers[protocolID[0]]
+func (h *DefaultCEHandler) HandleStreamByKind(kind byte, stream *Stream) error {
+	handler, exists := h.handlers[kind]
 	if !exists {
-		return fmt.Errorf("unsupported protocol ID: %d", protocolID[0])
+		return fmt.Errorf("unsupported protocol ID: %d", kind)
 	}
 
 	return handler(h.blockchain, stream)
