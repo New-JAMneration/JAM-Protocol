@@ -551,6 +551,8 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 				accountS.ServiceInfo.Balance += accountD.ServiceInfo.Balance // s'_b
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
+				(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = accountS // update general
+				*input.Addition.GeneralArgs.ServiceAccount = accountS
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceID(d))
 				input.Interpreter.Registers[7] = OK
 
