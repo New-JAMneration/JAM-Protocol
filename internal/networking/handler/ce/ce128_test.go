@@ -265,10 +265,10 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	defer blockchain.CloseMiniRedis()
 
 	clientTLS, err := quic.NewTLSConfig(false, false)
-	clientTLS.InsecureSkipVerify = true
 	if err != nil {
 		t.Fatalf("Client TLS config error: %v", err)
 	}
+	clientTLS.InsecureSkipVerify = true
 
 	listener, err := quic.NewListener("localhost:0", false, quic.NewTLSConfig, nil)
 	if err != nil {
@@ -402,16 +402,16 @@ func TestCE128RequestWithPeer(t *testing.T) {
 
 	ceHandler.RegisterCEHandler(128, HandleBlockRequestStream)
 
-	publicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, serverSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate public key: %v", err)
+		t.Fatalf("Failed to generate server key: %v", err)
 	}
 
 	serverConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     publicKey,
+		PrivateKey:    serverSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}
@@ -448,16 +448,16 @@ func TestCE128RequestWithPeer(t *testing.T) {
 		}
 	}()
 
-	clientPublicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	_, clientSK, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate client public key: %v", err)
+		t.Fatalf("Failed to generate client key: %v", err)
 	}
 
 	clientConfig := quic.PeerConfig{
 		Role:          quic.Validator,
 		Addr:          &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0},
 		GenesisHeader: fakeBC.GenesisBlockHash(),
-		PublicKey:     clientPublicKey,
+		PrivateKey:    clientSK,
 		UPHandler:     upHandler,
 		CEHandler:     ceHandler,
 	}
@@ -475,7 +475,7 @@ func TestCE128RequestWithPeer(t *testing.T) {
 		t.Fatalf("Failed to resolve server address: %v", err)
 	}
 
-	conn, err := clientPeer.Connect(serverNetAddr, *serverPeer)
+	conn, err := clientPeer.Connect(serverNetAddr, quic.Validator)
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
