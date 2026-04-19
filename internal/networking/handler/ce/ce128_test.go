@@ -265,10 +265,10 @@ func TestRealQuicStreamBlockRequest(t *testing.T) {
 	defer blockchain.CloseMiniRedis()
 
 	clientTLS, err := quic.NewTLSConfig(false, false)
-	clientTLS.InsecureSkipVerify = true
 	if err != nil {
 		t.Fatalf("Client TLS config error: %v", err)
 	}
+	clientTLS.InsecureSkipVerify = true
 
 	listener, err := quic.NewListener("localhost:0", false, quic.NewTLSConfig, nil)
 	if err != nil {
