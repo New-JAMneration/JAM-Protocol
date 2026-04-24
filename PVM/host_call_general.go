@@ -626,6 +626,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	var a types.ServiceAccount
+	callerServiceID := serviceID
 	// assign a
 	if sStar == uint64(serviceID) {
 		a = delta[serviceID]
@@ -657,12 +658,16 @@ func read(input OmegaInput) (output OmegaOutput) {
 		} else {
 			v = *storageValueFromKeyVal
 
-			// store the unknown storage item to state
-			a.StorageDict[string(storageRawKey)] = v
-
-			input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-			// remove from storageKeyVal
-			removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
+			// Only cache the unmatched pool entry into StorageDict (and remove from pool)
+			// when the caller is reading its OWN storage. For cross-service reads,
+			// ΩR must be side-effect free — otherwise the target service's storage
+			// entry silently disappears from the global unmatched pool and is lost
+			// if the target service isn't part of the accumulating set this block.
+			if callerServiceID == serviceID {
+				a.StorageDict[string(storageRawKey)] = v
+				input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
+				removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
+			}
 		}
 	}
 
