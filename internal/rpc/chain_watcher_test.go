@@ -28,7 +28,7 @@ func setupTestChain() {
 func TestChainWatcher_BestBlock(t *testing.T) {
 	setupTestChain()
 	chainState := blockchain.GetInstance()
-	bus := eventbus.GetInstance()
+	bus := eventbus.NewEventBus()
 
 	subID, eventCh := bus.Subscribe(eventbus.EventNewBlock, 10)
 	defer bus.Unsubscribe(eventbus.EventNewBlock, subID)
@@ -58,7 +58,7 @@ func TestChainWatcher_BestBlock(t *testing.T) {
 func TestChainWatcher_FinalizedBlock(t *testing.T) {
 	setupTestChain()
 	chainState := blockchain.GetInstance()
-	bus := eventbus.GetInstance()
+	bus := eventbus.NewEventBus()
 
 	subID, eventCh := bus.Subscribe(eventbus.EventFinalizedBlock, 10)
 	defer bus.Unsubscribe(eventbus.EventFinalizedBlock, subID)
@@ -88,7 +88,7 @@ func TestChainWatcher_FinalizedBlock(t *testing.T) {
 func TestChainWatcher_SyncState(t *testing.T) {
 	setupTestChain()
 	chainState := blockchain.GetInstance()
-	bus := eventbus.GetInstance()
+	bus := eventbus.NewEventBus()
 
 	subID, eventCh := bus.Subscribe(eventbus.EventSyncStateChanged, 10)
 	defer bus.Unsubscribe(eventbus.EventSyncStateChanged, subID)
@@ -102,13 +102,13 @@ func TestChainWatcher_SyncState(t *testing.T) {
 
 	select {
 	case event := <-eventCh:
-		syncEvent, ok := event.Data.(eventbus.SyncStateEvent)
+		status, ok := event.Data.(string)
 		if !ok {
-			t.Fatalf("Expected SyncStateEvent data type, got %T", event.Data)
+			t.Fatalf("Expected string data type, got %T", event.Data)
 		}
-		t.Logf("Received sync state change event: NewState=%s", syncEvent.Status)
-		if syncEvent.Status == "" {
-			t.Fatalf("Received sync state change event with empty state")
+		t.Logf("Received sync state change event: Status=%s", status)
+		if status == "" {
+			t.Fatalf("Received sync state change event with empty status")
 		}
 	case <-ctx.Done():
 		t.Fatalf("Did not receive sync state change event in time")

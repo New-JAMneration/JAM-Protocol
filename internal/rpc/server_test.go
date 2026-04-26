@@ -7,11 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/eventbus"
 	"github.com/gorilla/websocket"
 )
 
 func TestWebSocketJSONRPC(t *testing.T) {
-	server := NewRPCServer(":19801")
+	bus := eventbus.NewEventBus()
+	server := NewRPCServer(":19801", blockchain.GetInstance(), bus, bus)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -75,7 +78,8 @@ func TestWebSocketJSONRPC(t *testing.T) {
 }
 
 func TestMultipleConnections(t *testing.T) {
-	server := NewRPCServer(":19802")
+	bus := eventbus.NewEventBus()
+	server := NewRPCServer(":19802", blockchain.GetInstance(), bus, bus)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

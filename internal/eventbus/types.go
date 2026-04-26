@@ -25,11 +25,6 @@ type BlockEvent struct {
 	Slot       uint64 `json:"slot"`
 }
 
-type SyncStateEvent struct {
-	NumPeers int    `json:"num_peers"`
-	Status   string `json:"status"`
-}
-
 type ChainSubscriptionUpdate struct {
 	HeaderHash string      `json:"header_hash"`
 	Slot       uint64      `json:"slot"`

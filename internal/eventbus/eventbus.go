@@ -10,44 +10,37 @@ import (
 
 type EventBus struct {
 	mu          sync.RWMutex
-	subscribers map[EventType]map[string]chan Event // eventType -> subID -> channel
+	subscribers map[EventType]map[uint64]chan Event // eventType -> subID -> channel
 	nextID      atomic.Uint64
 }
 
-var (
-	instance *EventBus
-	once     sync.Once
-)
-
-func GetInstance() *EventBus {
-	once.Do(func() {
-		instance = &EventBus{
-			subscribers: make(map[EventType]map[string]chan Event),
-		}
-		logger.Info("EventBus Initialized")
-	})
-	return instance
+func NewEventBus() *EventBus {
+	eb := &EventBus{
+		subscribers: make(map[EventType]map[uint64]chan Event),
+	}
+	logger.Info("EventBus Initialized")
+	return eb
 }
 
-func (eb *EventBus) Subscribe(eventType EventType, bufferSize int) (string, <-chan Event) {
+func (eb *EventBus) Subscribe(eventType EventType, bufferSize int) (uint64, <-chan Event) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
-	id := fmt.Sprintf("sub-%d", eb.nextID.Add(1))
+	id := eb.nextID.Add(1)
 	ch := make(chan Event, bufferSize)
 
 	if eb.subscribers[eventType] == nil {
-		eb.subscribers[eventType] = make(map[string]chan Event)
+		eb.subscribers[eventType] = make(map[uint64]chan Event)
 	}
 
 	eb.subscribers[eventType][id] = ch
 
-	logger.Debug(fmt.Sprintf("New subscription: %s for event type %s (buffer: %d)", id, eventType, bufferSize))
+	logger.Debug(fmt.Sprintf("New subscription: %d for event type %s (buffer: %d)", id, eventType, bufferSize))
 
 	return id, ch
 }
 
-func (eb *EventBus) Unsubscribe(eventType EventType, subID string) {
+func (eb *EventBus) Unsubscribe(eventType EventType, subID uint64) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -55,7 +48,7 @@ func (eb *EventBus) Unsubscribe(eventType EventType, subID string) {
 		if ch, exists := subscribers[subID]; exists {
 			close(ch)
 			delete(subscribers, subID)
-			logger.Debug(fmt.Sprintf("Unsubscribed: %s from event type %s", subID, eventType))
+			logger.Debug(fmt.Sprintf("Unsubscribed: %d from event type %s", subID, eventType))
 
 			// Clean up if no more subscribers for this event type
 			if len(subscribers) == 0 {
@@ -85,7 +78,7 @@ func (eb *EventBus) Publish(event Event) {
 		default:
 			// Channel is full, drop the event for this subscriber
 			droppedCount++
-			logger.Warn(fmt.Sprintf("Event dropped for subscriber %s due to full channel", subID))
+			logger.Warn(fmt.Sprintf("Event dropped for subscriber %d due to full channel", subID))
 		}
 	}
 

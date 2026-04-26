@@ -4,19 +4,18 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
 type RPCService struct {
-	chainState *blockchain.ChainState
+	chainState ChainReader
 }
 
-func NewRPCService() *RPCService {
+func NewRPCService(chainState ChainReader) *RPCService {
 	return &RPCService{
-		chainState: blockchain.GetInstance(),
+		chainState: chainState,
 	}
 }
 
@@ -115,9 +114,14 @@ func (s *RPCService) Parent(headerHashStr string) (*BlockDescriptor, error) {
 		return nil, NewRPCErrorWithData(ErrCodeBlockUnavailable, "block unavailable", headerHashStr)
 	}
 
+	parentBlock, err := s.chainState.GetBlockByHash(block.Header.Parent)
+	if err != nil {
+		return nil, NewRPCErrorWithData(ErrCodeBlockUnavailable, "parent block unavailable", encodeHash(block.Header.Parent))
+	}
+
 	return &BlockDescriptor{
 		HeaderHash: encodeHash(block.Header.Parent),
-		Slot:       uint64(block.Header.Slot - 1),
+		Slot:       uint64(parentBlock.Header.Slot),
 	}, nil
 }
 
@@ -281,7 +285,7 @@ func (s *RPCService) WorkReport(hashStr string) (string, error) {
 	}
 
 	// TODO: implement work report retrieval
-	return encodeBlob([]byte{}), NewRPCErrorWithData(ErrCodeWorkReportUnavailable, "work report not implemented", nil)
+	return "", NewRPCErrorWithData(ErrCodeWorkReportUnavailable, "work report not implemented", hashStr)
 }
 
 func (s *RPCService) SubmitWorkPackage(core uint32, packageBlob string, extrinsic []string) error {
@@ -322,9 +326,9 @@ func (s *RPCService) WorkPackageStatus(headerHashStr string, hashStr string, anc
 		return nil, fmt.Errorf("invalid work package hash: %w", err)
 	}
 
-	_, err = decodeBlob(anchorStr)
+	_, err = decodeHash(anchorStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid anchor blob: %w", err)
+		return nil, fmt.Errorf("invalid anchor hash: %w", err)
 	}
 
 	// TODO: implement work package status retrieval

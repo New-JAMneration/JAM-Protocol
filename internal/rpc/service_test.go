@@ -2,10 +2,12 @@ package rpc
 
 import (
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 )
 
 func TestParameters(t *testing.T) {
-	service := NewRPCService()
+	service := NewRPCService(blockchain.GetInstance())
 
 	params, err := service.Parameters()
 	if err != nil {

@@ -13,15 +13,11 @@ type Handler struct {
 	subManager *SubscriptionManager
 }
 
-func NewHandler() *Handler {
+func NewHandler(service *RPCService, subManager *SubscriptionManager) *Handler {
 	return &Handler{
-		service:    NewRPCService(),
-		subManager: nil,
+		service:    service,
+		subManager: subManager,
 	}
-}
-
-func (h *Handler) SetSubscriptionManager(subManager *SubscriptionManager) {
-	h.subManager = subManager
 }
 
 func (h *Handler) HandleMessage(message []byte) []byte {
@@ -115,7 +111,16 @@ func (h *Handler) routeMethod(req *JSONRPCRequest) *JSONRPCResponse {
 		return h.handleSubscribeWorkPackageStatus(req)
 	case "subscribeSyncStatus":
 		return h.handleSubscribeSyncStatus(req)
-	case "unsubscribe":
+	case "unsubscribe",
+		"unsubscribeBestBlock",
+		"unsubscribeFinalizedBlock",
+		"unsubscribeStatistics",
+		"unsubscribeServiceData",
+		"unsubscribeServiceValue",
+		"unsubscribeServicePreimage",
+		"unsubscribeServiceRequest",
+		"unsubscribeWorkPackageStatus",
+		"unsubscribeSyncStatus":
 		return h.handleUnsubscribe(req)
 
 	default:
@@ -168,6 +173,9 @@ func (h *Handler) handleFinalizedBlock(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleParent(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting parent block")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -187,6 +195,9 @@ func (h *Handler) handleParent(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleStateRoot(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting state root")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -206,6 +217,9 @@ func (h *Handler) handleStateRoot(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleBeefyRoot(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting beefy root")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -225,6 +239,9 @@ func (h *Handler) handleBeefyRoot(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleStatistics(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting statistics")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -244,6 +261,9 @@ func (h *Handler) handleStatistics(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleServiceData(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting service data")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -273,6 +293,9 @@ func (h *Handler) handleServiceData(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleServiceValue(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting service value")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -303,6 +326,9 @@ func (h *Handler) handleServiceValue(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleServicePreimage(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting service preimage")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -333,6 +359,9 @@ func (h *Handler) handleServicePreimage(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleServiceRequest(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting service request")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 4 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -360,6 +389,9 @@ func (h *Handler) handleServiceRequest(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleSubmitPreimage(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Submitting service preimage")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -384,6 +416,9 @@ func (h *Handler) handleSubmitPreimage(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleListServices(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Listing services")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -415,6 +450,9 @@ func (h *Handler) handleSyncState(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleWorkReport(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Handling work report")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -434,6 +472,9 @@ func (h *Handler) handleWorkReport(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleSubmitWorkPackage(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Submitting work package")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -460,12 +501,15 @@ func (h *Handler) handleSubmitWorkPackage(req *JSONRPCRequest) *JSONRPCResponse 
 		return NewErrorResponse(req.ID, ErrCodeInternalError, err.Error(), nil)
 	}
 
-	return NewSuccessResponse(req.ID, true)
+	return NewSuccessResponse(req.ID, nil)
 }
 
 func (h *Handler) handleSubmitWorkPackageBundle(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Submitting work package bundle")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -482,12 +526,15 @@ func (h *Handler) handleSubmitWorkPackageBundle(req *JSONRPCRequest) *JSONRPCRes
 		return NewErrorResponse(req.ID, ErrCodeInternalError, err.Error(), nil)
 	}
 
-	return NewSuccessResponse(req.ID, true)
+	return NewSuccessResponse(req.ID, nil)
 }
 
 func (h *Handler) handleWorkPackageStatus(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Getting work package status")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []string
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -504,6 +551,9 @@ func (h *Handler) handleWorkPackageStatus(req *JSONRPCRequest) *JSONRPCResponse 
 func (h *Handler) handleFetchWorkPackageSegments(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Fetching work package segments")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -535,6 +585,9 @@ func (h *Handler) handleFetchWorkPackageSegments(req *JSONRPCRequest) *JSONRPCRe
 func (h *Handler) handleFetchSegments(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Fetching segments")
 
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
 	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
@@ -566,11 +619,7 @@ func (h *Handler) handleFetchSegments(req *JSONRPCRequest) *JSONRPCResponse {
 func (h *Handler) handleSubscribeBestBlock(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to best block")
 
-	if h.subManager == nil {
-		return NewErrorResponse(req.ID, ErrCodeInternalError, "Subscriptions not available", nil)
-	}
-
-	subID, err := h.subManager.Subscribe(eventbus.EventNewBlock)
+	subID, err := h.subManager.Subscribe(eventbus.EventNewBlock, "subscribeBestBlock")
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to subscribe: %v", err))
 		return NewErrorResponse(req.ID, ErrCodeInternalError, "Failed to create subscription", nil)
@@ -582,11 +631,7 @@ func (h *Handler) handleSubscribeBestBlock(req *JSONRPCRequest) *JSONRPCResponse
 func (h *Handler) handleSubscribeFinalizedBlock(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to finalized block")
 
-	if h.subManager == nil {
-		return NewErrorResponse(req.ID, ErrCodeInternalError, "Subscriptions not available", nil)
-	}
-
-	subID, err := h.subManager.Subscribe(eventbus.EventFinalizedBlock)
+	subID, err := h.subManager.Subscribe(eventbus.EventFinalizedBlock, "subscribeFinalizedBlock")
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to subscribe: %v", err))
 		return NewErrorResponse(req.ID, ErrCodeInternalError, "Failed to create subscription", nil)
@@ -598,11 +643,39 @@ func (h *Handler) handleSubscribeFinalizedBlock(req *JSONRPCRequest) *JSONRPCRes
 func (h *Handler) handleSubscribeStatistics(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to statistics")
 
-	if h.subManager == nil {
-		return NewErrorResponse(req.ID, ErrCodeInternalError, "Subscriptions not available", nil)
+	// Parse finalized boolean parameter per JIP-2: subscribeStatistics(finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [finalized]", nil)
+	}
+	finalized, ok := params[0].(bool)
+	if !ok {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: finalized must be a boolean", nil)
 	}
 
-	subID, err := h.subManager.Subscribe("statistics")
+	// Use finalized flag to choose between best-chain and finalized-chain event triggers.
+	eventType := eventbus.EventNewBlock
+	if finalized {
+		eventType = eventbus.EventFinalizedBlock
+	}
+
+	// Transform BlockEvent into ChainSubscriptionUpdate per JIP-2.
+	// TODO: populate Value with actual statistics blob once implemented.
+	transform := func(event eventbus.Event) interface{} {
+		blockEvent, ok := event.Data.(eventbus.BlockEvent)
+		if !ok {
+			return event.Data
+		}
+		return eventbus.ChainSubscriptionUpdate{
+			HeaderHash: blockEvent.HeaderHash,
+			Slot:       blockEvent.Slot,
+			Value:      nil,
+		}
+	}
+	subID, err := h.subManager.Subscribe(eventType, "subscribeStatistics", transform)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to subscribe: %v", err))
 		return NewErrorResponse(req.ID, ErrCodeInternalError, "Failed to create subscription", nil)
@@ -614,63 +687,107 @@ func (h *Handler) handleSubscribeStatistics(req *JSONRPCRequest) *JSONRPCRespons
 func (h *Handler) handleSubscribeServiceData(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to service data")
 
-	// TODO: implement service data subscription logic
+	// JIP-2: subscribeServiceData(service_id, finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 2 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [service_id, finalized]", nil)
+	}
 
+	// TODO: implement service data subscription logic
 	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeServiceData not implemented", nil)
 }
 
 func (h *Handler) handleSubscribeServiceValue(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to service value")
 
+	// JIP-2: subscribeServiceValue(service_id, key, finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [service_id, key, finalized]", nil)
+	}
 	// TODO: implement service value subscription logic
-
 	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeServiceValue not implemented", nil)
 }
 
 func (h *Handler) handleSubscribeServicePreimage(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to service preimage")
 
+	// JIP-2: subscribeServicePreimage(service_id, hash, finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [service_id, hash, finalized]", nil)
+	}
 	// TODO: implement service preimage subscription logic
-
 	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeServicePreimage not implemented", nil)
 }
 
 func (h *Handler) handleSubscribeServiceRequest(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to service request")
 
+	// JIP-2: subscribeServiceRequest(service_id, hash, length, finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 4 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [service_id, hash, length, finalized]", nil)
+	}
 	// TODO: implement service request subscription logic
-
 	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeServiceRequest not implemented", nil)
 }
 
 func (h *Handler) handleSubscribeWorkPackageStatus(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to work package status")
 
+	// JIP-2: subscribeWorkPackageStatus(hash, anchor, finalized)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
+	}
+	var params []interface{}
+	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 3 {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params: expected [hash, anchor, finalized]", nil)
+	}
 	// TODO: implement workpackage status subscription logic
-
 	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeWorkPackageStatus not implemented", nil)
 }
 
 func (h *Handler) handleSubscribeSyncStatus(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Subscribing to sync status")
 
-	// TODO: implement sync status subscription logic
+	subID, err := h.subManager.Subscribe(eventbus.EventSyncStateChanged, "subscribeSyncStatus")
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to subscribe: %v", err))
+		return NewErrorResponse(req.ID, ErrCodeInternalError, "Failed to create subscription", nil)
+	}
 
-	return NewErrorResponse(req.ID, ErrCodeInternalError, "subscribeSyncStatus not implemented", nil)
+	return NewSuccessResponse(req.ID, subID)
 }
 
 func (h *Handler) handleUnsubscribe(req *JSONRPCRequest) *JSONRPCResponse {
 	logger.Debug("Unsubscribing")
-	if h.subManager == nil {
-		return NewErrorResponse(req.ID, ErrCodeInternalError, "Subscriptions not available", nil)
+	if req.Params == nil {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
 	}
 
-	var params []string
+	var params []interface{}
 	if err := json.Unmarshal(*req.Params, &params); err != nil || len(params) != 1 {
 		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid params", nil)
 	}
 
-	subID := params[0]
+	subIDFloat, ok := params[0].(float64)
+	if !ok {
+		return NewErrorResponse(req.ID, ErrCodeInvalidParams, "Invalid subscription ID type, expected number", nil)
+	}
+	subID := uint64(subIDFloat)
 
 	if err := h.subManager.Unsubscribe(subID); err != nil {
 		logger.Error(fmt.Sprintf("Failed to unsubscribe: %v", err))

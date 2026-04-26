@@ -12,68 +12,78 @@ import (
 
 type SubscriptionManager struct {
 	conn          *websocket.Conn
-	subscriptions map[string]*Subscription // subID -> Subscription
+	writeMu       *sync.Mutex              // shared write mutex with main handler
+	eventSub      EventSubscriber          // injected event subscriber
+	subscriptions map[uint64]*Subscription // subID -> Subscription
 	mu            sync.RWMutex
 	done          chan struct{} // to signal shutdown all subscriptions
 }
 
 type Subscription struct {
-	ID            string                // subscription ID
-	EventType     eventbus.EventType    // type of events subscribed to
-	EventBusSubID string                // event bus subscription ID
-	EventCh       <-chan eventbus.Event // channel to receive events
-	StopCh        chan struct{}         // channel to signal stopping the subscription
+	ID            uint64                           // subscription ID (numeric per JIP-2)
+	MethodName    string                           // original subscribe method name(e.g. "subscribeBestBlock")
+	EventType     eventbus.EventType               // type of events subscribed to
+	EventBusSubID uint64                           // event bus subscription ID
+	EventCh       <-chan eventbus.Event            // channel to receive events
+	StopCh        chan struct{}                    // channel to signal stopping the subscription
+	Transform     func(eventbus.Event) interface{} // optional transform to reshape event data for notification
 }
 
-func NewSubscriptionManager(conn *websocket.Conn) *SubscriptionManager {
+func NewSubscriptionManager(conn *websocket.Conn, writeMu *sync.Mutex, eventSub EventSubscriber) *SubscriptionManager {
 	return &SubscriptionManager{
 		conn:          conn,
-		subscriptions: make(map[string]*Subscription),
+		writeMu:       writeMu,
+		eventSub:      eventSub,
+		subscriptions: make(map[uint64]*Subscription),
 		done:          make(chan struct{}),
 	}
 }
 
-func (sm *SubscriptionManager) Subscribe(eventType eventbus.EventType) (string, error) {
+func (sm *SubscriptionManager) Subscribe(eventType eventbus.EventType, methodName string, transform ...func(eventbus.Event) interface{}) (uint64, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	eventBusSubID, eventCh := eventbus.GetInstance().Subscribe(eventType, 50)
+	eventBusSubID, eventCh := sm.eventSub.Subscribe(eventType, 50)
 	subID := eventBusSubID
 	sub := &Subscription{
 		ID:            subID,
+		MethodName:    methodName,
 		EventType:     eventType,
 		EventBusSubID: eventBusSubID,
 		EventCh:       eventCh,
 		StopCh:        make(chan struct{}),
+	}
+	if len(transform) > 0 {
+		sub.Transform = transform[0]
 	}
 
 	sm.subscriptions[subID] = sub
 
 	go sm.listenEvents(sub)
 
-	logger.Info(fmt.Sprintf("Created subscription %s for event type %s", subID, eventType))
+	logger.Info(fmt.Sprintf("Created subscription %d for event type %s", subID, eventType))
 
 	return subID, nil
 }
 
-func (sm *SubscriptionManager) Unsubscribe(subID string) error {
+func (sm *SubscriptionManager) Unsubscribe(subID uint64) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	sub, exists := sm.subscriptions[subID]
 	if !exists {
-		return fmt.Errorf("subscription %s not found", subID)
+		return fmt.Errorf("subscription %d not found", subID)
 	}
 
 	// Signal the subscription to stop
 	close(sub.StopCh)
 
 	// Unsubscribe from event bus
-	eventbus.GetInstance().Unsubscribe(sub.EventType, sub.EventBusSubID)
+	sm.eventSub.Unsubscribe(sub.EventType, sub.EventBusSubID)
 
 	delete(sm.subscriptions, subID)
 
-	logger.Info(fmt.Sprintf("Unsubscribed from subscription %s", subID))
+	logger.Info(fmt.Sprintf("Unsubscribed from subscription %d", subID))
 
 	return nil
 }
@@ -88,7 +98,7 @@ func (sm *SubscriptionManager) UnsubscribeAll() {
 		subs = append(subs, sub)
 	}
 
-	sm.subscriptions = make(map[string]*Subscription)
+	sm.subscriptions = make(map[uint64]*Subscription)
 	sm.mu.Unlock()
 
 	select {
@@ -106,7 +116,7 @@ func (sm *SubscriptionManager) UnsubscribeAll() {
 			close(sub.StopCh)
 		}
 
-		eventbus.GetInstance().Unsubscribe(sub.EventType, sub.EventBusSubID)
+		sm.eventSub.Unsubscribe(sub.EventType, sub.EventBusSubID)
 	}
 }
 
@@ -114,41 +124,43 @@ func (sm *SubscriptionManager) listenEvents(sub *Subscription) {
 	for {
 		select {
 		case <-sub.StopCh:
-			logger.Debug(fmt.Sprintf("Stopping event listener for subscription %s", sub.ID))
+			logger.Debug(fmt.Sprintf("Stopping event listener for subscription %d", sub.ID))
 			return
 		case <-sm.done:
-			logger.Debug(fmt.Sprintf("Shutting down event listener for subscription %s", sub.ID))
+			logger.Debug(fmt.Sprintf("Shutting down event listener for subscription %d", sub.ID))
 			return
 		case event, ok := <-sub.EventCh:
 			if !ok {
-				logger.Debug(fmt.Sprintf("Event channel closed for subscription %s", sub.ID))
+				logger.Debug(fmt.Sprintf("Event channel closed for subscription %d", sub.ID))
 				return
 			}
 
-			notification := sm.createNotification(sub.ID, event)
+			notification := sm.createNotification(sub, event)
 
 			if err := sm.sendNotification(notification); err != nil {
-				logger.Error(fmt.Sprintf("Failed to send notification for subscription %s: %v", sub.ID, err))
+				logger.Error(fmt.Sprintf("Failed to send notification for subscription %d: %v", sub.ID, err))
 			}
 		}
 	}
 }
 
-func (sm *SubscriptionManager) createNotification(subID string, event eventbus.Event) *JSONRPCNotification {
+func (sm *SubscriptionManager) createNotification(sub *Subscription, event eventbus.Event) *JSONRPCNotification {
+	result := event.Data
+	if sub.Transform != nil {
+		result = sub.Transform(event)
+	}
+
 	return &JSONRPCNotification{
 		JSONRPC: "2.0",
-		Method:  subID,
+		Method:  sub.MethodName,
 		Params: NotificationParams{
-			Subscription: subID,
-			Result:       event.Data,
+			Subscription: sub.ID,
+			Result:       result,
 		},
 	}
 }
 
 func (sm *SubscriptionManager) sendNotification(notification *JSONRPCNotification) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
 	data, err := json.Marshal(notification)
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification: %w", err)
@@ -156,6 +168,8 @@ func (sm *SubscriptionManager) sendNotification(notification *JSONRPCNotificatio
 
 	logger.Debug(fmt.Sprintf("Sending notification: %s", string(data)))
 
+	sm.writeMu.Lock()
+	defer sm.writeMu.Unlock()
 	if err := sm.conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		return fmt.Errorf("failed to write notification message: %w", err)
 	}

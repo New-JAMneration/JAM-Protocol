@@ -4,18 +4,23 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/gorilla/websocket"
 )
 
 type RPCServer struct {
-	addr     string
-	upgrader websocket.Upgrader
-	mux      *http.ServeMux
+	addr         string
+	upgrader     websocket.Upgrader
+	mux          *http.ServeMux
+	chainWatcher *ChainWatcher
+	chainReader  ChainReader
+	eventSub     EventSubscriber
 }
 
-func NewRPCServer(addr string) *RPCServer {
+func NewRPCServer(addr string, chainReader ChainReader, publisher EventPublisher, subscriber EventSubscriber) *RPCServer {
 	return &RPCServer{
 		addr: addr,
 		mux:  http.NewServeMux(),
@@ -24,6 +29,9 @@ func NewRPCServer(addr string) *RPCServer {
 				return true // Allow all origins now, TODO: implement origin checking
 			},
 		},
+		chainWatcher: NewChainWatcher(chainReader, publisher),
+		chainReader:  chainReader,
+		eventSub:     subscriber,
 	}
 }
 
@@ -34,11 +42,17 @@ func (s *RPCServer) Start(ctx context.Context) error {
 		Handler: s.mux,
 	}
 
+	// Start ChainWatcher to publish block/sync events for subscriptions
+	s.chainWatcher.Start()
+
 	// Graceful shutdown
 	go func() {
 		<-ctx.Done()
 		logger.Info("RPC server shutting down...")
-		server.Shutdown(context.Background())
+		s.chainWatcher.Stop()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		server.Shutdown(shutdownCtx)
 	}()
 	logger.Infof("RPC server starting on %s", s.addr)
 	return server.ListenAndServe()
@@ -54,9 +68,9 @@ func (s *RPCServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info(fmt.Sprintf("Client connected: %s", conn.RemoteAddr()))
 
-	handler := NewHandler()
-	subManager := NewSubscriptionManager(conn)
-	handler.SetSubscriptionManager(subManager)
+	var writeMu sync.Mutex
+	subManager := NewSubscriptionManager(conn, &writeMu, s.eventSub)
+	handler := NewHandler(NewRPCService(s.chainReader), subManager)
 
 	defer subManager.UnsubscribeAll()
 
@@ -69,7 +83,9 @@ func (s *RPCServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		response := handler.HandleMessage(message)
 
+		writeMu.Lock()
 		err = conn.WriteMessage(messageType, response)
+		writeMu.Unlock()
 		if err != nil {
 			logger.Error(fmt.Sprintf("Write message error: %v", err))
 			break

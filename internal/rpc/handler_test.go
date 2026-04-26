@@ -3,10 +3,12 @@ package rpc
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 )
 
 func TestHandlePing(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"2.0","id":1,"method":"ping", "params":[]}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -31,7 +33,7 @@ func TestHandlePing(t *testing.T) {
 }
 
 func TestMethodNotFound(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"2.0","id":1,"method":"unknownMethod", "params":[]}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -55,7 +57,7 @@ func TestMethodNotFound(t *testing.T) {
 }
 
 func TestParseError(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{invalid json}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -79,7 +81,7 @@ func TestParseError(t *testing.T) {
 }
 
 func TestInvalidRequest(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"1.0","id":3,"method":"ping"}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -103,7 +105,7 @@ func TestInvalidRequest(t *testing.T) {
 }
 
 func TestMissingMethod(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"2.0","id":4, "params":[]}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -127,7 +129,7 @@ func TestMissingMethod(t *testing.T) {
 }
 
 func TestPingWithStringID(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"2.0","id":"abc","method":"ping", "params":[]}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))
@@ -153,7 +155,7 @@ func TestPingWithStringID(t *testing.T) {
 }
 
 func TestPingWithNullID(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(NewRPCService(blockchain.GetInstance()), nil)
 
 	reqJSON := `{"jsonrpc":"2.0","id":null,"method":"ping", "params":[]}`
 	respBytes := handler.HandleMessage([]byte(reqJSON))

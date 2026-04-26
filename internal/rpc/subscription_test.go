@@ -3,16 +3,19 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/eventbus"
 	"github.com/gorilla/websocket"
 )
 
 func TestSubscription(t *testing.T) {
-	server := NewRPCServer(":19803")
+	bus := eventbus.NewEventBus()
+	server := NewRPCServer(":19803", blockchain.GetInstance(), bus, bus)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -78,7 +81,7 @@ func TestSubscription(t *testing.T) {
 		t.Fatalf("Failed to send subscribe request: %v", err)
 	}
 
-	var subID string
+	var subID float64
 	select {
 	case subscribeResp := <-responseCh:
 		if subscribeResp == nil {
@@ -90,9 +93,9 @@ func TestSubscription(t *testing.T) {
 		}
 
 		var ok bool
-		subID, ok = subscribeResp.Result.(string)
+		subID, ok = subscribeResp.Result.(float64)
 		if !ok {
-			t.Fatalf("Invalid subscription ID in response: %v", subscribeResp.Result)
+			t.Fatalf("Invalid subscription ID in response (expected number): %v", subscribeResp.Result)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("Did not receive subscribe response in time")
@@ -105,16 +108,16 @@ func TestSubscription(t *testing.T) {
 			Slot:       456,
 		},
 	}
-	eventbus.GetInstance().Publish(testEvent)
+	bus.Publish(testEvent)
 
 	select {
 	case notification := <-notificationCh:
-		if notification.Method != subID {
+		if notification.Method != "subscribeBestBlock" {
 			t.Fatalf("Unexpected notification method: %s", notification.Method)
 		}
 
-		if notification.Params.Subscription != subID {
-			t.Fatalf("Unexpected notification subscription ID: %s", notification.Params.Subscription)
+		if notification.Params.Subscription != uint64(subID) {
+			t.Fatalf("Unexpected notification subscription ID: %d", notification.Params.Subscription)
 		}
 
 		resultMap, ok := notification.Params.Result.(map[string]interface{})
@@ -134,7 +137,7 @@ func TestSubscription(t *testing.T) {
 	}
 
 	// Unsubscribe
-	unsubscribeReq := `{"jsonrpc":"2.0","id":2,"method":"unsubscribe","params":["` + subID + `"]}`
+	unsubscribeReq := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"unsubscribe","params":[%d]}`, uint64(subID))
 	err = conn.WriteMessage(websocket.TextMessage, []byte(unsubscribeReq))
 	if err != nil {
 		t.Fatalf("Failed to send unsubscribe request: %v", err)
@@ -158,7 +161,7 @@ func TestSubscription(t *testing.T) {
 		t.Fatalf("Did not receive unsubscribe response in time")
 	}
 
-	eventbus.GetInstance().Publish(testEvent)
+	bus.Publish(testEvent)
 
 	select {
 	case notification := <-notificationCh:
@@ -169,7 +172,8 @@ func TestSubscription(t *testing.T) {
 }
 
 func TestMultipleSubscriptions(t *testing.T) {
-	server := NewRPCServer(":19804")
+	bus := eventbus.NewEventBus()
+	server := NewRPCServer(":19804", blockchain.GetInstance(), bus, bus)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -236,13 +240,13 @@ func TestMultipleSubscriptions(t *testing.T) {
 		t.Fatalf("Failed to send first subscribe request: %v", err)
 	}
 
-	var subID1 string
+	var subID1 uint64
 	select {
 	case resp1 := <-responseCh:
 		if resp1.Error != nil {
 			t.Fatalf("First subscribe request returned error: %v", resp1.Error)
 		}
-		subID1 = resp1.Result.(string)
+		subID1 = uint64(resp1.Result.(float64))
 		t.Logf("First subscription ID: %s", subID1)
 	case <-time.After(2 * time.Second):
 		t.Fatalf("Did not receive first subscribe response in time")
@@ -254,50 +258,50 @@ func TestMultipleSubscriptions(t *testing.T) {
 		t.Fatalf("Failed to send second subscribe request: %v", err)
 	}
 
-	var subID2 string
+	var subID2 uint64
 	select {
 	case resp2 := <-responseCh:
 		if resp2.Error != nil {
 			t.Fatalf("Second subscribe request returned error: %v", resp2.Error)
 		}
-		subID2 = resp2.Result.(string)
+		subID2 = uint64(resp2.Result.(float64))
 		t.Logf("Second subscription ID: %s", subID2)
 	case <-time.After(2 * time.Second):
 		t.Fatalf("Did not receive second subscribe response in time")
 	}
 
 	// Publish events for both subscriptions
-	eventbus.GetInstance().Publish(eventbus.Event{
+	bus.Publish(eventbus.Event{
 		Type: eventbus.EventNewBlock,
 		Data: eventbus.BlockEvent{
 			HeaderHash: "new-block",
 			Slot:       100,
 		},
 	})
-	eventbus.GetInstance().Publish(eventbus.Event{
+	bus.Publish(eventbus.Event{
 		Type: eventbus.EventFinalizedBlock,
 		Data: eventbus.BlockEvent{
 			HeaderHash: "finalized-block",
 			Slot:       200,
 		},
 	})
-	receivedSubs := make(map[string]bool)
+	receivedSubs := make(map[uint64]bool)
 	timeout := time.After(3 * time.Second)
 	for len(receivedSubs) < 2 {
 		select {
 		case notification := <-notificationCh:
 			subID := notification.Params.Subscription
 			receivedSubs[subID] = true
-			t.Logf("Received notification for subscription %s", subID)
+			t.Logf("Received notification for subscription %d", subID)
 		case <-timeout:
 			t.Fatalf("Timeout: only received notifications for subscriptions: %v", receivedSubs)
 		}
 	}
 
 	if !receivedSubs[subID1] {
-		t.Fatalf("Did not receive notification for first subscription %s", subID1)
+		t.Fatalf("Did not receive notification for first subscription %d", subID1)
 	}
 	if !receivedSubs[subID2] {
-		t.Fatalf("Did not receive notification for second subscription %s", subID2)
+		t.Fatalf("Did not receive notification for second subscription %d", subID2)
 	}
 }

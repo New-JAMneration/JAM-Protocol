@@ -3,19 +3,26 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
-	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/eventbus"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
-type ChainWatcher struct {
-	chainState *blockchain.ChainState
-	eventbus   *eventbus.EventBus
+const (
+	bestBlockPollInterval      = 1 * time.Second
+	finalizedBlockPollInterval = 2 * time.Second
+	syncStatePollInterval      = 3 * time.Second
+)
 
+type ChainWatcher struct {
+	chainState ChainReader
+	publisher  EventPublisher
+
+	mu                       sync.RWMutex
 	latestBestBlockHash      types.HeaderHash
 	latestFinalizedBlockHash types.HeaderHash
 	latestSyncState          string
@@ -24,11 +31,11 @@ type ChainWatcher struct {
 	cancel context.CancelFunc
 }
 
-func NewChainWatcher(chainState *blockchain.ChainState, eventbus *eventbus.EventBus) *ChainWatcher {
+func NewChainWatcher(chainState ChainReader, publisher EventPublisher) *ChainWatcher {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ChainWatcher{
 		chainState: chainState,
-		eventbus:   eventbus,
+		publisher:  publisher,
 		ctx:        ctx,
 		cancel:     cancel,
 	}
@@ -53,7 +60,7 @@ func (cw *ChainWatcher) watchNewBlocks() {
 	logger.Info("Best block watcher started.")
 	defer logger.Info("Best block watcher stopped.")
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(bestBlockPollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -76,11 +83,16 @@ func (cw *ChainWatcher) checkBestBlock() error {
 		return fmt.Errorf("failed to compute block header hash: %v", err)
 	}
 
-	if currentHash != cw.latestBestBlockHash {
-		logger.Info(fmt.Sprintf("New best block detected: 0x%x", currentHash[:8]))
+	cw.mu.Lock()
+	changed := currentHash != cw.latestBestBlockHash
+	if changed {
 		cw.latestBestBlockHash = currentHash
+	}
+	cw.mu.Unlock()
 
-		cw.eventbus.Publish(eventbus.Event{
+	if changed {
+		logger.Info(fmt.Sprintf("New best block detected: 0x%x", currentHash[:8]))
+		cw.publisher.Publish(eventbus.Event{
 			Type: eventbus.EventNewBlock,
 			Data: eventbus.BlockEvent{
 				HeaderHash: encodeHash(currentHash),
@@ -95,7 +107,7 @@ func (cw *ChainWatcher) watchFinalizedBlocks() {
 	logger.Info("Finalized block watcher started.")
 	defer logger.Info("Finalized block watcher stopped.")
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(finalizedBlockPollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -136,11 +148,16 @@ func (cw *ChainWatcher) checkFinalizedBlock() error {
 		currentSlot = lastFinalized.Header.Slot
 	}
 
-	if currentHash != cw.latestFinalizedBlockHash {
-		logger.Info(fmt.Sprintf("New finalized block detected: 0x%x", currentHash[:8]))
+	cw.mu.Lock()
+	changed := currentHash != cw.latestFinalizedBlockHash
+	if changed {
 		cw.latestFinalizedBlockHash = currentHash
+	}
+	cw.mu.Unlock()
 
-		cw.eventbus.Publish(eventbus.Event{
+	if changed {
+		logger.Info(fmt.Sprintf("New finalized block detected: 0x%x", currentHash[:8]))
+		cw.publisher.Publish(eventbus.Event{
 			Type: eventbus.EventFinalizedBlock,
 			Data: eventbus.BlockEvent{
 				HeaderHash: encodeHash(currentHash),
@@ -156,7 +173,7 @@ func (cw *ChainWatcher) watchSyncState() {
 	logger.Info("Sync state watcher started.")
 	defer logger.Info("Sync state watcher stopped.")
 
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(syncStatePollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -173,19 +190,21 @@ func (cw *ChainWatcher) watchSyncState() {
 
 func (cw *ChainWatcher) checkSyncState() error {
 	// TODO: Implement actual sync state retrieval logic
+	// Currently hardcoded; replace with real sync status and peer count
 	currentState := "Completed"
-	numPeers := 0 // TODO: Retrieve actual number of peers
 
-	if currentState != cw.latestSyncState {
-		logger.Info(fmt.Sprintf("Sync state changed: %s", currentState))
+	cw.mu.Lock()
+	changed := currentState != cw.latestSyncState
+	if changed {
 		cw.latestSyncState = currentState
+	}
+	cw.mu.Unlock()
 
-		cw.eventbus.Publish(eventbus.Event{
+	if changed {
+		logger.Info(fmt.Sprintf("Sync state changed: %s", currentState))
+		cw.publisher.Publish(eventbus.Event{
 			Type: eventbus.EventSyncStateChanged,
-			Data: eventbus.SyncStateEvent{
-				NumPeers: numPeers,
-				Status:   currentState,
-			},
+			Data: currentState,
 		})
 	}
 	return nil

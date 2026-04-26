@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"encoding/hex"
-	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/eventbus"
 	"github.com/New-JAMneration/JAM-Protocol/internal/rpc"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
@@ -81,8 +82,10 @@ func node(ctx context.Context, cmd *cli.Command) error {
 	defer cancel()
 
 	go func() {
-		rpcServer := rpc.NewRPCServer(":19800")
-		if err := rpcServer.Start(ctx); err != nil {
+		chainState := blockchain.GetInstance()
+		eventBus := eventbus.NewEventBus()
+		rpcServer := rpc.NewRPCServer(":19800", chainState, eventBus, eventBus)
+		if err := rpcServer.Start(ctx); err != nil && err != http.ErrServerClosed {
 			logger.Fatalf("RPC server error: %v", err)
 		}
 	}()
@@ -91,14 +94,12 @@ func node(ctx context.Context, cmd *cli.Command) error {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down JAM Protocol node...")
+	logger.Info("Shutting down JAM Protocol node...")
 	return nil
 }
 
 func SetupJAMProtocol(chainPath string) {
-	log.SetFlags(log.LstdFlags)
-	log.SetOutput(os.Stdout)
-	log.Println("🚀 Start JAM Protocol")
+	logger.Info("🚀 Start JAM Protocol")
 
 	cs := blockchain.GetInstance()
 	ctx := context.Background()
@@ -106,37 +107,36 @@ func SetupJAMProtocol(chainPath string) {
 	if chainPath != "" {
 		spec, err := blockchain.GetChainSpecFromJson(chainPath)
 		if err != nil {
-			log.Fatalf("failed to load chainspec: %v", err)
+			logger.Fatalf("failed to load chainspec: %v", err)
 		}
 
-		// log.Printf("types protocol params (before apply):\n%s", types.SnapshotProtocolParams().JSON())
 		pp, err := spec.ParseProtocolParameters()
 		if err != nil {
-			log.Fatalf("failed to decode protocol_parameters into struct: %v", err)
+			logger.Fatalf("failed to decode protocol_parameters into struct: %v", err)
 		}
 
 		if err := types.ApplyProtocolParameters(pp); err != nil {
-			log.Fatalf("invalid protocol_parameters: %v", err)
+			logger.Fatalf("invalid protocol_parameters: %v", err)
 		}
-		// log.Printf("types protocol params (after apply):\n%s", types.SnapshotProtocolParams().JSON())
+
 		hdrBytes, err := spec.GenesisHeaderBytes()
 		if err != nil {
-			log.Fatalf("failed to decode genesis_header hex: %v", err)
+			logger.Fatalf("failed to decode genesis_header hex: %v", err)
 		}
 
 		hdr, err := blockchain.DecodeHeaderFromBin(hdrBytes)
 		if err != nil {
-			log.Fatalf("failed to decode genesis_header bytes: %v", err)
+			logger.Fatalf("failed to decode genesis_header bytes: %v", err)
 		}
 
 		kvs, err := spec.GenesisStateKeyVals()
 		if err != nil {
-			log.Fatalf("failed to decode genesis_state: %v", err)
+			logger.Fatalf("failed to decode genesis_state: %v", err)
 		}
 
 		genesisHash, stateRoot, err := cs.SeedGenesisToBackend(ctx, *hdr, kvs)
 		if err != nil {
-			log.Fatalf("failed to seed genesis to backend: %v", err)
+			logger.Fatalf("failed to seed genesis to backend: %v", err)
 		}
 
 		genesisBlock := types.Block{
@@ -152,18 +152,18 @@ func SetupJAMProtocol(chainPath string) {
 
 		cs.GenerateGenesisBlock(genesisBlock)
 
-		log.Printf("✅ Genesis seeded")
-		log.Printf("  genesis_hash: 0x%s", hex.EncodeToString(genesisHash[:]))
-		log.Printf("  genesis_state_root: 0x%s", hex.EncodeToString(stateRoot[:]))
+		logger.Info("✅ Genesis seeded")
+		logger.Info("  genesis_hash: 0x%s", hex.EncodeToString(genesisHash[:]))
+		logger.Info("  genesis_state_root: 0x%s", hex.EncodeToString(stateRoot[:]))
 
-		log.Printf("  header.parent: 0x%s", hex.EncodeToString(genesisBlock.Header.Parent[:]))
-		log.Printf("  header.parent_state_root: 0x%s", hex.EncodeToString(genesisBlock.Header.ParentStateRoot[:]))
+		logger.Info("  header.parent: 0x%s", hex.EncodeToString(genesisBlock.Header.Parent[:]))
+		logger.Info("  header.parent_state_root: 0x%s", hex.EncodeToString(genesisBlock.Header.ParentStateRoot[:]))
 
-		log.Printf("  redis: state_root:%s -> %s",
+		logger.Info("  redis: state_root:%s -> %s",
 			hex.EncodeToString(genesisHash[:]),
 			hex.EncodeToString(stateRoot[:]),
 		)
-		log.Printf("  redis: state_data:%s -> (encoded StateKeyVals merkle input)",
+		logger.Info("  redis: state_data:%s -> (encoded StateKeyVals merkle input)",
 			hex.EncodeToString(stateRoot[:]),
 		)
 

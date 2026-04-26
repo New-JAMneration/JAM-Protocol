@@ -6,17 +6,17 @@ import (
 	"time"
 )
 
-func TestEventBusSingleton(t *testing.T) {
-	eb1 := GetInstance()
-	eb2 := GetInstance()
+func TestNewEventBusCreatesDistinctInstances(t *testing.T) {
+	eb1 := NewEventBus()
+	eb2 := NewEventBus()
 
-	if eb1 != eb2 {
-		t.Fatalf("Expected singleton EventBus instances to be the same")
+	if eb1 == eb2 {
+		t.Fatalf("Expected distinct EventBus instances, got the same instance")
 	}
 }
 
 func TestSubscribeAndPublish(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID, eventCh := eb.Subscribe(EventNewBlock, 10)
 
@@ -56,7 +56,7 @@ func TestSubscribeAndPublish(t *testing.T) {
 }
 
 func TestMultipleSubscribers(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID1, eventCh1 := eb.Subscribe(EventFinalizedBlock, 5)
 	subID2, eventCh2 := eb.Subscribe(EventFinalizedBlock, 5)
@@ -105,7 +105,7 @@ func TestMultipleSubscribers(t *testing.T) {
 }
 
 func TestUnsubscribe(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID, eventCh := eb.Subscribe(EventImportedBlock, 5)
 
@@ -131,7 +131,7 @@ func TestUnsubscribe(t *testing.T) {
 }
 
 func TestNonBlockingPublish(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID, eventCh := eb.Subscribe(EventNewBlock, 2)
 
@@ -150,7 +150,7 @@ func TestNonBlockingPublish(t *testing.T) {
 }
 
 func TestDifferentEventTypes(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID1, eventCh1 := eb.Subscribe(EventNewBlock, 5)
 	subID2, eventCh2 := eb.Subscribe(EventFinalizedBlock, 5)
@@ -202,7 +202,7 @@ func TestDifferentEventTypes(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	const numSubscribers = 10
 	const numEvents = 100
@@ -251,7 +251,7 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestGetTotalSubscribers(t *testing.T) {
-	eb := GetInstance()
+	eb := NewEventBus()
 
 	subID1, _ := eb.Subscribe(EventNewBlock, 5)
 	subID2, _ := eb.Subscribe(EventNewBlock, 5)
