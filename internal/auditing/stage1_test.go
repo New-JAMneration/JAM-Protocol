@@ -1,6 +1,10 @@
 // Stage 1 tests — pure audit judgment logic that does not depend on
 // networking, VRF, or PVM execution. See docs/ce-audit-test-plan.md
 // and issue #931 for the full staged test plan.
+//
+// These tests mutate package-global state (types.CoresCount, blockchain
+// singleton) and therefore MUST NOT call t.Parallel(); concurrent tests
+// touching the same globals would race.
 package auditing
 
 import (
@@ -19,20 +23,42 @@ import (
 // Stage 1 helpers
 // ---------------------------------------------------------------------------
 
-// setupDeterministicAuditChain sets tiny mode, resets blockchain singleton,
-// and returns a fixed Ed25519 private key for signing tests.
-func setupDeterministicAuditChain(t *testing.T) ed25519.PrivateKey {
+type chainStateOption func()
+
+// withCores overrides types.CoresCount for the duration of the test. The
+// cleanup registered by setupChainState restores tiny-mode defaults.
+func withCores(n int) chainStateOption {
+	return func() { types.CoresCount = n }
+}
+
+// setupChainState resets the blockchain singleton to tiny mode and applies
+// any optional overrides. It owns both the mutation and the cleanup so each
+// test starts and ends from a clean, deterministic slate.
+func setupChainState(t *testing.T, opts ...chainStateOption) {
 	t.Helper()
 
 	types.SetTinyMode()
 	blockchain.ResetInstance()
-	t.Cleanup(blockchain.ResetInstance)
+	for _, opt := range opts {
+		opt()
+	}
+	t.Cleanup(func() {
+		types.SetTinyMode()
+		blockchain.ResetInstance()
+	})
+}
 
-	cs := blockchain.GetInstance()
+// setupForAnnouncement extends setupChainState with a fixed header
+// (slot/entropy/author) and returns a fixed Ed25519 private key.
+// Used only by tests that exercise BuildAnnouncement / signature paths.
+func setupForAnnouncement(t *testing.T) ed25519.PrivateKey {
+	t.Helper()
+
+	setupChainState(t)
+
 	var entropy types.BandersnatchVrfSignature
 	entropy[0] = 1
-
-	cs.GetProcessingBlockPointer().SetHeader(types.Header{
+	blockchain.GetInstance().GetProcessingBlockPointer().SetHeader(types.Header{
 		Slot:          100,
 		AuthorIndex:   0,
 		EntropySource: entropy,
@@ -109,11 +135,8 @@ func makeDetailedAvailabilityAssignments(reports ...types.WorkReport) types.Avai
 
 // GP 17.2: Q keeps reports that are both assigned (ρ) and available (W), filters out the rest.
 func TestCollectCandidates(t *testing.T) {
-	setupDeterministicAuditChain(t)
-
-	// Use 5 cores so we can test a mix of assigned/available/filtered.
-	types.CoresCount = 5
-	t.Cleanup(func() { types.SetTinyMode() })
+	// 5 cores so we can test a mix of assigned/available/filtered.
+	setupChainState(t, withCores(5))
 
 	cs := blockchain.GetInstance()
 	r0 := makeDetailedWorkReport(1, 0)
@@ -145,10 +168,7 @@ func TestCollectCandidates(t *testing.T) {
 // Regression (#935): each AuditReport must carry the originating ValidatorID.
 // Also verify core traversal order and nil skipping.
 func TestInitialAssignment_SetsValidatorID(t *testing.T) {
-	setupDeterministicAuditChain(t)
-
-	types.CoresCount = 5
-	t.Cleanup(func() { types.SetTinyMode() })
+	setupChainState(t, withCores(5))
 
 	r0 := makeDetailedWorkReport(1, 0)
 	r1 := makeDetailedWorkReport(2, 1)
@@ -182,7 +202,7 @@ func TestInitialAssignment_SetsValidatorID(t *testing.T) {
 
 // Reconstructed signing context (XI ⌢ n ⌢ xn ⌢ H(H)) must verify against produced Ed25519 signature.
 func TestAnnouncement_SignContext(t *testing.T) {
-	privKey := setupDeterministicAuditChain(t)
+	privKey := setupForAnnouncement(t)
 	pubKey := privKey.Public().(ed25519.PublicKey)
 
 	report0 := makeDetailedWorkReport(12, 0)
