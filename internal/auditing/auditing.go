@@ -152,13 +152,22 @@ func buildInitialAuditAssignmentFromCoreOrder(
 }
 
 // (17.8) let n = (T − P ⋅ Ht) / A
-// GetTranchIndex computes tranche index from wall-clock time and block slot
+// GetTranchIndex computes tranche index from wall-clock time and block slot.
+//
+// GP §17.7 implies T ≥ P·Ht (a tranche cannot occur before its block's slot).
+// If a caller hands us a future slot anyway (clock skew, malformed header,
+// future-slot lookahead), the unguarded subtraction would underflow u64 to
+// a huge bogus tranche index. Clamp to 0 in that case so downstream
+// arithmetic stays sane.
 func GetTranchIndex() types.U64 {
 	T := types.U64(header.GetCurrentTimeInSecond())                                 // T current time (seconds)
 	Ht := types.U64(blockchain.GetInstance().GetProcessingBlockPointer().GetSlot()) // Ht slot number from block header
 	P := types.U64(types.SlotPeriod)                                                // P: seconds per slot
 	A := types.U64(types.TranchePeriod)                                             // A: seconds per tranche
-	n := (T - P*Ht) / A                                                             // n = (T - P ⋅ Ht) / A
+	if T < P*Ht {
+		return 0
+	}
+	n := (T - P*Ht) / A // n = (T - P ⋅ Ht) / A
 	return n
 }
 
@@ -376,12 +385,18 @@ func EvaluateReport(
 	return nil // ⊥ — evaluation failed
 }*/
 
-// (17.18) n = {Sκ[v]e (Xe(w) ⌢ H(w)) S (c, w) ∈ an}
+// (GP §17.17, v0.7.2; older revisions §17.18) jn = {S_κ[v]ᵉ ⟨Xe(w) ⌢ H(w)⟩ | (c, w) ∈ aₙ}
+//
+// Each judgment is signed with the validator's Ed25519 private key. The chain-state
+// entry Kappa[v].Ed25519 is the public key (Ed25519Public, 32B); passing it to
+// ed25519.Sign panics with "bad private key length: 32". The private key must
+// be supplied by the caller (same pattern as BuildAnnouncement).
 func BuildJudgements(
 	tranche types.U8,
 	auditReports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
 	validator_index types.ValidatorIndex,
+	validatorPrivKey ed25519.PrivateKey, // κ[v]ᵉ: Ed25519 private key
 ) []types.AuditReport {
 	for index, audit := range auditReports {
 		report := audit.Report
@@ -397,9 +412,8 @@ func BuildJudgements(
 		hashW := hashFunc(utilities.WorkReportSerialization(report)) // H(w)
 		context = append(context, hashW[:]...)                       // Xe(w) ⌢ H(w)
 
-		// Sign the message
-		validator_key := blockchain.GetInstance().GetPriorStates().GetKappa()[validator_index].Ed25519
-		signature := ed25519.Sign(validator_key[:], context)
+		// Sign context with validator Ed25519 private key: S_κ[v]ᵉ ⟨Xe ⌢ H(w)⟩
+		signature := ed25519.Sign(validatorPrivKey, context)
 		auditReports[index].Signature = types.Ed25519Signature(signature)
 	}
 
@@ -590,7 +604,7 @@ func SingleNodeAuditingAndPublish(
 	}
 	positiveJudgers = UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
 
-	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex)
+	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
 	allJudgments = append(allJudgments, signed...)
 	BroadcastAuditReport(signed)
 
@@ -631,7 +645,7 @@ func SingleNodeAuditingAndPublish(
 		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnn)
 
 		positiveJudgers = UpdatePositiveJudgersFromAudit(an, positiveJudgers)
-		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex)
+		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
 		allJudgments = append(allJudgments, signedAn...)
 		BroadcastAuditReport(signedAn)
 
