@@ -89,10 +89,13 @@ lint-fix:
 fmt:
 	go fmt ./...
 
+# Fuzz host dir (matches scripts/run_fuzz_target_docker.sh default bind-mount path on host).
+JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
+
 .PHONY: run-target
 run-target:
-	mkdir -p /tmp/jam_fuzz
-	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=/tmp/jam_fuzz/ JAM_FUZZ_SOCK_PATH=/tmp/jam_target.sock go run ./cmd/fuzz/
+	mkdir -p $(JAM_FUZZ_HOST_DIR)
+	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
 
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
 
