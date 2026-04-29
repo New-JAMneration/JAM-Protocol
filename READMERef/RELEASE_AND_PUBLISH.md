@@ -53,13 +53,13 @@ You can test against a running fuzz target using [minifuzz](https://github.com/d
 Start the binary with the same socket path Minifuzz will use (`JAM_FUZZ_SOCK_PATH` must match `--target-sock`), for example locally:
 
 ```bash
-make run-target   # listens on /tmp/jam_target.sock per Makefile env
+make run-target   # same host layout as fuzz-docker-run: .jam_fuzz_docker_run/fuzz.sock
 ```
 
 ```bash
-python minifuzz/minifuzz.py -d examples/v1/faulty --target-sock /tmp/jam_target.sock
-python minifuzz/minifuzz.py -d examples/v1/forks --target-sock /tmp/jam_target.sock
-python minifuzz/minifuzz.py -d examples/v1/no_forks --target-sock /tmp/jam_target.sock
+python minifuzz/minifuzz.py -d examples/v1/faulty --target-sock .jam_fuzz_docker_run/fuzz.sock
+python minifuzz/minifuzz.py -d examples/v1/forks --target-sock .jam_fuzz_docker_run/fuzz.sock
+python minifuzz/minifuzz.py -d examples/v1/no_forks --target-sock .jam_fuzz_docker_run/fuzz.sock
 ```
 
 Docker: after `make fuzz-docker-build`, use `scripts/run_fuzz_target_docker.sh` (host defaults to `<repo>/.jam_fuzz_docker_run`); point Minifuzz at `<host-mount>/fuzz.sock` (often `./.jam_fuzz_docker_run/fuzz.sock`).
