@@ -48,6 +48,14 @@ var (
 	}
 )
 
+const (
+	envFuzz         = "JAM_FUZZ"
+	envFuzzSpec     = "JAM_FUZZ_SPEC"
+	envFuzzDataPath = "JAM_FUZZ_DATA_PATH"
+	envFuzzSockPath = "JAM_FUZZ_SOCK_PATH"
+	envFuzzLogLevel = "JAM_FUZZ_LOG_LEVEL"
+)
+
 var (
 	GP_VERSION     string
 	TARGET_VERSION string
@@ -138,10 +146,6 @@ var (
 )
 
 func main() {
-	if len(os.Args) == 1 {
-		os.Args = append(os.Args, "--help")
-	}
-
 	cli.VersionPrinter = func(c *cli.Command) {
 		logger.Infof("[GP Version]: %s, [Target Version]: %s", GP_VERSION, TARGET_VERSION)
 	}
@@ -174,17 +178,57 @@ func main() {
 	}
 }
 
+func jamFuzzEnvEnabled() bool {
+	v := strings.TrimSpace(os.Getenv(envFuzz))
+	if v == "" {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
+}
+
 func serve(ctx context.Context, cmd *cli.Command) error {
-	socketAddr := cmd.StringArg(socketAddrArg.Name)
-	if socketAddr == "" {
-		return errors.New("serve requires a socket path argument")
+	if !jamFuzzEnvEnabled() {
+		return fmt.Errorf("fuzz server requires %s plus %s, %s, %s (see fuzz-proto README / docker -e)",
+			envFuzz, envFuzzSpec, envFuzzDataPath, envFuzzSockPath)
 	}
 
 	configPath := cmd.String(configPathFlag.Name)
-	mode := cmd.String(modeFlag.Name)
+
+	spec := strings.TrimSpace(os.Getenv(envFuzzSpec))
+	if spec == "" {
+		return errors.New(envFuzz + ": " + envFuzzSpec + " must be set (tiny or full)")
+	}
+	lowSpec := strings.ToLower(spec)
+	if lowSpec != "tiny" && lowSpec != "full" {
+		return fmt.Errorf("%s must be tiny or full, got %q", envFuzzSpec, spec)
+	}
+	mode := lowSpec
+
+	dataPath := strings.TrimSpace(os.Getenv(envFuzzDataPath))
+	if dataPath == "" {
+		return errors.New(envFuzz + ": " + envFuzzDataPath + " must be set")
+	}
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
+		return fmt.Errorf("failed to create fuzz data directory: %w", err)
+	}
+
+	socketAddr := strings.TrimSpace(os.Getenv(envFuzzSockPath))
+	if socketAddr == "" {
+		return errors.New(envFuzz + ": " + envFuzzSockPath + " must be set")
+	}
 
 	config.InitConfig(configPath, mode)
 	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
+	applyFuzzLogLevelOverride(strings.TrimSpace(os.Getenv(envFuzzLogLevel)))
+
+	if err := os.MkdirAll(filepath.Dir(socketAddr), 0o755); err != nil {
+		return fmt.Errorf("failed to create socket directory: %w", err)
+	}
 
 	server, err := fuzz.NewFuzzServer("unix", socketAddr)
 	if err != nil {
@@ -197,6 +241,26 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	return nil
+}
+
+func applyFuzzLogLevelOverride(logLevel string) {
+	if logLevel == "" {
+		return
+	}
+
+	config.Config.Log.Level = logLevel
+	logger.ConfigureLogger("main", logger.LoggerConfig{
+		Level:      logLevel,
+		Enabled:    config.Config.Log.Enabled,
+		Color:      config.Config.Log.Color,
+		TimeFormat: config.Config.Log.TimeFormat,
+	})
+	logger.ConfigureLogger("pvm", logger.LoggerConfig{
+		Level:      logLevel,
+		Enabled:    config.Config.Log.PVM,
+		Color:      config.Config.Log.Color,
+		TimeFormat: config.Config.Log.TimeFormat,
+	})
 }
 
 func handshake(ctx context.Context, cmd *cli.Command) error {
