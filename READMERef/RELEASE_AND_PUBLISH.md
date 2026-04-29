@@ -48,13 +48,21 @@ make run-release-target
 
 ### Test with minifuzz
 
-You can test the release binary with [minifuzz](https://github.com/davxy/jam-conformance/tree/main/fuzz-proto/minifuzz):
+You can test against a running fuzz target using [minifuzz](https://github.com/davxy/jam-conformance/tree/main/fuzz-proto/minifuzz).
+
+Start the binary with the same socket path Minifuzz will use (`JAM_FUZZ_SOCK_PATH` must match `--target-sock`), for example locally:
+
+```bash
+make run-target   # listens on /tmp/jam_target.sock per Makefile env
+```
 
 ```bash
 python minifuzz/minifuzz.py -d examples/v1/faulty --target-sock /tmp/jam_target.sock
 python minifuzz/minifuzz.py -d examples/v1/forks --target-sock /tmp/jam_target.sock
 python minifuzz/minifuzz.py -d examples/v1/no_forks --target-sock /tmp/jam_target.sock
 ```
+
+Docker: after `make fuzz-docker-build`, use `scripts/run_fuzz_target_docker.sh` (host defaults to `<repo>/.jam_fuzz_docker_run`); point Minifuzz at `<host-mount>/fuzz.sock` (often `./.jam_fuzz_docker_run/fuzz.sock`).
 
 ## Create a release tag
 
@@ -93,22 +101,21 @@ new-jamneration-target-<OS>-<ARCH>-<GP_VERSION>.<EXT>
 We will need to update the `GP_VERSION` when we have a stable release for a new version of Graypaper.  
 Otherwise, we will only update the `TARGET_VERSION` for minor changes.
 
-## Submit the release to jam-conformance
+## Submit the target to jam-conformance
 
 The [issue](https://github.com/davxy/jam-conformance/issues/123) is for discussing the submission of a new release to jam-conformance.
 If davxy identifies any issues in our release, we will need to address them and create a new release.  
 When submitting a new Graypaper version, update the `targets.json` file in the [our jam-conformance repository](https://github.com/New-JAMneration/jam-conformance).  
 Open a pull request and wait for davxy to merge it.
 
-For example, to submit the `0.7.1` release, we will need to update the `targets.json` file as follows:
+The fuzz target listens on Unix socket via **environment variables** (`JAM_FUZZ`, `JAM_FUZZ_SPEC`, `JAM_FUZZ_DATA_PATH`, `JAM_FUZZ_SOCK_PATH`; see fuzz-proto README in jam-conformance). The published **Docker image** sets these defaults in its `Dockerfile`, so **`cmd`/`args` are not required** in `targets.json` (upstream also documents image-only submissions this way).
+
+For example, update `targets.json` as follows:
 
 ```json
-"new_jamneration": {
-  "repo": "New-JAMneration/new-jamneration-release",
-  "file": "new-jamneration-target-linux-amd64-0.7.1.tar.gz",
-  "cmd": "new-jamneration-target {TARGET_SOCK}",
-  "env": "export USE_MINI_REDIS=true",
-  "gp_version": "0.7.1"
+"new-jamneration": {
+  "image": "ghcr.io/new-jamneration/new-jamneration-target:latest",
+  "gp_version": "0.7.2"
 }
 ```
 
@@ -117,7 +124,7 @@ For example, to submit the `0.7.1` release, we will need to update the `targets.
 ```bash
 # DIR: jam-conformance
 cd scripts
-# Download the new target from our release repository
+# Pull the Docker image
 python target.py get new_jamneration
 # Run the new target to verify it works correctly
 python target.py run --no-docker new_jamneration

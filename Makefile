@@ -23,13 +23,11 @@ format ?= binary
 test-jam-test-vectors:
 	@if [ -n "$(mode)" ]; then \
 	    echo "Testing $(mode) (size=$(size), type=$(type), format=$(format))..."; \
-	    export USE_MINI_REDIS=true; \
 	    go run ./cmd/node test --mode $(mode) --size $(size) --type $(type) --format $(format); \
 	else \
 		MODES="safrole assurances preimages disputes history accumulate authorizations statistics reports"; \
 		for m in $$MODES; do \
 			echo "Testing $$m (size=$(size))..."; \
-			export USE_MINI_REDIS=true; \
 			go run ./cmd/node test --mode "$$m" --size "$(size)" --type "$(type)" --format "$(format)"; \
 			echo ""; \
 		done; \
@@ -39,12 +37,12 @@ test-jam-test-vectors:
 test-jam-test-vectors-trace:
 	@if [ -n "$(mode)" ]; then \
 		echo "Testing trace $(mode)..."; \
-		export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+		go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
 		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
 			echo "Testing trace $$mode..."; \
-			export USE_MINI_REDIS=true; go run ./cmd/node test --type "trace" --mode "$$mode"; \
+			go run ./cmd/node test --type "trace" --mode "$$mode"; \
 			echo ""; \
 		done; \
 	fi
@@ -56,7 +54,7 @@ test-jam-test-vectors-trace:
 test-timing-jam-test-vectors-trace:
 	@if [ -n "$(mode)" ]; then \
 		echo "Testing trace $(mode) with timing..."; \
-		TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+		TIMING=1 go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
 		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
@@ -64,7 +62,7 @@ test-timing-jam-test-vectors-trace:
 			echo "========================================"; \
 			echo "Testing trace $$mode with timing..."; \
 			echo "========================================"; \
-			TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$$mode"; \
+			TIMING=1 go run ./cmd/node test --type "trace" --mode "$$mode"; \
 		done; \
 	fi
 
@@ -77,7 +75,7 @@ test-benchmark-trace:
 		exit 1; \
 	fi
 	@echo "Running benchmark for trace $(mode) (5 runs)..."
-	TIMING=1 USE_MINI_REDIS=true go run ./cmd/node test --type "trace" --mode "$(mode)" --benchmark 5
+	TIMING=1 go run ./cmd/node test --type "trace" --mode "$(mode)" --benchmark 5
 
 .PHONY: lint
 lint:
@@ -93,8 +91,23 @@ fmt:
 
 .PHONY: run-target
 run-target:
-	export USE_MINI_REDIS=true; \
-	go run ./cmd/fuzz/ /tmp/jam_target.sock
+	mkdir -p /tmp/jam_fuzz
+	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=/tmp/jam_fuzz/ JAM_FUZZ_SOCK_PATH=/tmp/jam_target.sock go run ./cmd/fuzz/
+
+JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
+
+.PHONY: fuzz-docker-build
+fuzz-docker-build:
+	docker build \
+		--build-arg GP_VERSION=$(VERSION_GP) \
+		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
+		--build-arg OUTPUT=new-jamneration-target \
+		-t $(JAM_FUZZ_IMAGE) \
+		-f docker/Dockerfile .
+
+.PHONY: fuzz-docker-run
+fuzz-docker-run:
+	bash scripts/run_fuzz_target_docker.sh
 
 # The command build the target binary locally
 # For release builds, use `make release-target` instead

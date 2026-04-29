@@ -39,6 +39,9 @@ node_modules/
 
 .idea
 
+# fuzz target docker bind-mount (fuzz.sock / cache); see scripts/run_fuzz_target_docker.sh
+.jam_fuzz_docker_run/
+
 # build
 build/
 

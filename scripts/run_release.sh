@@ -4,4 +4,5 @@ docker run \
   --rm \
   -u $(id -u):$(id -g) \
   -v /tmp:/tmp \
-  new-jamneration-target /tmp/jam_target.sock
+  -e JAM_FUZZ_SOCK_PATH=/tmp/jam_target.sock \
+  new-jamneration-target
