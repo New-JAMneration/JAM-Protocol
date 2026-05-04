@@ -8,6 +8,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/telemetry"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
@@ -46,6 +47,12 @@ var cmd = &cli.Command{
 			Destination: &chainPath,
 			// example cmd line: --chain cmd/node/test_data/dev.chainspec.json
 		},
+		&cli.StringFlag{
+			Name:        "telemetry",
+			Usage:       "JIP-3 telemetry endpoint host:port (e.g. 127.0.0.1:9000); empty = disabled",
+			Value:       "",
+			Destination: &telemetryEndpoint,
+		},
 	},
 	Commands: []*cli.Command{
 		exampleCmd,
@@ -54,9 +61,10 @@ var cmd = &cli.Command{
 }
 
 var (
-	configPath string
-	chainPath  string
-	mode       string
+	configPath        string
+	chainPath         string
+	mode              string
+	telemetryEndpoint string
 )
 
 func init() {
@@ -71,6 +79,29 @@ func init() {
 
 func node(ctx context.Context, cmd *cli.Command) error {
 	config.InitConfig(configPath, mode)
+
+	// JIP-3 telemetry. Empty --telemetry endpoint disables (no-op client).
+	// TODO(jip3-main-loop): once cmd/node has a main loop (Q1 in the #775
+	// planning comment), the client will live for the node's lifetime;
+	// today node() returns immediately after setup, so the connection
+	// only has CloseTimeout (5s) to send Node Info before the client is
+	// torn down. Fine for foundation PR validation.
+	tel, err := telemetry.New(telemetry.Config{
+		Endpoint: telemetryEndpoint,
+		NodeInfo: telemetry.NodeInfo{
+			ImplName:     "JAMneration",
+			ImplVersion:  AppVersion,
+			GrayPaperVer: "0.7.2",
+		},
+	})
+	if err != nil {
+		log.Fatalf("telemetry init: %v", err)
+	}
+	defer tel.Close()
+	if telemetryEndpoint != "" {
+		log.Printf("📡 Telemetry endpoint: %s", telemetryEndpoint)
+	}
+
 	SetupJAMProtocol(chainPath)
 	return nil
 }
