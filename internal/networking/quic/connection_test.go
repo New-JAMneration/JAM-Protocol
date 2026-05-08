@@ -8,7 +8,19 @@ import (
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+func setupTestGenesisConn(t *testing.T) func() {
+	t.Helper()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
+	genesis := types.Block{Header: types.Header{Slot: 0}, Extrinsic: types.Extrinsic{}}
+	if err := cs.GenerateGenesisBlock(genesis); err != nil {
+		t.Fatalf("Failed to setup genesis: %v", err)
+	}
+	return func() { blockchain.ResetInstance() }
+}
 
 func TestConnectionDialAndClose(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -16,6 +28,8 @@ func TestConnectionDialAndClose(t *testing.T) {
 
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
 	defer blockchain.CloseMiniRedis()
+	cleanup := setupTestGenesisConn(t)
+	defer cleanup()
 
 	listenAddr := "localhost:0"
 	quicCfg := NewQuicConfig()

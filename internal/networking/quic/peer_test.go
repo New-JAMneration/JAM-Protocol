@@ -11,9 +11,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+func setupTestGenesisPeer(t *testing.T) func() {
+	t.Helper()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
+	genesis := types.Block{Header: types.Header{Slot: 0}, Extrinsic: types.Extrinsic{}}
+	if err := cs.GenerateGenesisBlock(genesis); err != nil {
+		t.Fatalf("Failed to setup genesis: %v", err)
+	}
+	return func() { blockchain.ResetInstance() }
+}
 
 type mockUPHandler struct {
 	encodeFunc func(kind string, message interface{}) ([]byte, error)
@@ -59,6 +71,8 @@ func createTestPeerConfig(role PeerRole) PeerConfig {
 func TestNewPeer(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
+	cleanup := setupTestGenesisPeer(t)
+	defer cleanup()
 
 	tests := []struct {
 		name    string
@@ -118,6 +132,8 @@ func TestNewPeer(t *testing.T) {
 func TestPeerConnect(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
+	cleanup := setupTestGenesisPeer(t)
+	defer cleanup()
 
 	config := createTestPeerConfig(Validator)
 	peer, err := NewPeer(config)
@@ -197,6 +213,8 @@ func TestPeerConnect(t *testing.T) {
 func TestPeerBroadcast(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
+	cleanup := setupTestGenesisPeer(t)
+	defer cleanup()
 
 	encodeCalled := false
 	encodeFunc := func(kind string, message interface{}) ([]byte, error) {
