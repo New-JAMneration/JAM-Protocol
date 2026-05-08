@@ -11,12 +11,15 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"net"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
-	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+)
+
+const (
+	ALPNProtocolName    = "jamnp-s"
+	ALPNProtocolVersion = "0"
 )
 
 // Ed25519KeyGen generates a new Ed25519 key pair from 32byte seed
@@ -107,8 +110,7 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:              []string{dnsName},
-		SignatureAlgorithm:    x509.PureEd25519,                                       // Use Ed25519 signature algorithm
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}, // localhost IPv4 and IPv6
+		SignatureAlgorithm:    x509.PureEd25519, // Use Ed25519 signature algorithm
 		BasicConstraintsValid: true,
 	}
 
@@ -157,39 +159,44 @@ func SelfSignedCertGen(sk ed25519.PrivateKey, pk ed25519.PublicKey) (tls.Certifi
 // ALPNGen generates an ALPN string based on a genesis header and builder flag
 // Example outputs: "jamnp-s/0/H" or "jamnp-s/0/H/builder"
 func ALPNGen(isBuilder bool) ([]string, error) {
-	cs := blockchain.GetInstance()
-	genesisBlock, err := cs.GetGenesisBlockMaybe()
-	if err != nil || genesisBlock == nil {
-		// In some test / bootstrap scenarios the chain state may not have a persisted genesis yet.
-		// Fall back to a stable placeholder so both sides can still negotiate ALPN.
-		hashHex := "00000000"
-		baseALPN := "jamnp-s/0/" + hashHex
-		if isBuilder {
-			return []string{baseALPN + "/builder"}, nil
-		}
-		return []string{baseALPN}, nil
-	}
-
-	// Get first 4 bytes (8 nibbles) of the genesis header hash
-	genesisBlockHeaderHash, err := utils.HeaderSerialization(genesisBlock.Header)
+	hashHex, err := genesisHeaderHashPrefixHex(blockchain.GetInstance())
 	if err != nil {
-		return nil, fmt.Errorf("error serializing genesis block header: %v", err)
+		return nil, err
 	}
-	genesisBlockHeaderHash = hash.Blake2bHashPartial(genesisBlockHeaderHash, 4)
+	return alpnFromGenesisHashPrefix(hashHex, isBuilder), nil
+}
 
-	// Convert to lowercase hexadecimal string
-	hashHex := hex.EncodeToString(genesisBlockHeaderHash)
-
-	// Currently Version is set to 0
-	baseALPN := "jamnp-s/0/" + hashHex
-
-	nextProtos := []string{baseALPN}
+func alpnFromGenesisHashPrefix(hashHex string, isBuilder bool) []string {
+	baseALPN := ALPNProtocolName + "/" + ALPNProtocolVersion + "/" + hashHex
 	if isBuilder {
-		builderALPN := baseALPN + "/builder"
-		nextProtos = []string{builderALPN}
+		return []string{baseALPN + "/builder"}
+	}
+	return []string{baseALPN}
+}
+
+func genesisHeaderHashPrefixHex(cs *blockchain.ChainState) (string, error) {
+	// Priority 1: Try canonical genesis from blockchain storage
+	genesisBlock, err := cs.GetGenesisBlockMaybe()
+	if err == nil && genesisBlock != nil {
+		genesisBlockHeaderHash, err := hash.ComputeBlockHeaderHash(genesisBlock.Header)
+		if err != nil {
+			return "", fmt.Errorf("compute genesis header hash: %w", err)
+		}
+		return hex.EncodeToString(genesisBlockHeaderHash[:4]), nil
 	}
 
-	return nextProtos, nil
+	// Priority 2: Try in-memory block list (bootstrap/test paths)
+	// Validate that the first block is actually genesis (slot == 0)
+	blocks := cs.GetBlocks()
+	if len(blocks) > 0 && blocks[0].Header.Slot == 0 {
+		genesisBlockHeaderHash, err := hash.ComputeBlockHeaderHash(blocks[0].Header)
+		if err != nil {
+			return "", fmt.Errorf("compute genesis header hash from blocks[0]: %w", err)
+		}
+		return hex.EncodeToString(genesisBlockHeaderHash[:4]), nil
+	}
+
+	return "", errors.New("genesis block not found: chain state must have genesis before generating ALPN")
 }
 
 // generateTLSCertificate is a helper function that generates Ed25519 key pair and self-signed certificate
@@ -207,6 +214,20 @@ func generateTLSCertificate(seed []byte) (tls.Certificate, error) {
 	return selfSignedCert, nil
 }
 
+func verifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+	if len(rawCerts) == 0 {
+		return errors.New("peer certificate verification failed: no certificate provided")
+	}
+	cert, err := x509.ParseCertificate(rawCerts[0])
+	if err != nil {
+		return fmt.Errorf("peer certificate verification failed: %w", err)
+	}
+	if err := ValidateX509Certificate(cert); err != nil {
+		return fmt.Errorf("peer certificate verification failed: %w", err)
+	}
+	return nil
+}
+
 // serverTLSConfigFromCert builds a server-side tls.Config from a pre-generated certificate.
 func serverTLSConfigFromCert(selfSignedCert tls.Certificate) (*tls.Config, error) {
 	// The /builder suffix should always be permitted by the side accepting the connection (server)
@@ -221,23 +242,13 @@ func serverTLSConfigFromCert(selfSignedCert tls.Certificate) (*tls.Config, error
 	}
 
 	return &tls.Config{
-		Certificates: []tls.Certificate{selfSignedCert},
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			if len(rawCerts) == 0 {
-				return errors.New("no certificate provided")
-			}
-			cert, err := x509.ParseCertificate(rawCerts[0])
-			if err != nil {
-				return err
-			}
-			log.Printf("peer certificate subject!")
-			return ValidateX509Certificate(cert)
-		},
-		MinVersion:       tls.VersionTLS13,
-		MaxVersion:       tls.VersionTLS13,
-		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
-		NextProtos:       append(builderALPN, baseALPN...),
-		ClientAuth:       tls.RequireAnyClientCert,
+		Certificates:          []tls.Certificate{selfSignedCert},
+		VerifyPeerCertificate: verifyPeerCertificate,
+		MinVersion:            tls.VersionTLS13,
+		MaxVersion:            tls.VersionTLS13,
+		CurvePreferences:      []tls.CurveID{tls.X25519, tls.CurveP256},
+		NextProtos:            append(builderALPN, baseALPN...),
+		ClientAuth:            tls.RequireAnyClientCert,
 		VerifyConnection: func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
 				log.Printf("peer did not present any certificates")
@@ -265,22 +276,13 @@ func clientTLSConfigFromCert(selfSignedCert tls.Certificate, isBuilder bool) (*t
 	}
 
 	return &tls.Config{
-		Certificates: []tls.Certificate{selfSignedCert},
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			if len(rawCerts) == 0 {
-				return errors.New("no certificate provided")
-			}
-			cert, err := x509.ParseCertificate(rawCerts[0])
-			if err != nil {
-				return err
-			}
-			log.Printf("peer certificate subject!")
-			return ValidateX509Certificate(cert)
-		},
-		MinVersion:       tls.VersionTLS13,
-		MaxVersion:       tls.VersionTLS13,
-		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
-		NextProtos:       clientALPN,
+		Certificates:          []tls.Certificate{selfSignedCert},
+		InsecureSkipVerify:    true,
+		VerifyPeerCertificate: verifyPeerCertificate,
+		MinVersion:            tls.VersionTLS13,
+		MaxVersion:            tls.VersionTLS13,
+		CurvePreferences:      []tls.CurveID{tls.X25519, tls.CurveP256},
+		NextProtos:            clientALPN,
 	}, nil
 }
 

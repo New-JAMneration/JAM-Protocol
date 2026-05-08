@@ -11,10 +11,22 @@ import (
 	"os"
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
+
+func setupTestGenesisCE129(t *testing.T) func() {
+	t.Helper()
+	blockchain.ResetInstance()
+	cs := blockchain.GetInstance()
+	genesis := types.Block{Header: types.Header{Slot: 0}, Extrinsic: types.Extrinsic{}}
+	if err := cs.GenerateGenesisBlock(genesis); err != nil {
+		t.Fatalf("Failed to setup genesis: %v", err)
+	}
+	return func() { blockchain.ResetInstance() }
+}
 
 // TestHandleStateRequest tests the HandleStateRequest function directly
 func TestHandleStateRequest(t *testing.T) {
@@ -102,6 +114,8 @@ func TestHandleStateRequest(t *testing.T) {
 func TestCE129RequestWithPeer(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true")
 	defer store.CloseMiniRedis()
+	cleanup := setupTestGenesisCE129(t)
+	defer cleanup()
 
 	fakeBC := SetupFakeBlockchain()
 

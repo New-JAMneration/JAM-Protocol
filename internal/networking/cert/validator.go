@@ -8,6 +8,8 @@ import (
 	"fmt"
 )
 
+const AlternativeNameLength = 53
+
 // The certificate uses Ed25519 as the signature algorithm.
 func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	if cert.SignatureAlgorithm != x509.PureEd25519 {
@@ -17,14 +19,19 @@ func ValidateX509SignatureAlgorithm(cert x509.Certificate) error {
 	return nil
 }
 
-// The SAN is exactly 53 characters, starting with "e" followed by a base32 encoded string (using the specified alphabet).
+// The SAN must contain exactly one Ed25519 alternative name and no IP SANs.
 func ValidateX509DNSNames(cert x509.Certificate) error {
 	dnsNames := cert.DNSNames
+	if len(dnsNames) != 1 {
+		return fmt.Errorf("expected exactly one DNS alternative name, got %d: %v", len(dnsNames), dnsNames)
+	}
+	if len(cert.IPAddresses) != 0 {
+		return fmt.Errorf("unexpected IP alternative names: %v", cert.IPAddresses)
+	}
 
-	for _, dnsName := range dnsNames {
-		if len(dnsName) != 53 || dnsName[0] != 'e' {
-			return fmt.Errorf("invalid DNS name: %v", dnsName)
-		}
+	dnsName := dnsNames[0]
+	if len(dnsName) != AlternativeNameLength || dnsName[0] != 'e' {
+		return fmt.Errorf("invalid DNS name format: got %q (length=%d), expected 53 chars starting with 'e'", dnsName, len(dnsName))
 	}
 
 	return nil
@@ -41,11 +48,12 @@ func ValidateX509PubKeyMatchesSAN(cert x509.Certificate) error {
 	expectedEncodedPubKey := AlternativeName(pkEd25519)
 
 	dnsNames := cert.DNSNames
+	if len(dnsNames) != 1 {
+		return fmt.Errorf("expected exactly one DNS alternative name, got %d: %v", len(dnsNames), dnsNames)
+	}
 
-	for _, dnsName := range dnsNames {
-		if dnsName != expectedEncodedPubKey {
-			return fmt.Errorf("invalid DNS name: %v", dnsName)
-		}
+	if dnsNames[0] != expectedEncodedPubKey {
+		return fmt.Errorf("DNS SAN does not match public key: got %q, expected %q", dnsNames[0], expectedEncodedPubKey)
 	}
 
 	return nil
