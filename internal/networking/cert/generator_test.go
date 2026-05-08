@@ -1,17 +1,23 @@
 package cert
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/quic-go/quic-go"
+	"github.com/stretchr/testify/require"
 )
 
 func strToHex(str string) []byte {
@@ -20,6 +26,28 @@ func strToHex(str string) []byte {
 		panic(err)
 	}
 	return hexStr
+}
+
+// setupTestGenesis initializes a genesis block in the blockchain instance for tests
+// that require ALPN generation. Returns cleanup function and computed genesis hash prefix.
+func setupTestGenesis(t *testing.T) (cleanup func(), hashPrefix string) {
+	t.Helper()
+	blockchain.ResetInstance()
+
+	cs := blockchain.GetInstance()
+	genesis := types.Block{
+		Header: types.Header{
+			Slot: 0,
+		},
+		Extrinsic: types.Extrinsic{},
+	}
+	require.NoError(t, cs.GenerateGenesisBlock(genesis))
+
+	genesisHash, err := hash.ComputeBlockHeaderHash(genesis.Header)
+	require.NoError(t, err)
+	prefix := hex.EncodeToString(genesisHash[:4])
+
+	return func() { blockchain.ResetInstance() }, prefix
 }
 
 func TestGenerateEd25519PrivateKey(t *testing.T) {
@@ -65,16 +93,13 @@ func TestGenerateEd25519PrivateKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotPriv, gotPub, err := Ed25519KeyGen(tt.seed)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateEd25519Key() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if !reflect.DeepEqual(gotPriv[:32], tt.wantPriv) {
-				t.Errorf("gotPriv = %v, \nwant %v", gotPriv[:32], tt.wantPriv)
-			}
-			if !reflect.DeepEqual(gotPub, tt.wantPub) {
-				t.Errorf("gotPub = %v, \nwant %v", gotPub, tt.wantPub)
-			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantPriv, gotPriv[:32])
+			require.Equal(t, tt.wantPub, gotPub)
 		})
 	}
 }
@@ -135,9 +160,7 @@ func TestAlternativeName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := AlternativeName(tt.args.data); got != tt.want {
-				t.Errorf("EncodeBase32() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, AlternativeName(tt.args.data))
 		})
 	}
 }
@@ -145,14 +168,10 @@ func TestAlternativeName(t *testing.T) {
 func TestSelfSignedCertGen(t *testing.T) {
 	// Generate keys for testing
 	privKey1, pubKey1, err := Ed25519KeyGen(strToHex("0x0000000000000000000000000000000000000000000000000000000000000000"))
-	if err != nil {
-		t.Fatalf("Failed to generate test keys: %v", err)
-	}
+	require.NoError(t, err)
 
 	privKey2, _, err := Ed25519KeyGen(strToHex("0x0100000001000000010000000100000001000000010000000100000001000000"))
-	if err != nil {
-		t.Fatalf("Failed to generate test keys: %v", err)
-	}
+	require.NoError(t, err)
 
 	type args struct {
 		sk ed25519.PrivateKey
@@ -172,12 +191,8 @@ func TestSelfSignedCertGen(t *testing.T) {
 			},
 			wantErr: false,
 			check: func(t *testing.T, cert tls.Certificate) {
-				if len(cert.Certificate) == 0 {
-					t.Error("Expected certificate chain to have at least one certificate")
-				}
-				if cert.PrivateKey == nil {
-					t.Error("Expected private key to not be nil")
-				}
+				require.NotEmpty(t, cert.Certificate)
+				require.NotNil(t, cert.PrivateKey)
 			},
 		},
 		{
@@ -188,12 +203,8 @@ func TestSelfSignedCertGen(t *testing.T) {
 			},
 			wantErr: false,
 			check: func(t *testing.T, cert tls.Certificate) {
-				if len(cert.Certificate) == 0 {
-					t.Error("Expected certificate chain to have at least one certificate")
-				}
-				if cert.PrivateKey == nil {
-					t.Error("Expected private key to not be nil")
-				}
+				require.NotEmpty(t, cert.Certificate)
+				require.NotNil(t, cert.PrivateKey)
 			},
 		},
 		{
@@ -211,20 +222,14 @@ func TestSelfSignedCertGen(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := SelfSignedCertGen(tt.args.sk, tt.args.pk)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SelfSignedCertGen() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
+			require.NoError(t, err)
 
-			if !tt.wantErr {
-				tt.check(t, got)
-
-				// Validate the generated certificate
-				err = ValidateTlsCertificate(got)
-				if err != nil {
-					t.Errorf("Generated certificate failed validation: %v", err)
-				}
-			}
+			tt.check(t, got)
+			require.NoError(t, ValidateTlsCertificate(got))
 		})
 	}
 }
@@ -233,6 +238,9 @@ func TestTLSConfigGen(t *testing.T) {
 	os.Setenv("USE_MINI_REDIS", "true") // Set environment variable to enable test mode
 	defer os.Unsetenv("USE_MINI_REDIS") // Cleanup after test
 	defer blockchain.CloseMiniRedis()
+
+	cleanup, _ := setupTestGenesis(t)
+	defer cleanup()
 
 	tests := []struct {
 		name      string
@@ -249,39 +257,17 @@ func TestTLSConfigGen(t *testing.T) {
 			isBuilder: false,
 			wantErr:   false,
 			checkFunc: func(t *testing.T, config *tls.Config) {
-				if config == nil {
-					t.Error("Expected non-nil TLS config")
-					return
-				}
+				require.NotNil(t, config)
 
 				// Client config checks
-				if len(config.Certificates) != 1 {
-					t.Error("Expected exactly one certificate")
-				}
-
-				if config.ClientAuth != 0 {
-					t.Error("Expected no client auth for client config")
-				}
-
-				if config.VerifyConnection != nil {
-					t.Error("VerifyConnection should be nil for client config")
-				}
-
-				if config.MinVersion != tls.VersionTLS13 || config.MaxVersion != tls.VersionTLS13 {
-					t.Error("Expected TLS 1.3 version")
-				}
-
-				if len(config.CurvePreferences) != 2 {
-					t.Error("Expected 2 curve preferences")
-				}
-
-				if len(config.NextProtos) == 0 {
-					t.Error("Expected at least one ALPN protocol")
-				}
-
-				if config.VerifyPeerCertificate == nil {
-					t.Error("Expected VerifyPeerCertificate to be set")
-				}
+				require.Len(t, config.Certificates, 1)
+				require.Equal(t, tls.ClientAuthType(0), config.ClientAuth)
+				require.Nil(t, config.VerifyConnection)
+				require.Equal(t, uint16(tls.VersionTLS13), config.MinVersion)
+				require.Equal(t, uint16(tls.VersionTLS13), config.MaxVersion)
+				require.Len(t, config.CurvePreferences, 2)
+				require.NotEmpty(t, config.NextProtos)
+				require.NotNil(t, config.VerifyPeerCertificate)
 			},
 		},
 		{
@@ -291,35 +277,16 @@ func TestTLSConfigGen(t *testing.T) {
 			isBuilder: false,
 			wantErr:   false,
 			checkFunc: func(t *testing.T, config *tls.Config) {
-				if config == nil {
-					t.Error("Expected non-nil TLS config")
-					return
-				}
+				require.NotNil(t, config)
 
 				// Server config checks
-				if len(config.Certificates) != 1 {
-					t.Error("Expected exactly one certificate")
-				}
-
-				if config.ClientAuth != tls.RequireAnyClientCert {
-					t.Error("Expected RequireAnyClientCert for server config")
-				}
-
-				if config.VerifyConnection == nil {
-					t.Error("VerifyConnection should not be nil for server config")
-				}
-
-				if config.MinVersion != tls.VersionTLS13 || config.MaxVersion != tls.VersionTLS13 {
-					t.Error("Expected TLS 1.3 version")
-				}
-
-				if len(config.CurvePreferences) != 2 {
-					t.Error("Expected 2 curve preferences")
-				}
-
-				if len(config.NextProtos) == 0 {
-					t.Error("Expected at least one ALPN protocol")
-				}
+				require.Len(t, config.Certificates, 1)
+				require.Equal(t, tls.RequireAnyClientCert, config.ClientAuth)
+				require.NotNil(t, config.VerifyConnection)
+				require.Equal(t, uint16(tls.VersionTLS13), config.MinVersion)
+				require.Equal(t, uint16(tls.VersionTLS13), config.MaxVersion)
+				require.Len(t, config.CurvePreferences, 2)
+				require.NotEmpty(t, config.NextProtos)
 			},
 		},
 		{
@@ -329,22 +296,10 @@ func TestTLSConfigGen(t *testing.T) {
 			isBuilder: true,
 			wantErr:   false,
 			checkFunc: func(t *testing.T, config *tls.Config) {
-				if config == nil {
-					t.Error("Expected non-nil TLS config")
-					return
-				}
-
-				if len(config.Certificates) != 1 {
-					t.Error("Expected exactly one certificate")
-				}
-
-				if config.ClientAuth != 0 {
-					t.Error("Expected no client auth for client config")
-				}
-
-				if config.VerifyConnection != nil {
-					t.Error("VerifyConnection should be nil for client config")
-				}
+				require.NotNil(t, config)
+				require.Len(t, config.Certificates, 1)
+				require.Equal(t, tls.ClientAuthType(0), config.ClientAuth)
+				require.Nil(t, config.VerifyConnection)
 
 				builderProtoFound := false
 				for _, proto := range config.NextProtos {
@@ -353,9 +308,7 @@ func TestTLSConfigGen(t *testing.T) {
 						break
 					}
 				}
-				if !builderProtoFound {
-					t.Error("Expected to find builder-specific protocol")
-				}
+				require.True(t, builderProtoFound)
 			},
 		},
 		{
@@ -365,23 +318,12 @@ func TestTLSConfigGen(t *testing.T) {
 			isBuilder: true,
 			wantErr:   false,
 			checkFunc: func(t *testing.T, config *tls.Config) {
-				if config == nil {
-					t.Error("Expected non-nil TLS config")
-					return
-				}
+				require.NotNil(t, config)
 
 				// Builder server config checks
-				if len(config.Certificates) != 1 {
-					t.Error("Expected exactly one certificate")
-				}
-
-				if config.ClientAuth != tls.RequireAnyClientCert {
-					t.Error("Expected RequireAnyClientCert for server config")
-				}
-
-				if config.VerifyConnection == nil {
-					t.Error("VerifyConnection should not be nil for server config")
-				}
+				require.Len(t, config.Certificates, 1)
+				require.Equal(t, tls.RequireAnyClientCert, config.ClientAuth)
+				require.NotNil(t, config.VerifyConnection)
 
 				// Check for builder-specific protocol in NextProtos
 				builderProtoFound := false
@@ -391,9 +333,7 @@ func TestTLSConfigGen(t *testing.T) {
 						break
 					}
 				}
-				if !builderProtoFound {
-					t.Error("Expected to find builder-specific protocol")
-				}
+				require.True(t, builderProtoFound)
 			},
 		},
 		{
@@ -410,18 +350,12 @@ func TestTLSConfigGen(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := TLSConfigGen(tt.seed, tt.isServer, tt.isBuilder)
 
-			// Check error condition
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TLSConfigGen() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			// Skip additional checks if we expected an error
 			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
+			require.NoError(t, err)
 
-			// Run specific checks for this test case
 			if tt.checkFunc != nil {
 				tt.checkFunc(t, got)
 			}
@@ -430,32 +364,124 @@ func TestTLSConfigGen(t *testing.T) {
 }
 
 func TestTLSConfigFromPrivateKey_leafPublicKeyMatches(t *testing.T) {
+	cleanup, _ := setupTestGenesis(t)
+	defer cleanup()
+
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	wantPub := priv.Public().(ed25519.PublicKey)
 
 	for _, isServer := range []bool{true, false} {
 		for _, isBuilder := range []bool{false, true} {
 			cfg, err := TLSConfigFromPrivateKey(priv, isServer, isBuilder)
-			if err != nil {
-				t.Fatalf("TLSConfigFromPrivateKey(server=%v builder=%v): %v", isServer, isBuilder, err)
-			}
-			if len(cfg.Certificates) != 1 {
-				t.Fatalf("expected one certificate, got %d", len(cfg.Certificates))
-			}
+			require.NoError(t, err, "TLSConfigFromPrivateKey(server=%v builder=%v)", isServer, isBuilder)
+			require.Len(t, cfg.Certificates, 1)
+
 			leaf, err := x509.ParseCertificate(cfg.Certificates[0].Certificate[0])
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
+
 			gotPub, ok := leaf.PublicKey.(ed25519.PublicKey)
-			if !ok {
-				t.Fatal("leaf public key is not Ed25519")
-			}
-			if !wantPub.Equal(gotPub) {
-				t.Fatalf("leaf public key mismatch (server=%v builder=%v)", isServer, isBuilder)
-			}
+			require.True(t, ok)
+			require.True(t, wantPub.Equal(gotPub), "leaf public key mismatch (server=%v builder=%v)", isServer, isBuilder)
 		}
 	}
+}
+
+func TestALPNFromGenesisHashPrefix(t *testing.T) {
+	base := alpnFromGenesisHashPrefix("11223344", false)
+	require.Equal(t, []string{"jamnp-s/0/11223344"}, base)
+
+	builder := alpnFromGenesisHashPrefix("11223344", true)
+	require.Equal(t, []string{"jamnp-s/0/11223344/builder"}, builder)
+}
+
+func TestALPNGenUsesGenesisHeaderHashPrefix(t *testing.T) {
+	cleanup, prefix := setupTestGenesis(t)
+	defer cleanup()
+
+	base, err := ALPNGen(false)
+	require.NoError(t, err)
+	expectedBase := fmt.Sprintf("jamnp-s/0/%s", prefix)
+	require.Equal(t, []string{expectedBase}, base)
+	require.True(t, strings.HasPrefix(base[0], "jamnp-s/0/"), "ALPN should start with jamnp-s/0/")
+	require.Len(t, prefix, 8, "genesis hash prefix should be 8 hex chars (4 bytes)")
+
+	builder, err := ALPNGen(true)
+	require.NoError(t, err)
+	expectedBuilder := fmt.Sprintf("jamnp-s/0/%s/builder", prefix)
+	require.Equal(t, []string{expectedBuilder}, builder)
+	require.True(t, strings.HasSuffix(builder[0], "/builder"), "builder ALPN should end with /builder")
+}
+
+func TestMutualAuthenticatedQUICWithFixedEd25519Keys(t *testing.T) {
+	cleanup, hashPrefix := setupTestGenesis(t)
+	defer cleanup()
+
+	_, serverPriv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	_, clientPriv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	serverTLS, err := TLSConfigFromPrivateKey(serverPriv, true, false)
+	require.NoError(t, err)
+
+	clientTLS, err := TLSConfigFromPrivateKey(clientPriv, false, false)
+	require.NoError(t, err)
+
+	quicCfg := &quic.Config{
+		HandshakeIdleTimeout: 5 * time.Second,
+		MaxIdleTimeout:       5 * time.Second,
+	}
+	ln, err := quic.ListenAddr("127.0.0.1:0", serverTLS, quicCfg)
+	require.NoError(t, err)
+	defer ln.Close()
+
+	expectedALPN := fmt.Sprintf("jamnp-s/0/%s", hashPrefix)
+
+	serverDone := make(chan error, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		conn, err := ln.Accept(ctx)
+		if err != nil {
+			serverDone <- err
+			return
+		}
+		defer conn.CloseWithError(0, "done")
+
+		state := conn.ConnectionState().TLS
+		if len(state.PeerCertificates) == 0 {
+			serverDone <- fmt.Errorf("server saw no peer certificates")
+			return
+		}
+		if err := ValidateX509Certificate(state.PeerCertificates[0]); err != nil {
+			serverDone <- err
+			return
+		}
+		if state.NegotiatedProtocol == "" {
+			serverDone <- fmt.Errorf("server negotiated protocol is empty")
+			return
+		}
+		if state.NegotiatedProtocol != expectedALPN {
+			serverDone <- fmt.Errorf("server ALPN mismatch: got %q, expected %q", state.NegotiatedProtocol, expectedALPN)
+			return
+		}
+		serverDone <- nil
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, err := quic.DialAddr(ctx, ln.Addr().String(), clientTLS, quicCfg)
+	require.NoError(t, err)
+	defer conn.CloseWithError(0, "done")
+
+	cstate := conn.ConnectionState().TLS
+	require.NotEmpty(t, cstate.PeerCertificates)
+	require.NoError(t, ValidateX509Certificate(cstate.PeerCertificates[0]))
+	require.Equal(t, expectedALPN, cstate.NegotiatedProtocol, "client ALPN should match expected format jamnp-s/0/HASH_PREFIX")
+	require.True(t, strings.HasPrefix(cstate.NegotiatedProtocol, "jamnp-s/0/"), "ALPN should start with jamnp-s/0/")
+
+	require.NoError(t, <-serverDone)
 }
