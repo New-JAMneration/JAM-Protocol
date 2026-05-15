@@ -26,7 +26,10 @@ const (
 	BulkSyncCompleted         EventType = "BulkSyncCompleted"
 )
 
-type Event interface{}
+// Event is an alias for any so handler signatures match plain
+// func(context.Context, any) error and can be assigned directly from
+// other packages without an adapter (e.g. telemetry.Bridge).
+type Event = any
 
 // PeerAddedEvent represents a peer being added to the network
 type PeerAddedEvent struct {
