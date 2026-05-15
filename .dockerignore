@@ -28,4 +28,3 @@ pkg/test_data/
 cmd/*/test_data/
 pkg/**/full_test/
 pkg/**/tiny_test/
-pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
