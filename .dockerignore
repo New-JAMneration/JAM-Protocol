@@ -23,3 +23,9 @@ build/
 /**/release/
 /**/debug/
 pkg/test_data/
+
+# Runtime/test data not needed by docker build
+cmd/*/test_data/
+pkg/**/full_test/
+pkg/**/tiny_test/
+pkg/Rust-VRF/vrf-func-ffi/data/zcash-srs-2-11-uncompressed.bin
