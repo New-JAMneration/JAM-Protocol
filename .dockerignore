@@ -23,3 +23,8 @@ build/
 /**/release/
 /**/debug/
 pkg/test_data/
+
+# Runtime/test data not needed by docker build
+cmd/*/test_data/
+pkg/**/full_test/
+pkg/**/tiny_test/
