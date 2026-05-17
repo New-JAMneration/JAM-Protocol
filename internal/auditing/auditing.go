@@ -339,9 +339,8 @@ func ComputeAnForValidator(
 			return nil, fmt.Errorf("VRF output Y(sₙ(w)) failed: %w", err)
 		}
 
-		//  V * Y(sn(w))0 / 256F < m
-		// This report is assigned to the validator
-		if int(sn_w[0])*types.ValidatorsCount/(256*types.BiasFactor) < noShowCount {
+		// GP §17.15:  Y(sn(w))[0] · V / (256 · F) < mₙ
+		if isAssignedByThreshold(sn_w[0], types.ValidatorsCount, types.BiasFactor, noShowCount) {
 			an = append(an, types.AuditReport{
 				CoreID:      report.CoreIndex,
 				Report:      report,
@@ -352,6 +351,23 @@ func ComputeAnForValidator(
 	}
 
 	return an, nil
+}
+
+// isAssignedByThreshold implements GP §17.15 stochastic test:
+//
+//	Y(sₙ(w))[0] · V / (256 · F)  <  mₙ   ⇒  validator is assigned
+//
+// V = ValidatorsCount, F = BiasFactor (= 2 per GP §17.16, derived from
+// Burdges/Cevallos 2024 modeling so that one no-show in a tranche
+// expects F = 2 validators picking it up the next round).
+//
+// Extracted from ComputeAnForValidator so the threshold logic can be
+// unit-tested independently of the Bandersnatch VRF call producing sₙ(w).
+//
+// Integer arithmetic matches the original expression byte-for-byte: no
+// rounding mode changes, no order-of-operation reshuffling.
+func isAssignedByThreshold(snByte0 byte, validatorsCount, biasFactor, noShowCount int) bool {
+	return int(snByte0)*validatorsCount/(256*biasFactor) < noShowCount
 }
 
 /*
