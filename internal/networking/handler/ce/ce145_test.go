@@ -541,3 +541,145 @@ func TestGetAllJudgmentsForEpoch(t *testing.T) {
 		require.Equal(t, epochIndex, j.EpochIndex, "wrong epoch index")
 	}
 }
+
+// --------------------------------------------------------------------------
+// Stage 3: validity=2 must be rejected
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_InvalidValidity(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       2,
+		WorkReportHash: createTestWorkReportHash([]byte("bad-validity")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+	}
+	require.Error(t, payload.Validate())
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Decode with wrong size must fail
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_Decode_WrongSize(t *testing.T) {
+	err := (&CE145Payload{}).Decode(make([]byte, 50))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "expected")
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Decode truncated guarantee must fail
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_Decode_TruncatedGuarantee(t *testing.T) {
+	// Build a valid invalid-judgment payload then chop the guarantee
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       0,
+		WorkReportHash: createTestWorkReportHash([]byte("trunc-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+		Guarantee: &CE145Guarantee{
+			Slot: 100,
+			Signatures: []types.ValidatorSignature{
+				{ValidatorIndex: 1, Signature: createTestEd25519Signature([]byte("g1"))},
+				{ValidatorIndex: 2, Signature: createTestEd25519Signature([]byte("g2"))},
+			},
+		},
+	}
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	// Chop last 30 bytes — guarantee becomes incomplete
+	err = (&CE145Payload{}).Decode(encoded[:len(encoded)-30])
+	require.Error(t, err)
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: Validate() symmetric rules
+//
+// Validate() at ce145.go:280-292 enforces 4 rules:
+//
+//	1. Validity ∈ {0, 1}                              (TestCE145Payload_InvalidValidity)
+//	2. Validity == 0 → Guarantee != nil               (below)
+//	3. Validity == 1 → Guarantee == nil               (below)
+//	4. Guarantee != nil → Guarantee.Validate() ok     (below)
+// --------------------------------------------------------------------------
+
+// Rule 2: invalid judgment without Guarantee is rejected.
+func TestCE145Payload_Validate_InvalidJudgmentRequiresGuarantee(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       0,   // invalid judgment
+		Guarantee:      nil, // ← required but missing
+		WorkReportHash: createTestWorkReportHash([]byte("no-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+	}
+	require.Error(t, payload.Validate())
+}
+
+// Rule 3: valid judgment carrying a Guarantee is rejected.
+func TestCE145Payload_Validate_ValidJudgmentRejectsGuarantee(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       1, // valid judgment
+		WorkReportHash: createTestWorkReportHash([]byte("with-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+		Guarantee: &CE145Guarantee{ // ← must be nil for valid judgments
+			Slot: 100,
+			Signatures: []types.ValidatorSignature{
+				{ValidatorIndex: 1, Signature: createTestEd25519Signature([]byte("g1"))},
+				{ValidatorIndex: 2, Signature: createTestEd25519Signature([]byte("g2"))},
+			},
+		},
+	}
+	require.Error(t, payload.Validate())
+}
+
+// Rule 4: Guarantee.Validate() failure propagates.
+// types.GuaranteeMinCount = 2, so 1 signature triggers `insufficient_guarantees`.
+func TestCE145Payload_Validate_BadGuaranteeFails(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       0,
+		WorkReportHash: createTestWorkReportHash([]byte("bad-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+		Guarantee: &CE145Guarantee{
+			Slot: 100,
+			Signatures: []types.ValidatorSignature{ // only 1, below GuaranteeMinCount=2
+				{ValidatorIndex: 1, Signature: createTestEd25519Signature([]byte("g1"))},
+			},
+		},
+	}
+	require.Error(t, payload.Validate())
+}
+
+// --------------------------------------------------------------------------
+// Stage 3: pin current trailing-bytes behavior on Decode
+//
+// Decode currently silently accepts arbitrary bytes after a valid CE145
+// header. JAMNP-style codecs commonly reject trailing bytes, but GP / spec
+// do not mandate it for CE145. This test pins the current behavior so a
+// future tightening (reject trailing bytes) is a deliberate choice rather
+// than an accidental break: if you tighten Decode, update this test to
+// assert error instead.
+// --------------------------------------------------------------------------
+
+func TestCE145Payload_Decode_AcceptsTrailingBytes_CurrentBehavior(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       1,
+		WorkReportHash: createTestWorkReportHash([]byte("trailing")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+	}
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	extended := append(encoded, []byte("XXXXX_TRAILING_GARBAGE_XXXXX")...)
+	err = (&CE145Payload{}).Decode(extended)
+	require.NoError(t, err, "current behavior: trailing bytes accepted (see comment above)")
+}
