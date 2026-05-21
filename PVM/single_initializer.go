@@ -157,7 +157,7 @@ func DecodeSerializedValues(p []byte) ([]byte, []byte, []byte, uint16, uint32, e
 		return nil, nil, nil, 0, 0, err
 	}
 
-	c, p, err = ReadBytes(p, cLen)
+	c, _, err = ReadBytes(p, cLen)
 	if err != nil {
 		return nil, nil, nil, 0, 0, err
 	}

@@ -6,6 +6,39 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+const (
+	BackendInterpreter = "interpreter"
+	BackendRecompiler  = "recompiler"
+)
+
+// ExecutionBackend selects PVM execution backend at runtime.
+var ExecutionBackend = BackendInterpreter
+
+// PsiMBackend is the contract every PVM execution backend implements: given a
+// program plus entry state, run it to completion and return the finalised
+// Psi_M result. Both the interpreter and the recompiler register one of these;
+// Psi_M dispatches to the selected backend. Declaring it as a function pointer
+// keeps core free of any backend import — the hooks break the import cycle.
+type PsiMBackend func(
+	code StandardCodeFormat,
+	counter ProgramCounter,
+	gas types.Gas,
+	argument Argument,
+	omegas Omegas,
+	addition HostCallArgs,
+) Psi_M_ReturnType
+
+var (
+	// Psi_M_interpreterHook is registered by the interpreter backend
+	// (PVM/interpreter) in its init(). It is the default / fallback and is
+	// expected to always be linked: every binary that runs the PVM must
+	// blank-import PVM/interpreter.
+	Psi_M_interpreterHook PsiMBackend
+	// Psi_M_recompilerHook is registered by PVM/recompiler when linked
+	// (linux/amd64 only).
+	Psi_M_recompilerHook PsiMBackend
+)
+
 // (A.40) Ψ_M
 func Psi_M(
 	code StandardCodeFormat,
@@ -17,36 +50,18 @@ func Psi_M(
 ) (
 	psi_result Psi_M_ReturnType,
 ) {
-	programCode, registers, memory, exitReason := SingleInitializer(code, argument)
-	// Y(p) = nil
-	if exitReason != ExitContinue {
-		return Psi_M_ReturnType{
-			Gas:           0,
-			ReasonOrBytes: ExitPanic,
-			Addition:      addition,
-		}
+	// Recompiler when selected and linked; otherwise fall back to interpreter
+	// (e.g. recompiler requested on a build that did not link it).
+	if ExecutionBackend == BackendRecompiler && Psi_M_recompilerHook != nil {
+		return Psi_M_recompilerHook(code, counter, gas, argument, omegas, addition)
 	}
-
-	program, exitReason := DeBlobProgramCode(programCode)
-	if exitReason != ExitContinue {
-		return Psi_M_ReturnType{
-			Gas:           0,
-			ReasonOrBytes: ExitPanic,
-			Addition:      addition,
-		}
+	if Psi_M_interpreterHook != nil {
+		return Psi_M_interpreterHook(code, counter, gas, argument, omegas, addition)
 	}
-
-	addition.Program = &program
-
-	host := NewHost(&program, registers, &memory, Gas(gas), addition, omegas)
-	psiHResult := host.HostCall(counter, 0)
-
-	g, v, a := R(gas, psiHResult)
-	return Psi_M_ReturnType{
-		Gas:           types.Gas(g),
-		ReasonOrBytes: v,
-		Addition:      a,
-	}
+	// Unreachable in a correctly built binary (the interpreter backend is always
+	// linked). If it is reachable, no backend is registered: PVM can't run and
+	// any result would be wrong anyway, so fail loud instead of returning junk.
+	panic("PVM.Psi_M: no execution backend registered (interpreter backend not linked)")
 }
 
 // (A.41) R
@@ -59,16 +74,15 @@ func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArg
 	case HALT:
 		start := uint64(Psi_H_Return.VM.Registers[7])
 		length := uint64(Psi_H_Return.VM.Registers[8])
-		if isReadable(start, length, *Psi_H_Return.VM.Memory) {
+		// Read the return slice [r7, r7+r8) through the GuestMemory abstraction;
+		// both backends set VM.Mem (interpreter: paged, recompiler: segment-aware
+		// flat). Read returns a fresh copy safe to return up the stack.
+		mem := Psi_H_Return.VM.Mem
+		if mem.IsReadable(start, length) {
 			if length == 0 {
 				return Gas(u), nil, Psi_H_Return.Addition
 			}
-
-			value, ok := readRAM(start, length, *Psi_H_Return.VM.Memory)
-			if !ok {
-				return Gas(u), []byte{}, Psi_H_Return.Addition
-			}
-			return Gas(u), value, Psi_H_Return.Addition
+			return Gas(u), mem.Read(start, length), Psi_H_Return.Addition
 		}
 		return Gas(u), []byte{}, Psi_H_Return.Addition
 	default:
@@ -118,47 +132,6 @@ func isWriteable(start, offset uint64, m Memory) bool {
 		}
 	}
 	return true
-}
-
-func readRAM(start, length uint64, m Memory) ([]byte, bool) {
-	if length == 0 {
-		return []byte{}, true
-	}
-	end := start + length // [start, end)
-	startPage := uint32(start / ZP)
-	endPage := uint32((end - 1) / ZP)
-
-	out := make([]byte, 0, length)
-
-	for p := startPage; p <= endPage; p++ {
-		page, ok := m.Pages[p]
-		if !ok || page.Value == nil || len(page.Value) == 0 {
-			return nil, false
-		}
-
-		pageStartAddr := uint64(p) * ZP
-		pageEndAddr := pageStartAddr + ZP
-
-		s := max(start, pageStartAddr)
-		e := min(end, pageEndAddr)
-		if e <= s {
-			continue
-		}
-
-		offS := s - pageStartAddr
-		offE := e - pageStartAddr
-
-		if offE > uint64(len(page.Value)) {
-			return nil, false
-		}
-
-		out = append(out, page.Value[offS:offE]...)
-	}
-
-	if uint64(len(out)) != length {
-		return nil, false
-	}
-	return out, true
 }
 
 type Psi_M_ReturnType struct {
