@@ -42,8 +42,8 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	offset = uint64(12 * n)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
+	offset, overflow := checkOverflow(12, n)
+	if overflow || !isReadable(o, offset, *input.Interpreter.Memory) {
 		input.Interpreter.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,

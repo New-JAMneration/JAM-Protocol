@@ -1,6 +1,8 @@
 package PVM
 
 import (
+	"math/bits"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -74,12 +76,24 @@ func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArg
 	}
 }
 
+// checkOverflow returns a*b and reports whether the multiplication overflowed uint64.
+func checkOverflow(a, b uint64) (uint64, bool) {
+	hi, lo := bits.Mul64(a, b)
+	return lo, hi != 0
+}
+
 func isReadable(start, offset uint64, m Memory) bool {
 	if offset == 0 {
 		return true
 	}
 	startPage := uint32(start / ZP)
 	endPage := uint32((start + offset - 1) / ZP)
+
+	// overflow + PVM RAM (2^32) bound check
+	if offset > (1<<32) || start > (1<<32)-offset {
+		return false
+	}
+
 	for p := startPage; p <= endPage; p++ {
 		if m.GetPageAccess(p) == MemoryInaccessible {
 			return false
@@ -94,6 +108,12 @@ func isWriteable(start, offset uint64, m Memory) bool {
 	}
 	startPage := uint32(start / ZP)
 	endPage := uint32((start + offset - 1) / ZP)
+
+	// overflow + PVM RAM (2^32) bound check
+	if offset > (1<<32) || start > (1<<32)-offset {
+		return false
+	}
+
 	for p := startPage; p <= endPage; p++ {
 		if m.GetPageAccess(p) != MemoryReadWrite {
 			return false
