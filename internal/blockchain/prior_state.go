@@ -23,6 +23,9 @@ func NewPriorStates() *PriorStates {
 			Rho:      make(types.AvailabilityAssignments, types.CoresCount),
 			Alpha:    make(types.AuthPools, types.CoresCount),
 			Delta:    make(types.ServiceAccountState),
+			Chi: types.Privileges{
+				Assign: make(types.ServiceIDList, types.CoresCount),
+			},
 		},
 	}
 }
