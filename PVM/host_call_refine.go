@@ -15,7 +15,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	h, o := input.VM.Registers[8], input.VM.Registers[9]
 
 	offset := uint64(32)
-	if !isReadable(h, offset, *input.VM.Memory) { // not readable, return panic
+	if !input.VM.Mem.IsReadable(h, offset) { // not readable, return panic
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -23,7 +23,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	codeHash := types.OpaqueHash(input.VM.Memory.Read(h, offset))
+	codeHash := types.OpaqueHash(input.VM.Mem.Read(h, offset))
 
 	s := input.Addition.ServiceID
 	// assign a
@@ -45,7 +45,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 		l = min(input.VM.Registers[11], uint64(len(v))-f)
 	}
 
-	if !isWriteable(o, l, *input.VM.Memory) && l != 0 { // not writeable, return panic
+	if !input.VM.Mem.IsWriteable(o, l) && l != 0 { // not writeable, return panic
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -62,7 +62,7 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.VM.Registers[7] = uint64(len(v))
-	input.VM.Memory.Write(o, (v)[f:f+l])
+	input.VM.Mem.Write(o, (v)[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -79,7 +79,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	p := input.VM.Registers[7]
 	z := min(input.VM.Registers[8], types.SegmentSize)
 
-	if !isReadable(p, z, *input.VM.Memory) { // not readable, return
+	if !input.VM.Mem.IsReadable(p, z) { // not readable, return
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -98,7 +98,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// data = mu_p...+z
-	data := input.VM.Memory.Read(p, z)
+	data := input.VM.Mem.Read(p, z)
 	x := zeroPadding(data, types.SegmentSize)
 	exportSegment := types.ExportSegment{}
 	copy(exportSegment[:], x)
@@ -120,7 +120,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 
 	po, pz, i := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
 	// pz = offset
-	if !isReadable(po, pz, *input.VM.Memory) { // not readable, return
+	if !input.VM.Mem.IsReadable(po, pz) { // not readable, return
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -128,7 +128,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	p := input.VM.Memory.Read(po, pz)
+	p := input.VM.Mem.Read(po, pz)
 
 	// find first i not in K(m)
 	n := uint64(0)
@@ -180,7 +180,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// z = offset
-	if !isWriteable(o, z, *input.VM.Memory) { // not writeable, return
+	if !input.VM.Mem.IsWriteable(o, z) { // not writeable, return
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -211,7 +211,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	data := (&integratedPVMType.Memory).Read(s, z)
 	// write data into memory
-	input.VM.Memory.Write(o, data)
+	input.VM.Mem.Write(o, data)
 
 	input.VM.Registers[7] = OK
 	return OmegaOutput{
@@ -228,7 +228,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 	n, s, o, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 
-	if !isReadable(s, z, *input.VM.Memory) { // not readable, return
+	if !input.VM.Mem.IsReadable(s, z) { // not readable, return
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -256,7 +256,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise
 	// read data from memory first
-	data := input.VM.Memory.Read(s, z)
+	data := input.VM.Mem.Read(s, z)
 	// write data into m[n]_u
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	(&integratedPVMType.Memory).Write(o, data)
@@ -350,7 +350,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	offset := uint64(112)
 	// g = panic
-	if !isWriteable(o, offset, *input.VM.Memory) {
+	if !input.VM.Mem.IsWriteable(o, offset) {
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -372,7 +372,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	var w Registers
 
 	// first read data from memory
-	data := input.VM.Memory.Read(o, offset)
+	data := input.VM.Mem.Read(o, offset)
 
 	decoder := types.NewDecoder()
 	// decode gas
@@ -387,34 +387,43 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 			pvmLogger.Errorf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
-	// psi preprocess
+	// inner-invoke executor (A.38 invoke): runs a nested program blob. It is
+	// deliberately NOT one of the pluggable Psi_M backends and does not go
+	// through Psi_M dispatch — it is a core, instruction-only executor:
+	//   - dynamic decode: tmpProgram carries only the raw blob (no pre-decoded
+	//     blocks), so SingleStepInvoke decodes per instruction; nested PVM is not
+	//     recompiled.
+	//   - single-step, no host calls (NewInterpreter takes no omegas).
+	// Keeping it on the core Interpreter (not the host-call Host) also keeps this
+	// executor free of any interpreter-backend package, avoiding an
+	// omega -> PVM/interpreter import cycle.
 	tmpProgram := Program{
 		InstructionData: input.Addition.IntegratedPVMMap[n].ProgramCode,
 	}
 	tempMemory := input.Addition.IntegratedPVMMap[n].Memory
-	// wrap m[n]_p (program),  w (registers),  m[n]_u (memory),   g (gas) into NewHost
-	tempHost := NewHost(&tmpProgram, w, &tempMemory, Gas(g), HostCallArgs{}, nil)
+	// wrap m[n]_p (program), w (registers), m[n]_u (memory), g (gas)
+	tempInterp := NewInterpreter(&tmpProgram, w, &tempMemory, Gas(g))
 
 	var c ExitReason
 	var pcPrime ProgramCounter
 
-	c, pcPrime = tempHost.Interpreter.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
+	c, pcPrime = tempInterp.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
 
 	// mu* = mu
 	encoder := types.NewEncoder()
 	data = types.ByteSequence(make([]byte, offset))
-	encoded, _ := encoder.Encode(&tempHost.Interpreter.Gas) // encode g'
+	encoded, _ := encoder.Encode(&tempInterp.Gas) // encode g'
 	copy(data, encoded)
 	for i := uint64(1); i < offset/8; i++ {
-		encoded, _ := encoder.Encode(&tempHost.Interpreter.Registers[i-1])
+		encoded, _ := encoder.Encode(&tempInterp.Registers[i-1])
 		copy(data[8*i:8*(i+1)], encoded)
 	}
 	// write data into memory (mu)
-	input.VM.Memory.Write(o, data)
+	input.VM.Mem.Write(o, data)
 
 	// m* = m
 	tmp := input.Addition.IntegratedPVMMap[n]
-	tmp.Memory = *tempHost.Interpreter.Memory
+	tmp.Memory = *tempInterp.Memory
 	if c.GetReasonType() == HOST_CALL {
 		tmp.PC = pcPrime + 1 + ProgramCounter(skip(int(pcPrime), input.Addition.Program.Bitmasks))
 	} else {

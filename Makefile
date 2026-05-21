@@ -98,6 +98,27 @@ run-target:
 	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
 
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
+JAM_FUZZ_TRACE_IMAGE ?= new-jamneration-target:trace
+
+.PHONY: fuzz-docker-build-trace
+fuzz-docker-build-trace:
+	docker buildx build --platform=linux/amd64 \
+		--build-arg GP_VERSION=$(VERSION_GP) \
+		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
+		--build-arg OUTPUT=new-jamneration-target \
+		-t $(JAM_FUZZ_IMAGE) \
+		-f docker/Dockerfile \
+		--load .
+
+# Capture interpreter + recompiler PVM traces for a fuzz folder and run pvm-diff.
+# Usage: make pvmtrace-fuzz-capture TRACE_FOLDER=pkg/test_data/.../1766241814
+TRACE_FOLDER ?= pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces/1766241814
+DEBLOB_JSON ?= $(TRACE_FOLDER)/00000179.json
+
+.PHONY: pvmtrace-fuzz-capture
+pvmtrace-fuzz-capture:
+	JAM_FUZZ_IMAGE=$(JAM_FUZZ_TRACE_IMAGE) \
+		bash scripts/run_pvmtrace_fuzz_capture.sh "$(TRACE_FOLDER)" "$(DEBLOB_JSON)"
 
 .PHONY: fuzz-docker-build
 fuzz-docker-build:
@@ -129,3 +150,30 @@ release-target:
 .PHONY: run-release-target
 run-release-target:
 	bash ./scripts/run_release.sh
+
+# Build the recompiler unit-test container (linux/amd64)
+.PHONY: build-recompiler-test-env
+build-recompiler-test-env:
+	docker build --platform=linux/amd64 -t go-jit-test -f PVM/Dockerfile .
+
+# The command run the ASM test in a docker container
+.PHONY: run-asm-test
+run-asm-test:
+	docker run --rm -it \
+		--platform linux/amd64 \
+		--security-opt seccomp=unconfined \
+		--privileged \
+		-v "$(shell pwd)":/app \
+		go-jit-test \
+		go test -v ./PVM/recompiler/asm/.
+
+# Run recompiler compiler_test + signal_handler_test in docker
+.PHONY: run-recompiler-test
+run-recompiler-test:
+	docker run --rm -it \
+		--platform linux/amd64 \
+		--security-opt seccomp=unconfined \
+		--privileged \
+		-v "$(shell pwd)":/app \
+		go-jit-test \
+		go test -v ./PVM/recompiler/...

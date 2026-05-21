@@ -19,6 +19,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
+	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/urfave/cli/v3"
 )
 
@@ -33,6 +34,12 @@ var (
 		Name:  "config",
 		Usage: "Path to configuration file",
 		Value: "example.json",
+	}
+
+	pvmBackendFlag = &cli.StringFlag{
+		Name:  "pvm-backend",
+		Usage: "PVM execution backend for the fuzz server: interpreter or recompiler",
+		Value: PVM.BackendInterpreter,
 	}
 
 	socketAddrArg = &cli.StringArg{
@@ -55,6 +62,7 @@ const (
 	envFuzzDataPath = "JAM_FUZZ_DATA_PATH"
 	envFuzzSockPath = "JAM_FUZZ_SOCK_PATH"
 	envFuzzLogLevel = "JAM_FUZZ_LOG_LEVEL"
+	envPVMBackend   = "JAM_PVM_BACKEND"
 )
 
 var (
@@ -76,6 +84,7 @@ var cmd = cli.Command{
 	Flags: []cli.Flag{
 		configPathFlag,
 		modeFlag,
+		pvmBackendFlag,
 	},
 	Commands: []*cli.Command{
 		handshakeCmd,
@@ -209,14 +218,17 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to create fuzz data directory: %w", err)
 	}
 
-	socketAddr := strings.TrimSpace(os.Getenv(envFuzzSockPath))
-	if socketAddr == "" {
-		return errors.New(envFuzz + ": " + envFuzzSockPath + " must be set")
-	}
-
 	config.InitConfig(configPath, mode)
 	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
+	if err := applyPVMBackend(cmd); err != nil {
+		return err
+	}
 	applyFuzzLogLevelOverride(strings.TrimSpace(os.Getenv(envFuzzLogLevel)))
+
+	socketAddr, err := fuzzServerSocketAddr(cmd)
+	if err != nil {
+		return err
+	}
 
 	if err := os.MkdirAll(filepath.Dir(socketAddr), 0o755); err != nil {
 		return fmt.Errorf("failed to create socket directory: %w", err)
@@ -233,6 +245,48 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	return nil
+}
+
+func applyPVMBackend(cmd *cli.Command) error {
+	backend := strings.TrimSpace(cmd.String(pvmBackendFlag.Name))
+	if backend == "" {
+		backend = strings.TrimSpace(os.Getenv(envPVMBackend))
+	}
+	if backend == "" {
+		backend = PVM.BackendInterpreter
+	}
+
+	switch backend {
+	case PVM.BackendInterpreter:
+		PVM.ExecutionBackend = PVM.BackendInterpreter
+	case PVM.BackendRecompiler:
+		if PVM.Psi_M_recompilerHook == nil {
+			return fmt.Errorf("pvm-backend %q is not available in this build (requires linux/amd64 with recompiler linked)", backend)
+		}
+		PVM.ExecutionBackend = PVM.BackendRecompiler
+	default:
+		return fmt.Errorf("pvm-backend must be %q or %q, got %q",
+			PVM.BackendInterpreter, PVM.BackendRecompiler, backend)
+	}
+
+	logger.Infof("PVM ExecutionBackend: %s", PVM.ExecutionBackend)
+	return nil
+}
+
+func fuzzServerSocketAddr(cmd *cli.Command) (string, error) {
+	arg := strings.TrimSpace(cmd.StringArg(socketAddrArg.Name))
+	env := strings.TrimSpace(os.Getenv(envFuzzSockPath))
+
+	if arg != "" && arg != "/tmp/jam_target.sock" {
+		return arg, nil
+	}
+	if env != "" {
+		return env, nil
+	}
+	if arg != "" {
+		return arg, nil
+	}
+	return "", errors.New(envFuzz + ": socket path required via positional argument or " + envFuzzSockPath)
 }
 
 func applyFuzzLogLevelOverride(logLevel string) {

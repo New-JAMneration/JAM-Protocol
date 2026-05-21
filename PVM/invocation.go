@@ -1,9 +1,5 @@
 package PVM
 
-import (
-	"fmt"
-)
-
 // Currently keep for refine host-call -> invoke host-call transition
 // per-instruction based of (A.1) ψ_1,
 func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
@@ -114,7 +110,16 @@ func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (Exi
 			}
 			interp.Gas -= 1
 
+			var src1Val, src2Val uint64
+			if instr.Src[0] != 0xff {
+				src1Val = interp.Registers[instr.Src[0]]
+			}
+			if instr.Src[1] != 0xff {
+				src2Val = interp.Registers[instr.Src[1]]
+			}
+
 			exitReason, newPC := instr.Exec(interp, instr)
+			interp.recordInstrTraceStepAfterMeta(instr, src1Val, src2Val)
 
 			switch exitReason.GetReasonType() {
 			case HALT, PANIC:
@@ -217,15 +222,4 @@ func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime Progra
 	}
 
 	return pc, ExitContinue
-}
-
-type Int interface {
-	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~int8 | ~int16 | ~int32 | ~int64 | ~int | ~uint
-}
-
-func formatInt[T Int](num T) string {
-	if instrLogFormat == "hex" {
-		return fmt.Sprintf("0x%x", num)
-	}
-	return fmt.Sprintf("%d", num)
 }

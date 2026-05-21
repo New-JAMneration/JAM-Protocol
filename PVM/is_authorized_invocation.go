@@ -4,6 +4,18 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
+// Ψ_I is the is-authorized entry point.
+//
+// Backend requirement: this runs the PVM (via Psi_M), which dispatches to a
+// registered execution backend — it does not execute anything itself. The
+// calling package MUST link a backend by blank-importing one so its init()
+// registers the hook:
+//
+//	import _ ".../PVM/interpreter"  // cross-platform default; always available
+//	import _ ".../PVM/recompiler"   // optional, linux/amd64 only
+//
+// The backend is selected at runtime via PVM.ExecutionBackend (interpreter is
+// the default and fallback). With no backend registered, Psi_M panics.
 func Psi_I(p types.WorkPackage, c types.CoreIndex, authorizerCode types.ByteSequence) Psi_I_ReturnType {
 	if len(authorizerCode) == 0 {
 		return Psi_I_ReturnType{

@@ -45,6 +45,18 @@ func zeroPadding(seq types.ByteSequence, n int) types.ByteSequence {
 	return append(seq, padding...)
 }
 
+// RefineInvoke is the refine (Ψ_R) entry point.
+//
+// Backend requirement: this runs the PVM (via Psi_M), which dispatches to a
+// registered execution backend — it does not execute anything itself. The
+// calling package MUST link a backend by blank-importing one so its init()
+// registers the hook:
+//
+//	import _ ".../PVM/interpreter"  // cross-platform default; always available
+//	import _ ".../PVM/recompiler"   // optional, linux/amd64 only
+//
+// The backend is selected at runtime via PVM.ExecutionBackend (interpreter is
+// the default and fallback). With no backend registered, Psi_M panics.
 func RefineInvoke(input RefineInput) RefineOutput {
 	// p_w[i]
 	workItem := input.WorkPackage.Items[input.WorkItemIndex]

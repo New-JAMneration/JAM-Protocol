@@ -218,3 +218,23 @@ func (p *Program) LookupBlock(pc ProgramCounter) *BlockMeta {
 	}
 	return p.BlockAt[pc]
 }
+
+// BlockContaining returns the BlockMeta whose instruction range includes pc.
+// LookupBlock only works at block entry PCs; this resolves mid-block resume PCs
+// (e.g. after sbrk returns to Go and continues at the fallthrough instruction).
+func (p *Program) BlockContaining(pc ProgramCounter) *BlockMeta {
+	if b := p.LookupBlock(pc); b != nil {
+		return b
+	}
+	idx := p.InstrIdxAt[pc]
+	if idx < 0 {
+		return nil
+	}
+	i := int(idx)
+	for _, b := range p.BlockAt {
+		if b != nil && i >= b.InstrStart && i < b.InstrEnd {
+			return b
+		}
+	}
+	return nil
+}

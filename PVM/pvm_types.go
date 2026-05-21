@@ -74,19 +74,6 @@ const (
 	INNEROOG
 )
 
-type Interpreter struct {
-	Program   *Program
-	Registers Registers
-	Memory    *Memory
-	Gas       Gas
-}
-
-type Host struct {
-	Interpreter Interpreter
-	Addition    HostCallArgs
-	HostCalls   Omegas
-}
-
 func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas) *Interpreter {
 	return &Interpreter{
 		Program:   program,
@@ -98,20 +85,15 @@ func NewInterpreter(program *Program, registers Registers, memory *Memory, gas G
 
 type VMState struct {
 	Registers *Registers
-	Memory    *Memory
-	GuestMem  []byte
 	Gas       *Gas
-}
 
-func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
-	return &Host{
-		Interpreter: Interpreter{
-			Program:   program,
-			Registers: registers,
-			Memory:    memory,
-			Gas:       gas,
-		},
-		Addition:  addition,
-		HostCalls: hostCalls,
-	}
+	// Mem is the GuestMemory abstraction that omega host-calls and R() use for
+	// all guest memory access. The interpreter sets it via NewPagedGuestMemory
+	// (paged Memory); the recompiler sets it via JITContext.GuestMemory
+	// (segment-aware flat mmap).
+	Mem GuestMemory
+
+	// Inline snapshot buffers for JIT host-call path (see vm_state.go).
+	registersBuf Registers
+	gasBuf       Gas
 }

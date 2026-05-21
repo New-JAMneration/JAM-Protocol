@@ -7,10 +7,21 @@ import (
 )
 
 // (B.8) Ψ_A
+//
+// Backend requirement: this runs the PVM (via Psi_M), which dispatches to a
+// registered execution backend — it does not execute anything itself. The
+// calling package MUST link a backend by blank-importing one so its init()
+// registers the hook:
+//
+//	import _ ".../PVM/interpreter"  // cross-platform default; always available
+//	import _ ".../PVM/recompiler"   // optional, linux/amd64 only
+//
+// The backend is selected at runtime via PVM.ExecutionBackend (interpreter is
+// the default and fallback). With no backend registered, Psi_M panics.
 func Psi_A(
 	partialState types.PartialStateSet, // e
 	timeslot types.TimeSlot, // t
-	serviceID types.ServiceID, // s
+	serviceId types.ServiceID, // s
 	gas types.Gas, // g
 	operandOrDeferTransfers []types.OperandOrDeferredTransfer, // i
 	eta types.Entropy,
@@ -18,7 +29,7 @@ func Psi_A(
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
-	s, ok := partialState.ServiceAccounts[serviceID]
+	s, ok := partialState.ServiceAccounts[serviceId]
 	if !ok {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,
@@ -38,7 +49,7 @@ func Psi_A(
 		}
 	}
 	s.ServiceInfo.Balance += types.U64(balances)
-	partialState.ServiceAccounts[serviceID] = s
+	partialState.ServiceAccounts[serviceId] = s
 
 	// (9.4) E(↕m, c) = ap[ac]
 	// Get actual code (c)
@@ -79,8 +90,8 @@ func Psi_A(
 	serialized = append(serialized, encoded...)
 
 	// Encode s
-	// encoded, err = encoder.Encode(&serviceID)
-	encoded, err = encoder.EncodeUint(uint64(serviceID))
+	// encoded, err = encoder.Encode(&serviceId)
+	encoded, err = encoder.EncodeUint(uint64(serviceId))
 	if err != nil {
 		panic(err)
 	}
@@ -94,24 +105,25 @@ func Psi_A(
 
 	newPartialState := partialState.DeepCopy()
 	newStorageKeyVal := storageKeyVal.DeepCopy()
-	serviceAccount := newPartialState.ServiceAccounts[serviceID]
+	serviceAccount := newPartialState.ServiceAccounts[serviceId]
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
 			ServiceAccount:      &serviceAccount,
-			ServiceID:           &serviceID,
+			ServiceID:           &serviceId,
 			ServiceAccountState: &newPartialState.ServiceAccounts,
 			CoreID:              nil,
 			StorageKeyVal:       &newStorageKeyVal,
 		},
 		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX:             I(newPartialState, serviceID, timeslot, eta, &newStorageKeyVal),
-			ResultContextY:             I(partialState, serviceID, timeslot, eta, &storageKeyVal),
+			ResultContextX:             I(newPartialState, serviceId, timeslot, eta, &newStorageKeyVal),
+			ResultContextY:             I(partialState, serviceId, timeslot, eta, &storageKeyVal),
 			Eta:                        eta,
 			OperandOrDeferredTransfers: operandOrDeferTransfers,
 			Timeslot:                   timeslot,
 		},
 	}
+	addition.AccumulateTrace = NewAccumulateTraceContextIfEnabled(serviceId, codeHash, timeslot)
 
 	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), AccumulateOmegas, addition)
 	partialState, deferredTransfer, result, gas, serviceBlobs, storageKeyVal := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
@@ -178,11 +190,11 @@ func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.Pa
 }
 
 // (B.10)
-func I(partialState types.PartialStateSet, serviceID types.ServiceID, ht types.TimeSlot, eta types.Entropy, storageKeyVal *types.StateKeyVals) ResultContext {
+func I(partialState types.PartialStateSet, serviceId types.ServiceID, ht types.TimeSlot, eta types.Entropy, storageKeyVal *types.StateKeyVals) ResultContext {
 	serialized := []byte{}
 	encoder := types.NewEncoder()
 
-	encoded, err := encoder.EncodeUint(uint64(serviceID))
+	encoded, err := encoder.EncodeUint(uint64(serviceId))
 	if err != nil {
 		panic(err)
 	}
@@ -212,7 +224,7 @@ func I(partialState types.PartialStateSet, serviceID types.ServiceID, ht types.T
 	result = check((result%modValue)+addValue, partialState.ServiceAccounts)
 
 	return ResultContext{
-		ServiceID:         serviceID,
+		ServiceID:         serviceId,
 		PartialState:      partialState,
 		ImportServiceID:   result,
 		DeferredTransfers: []types.DeferredTransfer{},
@@ -250,7 +262,7 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	copiedPartialState := origin.PartialState.DeepCopy()
 
 	// ImportServiceID
-	copiedImportServiceID := origin.ImportServiceID
+	copiedImportServiceId := origin.ImportServiceID
 
 	// DeferredTransfers
 	copiedDeferredTransfers := make([]types.DeferredTransfer, len(origin.DeferredTransfers))
@@ -289,7 +301,7 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 	return ResultContext{
 		ServiceID:         copiedServiceID,
 		PartialState:      copiedPartialState,
-		ImportServiceID:   copiedImportServiceID,
+		ImportServiceID:   copiedImportServiceId,
 		DeferredTransfers: copiedDeferredTransfers,
 		Exception:         copiedException,
 		ServiceBlobs:      copiedServiceBlobs,

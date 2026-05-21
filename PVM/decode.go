@@ -248,6 +248,7 @@ func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, immediate
 	// Fast path: entirely within current page.
 	if pageIndex+uint32(offset) <= ZP {
 		copy(page.Value[pageIndex:], src)
+		interp.noteTraceMemAfterSuccessfulStore(memIndex, immediate)
 		return ExitContinue
 	}
 
@@ -263,6 +264,7 @@ func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, immediate
 	firstLen := ZP - pageIndex
 	copy(page.Value[pageIndex:], src[:firstLen])
 	copy(nextPage.Value, src[firstLen:])
+	interp.noteTraceMemAfterSuccessfulStore(memIndex, immediate)
 	return ExitContinue
 }
 
@@ -285,13 +287,21 @@ func loadFromMemory(interp *Interpreter, offset uint32, vx uint32) (uint64, Exit
 		v := page.Value[pageIndex : pageIndex+offset]
 		switch offset {
 		case 1:
-			return uint64(v[0]), ExitContinue
+			val := uint64(v[0])
+			interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+			return val, ExitContinue
 		case 2:
-			return uint64(binary.LittleEndian.Uint16(v)), ExitContinue
+			val := uint64(binary.LittleEndian.Uint16(v))
+			interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+			return val, ExitContinue
 		case 4:
-			return uint64(binary.LittleEndian.Uint32(v)), ExitContinue
+			val := uint64(binary.LittleEndian.Uint32(v))
+			interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+			return val, ExitContinue
 		case 8:
-			return binary.LittleEndian.Uint64(v), ExitContinue
+			val := binary.LittleEndian.Uint64(v)
+			interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+			return val, ExitContinue
 		}
 	}
 
@@ -308,11 +318,17 @@ func loadFromMemory(interp *Interpreter, offset uint32, vx uint32) (uint64, Exit
 
 	switch offset {
 	case 2:
-		return uint64(binary.LittleEndian.Uint16(buf[:2])), ExitContinue
+		val := uint64(binary.LittleEndian.Uint16(buf[:2]))
+		interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+		return val, ExitContinue
 	case 4:
-		return uint64(binary.LittleEndian.Uint32(buf[:4])), ExitContinue
+		val := uint64(binary.LittleEndian.Uint32(buf[:4]))
+		interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+		return val, ExitContinue
 	case 8:
-		return binary.LittleEndian.Uint64(buf[:8]), ExitContinue
+		val := binary.LittleEndian.Uint64(buf[:8])
+		interp.noteTraceMemAfterSuccessfulLoad(vx, val)
+		return val, ExitContinue
 	}
 	return 0, ExitPanic // unreachable: offset ∈ {1,2,4,8}
 }

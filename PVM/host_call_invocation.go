@@ -78,74 +78,14 @@ func getOmega(omegas Omegas, operation OperationType) Omega {
 	return omegas[operation]
 }
 
+// GetOmega is the exported alias used by PVM/recompiler.
+func GetOmega(omegas Omegas, operation OperationType) Omega {
+	return getOmega(omegas, operation)
+}
+
 type Psi_H_ReturnType struct {
 	ExitReason ExitReason   // exit reason
 	Counter    uint32       // new instruction counter
 	VM         *VMState     // final VM state
 	Addition   HostCallArgs // addition host-call context
-}
-
-// (A.34) Ψ_H
-func (h *Host) HostCall(pc ProgramCounter, instrCount uint64) (psi_result Psi_H_ReturnType) {
-	for {
-		var exitReason ExitReason
-		var pcPrime ProgramCounter
-
-		exitReason, pcPrime = h.Interpreter.SingleStepInvokeDecodedBlocks(pc)
-
-		switch exitReason.GetReasonType() {
-		case HALT, PANIC, OUT_OF_GAS, PAGE_FAULT:
-			psi_result.ExitReason = exitReason
-			psi_result.Counter = uint32(pcPrime)
-			psi_result.VM = &VMState{
-				Registers: &h.Interpreter.Registers,
-				Memory:    h.Interpreter.Memory,
-				Gas:       &h.Interpreter.Gas,
-			}
-			psi_result.Addition = h.Addition
-			return
-		}
-
-		// reason.Reason == HOST_CALL
-		var input OmegaInput
-		input.Operation = OperationType(exitReason.GetHostCallID())
-		input.VM = &VMState{
-			Registers: &h.Interpreter.Registers,
-			Memory:    h.Interpreter.Memory,
-			Gas:       &h.Interpreter.Gas,
-		}
-		input.Addition = h.Addition
-		input.HostCalls = h.HostCalls
-
-		omega := getOmega(h.HostCalls, input.Operation)
-		if omega == nil {
-			if h.Interpreter.Gas < 0 {
-				omega = hostCallOutOfGas
-			} else {
-				omega = hostCallException
-			}
-		}
-		omegaResult := omega(input)
-		pvmLogger.Debugf("%s host-call return: %d, gas : %d\nRegisters: %v\n",
-			hostCallName[input.Operation], omegaResult.ExitReason.GetReasonType(), h.Interpreter.Gas, h.Interpreter.Registers)
-
-		switch omegaResult.ExitReason {
-		case ExitContinue:
-			h.Addition = omegaResult.Addition
-			// SingleStepInvokeDecodedBlocks already returns the next instruction PC
-			// (ecalli.PC + skipLen + 1 = fallthrough PC), so no skip needed.
-			pc = pcPrime
-			continue
-		default:
-			psi_result.ExitReason = omegaResult.ExitReason
-			psi_result.Counter = uint32(pcPrime)
-			psi_result.VM = &VMState{
-				Registers: &h.Interpreter.Registers,
-				Memory:    h.Interpreter.Memory,
-				Gas:       &h.Interpreter.Gas,
-			}
-			psi_result.Addition = omegaResult.Addition
-			return
-		}
-	}
 }
