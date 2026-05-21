@@ -889,17 +889,26 @@ func info(input OmegaInput) (output OmegaOutput) {
 }
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
+// Output registers: {} (none modified per spec)
+// Side-effects: "No side-effects if memory access is invalid."
 func logHostCall(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 
 	level := input.Interpreter.Registers[7]
-	message := input.Interpreter.Memory.Read(input.Interpreter.Registers[10], input.Interpreter.Registers[11])
+	msgPtr, msgLen := input.Interpreter.Registers[10], input.Interpreter.Registers[11]
+
+	if !isReadable(msgPtr, msgLen, *input.Interpreter.Memory) {
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+	message := input.Interpreter.Memory.Read(msgPtr, msgLen)
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
 	if level > 4 {
-		pvmLogger.Errorf("logHostCall level not supported")
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -913,12 +922,18 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), string(message))
 	} else {
-		target := input.Interpreter.Memory.Read(input.Interpreter.Registers[8], input.Interpreter.Registers[9])
+		tgtPtr, tgtLen := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+		if !isReadable(tgtPtr, tgtLen, *input.Interpreter.Memory) {
+			return OmegaOutput{
+				ExitReason: ExitContinue,
+				Addition:   input.Addition,
+			}
+		}
+		target := input.Interpreter.Memory.Read(tgtPtr, tgtLen)
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), target, string(message))
 	}
 
-	input.Interpreter.Registers[7] = WHAT
 	pvmLogger.Debugf("%v", logMsg)
 	return OmegaOutput{
 		ExitReason: ExitContinue,
