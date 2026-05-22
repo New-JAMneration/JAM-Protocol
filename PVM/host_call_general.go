@@ -746,9 +746,8 @@ func write(input OmegaInput) (output OmegaOutput) {
 		a.ServiceInfo.Bytes -= footprintOctets
 	} else if isReadable(vo, vz, *input.Interpreter.Memory) { // storage append/update
 		storageRawData := input.Interpreter.Memory.Read(vo, vz)
-		a.StorageDict[string(storageRawKey)] = storageRawData
-		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-		// compute items, octets , check a_t > a_b first
+
+		// compute items, octets , check a_t > a_b first (GP: a_minbalance > a_balance → FULL, s' = s)
 		newItems := a.ServiceInfo.Items - footprintItems
 		newOctets := a.ServiceInfo.Bytes - footprintOctets
 
@@ -763,6 +762,10 @@ func write(input OmegaInput) (output OmegaOutput) {
 				Addition:   input.Addition,
 			}
 		}
+
+		// balance check passed, now apply the storage mutation
+		a.StorageDict[string(storageRawKey)] = storageRawData
+		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 		pvmLogger.Debugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
 		// update items, octets
 		a.ServiceInfo.Items = newItems
