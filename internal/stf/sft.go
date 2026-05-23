@@ -38,12 +38,11 @@ func IsProtocolError(err error) bool {
 //   - (false, nil):   Success - block processed successfully
 func RunSTF() (bool, error) {
 	var (
-		err              error
-		cs               = blockchain.GetInstance()
-		priorState       = cs.GetPriorStates().GetState()
-		header           = cs.GetLatestBlock().Header
-		extrinsic        = cs.GetLatestBlock().Extrinsic
-		unmatchedKeyVals = cs.GetPriorStateUnmatchedKeyVals()
+		err        error
+		cs         = blockchain.GetInstance()
+		priorState = cs.GetPriorStates().GetState()
+		header     = cs.GetLatestBlock().Header
+		extrinsic  = cs.GetLatestBlock().Extrinsic
 	)
 
 	// Update timeslot
@@ -85,7 +84,7 @@ func RunSTF() (bool, error) {
 	}
 
 	// Validate extrinsic
-	err = ValidateExtrinsic(extrinsic, &priorState, unmatchedKeyVals)
+	err = ValidateExtrinsic(extrinsic, &priorState)
 	if err != nil {
 		var errorMessage string
 		// Determine the error message based on the type of error

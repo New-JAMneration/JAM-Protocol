@@ -36,7 +36,7 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 			continue
 		}
 
-		genesisState, _, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+		genesisState, err := merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 		if err != nil {
 			t.Errorf("Error parsing state keyvals: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestStateKeyValsToState(t *testing.T) {
 			}
 
 			// Parse the state keyvals
-			state, storageKeyVals, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+			state, err := merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 			if err != nil {
 				t.Errorf("Error parsing state keyvals: %v", err)
 			}
@@ -100,9 +100,6 @@ func TestStateKeyValsToState(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error serializing state: %v", err)
 			}
-
-			// Add storage keyvals to actual state keyvals
-			actualStateKeyVals = append(actualStateKeyVals, storageKeyVals...)
 
 			// Create a state root with the genesis state
 			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)
@@ -200,7 +197,6 @@ func TestFuzzReportsTrace(t *testing.T) {
 			filePath := filepath.Join(dirPath, fileName)
 
 			var state types.State
-			var storageKeyVals types.StateKeyVals
 			var expectedStateRoot types.StateRoot
 
 			if fileName == "genesis.bin" {
@@ -212,7 +208,7 @@ func TestFuzzReportsTrace(t *testing.T) {
 				}
 
 				// Parse the state keyvals
-				state, storageKeyVals, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+				state, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 				if err != nil {
 					t.Errorf("Error parsing state keyvals: %v", err)
 				}
@@ -228,7 +224,7 @@ func TestFuzzReportsTrace(t *testing.T) {
 				}
 
 				// Parse the state keyvals
-				state, storageKeyVals, err = merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
+				state, err = merklization.StateKeyValsToState(traceTestCase.PostState.KeyVals)
 				if err != nil {
 					t.Errorf("Error parsing state keyvals: %v", err)
 				}
@@ -241,11 +237,6 @@ func TestFuzzReportsTrace(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error serializing state: %v", err)
 			}
-
-			t.Logf("Dir: %s, Size of storageKeyVals: %d", dirEntry.Name(), len(storageKeyVals))
-
-			// Add storage keyvals to actual state keyvals
-			actualStateKeyVals = append(actualStateKeyVals, storageKeyVals...)
 
 			// Create a state root with the genesis state
 			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)

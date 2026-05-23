@@ -387,7 +387,6 @@ func (in SingleServiceAccumulationInput) CloneForService(s types.ServiceID) Sing
 	out.DeferredTransfers = slices.Clone(in.DeferredTransfers)
 	out.WorkReports = slices.Clone(in.WorkReports)
 	out.AlwaysAccumulateMap = maps.Clone(in.AlwaysAccumulateMap)
-	out.UnmatchedKeyVals = blockchain.GetInstance().GetPostStateUnmatchedKeyVals()
 	return out
 }
 
@@ -454,8 +453,6 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 
 		mu.Lock()
 		cache[s] = out
-		// Do not update global store here during parallel execution
-		// UnmatchedKeyVals will be merged after all services complete
 		mu.Unlock()
 
 		return out, nil
@@ -537,48 +534,9 @@ func ParallelizedAccumulation(input ParallelizedAccumulationInput) (output Paral
 		p = append(p, singleOutput.ServiceBlobs...)
 	}
 
-	// Merge UnmatchedKeyVals from all services using intersection
-	// Each service remove its own keys from UnmatchedKeyVals
-	// Keys removed by other services remain in each service's output
-	// Use intersection to merge UnmatchedKeyVals which not removed by any service
-	{
-		if len(s) > 0 {
-			keyCountMap := make(map[[31]byte]int, len(s))               // key -> count of how many services have this key
-			keyValueMap := make(map[[31]byte]types.StateKeyVal, len(s)) // key -> value of the key
-			serviceCount := 0
-
-			// Count occurrences of each key across all service outputs
-			for service_id := range s {
-				singleOutput, ok := cache[service_id]
-				if !ok {
-					continue
-				}
-				serviceCount++
-				// Deduplicate keys within each service output first
-				serviceKeySet := make(map[[31]byte]bool, len(singleOutput.UnmatchedKeyVals))
-				for _, kv := range singleOutput.UnmatchedKeyVals {
-					if !serviceKeySet[kv.Key] {
-						serviceKeySet[kv.Key] = true
-						keyCountMap[kv.Key]++
-						keyValueMap[kv.Key] = kv
-					}
-				}
-			}
-
-			// Only keep keys that exist in ALL service outputs (intersection)
-			mergedUnmatchedKeyVals := make(types.StateKeyVals, 0, len(keyCountMap))
-			for key, count := range keyCountMap {
-				if count == serviceCount {
-					// This key exists in all service outputs, keep it
-					mergedUnmatchedKeyVals = append(mergedUnmatchedKeyVals, keyValueMap[key])
-				}
-			}
-
-			// Update the global store with merged result
-			blockchain.GetInstance().SetPostStateUnmatchedKeyVals(mergedUnmatchedKeyVals)
-		}
-	}
-
+	// Method A: storage / preimage-meta now live in each ServiceAccount's
+	// globalKV map directly. The legacy "intersection-merge across
+	// services" fallback-pool pipeline has been removed.
 	singleOutput, err := runSingleReplaceService(input.PartialStateSet.Bless, singleInput)
 	if err != nil {
 		return output, fmt.Errorf("single service accumulation for bless failed: %w", err)
@@ -797,22 +755,21 @@ func SingleServiceAccumulation(input SingleServiceAccumulationInput) (output Sin
 	eta0 := blockchain.GetInstance().GetPosteriorStates().GetState().Eta[0]
 
 	// (e, w, f , s)↦ ΨA(e, τ′, s, g, iT ⌢ iU )
-	storageKeyVal := input.UnmatchedKeyVals
+	//
+	// Method A: storage / preimage-meta now live in globalKV; Psi_A no
+	// longer needs an unmatched-keyvals fallback pool argument.
 	var pvmResult PVM.Psi_A_ReturnType
 	func() {
 		defer timing.Track("PVM.Psi_A")()
-		pvmResult = PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0, storageKeyVal)
+		pvmResult = PVM.Psi_A(e, tauPrime, s, g, pvmItems, eta0)
 	}()
 
 	// Collect PVM results as output
-	{
-		output.AccumulationOutput = pvmResult.Result
-		output.DeferredTransfers = pvmResult.DeferredTransfers
-		output.GasUsed = pvmResult.Gas
-		output.PartialStateSet = pvmResult.PartialStateSet
-		output.ServiceBlobs = pvmResult.ServiceBlobs
-		output.UnmatchedKeyVals = pvmResult.StorageKeyVal
-	}
+	output.AccumulationOutput = pvmResult.Result
+	output.DeferredTransfers = pvmResult.DeferredTransfers
+	output.GasUsed = pvmResult.Gas
+	output.PartialStateSet = pvmResult.PartialStateSet
+	output.ServiceBlobs = pvmResult.ServiceBlobs
 	return output, nil
 }
 

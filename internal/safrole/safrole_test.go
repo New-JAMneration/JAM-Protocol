@@ -535,7 +535,7 @@ func TestJamtestvectorsTraces(t *testing.T) {
 			continue
 		}
 
-		state, _, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
+		state, err = merklization.StateKeyValsToState(genesisTestCase.State.KeyVals)
 		if err != nil {
 			t.Errorf("Failed to parse state key-vals to state: %v", err)
 			continue

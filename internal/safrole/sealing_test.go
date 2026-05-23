@@ -46,7 +46,7 @@ func runSealValidationTraceTest(t *testing.T, dir string, file string) {
 	}
 
 	// --- Parse State ---
-	State, _, err := merklization.StateKeyValsToState(trace.PostState.KeyVals)
+	State, err := merklization.StateKeyValsToState(trace.PostState.KeyVals)
 	if err != nil {
 		t.Fatalf("Failed to parse PreState: %v", err)
 	}
