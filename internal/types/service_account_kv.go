@@ -355,13 +355,6 @@ func (sa *ServiceAccount) DeletePreimageMeta(key StateKey, length uint64) error 
 // ThresholdBalance returns the per-account minimum balance threshold a_t.
 // GP §9.8: a_t ≡ max(0, B_S + B_I*a_i + B_L*a_o − a_f).
 //
-// NOTE: this method intentionally preserves the historical behaviour of the
-// standalone `CalcThresholdBalance` helper: when the storage sum is greater
-// than or equal to a_f it returns the storage sum itself (instead of
-// `storage - a_f`). That is a pre-existing bug tracked separately and will
-// be fixed AFTER the global-KV refactor and the three fuzz suites have been
-// re-validated, to keep the refactor diff easy to audit.
-//
 // All arithmetic goes through safemath so the operation cannot wrap silently.
 func (sa *ServiceAccount) ThresholdBalance() (U64, error) {
 	aI := uint64(sa.totalNumberOfItems)
@@ -386,12 +379,16 @@ func (sa *ServiceAccount) ThresholdBalance() (U64, error) {
 		return 0, safemath.ErrOverflow
 	}
 
+	// max(0, storage - aF). The storage < aF branch implements the max(0, _)
+	// clamp; the storage >= aF branch must subtract the GratisStorageOffset.
 	if storage < aF {
 		return 0, nil
 	}
-	// Pre-existing bug: should be `storage - aF` per GP §9.8. Intentionally
-	// preserved during this refactor; see method-level comment.
-	return U64(storage), nil
+	diff, ok := safemath.Sub(storage, aF)
+	if !ok {
+		return 0, safemath.ErrOverflow
+	}
+	return U64(diff), nil
 }
 
 // MigrateLegacyMapsToGlobalKV walks the deprecated StorageDict / LookupDict
