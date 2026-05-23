@@ -118,6 +118,17 @@ func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccou
 // UpdateDeltaWithExtrinsicPreimage updates the deltaDoubleDagger state with filtered preimages.
 // It integrates preimages into deltaDoubleDagger using the provided tauPrime time slot.
 // v0.6.4 (12.39)
+//
+// Mirrors the preimage-integration step from the reference graypaper rules
+// (eq. 12.21): for every preimage that passed ShouldIntegratePreimage we
+// stamp a_l[(H(i), |i|)] = [τ ′] in globalKV and add the blob to a_p.
+// InsertPreimageMeta is used (rather than UpdatePreimageMeta) so this step is
+// idempotent: if the lookup entry already exists with empty timeslots
+// (the normal solicited case) the value is overwritten without touching
+// the a_i / a_o counters; if it somehow does not exist yet, the entry is
+// created and the counters are charged. This matches the behaviour of the
+// pre-refactor map[…]TimeSlotSet assignment and avoids a nil-state hazard
+// that bubbled up into ProcessPreimageExtrinsics' SetDelta call.
 func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState, tauPrime types.TimeSlot) (types.ServiceAccountState, error) {
 	for _, ep := range eps {
 		preimageHash := hash.Blake2bHash(ep.Blob)
@@ -128,18 +139,14 @@ func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleD
 			return nil, errors.New("service account not found")
 		}
 		if serviceAccount.PreimageLookup == nil {
-			return nil, errors.New("preimageLookup not initialized")
+			serviceAccount.PreimageLookup = make(types.PreimagesMapEntry)
 		}
 
-		// Stamp the lookup-meta entry with the current timeslot. The entry
-		// must already be present in globalKV (placed there by an earlier
-		// solicit). UpdatePreimageMeta keeps the counters unchanged because
-		// the footprint (a_i / a_o) was paid for at solicit time.
 		stateKey, err := m.NewPreimageMetaStateKey(ep.Requester, preimageHash, preimageLength)
 		if err != nil {
 			return nil, err
 		}
-		if err := serviceAccount.UpdatePreimageMeta(stateKey, types.TimeSlotSet{tauPrime}); err != nil {
+		if err := serviceAccount.InsertPreimageMeta(stateKey, uint64(preimageLength), types.TimeSlotSet{tauPrime}); err != nil {
 			return nil, err
 		}
 		serviceAccount.PreimageLookup[preimageHash] = ep.Blob
@@ -166,7 +173,12 @@ func ProcessPreimageExtrinsics() error {
 	// Update deltaDoubleDagger with filtered preimages
 	newDeltaDoubleDagger, UpdateErr := UpdateDeltaWithExtrinsicPreimage(filteredEps, updatedLookupServiceAccount, tauPrime)
 	if UpdateErr != nil {
+		// Log the error but keep the prior delta intact: an error from
+		// UpdateDeltaWithExtrinsicPreimage returns (nil, err), so blindly
+		// publishing newDeltaDoubleDagger would wipe every service account
+		// from the posterior state.
 		logger.Errorf("UpdateDeltaWithExtrinsicPreimageErr: %v", UpdateErr)
+		return nil
 	}
 
 	// Update new double-dagger to posterior state
@@ -178,6 +190,11 @@ func ProcessPreimageExtrinsics() error {
 // It transforms a dictionary of service states and a set of service/hash pairs into a new dictionary of service states.
 // (map[N_s]A, (N_s, Y)) -> map[N_s]A
 // v0.6.5 (12.18)
+//
+// Uses InsertPreimageMeta (idempotent) instead of UpdatePreimageMeta so that
+// a lookup entry which had timeslots == [] is overwritten with [τ ′] in
+// place — see the UpdateDeltaWithExtrinsicPreimage comment for the same
+// rationale.
 func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.ServiceAccountState, error) {
 	tauPrime := blockchain.GetInstance().GetPosteriorStates().GetTau()
 	for _, serviceblob := range eps {
@@ -199,8 +216,11 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 			continue
 		}
 
-		if err := serviceAccount.UpdatePreimageMeta(stateKey, types.TimeSlotSet{tauPrime}); err != nil {
+		if err := serviceAccount.InsertPreimageMeta(stateKey, uint64(preimageLength), types.TimeSlotSet{tauPrime}); err != nil {
 			return nil, err
+		}
+		if serviceAccount.PreimageLookup == nil {
+			serviceAccount.PreimageLookup = make(types.PreimagesMapEntry)
 		}
 		serviceAccount.PreimageLookup[preimageHash] = serviceblob.Blob
 		d[serviceID] = serviceAccount
