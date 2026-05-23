@@ -560,11 +560,36 @@ func TestServiceAccountFootprintFromCounters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ThresholdBalance returned err: %v", err)
 	}
-	// BS + BI*2 + BL*90
+	// a_f defaults to 0, so a_t = BS + BI*2 + BL*90.
 	want := types.U64(types.BasicMinBalance) +
 		types.U64(types.AdditionalMinBalancePerItem)*2 +
 		types.U64(types.AdditionalMinBalancePerOctet)*90
 	if at != want {
 		t.Fatalf("ThresholdBalance: got %d, want %d", at, want)
 	}
+
+	// Now exercise the GP §9.8 max(0, ... - a_f) clause with a non-zero
+	// gratis storage offset. Before the fix this branch incorrectly
+	// returned `storage` instead of `storage - a_f`.
+	t.Run("with non-zero deposit offset", func(t *testing.T) {
+		account.ServiceInfo.DepositOffset = 50
+		at, err := account.ThresholdBalance()
+		if err != nil {
+			t.Fatalf("ThresholdBalance returned err: %v", err)
+		}
+		if at != want-50 {
+			t.Fatalf("ThresholdBalance with a_f=50: got %d, want %d", at, want-50)
+		}
+	})
+
+	t.Run("deposit offset larger than storage clamps to zero", func(t *testing.T) {
+		account.ServiceInfo.DepositOffset = types.U64(want) + 1000
+		at, err := account.ThresholdBalance()
+		if err != nil {
+			t.Fatalf("ThresholdBalance returned err: %v", err)
+		}
+		if at != 0 {
+			t.Fatalf("ThresholdBalance clamp: got %d, want 0", at)
+		}
+	})
 }
