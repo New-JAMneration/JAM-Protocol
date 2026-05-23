@@ -456,6 +456,7 @@ func WorkResultSerialization(result types.WorkResult) (output types.ByteSequence
 	return output
 }
 
+// Deprecated: uses outdated GP v0.6.4 (C.24) encoding. Use types.GetEncoder() + encoder.Encode(&workReport) instead.
 func WorkReportSerialization(work_report types.WorkReport) (output types.ByteSequence) {
 	/*
 		GP v0.6.4
