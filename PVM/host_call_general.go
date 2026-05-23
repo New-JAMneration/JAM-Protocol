@@ -56,7 +56,6 @@ type GeneralArgs struct {
 	ServiceID           *types.ServiceID
 	ServiceAccountState *types.ServiceAccountState
 	CoreID              *types.CoreIndex
-	StorageKeyVal       *types.StateKeyVals
 }
 
 type AccumulateArgs struct {
@@ -993,52 +992,6 @@ func check(serviceID types.ServiceID, serviceAccountState types.ServiceAccountSt
 
 		serviceID = (serviceID-types.MinimumServiceIndex+1)%(1<<32-(1<<8)-types.MinimumServiceIndex) + types.MinimumServiceIndex
 	}
-}
-
-// 0.7.0 later, fuzzer (forks) needs to recover state, storage, part of lookupData cannot be recover,
-// Thus, needs to check storage, part of lookupData from KeyVal
-// return storage val and add storage state into ResultContextX
-func getStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, storageKey types.ByteSequence) *types.ByteSequence {
-	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for _, v := range *keyVal {
-		if v.Key == requestedStorageStateKey.Key {
-			return &v.Value
-		}
-	}
-
-	return nil
-}
-
-func removeStorageFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, storageKey types.ByteSequence) {
-	requestedStorageStateKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageKey, nil)
-	for k, v := range *keyVal {
-		if v.Key == requestedStorageStateKey.Key {
-			pvmLogger.Debugf("remove storage key: 0x%x\n", requestedStorageStateKey.Key)
-			if k < len(*keyVal)-1 { // not the last index
-				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
-			} else {
-				*keyVal = (*keyVal)[:k]
-			}
-			return
-		}
-	}
-}
-
-func getLookupItemFromKeyVal(keyVal *types.StateKeyVals, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey) []byte {
-	lookupStateKey := merklization.EncodeDelta4Key(serviceID, lookupKey)
-	for k, v := range *keyVal {
-		if v.Key == lookupStateKey {
-			// remove from key-val
-			if k < len(*keyVal)-1 { // not the last index
-				*keyVal = append((*keyVal)[:k], (*keyVal)[k+1:]...)
-			} else {
-				*keyVal = (*keyVal)[:k]
-			}
-			return v.Value
-		}
-	}
-
-	return nil
 }
 
 func derefernceOrNil[T any](p *T) any {

@@ -337,10 +337,8 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 // (StateKey, value) pairs in a single pass over the input.
 //
 // After the globalKV refactor (Method A) the storage (a_s) and preimage-meta
-// (a_l) entries live together in account.globalKV — they no longer need to
-// be stored in a separate "unmatched" fallback pool. The function still
-// returns an empty types.StateKeyVals for source compatibility with existing
-// callers; Step 7.5 will drop that second return value entirely.
+// (a_l) entries live together in account.globalKV — there is no fallback
+// pool left to return, so the signature is simply (State, error).
 //
 // Dispatch (one pass, three buckets):
 //
@@ -360,7 +358,7 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 //
 // state.Delta, PreimageLookup, and globalKV are all lazy-initialised on
 // first use so callers may feed in inputs that don't include every chapter.
-func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.StateKeyVals, error) {
+func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, error) {
 	state := types.State{
 		Delta: make(types.ServiceAccountState),
 	}
@@ -374,112 +372,112 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			cLog(Yellow, "[C(1)]")
 			alpha, err := decodeAlpha(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode alpha: %w", err)
+				return state, fmt.Errorf("failed to decode alpha: %w", err)
 			}
 			state.Alpha = alpha
 		case C(2):
 			cLog(Yellow, "[C(2)]")
 			varphi, err := decodeVarphi(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode varphi: %w", err)
+				return state, fmt.Errorf("failed to decode varphi: %w", err)
 			}
 			state.Varphi = varphi
 		case C(3):
 			cLog(Yellow, "[C(3)]")
 			beta, err := decodeBeta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode beta: %w", err)
+				return state, fmt.Errorf("failed to decode beta: %w", err)
 			}
 			state.Beta = beta
 		case C(4):
 			cLog(Yellow, "[C(4)]")
 			gamma, err := decodeGamma(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode gamma: %w", err)
+				return state, fmt.Errorf("failed to decode gamma: %w", err)
 			}
 			state.Gamma = gamma
 		case C(5):
 			cLog(Yellow, "[C(5)]")
 			psi, err := decodePsi(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode psi: %w", err)
+				return state, fmt.Errorf("failed to decode psi: %w", err)
 			}
 			state.Psi = psi
 		case C(6):
 			cLog(Yellow, "[C(6)]")
 			eta, err := decodeEta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode eta: %w", err)
+				return state, fmt.Errorf("failed to decode eta: %w", err)
 			}
 			state.Eta = eta
 		case C(7):
 			cLog(Yellow, "[C(7)]")
 			iota, err := decodeIota(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode iota: %w", err)
+				return state, fmt.Errorf("failed to decode iota: %w", err)
 			}
 			state.Iota = iota
 		case C(8):
 			cLog(Yellow, "[C(8)]")
 			kappa, err := decodeKappa(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode kappa: %w", err)
+				return state, fmt.Errorf("failed to decode kappa: %w", err)
 			}
 			state.Kappa = kappa
 		case C(9):
 			cLog(Yellow, "[C(9)]")
 			lambda, err := decodeLambda(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode lambda: %w", err)
+				return state, fmt.Errorf("failed to decode lambda: %w", err)
 			}
 			state.Lambda = lambda
 		case C(10):
 			cLog(Yellow, "[C(10)]")
 			rho, err := decodeRho(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode rho: %w", err)
+				return state, fmt.Errorf("failed to decode rho: %w", err)
 			}
 			state.Rho = rho
 		case C(11):
 			cLog(Yellow, "[C(11)]")
 			tau, err := decodeTau(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode tau: %w", err)
+				return state, fmt.Errorf("failed to decode tau: %w", err)
 			}
 			state.Tau = tau
 		case C(12):
 			cLog(Yellow, "[C(12)]")
 			chi, err := decodeChi(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode chi: %w", err)
+				return state, fmt.Errorf("failed to decode chi: %w", err)
 			}
 			state.Chi = chi
 		case C(13):
 			cLog(Yellow, "[C(13)]")
 			pi, err := decodePi(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode pi: %w", err)
+				return state, fmt.Errorf("failed to decode pi: %w", err)
 			}
 			state.Pi = pi
 		case C(14):
 			cLog(Yellow, "[C(14)]")
 			vartheta, err := decodeVartheta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode vartheta: %w", err)
+				return state, fmt.Errorf("failed to decode vartheta: %w", err)
 			}
 			state.Vartheta = vartheta
 		case C(15):
 			cLog(Yellow, "[C(15)]")
 			xi, err := decodeXi(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode xi: %w", err)
+				return state, fmt.Errorf("failed to decode xi: %w", err)
 			}
 			state.Xi = xi
 		case C(16):
 			cLog(Yellow, "[C(16)]")
 			theta, err := decodeTheta(stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
+				return state, fmt.Errorf("failed to decode theta: %w", err)
 			}
 			state.Theta = theta
 		default:
@@ -488,11 +486,11 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 				cLog(Yellow, "[ServiceInfo]")
 				serviceID, err := DecodeServiceIDFromType2(stateKey)
 				if err != nil {
-					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
+					return state, fmt.Errorf("failed to decode service ID: %w", err)
 				}
 				serviceInfo, err := DecodeServiceInfo(stateVal)
 				if err != nil {
-					return state, nil, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceID, err)
+					return state, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceID, err)
 				}
 				sa := ensureServiceAccount(&state, serviceID)
 				sa.ServiceInfo = serviceInfo
@@ -509,12 +507,12 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 			// Type-3 key (storage, preimage-lookup, or preimage-meta).
 			serviceID, err := DecodeServiceIDFromType3(stateKey)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
+				return state, fmt.Errorf("failed to decode service ID: %w", err)
 			}
 
 			isPreimage, preimageHash, err := IsPreimage(stateKey, stateVal)
 			if err != nil {
-				return state, nil, fmt.Errorf("failed to classify state-key: %w", err)
+				return state, fmt.Errorf("failed to classify state-key: %w", err)
 			}
 			if isPreimage {
 				cLog(Yellow, "[Preimage]")
@@ -543,10 +541,7 @@ func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.St
 		} // End of switch
 	} // End of for loop
 
-	// Method A: storage / preimage-meta now live in globalKV, the fallback
-	// pool is unused. Return an empty slice for source compatibility; the
-	// second return value will be dropped in Step 7.5.
-	return state, types.StateKeyVals{}, nil
+	return state, nil
 }
 
 func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {

@@ -96,7 +96,6 @@ func TestPreimageTestVectors(t *testing.T) {
 			STF
 		*/
 		// Preimage
-		_ = cs.GetPriorStateUnmatchedKeyVals() // legacy fallback pool no longer consulted; Step 7.5 will remove the accessor
 		accumulateErr := ValidatePreimageExtrinsics(preimages.Input.Preimages, inputDelta)
 		if accumulateErr == nil {
 			accumulateErr = ProcessPreimageExtrinsics()
@@ -201,7 +200,7 @@ func setupPartialPreimageFilterChain(t *testing.T) (
 	})
 	cs.GetIntermediateStates().SetDeltaDoubleDagger(delta)
 	cs.GetPosteriorStates().SetTau(100)
-	cs.SetPostStateUnmatchedKeyVals(keyVals)
+	_ = keyVals // legacy fallback pool removed; Step 9 will rework this fixture.
 
 	pi := cs.GetPosteriorStates().GetPi()
 	if len(pi.ValsCurr) <= int(testAuthorIndex) {

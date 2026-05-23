@@ -48,8 +48,6 @@ type ChainState struct {
 	ancestry          *AncestryCache
 
 	posteriorCurrentValidators *PosteriorCurrentValidators
-	preStateUnmatchedKeyVals   types.StateKeyVals
-	postStateUnmatchedKeyVals  types.StateKeyVals
 
 	// cache for leaf level merklization
 	keyLevelCache *KeyLevelCache
@@ -112,8 +110,6 @@ func GetInstance() *ChainState {
 			ancestry:          NewAncestryCache(),
 
 			posteriorCurrentValidators: NewPosteriorValidators(),
-			preStateUnmatchedKeyVals:   types.StateKeyVals{},
-			postStateUnmatchedKeyVals:  types.StateKeyVals{},
 
 			keyLevelCache: NewKeyLevelCache(),
 		}
@@ -140,8 +136,6 @@ func ResetInstance() {
 		ancestry:          NewAncestryCache(),
 
 		posteriorCurrentValidators: NewPosteriorValidators(),
-		preStateUnmatchedKeyVals:   types.StateKeyVals{},
-		postStateUnmatchedKeyVals:  types.StateKeyVals{},
 
 		keyLevelCache: NewKeyLevelCache(),
 	}
@@ -432,8 +426,6 @@ func (cs *ChainState) StateCommit() {
 
 	posterState := cs.GetPosteriorStates().GetState()
 	cs.GetPriorStates().SetState(posterState)
-	postUnmatchedKeyVal := cs.GetPostStateUnmatchedKeyVals()
-	cs.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal)
 	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
@@ -488,8 +480,6 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 
 	posterState := cs.GetPosteriorStates().GetState()
 	cs.GetPriorStates().SetState(posterState)
-	postUnmatchedKeyVal := cs.GetPostStateUnmatchedKeyVals()
-	cs.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal)
 	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
@@ -572,38 +562,6 @@ func (cs *ChainState) GetPosteriorCurrentValidatorByIndex(index types.ValidatorI
 }
 
 /*
-	UnmatchedKeyVals management
-*/
-
-func (cs *ChainState) GetPriorStateUnmatchedKeyVals() types.StateKeyVals {
-	return cs.preStateUnmatchedKeyVals.DeepCopy()
-}
-
-func (cs *ChainState) SetPriorStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
-	cs.preStateUnmatchedKeyVals = unmatchedKeyVals
-}
-
-func (cs *ChainState) GetPostStateUnmatchedKeyVals() types.StateKeyVals {
-	return cs.postStateUnmatchedKeyVals.DeepCopy()
-}
-
-// GetPriorStateUnmatchedKeyValsRef returns a direct reference without DeepCopy.
-// The caller MUST NOT modify the returned slice.
-func (cs *ChainState) GetPriorStateUnmatchedKeyValsRef() types.StateKeyVals {
-	return cs.preStateUnmatchedKeyVals
-}
-
-// GetPostStateUnmatchedKeyValsRef returns a direct reference without DeepCopy.
-// The caller MUST NOT modify the returned slice.
-func (cs *ChainState) GetPostStateUnmatchedKeyValsRef() types.StateKeyVals {
-	return cs.postStateUnmatchedKeyVals
-}
-
-func (cs *ChainState) SetPostStateUnmatchedKeyVals(unmatchedKeyVals types.StateKeyVals) {
-	cs.postStateUnmatchedKeyVals = unmatchedKeyVals
-}
-
-/*
 	Block retrieval
 */
 
@@ -679,15 +637,15 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return fmt.Errorf("failed to encode state: %w", err)
 	}
 
-	unmatchedKeyVals := cs.GetPostStateUnmatchedKeyVals()
-	fullStateKeyVals := append(serializedState, unmatchedKeyVals...)
+	// Method A: serializedState already contains every storage / lookup-meta
+	// entry from globalKV; no fallback pool to merge in.
+	fullStateKeyVals := serializedState
 
-	// Sort the fullStateKeyVals by Key to ensure consistent Merklization
+	// Sort by Key to ensure consistent Merklization
 	sort.Slice(fullStateKeyVals, func(i, j int) bool {
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	// Compute state root with key-level cache
 	stateRoot := cs.merklizeWithKeyCache(fullStateKeyVals)
 
 	err = cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
@@ -824,39 +782,36 @@ func (cs *ChainState) RestoreBlockAndState(blockHeaderHash types.HeaderHash) err
 		return fmt.Errorf("failed to restore block and state for hash 0x%x: %w", blockHeaderHash[:8], err)
 	}
 
-	// Restore state and storage key-vals
-	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
+	// Restore state. Method A keeps storage/lookup-meta in globalKV, so
+	// StateKeyValsToState no longer returns an unmatched-keyvals pool.
+	state, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return err
 	}
 
-	return cs.restoreWithState(blockHeaderHash, block, state, unmatchedKeyVals)
+	return cs.restoreWithState(blockHeaderHash, block, state)
 }
 
-// RestoreStateFromSnapshot restores block/ancestry management like RestoreBlockAndState,
-// but uses the provided state + unmatchedKeyVals instead of reading from DB.
+// RestoreStateFromSnapshot restores block/ancestry management like
+// RestoreBlockAndState, but uses the provided state instead of reading from DB.
 func (cs *ChainState) RestoreStateFromSnapshot(
 	blockHeaderHash types.HeaderHash,
 	state types.State,
-	unmatchedKeyVals types.StateKeyVals,
 ) error {
 	block, err := cs.GetBlockByHash(blockHeaderHash)
 	if err != nil {
 		return fmt.Errorf("failed to get block for hash 0x%x: %w", blockHeaderHash[:8], err)
 	}
 
-	return cs.restoreWithState(blockHeaderHash, block, state, unmatchedKeyVals)
+	return cs.restoreWithState(blockHeaderHash, block, state)
 }
 
 func (cs *ChainState) restoreWithState(
 	blockHeaderHash types.HeaderHash,
 	block types.Block,
 	state types.State,
-	unmatchedKeyVals types.StateKeyVals,
 ) error {
 	cs.GetPriorStates().SetState(state)
-	cs.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
-	cs.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
 	// Keep only blocks up to the restored headerHash (fallback point)
 	cs.unfinalizedBlocks.KeepBlocksUpTo(blockHeaderHash)
 	// Add the restored block if it's not already in the list
@@ -883,7 +838,7 @@ func (cs *ChainState) restoreWithState(
 func (cs *ChainState) BuildStateRootInputKeyValsAndRoot(
 	stateKeyVals types.StateKeyVals,
 ) (merkleInputKeyVals types.StateKeyVals, stateRoot types.StateRoot, err error) {
-	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
+	state, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		return nil, types.StateRoot{}, fmt.Errorf("StateKeyValsToState: %w", err)
 	}
@@ -893,11 +848,9 @@ func (cs *ChainState) BuildStateRootInputKeyValsAndRoot(
 		return nil, types.StateRoot{}, fmt.Errorf("StateEncoder: %w", err)
 	}
 
-	merkleInputKeyVals = make(types.StateKeyVals, 0, len(unmatchedKeyVals)+len(serializedState))
-	merkleInputKeyVals = append(merkleInputKeyVals, unmatchedKeyVals...)
-	merkleInputKeyVals = append(merkleInputKeyVals, serializedState...)
-
-	// Use key-level cache for merklization
+	// Method A: serializedState already contains every storage/lookup-meta
+	// entry from globalKV, so there is no fallback pool to merge in.
+	merkleInputKeyVals = serializedState
 	stateRoot = cs.merklizeWithKeyCache(merkleInputKeyVals)
 	return merkleInputKeyVals, stateRoot, nil
 }
