@@ -210,13 +210,9 @@ func CalcOctets(account types.ServiceAccount) types.U64 {
 // calls that already pass (aI, aO, aF) directly into it.
 //
 // Internally we delegate to the new ServiceAccount.ThresholdBalance() method
-// by temporarily setting the counters on a stack-allocated ServiceAccount.
-// This keeps a single source of truth for the formula while letting existing
-// callers stay unchanged until Step 4.
-//
-// NOTE: the same pre-existing bug as ServiceAccount.ThresholdBalance() is
-// preserved here (returns `storage` instead of `storage - aF` when the sum
-// is at least a_f). To be fixed after the refactor lands.
+// by temporarily setting the counters on a stack-allocated ServiceAccount,
+// keeping a single source of truth for the GP §9.8 formula
+// (a_t ≡ max(0, B_S + B_I*a_i + B_L*a_o − a_f)).
 func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
 	var stub types.ServiceAccount
 	stub.SetTotalNumberOfItems(uint32(aI))
