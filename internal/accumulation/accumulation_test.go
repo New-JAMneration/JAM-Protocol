@@ -13,6 +13,8 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/statistics"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_accumulate "github.com/New-JAMneration/JAM-Protocol/jamtests/accumulate"
 	jamtests_preimages "github.com/New-JAMneration/JAM-Protocol/jamtests/preimages"
 	"github.com/google/go-cmp/cmp"
@@ -128,6 +130,192 @@ func TestPreimageTestVectors(t *testing.T) {
 				t.Logf("🟢 [%s] %s", types.TEST_MODE, binFile)
 			}
 		}
+	}
+}
+
+// report4-like service IDs from fuzz state_diff on π (Statistics).
+const (
+	testServiceA      types.ServiceID      = 993378590  // 0x3b35c11e
+	testServiceB      types.ServiceID      = 1097212405 // 0x416621f5
+	testAuthorIndex   types.ValidatorIndex = 5
+)
+
+func newEmptyServiceAccount() types.ServiceAccount {
+	return types.ServiceAccount{
+		PreimageLookup: make(types.PreimagesMapEntry),
+		LookupDict:     make(types.LookupMetaMapEntry),
+		StorageDict:    make(types.Storage),
+	}
+}
+
+func makeTestPreimageBlob(size int, fill byte) types.ByteSequence {
+	b := make(types.ByteSequence, size)
+	for i := range b {
+		b[i] = fill
+	}
+	return b
+}
+
+// setupPartialPreimageFilterChain configures report4-like E_P:
+//   - two preimages (service A 40B, service B 25B), sorted by requester;
+//   - A is already in PreimageLookup → filter rejects integration;
+//   - B is eligible via unmatched δ₄ key-val.
+func setupPartialPreimageFilterChain(t *testing.T) (
+	cs *blockchain.ChainState,
+	blobA, blobB types.ByteSequence,
+) {
+	t.Helper()
+
+	blobA = makeTestPreimageBlob(40, 'a')
+	blobB = makeTestPreimageBlob(25, 'b')
+	hashA := hash.Blake2bHash(blobA)
+	hashB := hash.Blake2bHash(blobB)
+
+	accountA := newEmptyServiceAccount()
+	accountA.PreimageLookup[hashA] = blobA
+
+	accountB := newEmptyServiceAccount()
+
+	delta := types.ServiceAccountState{
+		testServiceA: accountA,
+		testServiceB: accountB,
+	}
+
+	lookupKeyB := types.LookupMetaMapkey{Hash: hashB, Length: types.U32(len(blobB))}
+	keyVals := types.StateKeyVals{
+		m.EncodeDelta4KeyVal(testServiceB, lookupKeyB, types.TimeSlotSet{}),
+	}
+
+	blockchain.ResetInstance()
+	cs = blockchain.GetInstance()
+	cs.AddBlock(types.Block{
+		Header: types.Header{
+			AuthorIndex: testAuthorIndex,
+		},
+		Extrinsic: types.Extrinsic{
+			Preimages: types.PreimagesExtrinsic{
+				{Requester: testServiceA, Blob: blobA},
+				{Requester: testServiceB, Blob: blobB},
+			},
+		},
+	})
+	cs.GetIntermediateStates().SetDeltaDoubleDagger(delta)
+	cs.GetPosteriorStates().SetTau(100)
+	cs.SetPostStateUnmatchedKeyVals(keyVals)
+
+	pi := cs.GetPosteriorStates().GetPi()
+	if len(pi.ValsCurr) <= int(testAuthorIndex) {
+		pi.ValsCurr = make(types.ValidatorsStatistics, int(testAuthorIndex)+1)
+		cs.GetPosteriorStates().SetPi(pi)
+	}
+
+	return cs, blobA, blobB
+}
+
+func assertPreimageEqual(t *testing.T, got types.Preimage, wantRequester types.ServiceID, wantBlob types.ByteSequence) {
+	t.Helper()
+	if got.Requester != wantRequester || !preimageBlobEqual(got.Blob, wantBlob) {
+		t.Fatalf("preimage: got requester=%d len=%d, want requester=%d len=%d",
+			got.Requester, len(got.Blob), wantRequester, len(wantBlob))
+	}
+}
+
+func preimageBlobEqual(a, b types.ByteSequence) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestFilterPreimageExtrinsics_PartialIntegrate_PreservesBlockEP(t *testing.T) {
+	cs, blobA, blobB := setupPartialPreimageFilterChain(t)
+
+	eps := cs.GetLatestBlock().Extrinsic.Preimages
+	delta := cs.GetIntermediateStates().GetDeltaDoubleDagger()
+
+	filtered, _ := filterPreimageExtrinsics(eps, delta)
+	blockEps := cs.GetLatestBlock().Extrinsic.Preimages
+
+	if len(filtered) != 1 {
+		t.Fatalf("filtered len: got %d want 1", len(filtered))
+	}
+	assertPreimageEqual(t, filtered[0], testServiceB, blobB)
+
+	if len(blockEps) != 2 {
+		t.Fatalf("block E_P len: got %d want 2", len(blockEps))
+	}
+	assertPreimageEqual(t, blockEps[0], testServiceA, blobA)
+	assertPreimageEqual(t, blockEps[1], testServiceB, blobB)
+}
+
+func TestStatistics_AfterPartialFilter_UsesFullEP(t *testing.T) {
+	cs, blobA, blobB := setupPartialPreimageFilterChain(t)
+
+	eps := cs.GetLatestBlock().Extrinsic.Preimages
+	delta := cs.GetIntermediateStates().GetDeltaDoubleDagger()
+	_, _ = filterPreimageExtrinsics(eps, delta)
+
+	extrinsic := cs.GetLatestBlock().Extrinsic
+	statistics.UpdateCurrentStatistics(extrinsic)
+	statistics.UpdateServiceActivityStatistics(extrinsic)
+
+	pi := cs.GetPosteriorStates().GetPi()
+	rec := pi.ValsCurr[testAuthorIndex]
+	svcA := pi.Services[testServiceA]
+	svcB := pi.Services[testServiceB]
+
+	if rec.PreImages != 2 {
+		t.Fatalf("π_V p: got %d want 2", rec.PreImages)
+	}
+	if rec.PreImagesSize != types.U32(len(blobA)+len(blobB)) {
+		t.Fatalf("π_V d: got %d want %d", rec.PreImagesSize, len(blobA)+len(blobB))
+	}
+	if svcA.ProvidedCount != 1 || svcA.ProvidedSize != types.U32(len(blobA)) {
+		t.Fatalf("π_S service A: got p=%d d=%d want 1/%d", svcA.ProvidedCount, svcA.ProvidedSize, len(blobA))
+	}
+	if svcB.ProvidedCount != 1 || svcB.ProvidedSize != types.U32(len(blobB)) {
+		t.Fatalf("π_S service B: got p=%d d=%d want 1/%d", svcB.ProvidedCount, svcB.ProvidedSize, len(blobB))
+	}
+}
+
+func TestProcessPreimageExtrinsics_PartialIntegrate(t *testing.T) {
+	cs, blobA, blobB := setupPartialPreimageFilterChain(t)
+	hashB := hash.Blake2bHash(blobB)
+
+	if err := ProcessPreimageExtrinsics(); err != nil {
+		t.Fatalf("ProcessPreimageExtrinsics: %v", err)
+	}
+
+	blockEps := cs.GetLatestBlock().Extrinsic.Preimages
+	if len(blockEps) != 2 {
+		t.Fatalf("block E_P len after process: got %d want 2", len(blockEps))
+	}
+	assertPreimageEqual(t, blockEps[0], testServiceA, blobA)
+	assertPreimageEqual(t, blockEps[1], testServiceB, blobB)
+
+	delta := cs.GetPosteriorStates().GetDelta()
+	accB := delta[testServiceB]
+	if _, ok := accB.PreimageLookup[hashB]; !ok {
+		t.Fatal("δ should contain integrated preimage B")
+	}
+	accA := delta[testServiceA]
+	if len(accA.LookupDict) != 0 {
+		t.Fatalf("service A should have no new lookup from rejected E_P, got %d entries", len(accA.LookupDict))
+	}
+
+	extrinsic := cs.GetLatestBlock().Extrinsic
+	statistics.UpdateCurrentStatistics(extrinsic)
+	statistics.UpdateServiceActivityStatistics(extrinsic)
+
+	pi := cs.GetPosteriorStates().GetPi()
+	if pi.ValsCurr[testAuthorIndex].PreImages != 2 || pi.ValsCurr[testAuthorIndex].PreImagesSize != 65 {
+		t.Fatalf("π_V: got p=%d d=%d want 2/65",
+			pi.ValsCurr[testAuthorIndex].PreImages, pi.ValsCurr[testAuthorIndex].PreImagesSize)
 	}
 }
 

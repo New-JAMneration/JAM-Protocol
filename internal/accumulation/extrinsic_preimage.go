@@ -151,17 +151,20 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 
 func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, types.ServiceAccountState) {
 	cs := blockchain.GetInstance()
-	j := 0
+
+	// Build a new slice for δ integration. Do not compact in-place: eps may share
+	// backing storage with block.Extrinsic.Preimages; in-place compaction leaves a
+	// stale len and corrupts E_P used later for π statistics (GP §13.5).
+	filtered := make(types.PreimagesExtrinsic, 0, len(eps))
 	copiedKeyVals := cs.GetPostStateUnmatchedKeyVals()
-	for i, ep := range eps {
+	for _, ep := range eps {
 		// Calculate preimage hash and length
 		preimageHash := hash.Blake2bHash(ep.Blob)
 		preimageLength := types.U32(len(ep.Blob))
 
 		// Check if the preimage should be integrated
 		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength, &copiedKeyVals, true) {
-			eps[j] = eps[i]
-			j++
+			filtered = append(filtered, ep)
 
 			lookupData := types.LookupMetaMapkey{
 				Hash:   preimageHash,
@@ -174,8 +177,7 @@ func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccou
 
 	}
 	cs.SetPostStateUnmatchedKeyVals(copiedKeyVals)
-	eps = eps[:j]
-	return eps, d
+	return filtered, d
 }
 
 // UpdateDeltaWithExtrinsicPreimage updates the deltaDoubleDagger state with filtered preimages
