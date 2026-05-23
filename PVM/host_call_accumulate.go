@@ -7,6 +7,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 )
 
 // bless = 14
@@ -277,29 +278,40 @@ func new(input OmegaInput) (output OmegaOutput) {
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 
 	// new an account
-	a := types.ServiceAccount{
-		ServiceInfo: types.ServiceInfo{
-			CodeHash:             types.OpaqueHash(c),                     // c
-			Balance:              0,                                       // b, will be updated later
-			MinItemGas:           types.Gas(g),                            // g
-			MinMemoGas:           types.Gas(m),                            // m
-			CreationSlot:         input.Addition.AccumulateArgs.Timeslot,  // r
-			DepositOffset:        types.U64(0),                            // f
-			LastAccumulationSlot: types.TimeSlot(0),                       // a
-			ParentService:        input.Addition.ResultContextX.ServiceID, // p
-		},
-		PreimageLookup: types.PreimagesMapEntry{}, // p
-		LookupDict: types.LookupMetaMapEntry{ // l
-			types.LookupMetaMapkey{
-				Hash:   types.OpaqueHash(c),
-				Length: types.U32(l),
-			}: types.TimeSlotSet{},
-		},
-		StorageDict: types.Storage{}, // s
+	a := types.NewServiceAccount()
+	a.ServiceInfo = types.ServiceInfo{
+		CodeHash:             types.OpaqueHash(c),                     // c
+		Balance:              0,                                       // b, will be updated later
+		MinItemGas:           types.Gas(g),                            // g
+		MinMemoGas:           types.Gas(m),                            // m
+		CreationSlot:         input.Addition.AccumulateArgs.Timeslot,  // r
+		DepositOffset:        types.U64(0),                            // f
+		LastAccumulationSlot: types.TimeSlot(0),                       // a
+		ParentService:        input.Addition.ResultContextX.ServiceID, // p
+	}
+
+	// Seed l with one lookup-meta entry for the new service's code preimage.
+	// InsertPreimageMeta updates the counters (items += 2, octets += 81+l)
+	// atomically, so the subsequent GetServiceAccountDerivatives picks up
+	// the correct a_i / a_o.
+	initialLookupKey, err := merklization.NewPreimageMetaStateKey(input.Addition.ResultContextX.ServiceID, types.OpaqueHash(c), types.U32(l))
+	if err != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
+	}
+	if err := a.InsertPreimageMeta(initialLookupKey, uint64(l), types.TimeSlotSet{}); err != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
 	}
 
 	derive := service_account.GetServiceAccountDerivatives(a)
 	at := derive.Minbalance
+	// Sync ServiceInfo.Items/Bytes for the delta1 wire format (Step 8 will
+	// drop these fields and source them straight from the counters).
 	a.ServiceInfo.Items = derive.Items
 	a.ServiceInfo.Bytes = derive.Bytes
 	a.ServiceInfo.Balance = at
@@ -443,7 +455,13 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceID
 	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
+		// Source a_i / a_o from the incremental counters (post-refactor SOT)
+		// to match the rest of the host-call surface.
+		minBalance := service_account.CalcThresholdBalance(
+			types.U32(accountS.GetTotalNumberOfItems()),
+			types.U64(accountS.GetTotalNumberOfOctets()),
+			accountS.ServiceInfo.DepositOffset,
+		)
 		if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) { //  check b underflow
 			input.Interpreter.Registers[7] = CASH
 			return OmegaOutput{
@@ -528,12 +546,21 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	l := max(81, accountD.ServiceInfo.Bytes) - 81 // a_o
+	// a_o sourced from the incremental counter; the wire copy in
+	// ServiceInfo.Bytes is kept in sync but the counter is the SOT.
+	l := max(81, types.U64(accountD.GetTotalNumberOfOctets())) - 81 // a_o
 
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(l)} // x_bold{s}_l
-	lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
+	lookupStateKey, lookupKeyErr := merklization.NewPreimageMetaStateKey(types.ServiceID(d), lookupKey.Hash, lookupKey.Length)
+	if lookupKeyErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
+	}
+	lookupData, lookupDataExists := accountD.GetPreimageMeta(lookupStateKey)
 
-	if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
+	if accountD.GetTotalNumberOfItems() != 2 || !lookupDataExists {
 		input.Interpreter.Registers[7] = HUH
 
 		return OmegaOutput{
@@ -601,21 +628,15 @@ func query(input OmegaInput) (output OmegaOutput) {
 		pvmLogger.Debugf("host-call function \"query\" serviceID : %d not in ServiceAccount state", serviceID)
 	}
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-	var timeSlotSet types.TimeSlotSet
-	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
-	if lookupTimeSlotSet != nil {
-		decoder := types.NewDecoder()
-		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
-		if err != nil {
-			return OmegaOutput{
-				ExitReason: ExitPanic,
-				Addition:   input.Addition,
-			}
+	lookupStateKey, lookupKeyErr := merklization.NewPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+	if lookupKeyErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
-		account.LookupDict[lookupKey] = timeSlotSet
 	}
-
-	lookupData, lookupDataExists := account.LookupDict[lookupKey]
+	_ = account // account is read-only here; we look up directly through the pointer-receiver method on the value we already fetched
+	lookupData, lookupDataExists := account.GetPreimageMeta(lookupStateKey)
 	if lookupDataExists {
 		// a = lookupData[h,z]
 		switch len(lookupData) {
@@ -648,53 +669,53 @@ func query(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-func loadLookupTimeSlotSet(account *types.ServiceAccount, storageKeyVal *types.StateKeyVals, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey) *OmegaOutput {
-	lookupTimeSlotSet := getLookupItemFromKeyVal(storageKeyVal, serviceID, lookupKey)
-	if lookupTimeSlotSet == nil {
-		return nil
-	}
-	var timeSlotSet types.TimeSlotSet
-	decoder := types.NewDecoder()
-	if err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet); err != nil {
-		return &OmegaOutput{ExitReason: ExitPanic}
-	}
-	account.LookupDict[lookupKey] = timeSlotSet
-	return nil
-}
-
-func handleSolicitNewLookup(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, itemFootprintItems types.U32, itemFootprintOctets types.U64, registers *Registers) *OmegaOutput {
-	newFootprintItems := account.ServiceInfo.Items + itemFootprintItems
-	newFootprintOctets := account.ServiceInfo.Bytes + itemFootprintOctets
+// handleSolicitNewLookup inserts a brand-new preimage-meta entry into
+// globalKV via InsertPreimageMeta (which atomically updates a_i / a_o), but
+// only after pre-checking that the resulting threshold balance still fits.
+func handleSolicitNewLookup(account *types.ServiceAccount, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey, itemFootprintItems types.U32, itemFootprintOctets types.U64, registers *Registers) *OmegaOutput {
+	newFootprintItems := types.U32(account.GetTotalNumberOfItems()) + itemFootprintItems
+	newFootprintOctets := types.U64(account.GetTotalNumberOfOctets()) + itemFootprintOctets
 	newMinBalance := service_account.CalcThresholdBalance(newFootprintItems, newFootprintOctets, account.ServiceInfo.DepositOffset)
 	if account.ServiceInfo.Balance < newMinBalance {
 		registers[7] = FULL
 		return &OmegaOutput{ExitReason: ExitContinue}
 	}
-	account.LookupDict[lookupKey] = make(types.TimeSlotSet, 0)
-	account.ServiceInfo.Items = newFootprintItems
-	account.ServiceInfo.Bytes = newFootprintOctets
+	stateKey, err := merklization.NewPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+	if err != nil {
+		return &OmegaOutput{ExitReason: ExitPanic}
+	}
+	if err := account.InsertPreimageMeta(stateKey, uint64(lookupKey.Length), types.TimeSlotSet{}); err != nil {
+		return &OmegaOutput{ExitReason: ExitPanic}
+	}
+	account.ServiceInfo.Items = types.U32(account.GetTotalNumberOfItems())
+	account.ServiceInfo.Bytes = types.U64(account.GetTotalNumberOfOctets())
 	return nil
 }
 
-func handleSolicitExistingLookup(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, itemFootprintItems types.U32, itemFootprintOctets types.U64, timeslot types.TimeSlot) *OmegaOutput {
-	newFootprintItems := account.ServiceInfo.Items - itemFootprintItems
-	newFootprintOctets := account.ServiceInfo.Bytes - itemFootprintOctets
+// handleSolicitExistingLookup appends a timeslot to an existing
+// preimage-meta entry. The counters are unchanged for this branch because
+// UpdatePreimageMeta keeps the same key/length footprint.
+func handleSolicitExistingLookup(account *types.ServiceAccount, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, timeslot types.TimeSlot) *OmegaOutput {
+	stateKey, err := merklization.NewPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+	if err != nil {
+		return &OmegaOutput{ExitReason: ExitPanic}
+	}
 	lookupData = append(lookupData, timeslot)
-	newItemFootprintItems, newItemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
-	account.LookupDict[lookupKey] = lookupData
-	account.ServiceInfo.Items = newFootprintItems + newItemFootprintItems
-	account.ServiceInfo.Bytes = newFootprintOctets + newItemFootprintOctets
+	if err := account.UpdatePreimageMeta(stateKey, lookupData); err != nil {
+		return &OmegaOutput{ExitReason: ExitPanic}
+	}
+	// ServiceInfo.Items/Bytes unchanged since the entry was already counted.
 	return nil
 }
 
-func processSolicitLookupData(account *types.ServiceAccount, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, lookupDataExists bool, timeslot types.TimeSlot, registers *Registers) *OmegaOutput {
+func processSolicitLookupData(account *types.ServiceAccount, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey, lookupData types.TimeSlotSet, lookupDataExists bool, timeslot types.TimeSlot, registers *Registers) *OmegaOutput {
 	itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
 
 	if !lookupDataExists {
-		return handleSolicitNewLookup(account, lookupKey, itemFootprintItems, itemFootprintOctets, registers)
+		return handleSolicitNewLookup(account, serviceID, lookupKey, itemFootprintItems, itemFootprintOctets, registers)
 	}
 	if len(lookupData) == 2 {
-		return handleSolicitExistingLookup(account, lookupKey, lookupData, itemFootprintItems, itemFootprintOctets, timeslot)
+		return handleSolicitExistingLookup(account, serviceID, lookupKey, lookupData, timeslot)
 	}
 	registers[7] = HUH
 	return &OmegaOutput{ExitReason: ExitContinue}
@@ -730,13 +751,15 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 
 	lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
-	if result := loadLookupTimeSlotSet(&a, input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey); result != nil {
-		result.Addition = input.Addition
-		return *result
+	lookupStateKey, lookupKeyErr := merklization.NewPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+	if lookupKeyErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
 	}
-
-	lookupData, lookupDataExists := a.LookupDict[lookupKey]
-	if result := processSolicitLookupData(&a, lookupKey, lookupData, lookupDataExists, timeslot, &input.Interpreter.Registers); result != nil {
+	lookupData, lookupDataExists := a.GetPreimageMeta(lookupStateKey)
+	if result := processSolicitLookupData(&a, serviceID, lookupKey, lookupData, lookupDataExists, timeslot, &input.Interpreter.Registers); result != nil {
 		result.Addition = input.Addition
 		return *result
 	}
@@ -775,56 +798,47 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	// x_bold{s} = (x_u)_d[x_s] check service exists
 	if a, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountExists {
 		lookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)} // x_bold{s}_l
-		// check lookupItem from key-val
-		var timeSlotSet types.TimeSlotSet
-		lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, serviceID, lookupKey)
-		if lookupTimeSlotSet != nil {
-			decoder := types.NewDecoder()
-			err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
-			if err != nil {
-				return OmegaOutput{
-					ExitReason: ExitPanic,
-					Addition:   input.Addition,
-				}
+		lookupStateKey, lookupKeyErr := merklization.NewPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+		if lookupKeyErr != nil {
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
 			}
-			a.LookupDict[lookupKey] = timeSlotSet
 		}
 
-		if lookupData, lookupDataExists := a.LookupDict[lookupKey]; lookupDataExists {
+		if lookupData, lookupDataExists := a.GetPreimageMeta(lookupStateKey); lookupDataExists {
 			lookupDataLength := len(lookupData)
-			itemFootprintItems, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
+			_, itemFootprintOctets := service_account.CalcLookupItemfootprint(lookupKey)
 
-			newFootprintItems := a.ServiceInfo.Items
-			newFootprintOctets := a.ServiceInfo.Bytes
 			if lookupDataLength == 0 || (lookupDataLength == 2 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots)) {
-				// delete (h,z) from a_l
-				expectedRemoveLookupKey := types.LookupMetaMapkey{Hash: types.OpaqueHash(h), Length: types.U32(z)}
-				delete(a.LookupDict, expectedRemoveLookupKey) // if key not exist, delete do nothing
-				// delete (h) from a_p
+				// Delete (h,z) from a_l and (h) from a_p.
+				if err := a.DeletePreimageMeta(lookupStateKey, uint64(itemFootprintOctets-81)); err != nil {
+					return OmegaOutput{
+						ExitReason: ExitPanic,
+						Addition:   input.Addition,
+					}
+				}
 				delete(a.PreimageLookup, types.OpaqueHash(h))
-				newFootprintItems -= itemFootprintItems
-				newFootprintOctets -= itemFootprintOctets
 			} else if lookupDataLength == 1 {
-				newFootprintItems -= itemFootprintItems
-				newFootprintOctets -= itemFootprintOctets
 				// a_l[h,z] = [x,t]
 				lookupData = append(lookupData, timeslot)
-				a.LookupDict[lookupKey] = lookupData
-				itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
-				newFootprintItems += itemFootprintItems
-				newFootprintOctets += itemFootprintOctets
-
+				if err := a.UpdatePreimageMeta(lookupStateKey, lookupData); err != nil {
+					return OmegaOutput{
+						ExitReason: ExitPanic,
+						Addition:   input.Addition,
+					}
+				}
 			} else if lookupDataLength == 3 && int(lookupData[1]) < int(timeslot)-int(types.UnreferencedPreimageTimeslots) {
-				newFootprintItems -= itemFootprintItems
-				newFootprintOctets -= itemFootprintOctets
 				// a_l[h,z] = [w,t]
 				lookupData[0] = lookupData[2]
 				lookupData[1] = timeslot
 				lookupData = lookupData[:2]
-				a.LookupDict[lookupKey] = lookupData
-				itemFootprintItems, itemFootprintOctets = service_account.CalcLookupItemfootprint(lookupKey)
-				newFootprintItems += itemFootprintItems
-				newFootprintOctets += itemFootprintOctets
+				if err := a.UpdatePreimageMeta(lookupStateKey, lookupData); err != nil {
+					return OmegaOutput{
+						ExitReason: ExitPanic,
+						Addition:   input.Addition,
+					}
+				}
 			} else { // otherwise, panic
 				input.Interpreter.Registers[7] = HUH
 				return OmegaOutput{
@@ -832,9 +846,11 @@ func forget(input OmegaInput) (output OmegaOutput) {
 					Addition:   input.Addition,
 				}
 			}
-			// x'_s = a
-			a.ServiceInfo.Items = newFootprintItems
-			a.ServiceInfo.Bytes = newFootprintOctets
+			// Sync Items/Bytes from counters for the delta1 wire format
+			// (Step 8 will drop these fields and source them straight from
+			// the counters).
+			a.ServiceInfo.Items = types.U32(a.GetTotalNumberOfItems())
+			a.ServiceInfo.Bytes = types.U64(a.GetTotalNumberOfOctets())
 			input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
 			*input.Addition.GeneralArgs.ServiceAccount = a
@@ -923,24 +939,17 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		Hash:   hash.Blake2bHash(i),
 		Length: types.U32(z),
 	}
-
-	// check lookupItem from key-val
-	var timeSlotSet types.TimeSlotSet
-	lookupTimeSlotSet := getLookupItemFromKeyVal(input.Addition.ResultContextX.StorageKeyVal, s, lookupKey)
-	if lookupTimeSlotSet != nil {
-		decoder := types.NewDecoder()
-		err := decoder.Decode(lookupTimeSlotSet, &timeSlotSet)
-		if err != nil {
-			return OmegaOutput{
-				ExitReason: ExitPanic,
-				Addition:   input.Addition,
-			}
+	lookupStateKey, lookupKeyErr := merklization.NewPreimageMetaStateKey(s, lookupKey.Hash, lookupKey.Length)
+	if lookupKeyErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
 		}
-		account.LookupDict[lookupKey] = timeSlotSet
 	}
+	_ = account // account is read from PartialState; lookup is performed via globalKV.
 
 	// otherwise if a_l[H(i), z] not in []
-	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
+	if lookupData, lookupDataExists := account.GetPreimageMeta(lookupStateKey); (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
 		input.Interpreter.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
