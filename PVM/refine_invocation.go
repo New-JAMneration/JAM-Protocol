@@ -51,7 +51,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	// check BAD
 	account, accountExists := input.ServiceAccounts[workItem.Service]
 	// lookupData = Λ(δ[w_s], (p_x)_t, w_c)
-	lookupData := service_account.HistoricalLookup(account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
+	lookupData := service_account.HistoricalLookup(workItem.Service, account, input.WorkPackage.Context.LookupAnchorSlot, workItem.CodeHash)
 
 	if !accountExists || (accountExists && len(lookupData) == 0) {
 		return RefineOutput{

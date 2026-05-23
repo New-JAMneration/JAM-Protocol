@@ -28,21 +28,24 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	s := input.Addition.ServiceID
 	// assign a
 	var a *types.ServiceAccount
+	var resolvedServiceID types.ServiceID
 	var v types.ByteSequence
 
 	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.VM.Registers[7] == 0xffffffffffffffff {
 		a = &account
-	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.VM.Registers[7])]; accountExists {
+		resolvedServiceID = *s
+	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.Interpreter.Registers[7])]; accountExists {
 		a = &account
+		resolvedServiceID = types.ServiceID(input.Interpreter.Registers[7])
 	}
 
 	var f uint64
 	var l uint64
 
 	if a != nil {
-		v = service_account.HistoricalLookup(*a, input.Addition.RefineArgs.TimeSlot, codeHash)
-		f = min(input.VM.Registers[10], uint64(len(v)))
-		l = min(input.VM.Registers[11], uint64(len(v))-f)
+		v = service_account.HistoricalLookup(resolvedServiceID, *a, input.Addition.RefineArgs.TimeSlot, codeHash)
+		f = min(input.Interpreter.Registers[10], uint64(len(v)))
+		l = min(input.Interpreter.Registers[11], uint64(len(v))-f)
 	}
 
 	if !isWriteable(o, l, *input.VM.Memory) && l != 0 { // not writeable, return panic
