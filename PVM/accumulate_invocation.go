@@ -43,7 +43,7 @@ func Psi_A(
 	// (9.4) E(↕m, c) = ap[ac]
 	// Get actual code (c)
 	codeHash := s.ServiceInfo.CodeHash
-	_, code, err := service_account.FetchCodeByHash(s, codeHash)
+	_, code, err := service_account.FetchCodeByHash(serviceID, s, codeHash)
 	if err != nil {
 		return Psi_A_ReturnType{
 			PartialStateSet:   partialState,

@@ -96,8 +96,8 @@ func TestPreimageTestVectors(t *testing.T) {
 			STF
 		*/
 		// Preimage
-		unmatchedKeyVals := cs.GetPriorStateUnmatchedKeyVals()
-		accumulateErr := ValidatePreimageExtrinsics(preimages.Input.Preimages, inputDelta, &unmatchedKeyVals)
+		_ = cs.GetPriorStateUnmatchedKeyVals() // legacy fallback pool no longer consulted; Step 7.5 will remove the accessor
+		accumulateErr := ValidatePreimageExtrinsics(preimages.Input.Preimages, inputDelta)
 		if accumulateErr == nil {
 			accumulateErr = ProcessPreimageExtrinsics()
 		}

@@ -25,88 +25,36 @@ After that, adding those preimages into delta anchored with time for each servic
 // -> set delta^daggerdagger to delta^prime
 */
 
-// v0.6.4 (12.36) R function determines whether a preimage should be integrated
-func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceID, h types.OpaqueHash, l types.U32, keyVals *types.StateKeyVals, parseToState bool) bool {
-	// Check for existence of the service account
+// v0.6.4 (12.36) R function determines whether a preimage should be integrated.
+//
+// After the globalKV refactor (Method A: full load at deserialization),
+// the legacy unmatchedKeyVals fallback pool no longer exists; lookup-meta
+// presence is resolved directly through GetPreimageMeta against globalKV.
+func ShouldIntegratePreimage(d types.ServiceAccountState, s types.ServiceID, h types.OpaqueHash, l types.U32) bool {
 	account, isInAccount := d[s]
-	if !isInAccount || account.PreimageLookup == nil || account.LookupDict == nil {
-		// If account does not exist or maps are uninitialized, return false
-		// logger.Warn("ServiceAccount not found or maps are uninitialized")
+	if !isInAccount {
 		return false
 	}
 
-	// Check if the preimage hash is not in the service account's preimage map
 	_, isInPreimageMap := account.PreimageLookup[h]
 
-	// Construct lookup key
-	lookupKey := types.LookupMetaMapkey{
-		Hash:   h,
-		Length: l,
+	lookupStateKey, err := m.NewPreimageMetaStateKey(s, h, l)
+	if err != nil {
+		return false
 	}
-
-	// Check if the lookupKey have been set before(time slot set is not empty)
-	timeSlotSet, lookupKeyExists := account.LookupDict[lookupKey]
+	timeSlotSet, lookupKeyExists := account.GetPreimageMeta(lookupStateKey)
 	if !lookupKeyExists {
-		if parseToState {
-			return lookupAndRemoveKeyVal(keyVals, lookupKey, s)
-			// only parseToState == true (filter deltaDoubleDagger) needs to remove keyVal and parse to service lookupDict
-		} else {
-			return lookupInKeyVal(*keyVals, lookupKey, s)
-		}
-	}
-
-	// Condition: hash does not exist in preimage map, and lookup time slot set is empty
-	return !isInPreimageMap && (len(timeSlotSet) == 0)
-}
-
-func lookupInKeyVal(keyVals types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceID types.ServiceID) bool {
-	if len(keyVals) == 0 {
 		return false
 	}
 
-	lookupStateKey := m.EncodeDelta4Key(serviceID, lookupKey)
-	for _, v := range keyVals {
-		if v.Key == lookupStateKey {
-			if len(v.Value) == 1 && v.Value[0] == 0 {
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-
-	return false
-}
-
-func lookupAndRemoveKeyVal(keyVals *types.StateKeyVals, lookupKey types.LookupMetaMapkey, serviceID types.ServiceID) bool {
-	if len(*keyVals) == 0 {
-		return false
-	}
-
-	lookupStateKey := m.EncodeDelta4Key(serviceID, lookupKey)
-	for k, v := range *keyVals {
-		if v.Key == lookupStateKey {
-			if len(v.Value) == 1 && v.Value[0] == 0 {
-				// remove lookupData from keyval
-				if k < len(*keyVals)-1 { // not the last index
-					*keyVals = append((*keyVals)[:k], (*keyVals)[k+1:]...)
-				} else {
-					*keyVals = (*keyVals)[:k]
-				}
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-
-	return false
+	// Integrate iff the preimage blob is not yet present AND the lookup
+	// entry is in the "requested but unsupplied" state (empty timeslot set).
+	return !isInPreimageMap && len(timeSlotSet) == 0
 }
 
 // v0.7.0 (12.39, 12.40)  for all: E_P: Y(δ, s, H(d), |d|)
-// Validate Preimage Extrinsics with prior state service preimage and lookupDict
-func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState, keyVals *types.StateKeyVals) error {
-	// If eps is empty, return empty slice
+// Validate Preimage Extrinsics with prior state service preimage and lookupDict.
+func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.ServiceAccountState) error {
 	if len(eps) == 0 {
 		return nil
 	}
@@ -120,7 +68,7 @@ func ValidatePreimageExtrinsics(eps types.PreimagesExtrinsic, delta types.Servic
 		preimageHash := hash.Blake2bHash(ep.Blob)
 		preimageLength := types.U32(len(ep.Blob))
 
-		if !ShouldIntegratePreimage(delta, ep.Requester, preimageHash, preimageLength, keyVals, false) {
+		if !ShouldIntegratePreimage(delta, ep.Requester, preimageHash, preimageLength) {
 			errCode := PreimageErrorCode.PreimageUnneeded
 			return &errCode
 		}
@@ -150,67 +98,52 @@ func validateSortUnique(eps types.PreimagesExtrinsic) *types.ErrorCode {
 }
 
 func filterPreimageExtrinsics(eps types.PreimagesExtrinsic, d types.ServiceAccountState) (types.PreimagesExtrinsic, types.ServiceAccountState) {
-	cs := blockchain.GetInstance()
-
 	// Build a new slice for δ integration. Do not compact in-place: eps may share
 	// backing storage with block.Extrinsic.Preimages; in-place compaction leaves a
 	// stale len and corrupts E_P used later for π statistics (GP §13.5).
 	filtered := make(types.PreimagesExtrinsic, 0, len(eps))
-	copiedKeyVals := cs.GetPostStateUnmatchedKeyVals()
 	for _, ep := range eps {
-		// Calculate preimage hash and length
 		preimageHash := hash.Blake2bHash(ep.Blob)
 		preimageLength := types.U32(len(ep.Blob))
 
-		// Check if the preimage should be integrated
-		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength, &copiedKeyVals, true) {
+		if ShouldIntegratePreimage(d, ep.Requester, preimageHash, preimageLength) {
 			filtered = append(filtered, ep)
-
-			lookupData := types.LookupMetaMapkey{
-				Hash:   preimageHash,
-				Length: preimageLength,
-			}
-			requestService := d[ep.Requester]
-			// Pre-allocate with small initial capacity (lookup entries typically small)
-			requestService.LookupDict[lookupData] = make(types.TimeSlotSet, 0, 8)
+			// No need to "lift" the lookup entry from a fallback pool any
+			// more — Method A guarantees the entry is already in globalKV.
 		}
-
 	}
-	cs.SetPostStateUnmatchedKeyVals(copiedKeyVals)
 	return filtered, d
 }
 
-// UpdateDeltaWithExtrinsicPreimage updates the deltaDoubleDagger state with filtered preimages
-// It integrates preimages into deltaDoubleDagger using the provided tauPrime time slot
+// UpdateDeltaWithExtrinsicPreimage updates the deltaDoubleDagger state with filtered preimages.
+// It integrates preimages into deltaDoubleDagger using the provided tauPrime time slot.
 // v0.6.4 (12.39)
 func UpdateDeltaWithExtrinsicPreimage(eps types.PreimagesExtrinsic, deltaDoubleDagger types.ServiceAccountState, tauPrime types.TimeSlot) (types.ServiceAccountState, error) {
 	for _, ep := range eps {
 		preimageHash := hash.Blake2bHash(ep.Blob)
 		preimageLength := types.U32(len(ep.Blob))
-		lookupKey := types.LookupMetaMapkey{
-			Hash:   preimageHash,
-			Length: preimageLength,
-		}
 
-		// Check if ServiceID exists in deltaDoubleDagger
 		serviceAccount, exists := deltaDoubleDagger[ep.Requester]
 		if !exists {
 			return nil, errors.New("service account not found")
-		} else {
-			// Ensure map fields are initialized
-			if serviceAccount.LookupDict == nil {
-				return nil, errors.New("lookupDict not initialized")
-			}
-			if serviceAccount.PreimageLookup == nil {
-				return nil, errors.New("preimageLookup not initialized")
-			}
+		}
+		if serviceAccount.PreimageLookup == nil {
+			return nil, errors.New("preimageLookup not initialized")
 		}
 
-		// Update map
-		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
+		// Stamp the lookup-meta entry with the current timeslot. The entry
+		// must already be present in globalKV (placed there by an earlier
+		// solicit). UpdatePreimageMeta keeps the counters unchanged because
+		// the footprint (a_i / a_o) was paid for at solicit time.
+		stateKey, err := m.NewPreimageMetaStateKey(ep.Requester, preimageHash, preimageLength)
+		if err != nil {
+			return nil, err
+		}
+		if err := serviceAccount.UpdatePreimageMeta(stateKey, types.TimeSlotSet{tauPrime}); err != nil {
+			return nil, err
+		}
 		serviceAccount.PreimageLookup[preimageHash] = ep.Blob
 
-		// Write updated serviceAccount back to deltaDoubleDagger
 		deltaDoubleDagger[ep.Requester] = serviceAccount
 	}
 
@@ -254,16 +187,22 @@ func Provide(d types.ServiceAccountState, eps types.ServiceBlobs) (types.Service
 			continue
 		}
 
-		lookupKey := types.LookupMetaMapkey{
-			Hash:   hash.Blake2bHash(serviceblob.Blob),
-			Length: types.U32(len(serviceblob.Blob)),
+		preimageHash := hash.Blake2bHash(serviceblob.Blob)
+		preimageLength := types.U32(len(serviceblob.Blob))
+		stateKey, err := m.NewPreimageMetaStateKey(serviceID, preimageHash, preimageLength)
+		if err != nil {
+			return nil, err
 		}
-		if timeSlotSet, found := serviceAccount.LookupDict[lookupKey]; !found || (found && len(timeSlotSet) > 0) {
+		timeSlotSet, found := serviceAccount.GetPreimageMeta(stateKey)
+		if !found || len(timeSlotSet) > 0 {
+			// No matching solicit, or the preimage was already provided.
 			continue
 		}
 
-		serviceAccount.LookupDict[lookupKey] = types.TimeSlotSet{tauPrime}
-		serviceAccount.PreimageLookup[lookupKey.Hash] = serviceblob.Blob
+		if err := serviceAccount.UpdatePreimageMeta(stateKey, types.TimeSlotSet{tauPrime}); err != nil {
+			return nil, err
+		}
+		serviceAccount.PreimageLookup[preimageHash] = serviceblob.Blob
 		d[serviceID] = serviceAccount
 	}
 
