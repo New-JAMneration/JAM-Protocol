@@ -394,6 +394,36 @@ func (sa *ServiceAccount) ThresholdBalance() (U64, error) {
 	return U64(storage), nil
 }
 
+// MigrateLegacyMapsToGlobalKV walks the deprecated StorageDict / LookupDict
+// maps and re-installs each entry in globalKV via InsertStorage /
+// InsertPreimageMeta. Counters are reset to zero before the walk so that
+// the resulting (a_i, a_o) match what the Insert methods would have
+// produced from scratch.
+//
+// Intended for test fixtures that still build a ServiceAccount with a
+// struct literal seeding the legacy maps directly — calling this once
+// after construction yields a ServiceAccount that behaves identically to
+// one built incrementally through Insert*.
+func (sa *ServiceAccount) MigrateLegacyMapsToGlobalKV(serviceID ServiceID) error {
+	sa.globalKV = make(map[StateKey][]byte)
+	sa.totalNumberOfItems = 0
+	sa.totalNumberOfOctets = 0
+
+	for lookupKey, timeslots := range sa.LookupDict {
+		stateKey := buildPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
+		if err := sa.InsertPreimageMeta(stateKey, uint64(lookupKey.Length), timeslots); err != nil {
+			return fmt.Errorf("MigrateLegacyMapsToGlobalKV: InsertPreimageMeta: %w", err)
+		}
+	}
+	for rawKey, value := range sa.StorageDict {
+		stateKey := buildStorageStateKey(serviceID, ByteSequence(rawKey))
+		if err := sa.InsertStorage(stateKey, uint64(len(rawKey)), value); err != nil {
+			return fmt.Errorf("MigrateLegacyMapsToGlobalKV: InsertStorage: %w", err)
+		}
+	}
+	return nil
+}
+
 // ----- Clone / DeepCopy -----
 
 // Clone returns a deep copy of the ServiceAccount.

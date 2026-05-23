@@ -140,25 +140,22 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		Hash:   authCodeHash,
 		Length: types.U32(len(metaCodeBytes)),
 	}
-	inputDelta := types.ServiceAccountState{
-		types.ServiceID(1): {
-			ServiceInfo: types.ServiceInfo{
-				CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
-				Balance:    1000,
-				MinItemGas: types.Gas(100),
-				MinMemoGas: types.Gas(100),
-				Bytes:      types.U64(1),
-				Items:      types.U32(1),
-			},
-			PreimageLookup: types.PreimagesMapEntry{
-				authCodeHash: metaCodeBytes,
-			},
-			LookupDict: types.LookupMetaMapEntry{
-				lookupKey: types.TimeSlotSet{0},
-			},
-			StorageDict: nil,
-		},
+	const testServiceID = types.ServiceID(1)
+	authoringAccount := types.NewServiceAccount()
+	authoringAccount.ServiceInfo = types.ServiceInfo{
+		CodeHash:   types.OpaqueHash{0x04, 0x05, 0x06},
+		Balance:    1000,
+		MinItemGas: types.Gas(100),
+		MinMemoGas: types.Gas(100),
+		Bytes:      types.U64(1),
+		Items:      types.U32(1),
 	}
+	authoringAccount.PreimageLookup[authCodeHash] = metaCodeBytes
+	authoringAccount.LookupDict[lookupKey] = types.TimeSlotSet{0}
+	if err := authoringAccount.MigrateLegacyMapsToGlobalKV(testServiceID); err != nil {
+		t.Fatalf("MigrateLegacyMapsToGlobalKV: %v", err)
+	}
+	inputDelta := types.ServiceAccountState{testServiceID: authoringAccount}
 	cs := blockchain.GetInstance()
 	cs.GetPriorStates().SetDelta(inputDelta)
 
