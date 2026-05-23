@@ -52,6 +52,10 @@ type ChainState struct {
 
 	// cache for leaf level merklization
 	keyLevelCache *KeyLevelCache
+
+	// ring buffer tracking recent state roots stored in repo (memory),
+	// used to evict old entries and bound memory usage.
+	recentStateRoots []types.StateRoot
 }
 
 func getPersistentDatabase() database.Database {
@@ -430,6 +434,72 @@ func (cs *ChainState) StateCommit() {
 	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
 }
 
+// StateCommitWithPreComputedState persists state using pre-computed stateRoot and
+// fullStateKeyVals, skipping the redundant StateEncoder + Merklize in PersistStateForBlock.
+func (cs *ChainState) StateCommitWithPreComputedState(
+	blockHeaderHash types.HeaderHash,
+	stateRoot types.StateRoot,
+	fullStateKeyVals types.StateKeyVals,
+) {
+	sort.Slice(fullStateKeyVals, func(i, j int) bool {
+		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
+	})
+
+	err := cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
+	if err != nil {
+		logger.Errorf("StateCommitWithPreComputedState: failed to store state root mapping: %v", err)
+	}
+
+	// Write state data to both memory (for fast reads) and disk (for persistence).
+	err = cs.repo.SaveStateData(cs.repo.Database(), stateRoot, fullStateKeyVals)
+	if err != nil {
+		logger.Errorf("StateCommitWithPreComputedState: failed to store state data to memory: %v", err)
+	} else {
+		logger.Debugf("StateCommitWithPreComputedState: persisted state for block 0x%x", blockHeaderHash[:8])
+	}
+	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
+		logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
+	}
+
+	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
+	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
+	if len(cs.recentStateRoots) > types.MaxLookupAge {
+		evict := cs.recentStateRoots[0]
+		cs.recentStateRoots = cs.recentStateRoots[1:]
+		cs.repo.DeleteStateData(cs.repo.Database(), evict)
+	}
+
+	latestBlock := cs.GetLatestBlock()
+
+	// Persist block mapping
+	err = cs.repo.SaveBlock(cs.repo.Database(), &latestBlock)
+	if err != nil {
+		logger.Errorf("StateCommitWithPreComputedState: failed to persist block: %v", err)
+	} else {
+		logger.Debugf("StateCommitWithPreComputedState: persisted block 0x%x", blockHeaderHash[:8])
+	}
+
+	existingAncestry := cs.GetAncestry()
+	if len(existingAncestry) > 0 {
+		currentItem := types.AncestryItem{
+			Slot:       latestBlock.Header.Slot,
+			HeaderHash: blockHeaderHash,
+		}
+		last := existingAncestry[len(existingAncestry)-1]
+		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
+			cs.AppendAncestry(types.Ancestry{currentItem})
+		} else {
+			logger.Debugf("StateCommitWithPreComputedState: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
+		}
+	}
+
+	posterState := cs.GetPosteriorStates().GetState()
+	cs.GetPriorStates().SetState(posterState)
+	postUnmatchedKeyVal := cs.GetPostStateUnmatchedKeyVals()
+	cs.SetPriorStateUnmatchedKeyVals(postUnmatchedKeyVal)
+	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+}
+
 /*
 	Ancestry management
 */
@@ -609,9 +679,21 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return fmt.Errorf("failed to store state root mapping: %w", err)
 	}
 
+	// Write state data to both memory (for fast reads) and disk (for persistence).
 	err = cs.repo.SaveStateData(cs.repo.Database(), stateRoot, fullStateKeyVals)
 	if err != nil {
-		return fmt.Errorf("failed to store state data: %w", err)
+		return fmt.Errorf("failed to store state data to memory: %w", err)
+	}
+	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
+		logger.Warnf("PersistStateForBlock: failed to store state data to disk: %v", err)
+	}
+
+	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
+	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
+	if len(cs.recentStateRoots) > types.MaxLookupAge {
+		evict := cs.recentStateRoots[0]
+		cs.recentStateRoots = cs.recentStateRoots[1:]
+		cs.repo.DeleteStateData(cs.repo.Database(), evict)
 	}
 
 	return nil
@@ -740,25 +822,44 @@ func (cs *ChainState) RestoreBlockAndState(blockHeaderHash types.HeaderHash) err
 		return err
 	}
 
+	return cs.restoreWithState(blockHeaderHash, block, state, unmatchedKeyVals)
+}
+
+// RestoreStateFromSnapshot restores block/ancestry management like RestoreBlockAndState,
+// but uses the provided state + unmatchedKeyVals instead of reading from DB.
+func (cs *ChainState) RestoreStateFromSnapshot(
+	blockHeaderHash types.HeaderHash,
+	state types.State,
+	unmatchedKeyVals types.StateKeyVals,
+) error {
+	block, err := cs.GetBlockByHash(blockHeaderHash)
+	if err != nil {
+		return fmt.Errorf("failed to get block for hash 0x%x: %w", blockHeaderHash[:8], err)
+	}
+
+	return cs.restoreWithState(blockHeaderHash, block, state, unmatchedKeyVals)
+}
+
+func (cs *ChainState) restoreWithState(
+	blockHeaderHash types.HeaderHash,
+	block types.Block,
+	state types.State,
+	unmatchedKeyVals types.StateKeyVals,
+) error {
 	cs.GetPriorStates().SetState(state)
 	cs.SetPriorStateUnmatchedKeyVals(unmatchedKeyVals)
 	cs.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
 	// Keep only blocks up to the restored headerHash (fallback point)
 	cs.unfinalizedBlocks.KeepBlocksUpTo(blockHeaderHash)
-	// Add the restored block if it'cs not already in the list
-	// Check if the latest block matches the restored block to avoid duplicates
+	// Add the restored block if it's not already in the list
 	blocks := cs.GetBlocks()
 	if len(blocks) == 0 {
-		// No blocks found, add the restored block
 		cs.AddBlock(block)
 	} else {
-		// Check if the latest block is the one we're restoring
 		latestBlockHash, err := hash.ComputeBlockHeaderHash(blocks[len(blocks)-1].Header)
 		if err != nil || latestBlockHash != blockHeaderHash {
-			// Latest block doesn't match, add the restored block
 			cs.AddBlock(block)
 		}
-		// Otherwise, the block is already in the list, no need to add
 	}
 
 	// Keep only ancestry up to the restored headerHash (fallback point)
