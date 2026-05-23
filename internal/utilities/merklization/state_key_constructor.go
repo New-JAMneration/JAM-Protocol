@@ -74,3 +74,50 @@ func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 
 	return output
 }
+
+// StateKey constructor helpers.
+//
+// Wrappers over ServiceWrapper.StateKeyConstruct() that take business-level
+// inputs (raw key bytes / preimage hash / preimage length) and produce the
+// 31-byte StateKey used by globalKV. Corresponds to GP eq. (D.2).
+//
+// The signatures return (StateKey, error) even though the current computation
+// cannot fail; this keeps the API forward-compatible with future JAM-encoder
+// based implementations and aligns with KV-store conventions.
+
+// NewStorageStateKey builds the StateKey for a storage (delta2) entry.
+// GP eq. (D.2): C(s, E4(2^32 - 1) ⌢ k)
+func NewStorageStateKey(serviceID types.ServiceID, rawKey types.ByteSequence) (types.StateKey, error) {
+	h := make(types.ByteSequence, delta2PrefixLen+len(rawKey))
+	copy(h[:delta2PrefixLen], delta2Prefix)
+	copy(h[delta2PrefixLen:], rawKey)
+	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
+	return wrapper.StateKeyConstruct(), nil
+}
+
+// NewPreimageLookupStateKey builds the StateKey for a preimage lookup (delta3) entry.
+// GP eq. (D.2): C(s, E4(2^32 - 2) ⌢ h)
+//
+// NOTE: PreimageLookup is kept as an independent map; this helper is used by
+// deserialization (to identify delta3 entries) and tests only.
+func NewPreimageLookupStateKey(serviceID types.ServiceID, preimageHash types.OpaqueHash) (types.StateKey, error) {
+	h := make(types.ByteSequence, delta3PrefixLen+len(preimageHash))
+	copy(h[:delta3PrefixLen], delta3Prefix)
+	copy(h[delta3PrefixLen:], preimageHash[:])
+	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
+	return wrapper.StateKeyConstruct(), nil
+}
+
+// NewPreimageMetaStateKey builds the StateKey for a preimage meta / lookup-dict (delta4) entry.
+// GP eq. (D.2): C(s, E4(l) ⌢ h)
+func NewPreimageMetaStateKey(serviceID types.ServiceID, preimageHash types.OpaqueHash, length types.U32) (types.StateKey, error) {
+	h := make(types.ByteSequence, uint32EncodedLen+len(preimageHash))
+	v := uint32(length)
+	h[0] = byte(v)
+	h[1] = byte(v >> 8)
+	h[2] = byte(v >> 16)
+	h[3] = byte(v >> 24)
+	copy(h[uint32EncodedLen:], preimageHash[:])
+	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
+	return wrapper.StateKeyConstruct(), nil
+}

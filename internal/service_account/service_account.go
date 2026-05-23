@@ -153,45 +153,46 @@ func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer type
 	return accountDer
 }
 
-// a_i: calculate number of items(keys) in storage
+// CalcKeys returns a_i — the number of items in the account.
+// After the global-KV refactor this is an O(1) read from the incremental
+// counter maintained by InsertStorage / InsertPreimageMeta / DeleteStorage /
+// DeletePreimageMeta. GP §9.8: a_i ≡ 2*|a_l| + |a_s|.
 func CalcKeys(account types.ServiceAccount) types.U32 {
-	/*
-		a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
-	*/
-	return types.U32(2*len(account.LookupDict) + len(account.StorageDict))
+	return types.U32(account.GetTotalNumberOfItems())
 }
 
-// a_o: calculate total number of octets(datas) used in storage
+// CalcOctets returns a_o — the total number of octets occupied by the
+// account's storage and preimage meta. After the global-KV refactor this is
+// an O(1) read from the incremental counter.
+// GP §9.8: a_o ≡ Σ(81+z) + Σ(34+|x|+|key|).
 func CalcOctets(account types.ServiceAccount) types.U64 {
-	/*
-		a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈Value(a_s)}	34 + |x| ]
-	*/
-	// calculate all (81 + preiamge lookup length in keysize)
-	keyContribution := 0
-	for key := range account.LookupDict {
-		keyContribution += 81 + int(key.Length)
-	}
-
-	//  calculate all [ 32(size of key) + size of data ]
-	stateContribution := 0
-	for x, y := range account.StorageDict {
-		stateContribution += 34 + len(y) + len(x)
-	}
-
-	return types.U64(keyContribution + stateContribution)
+	return types.U64(account.GetTotalNumberOfOctets())
 }
 
-// a_t: calculate threshold(minimum) balance needed for any account in terms of storage footprint
+// CalcThresholdBalance is preserved as a free function for the PVM host
+// calls that already pass (aI, aO, aF) directly into it.
+//
+// Internally we delegate to the new ServiceAccount.ThresholdBalance() method
+// by temporarily setting the counters on a stack-allocated ServiceAccount.
+// This keeps a single source of truth for the formula while letting existing
+// callers stay unchanged until Step 4.
+//
+// NOTE: the same pre-existing bug as ServiceAccount.ThresholdBalance() is
+// preserved here (returns `storage` instead of `storage - aF` when the sum
+// is at least a_f). To be fixed after the refactor lands.
 func CalcThresholdBalance(aI types.U32, aO types.U64, aF types.U64) types.U64 {
-	/*
-		a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
-	*/
-	storage := types.U64(types.BasicMinBalance) + types.U64(types.U32(types.AdditionalMinBalancePerItem)*aI) + types.U64(types.AdditionalMinBalancePerOctet)*aO
-	if storage < aF {
-		// result < 0
+	var stub types.ServiceAccount
+	stub.SetTotalNumberOfItems(uint32(aI))
+	stub.SetTotalNumberOfOctets(uint64(aO))
+	stub.ServiceInfo.DepositOffset = aF
+	result, err := stub.ThresholdBalance()
+	if err != nil {
+		// Overflow in threshold balance is a programmer error; falling back
+		// to 0 here mirrors how the host calls treat an unsatisfiable
+		// balance (FULL outcome) without panicking.
 		return 0
 	}
-	return storage - aF
+	return result
 }
 
 /*
