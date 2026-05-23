@@ -68,8 +68,29 @@ type ServiceAccountState map[ServiceID]ServiceAccount
 type ServiceAccount struct {
 	ServiceInfo    ServiceInfo
 	PreimageLookup PreimagesMapEntry  // a_p
-	LookupDict     LookupMetaMapEntry // a_l
-	StorageDict    Storage            // a_s
+	LookupDict     LookupMetaMapEntry // a_l (deprecated: retained during transition, replaced by globalKV)
+	StorageDict    Storage            // a_s (deprecated: retained during transition, replaced by globalKV)
+
+	// globalKV unifies service storage (a_s) and preimage meta (a_l) entries, keyed by StateKey.
+	// Dual-written with StorageDict / LookupDict during transition.
+	// PreimageLookup (a_p) is kept independent and NOT merged.
+	globalKV map[StateKey][]byte
+	// totalNumberOfItems / totalNumberOfOctets are incremental counters for a_i / a_o,
+	// maintained by Insert/Delete methods.
+	totalNumberOfItems  uint32
+	totalNumberOfOctets uint64
+}
+
+// NewServiceAccount creates an empty ServiceAccount with all maps initialized.
+// Business logic paths MUST use this constructor; deserialization paths may use
+// struct literals as long as lazy-init guards are in place in the Insert methods.
+func NewServiceAccount() ServiceAccount {
+	return ServiceAccount{
+		PreimageLookup: make(PreimagesMapEntry),
+		LookupDict:     make(LookupMetaMapEntry),
+		StorageDict:    make(Storage),
+		globalKV:       make(map[StateKey][]byte),
+	}
 }
 
 type LookupMetaMapkey struct {

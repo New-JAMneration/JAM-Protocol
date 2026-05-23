@@ -642,34 +642,27 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
-	// first compute k , mu_ko...+kz
+	// v = a_s[k] ? — after the global-KV refactor a_s lives directly in
+	// account.globalKV, indexed by the storage StateKey. There is no longer
+	// a separate fallback pool to consult.
 	storageRawKey := input.Interpreter.Memory.Read(ko, kz)
-	v, exists := a.StorageDict[string(storageRawKey)]
-	storageValueFromKeyVal := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-	// v = nil
-	if !exists {
-		if storageValueFromKeyVal == nil { // check storage state key-val
-			input.Interpreter.Registers[7] = NONE
-			return OmegaOutput{
-				ExitReason: ExitContinue,
-				Addition:   input.Addition,
-			}
-		} else {
-			v = *storageValueFromKeyVal
-
-			// Only cache the unmatched pool entry into StorageDict (and remove from pool)
-			// when the caller is reading its OWN storage. For cross-service reads,
-			// ΩR must be side-effect free — otherwise the target service's storage
-			// entry silently disappears from the global unmatched pool and is lost
-			// if the target service isn't part of the accumulating set this block.
-			if callerServiceID == serviceID {
-				a.StorageDict[string(storageRawKey)] = v
-				input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
-				removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-			}
+	storageStateKey, err := merklization.NewStorageStateKey(serviceID, storageRawKey)
+	if err != nil {
+		input.Interpreter.Registers[7] = NONE
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
+	v, exists := a.GetStorage(storageStateKey)
+	if !exists {
+		input.Interpreter.Registers[7] = NONE
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+	_ = callerServiceID // retained for future cross-service auditing hooks
 
 	f := min(input.Interpreter.Registers[11], uint64(len(v)))
 	l := min(input.Interpreter.Registers[12], uint64(len(v))-f)
@@ -720,40 +713,60 @@ func write(input OmegaInput) (output OmegaOutput) {
 	serviceID := *input.Addition.GeneralArgs.ServiceID
 	a := *input.Addition.GeneralArgs.ServiceAccount
 
-	value, storageRawKeyExists := a.StorageDict[string(storageRawKey)]
-	storageRawData := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
+	// After the global-KV refactor a_s lives directly in account.globalKV
+	// indexed by the storage StateKey. We no longer consult a fallback pool.
+	storageStateKey, err := merklization.NewStorageStateKey(serviceID, storageRawKey)
+	if err != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
+	}
+	prevValue, storageRawKeyExists := a.GetStorage(storageStateKey)
 	var l uint64
 	var footprintItems types.U32
 	var footprintOctets types.U64
 	if storageRawKeyExists {
-		footprintItems, footprintOctets = service_account.CalcStorageItemfootprint(string(storageRawKey), value)
-		l = uint64(len(value))
-	} else if !storageRawKeyExists && storageRawData != nil {
-		footprintItems, footprintOctets = service_account.CalcStorageItemfootprint(string(storageRawKey), *storageRawData)
-		l = uint64(len(*storageRawData))
+		footprintItems, footprintOctets = service_account.CalcStorageItemfootprint(string(storageRawKey), prevValue)
+		l = uint64(len(prevValue))
 	} else {
 		l = NONE
 	}
 
-	encodedKey := merklization.WrapEncodeDelta2KeyVal(serviceID, storageRawKey, nil)
-
 	if vz == 0 { // remove storage
-		delete(a.StorageDict, string(storageRawKey))
-		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-
-		// direct update items, octets
-		a.ServiceInfo.Items -= footprintItems
-		a.ServiceInfo.Bytes -= footprintOctets
+		if storageRawKeyExists {
+			if err := a.DeleteStorage(storageStateKey, kz, uint64(len(prevValue))); err != nil {
+				return OmegaOutput{
+					ExitReason: ExitPanic,
+					Addition:   input.Addition,
+				}
+			}
+			// Keep Items/Bytes in sync during the transition; the wire
+			// format still relies on them until Step 8.
+			a.ServiceInfo.Items = types.U32(a.GetTotalNumberOfItems())
+			a.ServiceInfo.Bytes = types.U64(a.GetTotalNumberOfOctets())
+			_ = footprintItems
+			_ = footprintOctets
+		}
 	} else if isReadable(vo, vz, *input.Interpreter.Memory) { // storage append/update
 		storageRawData := input.Interpreter.Memory.Read(vo, vz)
 
-		// compute items, octets , check a_t > a_b first (GP: a_minbalance > a_balance → FULL, s' = s)
-		newItems := a.ServiceInfo.Items - footprintItems
-		newOctets := a.ServiceInfo.Bytes - footprintOctets
+		// Pre-check: project what the counters WOULD be after applying the
+		// write, then make sure the projected threshold balance still fits
+		// the account balance. Per GP §9.8 a FULL outcome must NOT mutate
+		// the service state, so the pre-check has to happen before any call
+		// to InsertStorage.
+		var newItems types.U32
+		var newOctets types.U64
+		newStorageItems, newStorageOctets := service_account.CalcStorageItemfootprint(string(storageRawKey), storageRawData)
+		if storageRawKeyExists {
+			newItems = types.U32(a.GetTotalNumberOfItems()) - footprintItems + newStorageItems
+			newOctets = types.U64(a.GetTotalNumberOfOctets()) - footprintOctets + newStorageOctets
+		} else {
+			newItems = types.U32(a.GetTotalNumberOfItems()) + newStorageItems
+			newOctets = types.U64(a.GetTotalNumberOfOctets()) + newStorageOctets
+		}
 
-		storageItems, storageOctets := service_account.CalcStorageItemfootprint(string(storageRawKey), storageRawData)
-		newItems += storageItems
-		newOctets += storageOctets
 		newMinBalance := service_account.CalcThresholdBalance(newItems, newOctets, a.ServiceInfo.DepositOffset) // a_t
 		if newMinBalance > a.ServiceInfo.Balance {
 			input.Interpreter.Registers[7] = FULL
@@ -764,12 +777,15 @@ func write(input OmegaInput) (output OmegaOutput) {
 		}
 
 		// balance check passed, now apply the storage mutation
-		a.StorageDict[string(storageRawKey)] = storageRawData
-		removeStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
-		pvmLogger.Debugf("write storage key: 0x%x, val: 0x%x", encodedKey.Key, storageRawData)
-		// update items, octets
-		a.ServiceInfo.Items = newItems
-		a.ServiceInfo.Bytes = newOctets
+		if err := a.InsertStorage(storageStateKey, kz, storageRawData); err != nil {
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
+			}
+		}
+		pvmLogger.Debugf("write storage key: 0x%x, val: 0x%x", storageStateKey, storageRawData)
+		a.ServiceInfo.Items = types.U32(a.GetTotalNumberOfItems())
+		a.ServiceInfo.Bytes = types.U64(a.GetTotalNumberOfOctets())
 	} else {
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -826,7 +842,15 @@ func info(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	minBalance := service_account.CalcThresholdBalance(a.ServiceInfo.Items, a.ServiceInfo.Bytes, a.ServiceInfo.DepositOffset)
+	// After the refactor a_i / a_o are sourced from the incremental counters
+	// (the wire format is kept in sync via a.ServiceInfo.Items/Bytes during
+	// the transition, but the counters are the authoritative source).
+	minBalance, mbErr := a.ThresholdBalance()
+	if mbErr != nil {
+		minBalance = 0
+	}
+	itemsCounter := types.U32(a.GetTotalNumberOfItems())
+	octetsCounter := types.U64(a.GetTotalNumberOfOctets())
 	var v types.ByteSequence
 	encoder := types.NewEncoder()
 	// a_c
@@ -845,10 +869,10 @@ func info(input OmegaInput) (output OmegaOutput) {
 	encoded, _ = encoder.Encode(&a.ServiceInfo.MinMemoGas)
 	v = append(v, encoded...)
 	// a_o
-	encoded, _ = encoder.Encode(&a.ServiceInfo.Bytes)
+	encoded, _ = encoder.Encode(&octetsCounter)
 	v = append(v, encoded...)
 	// a_i
-	encoded, _ = encoder.Encode(&a.ServiceInfo.Items)
+	encoded, _ = encoder.Encode(&itemsCounter)
 	v = append(v, encoded...)
 	// a_f
 	encoded, _ = encoder.Encode(&a.ServiceInfo.DepositOffset)
