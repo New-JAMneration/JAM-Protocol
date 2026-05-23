@@ -1290,28 +1290,12 @@ type PartialStateSet struct {
 }
 
 func (origin *PartialStateSet) DeepCopy() PartialStateSet {
-	// ServiceAccountState
-	// Pre-allocate capacity for service accounts map
-	copiedServiceAccounts := make(ServiceAccountState, len(origin.ServiceAccounts))
-	for serviceID, originAccount := range origin.ServiceAccounts {
-		var copiedAccount ServiceAccount
-		copiedAccount.ServiceInfo = originAccount.ServiceInfo
-		// use shallow copy for PreimageLookup since host call only delete preimage item, no modification
-		copiedAccount.PreimageLookup = maps.Clone(originAccount.PreimageLookup)
-		copiedAccount.LookupDict = make(LookupMetaMapEntry)
-		for k, v := range originAccount.LookupDict {
-			copiedAccount.LookupDict[k] = make(TimeSlotSet, len(v))
-			copy(copiedAccount.LookupDict[k], v)
-		}
-		copiedAccount.StorageDict = make(Storage, len(originAccount.StorageDict))
-		for storageKey, storageVal := range originAccount.StorageDict {
-			copiedStorage := make(ByteSequence, len(storageVal))
-			copy(copiedStorage, storageVal)
-			copiedAccount.StorageDict[storageKey] = copiedStorage
-		}
-
-		copiedServiceAccounts[serviceID] = copiedAccount
-	}
+	// Delegate to ServiceAccount.Clone(); it deep-copies globalKV,
+	// PreimageLookup, and the legacy StorageDict / LookupDict maps, AND
+	// preserves the unexported a_i / a_o counters via struct-value copy.
+	// Previously this code path missed globalKV and the counters, which
+	// silently zeroed them after every block import.
+	copiedServiceAccounts := origin.ServiceAccounts.Clone()
 
 	// ValidatorsData
 	copiedValidators := make(ValidatorsData, len(origin.ValidatorKeys))
