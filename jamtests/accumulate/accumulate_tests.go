@@ -790,20 +790,16 @@ func (t *AccumulateTestCase) Encode(e *types.Encoder) error {
 func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.ServiceAccountState) {
 	output = make(types.ServiceAccountState)
 	for _, delta := range input {
-		// Create or get ServiceAccount, ensure its internal maps are initialized
-		serviceAccount := types.ServiceAccount{
-			ServiceInfo:    delta.Data.Service,
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
+		serviceAccount := types.NewServiceAccount()
+		serviceAccount.ServiceInfo = delta.Data.Service
 
 		// Fill PreimageLookup
 		for _, preimage := range delta.Data.PreimagesBlob {
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 
-		// Fill PreimageStatus
+		// Fill LookupDict (still needed for the legacy ServiceAccount.Encode
+		// JAM test-vector wire format).
 		for _, preimage := range delta.Data.PreimagesRequests {
 			key := types.LookupMetaMapkey{
 				Hash:   preimage.Key.Hash,
@@ -812,13 +808,18 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 			serviceAccount.LookupDict[key] = preimage.Value
 		}
 
-		// Fill Storage
+		// Fill StorageDict (same reason).
 		for _, storageEntry := range delta.Data.Storage {
 			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
 		}
 
-		// Store ServiceAccount into inputDelta
+		// Mirror the legacy a_l / a_s entries into globalKV so the rest of
+		// the STF can read them via GetPreimageMeta / GetStorage. Errors
+		// here would only fire on safemath overflow, which is impossible
+		// with the bounded JSON inputs used by jamtests.
 		serviceID := types.ServiceID(delta.ID)
+		_ = serviceAccount.MigrateLegacyMapsToGlobalKV(serviceID)
+
 		output[serviceID] = serviceAccount
 	}
 	return output

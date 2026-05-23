@@ -9,6 +9,18 @@ import (
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
+// seedGlobalKV mirrors the legacy StorageDict / LookupDict map entries into
+// globalKV via the Insert* methods so the resulting ServiceAccount behaves
+// like one populated incrementally through the post-globalKV API. Test
+// fixtures that still construct accounts with struct literals call this
+// helper once after construction.
+func seedGlobalKV(t *testing.T, account *types.ServiceAccount, serviceID types.ServiceID) {
+	t.Helper()
+	if err := account.MigrateLegacyMapsToGlobalKV(serviceID); err != nil {
+		t.Fatalf("MigrateLegacyMapsToGlobalKV: %v", err)
+	}
+}
+
 func TestFetchCodeByHash(t *testing.T) {
 	// set up test data
 	var (
@@ -35,10 +47,19 @@ func TestFetchCodeByHash(t *testing.T) {
 		},
 	}
 
-	// fetch code by hash.
-	// TODO(Step 9): fixture seeds PreimageLookup directly; after the
-	// globalKV refactor the matching a_l[h, |p|] must also be installed via
-	// InsertPreimageMeta or this exercises the validation-error path.
+	// FetchCodeByHash reads PreimageLookup directly (no globalKV access on
+	// the happy path), so seedGlobalKV isn't strictly required here. We
+	// still call it for parity with the other tests / to exercise
+	// ValidatePreimageLookupDict's fallback path correctly.
+	if mockAccount.LookupDict == nil {
+		mockAccount.LookupDict = make(types.LookupMetaMapEntry)
+	}
+	mockAccount.LookupDict[types.LookupMetaMapkey{
+		Hash:   mockCodeHash,
+		Length: types.U32(len(encodedMetaCode)),
+	}] = types.TimeSlotSet{}
+	seedGlobalKV(t, &mockAccount, types.ServiceID(0))
+
 	metadata, code, err := FetchCodeByHash(types.ServiceID(0), mockAccount, mockCodeHash)
 	if err != nil {
 		t.Fatalf("FetchCodeByHash failed: %v", err)
@@ -83,9 +104,11 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 		}
 	)
 
-	// test ValidateAccount.
-	// TODO(Step 9): rewrite the fixture to use NewServiceAccount +
-	// InsertPreimageMeta so that the a_l[h, |p|] check reads from globalKV.
+	// Mirror the legacy LookupDict / PreimageLookup contents into globalKV so
+	// ValidatePreimageLookupDict's a_l[h, |p|] membership check works
+	// post-refactor.
+	seedGlobalKV(t, &mockAccount, types.ServiceID(0))
+
 	err := ValidatePreimageLookupDict(types.ServiceID(0), mockAccount)
 	if err != nil {
 		t.Errorf("ValidateAccount failed: %v", err)
@@ -123,6 +146,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// test HistoricalLookup
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -144,6 +168,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			LookupDict:     map[types.LookupMetaMapkey]types.TimeSlotSet{},
 		}
 
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -183,6 +208,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -224,6 +250,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
+		seedGlobalKV(t, &mockAccount1, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -243,6 +270,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
+		seedGlobalKV(t, &mockAccount2, types.ServiceID(0))
 		bytes = HistoricalLookup(types.ServiceID(0), mockAccount2, lowerTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
@@ -287,6 +315,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
+		seedGlobalKV(t, &mockAccount1, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -379,6 +408,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 1: timestamp less than lower bound (should return nil)
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -468,6 +498,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -494,6 +525,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// when decode fails, function should return nil
+		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err == nil {
