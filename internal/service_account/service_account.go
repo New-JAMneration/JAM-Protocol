@@ -190,32 +190,6 @@ func isValidTime(l types.TimeSlotSet, t types.TimeSlot) bool {
 	}
 }
 
-// (9.8) You can use this function to get account derivatives
-// TODO: Items(a_i) and Bytes(a_o) are stored in ServiceInfo,
-// Maybe we can update a_t only
-func GetServiceAccountDerivatives(account types.ServiceAccount) (accountDer types.ServiceAccountDerivatives) {
-	/*
-		∀a ∈ V(δ) ∶
-		⎧ a_i ∈ N_2^32 ≡ 2*|a_l| + |a_s|
-		⎪ a_o ∈ N_2^64 ≡ [ ∑_{(h,z)∈Key(a_l)}  81 + z  ] + [ ∑_{x∈V(a_s)}	34 + |x| ]
-		⎨ a_t ∈ N_B ≡ B_S + B_I*a_i + B_L*a_o
-		⎩
-	*/
-
-	// calculate derivative invariants
-	var (
-		Items      = CalcKeys(account)
-		Bytes      = CalcOctets(account)
-		Minbalance = CalcThresholdBalance(Items, Bytes, account.ServiceInfo.DepositOffset)
-	)
-	accountDer = types.ServiceAccountDerivatives{
-		Items:      Items,
-		Bytes:      Bytes,
-		Minbalance: Minbalance,
-	}
-	return accountDer
-}
-
 // CalcKeys returns a_i — the number of items in the account.
 // After the global-KV refactor this is an O(1) read from the incremental
 // counter maintained by InsertStorage / InsertPreimageMeta / DeleteStorage /
