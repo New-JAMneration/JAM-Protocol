@@ -178,7 +178,10 @@ func BuildAnnouncement(
 	var xnPayload types.ByteSequence
 	for _, pair := range an {
 		coreID := utilities.SerializeFixedLength(types.U64(pair.CoreID), 2) // E2(c)
-		hashW := hashFunc(utilities.WorkReportSerialization(pair.Report))   // H(w)
+		encoder := types.GetEncoder()
+		encodedReport, _ := encoder.Encode(&pair.Report)
+		types.PutEncoder(encoder)
+		hashW := hashFunc(encodedReport) // H(w)
 		xnPayload = append(xnPayload, coreID...)
 		xnPayload = append(xnPayload, hashW[:]...)
 	}
@@ -323,9 +326,12 @@ func ComputeAnForValidator(
 		}
 
 		// Build context ⟨XU ⌢ Y(Hv) ⌢ H(w) ⌢ n⟩
-		conext := types.ByteSequence(types.JamAudit[:])                               // XU
-		context := append(conext, Y_Hv...)                                            // Y(Hv)
-		Hw := hashFunc(utilities.WorkReportSerialization(report))                     // H(w)
+		conext := types.ByteSequence(types.JamAudit[:]) // XU
+		context := append(conext, Y_Hv...)              // Y(Hv)
+		encoder := types.GetEncoder()
+		encodedReport, _ := encoder.Encode(&report)
+		types.PutEncoder(encoder)
+		Hw := hashFunc(encodedReport)                                                 // H(w)
 		context = append(context, Hw[:]...)                                           // H(w)
 		context = append(context, utilities.SerializeFixedLength(types.U32(n), 4)...) // n
 
@@ -394,8 +400,11 @@ func BuildJudgements(
 		}
 
 		// Hash the report content
-		hashW := hashFunc(utilities.WorkReportSerialization(report)) // H(w)
-		context = append(context, hashW[:]...)                       // Xe(w) ⌢ H(w)
+		encoder := types.GetEncoder()
+		encodedReport, _ := encoder.Encode(&report)
+		types.PutEncoder(encoder)
+		hashW := hashFunc(encodedReport)       // H(w)
+		context = append(context, hashW[:]...) // Xe(w) ⌢ H(w)
 
 		// Sign the message
 		validator_key := blockchain.GetInstance().GetPriorStates().GetKappa()[validator_index].Ed25519

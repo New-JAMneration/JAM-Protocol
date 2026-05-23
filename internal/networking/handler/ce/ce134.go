@@ -10,7 +10,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/keystore"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
@@ -112,8 +111,10 @@ func HandleWorkPackageShare(
 		return fmt.Errorf("work-package verification failed: %w", err)
 	}
 
-	workReportSerialization := utilities.WorkReportSerialization(workReport)
-	workReportHash := hash.Blake2bHash(workReportSerialization)
+	encoder := types.GetEncoder()
+	encodedReport, _ := encoder.Encode(&workReport)
+	types.PutEncoder(encoder)
+	workReportHash := hash.Blake2bHash(encodedReport)
 
 	// message: JamGuarantee context + work report hash
 	message := []byte(types.JamGuarantee)

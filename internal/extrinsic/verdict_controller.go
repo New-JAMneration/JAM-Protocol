@@ -7,7 +7,6 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/hdevalence/ed25519consensus"
 )
@@ -266,7 +265,10 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 		if priorStatesRho[i] == nil {
 			continue
 		}
-		hashReport := hash.Blake2bHash(utilities.WorkReportSerialization(priorStatesRho[i].Report))
+		encoder := types.GetEncoder()
+		encoded, _ := encoder.Encode(&priorStatesRho[i].Report)
+		types.PutEncoder(encoder)
+		hashReport := hash.Blake2bHash(encoded)
 		if clearReports[types.WorkReportHash(hashReport)] {
 			priorStatesRho[i] = nil
 		}

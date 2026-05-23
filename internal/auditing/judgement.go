@@ -4,7 +4,6 @@ import (
 	"bytes"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
 )
 
@@ -36,7 +35,13 @@ func GetJudgement(auditReport types.AuditReport) bool {
 
 // workReportsEqual compares two WorkReports via canonical serialization (GP §C.27).
 func workReportsEqual(a, b types.WorkReport) bool {
-	encodedA := utilities.WorkReportSerialization(a)
-	encodedB := utilities.WorkReportSerialization(b)
+	encoder := types.GetEncoder()
+	encodedA, _ := encoder.Encode(&a)
+	types.PutEncoder(encoder)
+
+	encoder = types.GetEncoder()
+	encodedB, _ := encoder.Encode(&b)
+	types.PutEncoder(encoder)
+
 	return bytes.Equal(encodedA, encodedB)
 }
