@@ -505,44 +505,34 @@ func TestHistoricalLookupFunction(t *testing.T) {
 	})
 }
 
-func TestGetSerivecAccountDerivatives(t *testing.T) {
-	// set up test data
-	var (
-		// mockCodeHash = hash(mockCode) -> preimage of mockCodeHash = mockCode
-		mockCode           = types.ByteSequence("0x123456789")
-		mockCodeHash       = hash.Blake2bHash(utils.ByteSequenceWrapper{Value: mockCode}.Serialize())
-		preimage           = mockCode
-		mockPreimageLen    = types.U32(len(preimage))
-		mockCodeHashString = string(mockCodeHash[:])
+// TestServiceAccountFootprintFromCounters checks that ThresholdBalance reads
+// a_i / a_o straight from the incremental counters (post-Step-3) and that
+// the GP §9.8 formula at = max(0, BS + BI*ai + BL*ao - af) is honoured.
+//
+// The legacy GetServiceAccountDerivatives helper has been retired in Step 8a;
+// this test replaces the older derivative coverage with a counter-based
+// equivalent.
+func TestServiceAccountFootprintFromCounters(t *testing.T) {
+	var account types.ServiceAccount
+	account.SetTotalNumberOfItems(2)
+	account.SetTotalNumberOfOctets(81 + 9)
 
-		mockTimestamp = types.TimeSlot(42)
-
-		// create mock id and ServiceAccount
-		mockAccount = types.ServiceAccount{
-			StorageDict: map[string]types.ByteSequence{
-				mockCodeHashString: preimage,
-			},
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: preimage,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: mockPreimageLen}: {mockTimestamp},
-			},
-		}
-	)
-
-	// test GetSerivecAccountDerivatives
-	accountDer := GetServiceAccountDerivatives(mockAccount)
-	t.Log("accountDer:", accountDer)
-	t.Logf("a_i=2*|a_l|+|a_s|\n LHS: %v, RHS: %v", accountDer.Items, 2*len(mockAccount.LookupDict)+len(mockAccount.StorageDict))
-	var totalZ types.U32
-	for key := range mockAccount.LookupDict {
-		totalZ += key.Length
+	if got, want := CalcKeys(account), types.U32(2); got != want {
+		t.Fatalf("CalcKeys: got %d, want %d", got, want)
 	}
-	var totalX int
-	for _, value := range mockAccount.StorageDict {
-		totalX += len(value)
+	if got, want := CalcOctets(account), types.U64(90); got != want {
+		t.Fatalf("CalcOctets: got %d, want %d", got, want)
 	}
-	t.Logf("a_o=[ ∑_{(h,z)∈Key(a_l)}  81 + z ] + [ ∑_{x∈Value(a_s)} 32 + |x| ]\n LHS: %v, RHS: %v + %v", accountDer.Bytes, 81+totalZ, 32+totalX)
-	t.Logf("a_t = B_S + B_I*a_i + B_L*a_o\n LHS: %v, RHS: %v+%v+%v", accountDer.Minbalance, types.BasicMinBalance, types.U32(types.AdditionalMinBalancePerItem)*accountDer.Items, types.U64(types.AdditionalMinBalancePerOctet)*accountDer.Bytes)
+
+	at, err := account.ThresholdBalance()
+	if err != nil {
+		t.Fatalf("ThresholdBalance returned err: %v", err)
+	}
+	// BS + BI*2 + BL*90
+	want := types.U64(types.BasicMinBalance) +
+		types.U64(types.AdditionalMinBalancePerItem)*2 +
+		types.U64(types.AdditionalMinBalancePerOctet)*90
+	if at != want {
+		t.Fatalf("ThresholdBalance: got %d, want %d", at, want)
+	}
 }

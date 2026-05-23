@@ -22,7 +22,63 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/safemath"
+	"golang.org/x/crypto/blake2b"
 )
+
+// buildStorageStateKey mirrors merklization.NewStorageStateKey but lives in
+// the types package so that callers like unmarshal_json.go can populate
+// globalKV without creating a circular import.
+//
+// GP eq. (D.2): C(s, E4(2^32 - 1) ⌢ k) — prefix is 0xFFFFFFFF.
+func buildStorageStateKey(serviceID ServiceID, rawKey ByteSequence) StateKey {
+	preimage := make([]byte, 4+len(rawKey))
+	preimage[0], preimage[1], preimage[2], preimage[3] = 0xFF, 0xFF, 0xFF, 0xFF
+	copy(preimage[4:], rawKey)
+	return interleaveServiceIDIntoHash(serviceID, preimage)
+}
+
+// buildPreimageMetaStateKey mirrors merklization.NewPreimageMetaStateKey for
+// the same reason as buildStorageStateKey.
+//
+// GP eq. (D.2): C(s, E4(l) ⌢ h)
+func buildPreimageMetaStateKey(serviceID ServiceID, hash OpaqueHash, length U32) StateKey {
+	preimage := make([]byte, 4+len(hash))
+	v := uint32(length)
+	preimage[0] = byte(v)
+	preimage[1] = byte(v >> 8)
+	preimage[2] = byte(v >> 16)
+	preimage[3] = byte(v >> 24)
+	copy(preimage[4:], hash[:])
+	return interleaveServiceIDIntoHash(serviceID, preimage)
+}
+
+// interleaveServiceIDIntoHash performs the StateKey-type-3 layout from
+// merklization.ServiceWrapper.StateKeyConstruct:
+//
+//	[n0, h0, n1, h1, n2, h2, n3, h3, h4, h5, ..., h26]
+//
+// where n = encode_4(serviceID) and h = Blake2b(preimage)[:27].
+func interleaveServiceIDIntoHash(serviceID ServiceID, preimage []byte) StateKey {
+	digest := blake2b.Sum256(preimage)
+	h := digest[:27]
+
+	var n [4]byte
+	v := uint32(serviceID)
+	n[0] = byte(v)
+	n[1] = byte(v >> 8)
+	n[2] = byte(v >> 16)
+	n[3] = byte(v >> 24)
+
+	var out StateKey
+	for i := 0; i <= 3; i++ {
+		out[2*i] = n[i]
+		out[2*i+1] = h[i]
+	}
+	for i := 4; i <= 26; i++ {
+		out[i+4] = h[i]
+	}
+	return out
+}
 
 // NewServiceAccount is declared in state.go.
 
