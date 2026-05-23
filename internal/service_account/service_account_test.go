@@ -35,8 +35,11 @@ func TestFetchCodeByHash(t *testing.T) {
 		},
 	}
 
-	// fetch code by hash
-	metadata, code, err := FetchCodeByHash(mockAccount, mockCodeHash)
+	// fetch code by hash.
+	// TODO(Step 9): fixture seeds PreimageLookup directly; after the
+	// globalKV refactor the matching a_l[h, |p|] must also be installed via
+	// InsertPreimageMeta or this exercises the validation-error path.
+	metadata, code, err := FetchCodeByHash(types.ServiceID(0), mockAccount, mockCodeHash)
 	if err != nil {
 		t.Fatalf("FetchCodeByHash failed: %v", err)
 	}
@@ -80,8 +83,10 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 		}
 	)
 
-	// test ValidateAccount
-	err := ValidatePreimageLookupDict(mockAccount)
+	// test ValidateAccount.
+	// TODO(Step 9): rewrite the fixture to use NewServiceAccount +
+	// InsertPreimageMeta so that the a_l[h, |p|] check reads from globalKV.
+	err := ValidatePreimageLookupDict(types.ServiceID(0), mockAccount)
 	if err != nil {
 		t.Errorf("ValidateAccount failed: %v", err)
 	}
@@ -118,7 +123,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// test HistoricalLookup
-		bytes := HistoricalLookup(mockAccount, mockTimestamp, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("HistoricalLookup failed: %v", err)
@@ -139,7 +144,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			LookupDict:     map[types.LookupMetaMapkey]types.TimeSlotSet{},
 		}
 
-		bytes := HistoricalLookup(mockAccount, mockTimestamp, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -178,7 +183,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		bytes := HistoricalLookup(mockAccount, mockTimestamp, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -219,7 +224,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		bytes := HistoricalLookup(mockAccount1, lowerTime, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -238,7 +243,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		bytes = HistoricalLookup(mockAccount2, lowerTime, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount2, lowerTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -282,7 +287,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		bytes := HistoricalLookup(mockAccount1, lowerTime-1, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -292,7 +297,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp equals lower bound (should succeed)
-		bytes = HistoricalLookup(mockAccount1, lowerTime, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -305,7 +310,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp within range (should succeed)
-		bytes = HistoricalLookup(mockAccount1, lowerTime+1, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime+1, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -318,7 +323,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp equals upper bound (should return nil, because upper bound is open interval)
-		bytes = HistoricalLookup(mockAccount1, upperTime, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount1, upperTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -328,7 +333,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp greater than upper bound (should return nil)
-		bytes = HistoricalLookup(mockAccount1, upperTime+1, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount1, upperTime+1, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -374,7 +379,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 1: timestamp less than lower bound (should return nil)
-		bytes := HistoricalLookup(mockAccount, lowerTime-1, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -384,7 +389,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 2: timestamp within first range (should succeed)
-		bytes = HistoricalLookup(mockAccount, middleTime1, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount, middleTime1, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -397,7 +402,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 3: timestamp between ranges (should return nil)
-		bytes = HistoricalLookup(mockAccount, middleTime2, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount, middleTime2, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -407,7 +412,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 4: timestamp equals third time slot (should succeed)
-		bytes = HistoricalLookup(mockAccount, thirdTime, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount, thirdTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -420,7 +425,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case 5: timestamp greater than third time slot (should succeed)
-		bytes = HistoricalLookup(mockAccount, highTime, mockCodeHash)
+		bytes = HistoricalLookup(types.ServiceID(0), mockAccount, highTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -463,7 +468,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 			},
 		}
 
-		bytes := HistoricalLookup(mockAccount, mockTimestamp, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
 			t.Fatalf("DecodeMetaCode failed: %v", err)
@@ -489,7 +494,7 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// when decode fails, function should return nil
-		bytes := HistoricalLookup(mockAccount, mockTimestamp, mockCodeHash)
+		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err == nil {
 			t.Fatalf("DecodeMetaCode should failed: %v", err)
