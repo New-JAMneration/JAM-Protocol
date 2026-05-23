@@ -96,10 +96,9 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Get the latest state root
 	latestState := cs.GetPriorStates().GetState()
 	serializedState, _ := m.StateEncoder(latestState)
-	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyValsRef()
-	combinedState := make(types.StateKeyVals, 0, len(priorUnmatchedKeyVals)+len(serializedState))
-	combinedState = append(combinedState, priorUnmatchedKeyVals...)
-	combinedState = append(combinedState, serializedState...)
+	// Method A: serializedState already contains every storage / lookup
+	// entry from globalKV; no fallback pool to merge.
+	combinedState := serializedState
 	latestStateRoot := cs.ComputeStateRootWithCache(combinedState)
 
 	cs.AddBlock(block)
@@ -126,10 +125,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		logger.Errorf("%s state encoder error: %v", ctx, err)
 		return types.StateRoot{}, err
 	}
-	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyValsRef()
-	combinedState = make(types.StateKeyVals, 0, len(postUnmatchedKeyVals)+len(serializedState))
-	combinedState = append(combinedState, postUnmatchedKeyVals...)
-	combinedState = append(combinedState, serializedState...)
+	combinedState = serializedState
 	latestStateRoot = cs.ComputeStateRootWithCache(combinedState)
 
 	// Commit the state and persist the state to Redis
@@ -161,7 +157,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 		// logger.Debugf("%s Ancestry items: %v", ctx, ancestry)
 	}
 
-	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
+	state, err := m.StateKeyValsToState(stateKeyVals)
 	if err != nil {
 		logger.Errorf("%s failed to convert state keyvals: %v", ctx, err)
 		return types.StateRoot{}, err
@@ -172,7 +168,6 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	// calls can restore using the genesis header hash via RestoreBlockAndState.
 
 	// Prepare posterior state to match the initialized state.
-	cs.SetPostStateUnmatchedKeyVals(unmatchedKeyVals.DeepCopy())
 	cs.GetPosteriorStates().SetState(state)
 
 	// Add the genesis block to the in-memory block list.
@@ -190,7 +185,9 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	serializedState, _ := m.StateEncoder(state)
 
-	stateRoot := cs.ComputeStateRootWithCache(append(unmatchedKeyVals, serializedState...))
+	// Method A: serializedState already includes every storage/lookup-meta
+	// entry from globalKV; no fallback pool to merge in.
+	stateRoot := cs.ComputeStateRootWithCache(serializedState)
 
 	logger.Infof("%s Init completed, header hash: 0x%x..., state root: 0x%x", ctx, headerHash[:8], stateRoot)
 	return stateRoot, nil

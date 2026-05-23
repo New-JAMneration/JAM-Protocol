@@ -78,12 +78,11 @@ func RunSTFWithTiming() (bool, error, STFTiming) {
 	totalStart := time.Now()
 
 	var (
-		err              error
-		cs               = blockchain.GetInstance()
-		priorState       = cs.GetPriorStates().GetState()
-		header           = cs.GetLatestBlock().Header
-		extrinsic        = cs.GetLatestBlock().Extrinsic
-		unmatchedKeyVals = cs.GetPriorStateUnmatchedKeyVals()
+		err        error
+		cs         = blockchain.GetInstance()
+		priorState = cs.GetPriorStates().GetState()
+		header     = cs.GetLatestBlock().Header
+		extrinsic  = cs.GetLatestBlock().Extrinsic
 	)
 
 	// Update timeslot
@@ -137,7 +136,7 @@ func RunSTFWithTiming() (bool, error, STFTiming) {
 
 	// Validate Extrinsic
 	start = time.Now()
-	err = ValidateExtrinsic(extrinsic, &priorState, unmatchedKeyVals)
+	err = ValidateExtrinsic(extrinsic, &priorState)
 	timing.ValidateExtrinsic = time.Since(start)
 	if err != nil {
 		timing.Total = time.Since(totalStart)

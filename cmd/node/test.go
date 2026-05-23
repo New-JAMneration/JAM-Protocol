@@ -158,12 +158,11 @@ For example:
 					Header: genesis.Header,
 				}
 
-				state, keyVals, err := m.StateKeyValsToState(genesis.State.KeyVals)
+				state, err := m.StateKeyValsToState(genesis.State.KeyVals)
 				if err != nil {
 					logger.Fatalf("Failed to parse state key-vals to state: %v", err)
 				}
 				cs := blockchain.GetInstance()
-				cs.SetPriorStateUnmatchedKeyVals(keyVals)
 				cs.GenerateGenesisBlock(genesisBlock)
 				cs.GenerateGenesisState(state)
 
@@ -277,12 +276,11 @@ For example:
 				Header: genesis.Header,
 			}
 
-			state, keyVals, err := m.StateKeyValsToState(genesis.State.KeyVals)
+			state, err := m.StateKeyValsToState(genesis.State.KeyVals)
 			if err != nil {
 				logger.Fatalf("Failed to parse state key-vals to state: %v", err)
 			}
 			cs := blockchain.GetInstance()
-			cs.SetPriorStateUnmatchedKeyVals(keyVals)
 			cs.GenerateGenesisBlock(genesisBlock)
 			cs.GenerateGenesisState(state)
 		}

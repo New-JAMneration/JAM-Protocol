@@ -7,13 +7,7 @@ import (
 
 // ValidateExtrinsic checks the structural validity of the block's extrinsic
 // data against the prior state.
-//
-// The legacy unmatchedKeyVals parameter is retained for source compatibility
-// during the globalKV transition but is no longer consulted (Method A loads
-// the full state into globalKV at deserialization, so no fallback pool
-// lookup is needed). Step 7.5 will remove the parameter entirely.
-func ValidateExtrinsic(extrinsic types.Extrinsic, state *types.State, unmatchedKeyVals types.StateKeyVals) error {
-	_ = unmatchedKeyVals
+func ValidateExtrinsic(extrinsic types.Extrinsic, state *types.State) error {
 	eps := extrinsic.Preimages
 	delta := state.Delta
 

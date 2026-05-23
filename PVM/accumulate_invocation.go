@@ -7,6 +7,10 @@ import (
 )
 
 // (B.8) Ψ_A
+//
+// Method A: storage / preimage-meta now live in each ServiceAccount's
+// globalKV map, so the legacy unmatched-keyvals fallback pool has been
+// removed from the PVM accumulate pipeline.
 func Psi_A(
 	partialState types.PartialStateSet, // e
 	timeslot types.TimeSlot, // t
@@ -14,7 +18,6 @@ func Psi_A(
 	gas types.Gas, // g
 	operandOrDeferTransfers []types.OperandOrDeferredTransfer, // i
 	eta types.Entropy,
-	storageKeyVal types.StateKeyVals,
 ) (
 	psi_result Psi_A_ReturnType,
 ) {
@@ -26,7 +29,6 @@ func Psi_A(
 			Result:            nil,
 			Gas:               0,
 			ServiceBlobs:      []types.ServiceBlob{},
-			StorageKeyVal:     storageKeyVal,
 		}
 	}
 
@@ -51,7 +53,6 @@ func Psi_A(
 			Result:            nil,
 			Gas:               0,
 			ServiceBlobs:      []types.ServiceBlob{},
-			StorageKeyVal:     storageKeyVal,
 		}
 	}
 
@@ -63,7 +64,6 @@ func Psi_A(
 			Result:            nil,
 			Gas:               0,
 			ServiceBlobs:      []types.ServiceBlob{},
-			StorageKeyVal:     storageKeyVal,
 		}
 	}
 
@@ -71,7 +71,6 @@ func Psi_A(
 	encoder := types.NewEncoder()
 
 	// Encode t
-	// encoded, err := encoder.Encode(&time)
 	encoded, err := encoder.EncodeUint(uint64(timeslot))
 	if err != nil {
 		panic(err)
@@ -79,7 +78,6 @@ func Psi_A(
 	serialized = append(serialized, encoded...)
 
 	// Encode s
-	// encoded, err = encoder.Encode(&serviceID)
 	encoded, err = encoder.EncodeUint(uint64(serviceID))
 	if err != nil {
 		panic(err)
@@ -93,7 +91,6 @@ func Psi_A(
 	serialized = append(serialized, encoded...)
 
 	newPartialState := partialState.DeepCopy()
-	newStorageKeyVal := storageKeyVal.DeepCopy()
 	serviceAccount := newPartialState.ServiceAccounts[serviceID]
 	addition := HostCallArgs{
 		GeneralArgs: GeneralArgs{
@@ -101,12 +98,10 @@ func Psi_A(
 			ServiceID:           &serviceID,
 			ServiceAccountState: &newPartialState.ServiceAccounts,
 			CoreID:              nil,
-			StorageKeyVal:       &newStorageKeyVal,
 		},
-		// storageKeyVal can be seen as service storage state, what partialState do, the storageKeyVal will do the same
 		AccumulateArgs: AccumulateArgs{
-			ResultContextX:             I(newPartialState, serviceID, timeslot, eta, &newStorageKeyVal),
-			ResultContextY:             I(partialState, serviceID, timeslot, eta, &storageKeyVal),
+			ResultContextX:             I(newPartialState, serviceID, timeslot, eta),
+			ResultContextY:             I(partialState, serviceID, timeslot, eta),
 			Eta:                        eta,
 			OperandOrDeferredTransfers: operandOrDeferTransfers,
 			Timeslot:                   timeslot,
@@ -114,7 +109,7 @@ func Psi_A(
 	}
 
 	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), AccumulateOmegas, addition)
-	partialState, deferredTransfer, result, gas, serviceBlobs, storageKeyVal := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
+	partialState, deferredTransfer, result, gas, serviceBlobs := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{
 		ResultContextX: resultM.Addition.AccumulateArgs.ResultContextX,
 		ResultContextY: resultM.Addition.AccumulateArgs.ResultContextY,
 	})
@@ -125,7 +120,6 @@ func Psi_A(
 		Result:            result,
 		Gas:               gas,
 		ServiceBlobs:      serviceBlobs,
-		StorageKeyVal:     storageKeyVal,
 	}
 }
 
@@ -144,41 +138,41 @@ func wrapWithG(original Omega) Omega {
 }
 
 // (B.13) C
-func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs, types.StateKeyVals) {
+func C(gas types.Gas, reasonOrBytes any, resultContext AccumulateArgs) (types.PartialStateSet, []types.DeferredTransfer, *types.OpaqueHash, types.Gas, types.ServiceBlobs) {
 	serviceBlobs := make(types.ServiceBlobs, 0)
 	switch reasonOrBytes := reasonOrBytes.(type) {
 	case error: // system error
 		for _, v := range resultContext.ResultContextY.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
+		return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
 	case []byte:
 		var h types.OpaqueHash
 		if len(reasonOrBytes) != len(h) {
-			return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
+			return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs
 		}
 		copy(h[:], reasonOrBytes[:len(h)])
 		opaqueHash := &h
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, opaqueHash, gas, serviceBlobs
 	default:
 		if reasonOrBytes == OUT_OF_GAS || reasonOrBytes == PANIC {
 			for _, v := range resultContext.ResultContextY.ServiceBlobs {
 				serviceBlobs = append(serviceBlobs, v)
 			}
-			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs, *resultContext.ResultContextY.StorageKeyVal
+			return resultContext.ResultContextY.PartialState, resultContext.ResultContextY.DeferredTransfers, resultContext.ResultContextY.Exception, gas, serviceBlobs
 		}
 		for _, v := range resultContext.ResultContextX.ServiceBlobs {
 			serviceBlobs = append(serviceBlobs, v)
 		}
-		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs, *resultContext.ResultContextX.StorageKeyVal
+		return resultContext.ResultContextX.PartialState, resultContext.ResultContextX.DeferredTransfers, resultContext.ResultContextX.Exception, gas, serviceBlobs
 	}
 }
 
 // (B.10)
-func I(partialState types.PartialStateSet, serviceID types.ServiceID, ht types.TimeSlot, eta types.Entropy, storageKeyVal *types.StateKeyVals) ResultContext {
+func I(partialState types.PartialStateSet, serviceID types.ServiceID, ht types.TimeSlot, eta types.Entropy) ResultContext {
 	serialized := []byte{}
 	encoder := types.NewEncoder()
 
@@ -218,7 +212,6 @@ func I(partialState types.PartialStateSet, serviceID types.ServiceID, ht types.T
 		DeferredTransfers: []types.DeferredTransfer{},
 		Exception:         nil,
 		ServiceBlobs:      make(map[types.OpaqueHash]types.ServiceBlob),
-		StorageKeyVal:     storageKeyVal,
 	}
 }
 
@@ -228,7 +221,6 @@ type Psi_A_ReturnType struct {
 	Result            *types.OpaqueHash
 	Gas               types.Gas
 	ServiceBlobs      []types.ServiceBlob
-	StorageKeyVal     types.StateKeyVals
 }
 
 // (B.7)
@@ -239,20 +231,13 @@ type ResultContext struct {
 	DeferredTransfers []types.DeferredTransfer               // t
 	Exception         *types.OpaqueHash                      // y
 	ServiceBlobs      map[types.OpaqueHash]types.ServiceBlob // p   v0.6.5
-	StorageKeyVal     *types.StateKeyVals                    // add this for fuzzer
 }
 
 func (origin *ResultContext) DeepCopy() ResultContext {
-	// ServiceID
 	copiedServiceID := origin.ServiceID
-
-	// PartialState
 	copiedPartialState := origin.PartialState.DeepCopy()
-
-	// ImportServiceID
 	copiedImportServiceID := origin.ImportServiceID
 
-	// DeferredTransfers
 	copiedDeferredTransfers := make([]types.DeferredTransfer, len(origin.DeferredTransfers))
 	for k, v := range origin.DeferredTransfers {
 		copiedTrasfer := types.DeferredTransfer{
@@ -266,14 +251,12 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 		copiedDeferredTransfers[k] = copiedTrasfer
 	}
 
-	// Exception
 	var copiedException *types.OpaqueHash
 	if origin.Exception != nil {
 		exceptionVal := *origin.Exception
 		copiedException = &exceptionVal
 	}
 
-	// ServiceBlobs
 	copiedServiceBlobs := make(map[types.OpaqueHash]types.ServiceBlob)
 	for k, v := range origin.ServiceBlobs {
 		var copiedServiceBlob types.ServiceBlob
@@ -283,9 +266,6 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 		copiedServiceBlobs[k] = copiedServiceBlob
 	}
 
-	// StorageKeyVal
-	copiedStorageKeyVal := origin.StorageKeyVal.DeepCopy()
-
 	return ResultContext{
 		ServiceID:         copiedServiceID,
 		PartialState:      copiedPartialState,
@@ -293,6 +273,5 @@ func (origin *ResultContext) DeepCopy() ResultContext {
 		DeferredTransfers: copiedDeferredTransfers,
 		Exception:         copiedException,
 		ServiceBlobs:      copiedServiceBlobs,
-		StorageKeyVal:     &copiedStorageKeyVal,
 	}
 }
