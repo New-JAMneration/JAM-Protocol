@@ -277,7 +277,14 @@ func new(input OmegaInput) (output OmegaOutput) {
 	serviceID := input.Addition.ResultContextX.ServiceID
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
 
-	// new an account
+	// Build the new account skeleton. The initial a_l[c, l] entry has to
+	// go into globalKV, but globalKV is keyed by StateKey which is in turn
+	// derived from the *new* service's ID. We don't know which path the
+	// host call takes until later, so we pre-compute the footprint
+	// contribution of the lookup entry here (a_i += 2, a_o += 81 + l) and
+	// defer the actual InsertPreimageMeta until the new service's ID is
+	// known. This keeps ThresholdBalance / minBalance accurate without
+	// committing to a StateKey that may belong to the wrong service.
 	a := types.NewServiceAccount()
 	a.ServiceInfo = types.ServiceInfo{
 		CodeHash:             types.OpaqueHash(c),                     // c
@@ -289,24 +296,11 @@ func new(input OmegaInput) (output OmegaOutput) {
 		LastAccumulationSlot: types.TimeSlot(0),                       // a
 		ParentService:        input.Addition.ResultContextX.ServiceID, // p
 	}
-
-	// Seed l with one lookup-meta entry for the new service's code preimage.
-	// InsertPreimageMeta updates the counters (items += 2, octets += 81+l)
-	// atomically, so the subsequent GetServiceAccountDerivatives picks up
-	// the correct a_i / a_o.
-	initialLookupKey, err := merklization.NewPreimageMetaStateKey(input.Addition.ResultContextX.ServiceID, types.OpaqueHash(c), types.U32(l))
-	if err != nil {
-		return OmegaOutput{
-			ExitReason: ExitPanic,
-			Addition:   input.Addition,
-		}
-	}
-	if err := a.InsertPreimageMeta(initialLookupKey, uint64(l), types.TimeSlotSet{}); err != nil {
-		return OmegaOutput{
-			ExitReason: ExitPanic,
-			Addition:   input.Addition,
-		}
-	}
+	// Seed the counters with the lookup entry footprint that we will
+	// install once the new service's ID is decided. The actual
+	// InsertPreimageMeta happens via finalizeNewAccount below.
+	a.SetTotalNumberOfItems(2)
+	a.SetTotalNumberOfOctets(81 + uint64(l))
 
 	derive := service_account.GetServiceAccountDerivatives(a)
 	at := derive.Minbalance
@@ -315,6 +309,25 @@ func new(input OmegaInput) (output OmegaOutput) {
 	a.ServiceInfo.Items = derive.Items
 	a.ServiceInfo.Bytes = derive.Bytes
 	a.ServiceInfo.Balance = at
+
+	// finalizeNewAccount installs a_l[c, l] into globalKV using the actual
+	// new service's ID and zeroes out the counters before InsertPreimageMeta
+	// re-adds them — this keeps the counter math consistent regardless of
+	// the dispatch path. Returns the updated account.
+	finalizeNewAccount := func(account types.ServiceAccount, newID types.ServiceID) (types.ServiceAccount, error) {
+		account.SetTotalNumberOfItems(0)
+		account.SetTotalNumberOfOctets(0)
+		key, err := merklization.NewPreimageMetaStateKey(newID, types.OpaqueHash(c), types.U32(l))
+		if err != nil {
+			return account, err
+		}
+		if err := account.InsertPreimageMeta(key, uint64(l), types.TimeSlotSet{}); err != nil {
+			return account, err
+		}
+		account.ServiceInfo.Items = types.U32(account.GetTotalNumberOfItems())
+		account.ServiceInfo.Bytes = types.U64(account.GetTotalNumberOfOctets())
+		return account, nil
+	}
 	// s_b = (x_s)_b - at
 	newBalance := s.ServiceInfo.Balance - at
 	// otherwise if s_b < (x_s)_t, transfer a_t tokens to new service, so need to check balance(b) > minBalance()
@@ -344,9 +357,16 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s = (x_e)_r and i < S
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
 		// reg[7] = i
-		input.VM.Registers[7] = i
+		input.Interpreter.Registers[7] = i
+		finalA, fErr := finalizeNewAccount(a, types.ServiceID(i))
+		if fErr != nil {
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
+			}
+		}
 		// d = { (i -> a) }
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)] = a
+		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)] = finalA
 		// d = { (x_s -> s) }
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 		if serviceID == *input.Addition.GeneralArgs.ServiceID { // update general args
@@ -367,8 +387,15 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// i* = check(i)
 	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	input.Addition.ResultContextX.ImportServiceID = iStar
+	finalA, fErr := finalizeNewAccount(a, importServiceID)
+	if fErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
+	}
 	// mathbb{d} : x_i -> a
-	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = a
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[importServiceID] = finalA
 	// mathbb{d} : x_s -> s
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = s
 	if serviceID == *input.Addition.GeneralArgs.ServiceID { // update general args
