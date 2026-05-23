@@ -568,22 +568,31 @@ func StateEncoder(state types.State) (types.StateKeyVals, error) {
 		g.Go(func() error {
 			kvs := types.StateKeyVals{}
 
+			// Sync the legacy wire-format mirror fields (a_i / a_o) from
+			// the incremental counters before encoding delta1. This is
+			// transitional: Step 8 will replace ServiceInfo.Items/Bytes
+			// with a codec-only struct that reads the counters directly.
+			account.ServiceInfo.Items = types.U32(account.GetTotalNumberOfItems())
+			account.ServiceInfo.Bytes = types.U64(account.GetTotalNumberOfOctets())
+
 			// delta 1
 			kvs = append(kvs, encodeDelta1KeyVal(id, account))
 
-			// delta 2
-			for key, val := range account.StorageDict {
-				kvs = append(kvs, encodeDelta2KeyVal(id, types.ByteSequence(key), val))
+			// delta 2 + delta 4 — both live in globalKV after the refactor.
+			// Iterate once, emit one StateKeyVal per entry. The key is
+			// already a [31]byte StateKey, so no per-entry hashing /
+			// interleaving is needed.
+			for key, val := range account.GetGlobalKVItems() {
+				kvs = append(kvs, types.StateKeyVal{
+					Key:   key,
+					Value: val,
+				})
 			}
 
-			// delta 3
+			// delta 3 — PreimageLookup is still its own map (blobs are
+			// kept independent of globalKV). Encode each one.
 			for key, val := range account.PreimageLookup {
 				kvs = append(kvs, encodeDelta3KeyVal(id, key, val))
-			}
-
-			// delta 4
-			for key, val := range account.LookupDict {
-				kvs = append(kvs, EncodeDelta4KeyVal(id, key, val))
 			}
 
 			deltaMu.Lock()

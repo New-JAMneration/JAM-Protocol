@@ -45,95 +45,38 @@ func printStateValue(stateVal types.ByteSequence) {
 	}
 }
 
-func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, error) {
-	// The preimage value is a ByteSequence
-	preimageValue := stateVal
-
-	// Get ServiceID from state key
+// IsPreimage classifies a state-key/value pair as a preimage-lookup (delta3)
+// entry by checking the invariant key == NewPreimageLookupStateKey(serviceID, H(value)).
+// The computed preimage hash is returned so the caller can reuse it instead
+// of hashing the value a second time.
+func IsPreimage(stateKey types.StateKey, stateVal types.ByteSequence) (bool, types.OpaqueHash, error) {
 	serviceID, err := DecodeServiceIDFromType3(stateKey)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse service ID from state key: %w", err)
+		return false, types.OpaqueHash{}, fmt.Errorf("failed to parse service ID from state key: %w", err)
 	}
 
-	// Create preimage key (hash of the preimage value)
-	preimageKey := hash.Blake2bHash(preimageValue)
+	preimageHash := hash.Blake2bHash(stateVal)
+	preimageStateKey, err := NewPreimageLookupStateKey(serviceID, preimageHash)
+	if err != nil {
+		return false, types.OpaqueHash{}, err
+	}
 
-	// Create a new state key using the serviceID, preimageKey, and preimageValue
-	preimageStateKeyVal := encodeDelta3KeyVal(serviceID, preimageKey, preimageValue)
-
-	isPreimage := preimageStateKeyVal.Key == stateKey
-
-	return isPreimage, nil
+	return preimageStateKey == stateKey, preimageHash, nil
 }
 
-func IsLookup(stateKey types.StateKey, stateVal types.ByteSequence) bool {
-	// Get ServiceID from state key
-	serviceID, _ := DecodeServiceIDFromType3(stateKey)
-
-	// Lookup key = (preimage hash, preimage length)
-	lookupKey := types.LookupMetaMapkey{
-		Hash:   hash.Blake2bHash(stateVal),
-		Length: types.U32(len(stateVal)),
+// ensureServiceAccount returns a mutable reference-style accessor for the
+// ServiceAccount in state.Delta[serviceID], lazily allocating state.Delta
+// itself and the ServiceAccount when needed. The deserialization path uses
+// struct literals (not NewServiceAccount) because the maps inside are
+// initialized on demand below as we walk through each bucket.
+func ensureServiceAccount(state *types.State, serviceID types.ServiceID) types.ServiceAccount {
+	if state.Delta == nil {
+		state.Delta = make(types.ServiceAccountState)
 	}
-
-	// Create the lookup state key
-	lookupStateKeyVal := EncodeDelta4KeyVal(serviceID, lookupKey, types.TimeSlotSet{})
-	lookupStateKey := lookupStateKeyVal.Key
-	return lookupStateKey == stateKey
-}
-
-func updateServiceInfo(state *types.State, serviceID types.ServiceID, serviceInfo types.ServiceInfo) {
-	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceID]
-	if !exists {
-		serviceAccount = types.ServiceAccount{
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
+	if existing, ok := state.Delta[serviceID]; ok {
+		return existing
 	}
-
-	// Add or update the service info
-	serviceAccount.ServiceInfo = serviceInfo
-
-	// Assign the updated service account back to the state
-	state.Delta[serviceID] = serviceAccount
-}
-
-func updatePreimage(state *types.State, serviceID types.ServiceID, preimageKey types.OpaqueHash, preimageValue types.ByteSequence) {
-	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceID]
-	if !exists {
-		serviceAccount = types.ServiceAccount{
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
-	}
-
-	// Add or update the preimage entry
-	serviceAccount.PreimageLookup[preimageKey] = preimageValue
-
-	// Assign the updated service account back to the state
-	state.Delta[serviceID] = serviceAccount
-}
-
-func updateLookup(state *types.State, serviceID types.ServiceID, lookupKey types.LookupMetaMapkey, lookupValue types.TimeSlotSet) {
-	// Check if the service account exists
-	serviceAccount, exists := state.Delta[serviceID]
-	if !exists {
-		serviceAccount = types.ServiceAccount{
-			PreimageLookup: make(types.PreimagesMapEntry),
-			LookupDict:     make(types.LookupMetaMapEntry),
-			StorageDict:    make(types.Storage),
-		}
-	}
-
-	// Add or update the lookup entry
-	serviceAccount.LookupDict[lookupKey] = lookupValue
-
-	// Assign the updated service account back to the state
-	state.Delta[serviceID] = serviceAccount
+	return types.ServiceAccount{}
 }
 
 func GetStateKeyValsDiff(a, b types.StateKeyVals) ([]types.StateKeyValDiff, error) {
@@ -390,302 +333,220 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 	return nil, fmt.Errorf("unsupported state-key: 0x%x", stateKey)
 }
 
+// StateKeyValsToState rebuilds an in-memory State from its serialized
+// (StateKey, value) pairs in a single pass over the input.
+//
+// After the globalKV refactor (Method A) the storage (a_s) and preimage-meta
+// (a_l) entries live together in account.globalKV — they no longer need to
+// be stored in a separate "unmatched" fallback pool. The function still
+// returns an empty types.StateKeyVals for source compatibility with existing
+// callers; Step 7.5 will drop that second return value entirely.
+//
+// Dispatch (one pass, three buckets):
+//
+//  1. Chapter keys C(1)..C(16)               → typed state fields.
+//  2. Service-info keys C(255, s)            → ServiceAccount.ServiceInfo;
+//                                              the a_i / a_o counters are
+//                                              initialised from the encoded
+//                                              ServiceInfo.Items / Bytes so
+//                                              we never have to recompute
+//                                              them by walking globalKV.
+//  3. IsPreimage(stateKey, value) == true    → ServiceAccount.PreimageLookup
+//                                              (a_p blobs stay in their own
+//                                              map; the hash returned by
+//                                              IsPreimage is reused so we
+//                                              don't hash the value twice).
+//  4. Everything else (delta2 + delta4)      → ServiceAccount.globalKV.
+//
+// state.Delta, PreimageLookup, and globalKV are all lazy-initialised on
+// first use so callers may feed in inputs that don't include every chapter.
 func StateKeyValsToState(stateKeyVals types.StateKeyVals) (types.State, types.StateKeyVals, error) {
-	var err error
-	// Estimate number of services from ServiceInfo keys (Type 2: C(255, s)).
-	estimatedServices := 0
-	for _, kv := range stateKeyVals {
-		if IsServiceInfoKey(kv.Key) {
-			estimatedServices++
-		}
-	}
-	estimatedServices = max(estimatedServices, 16)
 	state := types.State{
-		Delta: make(types.ServiceAccountState, estimatedServices),
+		Delta: make(types.ServiceAccountState),
 	}
-
-	unmatchedCapacity := max(len(stateKeyVals)-16, 0)
-	unmatchedStateKeyVals := make(map[types.StateKey]types.ByteSequence, unmatchedCapacity)
 
 	for _, keyVal := range stateKeyVals {
 		stateKey := keyVal.Key
 		stateVal := keyVal.Value
-		unmatchedStateKeyVals[stateKey] = stateVal
 
 		switch stateKey {
 		case C(1):
-			// Decode the alpha
 			cLog(Yellow, "[C(1)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			alpha, err := decodeAlpha(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode alpha: %w", err)
 			}
 			state.Alpha = alpha
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(2):
-			// Decode the varphi
 			cLog(Yellow, "[C(2)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			varphi, err := decodeVarphi(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode varphi: %w", err)
 			}
 			state.Varphi = varphi
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(3):
-			// Decode the beta
 			cLog(Yellow, "[C(3)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			beta, err := decodeBeta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode beta: %w", err)
 			}
 			state.Beta = beta
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(4):
-			// Decode the gamma
 			cLog(Yellow, "[C(4)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			gamma, err := decodeGamma(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode gamma: %w", err)
 			}
 			state.Gamma = gamma
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(5):
-			// Decode the psi
 			cLog(Yellow, "[C(5)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			psi, err := decodePsi(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode psi: %w", err)
 			}
 			state.Psi = psi
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(6):
-			// Decode the eta
 			cLog(Yellow, "[C(6)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			eta, err := decodeEta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode eta: %w", err)
 			}
 			state.Eta = eta
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(7):
-			// Decode the iota
 			cLog(Yellow, "[C(7)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			iota, err := decodeIota(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode iota: %w", err)
 			}
 			state.Iota = iota
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(8):
-			// Decode the kappa
 			cLog(Yellow, "[C(8)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			kappa, err := decodeKappa(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode kappa: %w", err)
 			}
 			state.Kappa = kappa
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(9):
-			// Decode the lambda
 			cLog(Yellow, "[C(9)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			lambda, err := decodeLambda(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode lambda: %w", err)
 			}
 			state.Lambda = lambda
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(10):
-			// Decode the rho
 			cLog(Yellow, "[C(10)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			rho, err := decodeRho(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode rho: %w", err)
 			}
 			state.Rho = rho
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(11):
-			// Decode the tau
 			cLog(Yellow, "[C(11)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			tau, err := decodeTau(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode tau: %w", err)
 			}
 			state.Tau = tau
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(12):
-			// Decode the chi
 			cLog(Yellow, "[C(12)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			chi, err := decodeChi(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode chi: %w", err)
 			}
 			state.Chi = chi
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(13):
-			// Decode the pi
 			cLog(Yellow, "[C(13)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			pi, err := decodePi(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode pi: %w", err)
 			}
 			state.Pi = pi
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(14):
-			// Decode the vartheta
 			cLog(Yellow, "[C(14)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			vartheta, err := decodeVartheta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode vartheta: %w", err)
 			}
 			state.Vartheta = vartheta
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(15):
-			// Decode the xi
 			cLog(Yellow, "[C(15)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			xi, err := decodeXi(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode xi: %w", err)
 			}
 			state.Xi = xi
-			delete(unmatchedStateKeyVals, stateKey)
 		case C(16):
-			// Decode the theta AccumulatedServiceOutput
 			cLog(Yellow, "[C(16)]")
-			printStateKey(Cyan, stateKey)
-			printStateValue(stateVal)
 			theta, err := decodeTheta(stateVal)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode theta: %w", err)
 			}
 			state.Theta = theta
-			delete(unmatchedStateKeyVals, stateKey)
 		default:
-			// C(255, s)
+			// C(255, s) — service info (delta1).
 			if IsServiceInfoKey(stateKey) {
 				cLog(Yellow, "[ServiceInfo]")
-				printStateKey(Cyan, stateKey)
-				printStateValue(stateVal)
-
-				// ServiceID
 				serviceID, err := DecodeServiceIDFromType2(stateKey)
 				if err != nil {
 					return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 				}
-				// Decode the value
 				serviceInfo, err := DecodeServiceInfo(stateVal)
 				if err != nil {
 					return state, nil, fmt.Errorf("failed to decode service info of service ID %d: %w", serviceID, err)
 				}
-				// Update the service info in the state
-				updateServiceInfo(&state, serviceID, serviceInfo)
-				delete(unmatchedStateKeyVals, stateKey)
+				sa := ensureServiceAccount(&state, serviceID)
+				sa.ServiceInfo = serviceInfo
+				// Initialise counters from the wire-format mirror fields so
+				// we don't have to recompute them by walking globalKV. Once
+				// Step 8 introduces the codec-only struct the values come
+				// straight from the decoder.
+				sa.SetTotalNumberOfItems(uint32(serviceInfo.Items))
+				sa.SetTotalNumberOfOctets(uint64(serviceInfo.Bytes))
+				state.Delta[serviceID] = sa
 				continue
 			}
 
-			// ServiceID
+			// Type-3 key (storage, preimage-lookup, or preimage-meta).
 			serviceID, err := DecodeServiceIDFromType3(stateKey)
 			if err != nil {
 				return state, nil, fmt.Errorf("failed to decode service ID: %w", err)
 			}
 
-			if isPreimage, _ := IsPreimage(stateKey, stateVal); isPreimage {
+			isPreimage, preimageHash, err := IsPreimage(stateKey, stateVal)
+			if err != nil {
+				return state, nil, fmt.Errorf("failed to classify state-key: %w", err)
+			}
+			if isPreimage {
 				cLog(Yellow, "[Preimage]")
-				printStateKey(Cyan, stateKey)
-				printStateValue(stateVal)
-
-				// PreimageValue
-				preimageValue := stateVal
-
-				// PreimageKey
-				preimageKey := hash.Blake2bHash(preimageValue)
-
-				// Update the preimage in the state
-				updatePreimage(&state, serviceID, preimageKey, preimageValue)
-				delete(unmatchedStateKeyVals, stateKey)
+				sa := ensureServiceAccount(&state, serviceID)
+				if sa.PreimageLookup == nil {
+					sa.PreimageLookup = make(types.PreimagesMapEntry)
+				}
+				sa.PreimageLookup[preimageHash] = stateVal
+				state.Delta[serviceID] = sa
 				continue
 			}
+
+			// delta2 (storage) or delta4 (preimage meta) — both go into
+			// globalKV. Distinguishing the two would require structural
+			// knowledge that StateKey alone cannot provide, but the trie
+			// representation does not need to distinguish them either.
+			cLog(Yellow, "[globalKV]")
+			sa := ensureServiceAccount(&state, serviceID)
+			kv := sa.GetGlobalKVItems()
+			if kv == nil {
+				kv = make(map[types.StateKey][]byte)
+			}
+			kv[stateKey] = stateVal
+			sa.SetGlobalKVItems(kv)
+			state.Delta[serviceID] = sa
 		} // End of switch
 	} // End of for loop
 
-	// INFO: Lookup depends on preimage information. The key for Lookup is (preimage hash, preimage length).
-	// However, we cannot guarantee the order of state key values.
-	// It's possible to encounter a Lookup entry first, before its corresponding preimage information has been parsed.
-	// Therefore, we need to process all state values first to obtain all preimage information,
-	// so that after obtaining all preimages, we can construct the corresponding Lookup keys.
-
-	// After updating the preimages, we can now process the Lookup entries.
-	for serviceID, serviceAccount := range state.Delta {
-		for preimageKey, preimageValue := range serviceAccount.PreimageLookup {
-			cLog(Yellow, "[Lookup]")
-
-			// Lookup key = (preimage hash, preimage length)
-			lookupKey := types.LookupMetaMapkey{
-				Hash:   preimageKey,
-				Length: types.U32(len(preimageValue)),
-			}
-
-			// Create the lookup state key
-			lookupStateKeyVal := EncodeDelta4KeyVal(serviceID, lookupKey, types.TimeSlotSet{})
-			lookupStateKey := lookupStateKeyVal.Key
-
-			// Find the lookup state key in unmatchedStateKeyVals
-			// If it exists, imply that we have a lookup entry for this preimage
-			if lookupStateVal, exists := unmatchedStateKeyVals[lookupStateKey]; exists {
-				printStateKey(Cyan, lookupStateKey)
-				printStateValue(lookupStateVal)
-				// Decode the lookup state value
-				timeSlotSet := types.TimeSlotSet{}
-				decoder := types.NewDecoder()
-				err := decoder.Decode(lookupStateVal, &timeSlotSet)
-				if err != nil {
-					return state, nil, fmt.Errorf("failed to decode lookup value: %w", err)
-				}
-
-				updateLookup(&state, serviceID, lookupKey, timeSlotSet)
-				delete(unmatchedStateKeyVals, lookupStateKey)
-			}
-		}
-	}
-
-	storageStateKeyVals := make(types.StateKeyVals, 0, len(unmatchedStateKeyVals))
-	for stateKey, stateVal := range unmatchedStateKeyVals {
-		storageStateKeyVals = append(storageStateKeyVals, types.StateKeyVal{
-			Key:   stateKey,
-			Value: stateVal,
-		})
-	}
-
-	return state, storageStateKeyVals, err
+	// Method A: storage / preimage-meta now live in globalKV, the fallback
+	// pool is unused. Return an empty slice for source compatibility; the
+	// second return value will be dropped in Step 7.5.
+	return state, types.StateKeyVals{}, nil
 }
 
 func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
@@ -733,8 +594,7 @@ func DebugStateKeyValsDiff(diffs []types.StateKeyValDiff) error {
 				return fmt.Errorf("failed to decode service ID from state key 0x%x by type 3: %w", v.Key, err)
 			}
 			// a_p: Preimage
-			if isPreimage, _ := IsPreimage(v.Key, v.ExpectedValue); isPreimage {
-				preimageKey := hash.Blake2bHash(v.ExpectedValue)
+			if isPreimage, preimageKey, _ := IsPreimage(v.Key, v.ExpectedValue); isPreimage {
 				logger.ColorDebug("serviceID %v state key 0x%x is preimage key 0x%x, value exp/act diff: %v", serviceID, v.Key, preimageKey, cmp.Diff(v.ExpectedValue, v.ActualValue))
 
 				// Store the preimage and related lookup key for later lookup
