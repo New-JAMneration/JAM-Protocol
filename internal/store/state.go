@@ -33,6 +33,10 @@ func (repo *Repository) SaveStateData(w database.Writer, stateRoot types.StateRo
 	return w.Put(stateDataKey(stateRoot), data)
 }
 
+func (repo *Repository) DeleteStateData(w database.Writer, stateRoot types.StateRoot) error {
+	return w.Delete(stateDataKey(stateRoot))
+}
+
 func (repo *Repository) GetStateData(r database.Reader, stateRoot types.StateRoot) (types.StateKeyVals, error) {
 	data, found, err := r.Get(stateDataKey(stateRoot))
 	if err != nil {
