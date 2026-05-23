@@ -135,9 +135,9 @@ func TestPreimageTestVectors(t *testing.T) {
 
 // report4-like service IDs from fuzz state_diff on π (Statistics).
 const (
-	testServiceA      types.ServiceID      = 993378590  // 0x3b35c11e
-	testServiceB      types.ServiceID      = 1097212405 // 0x416621f5
-	testAuthorIndex   types.ValidatorIndex = 5
+	testServiceA    types.ServiceID      = 993378590  // 0x3b35c11e
+	testServiceB    types.ServiceID      = 1097212405 // 0x416621f5
+	testAuthorIndex types.ValidatorIndex = 5
 )
 
 func newEmptyServiceAccount() types.ServiceAccount {
