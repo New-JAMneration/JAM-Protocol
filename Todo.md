@@ -4,6 +4,65 @@
 > 統一的 `globalKV map[StateKey][]byte` + 增量計數器。
 > **`PreimageLookup`（a_p）保持獨立不動。**
 
+## 實作狀態（2026-05-24 update）
+
+| Step | 狀態 | 備註 |
+|------|------|------|
+| 1: ServiceAccount globalKV + counters + NewServiceAccount | ✅ | dual-map 過渡保留 |
+| 2a: StateKey helpers | ✅ | 新增 `NewStorageStateKey` / `NewPreimageMetaStateKey` / `NewPreimageLookupStateKey` |
+| 2b: safemath utilities | ✅ | `internal/utilities/safemath/` |
+| 2c: globalKV 存取方法 + Clone + cloneMapOfSlices | ✅ | 16 個方法 + 通用 helper |
+| 3: CalcKeys/Octets 讀計數器 + ThresholdBalance method + dev_assert | ✅ | bug fix 已套用 |
+| 4a: host_call_general.go (read/write/info) | ✅ | |
+| 4b: host_call_accumulate.go (new/transfer/eject/query/solicit/forget/provide) | ✅ | new() 用 `finalizeNewAccount` 解決新 service ID 問題 |
+| 4c: PVM struct StorageKeyVal 欄位清理 | ✅ | 與 Step 7.5d 一起完成 |
+| 5: accumulation + HistoricalLookup/FetchCodeByHash/ValidatePreimageLookupDict + AddPreimage | ✅ | 所有 signature 加 serviceID |
+| 6: StateEncoder 簡化 | ✅ | 過渡期 sync 模式 |
+| 7: StateKeyValsToState 三類桶 + IsPreimage(returns hash) + IsLookup 移除 | ✅ | |
+| 7.5: unmatchedKeyVals pipeline 全清除 | ✅ | (State, error) 簽名 + ChainState 6 個欄位/方法 + state-root append 全清 |
+| 8a: ServiceAccountDerivatives 移除 | ✅ | |
+| 8b: unmarshal_json.go 走 globalKV | ✅ | 雙寫保留 legacy 給 jamtests wire format |
+| 8c-f: 真正移除 StorageDict/LookupDict + ServiceInfo.Items/Bytes + codec-only struct | ⏳ 未做 | jamtests `ServiceAccount.Encode` wire format 編 raw storage key，無法從 hash 反推 |
+| 9: 測試 fixtures 改用 globalKV | ✅ 主要部分 | service_account / accumulation / ce134 / jamtests preimages+accumulate 已改；新增 `MigrateLegacyMapsToGlobalKV` helper |
+| **Pre-existing bug fix**: ThresholdBalance GP §9.8 | ✅ | `storage − a_f` correctly subtracted |
+
+**11 commits on `feat/global-kv-refactor`**：
+
+```
+642999b6 fix(service-account): subtract GratisStorageOffset in ThresholdBalance (GP §9.8)
+d1eb0163 test: migrate legacy-map fixtures onto globalKV (Step 9 partial)
+4f91eddf refactor(types): retire ServiceAccountDerivatives + JSON unmarshal via globalKV (Step 8a/8b)
+c824060e refactor(state): retire unmatchedKeyVals fallback pool (Step 7.5)
+c56422cb fix(accumulation): InsertPreimageMeta in preimage integration + keep delta on error
+a00b5ba0 fix(service-account): DeepCopy + new() StateKey now carry globalKV / counters
+07744327 refactor(merklization): sync encoder + three-bucket decoder (Steps 6 + 7)
+2cb8da6d refactor(accumulation): switch preimage flows to globalKV (Step 5)
+0e952ce0 refactor(pvm): switch host_call_accumulate.go to globalKV (Step 4b)
+1308bca4 refactor(service-account): introduce globalKV foundation (Steps 1-3 + partial 4a)
+dc7842b3 (baseline)
+```
+
+**測試結果（驗證跟 baseline byte-for-byte 對齊）**：
+
+| 測試集 | 結果 |
+|--------|------|
+| Minifuzz × 4 suites (storage/storage_light/fallback/safrole) | 102/102 pairs each, all PASS |
+| Picofuzz × 4 suites | PASS, no MISMATCH/FAIL |
+| jam-conformance 0.7.2 traces | **282 / 282 PASSED** |
+
+**速度對比（picofuzz p99）**：
+
+| Suite | Baseline | Refactor | Δ |
+|-------|----------|----------|---|
+| storage | 220.5 ms | 208.8 ms | **-5.3%** |
+| storage_light | 81.0 ms | 68.5 ms | **-15.4%** |
+| fallback | 36.4 ms | 39.1 ms | +7.5% |
+| safrole | 41.3 ms | 46.7 ms | +13.0% |
+
+→ Storage-heavy workloads 顯著加快（Phase 1 目標達成）；非 storage workloads 多了一點 wrapper overhead。Phase 2/3 預期會把優勢放大。
+
+---
+
 ## 重要：什麼合併、什麼不合併
 
 | 原欄位 | 對應符號 | 是否合併進 globalKV | 原因 |
@@ -45,7 +104,7 @@
 
 ---
 
-## Step 1：雙寫過渡 — 新增 globalKV 欄位（保留全部舊 map）
+## Step 1：雙寫過渡 — 新增 globalKV 欄位（保留全部舊 map）  ✅ DONE
 
 - [ ] 在 `ServiceAccount` struct 新增 `globalKV map[StateKey][]byte`（私有欄位）
 - [ ] 新增 `totalNumberOfItems uint32` 和 `totalNumberOfOctets uint64` 增量計數器（私有欄位）
@@ -58,7 +117,7 @@
 
 ---
 
-## Step 2：新增存取方法 + StateKey 輔助函數
+## Step 2：新增存取方法 + StateKey 輔助函數  ✅ DONE
 
 ### 2a: StateKey 構造輔助函數
 
@@ -149,7 +208,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 3：CalcKeys / CalcOctets 改為讀增量計數器
+## Step 3：CalcKeys / CalcOctets 改為讀增量計數器  ✅ DONE (含 GP §9.8 bug fix)
 
 - [ ] `CalcKeys(account)` → 回傳 `account.GetTotalNumberOfItems()`（O(1)）
 - [ ] `CalcOctets(account)` → 回傳 `account.GetTotalNumberOfOctets()`（O(1)）
@@ -173,7 +232,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 4：PVM Host Call 改用新方法（最大改動）
+## Step 4：PVM Host Call 改用新方法（最大改動）  ✅ DONE
 
 ### 4a: host_call_general.go
 
@@ -227,7 +286,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 5：accumulation 模組 + HistoricalLookup 改用新方法
+## Step 5：accumulation 模組 + HistoricalLookup 改用新方法  ✅ DONE
 
 - [ ] `HistoricalLookup()` — **本次重構保持 free function 形式**（不改為 method，改 method 影響 17+ 處呼叫端，是純風格 refactor，留作未來獨立 ticket）。簽名新增 `serviceID types.ServiceID` 參數；`account.LookupDict[lookupkey]` 改用 `GetPreimageMeta(NewPreimageMetaStateKey(serviceID, hash, length))`；`account.PreimageLookup[hash]` 保持不動
   - 業務呼叫端（3 處）：`host_call_refine.go:43`、`refine_invocation.go:54`、`work_package.go:19`
@@ -267,7 +326,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 6：簡化 StateEncoder()（state root 必須一致）
+## Step 6：簡化 StateEncoder()（state root 必須一致）  ✅ DONE
 
 > **過渡期方案**：本 Step 在 `ServiceInfo.Items/Bytes` 欄位仍存在時運作。
 > Step 8 移除這兩個欄位後，序列化將改為 codec-only struct 直接讀計數器，
@@ -286,7 +345,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 7：簡化 StateKeyValsToState()
+## Step 7：簡化 StateKeyValsToState()  ✅ DONE
 
 **設計事實**：storage key 與 preimage meta key 在 globalKV 中天然無法區分（兩者都是 Blake2b hash 過的 `[31]byte`）。
 這也是合併的本質前提 — 反序列化時不需要區分，統統灌進 globalKV 即可。
@@ -352,7 +411,7 @@ Clone / DeepCopy：
 
 ---
 
-## Step 7.5：unmatchedKeyVals 生命週期清理（方案 A 下游影響）
+## Step 7.5：unmatchedKeyVals 生命週期清理（方案 A 下游影響）  ✅ DONE
 
 > 方案 A 下「state == globalKV」，`StateKeyValsToState()` 不再回傳 fallback pool，
 > 整個 codebase 對 `unmatchedKeyVals` 的依賴需移除。
@@ -395,7 +454,12 @@ Clone / DeepCopy：
 
 ---
 
-## Step 8：移除舊的 StorageDict 和 LookupDict 欄位
+## Step 8：移除舊的 StorageDict 和 LookupDict 欄位  ⏳ PARTIAL (8a/8b ✅, 8c-f 未做)
+
+> **8a/8b 已完成**：`ServiceAccountDerivatives` 已移除；`unmarshal_json.go` 走 globalKV（與 legacy maps 雙寫，後者僅供 jamtests `ServiceAccount.Encode` wire format 使用）。
+>
+> **8c-f 未做（blocker）**：`encode.go` / `decode.go` 的 `ServiceAccount.Encode` / `Decode` JAM wire format 編碼 raw storage key（`map[string]ByteSequence`），但 `StateKey` 是 Blake2b hash 過的 `[31]byte`，**raw key 無法反推**。要真正移除 `StorageDict` / `LookupDict` / `ServiceInfo.Items` / `Bytes` 需要先重設計 jamtests 的 binary wire format（或改變 JAM test-vector 格式），這超出本次重構範圍。當前架構下兩個 deprecated map 只在 jamtests JSON 載入時被 dual-write，runtime 完全不讀，沒有 SSOT 問題，但 struct shape 還是兩條路線並存。
+
 
 > 本 Step 包含「encodeDelta1 從過渡期同步模式 → codec-only struct 模式」的最終遷移。
 > 完成後 Step 6 的「序列化前同步」邏輯應一併移除。
@@ -410,7 +474,7 @@ Clone / DeepCopy：
 - [ ] **移除** `ServiceInfo.Items` 和 `ServiceInfo.Bytes` 欄位（消除 SSOT 違反）
   - **結構路線（保守）**：保留 `ServiceInfo` 巢狀結構，僅移除 `Items/Bytes` 兩欄。攤平 ServiceInfo 是獨立議題，不在本次重構範圍。
   - **刻意差異 — Version 來源**：參考實作將 Version hardcoded 為 `0`（其 runtime struct 無 Version 欄位）。我們保留 `ServiceInfo.Version` 並從中讀寫，使 Version 可隨 GP 版本動態管理。副作用：所有建立 ServiceAccount 的路徑必須確保 `ServiceInfo.Version` 被正確初始化。
-ㄓㄨ  - 序列化採 **codec-only struct 模式**：新增 `encodedServiceAccount` 中間 struct（位於 `internal/utilities/merklization/`，private），`encodeDelta1` 從 ServiceAccount 計數器讀取後填入 codec struct 再 Marshal
+  - 序列化採 **codec-only struct 模式**：新增 `encodedServiceAccount` 中間 struct（位於 `internal/utilities/merklization/`，private），`encodeDelta1` 從 ServiceAccount 計數器讀取後填入 codec struct 再 Marshal
   - 欄位定義（順序 = JAM 編碼的 byte sequence，順序錯一個 = state root 全錯）：
     | # | 欄位 | 型別 | GP 符號 | 來源（序列化） | 目標（反序列化） |
     |---|------|------|---------|---------------|----------------|
@@ -444,7 +508,14 @@ Clone / DeepCopy：
 
 ---
 
-## Step 9：更新所有測試
+## Step 9：更新所有測試  ✅ 主要部分 DONE
+
+> **完成項目**：`service_account_test.go`（seedGlobalKV helper + 17 處 HistoricalLookup 改寫）、`accumulation_test.go`（pre-state fixture 走 `MigrateLegacyMapsToGlobalKV`）、`networking/ce/ce134_test.go`、`jamtests/preimages_tests.go`、`jamtests/accumulate_tests.go`、`parse_state_key_vals_test.go`。新增 `ServiceAccount.MigrateLegacyMapsToGlobalKV(serviceID)` helper 把 struct-literal fixture 一次性 mirror 進 globalKV。
+>
+> **未處理項目（runtime 不受影響）**：`jamtests/reports_tests.go` 的 fixture 用 nil maps、`work_package_controller_test.go` 同樣 nil maps、`state_serialize_test.go` 只有 commented-out code、`state_key_constructor_test.go` 沒有 legacy map 依賴。這些測試在現有架構下都能跑（如果 Rust-VRF 在環境裡 build 得起來），不需要 fixture 改造。
+>
+> **本地端 `go test ./...` 全跑不過**：跟重構無關 — `pkg/Rust-VRF/vrf-func-ffi/src` / `pkg/erasure_coding` 是 Rust FFI，需要 Rust toolchain 才能編。Docker fuzz target 完整 build 並通過 三套 fuzz 測試（最終驗證手段）。
+
 
 - [ ] **掃描全 codebase 的 `ServiceAccount{...}` literal**，確認全部改用 `NewServiceAccount()`
   - **例外**：反序列化路徑（Step 7）允許直接 struct literal 建構（搭配 lazy init 防護）
