@@ -302,12 +302,17 @@ func new(input OmegaInput) (output OmegaOutput) {
 	a.SetTotalNumberOfItems(2)
 	a.SetTotalNumberOfOctets(81 + uint64(l))
 
-	derive := service_account.GetServiceAccountDerivatives(a)
-	at := derive.Minbalance
+	at, atErr := a.ThresholdBalance()
+	if atErr != nil {
+		return OmegaOutput{
+			ExitReason: ExitPanic,
+			Addition:   input.Addition,
+		}
+	}
 	// Sync ServiceInfo.Items/Bytes for the delta1 wire format (Step 8 will
-	// drop these fields and source them straight from the counters).
-	a.ServiceInfo.Items = derive.Items
-	a.ServiceInfo.Bytes = derive.Bytes
+	// drop these mirror fields and source them straight from the counters).
+	a.ServiceInfo.Items = types.U32(a.GetTotalNumberOfItems())
+	a.ServiceInfo.Bytes = types.U64(a.GetTotalNumberOfOctets())
 	a.ServiceInfo.Balance = at
 
 	// finalizeNewAccount installs a_l[c, l] into globalKV using the actual

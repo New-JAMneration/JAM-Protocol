@@ -148,13 +148,6 @@ type ServiceInfo struct {
 	ParentService        ServiceID  `json:"parent_service"`         // a_p: Parent service identifier
 }
 
-// GP §9.8
-type ServiceAccountDerivatives struct {
-	Items      U32 `json:"items"` // a_i: Number of items stored by the service
-	Bytes      U64 `json:"bytes"` // a_o: Total bytes stored by the service
-	Minbalance U64 // a_t: Threshold balance of the service in terms of storage footprint
-}
-
 type MetaCode struct {
 	Metadata ByteSequence
 	Code     ByteSequence
