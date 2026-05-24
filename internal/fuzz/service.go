@@ -94,13 +94,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		}
 	}
 
-	// Get the latest state root
-	latestState := cs.GetPriorStates().GetState()
-	serializedState, _ := m.StateEncoder(latestState)
-	// Method A: serializedState already contains every storage / lookup
-	// entry from globalKV; no fallback pool to merge.
-	combinedState := serializedState
-	latestStateRoot, _ := cs.ComputeStateRootWithCache(combinedState)
+	latestStateRoot := cs.LastCommittedStateRoot()
 
 	cs.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
@@ -109,9 +103,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	isProtocolError, err := stf.RunSTF()
 	if err != nil {
 		if !isProtocolError {
-			// Runtime error: unexpected bug, should terminate the program
-			// Note: We return the error here, caller (server) should decide to close connection
-			// If this is a standalone node, caller should call logger.Fatal()
 			logger.Errorf("%s STF runtime error (unexpected bug): %v", ctx, err)
 			return types.StateRoot{}, fmt.Errorf("STF runtime error: %w", err)
 		}
@@ -120,24 +111,13 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return latestStateRoot, err
 	}
 
-	latestState = cs.GetPosteriorStates().GetState()
-	serializedState, err = m.StateEncoder(latestState)
+	stateRoot, err := cs.StateCommit()
 	if err != nil {
-		logger.Errorf("%s state encoder error: %v", ctx, err)
+		logger.Errorf("%s StateCommit error: %v", ctx, err)
 		return types.StateRoot{}, err
 	}
-	combinedState = serializedState
-	latestStateRoot, _ = cs.ComputeStateRootWithCache(combinedState)
 
-	// Commit the state and persist the state to Redis
-	cs.StateCommit()
-
-	// In fuzz mode, prune old data from memory and disk to prevent exhaustion
-	if fuzzenv.Enabled() {
-		cs.PruneOldData(latestStateRoot, headerHash, block.Header.Slot)
-	}
-
-	return latestStateRoot, nil
+	return stateRoot, nil
 }
 
 func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.StateKeyVals, ancestry types.Ancestry) (types.StateRoot, error) {
@@ -181,18 +161,16 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	}
 	cs.AddBlock(genesisBlock)
 
-	// Persist block + state to Redis and record ancestry via StateCommit.
-	cs.StateCommit()
+	// Persist block + state and record ancestry via StateCommit.
+	stateRoot, err := cs.StateCommit()
+	if err != nil {
+		logger.Errorf("%s StateCommit error: %v", ctx, err)
+		return types.StateRoot{}, err
+	}
 
 	// Empty posterior state
 	posteriorStates := blockchain.NewPosteriorStates()
 	cs.GetPosteriorStates().SetState(posteriorStates.GetState())
-
-	serializedState, _ := m.StateEncoder(state)
-
-	// Method A: serializedState already includes every storage/lookup-meta
-	// entry from globalKV; no fallback pool to merge in.
-	stateRoot, _ := cs.ComputeStateRootWithCache(serializedState)
 
 	logger.Infof("%s Init completed, header hash: 0x%x..., state root: 0x%x", ctx, headerHash[:8], stateRoot)
 	return stateRoot, nil

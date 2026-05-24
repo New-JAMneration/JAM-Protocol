@@ -173,7 +173,7 @@ For example:
 
 				for _, testFile := range testFilesForRun {
 					// post-state update to pre-state, tau_prime+1
-					blockchain.GetInstance().StateCommit()
+					_, _ = blockchain.GetInstance().StateCommit()
 
 					data, err := reader.ParseTestData(testFile.Data)
 					if err != nil {
@@ -289,7 +289,7 @@ For example:
 			logger.Infof("------------------{%v, %s}--------------------", idx+1, testFile.Name)
 			if testType == "trace" {
 				// post-state update to pre-state, tau_prime+1
-				blockchain.GetInstance().StateCommit()
+				_, _ = blockchain.GetInstance().StateCommit()
 			}
 
 			data, err := reader.ParseTestData(testFile.Data)

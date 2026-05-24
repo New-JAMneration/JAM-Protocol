@@ -36,6 +36,9 @@ type ChainState struct {
 	repo           *store.Repository
 	persistentRepo *store.Repository
 
+	// Trie node persistence and reference counting
+	trieStore *store.Trie
+
 	// State management
 	priorStates        *PriorStates
 	intermediateStates *IntermediateStates
@@ -52,14 +55,13 @@ type ChainState struct {
 	// cache for leaf level merklization
 	keyLevelCache *KeyLevelCache
 
-	// tracks recent entries persisted to disk, used for fuzz-mode pruning
-	persistedEntries []persistedEntry
-}
+	// ring buffer tracking recent state roots stored in repo (memory),
+	// used to evict old entries and bound memory usage.
+	recentStateRoots []types.StateRoot
 
-type persistedEntry struct {
-	stateRoot  types.StateRoot
-	headerHash types.HeaderHash
-	slot       types.TimeSlot
+	// lastCommittedStateRoot caches the state root from the most recent
+	// successful StateCommit, avoiding redundant serialize+merklize.
+	lastCommittedStateRoot types.StateRoot
 }
 
 func getPersistentDatabase() database.Database {
@@ -94,11 +96,13 @@ func getPersistentDatabase() database.Database {
 func GetInstance() *ChainState {
 	initOnce.Do(func() {
 		repo := store.NewRepository(memory.NewDatabase())
-		persistentRepo := store.NewRepository(getPersistentDatabase())
+		persistentDB := getPersistentDatabase()
+		persistentRepo := store.NewRepository(persistentDB)
 
 		globalChainState = &ChainState{
 			repo:           repo,
 			persistentRepo: persistentRepo,
+			trieStore:      store.NewTrie(persistentDB),
 
 			priorStates:        NewPriorStates(),
 			intermediateStates: NewIntermediateStates(),
@@ -120,11 +124,19 @@ func GetInstance() *ChainState {
 
 func ResetInstance() {
 	repo := store.NewRepository(memory.NewDatabase())
-	persistentRepo := store.NewRepository(getPersistentDatabase())
+	persistentDB := getPersistentDatabase()
+	persistentRepo := store.NewRepository(persistentDB)
+
+	// Clean up trie data from previous session to avoid cross-session refcount accumulation.
+	trieStore := store.NewTrie(persistentDB)
+	if err := trieStore.DeleteAll(); err != nil {
+		logger.Warnf("ResetInstance: failed to clean trie data: %v", err)
+	}
 
 	globalChainState = &ChainState{
 		repo:           repo,
 		persistentRepo: persistentRepo,
+		trieStore:      trieStore,
 
 		priorStates:        NewPriorStates(),
 		intermediateStates: NewIntermediateStates(),
@@ -385,48 +397,51 @@ func (cs *ChainState) GenerateGenesisState(state types.State) {
 	logger.Debug("🚀 Genesis state generated")
 }
 
-// post-state update to pre-state
-func (cs *ChainState) StateCommit() {
+// StateCommit persists the posterior state, updates prior state, and returns the committed state root.
+func (cs *ChainState) StateCommit() (types.StateRoot, error) {
 	latestBlock := cs.GetLatestBlock()
 
 	blockHeaderHash, err := hash.ComputeBlockHeaderHash(latestBlock.Header)
 	if err != nil {
-		logger.Errorf("StateCommit: failed to encode header: %v", err)
+		return types.StateRoot{}, fmt.Errorf("StateCommit: failed to encode header: %w", err)
+	}
+
+	posteriorState := cs.GetPosteriorStates().GetState()
+
+	stateRoot, err := cs.PersistStateForBlock(blockHeaderHash, posteriorState)
+	if err != nil {
+		return types.StateRoot{}, fmt.Errorf("StateCommit: failed to persist state: %w", err)
+	}
+	logger.Debugf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+
+	cs.lastCommittedStateRoot = stateRoot
+
+	// Persist block mapping
+	if err := cs.repo.SaveBlock(cs.repo.Database(), &latestBlock); err != nil {
+		logger.Errorf("StateCommit: failed to persist block: %v", err)
 	} else {
-		posteriorState := cs.GetPosteriorStates().GetState()
+		logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
+	}
 
-		// Persist state for block
-		err = cs.PersistStateForBlock(blockHeaderHash, posteriorState)
-		if err != nil {
-			logger.Errorf("StateCommit: failed to persist state: %v", err)
-		} else {
-			logger.Debugf("StateCommit: persisted state for block 0x%x", blockHeaderHash[:8])
+	existingAncestry := cs.GetAncestry()
+	if len(existingAncestry) > 0 {
+		currentItem := types.AncestryItem{
+			Slot:       latestBlock.Header.Slot,
+			HeaderHash: blockHeaderHash,
 		}
-
-		// Persist block mapping
-		err = cs.repo.SaveBlock(cs.repo.Database(), &latestBlock)
-		if err != nil {
-			logger.Errorf("StateCommit: failed to persist block: %v", err)
+		last := existingAncestry[len(existingAncestry)-1]
+		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
+			cs.AppendAncestry(types.Ancestry{currentItem})
 		} else {
-			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
-		}
-
-		existingAncestry := cs.GetAncestry()
-		if len(existingAncestry) > 0 {
-			currentItem := types.AncestryItem{
-				Slot:       latestBlock.Header.Slot,
-				HeaderHash: blockHeaderHash,
-			}
-			last := existingAncestry[len(existingAncestry)-1]
-			if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-				cs.AppendAncestry(types.Ancestry{currentItem})
-			}
+			logger.Debugf("StateCommit: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
 		}
 	}
 
 	posterState := cs.GetPosteriorStates().GetState()
 	cs.GetPriorStates().SetState(posterState)
 	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
+
+	return stateRoot, nil
 }
 
 // StateCommitWithPreComputedState persists state using pre-computed stateRoot and
@@ -454,6 +469,18 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 	}
 	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
 		logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
+	}
+
+	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
+	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
+	if len(cs.recentStateRoots) > types.MaxLookupAge {
+		evict := cs.recentStateRoots[0]
+		cs.recentStateRoots = cs.recentStateRoots[1:]
+		cs.repo.DeleteStateData(cs.repo.Database(), evict)
+		cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evict)
+		if err := cs.trieStore.DeleteTrie(types.OpaqueHash(evict)); err != nil {
+			logger.Warnf("StateCommitWithPreComputedState: failed to delete evicted trie %x: %v", evict[:8], err)
+		}
 	}
 
 	latestBlock := cs.GetLatestBlock()
@@ -630,11 +657,11 @@ func (cs *ChainState) GetBlockByHash(headerHash types.HeaderHash) (types.Block, 
 	State persistence
 */
 
-// PersistStateForBlock persists the state for a given block to Redis
-func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, state types.State) error {
+// PersistStateForBlock persists the state for a given block and returns the computed state root.
+func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, state types.State) (types.StateRoot, error) {
 	serializedState, err := m.StateEncoder(state)
 	if err != nil {
-		return fmt.Errorf("failed to encode state: %w", err)
+		return types.StateRoot{}, fmt.Errorf("failed to encode state: %w", err)
 	}
 
 	// Method A: serializedState already contains every storage / lookup-meta
@@ -646,26 +673,38 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	stateRoot, err := cs.merklizeWithKeyCache(fullStateKeyVals)
+	stateRoot, err := cs.trieStore.MerklizeAndCommit(fullStateKeyVals)
 	if err != nil {
-		return err
+		return types.StateRoot{}, err
 	}
 
 	err = cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
 	if err != nil {
-		return fmt.Errorf("failed to store state root mapping: %w", err)
+		return types.StateRoot{}, fmt.Errorf("failed to store state root mapping: %w", err)
 	}
 
 	// Write state data to both memory (for fast reads) and disk (for persistence).
 	err = cs.repo.SaveStateData(cs.repo.Database(), stateRoot, fullStateKeyVals)
 	if err != nil {
-		return fmt.Errorf("failed to store state data to memory: %w", err)
+		return types.StateRoot{}, fmt.Errorf("failed to store state data to memory: %w", err)
 	}
 	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
 		logger.Warnf("PersistStateForBlock: failed to store state data to disk: %v", err)
 	}
 
-	return nil
+	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
+	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
+	if len(cs.recentStateRoots) > types.MaxLookupAge {
+		evict := cs.recentStateRoots[0]
+		cs.recentStateRoots = cs.recentStateRoots[1:]
+		cs.repo.DeleteStateData(cs.repo.Database(), evict)
+		cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evict)
+		if err := cs.trieStore.DeleteTrie(types.OpaqueHash(evict)); err != nil {
+			logger.Warnf("PersistStateForBlock: failed to delete evicted trie %x: %v", evict[:8], err)
+		}
+	}
+
+	return stateRoot, nil
 }
 
 // merklizeWithKeyCache computes state root using key-level cache.
@@ -703,6 +742,11 @@ func (cs *ChainState) ClearKeyLevelCache() {
 	if cs.keyLevelCache != nil {
 		cs.keyLevelCache.Clear()
 	}
+}
+
+// LastCommittedStateRoot returns the state root from the most recent StateCommit.
+func (cs *ChainState) LastCommittedStateRoot() types.StateRoot {
+	return cs.lastCommittedStateRoot
 }
 
 // GetStateByBlockHash retrieves state data for a given block from persistent database
@@ -830,6 +874,19 @@ func (cs *ChainState) restoreWithState(
 	// Keep only ancestry up to the restored headerHash (fallback point)
 	cs.KeepAncestryUpTo(blockHeaderHash)
 
+	// Reset recentStateRoots and lastCommittedStateRoot to the restored block's
+	// state root. This ensures the next block's diff/trie operations use the
+	// correct prior root instead of stale values from the old fork.
+	restoredRoot, err := cs.repo.GetStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash)
+	if err != nil {
+		// State root not in memory repo — reset to zero (fallback to full merklize).
+		cs.recentStateRoots = nil
+		cs.lastCommittedStateRoot = types.StateRoot{}
+	} else {
+		cs.recentStateRoots = []types.StateRoot{restoredRoot}
+		cs.lastCommittedStateRoot = restoredRoot
+	}
+
 	// Clear verifier cache when restoring to a different state point
 	// as the epoch may have changed
 	ClearVerifierCache()
@@ -894,6 +951,8 @@ func (cs *ChainState) SeedGenesisToBackend(
 	if err := cs.persistentRepo.SaveStateRootByHeaderHash(db, genesisBlockHash, genesisStateRoot); err != nil {
 		return types.HeaderHash{}, types.StateRoot{}, fmt.Errorf("store state_root mapping: %w", err)
 	}
+
+	cs.lastCommittedStateRoot = genesisStateRoot
 
 	return genesisBlockHash, genesisStateRoot, nil
 }
