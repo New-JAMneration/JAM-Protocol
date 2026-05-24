@@ -673,7 +673,7 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	stateRoot, err := cs.trieStore.MerklizeAndCommit(fullStateKeyVals)
+	stateRoot, err := cs.persistStateForBlockMerklize(fullStateKeyVals)
 	if err != nil {
 		return types.StateRoot{}, err
 	}
@@ -705,6 +705,87 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	}
 
 	return stateRoot, nil
+}
+
+// persistStateForBlockMerklize uses incremental merklize when prior state is available,
+// falling back to full MerklizeAndCommit otherwise.
+func (cs *ChainState) persistStateForBlockMerklize(fullStateKeyVals types.StateKeyVals) (types.StateRoot, error) {
+	// Try incremental path
+	if len(cs.recentStateRoots) > 0 {
+		priorRoot := cs.recentStateRoots[len(cs.recentStateRoots)-1]
+		priorKVs, err := cs.repo.GetStateData(cs.repo.Database(), priorRoot)
+		if err == nil {
+			trieExists, _ := cs.trieStore.TrieExists(types.OpaqueHash(priorRoot))
+			if trieExists {
+				dirtyEntries := store.DiffSortedKeyVals(priorKVs, fullStateKeyVals)
+				for _, entry := range dirtyEntries {
+					if entry.IsDelete {
+						cs.keyLevelCache.Invalidate(entry.Key)
+					}
+				}
+				root, err := cs.incrementalMerklizeAndCommit(priorRoot, dirtyEntries)
+				if err == nil {
+					return root, nil
+				}
+				logger.Warnf("PersistStateForBlock: incremental failed, fallback to full: %v", err)
+			}
+		}
+	}
+
+	// Fallback: full merklize
+	return cs.trieStore.MerklizeAndCommit(fullStateKeyVals)
+}
+
+// incrementalMerklizeAndCommit runs incremental merklize with persistence callbacks,
+// writes new nodes to DB via batch, then increments refcounts.
+func (cs *ChainState) incrementalMerklizeAndCommit(
+	priorRoot types.StateRoot,
+	dirtyEntries []store.DirtyEntry,
+) (types.StateRoot, error) {
+	batch := cs.persistentRepo.Database().NewBatch()
+	var newNodes []types.OpaqueHash
+
+	storeNode := func(nodeHash types.OpaqueHash, node m.TrieNode) error {
+		newNodes = append(newNodes, nodeHash)
+		return batch.Put(makeTrieKey(store.TrieNodePrefix(), nodeHash[1:]), node[:])
+	}
+
+	storeValue := func(value []byte) error {
+		valueHash := hash.Blake2bHash(value)
+		return batch.Put(makeTrieKey(store.TrieNodeValuePrefix(), valueHash[:]), value)
+	}
+
+	incrRoot, err := store.IncrementalMerklize(
+		types.OpaqueHash(priorRoot),
+		dirtyEntries,
+		cs.trieStore,
+		storeNode, storeValue,
+	)
+	if err != nil {
+		batch.Close()
+		return types.StateRoot{}, err
+	}
+
+	if err := batch.Commit(); err != nil {
+		batch.Close()
+		return types.StateRoot{}, fmt.Errorf("incremental batch commit: %w", err)
+	}
+	batch.Close()
+
+	for _, nodeHash := range newNodes {
+		if err := cs.trieStore.IncreaseNodeRefCount(nodeHash); err != nil {
+			return types.StateRoot{}, fmt.Errorf("incremental increase ref count: %w", err)
+		}
+	}
+
+	return types.StateRoot(incrRoot), nil
+}
+
+func makeTrieKey(prefix byte, suffix []byte) []byte {
+	key := make([]byte, 1+len(suffix))
+	key[0] = prefix
+	copy(key[1:], suffix)
+	return key
 }
 
 // merklizeWithKeyCache computes state root using key-level cache.

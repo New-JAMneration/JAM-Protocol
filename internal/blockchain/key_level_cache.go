@@ -64,6 +64,12 @@ func (c *KeyLevelCache) GetOrComputeLeafHash(
 	return leafHash
 }
 
+// Invalidate removes a single key from the cache.
+// Called when a key is deleted to prevent stale cache hits on re-insert.
+func (c *KeyLevelCache) Invalidate(key types.StateKey) {
+	delete(c.entries, key)
+}
+
 // Clear removes all entries from the cache.
 func (c *KeyLevelCache) Clear() {
 	c.entries = make(map[types.StateKey]leafCacheEntry)
