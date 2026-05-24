@@ -136,10 +136,6 @@ func TestHandleWorkPackageShare(t *testing.T) {
 	input := inputBuf.Bytes()
 
 	// Set up service account state so the handler can verify the work-package
-	lookupKey := types.LookupMetaMapkey{
-		Hash:   authCodeHash,
-		Length: types.U32(len(metaCodeBytes)),
-	}
 	const testServiceID = types.ServiceID(1)
 	authoringAccount := types.NewServiceAccount()
 	authoringAccount.ServiceInfo = types.ServiceInfo{
@@ -151,9 +147,9 @@ func TestHandleWorkPackageShare(t *testing.T) {
 		Items:      types.U32(1),
 	}
 	authoringAccount.PreimageLookup[authCodeHash] = metaCodeBytes
-	authoringAccount.LookupDict[lookupKey] = types.TimeSlotSet{0}
-	if err := authoringAccount.MigrateLegacyMapsToGlobalKV(testServiceID); err != nil {
-		t.Fatalf("MigrateLegacyMapsToGlobalKV: %v", err)
+	stateKey := types.BuildPreimageMetaStateKey(testServiceID, authCodeHash, types.U32(len(metaCodeBytes)))
+	if err := authoringAccount.InsertPreimageMeta(stateKey, uint64(len(metaCodeBytes)), types.TimeSlotSet{0}); err != nil {
+		t.Fatalf("InsertPreimageMeta: %v", err)
 	}
 	inputDelta := types.ServiceAccountState{testServiceID: authoringAccount}
 	cs := blockchain.GetInstance()

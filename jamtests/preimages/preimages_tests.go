@@ -682,18 +682,12 @@ func (p *PreimageTestCase) Dump() error {
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 
-		// Fill LookupDict (kept around for the JAM test-vector wire format).
+		// Fill globalKV via InsertPreimageMeta (preimage meta → globalKV)
 		for _, lookup := range delta.Data.LookupMeta {
-			serviceAccount.LookupDict[types.LookupMetaMapkey{
-				Hash:   lookup.Key.Hash,
-				Length: lookup.Key.Length,
-			}] = lookup.Val
-		}
-
-		// Mirror legacy maps into globalKV so the rest of the STF can read
-		// a_l / a_s via GetPreimageMeta / GetStorage.
-		if err := serviceAccount.MigrateLegacyMapsToGlobalKV(delta.ID); err != nil {
-			return fmt.Errorf("MigrateLegacyMapsToGlobalKV for service %d: %w", delta.ID, err)
+			stateKey := types.BuildPreimageMetaStateKey(delta.ID, lookup.Key.Hash, lookup.Key.Length)
+			if err := serviceAccount.InsertPreimageMeta(stateKey, uint64(lookup.Key.Length), lookup.Val); err != nil {
+				return fmt.Errorf("InsertPreimageMeta for service %d: %w", delta.ID, err)
+			}
 		}
 
 		inputDelta[delta.ID] = serviceAccount

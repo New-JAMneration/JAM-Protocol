@@ -60,19 +60,12 @@ func TestPreimageTestVectors(t *testing.T) {
 				serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 			}
 
-			// Fill LookupDict (still needed for the JAM test-vector wire
-			// format used elsewhere in this suite).
+			// Fill globalKV via InsertPreimageMeta
 			for _, lookup := range delta.Data.LookupMeta {
-				serviceAccount.LookupDict[types.LookupMetaMapkey{
-					Hash:   lookup.Key.Hash,
-					Length: lookup.Key.Length,
-				}] = lookup.Val
-			}
-
-			// Mirror legacy maps into globalKV so post-refactor lookups via
-			// GetPreimageMeta / GetStorage / a_i / a_o see the same data.
-			if err := serviceAccount.MigrateLegacyMapsToGlobalKV(delta.ID); err != nil {
-				t.Fatalf("MigrateLegacyMapsToGlobalKV for service %d: %v", delta.ID, err)
+				stateKey := types.BuildPreimageMetaStateKey(delta.ID, lookup.Key.Hash, lookup.Key.Length)
+				if err := serviceAccount.InsertPreimageMeta(stateKey, uint64(lookup.Key.Length), lookup.Val); err != nil {
+					t.Fatalf("InsertPreimageMeta for service %d: %v", delta.ID, err)
+				}
 			}
 
 			inputDelta[delta.ID] = serviceAccount
@@ -299,8 +292,8 @@ func TestProcessPreimageExtrinsics_PartialIntegrate(t *testing.T) {
 		t.Fatal("δ should contain integrated preimage B")
 	}
 	accA := delta[testServiceA]
-	if len(accA.LookupDict) != 0 {
-		t.Fatalf("service A should have no new lookup from rejected E_P, got %d entries", len(accA.LookupDict))
+	if len(accA.GetGlobalKVItems()) != 0 {
+		t.Fatalf("service A should have no globalKV entries from rejected E_P, got %d entries", len(accA.GetGlobalKVItems()))
 	}
 
 	extrinsic := cs.GetLatestBlock().Extrinsic
@@ -538,20 +531,22 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 			}
 		}
 
-		// StorageDict
-		for storageKey, expectedValue := range expectedAcc.StorageDict {
-			actualValue, ok := actualAcc.StorageDict[storageKey]
+		// globalKV (unified storage + preimage meta)
+		expectedKV := expectedAcc.GetGlobalKVItems()
+		actualKV := actualAcc.GetGlobalKVItems()
+		for stateKey, expectedValue := range expectedKV {
+			actualValue, ok := actualKV[stateKey]
 			if !ok {
-				t.Errorf("serviceID %v missing Storage key %q in actualDelta", key, storageKey)
+				t.Errorf("serviceID %v missing globalKV key %x in actualDelta", key, stateKey)
 			}
 			if !bytes.Equal(expectedValue, actualValue) {
-				t.Errorf("mismatch for serviceID %v, Storage key %q:\n expected=%x\n actual=%x",
-					key, storageKey, expectedValue, actualValue)
+				t.Errorf("mismatch for serviceID %v, globalKV key %x:\n expected=%x\n actual=%x",
+					key, stateKey, expectedValue, actualValue)
 			}
 		}
-		for storageKey := range actualAcc.StorageDict {
-			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
-				t.Errorf("serviceID %v has extra Storage key %q in actualDelta", key, storageKey)
+		for stateKey := range actualKV {
+			if _, ok := expectedKV[stateKey]; !ok {
+				t.Errorf("serviceID %v has extra globalKV key %x in actualDelta", key, stateKey)
 			}
 		}
 	}

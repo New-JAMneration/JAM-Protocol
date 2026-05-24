@@ -25,23 +25,23 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// buildStorageStateKey mirrors merklization.NewStorageStateKey but lives in
+// BuildStorageStateKey mirrors merklization.NewStorageStateKey but lives in
 // the types package so that callers like unmarshal_json.go can populate
 // globalKV without creating a circular import.
 //
 // GP eq. (D.2): C(s, E4(2^32 - 1) ⌢ k) — prefix is 0xFFFFFFFF.
-func buildStorageStateKey(serviceID ServiceID, rawKey ByteSequence) StateKey {
+func BuildStorageStateKey(serviceID ServiceID, rawKey ByteSequence) StateKey {
 	preimage := make([]byte, 4+len(rawKey))
 	preimage[0], preimage[1], preimage[2], preimage[3] = 0xFF, 0xFF, 0xFF, 0xFF
 	copy(preimage[4:], rawKey)
 	return interleaveServiceIDIntoHash(serviceID, preimage)
 }
 
-// buildPreimageMetaStateKey mirrors merklization.NewPreimageMetaStateKey for
-// the same reason as buildStorageStateKey.
+// BuildPreimageMetaStateKey mirrors merklization.NewPreimageMetaStateKey for
+// the same reason as BuildStorageStateKey.
 //
 // GP eq. (D.2): C(s, E4(l) ⌢ h)
-func buildPreimageMetaStateKey(serviceID ServiceID, hash OpaqueHash, length U32) StateKey {
+func BuildPreimageMetaStateKey(serviceID ServiceID, hash OpaqueHash, length U32) StateKey {
 	preimage := make([]byte, 4+len(hash))
 	v := uint32(length)
 	preimage[0] = byte(v)
@@ -222,7 +222,8 @@ func (sa *ServiceAccount) DeleteStorage(key StateKey, keyLen, valueLen uint64) e
 
 // encodePreimageMetaValue serialises a TimeSlotSet using the same wire format
 // as EncodeDelta4KeyVal (the existing delta4 value layout). Concretely:
-//   [variable-length length prefix (JAM EncodeUint)] ++ [each timeslot as 4-byte LE]
+//
+//	[variable-length length prefix (JAM EncodeUint)] ++ [each timeslot as 4-byte LE]
 //
 // Keeping the same wire format is critical for state-root compatibility once
 // we start writing TimeSlotSet values into globalKV.
@@ -391,36 +392,6 @@ func (sa *ServiceAccount) ThresholdBalance() (U64, error) {
 	return U64(diff), nil
 }
 
-// MigrateLegacyMapsToGlobalKV walks the deprecated StorageDict / LookupDict
-// maps and re-installs each entry in globalKV via InsertStorage /
-// InsertPreimageMeta. Counters are reset to zero before the walk so that
-// the resulting (a_i, a_o) match what the Insert methods would have
-// produced from scratch.
-//
-// Intended for test fixtures that still build a ServiceAccount with a
-// struct literal seeding the legacy maps directly — calling this once
-// after construction yields a ServiceAccount that behaves identically to
-// one built incrementally through Insert*.
-func (sa *ServiceAccount) MigrateLegacyMapsToGlobalKV(serviceID ServiceID) error {
-	sa.globalKV = make(map[StateKey][]byte)
-	sa.totalNumberOfItems = 0
-	sa.totalNumberOfOctets = 0
-
-	for lookupKey, timeslots := range sa.LookupDict {
-		stateKey := buildPreimageMetaStateKey(serviceID, lookupKey.Hash, lookupKey.Length)
-		if err := sa.InsertPreimageMeta(stateKey, uint64(lookupKey.Length), timeslots); err != nil {
-			return fmt.Errorf("MigrateLegacyMapsToGlobalKV: InsertPreimageMeta: %w", err)
-		}
-	}
-	for rawKey, value := range sa.StorageDict {
-		stateKey := buildStorageStateKey(serviceID, ByteSequence(rawKey))
-		if err := sa.InsertStorage(stateKey, uint64(len(rawKey)), value); err != nil {
-			return fmt.Errorf("MigrateLegacyMapsToGlobalKV: InsertStorage: %w", err)
-		}
-	}
-	return nil
-}
-
 // ----- Clone / DeepCopy -----
 
 // Clone returns a deep copy of the ServiceAccount.
@@ -430,10 +401,6 @@ func (sa *ServiceAccount) Clone() ServiceAccount {
 	cloned := *sa
 	cloned.globalKV = cloneMapOfSlices(sa.globalKV)
 	cloned.PreimageLookup = cloneMapOfSlices(sa.PreimageLookup)
-	// Transitional: StorageDict / LookupDict are still dual-written.
-	// These two map clones go away together with the fields in Step 8.
-	cloned.StorageDict = cloneMapOfSlices(sa.StorageDict)
-	cloned.LookupDict = cloneLookupDict(sa.LookupDict)
 	return cloned
 }
 
@@ -459,21 +426,6 @@ func cloneMapOfSlices[M ~map[K]V, K comparable, V ~[]E, E any](src M) M {
 	dst := make(M, len(src))
 	for k, v := range src {
 		cp := make(V, len(v))
-		copy(cp, v)
-		dst[k] = cp
-	}
-	return dst
-}
-
-// cloneLookupDict deep-copies a LookupMetaMapEntry value.
-// Transitional helper; removed alongside the LookupDict field in Step 8.
-func cloneLookupDict(src LookupMetaMapEntry) LookupMetaMapEntry {
-	if src == nil {
-		return nil
-	}
-	dst := make(LookupMetaMapEntry, len(src))
-	for k, v := range src {
-		cp := make(TimeSlotSet, len(v))
 		copy(cp, v)
 		dst[k] = cp
 	}
