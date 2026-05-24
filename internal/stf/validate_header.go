@@ -30,7 +30,10 @@ func ValidateNonVRFHeader(header types.Header, priorState *types.State, extrinsi
 	serializedState, _ := m.StateEncoder(*priorState)
 	// Method A: serializedState already contains every storage / lookup-meta
 	// entry from globalKV; no fallback pool to merge in.
-	priorStateRoot := cs.ComputeStateRootWithCache(serializedState)
+	priorStateRoot, err := cs.ComputeStateRootWithCache(serializedState)
+	if err != nil {
+		return fmt.Errorf("ComputeStateRootWithCache: %w", err)
+	}
 	if header.ParentStateRoot != priorStateRoot {
 		errCode := SafroleErrorCode.InvalidParentStateRoot
 		return &errCode

@@ -592,7 +592,10 @@ func TestJamtestvectorsTraces(t *testing.T) {
 					t.Errorf("Failed to encode state: %v", err)
 					continue
 				}
-				actualStateRoot := merklization.MerklizationSerializedState(postKeyVals)
+				actualStateRoot, err := merklization.MerklizationSerializedState(postKeyVals)
+				if err != nil {
+					t.Fatalf("MerklizationSerializedState error: %v", err)
+				}
 				expectedStateRoot := traceTestCase.PostState.StateRoot
 
 				if actualStateRoot != expectedStateRoot {

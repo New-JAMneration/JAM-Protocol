@@ -42,7 +42,10 @@ func TestStateKeyValsToStateGenesis(t *testing.T) {
 		}
 
 		// Create a state root with the genesis state
-		genesisStateRoot := merklization.MerklizationState(genesisState)
+		genesisStateRoot, err := merklization.MerklizationState(genesisState)
+		if err != nil {
+			t.Fatalf("MerklizationState error: %v", err)
+		}
 
 		expectedGenesisStateRoot := genesisTestCase.State.StateRoot
 
@@ -102,7 +105,10 @@ func TestStateKeyValsToState(t *testing.T) {
 			}
 
 			// Create a state root with the genesis state
-			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)
+			actualStateRoot, err := merklization.MerklizationSerializedState(actualStateKeyVals)
+			if err != nil {
+				t.Fatalf("MerklizationSerializedState error: %v", err)
+			}
 
 			expectedStateRoot := traceTestCase.PostState.StateRoot
 
@@ -239,7 +245,10 @@ func TestFuzzReportsTrace(t *testing.T) {
 			}
 
 			// Create a state root with the genesis state
-			actualStateRoot := merklization.MerklizationSerializedState(actualStateKeyVals)
+			actualStateRoot, err := merklization.MerklizationSerializedState(actualStateKeyVals)
+			if err != nil {
+				t.Fatalf("MerklizationSerializedState error: %v", err)
+			}
 
 			// Compare the state root with the expected state root
 			if actualStateRoot != expectedStateRoot {
