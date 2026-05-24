@@ -55,67 +55,129 @@ func partitionByBit(entries []types.StateKeyVal, depth int) int {
 }
 
 // merklize computes the Merkle root hash using in-place partition and [64]byte encoding.
-func merklize(entries []types.StateKeyVal, depth int) types.OpaqueHash {
+// storeNode / storeValue are optional callbacks; pass nil for dry-run (original behaviour).
+func merklize(entries []types.StateKeyVal, depth int, storeNode StoreNodeFunc, storeValue StoreValueFunc) (types.OpaqueHash, error) {
 	if len(entries) == 0 {
-		return types.OpaqueHash{}
+		return types.OpaqueHash{}, nil
 	}
 	if len(entries) == 1 {
-		node := encodeLeafNode(entries[0].Key, entries[0].Value)
-		return hash.Blake2bHash(node[:])
+		value := entries[0].Value
+		if len(value) > 32 && storeValue != nil {
+			if err := storeValue(value); err != nil {
+				return types.OpaqueHash{}, err
+			}
+		}
+		node := encodeLeafNode(entries[0].Key, value)
+		nodeHash := hash.Blake2bHash(node[:])
+		if storeNode != nil {
+			if err := storeNode(nodeHash, TrieNode(node)); err != nil {
+				return types.OpaqueHash{}, err
+			}
+		}
+		return nodeHash, nil
 	}
 
 	pivot := partitionByBit(entries, depth)
-	leftHash := merklize(entries[:pivot], depth+1)
-	rightHash := merklize(entries[pivot:], depth+1)
+	leftHash, err := merklize(entries[:pivot], depth+1, storeNode, storeValue)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	rightHash, err := merklize(entries[pivot:], depth+1, storeNode, storeValue)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
 
 	node := encodeBranchNode(leftHash, rightHash)
-	return hash.Blake2bHash(node[:])
+	nodeHash := hash.Blake2bHash(node[:])
+	if storeNode != nil {
+		if err := storeNode(nodeHash, TrieNode(node)); err != nil {
+			return types.OpaqueHash{}, err
+		}
+	}
+	return nodeHash, nil
 }
 
 // merklizeWithCache computes the Merkle root hash with leaf-level caching.
-func merklizeWithCache(entries []types.StateKeyVal, depth int, cache LeafHashCache) types.OpaqueHash {
+// storeNode / storeValue are optional callbacks; pass nil for dry-run.
+func merklizeWithCache(entries []types.StateKeyVal, depth int, cache LeafHashCache, storeNode StoreNodeFunc, storeValue StoreValueFunc) (types.OpaqueHash, error) {
 	if len(entries) == 0 {
-		return types.OpaqueHash{}
+		return types.OpaqueHash{}, nil
 	}
 	if len(entries) == 1 {
-		if cache != nil {
-			return cache(entries[0].Key, entries[0].Value)
+		value := entries[0].Value
+		if len(value) > 32 && storeValue != nil {
+			if err := storeValue(value); err != nil {
+				return types.OpaqueHash{}, err
+			}
 		}
-		node := encodeLeafNode(entries[0].Key, entries[0].Value)
-		return hash.Blake2bHash(node[:])
+		var leafHash types.OpaqueHash
+		if cache != nil {
+			leafHash = cache(entries[0].Key, value)
+		} else {
+			node := encodeLeafNode(entries[0].Key, value)
+			leafHash = hash.Blake2bHash(node[:])
+		}
+		if storeNode != nil {
+			node := encodeLeafNode(entries[0].Key, value)
+			if err := storeNode(leafHash, TrieNode(node)); err != nil {
+				return types.OpaqueHash{}, err
+			}
+		}
+		return leafHash, nil
 	}
 
 	pivot := partitionByBit(entries, depth)
-	leftHash := merklizeWithCache(entries[:pivot], depth+1, cache)
-	rightHash := merklizeWithCache(entries[pivot:], depth+1, cache)
+	leftHash, err := merklizeWithCache(entries[:pivot], depth+1, cache, storeNode, storeValue)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
+	rightHash, err := merklizeWithCache(entries[pivot:], depth+1, cache, storeNode, storeValue)
+	if err != nil {
+		return types.OpaqueHash{}, err
+	}
 
 	node := encodeBranchNode(leftHash, rightHash)
-	return hash.Blake2bHash(node[:])
+	nodeHash := hash.Blake2bHash(node[:])
+	if storeNode != nil {
+		if err := storeNode(nodeHash, TrieNode(node)); err != nil {
+			return types.OpaqueHash{}, err
+		}
+	}
+	return nodeHash, nil
 }
 
 // MerklizationSerializedState computes the Merkle root from serialized state key-vals.
-func MerklizationSerializedState(serializedState types.StateKeyVals) types.StateRoot {
+func MerklizationSerializedState(serializedState types.StateKeyVals) (types.StateRoot, error) {
 	entries := make([]types.StateKeyVal, len(serializedState))
 	copy(entries, serializedState)
-	return types.StateRoot(merklize(entries, 0))
+	h, err := merklize(entries, 0, nil, nil)
+	return types.StateRoot(h), err
 }
 
 // MerklizationSerializedStateWithCache computes the Merkle root with key-level caching.
+// storeNode / storeValue are optional callbacks for trie node persistence.
 func MerklizationSerializedStateWithCache(
 	serializedState types.StateKeyVals,
 	cache LeafHashCache,
-) types.StateRoot {
+	storeNode StoreNodeFunc,
+	storeValue StoreValueFunc,
+) (types.StateRoot, error) {
 	entries := make([]types.StateKeyVal, len(serializedState))
 	copy(entries, serializedState)
 
 	if cache != nil {
-		return types.StateRoot(merklizeWithCache(entries, 0, cache))
+		h, err := merklizeWithCache(entries, 0, cache, storeNode, storeValue)
+		return types.StateRoot(h), err
 	}
-	return types.StateRoot(merklize(entries, 0))
+	h, err := merklize(entries, 0, storeNode, storeValue)
+	return types.StateRoot(h), err
 }
 
 // MerklizationState computes the Merkle root from a State.
-func MerklizationState(state types.State) types.StateRoot {
-	serializedState, _ := StateEncoder(state)
+func MerklizationState(state types.State) (types.StateRoot, error) {
+	serializedState, err := StateEncoder(state)
+	if err != nil {
+		return types.StateRoot{}, err
+	}
 	return MerklizationSerializedState(serializedState)
 }

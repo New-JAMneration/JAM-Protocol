@@ -65,7 +65,10 @@ func TestMerklizationJamTestVectors(t *testing.T) {
 
 			// Get the post-state keyvals to execute merklization
 			stateKeyVals := traceTestCase.PostState.KeyVals
-			stateRoot := merklization.MerklizationSerializedState(stateKeyVals)
+			stateRoot, err := merklization.MerklizationSerializedState(stateKeyVals)
+			if err != nil {
+				t.Fatalf("MerklizationSerializedState error: %v", err)
+			}
 			expectedStateRoot := traceTestCase.PostState.StateRoot
 
 			// Compare the state root
@@ -359,7 +362,10 @@ func TestEncodeLeafNodeHash(t *testing.T) {
 func TestMerklizationState(t *testing.T) {
 	testState := types.State{}
 
-	stateRoot := merklization.MerklizationState(testState)
+	stateRoot, err := merklization.MerklizationState(testState)
+	if err != nil {
+		t.Fatalf("MerklizationState error: %v", err)
+	}
 
 	resultLen := len(stateRoot)
 	expectedLen := len(types.OpaqueHash{})

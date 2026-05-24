@@ -100,7 +100,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Method A: serializedState already contains every storage / lookup
 	// entry from globalKV; no fallback pool to merge.
 	combinedState := serializedState
-	latestStateRoot := cs.ComputeStateRootWithCache(combinedState)
+	latestStateRoot, _ := cs.ComputeStateRootWithCache(combinedState)
 
 	cs.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
@@ -127,7 +127,7 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 	combinedState = serializedState
-	latestStateRoot = cs.ComputeStateRootWithCache(combinedState)
+	latestStateRoot, _ = cs.ComputeStateRootWithCache(combinedState)
 
 	// Commit the state and persist the state to Redis
 	cs.StateCommit()
@@ -192,7 +192,7 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 
 	// Method A: serializedState already includes every storage/lookup-meta
 	// entry from globalKV; no fallback pool to merge in.
-	stateRoot := cs.ComputeStateRootWithCache(serializedState)
+	stateRoot, _ := cs.ComputeStateRootWithCache(serializedState)
 
 	logger.Infof("%s Init completed, header hash: 0x%x..., state root: 0x%x", ctx, headerHash[:8], stateRoot)
 	return stateRoot, nil

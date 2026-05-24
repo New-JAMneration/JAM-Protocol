@@ -646,7 +646,10 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
 	})
 
-	stateRoot := cs.merklizeWithKeyCache(fullStateKeyVals)
+	stateRoot, err := cs.merklizeWithKeyCache(fullStateKeyVals)
+	if err != nil {
+		return err
+	}
 
 	err = cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
 	if err != nil {
@@ -670,7 +673,7 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 // don't need to recompute their leaf hashes during merklization.
 // The cache callback is get-or-compute: on miss it computes once, stores, and returns
 // the hash so merklization uses it without recomputing.
-func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) types.StateRoot {
+func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) (types.StateRoot, error) {
 	cacheFn := func(key types.StateKey, value []byte) types.OpaqueHash {
 		leafHash, valueHash, ok := cs.keyLevelCache.GetLeafHash(key, value)
 		if ok {
@@ -685,14 +688,13 @@ func (cs *ChainState) merklizeWithKeyCache(fullStateKeyVals types.StateKeyVals) 
 		return leafHash
 	}
 
-	stateRoot := m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn)
-	return stateRoot
+	return m.MerklizationSerializedStateWithCache(fullStateKeyVals, cacheFn, nil, nil)
 }
 
 // ComputeStateRootWithCache computes the state root for given state key-values using the key-level cache.
 // This is a public method that can be used by other packages (e.g., stf) to compute state roots with caching.
 // The stateKeyVals should already be sorted by Key for consistent Merklization.
-func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals) types.StateRoot {
+func (cs *ChainState) ComputeStateRootWithCache(stateKeyVals types.StateKeyVals) (types.StateRoot, error) {
 	return cs.merklizeWithKeyCache(stateKeyVals)
 }
 
@@ -851,7 +853,10 @@ func (cs *ChainState) BuildStateRootInputKeyValsAndRoot(
 	// Method A: serializedState already contains every storage/lookup-meta
 	// entry from globalKV, so there is no fallback pool to merge in.
 	merkleInputKeyVals = serializedState
-	stateRoot = cs.merklizeWithKeyCache(merkleInputKeyVals)
+	stateRoot, err = cs.merklizeWithKeyCache(merkleInputKeyVals)
+	if err != nil {
+		return nil, types.StateRoot{}, fmt.Errorf("merklizeWithKeyCache: %w", err)
+	}
 	return merkleInputKeyVals, stateRoot, nil
 }
 

@@ -110,10 +110,13 @@ func (h *HeaderController) CreateHeaderSlot(parentHeader types.Header, currentTi
 }
 
 // (5.8) H_r: state root hash
-func (h *HeaderController) CreateStateRootHash(parentState types.State) {
-	// State merklization
-	parentStateRoot := merklization.MerklizationState(parentState)
+func (h *HeaderController) CreateStateRootHash(parentState types.State) error {
+	parentStateRoot, err := merklization.MerklizationState(parentState)
+	if err != nil {
+		return err
+	}
 	h.Store.GetProcessingBlockPointer().SetParentStateRoot(types.StateRoot(parentStateRoot))
+	return nil
 }
 
 /*

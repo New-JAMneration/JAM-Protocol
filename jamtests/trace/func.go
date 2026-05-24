@@ -31,7 +31,10 @@ func (s *TraceTestCase) ExpectError() error {
 }
 
 func (s *TraceTestCase) Validate() error {
-	stateRoot := m.MerklizationState(blockchain.GetInstance().GetPosteriorStates().GetState())
+	stateRoot, err := m.MerklizationState(blockchain.GetInstance().GetPosteriorStates().GetState())
+	if err != nil {
+		return err
+	}
 
 	if stateRoot != s.PostState.StateRoot {
 		if disableStateDiff {
