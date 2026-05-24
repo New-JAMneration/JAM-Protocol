@@ -67,7 +67,7 @@ type ServiceAccountState map[ServiceID]ServiceAccount
 // (9.3)
 type ServiceAccount struct {
 	ServiceInfo    ServiceInfo
-	PreimageLookup PreimagesMapEntry  // a_p
+	PreimageLookup PreimagesMapEntry // a_p
 
 	// globalKV unifies service storage (a_s) and preimage meta (a_l) entries, keyed by StateKey.
 	// PreimageLookup (a_p) is kept independent and NOT merged.
