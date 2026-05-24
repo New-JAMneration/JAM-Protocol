@@ -344,16 +344,16 @@ func SingleKeyValToState(stateKey types.StateKey, stateVal types.ByteSequence) (
 //
 //  1. Chapter keys C(1)..C(16)               → typed state fields.
 //  2. Service-info keys C(255, s)            → ServiceAccount.ServiceInfo;
-//                                              the a_i / a_o counters are
-//                                              initialised from the encoded
-//                                              ServiceInfo.Items / Bytes so
-//                                              we never have to recompute
-//                                              them by walking globalKV.
+//     the a_i / a_o counters are
+//     initialised from the encoded
+//     ServiceInfo.Items / Bytes so
+//     we never have to recompute
+//     them by walking globalKV.
 //  3. IsPreimage(stateKey, value) == true    → ServiceAccount.PreimageLookup
-//                                              (a_p blobs stay in their own
-//                                              map; the hash returned by
-//                                              IsPreimage is reused so we
-//                                              don't hash the value twice).
+//     (a_p blobs stay in their own
+//     map; the hash returned by
+//     IsPreimage is reused so we
+//     don't hash the value twice).
 //  4. Everything else (delta2 + delta4)      → ServiceAccount.globalKV.
 //
 // state.Delta, PreimageLookup, and globalKV are all lazy-initialised on
