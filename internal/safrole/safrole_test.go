@@ -560,7 +560,7 @@ func TestJamtestvectorsTraces(t *testing.T) {
 			t.Logf("------------------{%v, %s}--------------------", idx, fileName)
 
 			// State commit before each test (post-state update to pre-state, tau_prime+1)
-			blockchain.GetInstance().StateCommit()
+			_, _ = blockchain.GetInstance().StateCommit()
 
 			// Read trace test case
 			traceTestCase := &jamtests_trace.TraceTestCase{}
