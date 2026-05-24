@@ -2622,14 +2622,6 @@ func (s *ServiceAccount) Encode(e *Encoder) error {
 		return err
 	}
 
-	if err := s.LookupDict.Encode(e); err != nil {
-		return err
-	}
-
-	if err := s.StorageDict.Encode(e); err != nil {
-		return err
-	}
-
 	return nil
 }
 

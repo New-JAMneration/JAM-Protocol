@@ -106,8 +106,6 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 				Items:      types.U32(1),
 			},
 			PreimageLookup: nil,
-			LookupDict:     nil,
-			StorageDict:    nil,
 		},
 	}
 	s := blockchain.GetInstance()
@@ -235,8 +233,6 @@ func TestPrepareInputs_Shared(t *testing.T) {
 				Items:      types.U32(1),
 			},
 			PreimageLookup: nil,
-			LookupDict:     nil,
-			StorageDict:    nil,
 		},
 	}
 	s := blockchain.GetInstance()

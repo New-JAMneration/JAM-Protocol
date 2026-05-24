@@ -1542,15 +1542,8 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 	*a = make(ServiceAccountState)
 
 	// Assign the temp into the accounts map.
-	//
-	// After the globalKV refactor we mirror every JSON-loaded a_s
-	// (storage) and a_l (lookup meta) entry into globalKV via the
-	// Insert* methods (so a_i / a_o counters stay accurate) AND into the
-	// legacy StorageDict / LookupDict maps. The legacy maps continue to
-	// back the JAM test-vector serialization path
-	// (ServiceAccount.Encode), which encodes raw keys that cannot be
-	// recovered from the hashed StateKey alone. They will be retired
-	// together with that wire format in a later cleanup.
+	// Every JSON-loaded a_s (storage) and a_l (lookup meta) entry goes
+	// directly into globalKV via Insert* methods (counters stay accurate).
 	for _, account := range temp {
 		serviceAccount := NewServiceAccount()
 
@@ -1569,19 +1562,17 @@ func (a *ServiceAccountState) UnmarshalJSON(data []byte) error {
 
 		for _, lookup := range account.Data.LookupMeta {
 			key := LookupMetaMapkey(lookup.Key)
-			stateKey := buildPreimageMetaStateKey(account.ID, key.Hash, key.Length)
+			stateKey := BuildPreimageMetaStateKey(account.ID, key.Hash, key.Length)
 			if err := serviceAccount.InsertPreimageMeta(stateKey, uint64(key.Length), lookup.Val); err != nil {
 				return fmt.Errorf("ServiceAccountState.UnmarshalJSON: InsertPreimageMeta for service %d: %w", account.ID, err)
 			}
-			serviceAccount.LookupDict[key] = lookup.Val
 		}
 
 		for rawKey, val := range account.Data.Storage {
-			stateKey := buildStorageStateKey(account.ID, ByteSequence(rawKey))
+			stateKey := BuildStorageStateKey(account.ID, ByteSequence(rawKey))
 			if err := serviceAccount.InsertStorage(stateKey, uint64(len(rawKey)), val); err != nil {
 				return fmt.Errorf("ServiceAccountState.UnmarshalJSON: InsertStorage for service %d: %w", account.ID, err)
 			}
-			serviceAccount.StorageDict[rawKey] = val
 		}
 
 		// Re-sync ServiceInfo.Items / Bytes from the freshly-populated

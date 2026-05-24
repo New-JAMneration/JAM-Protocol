@@ -792,33 +792,24 @@ func ParseAccountToServiceAccountState(input []AccountsMapEntry) (output types.S
 	for _, delta := range input {
 		serviceAccount := types.NewServiceAccount()
 		serviceAccount.ServiceInfo = delta.Data.Service
+		serviceID := types.ServiceID(delta.ID)
 
-		// Fill PreimageLookup
+		// Fill PreimageLookup (a_p, kept independent from globalKV)
 		for _, preimage := range delta.Data.PreimagesBlob {
 			serviceAccount.PreimageLookup[preimage.Hash] = preimage.Blob
 		}
 
-		// Fill LookupDict (still needed for the legacy ServiceAccount.Encode
-		// JAM test-vector wire format).
+		// Fill globalKV via InsertPreimageMeta (preimage meta → globalKV)
 		for _, preimage := range delta.Data.PreimagesRequests {
-			key := types.LookupMetaMapkey{
-				Hash:   preimage.Key.Hash,
-				Length: preimage.Key.Length,
-			}
-			serviceAccount.LookupDict[key] = preimage.Value
+			stateKey := types.BuildPreimageMetaStateKey(serviceID, preimage.Key.Hash, preimage.Key.Length)
+			_ = serviceAccount.InsertPreimageMeta(stateKey, uint64(preimage.Key.Length), preimage.Value)
 		}
 
-		// Fill StorageDict (same reason).
+		// Fill globalKV via InsertStorage (storage → globalKV)
 		for _, storageEntry := range delta.Data.Storage {
-			serviceAccount.StorageDict[string(storageEntry.Key)] = storageEntry.Value
+			stateKey := types.BuildStorageStateKey(serviceID, types.ByteSequence(storageEntry.Key))
+			_ = serviceAccount.InsertStorage(stateKey, uint64(len(storageEntry.Key)), storageEntry.Value)
 		}
-
-		// Mirror the legacy a_l / a_s entries into globalKV so the rest of
-		// the STF can read them via GetPreimageMeta / GetStorage. Errors
-		// here would only fire on safemath overflow, which is impossible
-		// with the bounded JSON inputs used by jamtests.
-		serviceID := types.ServiceID(delta.ID)
-		_ = serviceAccount.MigrateLegacyMapsToGlobalKV(serviceID)
 
 		output[serviceID] = serviceAccount
 	}
@@ -1017,20 +1008,22 @@ func (a *AccumulateTestCase) Validate() error {
 			}
 		}
 
-		// StorageDict
-		for storageKey, expectedValue := range expectedAcc.StorageDict {
-			actualValue, ok := actualAcc.StorageDict[storageKey]
+		// globalKV (unified storage + preimage meta)
+		expectedKV := expectedAcc.GetGlobalKVItems()
+		actualKV := actualAcc.GetGlobalKVItems()
+		for stateKey, expectedValue := range expectedKV {
+			actualValue, ok := actualKV[stateKey]
 			if !ok {
-				return fmt.Errorf("serviceID %v missing Storage key %q in actualDelta", key, storageKey)
+				return fmt.Errorf("serviceID %v missing globalKV key %x in actualDelta", key, stateKey)
 			}
 			if !bytes.Equal(expectedValue, actualValue) {
-				return fmt.Errorf("mismatch for serviceID %v, Storage key %q:\n expected=%x\n actual=%x",
-					key, storageKey, expectedValue, actualValue)
+				return fmt.Errorf("mismatch for serviceID %v, globalKV key %x:\n expected=%x\n actual=%x",
+					key, stateKey, expectedValue, actualValue)
 			}
 		}
-		for storageKey := range actualAcc.StorageDict {
-			if _, ok := expectedAcc.StorageDict[storageKey]; !ok {
-				return fmt.Errorf("serviceID %v has extra Storage key %q in actualDelta", key, storageKey)
+		for stateKey := range actualKV {
+			if _, ok := expectedKV[stateKey]; !ok {
+				return fmt.Errorf("serviceID %v has extra globalKV key %x in actualDelta", key, stateKey)
 			}
 		}
 	}

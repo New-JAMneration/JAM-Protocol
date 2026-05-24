@@ -2876,14 +2876,6 @@ func (s *ServiceAccount) Decode(d *Decoder) error {
 		return err
 	}
 
-	if err := s.LookupDict.Decode(d); err != nil {
-		return err
-	}
-
-	if err := s.StorageDict.Decode(d); err != nil {
-		return err
-	}
-
 	return nil
 }
 

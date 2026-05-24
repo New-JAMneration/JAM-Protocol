@@ -9,16 +9,25 @@ import (
 	hash "github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// seedGlobalKV mirrors the legacy StorageDict / LookupDict map entries into
-// globalKV via the Insert* methods so the resulting ServiceAccount behaves
-// like one populated incrementally through the post-globalKV API. Test
-// fixtures that still construct accounts with struct literals call this
-// helper once after construction.
-func seedGlobalKV(t *testing.T, account *types.ServiceAccount, serviceID types.ServiceID) {
+type preimageMetaEntry struct {
+	Hash      types.OpaqueHash
+	Length    types.U32
+	Timeslots types.TimeSlotSet
+}
+
+func newTestAccountWithMeta(t *testing.T, serviceID types.ServiceID, preimages map[types.OpaqueHash]types.ByteSequence, metas []preimageMetaEntry) types.ServiceAccount {
 	t.Helper()
-	if err := account.MigrateLegacyMapsToGlobalKV(serviceID); err != nil {
-		t.Fatalf("MigrateLegacyMapsToGlobalKV: %v", err)
+	account := types.NewServiceAccount()
+	for h, blob := range preimages {
+		account.PreimageLookup[h] = blob
 	}
+	for _, m := range metas {
+		stateKey := types.BuildPreimageMetaStateKey(serviceID, m.Hash, m.Length)
+		if err := account.InsertPreimageMeta(stateKey, uint64(m.Length), m.Timeslots); err != nil {
+			t.Fatalf("InsertPreimageMeta: %v", err)
+		}
+	}
+	return account
 }
 
 func TestFetchCodeByHash(t *testing.T) {
@@ -47,18 +56,12 @@ func TestFetchCodeByHash(t *testing.T) {
 		},
 	}
 
-	// FetchCodeByHash reads PreimageLookup directly (no globalKV access on
-	// the happy path), so seedGlobalKV isn't strictly required here. We
-	// still call it for parity with the other tests / to exercise
-	// ValidatePreimageLookupDict's fallback path correctly.
-	if mockAccount.LookupDict == nil {
-		mockAccount.LookupDict = make(types.LookupMetaMapEntry)
+	// Insert preimage meta into globalKV so ValidatePreimageLookupDict works.
+	serviceID := types.ServiceID(0)
+	stateKey := types.BuildPreimageMetaStateKey(serviceID, mockCodeHash, types.U32(len(encodedMetaCode)))
+	if err := mockAccount.InsertPreimageMeta(stateKey, uint64(len(encodedMetaCode)), types.TimeSlotSet{}); err != nil {
+		t.Fatalf("InsertPreimageMeta: %v", err)
 	}
-	mockAccount.LookupDict[types.LookupMetaMapkey{
-		Hash:   mockCodeHash,
-		Length: types.U32(len(encodedMetaCode)),
-	}] = types.TimeSlotSet{}
-	seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 
 	metadata, code, err := FetchCodeByHash(types.ServiceID(0), mockAccount, mockCodeHash)
 	if err != nil {
@@ -91,23 +94,11 @@ func TestValidatePreimageLookupDict(t *testing.T) {
 		// mockCodeHash_str = hex.EncodeToString(mockCodeHash_bs)
 		preimage = mockCode
 
-		// create ServiceAccount
-		mockAccount = types.ServiceAccount{
-			// h = H(p)
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: preimage,
-			},
-			// (h, |p|) ∈ K(a_l)
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(preimage))}: {},
-			},
-		}
+		mockAccount = newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: preimage},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(preimage)), Timeslots: types.TimeSlotSet{}}},
+		)
 	)
-
-	// Mirror the legacy LookupDict / PreimageLookup contents into globalKV so
-	// ValidatePreimageLookupDict's a_l[h, |p|] membership check works
-	// post-refactor.
-	seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 
 	err := ValidatePreimageLookupDict(types.ServiceID(0), mockAccount)
 	if err != nil {
@@ -136,17 +127,12 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {mockTimestamp},
-			},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{mockTimestamp}}},
+		)
 
 		// test HistoricalLookup
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -163,12 +149,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 	t.Run("code hash not exist case", func(t *testing.T) {
 		mockCodeHash := types.OpaqueHash{}
 		mockTimestamp := types.TimeSlot(42)
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{},
-			LookupDict:     map[types.LookupMetaMapkey]types.TimeSlotSet{},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{},
+			[]preimageMetaEntry{},
+		)
 
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -199,16 +184,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {}, // empty timeslot set
-			},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{}}},
+		)
 
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -241,16 +221,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
 		// case: timestamp less than set element (should return nil)
-		mockAccount1 := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {upperTime}, // timestamp is higher than requested
-			},
-		}
+		mockAccount1 := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{upperTime}}},
+		)
 
-		seedGlobalKV(t, &mockAccount1, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -261,16 +236,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		}
 
 		// case: timestamp greater than or equal to set element (should succeed)
-		mockAccount2 := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime}, // 時間與請求相同
-			},
-		}
+		mockAccount2 := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{lowerTime}}},
+		)
 
-		seedGlobalKV(t, &mockAccount2, types.ServiceID(0))
 		bytes = HistoricalLookup(types.ServiceID(0), mockAccount2, lowerTime, mockCodeHash)
 		metadata, code, err = DecodeMetaCode(bytes)
 		if err != nil {
@@ -306,16 +276,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
 		// case: timestamp less than set element (should return nil)
-		mockAccount1 := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime, upperTime},
-			},
-		}
+		mockAccount1 := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{lowerTime, upperTime}}},
+		)
 
-		seedGlobalKV(t, &mockAccount1, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount1, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -398,17 +363,12 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
 		// create ServiceAccount, time set is [lowerTime, upperTime, thirdTime]
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {lowerTime, upperTime, thirdTime},
-			},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{lowerTime, upperTime, thirdTime}}},
+		)
 
 		// case 1: timestamp less than lower bound (should return nil)
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, lowerTime-1, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -489,16 +449,11 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		mockCodeHash := hash.Blake2bHash(encodedMetaCode)
 
 		// create ServiceAccount, time slot set length is 4
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: encodedMetaCode,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode))}: {10, 20, 30, 40},
-			},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: encodedMetaCode},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(encodedMetaCode)), Timeslots: types.TimeSlotSet{10, 20, 30, 40}}},
+		)
 
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err != nil {
@@ -515,17 +470,12 @@ func TestHistoricalLookupFunction(t *testing.T) {
 		mockTimestamp := types.TimeSlot(42)
 		invalidEncodedData := types.ByteSequence([]byte{0x01}) // invalid encoded data
 
-		mockAccount := types.ServiceAccount{
-			PreimageLookup: map[types.OpaqueHash]types.ByteSequence{
-				mockCodeHash: invalidEncodedData,
-			},
-			LookupDict: map[types.LookupMetaMapkey]types.TimeSlotSet{
-				{Hash: mockCodeHash, Length: types.U32(len(invalidEncodedData))}: {mockTimestamp},
-			},
-		}
+		mockAccount := newTestAccountWithMeta(t, types.ServiceID(0),
+			map[types.OpaqueHash]types.ByteSequence{mockCodeHash: invalidEncodedData},
+			[]preimageMetaEntry{{Hash: mockCodeHash, Length: types.U32(len(invalidEncodedData)), Timeslots: types.TimeSlotSet{mockTimestamp}}},
+		)
 
 		// when decode fails, function should return nil
-		seedGlobalKV(t, &mockAccount, types.ServiceID(0))
 		bytes := HistoricalLookup(types.ServiceID(0), mockAccount, mockTimestamp, mockCodeHash)
 		metadata, code, err := DecodeMetaCode(bytes)
 		if err == nil {
