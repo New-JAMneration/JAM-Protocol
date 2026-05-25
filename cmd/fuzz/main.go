@@ -15,6 +15,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
+	"github.com/New-JAMneration/JAM-Protocol/internal/fuzzenv"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
@@ -179,16 +180,7 @@ func main() {
 }
 
 func jamFuzzEnvEnabled() bool {
-	v := strings.TrimSpace(os.Getenv(envFuzz))
-	if v == "" {
-		return false
-	}
-	switch strings.ToLower(v) {
-	case "0", "false", "no", "off":
-		return false
-	default:
-		return true
-	}
+	return fuzzenv.Enabled()
 }
 
 func serve(ctx context.Context, cmd *cli.Command) error {
