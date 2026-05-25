@@ -117,6 +117,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		return types.StateRoot{}, err
 	}
 
+	if fuzzenv.Enabled() {
+		cs.PruneOldPersistentBlocks(headerHash)
+	}
+
 	return stateRoot, nil
 }
 

@@ -62,6 +62,9 @@ type ChainState struct {
 	// lastCommittedStateRoot caches the state root from the most recent
 	// successful StateCommit, avoiding redundant serialize+merklize.
 	lastCommittedStateRoot types.StateRoot
+
+	// tracks recent block hashes persisted to disk, used for fuzz-mode block pruning
+	persistedBlockHashes []types.HeaderHash
 }
 
 func getPersistentDatabase() database.Database {
@@ -538,27 +541,20 @@ func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) {
 	cs.ancestry.AppendAncestry(ancestry)
 }
 
-// PruneOldData deletes old state and block data from both memory and persistent storage,
+// PruneOldPersistentBlocks deletes old blocks and header mappings from persistent storage,
 // keeping only the most recent FuzzPersistentRetainBlocks entries.
-// Called after each successful ImportBlock in fuzz mode to prevent disk/memory exhaustion.
-func (cs *ChainState) PruneOldData(stateRoot types.StateRoot, headerHash types.HeaderHash, slot types.TimeSlot) {
-	cs.persistedEntries = append(cs.persistedEntries, persistedEntry{stateRoot: stateRoot, headerHash: headerHash, slot: slot})
-	if len(cs.persistedEntries) <= fuzzenv.FuzzPersistentRetainBlocks {
+// Called after each successful ImportBlock in fuzz mode to prevent disk exhaustion.
+func (cs *ChainState) PruneOldPersistentBlocks(headerHash types.HeaderHash) {
+	cs.persistedBlockHashes = append(cs.persistedBlockHashes, headerHash)
+	if len(cs.persistedBlockHashes) <= fuzzenv.FuzzPersistentRetainBlocks {
 		return
 	}
-	cutoff := len(cs.persistedEntries) - fuzzenv.FuzzPersistentRetainBlocks
-	for _, old := range cs.persistedEntries[:cutoff] {
-		// Memory cleanup
-		cs.repo.DeleteStateData(cs.repo.Database(), old.stateRoot)
-		cs.repo.DeleteBlock(cs.repo.Database(), old.headerHash, old.slot)
-		// Persistent cleanup
-		cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), old.stateRoot)
-		cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(old.headerHash))
-		cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), old.headerHash)
+	cutoff := len(cs.persistedBlockHashes) - fuzzenv.FuzzPersistentRetainBlocks
+	for _, old := range cs.persistedBlockHashes[:cutoff] {
+		cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(old))
+		cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), old)
 	}
-	cs.persistedEntries = cs.persistedEntries[cutoff:]
-	// Trim unfinalizedBlocks to match
-	cs.unfinalizedBlocks.KeepRecent(fuzzenv.FuzzPersistentRetainBlocks)
+	cs.persistedBlockHashes = cs.persistedBlockHashes[cutoff:]
 }
 
 // KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.
