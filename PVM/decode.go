@@ -19,8 +19,8 @@ func getRegFloorIndex(instructionCode []byte, pc ProgramCounter) uint8 {
 // A.5.2
 func decodeOneImmediate(instructionCode []byte, pc ProgramCounter, skipLength ProgramCounter) (int, error) {
 	lX := min(4, skipLength)
-	immediateData := instructionCode[pc+1 : pc+lX]
-	immediate, _, err := ReadUintFixed(immediateData, len(immediateData))
+	immediateData := instructionCode[pc+1 : pc+lX+1]
+	immediate, _, err := ReadUintSignExtended(immediateData, len(immediateData))
 	if err != nil {
 		return 0, err
 	}
@@ -213,7 +213,8 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	return rA, rB, rD, nil
 }
 
-func storeIntoMemory(mem *Memory, offset int, memIndex uint32, Immediate uint64) ExitReason {
+func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, Immediate uint64) ExitReason {
+	mem := interp.Memory
 	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
 		return ExitPanic
 	}
@@ -250,7 +251,8 @@ func storeIntoMemory(mem *Memory, offset int, memIndex uint32, Immediate uint64)
 	return ExitContinue
 }
 
-func loadFromMemory(mem *Memory, offset uint32, vx uint32) (uint64, ExitReason) {
+func loadFromMemory(interp *Interpreter, offset uint32, vx uint32) (uint64, ExitReason) {
+	mem := interp.Memory
 	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
 		return 0, ExitPanic
 	}

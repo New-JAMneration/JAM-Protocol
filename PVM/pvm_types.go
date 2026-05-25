@@ -98,6 +98,13 @@ func NewInterpreter(program *Program, registers Registers, memory *Memory, gas G
 	}
 }
 
+type VMState struct {
+	Registers *Registers
+	Memory    *Memory
+	GuestMem  []byte
+	Gas       *Gas
+}
+
 func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
 	return &Host{
 		Interpreter: Interpreter{

@@ -12,27 +12,27 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// first check v panic, then assign a
-	h, o := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	h, o := input.VM.Registers[8], input.VM.Registers[9]
 
 	offset := uint64(32)
-	if !isReadable(h, offset, *input.Interpreter.Memory) { // not readable, return panic
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(h, offset, *input.VM.Memory) { // not readable, return panic
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	codeHash := types.OpaqueHash(input.Interpreter.Memory.Read(h, offset))
+	codeHash := types.OpaqueHash(input.VM.Memory.Read(h, offset))
 
 	s := input.Addition.ServiceID
 	// assign a
 	var a *types.ServiceAccount
 	var v types.ByteSequence
 
-	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.Interpreter.Registers[7] == 0xffffffffffffffff {
+	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.VM.Registers[7] == 0xffffffffffffffff {
 		a = &account
-	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.Interpreter.Registers[7])]; accountExists {
+	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.VM.Registers[7])]; accountExists {
 		a = &account
 	}
 
@@ -41,12 +41,12 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 
 	if a != nil {
 		v = service_account.HistoricalLookup(*a, input.Addition.RefineArgs.TimeSlot, codeHash)
-		f = min(input.Interpreter.Registers[10], uint64(len(v)))
-		l = min(input.Interpreter.Registers[11], uint64(len(v))-f)
+		f = min(input.VM.Registers[10], uint64(len(v)))
+		l = min(input.VM.Registers[11], uint64(len(v))-f)
 	}
 
-	if !isWriteable(o, l, *input.Interpreter.Memory) && l != 0 { // not writeable, return panic
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, l, *input.VM.Memory) && l != 0 { // not writeable, return panic
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -54,15 +54,15 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if v == nil {
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(len(v))
-	input.Interpreter.Memory.Write(o, (v)[f:f+l])
+	input.VM.Registers[7] = uint64(len(v))
+	input.VM.Memory.Write(o, (v)[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -76,11 +76,11 @@ func export(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	p := input.Interpreter.Registers[7]
-	z := min(input.Interpreter.Registers[8], types.SegmentSize)
+	p := input.VM.Registers[7]
+	z := min(input.VM.Registers[8], types.SegmentSize)
 
-	if !isReadable(p, z, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(p, z, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -90,7 +90,7 @@ func export(input OmegaInput) (output OmegaOutput) {
 	segmentLength := uint64(input.Addition.ExportSegmentOffset) + uint64(len(input.Addition.ExportSegment))
 	// otherwise if ζ + |e| >= W_X
 	if segmentLength > types.MaxExportCount {
-		input.Interpreter.Registers[7] = FULL
+		input.VM.Registers[7] = FULL
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -98,12 +98,12 @@ func export(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// data = mu_p...+z
-	data := input.Interpreter.Memory.Read(p, z)
+	data := input.VM.Memory.Read(p, z)
 	x := zeroPadding(data, types.SegmentSize)
 	exportSegment := types.ExportSegment{}
 	copy(exportSegment[:], x)
 
-	input.Interpreter.Registers[7] = segmentLength
+	input.VM.Registers[7] = segmentLength
 	input.Addition.ExportSegment = append(input.Addition.ExportSegment, exportSegment)
 
 	return OmegaOutput{
@@ -118,17 +118,17 @@ func machine(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	po, pz, i := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	po, pz, i := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
 	// pz = offset
-	if !isReadable(po, pz, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(po, pz, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	p := input.Interpreter.Memory.Read(po, pz)
+	p := input.VM.Memory.Read(po, pz)
 
 	// find first i not in K(m)
 	n := uint64(0)
@@ -142,7 +142,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 	_, exitReason := DeBlobProgramCode(p)
 	// otherwise if deblob(p) = PANIC
 	if exitReason == ExitPanic {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -150,7 +150,7 @@ func machine(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// otherwise
-	input.Interpreter.Registers[7] = n
+	input.VM.Registers[7] = n
 	input.Addition.IntegratedPVMMap[n] = IntegratedPVMType{
 		ProgramCode: ProgramCode(p),
 		Memory:      u,
@@ -169,10 +169,10 @@ func peek(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	n, o, s, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
+	n, o, s, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 
 	if z == 0 {
-		input.Interpreter.Registers[7] = OK
+		input.VM.Registers[7] = OK
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -180,8 +180,8 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// z = offset
-	if !isWriteable(o, z, *input.Interpreter.Memory) { // not writeable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, z, *input.VM.Memory) { // not writeable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -190,7 +190,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if n not in K(m)
 	if _, exists := input.Addition.IntegratedPVMMap[n]; !exists {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -199,7 +199,7 @@ func peek(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if N_s...+z not subset of \mathbf{V}_m[n]_u
 	if !isReadable(s, z, input.Addition.IntegratedPVMMap[n].Memory) {
-		input.Interpreter.Registers[7] = OOB
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -211,9 +211,9 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	data := (&integratedPVMType.Memory).Read(s, z)
 	// write data into memory
-	input.Interpreter.Memory.Write(o, data)
+	input.VM.Memory.Write(o, data)
 
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 	return OmegaOutput{
 		ExitReason: ExitContinue,
 		Addition:   input.Addition,
@@ -226,10 +226,10 @@ func poke(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	n, s, o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
+	n, s, o, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 
-	if !isReadable(s, z, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(s, z, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -238,7 +238,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if n not in K(m)
 	if _, exists := input.Addition.IntegratedPVMMap[n]; !exists {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -247,7 +247,7 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if N_o...+z not subset of \mathbf{V}_m[n]_u
 	if !isWriteable(o, z, input.Addition.IntegratedPVMMap[n].Memory) { // not writeable, return
-		input.Interpreter.Registers[7] = OOB
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -256,11 +256,11 @@ func poke(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise
 	// read data from memory first
-	data := input.Interpreter.Memory.Read(s, z)
+	data := input.VM.Memory.Read(s, z)
 	// write data into m[n]_u
 	integratedPVMType := input.Addition.IntegratedPVMMap[n]
 	(&integratedPVMType.Memory).Write(o, data)
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -274,11 +274,11 @@ func pages(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	n, p, c, r := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
+	n, p, c, r := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 	// u = panic
 	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
 		// u = panic
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -287,7 +287,7 @@ func pages(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if p < 16 or p + c >= 2^32 / ZP or i in N_p...+c : (u_A)_i = nil
 	if r > 4 || p < 16 || p+c >= (1<<32)/ZP {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -295,7 +295,7 @@ func pages(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if r > 2 && !isReadable(p, c, input.Addition.IntegratedPVMMap[n].Memory) {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -332,7 +332,7 @@ func pages(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -346,12 +346,12 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	n, o := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
+	n, o := input.VM.Registers[7], input.VM.Registers[8]
 
 	offset := uint64(112)
 	// g = panic
-	if !isWriteable(o, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -360,7 +360,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if n not in M
 	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -372,7 +372,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	var w Registers
 
 	// first read data from memory
-	data := input.Interpreter.Memory.Read(o, offset)
+	data := input.VM.Memory.Read(o, offset)
 
 	decoder := types.NewDecoder()
 	// decode gas
@@ -398,12 +398,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	var c ExitReason
 	var pcPrime ProgramCounter
 
-	// run psi
-	if GasChargingMode == "blockBased" {
-		c, pcPrime = tempHost.Interpreter.BlockBasedInvoke(input.Addition.IntegratedPVMMap[n].PC) // m[n]_i => pc
-	} else {
-		c, pcPrime = tempHost.Interpreter.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
-	}
+	c, pcPrime = tempHost.Interpreter.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
 
 	// mu* = mu
 	encoder := types.NewEncoder()
@@ -415,7 +410,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		copy(data[8*i:8*(i+1)], encoded)
 	}
 	// write data into memory (mu)
-	input.Interpreter.Memory.Write(o, data)
+	input.VM.Memory.Write(o, data)
 
 	// m* = m
 	tmp := input.Addition.IntegratedPVMMap[n]
@@ -429,21 +424,21 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 
 	switch c.GetReasonType() {
 	case HOST_CALL:
-		input.Interpreter.Registers[7] = INNERHOST
-		input.Interpreter.Registers[8] = uint64(c.GetHostCallID())
+		input.VM.Registers[7] = INNERHOST
+		input.VM.Registers[8] = uint64(c.GetHostCallID())
 
 	case PAGE_FAULT:
-		input.Interpreter.Registers[7] = INNERFAULT
-		input.Interpreter.Registers[8] = uint64(c.GetPageFaultAddress())
+		input.VM.Registers[7] = INNERFAULT
+		input.VM.Registers[8] = uint64(c.GetPageFaultAddress())
 
 	case OUT_OF_GAS:
-		input.Interpreter.Registers[7] = INNEROOG
+		input.VM.Registers[7] = INNEROOG
 
 	case PANIC:
-		input.Interpreter.Registers[7] = INNERPANIC
+		input.VM.Registers[7] = INNERPANIC
 
 	case HALT:
-		input.Interpreter.Registers[7] = INNERHALT
+		input.VM.Registers[7] = INNERHALT
 
 	}
 
@@ -459,10 +454,10 @@ func expunge(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	n := input.Interpreter.Registers[7]
+	n := input.VM.Registers[7]
 	// n not in K(m)
 	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -470,7 +465,7 @@ func expunge(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(input.Addition.IntegratedPVMMap[n].PC)
+	input.VM.Registers[7] = uint64(input.Addition.IntegratedPVMMap[n].PC)
 	// m ˋ n
 	delete(input.Addition.IntegratedPVMMap, n)
 

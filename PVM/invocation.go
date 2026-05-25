@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Currently keep for refine host-call -> invoke host-call transition
 // per-instruction based of (A.1) ψ_1,
 func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	for {
@@ -70,6 +71,79 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 	// logger.Debugf("       gas : %d -> %d", interp.Gas+gasDelta, interp.Gas)
 
 	return exitReason, newPC
+}
+
+func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (ExitReason, ProgramCounter) {
+	for {
+		if int(pc) >= len(interp.Program.InstructionData) {
+			return ExitPanic, 0
+		}
+
+		var startIdx, endIdx int
+
+		if block := interp.Program.LookupBlock(pc); block != nil {
+			startIdx = block.InstrStart
+			endIdx = block.InstrEnd
+		} else if idx, ok := interp.Program.InstrMap[pc]; ok {
+			startIdx = idx
+			for endIdx = idx; endIdx < len(interp.Program.Instrs); endIdx++ {
+				if IsBlockTerminator(interp.Program.Instrs[endIdx].Opcode) {
+					endIdx++
+					break
+				}
+			}
+		} else {
+			return ExitPanic, 0
+		}
+
+		instrs := interp.Program.Instrs[startIdx:endIdx]
+		branchTaken := false
+		for i := range instrs {
+			instr := &instrs[i]
+
+			if interp.Gas < 0 {
+				return ExitOOG, instr.PC
+			}
+			interp.Gas -= 1
+			/*
+				var src1Val, src2Val uint64
+				if instr.Src[0] != 0xff {
+					src1Val = interp.Registers[instr.Src[0]]
+				}
+				if instr.Src[1] != 0xff {
+					src2Val = interp.Registers[instr.Src[1]]
+				}
+			*/
+
+			handler := execInstructionsMeta[instr.Opcode]
+			if handler == nil {
+				pvmLogger.Errorf("instruction not implemented")
+				return ExitPanic, 0
+			}
+
+			exitReason, newPC := handler(interp, instr)
+			interp.Program.InstrCount++
+
+			switch exitReason.GetReasonType() {
+			case HALT, PANIC:
+				return exitReason, 0
+			case PAGE_FAULT, OUT_OF_GAS:
+				return exitReason, instr.PC
+			case HOST_CALL:
+				return exitReason, instr.PC + ProgramCounter(instr.SkipLen) + 1
+			}
+
+			if instr.PC != newPC {
+				pc = newPC
+				branchTaken = true
+				break
+			}
+		}
+		if !branchTaken {
+			last := &instrs[len(instrs)-1]
+			pc = last.PC + ProgramCounter(last.SkipLen) + 1
+		}
+	}
 }
 
 // block based version of (A.1) ψ_1

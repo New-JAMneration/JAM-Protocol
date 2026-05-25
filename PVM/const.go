@@ -16,7 +16,4 @@ var (
 
 	// log print as hex or dec, default: dec
 	instrLogFormat = "dec"
-
-	// perInstruction, blockBased, default: perInstruction
-	GasChargingMode = "perInstruction"
 )
