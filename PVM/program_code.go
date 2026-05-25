@@ -83,6 +83,10 @@ type Program struct {
 	Bitmasks        Bitmask     // k
 	JumpTable       JumpTable   // j, z, |j|
 	InstrCount      uint64
+
+	Instrs   []InstrMeta                   // pre-decoded instruction metadata (flat array)
+	BlockMap map[ProgramCounter]*BlockMeta // basic block lookup by startPC
+	InstrMap map[ProgramCounter]int        // PC → index into Instrs[] (for mid-block resume)
 }
 
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2
@@ -132,7 +136,7 @@ func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 		return Program{}, ExitPanic
 	}
 
-	return Program{
+	prog := Program{
 		JumpTable: JumpTable{
 			Data:   jumpTableData,           // j
 			Length: uint32(jumpTableLength), // z
@@ -140,7 +144,13 @@ func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 		},
 		Bitmasks:        bitmask,      // k
 		InstructionData: instructions, // c
-	}, ExitContinue
+	}
+
+	if exitReason := prog.preDecodeBlocks(); exitReason != ExitContinue {
+		return Program{}, exitReason
+	}
+
+	return prog, ExitContinue
 }
 
 // skip computes the distance to the next opcode  A.3

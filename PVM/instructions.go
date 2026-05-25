@@ -395,7 +395,7 @@ func instStoreImmU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 	offset := 1
 	vy = uint64(uint8(vy))
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vx), vy)
+	exitReason := storeIntoMemory(interp, offset, uint32(vx), vy)
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vx), formatInt(vy))
 	} else {
@@ -413,7 +413,7 @@ func instStoreImmU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	}
 	offset := 2
 	vy = uint64(uint16(vy))
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vx), vy)
+	exitReason := storeIntoMemory(interp, offset, uint32(vx), vy)
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vx), formatInt(vy))
 	} else {
@@ -431,7 +431,7 @@ func instStoreImmU32(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	}
 	offset := 4
 	vy = uint64(uint32(vy))
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vx), vy)
+	exitReason := storeIntoMemory(interp, offset, uint32(vx), vy)
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vx), formatInt(vy))
 	} else {
@@ -448,7 +448,7 @@ func instStoreImmU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 		return ExitPanic, pc
 	}
 	offset := 8
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vx), vy)
+	exitReason := storeIntoMemory(interp, offset, uint32(vx), vy)
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vx), formatInt(vy))
 	} else {
@@ -522,7 +522,7 @@ func instLoadU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 		return ExitHalt, pc
 	}
 	offset := uint32(1)
-	memVal, exitReason := loadFromMemory(interp.Memory, offset, uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, offset, uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -542,7 +542,7 @@ func instLoadI8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -568,7 +568,7 @@ func instLoadU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -587,7 +587,7 @@ func instLoadI16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 		return ExitHalt, pc
 	}
 	offset := 2
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -612,7 +612,7 @@ func instLoadU32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	offset := 4
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -632,7 +632,7 @@ func instLoadI32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	offset := 4
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -657,7 +657,7 @@ func instLoadU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	offset := 8
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -677,7 +677,7 @@ func instStoreU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	}
 
 	offset := 1
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vX), uint64(uint8(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(vX), uint64(uint8(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint8(interp.Registers[rA]))))
 	} else { // page fault error
@@ -696,7 +696,7 @@ func instStoreU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	offset := 2
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vX), uint64(uint16(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(vX), uint64(uint16(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint16(interp.Registers[rA]))))
 	} else { // page fault error
@@ -714,7 +714,7 @@ func instStoreU32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	offset := 4
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vX), uint64(uint32(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(vX), uint64(uint32(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vX), RegName[rA], formatInt(uint64(uint32(interp.Registers[rA]))))
 	} else { // page fault error
@@ -732,7 +732,7 @@ func instStoreU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCoun
 	}
 
 	offset := 8
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(vX), interp.Registers[rA])
+	exitReason := storeIntoMemory(interp, offset, uint32(vX), interp.Registers[rA])
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], uint32(vX), RegName[rA], formatInt(interp.Registers[rA]))
 	} else { // page fault error
@@ -750,7 +750,7 @@ func instStoreImmIndU8(interp *Interpreter, pc ProgramCounter, skipLength Progra
 	}
 
 	offset := 1
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rA]+vX), uint64(uint8(vY)))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rA]+vX), uint64(uint8(vY)))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(uint64(uint8(vY))))
 	} else { // page fault error
@@ -768,7 +768,7 @@ func instStoreImmIndU16(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 2
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rA]+vX), uint64(uint16(vY)))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rA]+vX), uint64(uint16(vY)))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(uint64(uint16(vY))))
 	} else { // page fault error
@@ -786,7 +786,7 @@ func instStoreImmIndU32(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 4
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rA]+vX), uint64(uint32(vY)))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rA]+vX), uint64(uint32(vY)))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(uint64(uint32(vY))))
 	} else { // page fault error
@@ -804,7 +804,7 @@ func instStoreImmIndU64(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	}
 
 	offset := 8
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rA]+vX), vY)
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rA]+vX), vY)
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(vY))
 	} else { // page fault error
@@ -1132,7 +1132,7 @@ func instStoreIndU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 1
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rB]+vX), uint64(uint8(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint8(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])],
 			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), formatInt(uint64(uint8(interp.Registers[rA]))))
@@ -1152,7 +1152,7 @@ func instStoreIndU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	}
 
 	offset := 2
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rB]+vX), uint64(uint16(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint16(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])],
 			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(interp.Registers[rB]+vX)), formatInt(int64(uint16(interp.Registers[rA]))))
@@ -1172,7 +1172,7 @@ func instStoreIndU32(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	}
 
 	offset := 4
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rB]+vX), uint64(uint32(interp.Registers[rA])))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint32(interp.Registers[rA])))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s ,[ %s+%s = 0x%x ] = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])],
 			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), formatInt(uint64(uint32(interp.Registers[rA]))))
@@ -1192,7 +1192,7 @@ func instStoreIndU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	}
 
 	offset := 8
-	exitReason := storeIntoMemory(interp.Memory, offset, uint32(interp.Registers[rB]+vX), uint64(interp.Registers[rA]))
+	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(interp.Registers[rA]))
 	if exitReason.GetReasonType() == CONTINUE {
 		pvmLogger.Debugf("[%d]: pc: %d, %s ,[ %s+%s = 0x%x...+%d ] = %s = %s", interp.InstrCount, pc, zeta[opcode(interp.Program.InstructionData[pc])],
 			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), offset, RegName[rA], formatInt(uint64(interp.Registers[rA])))
@@ -1213,7 +1213,7 @@ func instLoadIndU8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1233,7 +1233,7 @@ func instLoadIndI8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCou
 	}
 
 	offset := 1
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1252,7 +1252,7 @@ func instLoadIndU16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1271,7 +1271,7 @@ func instLoadIndI16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 2
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1290,7 +1290,7 @@ func instLoadIndU32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 4
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1309,7 +1309,7 @@ func instLoadIndI32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 4
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}
@@ -1329,7 +1329,7 @@ func instLoadIndU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCo
 	}
 
 	offset := 8
-	memVal, exitReason := loadFromMemory(interp.Memory, uint32(offset), uint32(interp.Registers[rB]+vX))
+	memVal, exitReason := loadFromMemory(interp, uint32(offset), uint32(interp.Registers[rB]+vX))
 	if exitReason != ExitContinue {
 		return exitReason, pc
 	}

@@ -7,10 +7,10 @@ type (
 )
 
 type OmegaInput struct {
-	Operation   OperationType // operation type
-	Interpreter *Interpreter  // interpreter state (registers, memory, gas)
-	Addition    HostCallArgs  // Extra parameter for each host-call function
-	HostCalls   Omegas        // host-call functions (needed for nested invocations)
+	Operation OperationType // operation type
+	VM        *VMState      // VM state (registers, memory, gas) — shared by Interpreter and Recompiler
+	Addition  HostCallArgs  // Extra parameter for each host-call function
+	HostCalls Omegas        // host-call functions (needed for nested invocations)
 }
 type OmegaOutput struct {
 	ExitReason ExitReason // Exit reason
@@ -81,9 +81,7 @@ func getOmega(omegas Omegas, operation OperationType) Omega {
 type Psi_H_ReturnType struct {
 	ExitReason ExitReason   // exit reason
 	Counter    uint32       // new instruction counter
-	Gas        Gas          // gas remain
-	Reg        Registers    // new registers
-	Ram        Memory       // new memory
+	VM         *VMState     // final VM state
 	Addition   HostCallArgs // addition host-call context
 }
 
@@ -92,19 +90,18 @@ func (h *Host) HostCall(pc ProgramCounter, instrCount uint64) (psi_result Psi_H_
 	for {
 		var exitReason ExitReason
 		var pcPrime ProgramCounter
-		if GasChargingMode == "blockBased" {
-			exitReason, pcPrime = h.Interpreter.BlockBasedInvoke(pc)
-		} else {
-			exitReason, pcPrime = h.Interpreter.SingleStepInvoke(pc)
-		}
+
+		exitReason, pcPrime = h.Interpreter.SingleStepInvokeDecodedBlocks(pc)
 
 		switch exitReason.GetReasonType() {
 		case HALT, PANIC, OUT_OF_GAS, PAGE_FAULT:
 			psi_result.ExitReason = exitReason
 			psi_result.Counter = uint32(pcPrime)
-			psi_result.Gas = h.Interpreter.Gas
-			psi_result.Reg = h.Interpreter.Registers
-			psi_result.Ram = *h.Interpreter.Memory
+			psi_result.VM = &VMState{
+				Registers: &h.Interpreter.Registers,
+				Memory:    h.Interpreter.Memory,
+				Gas:       &h.Interpreter.Gas,
+			}
 			psi_result.Addition = h.Addition
 			return
 		}
@@ -112,7 +109,11 @@ func (h *Host) HostCall(pc ProgramCounter, instrCount uint64) (psi_result Psi_H_
 		// reason.Reason == HOST_CALL
 		var input OmegaInput
 		input.Operation = OperationType(exitReason.GetHostCallID())
-		input.Interpreter = &h.Interpreter
+		input.VM = &VMState{
+			Registers: &h.Interpreter.Registers,
+			Memory:    h.Interpreter.Memory,
+			Gas:       &h.Interpreter.Gas,
+		}
 		input.Addition = h.Addition
 		input.HostCalls = h.HostCalls
 
@@ -131,15 +132,18 @@ func (h *Host) HostCall(pc ProgramCounter, instrCount uint64) (psi_result Psi_H_
 		switch omegaResult.ExitReason {
 		case ExitContinue:
 			h.Addition = omegaResult.Addition
-			skipLength := ProgramCounter(skip(int(pcPrime), h.Addition.Program.Bitmasks))
-			pc = pcPrime + skipLength + 1
+			// SingleStepInvokeDecodedBlocks already returns the next instruction PC
+			// (ecalli.PC + skipLen + 1 = fallthrough PC), so no skip needed.
+			pc = pcPrime
 			continue
 		default:
 			psi_result.ExitReason = omegaResult.ExitReason
 			psi_result.Counter = uint32(pcPrime)
-			psi_result.Gas = h.Interpreter.Gas
-			psi_result.Reg = h.Interpreter.Registers
-			psi_result.Ram = *h.Interpreter.Memory
+			psi_result.VM = &VMState{
+				Registers: &h.Interpreter.Registers,
+				Memory:    h.Interpreter.Memory,
+				Gas:       &h.Interpreter.Gas,
+			}
 			psi_result.Addition = omegaResult.Addition
 			return
 		}

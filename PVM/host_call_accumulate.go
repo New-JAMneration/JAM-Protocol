@@ -15,13 +15,13 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	m, a, v := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
-	r, o, n := input.Interpreter.Registers[10], input.Interpreter.Registers[11], input.Interpreter.Registers[12]
+	m, a, v := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
+	r, o, n := input.VM.Registers[10], input.VM.Registers[11], input.VM.Registers[12]
 
 	// if N_{a...+4C} not readable
 	offset := uint64(4 * types.CoresCount)
-	if !isReadable(a, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(a, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -29,13 +29,13 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// \mathbb{a}
-	rawData := input.Interpreter.Memory.Read(a, offset)
+	rawData := input.VM.Memory.Read(a, offset)
 	var assignData types.ServiceIDList
 	decoder := types.NewDecoder()
 	assignErr := decoder.Decode(rawData, &assignData)
 	if assignErr != nil {
 		pvmLogger.Errorf("host-call function \"bless\" decode assignData error : %v", assignErr)
-		input.Interpreter.Registers[7] = OOB
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -43,8 +43,8 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	offset, overflow := checkOverflow(12, n)
-	if overflow || !isReadable(o, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if overflow || !isReadable(o, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -52,7 +52,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// read data from memory, might cross many pages
-	rawData = input.Interpreter.Memory.Read(o, offset)
+	rawData = input.VM.Memory.Read(o, offset)
 
 	// s -> g this will update into (x_u)_x => partialState.Chi_g, decode rawData
 	alwaysAccum := make(types.AlwaysAccumulateMap)
@@ -82,7 +82,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if accumErr != nil {
-		input.Interpreter.Registers[7] = OOB
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -93,7 +93,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	limit := uint64(1 << 32)
 
 	if m >= limit || v >= limit || r >= limit {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -101,7 +101,7 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	// otherwise
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 	input.Addition.ResultContextX.PartialState.Bless = types.ServiceID(m)
 	input.Addition.ResultContextX.PartialState.Assign = assignData
 	input.Addition.ResultContextX.PartialState.Designate = types.ServiceID(v)
@@ -120,11 +120,11 @@ func assign(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	c, o, a := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	c, o, a := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
 
 	offset := uint64(32 * types.AuthQueueSize)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, panic
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, panic
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -133,7 +133,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if c >= C
 	if c >= uint64(types.CoresCount) {
-		input.Interpreter.Registers[7] = CORE
+		input.VM.Registers[7] = CORE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -142,7 +142,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if x_s ≠ (x_u)_a[c]
 	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Assign[c] {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -150,14 +150,14 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if a >= (1 << 32) {
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 
-	rawData := input.Interpreter.Memory.Read(o, offset)
+	rawData := input.VM.Memory.Read(o, offset)
 
 	// decode rawData , authQueue = mathbb{q}
 	authQueue := types.AuthQueue{}
@@ -173,7 +173,7 @@ func assign(input OmegaInput) (output OmegaOutput) {
 
 	input.Addition.ResultContextX.PartialState.Authorizers[c] = authQueue
 	input.Addition.ResultContextX.PartialState.Assign[c] = types.ServiceID(a)
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -187,11 +187,11 @@ func designate(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o := input.Interpreter.Registers[7]
+	o := input.VM.Registers[7]
 
 	offset := uint64(336 * types.ValidatorsCount)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, panic
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, panic
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -200,7 +200,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if x_s ≠ (x_u)_v
 	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Designate {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -208,7 +208,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// 336 * types.ValidatorsCount might cross many pages
-	rawData := input.Interpreter.Memory.Read(o, offset) // bold{v}
+	rawData := input.VM.Memory.Read(o, offset) // bold{v}
 
 	validatorsData := types.ValidatorsData{}
 	decoder := types.NewDecoder()
@@ -222,7 +222,7 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 
 	input.Addition.ResultContextX.PartialState.ValidatorKeys = validatorsData
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -238,7 +238,7 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 
 	input.Addition.ResultContextY = input.Addition.ResultContextX.DeepCopy()
 
-	input.Interpreter.Registers[7] = uint64(input.Interpreter.Gas)
+	input.VM.Registers[7] = uint64(*input.VM.Gas)
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -252,10 +252,10 @@ func new(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, l, g, m, f, i := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10], input.Interpreter.Registers[11], input.Interpreter.Registers[12]
+	o, l, g, m, f, i := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10], input.VM.Registers[11], input.VM.Registers[12]
 	offset := uint64(32)
 	// if c = ∇
-	if !(isReadable(o, offset, *input.Interpreter.Memory) && l < (1<<32)) { // not readable, return
+	if !(isReadable(o, offset, *input.VM.Memory) && l < (1<<32)) { // not readable, return
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -264,14 +264,14 @@ func new(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if f ≠ 0 and x_s ≠ (x_u)_m
 	if f != 0 && input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextY.PartialState.Bless {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 
-	c := input.Interpreter.Memory.Read(o, offset)
+	c := input.VM.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceID
 	s := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
@@ -308,7 +308,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if s_b < (x_s)_t, transfer a_t tokens to new service, so need to check balance(b) > minBalance()
 	minBalance := service_account.CalcThresholdBalance(s.ServiceInfo.Items, s.ServiceInfo.Bytes, s.ServiceInfo.DepositOffset)
 	if newBalance < minBalance {
-		input.Interpreter.Registers[7] = CASH
+		input.VM.Registers[7] = CASH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -318,7 +318,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s = (x_e)r and i < S and i \in K((x_e)_d)
 	_, exists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)]
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex && exists {
-		input.Interpreter.Registers[7] = FULL
+		input.VM.Registers[7] = FULL
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -332,7 +332,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s = (x_e)_r and i < S
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
 		// reg[7] = i
-		input.Interpreter.Registers[7] = i
+		input.VM.Registers[7] = i
 		// d = { (i -> a) }
 		input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(i)] = a
 		// d = { (x_s -> s) }
@@ -351,7 +351,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	importServiceID := input.Addition.ResultContextX.ImportServiceID
 
 	// reg[7] = x_i
-	input.Interpreter.Registers[7] = uint64(importServiceID)
+	input.VM.Registers[7] = uint64(importServiceID)
 	// i* = check(i)
 	iStar := check(types.MinimumServiceIndex+(importServiceID-types.MinimumServiceIndex+42)%(1<<32-types.MinimumServiceIndex-(1<<8)), input.Addition.ResultContextX.PartialState.ServiceAccounts)
 	input.Addition.ResultContextX.ImportServiceID = iStar
@@ -375,20 +375,20 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, g, m := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	o, g, m := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	c := input.Interpreter.Memory.Read(o, offset)
+	c := input.VM.Memory.Read(o, offset)
 
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	serviceID := input.Addition.ResultContextX.ServiceID
 	// x_bold{s} = (x_u)_d[x_s]
@@ -416,25 +416,25 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	d, a, l, o := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
-	if !isReadable(o, uint64(types.TransferMemoSize), *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	d, a, l, o := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	if !isReadable(o, uint64(types.TransferMemoSize), *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 	// m
-	rawData := input.Interpreter.Memory.Read(o, types.TransferMemoSize)
+	rawData := input.VM.Memory.Read(o, types.TransferMemoSize)
 	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]; !accountExists {
 		// not exist
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
-		input.Interpreter.Registers[7] = LOW
+		input.VM.Registers[7] = LOW
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -445,7 +445,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
 		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
 		if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) { //  check b underflow
-			input.Interpreter.Registers[7] = CASH
+			input.VM.Registers[7] = CASH
 			return OmegaOutput{
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
@@ -471,15 +471,15 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// l = reg[9]
-	if uint64(input.Interpreter.Gas) < l {
-		input.Interpreter.Gas = 0
+	if uint64(*input.VM.Gas) < l {
+		*input.VM.Gas = 0
 		return OmegaOutput{
 			ExitReason: ExitOOG,
 			Addition:   input.Addition,
 		}
 	}
-	input.Interpreter.Gas -= Gas(l)
-	input.Interpreter.Registers[7] = OK
+	*input.VM.Gas -= Gas(l)
+	input.VM.Registers[7] = OK
 	return OmegaOutput{
 		ExitReason: ExitContinue,
 		Addition:   input.Addition,
@@ -492,25 +492,25 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	d, o := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
+	d, o := input.VM.Registers[7], input.VM.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Interpreter.Memory.Read(o, offset)
+	h := input.VM.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceID
 
 	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]
 	if !(types.ServiceID(d) != serviceID && accountExists) {
 		// bold{d} = panic => CONTINUE, WHO
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -521,7 +521,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	serviceIDSerialized := utils.SerializeFixedLength(types.U32(serviceID), types.U32(32))
 	if !bytes.Equal(accountD.ServiceInfo.CodeHash[:], serviceIDSerialized) {
 		// d_c not equal E_32(x_s)
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -534,7 +534,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupData, lookupDataExists := accountD.LookupDict[lookupKey]
 
 	if accountD.ServiceInfo.Items != 2 || !lookupDataExists {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -554,7 +554,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = accountS // update general
 				*input.Addition.GeneralArgs.ServiceAccount = accountS
 				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceID(d))
-				input.Interpreter.Registers[7] = OK
+				input.VM.Registers[7] = OK
 
 				return OmegaOutput{
 					ExitReason: ExitContinue,
@@ -566,7 +566,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	input.Interpreter.Registers[7] = HUH
+	input.VM.Registers[7] = HUH
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -580,18 +580,18 @@ func query(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
+	o, z := input.VM.Registers[7], input.VM.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Interpreter.Memory.Read(o, offset)
+	h := input.VM.Memory.Read(o, offset)
 
 	serviceID := input.Addition.ResultContextX.ServiceID
 	// x_bold{s} = (x_u)_d[x_s]
@@ -620,21 +620,21 @@ func query(input OmegaInput) (output OmegaOutput) {
 		// a = lookupData[h,z]
 		switch len(lookupData) {
 		case 0:
-			input.Interpreter.Registers[7], input.Interpreter.Registers[8] = 0, 0
+			input.VM.Registers[7], input.VM.Registers[8] = 0, 0
 		case 1:
-			input.Interpreter.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
-			input.Interpreter.Registers[8] = 0
+			input.VM.Registers[7] = 1 + uint64(1<<32)*uint64(lookupData[0])
+			input.VM.Registers[8] = 0
 		case 2:
-			input.Interpreter.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
-			input.Interpreter.Registers[8] = uint64(lookupData[1])
+			input.VM.Registers[7] = 2 + uint64(1<<32)*uint64(lookupData[0])
+			input.VM.Registers[8] = uint64(lookupData[1])
 		case 3:
-			input.Interpreter.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
-			input.Interpreter.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
+			input.VM.Registers[7] = 3 + uint64(1<<32)*uint64(lookupData[0])
+			input.VM.Registers[8] = uint64(lookupData[1]) + uint64(1<<32)*uint64(lookupData[2])
 		}
 	} else {
 		// a = panic
-		input.Interpreter.Registers[7] = NONE
-		input.Interpreter.Registers[8] = 0
+		input.VM.Registers[7] = NONE
+		input.VM.Registers[8] = 0
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -706,17 +706,17 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
+	o, z := input.VM.Registers[7], input.VM.Registers[8]
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Interpreter.Memory.Read(o, offset)
+	h := input.VM.Memory.Read(o, offset)
 	serviceID := input.Addition.ResultContextX.ServiceID
 	timeslot := input.Addition.Timeslot
 
@@ -736,12 +736,12 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 
 	lookupData, lookupDataExists := a.LookupDict[lookupKey]
-	if result := processSolicitLookupData(&a, lookupKey, lookupData, lookupDataExists, timeslot, &input.Interpreter.Registers); result != nil {
+	if result := processSolicitLookupData(&a, lookupKey, lookupData, lookupDataExists, timeslot, input.VM.Registers); result != nil {
 		result.Addition = input.Addition
 		return *result
 	}
 
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 	(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
 	*input.Addition.GeneralArgs.ServiceAccount = a
@@ -758,18 +758,18 @@ func forget(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, z := input.Interpreter.Registers[7], input.Interpreter.Registers[8]
+	o, z := input.VM.Registers[7], input.VM.Registers[8]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) { // not readable, return
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) { // not readable, return
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Interpreter.Memory.Read(o, offset)
+	h := input.VM.Memory.Read(o, offset)
 	serviceID := input.Addition.ResultContextX.ServiceID
 	timeslot := input.Addition.Timeslot
 	// x_bold{s} = (x_u)_d[x_s] check service exists
@@ -826,7 +826,7 @@ func forget(input OmegaInput) (output OmegaOutput) {
 				newFootprintItems += itemFootprintItems
 				newFootprintOctets += itemFootprintOctets
 			} else { // otherwise, panic
-				input.Interpreter.Registers[7] = HUH
+				input.VM.Registers[7] = HUH
 				return OmegaOutput{
 					ExitReason: ExitContinue,
 					Addition:   input.Addition,
@@ -839,9 +839,9 @@ func forget(input OmegaInput) (output OmegaOutput) {
 			(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = a
 			*input.Addition.GeneralArgs.ServiceAccount = a
 
-			input.Interpreter.Registers[7] = OK
+			input.VM.Registers[7] = OK
 		} else { // otherwise : lookupData (x_s)_l[h,z] not exist
-			input.Interpreter.Registers[7] = HUH
+			input.VM.Registers[7] = HUH
 		}
 	} else {
 		pvmLogger.Debugf("host-call function \"forget\" serviceID : %d not in ServiceAccount state", serviceID)
@@ -859,21 +859,21 @@ func yield(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o := input.Interpreter.Registers[7]
+	o := input.VM.Registers[7]
 
 	offset := uint64(32)
-	if !isReadable(o, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	h := input.Interpreter.Memory.Read(o, offset)
+	h := input.VM.Memory.Read(o, offset)
 	opaqueHash := types.OpaqueHash(h)
 	input.Addition.ResultContextX.Exception = &opaqueHash
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -887,32 +887,32 @@ func provide(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	o, z := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
+	o, z := input.VM.Registers[8], input.VM.Registers[9]
 	// i = panic
 	offset := uint64(z)
-	if !isReadable(o, offset, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isReadable(o, offset, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 	// i = mu_o...+z
-	i := input.Interpreter.Memory.Read(o, z)
+	i := input.VM.Memory.Read(o, z)
 
 	// s = x_s or s = omega_7
 	var s types.ServiceID
-	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
+	if input.VM.Registers[7] == 0xffffffffffffffff {
 		s = input.Addition.ResultContextX.ServiceID
 	} else {
-		s = types.ServiceID(input.Interpreter.Registers[7])
+		s = types.ServiceID(input.VM.Registers[7])
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d
 	account, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[s]
 	if !accountExists {
 		// otherwise if a = nil
-		input.Interpreter.Registers[7] = WHO
+		input.VM.Registers[7] = WHO
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -941,7 +941,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if a_l[H(i), z] not in []
 	if lookupData, lookupDataExists := account.LookupDict[lookupKey]; (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -961,7 +961,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// golang can not have slice in map key, so use hash instead
 	if _, hashExists := input.Addition.ResultContextX.ServiceBlobs[hashKey]; hashExists {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -970,7 +970,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise OK
 	input.Addition.ResultContextX.ServiceBlobs[hashKey] = serviceBlob
-	input.Interpreter.Registers[7] = OK
+	input.VM.Registers[7] = OK
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,

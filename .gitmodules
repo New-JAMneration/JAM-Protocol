@@ -3,10 +3,10 @@
 	url = https://github.com/New-JAMneration/Rust-VRF.git
 [submodule "pkg/test_data/jam-test-vectors"]
 	path = pkg/test_data/jam-test-vectors
-	url = git@github.com:davxy/jam-test-vectors.git
+	url = https://github.com/davxy/jam-test-vectors.git
 [submodule "pkg/test_data/jamtestnet"]
 	path = pkg/test_data/jamtestnet
-	url = git@github.com:jam-duna/jamtestnet.git
+	url = https://github.com/jam-duna/jamtestnet.git
 [submodule "pkg/test_data/jam-conformance"]
 	path = pkg/test_data/jam-conformance
-	url = git@github.com:davxy/jam-conformance.git
+	url = https://github.com/davxy/jam-conformance.git

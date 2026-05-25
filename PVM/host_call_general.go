@@ -163,10 +163,16 @@ var (
 )
 
 func hostCallException(input OmegaInput) (output OmegaOutput) {
+<<<<<<< Updated upstream
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
 	input.Interpreter.Registers[7] = WHAT
+=======
+	// non-defined host call
+	input.VM.Registers[7] = WHAT
+	*input.VM.Gas -= 10
+>>>>>>> Stashed changes
 	return OmegaOutput{
 		ExitReason: ExitContinue,
 		Addition:   input.Addition,
@@ -182,8 +188,8 @@ func hostCallOutOfGas(input OmegaInput) (output OmegaOutput) {
 }
 
 func chargeGasAndCheck(input *OmegaInput) *OmegaOutput {
-	input.Interpreter.Gas -= 10
-	if input.Interpreter.Gas < 0 {
+	*input.VM.Gas -= 10
+	if *input.VM.Gas < 0 {
 		return &OmegaOutput{
 			ExitReason: ExitOOG,
 			Addition:   input.Addition,
@@ -198,7 +204,7 @@ func gas(input OmegaInput) OmegaOutput {
 		return *result
 	}
 
-	input.Interpreter.Registers[7] = uint64(input.Interpreter.Gas)
+	input.VM.Registers[7] = uint64(*input.VM.Gas)
 	return OmegaOutput{
 		ExitReason: ExitContinue,
 		Addition:   input.Addition,
@@ -258,11 +264,11 @@ func fetchExtrinsicAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
 	if len(input.Addition.Extrinsics) == 0 {
 		return nil, nil
 	}
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.Extrinsics)) {
 		return nil, nil
 	}
-	w12 := input.Interpreter.Registers[12]
+	w12 := input.VM.Registers[12]
 	if w12 >= uint64(len(input.Addition.Extrinsics[w11])) {
 		return nil, nil
 	}
@@ -279,7 +285,7 @@ func fetchExtrinsicForWorkItem(input OmegaInput, enc *types.Encoder) ([]byte, er
 		return nil, nil
 	}
 	i := *input.Addition.WorkItemIndex
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.Extrinsics[i])) {
 		return nil, nil
 	}
@@ -295,11 +301,11 @@ func fetchImportSegmentAt(input OmegaInput, enc *types.Encoder) ([]byte, error) 
 	if len(input.Addition.ImportSegments) == 0 {
 		return nil, nil
 	}
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.ImportSegments)) {
 		return nil, nil
 	}
-	w12 := input.Interpreter.Registers[12]
+	w12 := input.VM.Registers[12]
 	if w12 >= uint64(len(input.Addition.ImportSegments[w11])) {
 		return nil, nil
 	}
@@ -316,7 +322,7 @@ func fetchImportSegmentForWorkItem(input OmegaInput, enc *types.Encoder) ([]byte
 		return nil, nil
 	}
 	i := *input.Addition.WorkItemIndex
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.ImportSegments[i])) {
 		return nil, nil
 	}
@@ -395,7 +401,7 @@ func fetchWorkItemAt(input OmegaInput, enc *types.Encoder) ([]byte, error) {
 	if input.Addition.WorkPackage == nil {
 		return nil, nil
 	}
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
 		return nil, nil
 	}
@@ -411,7 +417,7 @@ func fetchWorkItemPayload(input OmegaInput, enc *types.Encoder) ([]byte, error) 
 	if input.Addition.WorkPackage == nil {
 		return nil, nil
 	}
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.WorkPackage.Items)) {
 		return nil, nil
 	}
@@ -447,7 +453,7 @@ func fetchOperandOrDeferredTransferAt(input OmegaInput, enc *types.Encoder) ([]b
 	if len(input.Addition.OperandOrDeferredTransfers) == 0 {
 		return nil, nil
 	}
-	w11 := input.Interpreter.Registers[11]
+	w11 := input.VM.Registers[11]
 	if w11 >= uint64(len(input.Addition.OperandOrDeferredTransfers)) {
 		return nil, nil
 	}
@@ -466,7 +472,7 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 
 	encoder := types.NewEncoder()
-	idx := input.Interpreter.Registers[10]
+	idx := input.VM.Registers[10]
 	var v *[]byte
 	var val []byte
 	var err error
@@ -485,20 +491,20 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	if v != nil {
 		dataLength = uint64(len(*v))
 	}
-	o := input.Interpreter.Registers[7]
-	f := min(input.Interpreter.Registers[8], dataLength)
-	l := min(input.Interpreter.Registers[9], dataLength-f)
+	o := input.VM.Registers[7]
+	f := min(input.VM.Registers[8], dataLength)
+	l := min(input.VM.Registers[9], dataLength-f)
 	// nothing to write, don't need to check memory access
 	if l == 0 && v != nil {
-		input.Interpreter.Registers[7] = dataLength
+		input.VM.Registers[7] = dataLength
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 	// need to first check writable
-	if !isWriteable(o, l, *input.Interpreter.Memory) && v != nil {
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, l, *input.VM.Memory) && v != nil {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -507,15 +513,15 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if v = nil
 	if v == nil {
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
-	input.Interpreter.Memory.Write(o, (*v)[f:f+l])
-	input.Interpreter.Registers[7] = dataLength
+	input.VM.Memory.Write(o, (*v)[f:f+l])
+	input.VM.Registers[7] = dataLength
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -534,22 +540,22 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	delta := *input.Addition.ServiceAccountState
 
 	var a *types.ServiceAccount
-	if input.Interpreter.Registers[7] == 0xffffffffffffffff || input.Interpreter.Registers[7] == uint64(serviceID) {
+	if input.VM.Registers[7] == 0xffffffffffffffff || input.VM.Registers[7] == uint64(serviceID) {
 		a = &serviceAccount
-	} else if value, exists := delta[types.ServiceID(input.Interpreter.Registers[7])]; exists {
+	} else if value, exists := delta[types.ServiceID(input.VM.Registers[7])]; exists {
 		a = &value
 	}
 
-	h, o := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
-	if !isReadable(h, 32, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	h, o := input.VM.Registers[8], input.VM.Registers[9]
+	if !isReadable(h, 32, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	preimageRawData := input.Interpreter.Memory.Read(h, 32)
+	preimageRawData := input.VM.Memory.Read(h, 32)
 
 	var v *types.ByteSequence
 	var f uint64
@@ -560,13 +566,13 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 		}
 
 		if v != nil {
-			f = min(input.Interpreter.Registers[10], uint64(len(*v)))
-			l = min(input.Interpreter.Registers[11], uint64(len(*v))-f)
+			f = min(input.VM.Registers[10], uint64(len(*v)))
+			l = min(input.VM.Registers[11], uint64(len(*v))-f)
 		}
 	}
 
-	if !isWriteable(o, l, *input.Interpreter.Memory) && l != 0 {
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, l, *input.VM.Memory) && l != 0 {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -574,16 +580,16 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 
 	if v == nil {
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(len(*v))
+	input.VM.Registers[7] = uint64(len(*v))
 	if l != 0 {
-		input.Interpreter.Memory.Write(o, (*v)[f:f+l])
+		input.VM.Memory.Write(o, (*v)[f:f+l])
 	}
 
 	return OmegaOutput{
@@ -610,16 +616,16 @@ func read(input OmegaInput) (output OmegaOutput) {
 	delta := *input.Addition.GeneralArgs.ServiceAccountState
 	var sStar uint64
 	// assign s*
-	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
+	if input.VM.Registers[7] == 0xffffffffffffffff {
 		sStar = uint64(serviceID)
 	} else {
-		sStar = input.Interpreter.Registers[7]
+		sStar = input.VM.Registers[7]
 	}
 	// assign ko, kz, o first and check v = panic ?
 	// since v = panic is the first condition to check
-	ko, kz, o := input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
-	if !isReadable(ko, kz, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	ko, kz, o := input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	if !isReadable(ko, kz, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
@@ -636,7 +642,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 		serviceID = types.ServiceID(sStar)
 	} else {
 		// a = nil , v not panic, => v = nil
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -645,13 +651,13 @@ func read(input OmegaInput) (output OmegaOutput) {
 
 	// v = a_s[k]?  ,  a = nil is checked, only check k in Key(a_s)
 	// first compute k , mu_ko...+kz
-	storageRawKey := input.Interpreter.Memory.Read(ko, kz)
+	storageRawKey := input.VM.Memory.Read(ko, kz)
 	v, exists := a.StorageDict[string(storageRawKey)]
 	storageValueFromKeyVal := getStorageFromKeyVal(input.Addition.GeneralArgs.StorageKeyVal, serviceID, storageRawKey)
 	// v = nil
 	if !exists {
 		if storageValueFromKeyVal == nil { // check storage state key-val
-			input.Interpreter.Registers[7] = NONE
+			input.VM.Registers[7] = NONE
 			return OmegaOutput{
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
@@ -672,11 +678,11 @@ func read(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	f := min(input.Interpreter.Registers[11], uint64(len(v)))
-	l := min(input.Interpreter.Registers[12], uint64(len(v))-f)
+	f := min(input.VM.Registers[11], uint64(len(v)))
+	l := min(input.VM.Registers[12], uint64(len(v))-f)
 	// nothing to write, don't need to check memory access
 	if l == 0 {
-		input.Interpreter.Registers[7] = uint64(len(v))
+		input.VM.Registers[7] = uint64(len(v))
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -684,16 +690,16 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 
 	// first check not writable, then check v = nil (not exists)
-	if !isWriteable(o, l, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, l, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(len(v))
-	input.Interpreter.Memory.Write(o, v[f:f+l])
+	input.VM.Registers[7] = uint64(len(v))
+	input.VM.Memory.Write(o, v[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -707,16 +713,16 @@ func write(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	ko, kz, vo, vz := input.Interpreter.Registers[7], input.Interpreter.Registers[8], input.Interpreter.Registers[9], input.Interpreter.Registers[10]
-	if !isReadable(ko, kz, *input.Interpreter.Memory) {
-		input.Interpreter.Registers[7] = OOB
+	ko, kz, vo, vz := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	if !isReadable(ko, kz, *input.VM.Memory) {
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 	// compute \mathbb{k}
-	storageRawKey := input.Interpreter.Memory.Read(ko, kz)
+	storageRawKey := input.VM.Memory.Read(ko, kz)
 
 	serviceID := *input.Addition.GeneralArgs.ServiceID
 	a := *input.Addition.GeneralArgs.ServiceAccount
@@ -745,8 +751,8 @@ func write(input OmegaInput) (output OmegaOutput) {
 		// direct update items, octets
 		a.ServiceInfo.Items -= footprintItems
 		a.ServiceInfo.Bytes -= footprintOctets
-	} else if isReadable(vo, vz, *input.Interpreter.Memory) { // storage append/update
-		storageRawData := input.Interpreter.Memory.Read(vo, vz)
+	} else if isReadable(vo, vz, *input.VM.Memory) { // storage append/update
+		storageRawData := input.VM.Memory.Read(vo, vz)
 
 		// compute items, octets , check a_t > a_b first (GP: a_minbalance > a_balance → FULL, s' = s)
 		newItems := a.ServiceInfo.Items - footprintItems
@@ -757,7 +763,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		newOctets += storageOctets
 		newMinBalance := service_account.CalcThresholdBalance(newItems, newOctets, a.ServiceInfo.DepositOffset) // a_t
 		if newMinBalance > a.ServiceInfo.Balance {
-			input.Interpreter.Registers[7] = FULL
+			input.VM.Registers[7] = FULL
 			return OmegaOutput{
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
@@ -785,7 +791,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 		input.Addition.AccumulateArgs.ResultContextX.PartialState.ServiceAccounts[serviceID] = a
 	}
 
-	input.Interpreter.Registers[7] = l
+	input.VM.Registers[7] = l
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -811,15 +817,15 @@ func info(input OmegaInput) (output OmegaOutput) {
 	delta := *input.Addition.ServiceAccountState
 
 	var a types.ServiceAccount
-	if input.Interpreter.Registers[7] == 0xffffffffffffffff {
+	if input.VM.Registers[7] == 0xffffffffffffffff {
 		a = delta[serviceID]
 	} else {
-		value, exist := delta[types.ServiceID(input.Interpreter.Registers[7])]
+		value, exist := delta[types.ServiceID(input.VM.Registers[7])]
 		if exist {
 			a = value
 		} else {
 			// v = nil , l = 0 -> don't need to check writeable
-			input.Interpreter.Registers[7] = NONE
+			input.VM.Registers[7] = NONE
 			return OmegaOutput{
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
@@ -863,28 +869,28 @@ func info(input OmegaInput) (output OmegaOutput) {
 	// a_p
 	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
 	v = append(v, encoded...)
-	f := min(input.Interpreter.Registers[9], uint64(len(v)))
-	l := min(input.Interpreter.Registers[10], uint64(len(v))-f)
-	o := input.Interpreter.Registers[8]
+	f := min(input.VM.Registers[9], uint64(len(v)))
+	l := min(input.VM.Registers[10], uint64(len(v))-f)
+	o := input.VM.Registers[8]
 	// nothing to write
 	if l == 0 {
-		input.Interpreter.Registers[7] = uint64(len(v))
+		input.VM.Registers[7] = uint64(len(v))
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
 	// if mathbf{N}_{o..._l} \not in mathbf{V}^*_mu
-	if !isWriteable(o, l, *input.Interpreter.Memory) { // v = ∇ not defined
-		input.Interpreter.Registers[7] = OOB
+	if !isWriteable(o, l, *input.VM.Memory) { // v = ∇ not defined
+		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
 
-	input.Interpreter.Registers[7] = uint64(len(v))
-	input.Interpreter.Memory.Write(o, v[f:f+l])
+	input.VM.Registers[7] = uint64(len(v))
+	input.VM.Memory.Write(o, v[f:f+l])
 
 	return OmegaOutput{
 		ExitReason: ExitContinue,
@@ -900,16 +906,16 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 		return *result
 	}
 
-	level := input.Interpreter.Registers[7]
-	msgPtr, msgLen := input.Interpreter.Registers[10], input.Interpreter.Registers[11]
+	level := input.VM.Registers[7]
+	msgPtr, msgLen := input.VM.Registers[10], input.VM.Registers[11]
 
-	if !isReadable(msgPtr, msgLen, *input.Interpreter.Memory) {
+	if !isReadable(msgPtr, msgLen, *input.VM.Memory) {
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
 		}
 	}
-	message := input.Interpreter.Memory.Read(msgPtr, msgLen)
+	message := input.VM.Memory.Read(msgPtr, msgLen)
 	levelStr := []string{"FATAL", "ERROR", "WARN", "INFO", "DEBUG"}
 
 	if level > 4 {
@@ -922,18 +928,18 @@ func logHostCall(input OmegaInput) (output OmegaOutput) {
 	timeFormat := time.RFC3339
 	timeStamp := time.Now().Format(timeFormat)
 	var logMsg string
-	if input.Interpreter.Registers[8] == 0 && input.Interpreter.Registers[9] == 0 {
+	if input.VM.Registers[8] == 0 && input.VM.Registers[9] == 0 {
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), string(message))
 	} else {
-		tgtPtr, tgtLen := input.Interpreter.Registers[8], input.Interpreter.Registers[9]
-		if !isReadable(tgtPtr, tgtLen, *input.Interpreter.Memory) {
+		tgtPtr, tgtLen := input.VM.Registers[8], input.VM.Registers[9]
+		if !isReadable(tgtPtr, tgtLen, *input.VM.Memory) {
 			return OmegaOutput{
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
 			}
 		}
-		target := input.Interpreter.Memory.Read(tgtPtr, tgtLen)
+		target := input.VM.Memory.Read(tgtPtr, tgtLen)
 		logMsg = fmt.Sprintf("%s [%s][core:%v][service:%v][%s][%s]\n", timeStamp, levelStr[level],
 			derefernceOrNil(input.Addition.CoreID), derefernceOrNil(input.Addition.ServiceID), target, string(message))
 	}

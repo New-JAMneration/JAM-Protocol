@@ -51,20 +51,20 @@ func Psi_M(
 
 // (A.41) R
 func R(priorGas types.Gas, Psi_H_Return Psi_H_ReturnType) (Gas, any, HostCallArgs) {
-	u := priorGas - types.Gas(max(Psi_H_Return.Gas, 0))
+	u := priorGas - types.Gas(max(*Psi_H_Return.VM.Gas, 0))
 
 	switch Psi_H_Return.ExitReason.GetReasonType() {
 	case OUT_OF_GAS:
 		return Gas(u), OUT_OF_GAS, Psi_H_Return.Addition
 	case HALT:
-		if isReadable(Psi_H_Return.Reg[7], Psi_H_Return.Reg[8], Psi_H_Return.Ram) {
-			start := uint64(Psi_H_Return.Reg[7])
-			length := uint64(Psi_H_Return.Reg[8])
+		start := uint64(Psi_H_Return.VM.Registers[7])
+		length := uint64(Psi_H_Return.VM.Registers[8])
+		if isReadable(start, length, *Psi_H_Return.VM.Memory) {
 			if length == 0 {
 				return Gas(u), nil, Psi_H_Return.Addition
 			}
 
-			value, ok := readRAM(start, length, Psi_H_Return.Ram)
+			value, ok := readRAM(start, length, *Psi_H_Return.VM.Memory)
 			if !ok {
 				return Gas(u), []byte{}, Psi_H_Return.Addition
 			}
