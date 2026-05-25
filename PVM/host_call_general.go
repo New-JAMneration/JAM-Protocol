@@ -163,16 +163,10 @@ var (
 )
 
 func hostCallException(input OmegaInput) (output OmegaOutput) {
-<<<<<<< Updated upstream
 	if result := chargeGasAndCheck(&input); result != nil {
 		return *result
 	}
-	input.Interpreter.Registers[7] = WHAT
-=======
-	// non-defined host call
 	input.VM.Registers[7] = WHAT
-	*input.VM.Gas -= 10
->>>>>>> Stashed changes
 	return OmegaOutput{
 		ExitReason: ExitContinue,
 		Addition:   input.Addition,
