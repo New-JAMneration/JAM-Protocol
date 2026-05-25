@@ -22,10 +22,9 @@ func NewAncestryCache() *AncestryCache {
 
 // AppendAncestry appends ancestry items to the blockchain.
 // It maintains a maximum length of MaxLookupAge.
-// Returns any evicted items that exceeded the capacity.
-func (a *AncestryCache) AppendAncestry(newAncestry types.Ancestry) (evicted types.Ancestry) {
+func (a *AncestryCache) AppendAncestry(newAncestry types.Ancestry) {
 	if len(newAncestry) == 0 {
-		return nil
+		return
 	}
 
 	a.mu.Lock()
@@ -37,10 +36,8 @@ func (a *AncestryCache) AppendAncestry(newAncestry types.Ancestry) (evicted type
 	// Trim to MaxLookupAge if exceeded
 	if len(a.ancestry) > types.MaxLookupAge {
 		startIdx := len(a.ancestry) - types.MaxLookupAge
-		evicted = a.ancestry[:startIdx]
 		a.ancestry = a.ancestry[startIdx:]
 	}
-	return evicted
 }
 
 // KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.
