@@ -30,7 +30,8 @@ func IncrementalMerklize(
 	if len(dirtyEntries) == 0 {
 		return priorRoot, nil
 	}
-	return incrementalMerklizeNode(priorRoot, dirtyEntries, 0, reader, storeNode, storeValue)
+	h, _, err := incrementalMerklizeNode(priorRoot, dirtyEntries, 0, reader, storeNode, storeValue)
+	return h, err
 }
 
 func incrementalMerklizeNode(
@@ -40,7 +41,7 @@ func incrementalMerklizeNode(
 	reader NodeReader,
 	storeNode merklization.StoreNodeFunc,
 	storeValue merklization.StoreValueFunc,
-) (types.OpaqueHash, error) {
+) (types.OpaqueHash, bool, error) {
 	// All dirty entries are deletes and we hit an empty subtree
 	if nodeHash == (types.OpaqueHash{}) {
 		// Check if there are inserts — if so, build a new subtree
@@ -51,14 +52,15 @@ func incrementalMerklizeNode(
 			}
 		}
 		if len(inserts) == 0 {
-			return types.OpaqueHash{}, nil
+			return types.OpaqueHash{}, false, nil
 		}
-		return buildSubtree(inserts, depth, storeNode, storeValue)
+		h, isLeaf, err := buildSubtree(inserts, depth, storeNode, storeValue)
+		return h, isLeaf, err
 	}
 
 	node, err := reader.GetNode(nodeHash)
 	if err != nil {
-		return types.OpaqueHash{}, fmt.Errorf("incremental: get node %x: %w", nodeHash[:8], err)
+		return types.OpaqueHash{}, false, fmt.Errorf("incremental: get node %x: %w", nodeHash[:8], err)
 	}
 
 	if node.IsLeaf() {
@@ -76,7 +78,7 @@ func handleLeaf(
 	reader NodeReader,
 	storeNode merklization.StoreNodeFunc,
 	storeValue merklization.StoreValueFunc,
-) (types.OpaqueHash, error) {
+) (types.OpaqueHash, bool, error) {
 	existingKey := node.GetLeafKey()
 
 	// Find if the existing leaf's key is in the dirty set
@@ -93,44 +95,42 @@ func handleLeaf(
 	// Case 1: existing leaf is deleted
 	if existingDirty != nil && existingDirty.IsDelete {
 		if len(otherDirty) == 0 {
-			return types.OpaqueHash{}, nil
+			return types.OpaqueHash{}, false, nil
 		}
-		// Build subtree from remaining inserts
-		return buildSubtree(otherDirty, depth, storeNode, storeValue)
+		h, isLeaf, err := buildSubtree(otherDirty, depth, storeNode, storeValue)
+		return h, isLeaf, err
 	}
 
 	// Determine the value for the existing key
 	var existingValue []byte
 	if existingDirty != nil {
-		// Modified
 		existingValue = existingDirty.NewValue
 	} else {
-		// Unchanged — get original value
 		var err error
 		existingValue, err = reader.GetNodeValue(node)
 		if err != nil {
-			return types.OpaqueHash{}, fmt.Errorf("incremental: get leaf value: %w", err)
+			return types.OpaqueHash{}, false, fmt.Errorf("incremental: get leaf value: %w", err)
 		}
 	}
 
 	// Case 2: no other dirty entries — just re-encode the (possibly modified) leaf
 	if len(otherDirty) == 0 {
 		if existingDirty == nil {
-			// Leaf unchanged, reuse hash
-			return nodeHash, nil
+			return nodeHash, true, nil
 		}
-		return encodeAndStoreLeaf(existingKey, existingValue, storeNode, storeValue)
+		h, err := encodeAndStoreLeaf(existingKey, existingValue, storeNode, storeValue)
+		return h, true, err
 	}
 
 	// Case 3: leaf insert → branch split
-	// Build a subtree from existing leaf + new inserts
 	entries := []DirtyEntry{{Key: existingKey, NewValue: existingValue}}
 	for _, e := range otherDirty {
 		if !e.IsDelete {
 			entries = append(entries, e)
 		}
 	}
-	return buildSubtree(entries, depth, storeNode, storeValue)
+	h, isLeaf, err := buildSubtree(entries, depth, storeNode, storeValue)
+	return h, isLeaf, err
 }
 
 func handleBranch(
@@ -140,7 +140,7 @@ func handleBranch(
 	reader NodeReader,
 	storeNode merklization.StoreNodeFunc,
 	storeValue merklization.StoreValueFunc,
-) (types.OpaqueHash, error) {
+) (types.OpaqueHash, bool, error) {
 	leftHash, rightHash := node.GetBranchHashes()
 
 	// Partition dirty entries by bit at depth
@@ -155,52 +155,64 @@ func handleBranch(
 
 	// Recurse left
 	newLeftHash := leftHash
-	if len(leftDirty) > 0 {
+	leftIsLeaf := false
+	leftWasDirty := len(leftDirty) > 0
+	if leftWasDirty {
 		var err error
-		newLeftHash, err = incrementalMerklizeNode(leftHash, leftDirty, depth+1, reader, storeNode, storeValue)
+		newLeftHash, leftIsLeaf, err = incrementalMerklizeNode(leftHash, leftDirty, depth+1, reader, storeNode, storeValue)
 		if err != nil {
-			return types.OpaqueHash{}, err
+			return types.OpaqueHash{}, false, err
 		}
 	}
 
 	// Recurse right
 	newRightHash := rightHash
-	if len(rightDirty) > 0 {
+	rightIsLeaf := false
+	rightWasDirty := len(rightDirty) > 0
+	if rightWasDirty {
 		var err error
-		newRightHash, err = incrementalMerklizeNode(rightHash, rightDirty, depth+1, reader, storeNode, storeValue)
+		newRightHash, rightIsLeaf, err = incrementalMerklizeNode(rightHash, rightDirty, depth+1, reader, storeNode, storeValue)
 		if err != nil {
-			return types.OpaqueHash{}, err
+			return types.OpaqueHash{}, false, err
 		}
 	}
 
 	// Handle collapse: if both children are empty, subtree is gone
 	if newLeftHash == (types.OpaqueHash{}) && newRightHash == (types.OpaqueHash{}) {
-		return types.OpaqueHash{}, nil
+		return types.OpaqueHash{}, false, nil
 	}
 
 	// If one child is empty and the other is a leaf, collapse (promote the leaf).
-	// If the other child is a branch, keep the degenerate branch (matches full merklize).
 	if newLeftHash == (types.OpaqueHash{}) {
-		shouldCollapse, collapseHash, err := tryCollapse(newRightHash, reader, storeNode)
-		if err != nil {
-			return types.OpaqueHash{}, err
-		}
-		if shouldCollapse {
-			return collapseHash, nil
+		if rightWasDirty {
+			if rightIsLeaf {
+				return newRightHash, true, nil
+			}
+		} else {
+			if shouldCollapse, collapseHash, err := tryCollapse(newRightHash, reader, storeNode); err != nil {
+				return types.OpaqueHash{}, false, err
+			} else if shouldCollapse {
+				return collapseHash, true, nil
+			}
 		}
 	}
 	if newRightHash == (types.OpaqueHash{}) {
-		shouldCollapse, collapseHash, err := tryCollapse(newLeftHash, reader, storeNode)
-		if err != nil {
-			return types.OpaqueHash{}, err
-		}
-		if shouldCollapse {
-			return collapseHash, nil
+		if leftWasDirty {
+			if leftIsLeaf {
+				return newLeftHash, true, nil
+			}
+		} else {
+			if shouldCollapse, collapseHash, err := tryCollapse(newLeftHash, reader, storeNode); err != nil {
+				return types.OpaqueHash{}, false, err
+			} else if shouldCollapse {
+				return collapseHash, true, nil
+			}
 		}
 	}
 
 	// Encode new branch (including degenerate cases with one zero child)
-	return encodeAndStoreBranch(newLeftHash, newRightHash, storeNode)
+	h, err := encodeAndStoreBranch(newLeftHash, newRightHash, storeNode)
+	return h, false, err
 }
 
 // tryCollapse checks if the remaining child is a leaf; if so, collapses by
@@ -225,20 +237,21 @@ func tryCollapse(childHash types.OpaqueHash, reader NodeReader, storeNode merkli
 
 // buildSubtree builds a fresh subtree from dirty entries using the same algorithm
 // as full merklize (partition-by-bit, always creating branch nodes for len > 1).
+// Returns (hash, isLeaf, error).
 func buildSubtree(
 	entries []DirtyEntry,
 	depth int,
 	storeNode merklization.StoreNodeFunc,
 	storeValue merklization.StoreValueFunc,
-) (types.OpaqueHash, error) {
+) (types.OpaqueHash, bool, error) {
 	if len(entries) == 0 {
-		return types.OpaqueHash{}, nil
+		return types.OpaqueHash{}, false, nil
 	}
 	if len(entries) == 1 {
-		return encodeAndStoreLeaf(entries[0].Key, entries[0].NewValue, storeNode, storeValue)
+		h, err := encodeAndStoreLeaf(entries[0].Key, entries[0].NewValue, storeNode, storeValue)
+		return h, true, err
 	}
 
-	// Partition by bit at depth (same semantics as full merklize's partitionByBit)
 	var left, right []DirtyEntry
 	for _, e := range entries {
 		if bitAt(e.Key[:], depth) {
@@ -248,19 +261,17 @@ func buildSubtree(
 		}
 	}
 
-	leftHash, err := buildSubtree(left, depth+1, storeNode, storeValue)
+	leftHash, _, err := buildSubtree(left, depth+1, storeNode, storeValue)
 	if err != nil {
-		return types.OpaqueHash{}, err
+		return types.OpaqueHash{}, false, err
 	}
-	rightHash, err := buildSubtree(right, depth+1, storeNode, storeValue)
+	rightHash, _, err := buildSubtree(right, depth+1, storeNode, storeValue)
 	if err != nil {
-		return types.OpaqueHash{}, err
+		return types.OpaqueHash{}, false, err
 	}
 
-	// Always create a branch when len(entries) > 1, even if one side is empty.
-	// This matches full merklize behavior which encodes branch(leftHash, zeroHash)
-	// for degenerate cases where all entries share the same bit at this depth.
-	return encodeAndStoreBranch(leftHash, rightHash, storeNode)
+	h, err := encodeAndStoreBranch(leftHash, rightHash, storeNode)
+	return h, false, err
 }
 
 func encodeAndStoreLeaf(
