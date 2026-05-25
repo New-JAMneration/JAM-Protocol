@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -63,11 +62,6 @@ type ChainState struct {
 	// lastCommittedStateRoot caches the state root from the most recent
 	// successful StateCommit, avoiding redundant serialize+merklize.
 	lastCommittedStateRoot types.StateRoot
-}
-
-func isFuzzMode() bool {
-	v := strings.TrimSpace(os.Getenv("JAM_FUZZ"))
-	return v != "" && v != "0" && v != "false" && v != "no" && v != "off"
 }
 
 func getPersistentDatabase() database.Database {
@@ -437,8 +431,7 @@ func (cs *ChainState) StateCommit() (types.StateRoot, error) {
 		}
 		last := existingAncestry[len(existingAncestry)-1]
 		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			evicted := cs.AppendAncestry(types.Ancestry{currentItem})
-			cs.evictOldBlocks(evicted)
+			cs.AppendAncestry(types.Ancestry{currentItem})
 		} else {
 			logger.Debugf("StateCommit: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
 		}
@@ -484,7 +477,7 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		evict := cs.recentStateRoots[0]
 		cs.recentStateRoots = cs.recentStateRoots[1:]
 		cs.repo.DeleteStateData(cs.repo.Database(), evict)
-		if isFuzzMode() {
+		if fuzzenv.Enabled() {
 			cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evict)
 			if err := cs.trieStore.DeleteTrie(types.OpaqueHash(evict)); err != nil {
 				logger.Warnf("StateCommitWithPreComputedState: failed to delete evicted trie %x: %v", evict[:8], err)
@@ -510,8 +503,7 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		}
 		last := existingAncestry[len(existingAncestry)-1]
 		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			evicted := cs.AppendAncestry(types.Ancestry{currentItem})
-			cs.evictOldBlocks(evicted)
+			cs.AppendAncestry(types.Ancestry{currentItem})
 		} else {
 			logger.Debugf("StateCommitWithPreComputedState: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
 		}
@@ -533,31 +525,17 @@ func (cs *ChainState) AddAncestorHeader(header types.Header) {
 		logger.Errorf("AddAncestorHeader: failed to compute header hash: %v", err)
 		return
 	}
-	evicted := cs.AppendAncestry(types.Ancestry{
+	cs.AppendAncestry(types.Ancestry{
 		{
 			Slot:       header.Slot,
 			HeaderHash: headerHash,
 		},
 	})
-	cs.evictOldBlocks(evicted)
 }
 
 // AppendAncestry appends ancestry items to the blockchain.
-// Returns any evicted items that exceeded MaxLookupAge capacity.
-func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) types.Ancestry {
-	return cs.ancestry.AppendAncestry(ancestry)
-}
-
-// evictOldBlocks cleans up block/header data for evicted ancestry items.
-// Only active in fuzz mode to prevent disk exhaustion.
-func (cs *ChainState) evictOldBlocks(evicted types.Ancestry) {
-	if !isFuzzMode() {
-		return
-	}
-	for _, item := range evicted {
-		cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(item.HeaderHash))
-		cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), item.HeaderHash)
-	}
+func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) {
+	cs.ancestry.AppendAncestry(ancestry)
 }
 
 // PruneOldData deletes old state and block data from both memory and persistent storage,
@@ -724,7 +702,7 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 		evict := cs.recentStateRoots[0]
 		cs.recentStateRoots = cs.recentStateRoots[1:]
 		cs.repo.DeleteStateData(cs.repo.Database(), evict)
-		if isFuzzMode() {
+		if fuzzenv.Enabled() {
 			cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evict)
 			if err := cs.trieStore.DeleteTrie(types.OpaqueHash(evict)); err != nil {
 				logger.Warnf("PersistStateForBlock: failed to delete evicted trie %x: %v", evict[:8], err)
