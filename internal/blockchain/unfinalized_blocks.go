@@ -76,6 +76,15 @@ func (b *UnfinalizedBlocks) GenerateGenesisBlock(block types.Block) {
 	b.blocks = append(b.blocks, block)
 }
 
+// KeepRecent trims to keep only the most recent n blocks.
+func (b *UnfinalizedBlocks) KeepRecent(n int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.blocks) > n {
+		b.blocks = b.blocks[len(b.blocks)-n:]
+	}
+}
+
 // Set Header to latest block
 func (b *UnfinalizedBlocks) SetHeader(header types.Header) {
 	b.mu.Lock()

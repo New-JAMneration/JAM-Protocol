@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/database/provider/memory"
 	pebbledb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/pebble"
 	redisdb "github.com/New-JAMneration/JAM-Protocol/internal/database/provider/redis"
+	"github.com/New-JAMneration/JAM-Protocol/internal/fuzzenv"
 	"github.com/New-JAMneration/JAM-Protocol/internal/store"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -53,11 +53,15 @@ type ChainState struct {
 
 	// cache for leaf level merklization
 	keyLevelCache *KeyLevelCache
+
+	// tracks recent entries persisted to disk, used for fuzz-mode pruning
+	persistedEntries []persistedEntry
 }
 
-func isFuzzMode() bool {
-	v := strings.TrimSpace(os.Getenv("JAM_FUZZ"))
-	return v != "" && v != "0" && v != "false" && v != "no" && v != "off"
+type persistedEntry struct {
+	stateRoot  types.StateRoot
+	headerHash types.HeaderHash
+	slot       types.TimeSlot
 }
 
 func getPersistentDatabase() database.Database {
@@ -421,10 +425,7 @@ func (cs *ChainState) StateCommit() {
 			}
 			last := existingAncestry[len(existingAncestry)-1]
 			if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-				evicted := cs.AppendAncestry(types.Ancestry{currentItem})
-				cs.evictOldData(evicted)
-			} else {
-				logger.Debugf("StateCommit: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
+				cs.AppendAncestry(types.Ancestry{currentItem})
 			}
 		}
 	}
@@ -481,10 +482,7 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		}
 		last := existingAncestry[len(existingAncestry)-1]
 		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			evicted := cs.AppendAncestry(types.Ancestry{currentItem})
-			cs.evictOldData(evicted)
-		} else {
-			logger.Debugf("StateCommitWithPreComputedState: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
+			cs.AppendAncestry(types.Ancestry{currentItem})
 		}
 	}
 
@@ -515,26 +513,31 @@ func (cs *ChainState) AddAncestorHeader(header types.Header) {
 }
 
 // AppendAncestry appends ancestry items to the blockchain.
-// Returns any evicted items that exceeded MaxLookupAge capacity.
-func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) types.Ancestry {
-	return cs.ancestry.AppendAncestry(ancestry)
+func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) {
+	cs.ancestry.AppendAncestry(ancestry)
 }
 
-// evictOldData cleans up state/block data for evicted ancestry items.
-// In fuzz mode, also removes data from persistent storage to prevent disk exhaustion.
-func (cs *ChainState) evictOldData(evicted types.Ancestry) {
-	for _, item := range evicted {
-		if evictRoot, err := cs.repo.GetStateRootByHeaderHash(cs.repo.Database(), item.HeaderHash); err == nil {
-			cs.repo.DeleteStateData(cs.repo.Database(), evictRoot)
-			if isFuzzMode() {
-				cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evictRoot)
-			}
-		}
-		if isFuzzMode() {
-			cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(item.HeaderHash))
-			cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), item.HeaderHash)
-		}
+// PruneOldData deletes old state and block data from both memory and persistent storage,
+// keeping only the most recent FuzzPersistentRetainBlocks entries.
+// Called after each successful ImportBlock in fuzz mode to prevent disk/memory exhaustion.
+func (cs *ChainState) PruneOldData(stateRoot types.StateRoot, headerHash types.HeaderHash, slot types.TimeSlot) {
+	cs.persistedEntries = append(cs.persistedEntries, persistedEntry{stateRoot: stateRoot, headerHash: headerHash, slot: slot})
+	if len(cs.persistedEntries) <= fuzzenv.FuzzPersistentRetainBlocks {
+		return
 	}
+	cutoff := len(cs.persistedEntries) - fuzzenv.FuzzPersistentRetainBlocks
+	for _, old := range cs.persistedEntries[:cutoff] {
+		// Memory cleanup
+		cs.repo.DeleteStateData(cs.repo.Database(), old.stateRoot)
+		cs.repo.DeleteBlock(cs.repo.Database(), old.headerHash, old.slot)
+		// Persistent cleanup
+		cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), old.stateRoot)
+		cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(old.headerHash))
+		cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), old.headerHash)
+	}
+	cs.persistedEntries = cs.persistedEntries[cutoff:]
+	// Trim unfinalizedBlocks to match
+	cs.unfinalizedBlocks.KeepRecent(fuzzenv.FuzzPersistentRetainBlocks)
 }
 
 // KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/fuzzenv"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -135,6 +136,11 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	// Commit the state and persist the state to Redis
 	cs.StateCommit()
 
+	// In fuzz mode, prune old data from memory and disk to prevent exhaustion
+	if fuzzenv.Enabled() {
+		cs.PruneOldData(latestStateRoot, headerHash, block.Header.Slot)
+	}
+
 	return latestStateRoot, nil
 }
 
@@ -158,7 +164,6 @@ func (s *FuzzServiceStub) SetState(header types.Header, stateKeyVals types.State
 	if len(ancestry) > 0 {
 		cs.AppendAncestry(ancestry)
 		logger.Debugf("%s Appended %d ancestry items", ctx, len(ancestry))
-		// logger.Debugf("%s Ancestry items: %v", ctx, ancestry)
 	}
 
 	state, unmatchedKeyVals, err := m.StateKeyValsToState(stateKeyVals)
