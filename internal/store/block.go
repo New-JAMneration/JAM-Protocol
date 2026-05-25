@@ -86,6 +86,10 @@ func (repo *Repository) SaveBlockByHash(w database.Writer, hash types.OpaqueHash
 	return w.Put(blockByHashKey(hash), encoded)
 }
 
+func (repo *Repository) DeleteBlockByHash(w database.Writer, hash types.OpaqueHash) error {
+	return w.Delete(blockByHashKey(hash))
+}
+
 func (repo *Repository) GetBlockByHash(r database.Reader, hash types.OpaqueHash) (*types.Block, error) {
 	encoded, found, err := r.Get(blockByHashKey(hash))
 	if err != nil {

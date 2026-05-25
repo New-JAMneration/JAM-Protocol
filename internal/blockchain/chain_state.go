@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -52,10 +53,11 @@ type ChainState struct {
 
 	// cache for leaf level merklization
 	keyLevelCache *KeyLevelCache
+}
 
-	// ring buffer tracking recent state roots stored in repo (memory),
-	// used to evict old entries and bound memory usage.
-	recentStateRoots []types.StateRoot
+func isFuzzMode() bool {
+	v := strings.TrimSpace(os.Getenv("JAM_FUZZ"))
+	return v != "" && v != "0" && v != "false" && v != "no" && v != "off"
 }
 
 func getPersistentDatabase() database.Database {
@@ -413,14 +415,14 @@ func (cs *ChainState) StateCommit() {
 
 		existingAncestry := cs.GetAncestry()
 		if len(existingAncestry) > 0 {
-			// Add to ancestry (avoid duplicating the latest header if it'cs already the last item)
 			currentItem := types.AncestryItem{
 				Slot:       latestBlock.Header.Slot,
 				HeaderHash: blockHeaderHash,
 			}
 			last := existingAncestry[len(existingAncestry)-1]
 			if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-				cs.AppendAncestry(types.Ancestry{currentItem})
+				evicted := cs.AppendAncestry(types.Ancestry{currentItem})
+				cs.evictOldData(evicted)
 			} else {
 				logger.Debugf("StateCommit: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
 			}
@@ -461,14 +463,6 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
 	}
 
-	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
-	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
-	if len(cs.recentStateRoots) > types.MaxLookupAge {
-		evict := cs.recentStateRoots[0]
-		cs.recentStateRoots = cs.recentStateRoots[1:]
-		cs.repo.DeleteStateData(cs.repo.Database(), evict)
-	}
-
 	latestBlock := cs.GetLatestBlock()
 
 	// Persist block mapping
@@ -487,7 +481,8 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		}
 		last := existingAncestry[len(existingAncestry)-1]
 		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			cs.AppendAncestry(types.Ancestry{currentItem})
+			evicted := cs.AppendAncestry(types.Ancestry{currentItem})
+			cs.evictOldData(evicted)
 		} else {
 			logger.Debugf("StateCommitWithPreComputedState: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
 		}
@@ -520,8 +515,26 @@ func (cs *ChainState) AddAncestorHeader(header types.Header) {
 }
 
 // AppendAncestry appends ancestry items to the blockchain.
-func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) {
-	cs.ancestry.AppendAncestry(ancestry)
+// Returns any evicted items that exceeded MaxLookupAge capacity.
+func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) types.Ancestry {
+	return cs.ancestry.AppendAncestry(ancestry)
+}
+
+// evictOldData cleans up state/block data for evicted ancestry items.
+// In fuzz mode, also removes data from persistent storage to prevent disk exhaustion.
+func (cs *ChainState) evictOldData(evicted types.Ancestry) {
+	for _, item := range evicted {
+		if evictRoot, err := cs.repo.GetStateRootByHeaderHash(cs.repo.Database(), item.HeaderHash); err == nil {
+			cs.repo.DeleteStateData(cs.repo.Database(), evictRoot)
+			if isFuzzMode() {
+				cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evictRoot)
+			}
+		}
+		if isFuzzMode() {
+			cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(item.HeaderHash))
+			cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), item.HeaderHash)
+		}
+	}
 }
 
 // KeepAncestryUpTo keeps only ancestry items up to and including the specified headerHash.
@@ -686,14 +699,6 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	}
 	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
 		logger.Warnf("PersistStateForBlock: failed to store state data to disk: %v", err)
-	}
-
-	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
-	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
-	if len(cs.recentStateRoots) > types.MaxLookupAge {
-		evict := cs.recentStateRoots[0]
-		cs.recentStateRoots = cs.recentStateRoots[1:]
-		cs.repo.DeleteStateData(cs.repo.Database(), evict)
 	}
 
 	return nil
