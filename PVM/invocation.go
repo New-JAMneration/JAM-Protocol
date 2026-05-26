@@ -75,9 +75,9 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	prog := interp.Program
 	instrSlice := prog.Instrs
+	n := len(prog.BlockAt)
 
 	for {
-		n := len(prog.InstructionData)
 		if int(pc) >= n {
 			return ExitPanic, 0
 		}

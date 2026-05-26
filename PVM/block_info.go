@@ -1,5 +1,7 @@
 package PVM
 
+import "encoding/binary"
+
 // InstrMeta holds pre-decoded metadata for a single PVM instruction.
 // Populated once at deblob time; never mutated afterwards.
 type InstrMeta struct {
@@ -57,12 +59,8 @@ func decodeOperands(instr *InstrMeta, idata ProgramCode, bitmask Bitmask) {
 	case InstrCatOneRegExtImm:
 		// 20 (load_imm_64): Dst = rA, Imm[0] = imm64
 		instr.Dst = min(12, idata[pc+1]%16)
-		if int(pc+9) < len(idata) {
-			var val uint64
-			for i := 0; i < 8; i++ {
-				val |= uint64(idata[pc+2+ProgramCounter(i)]) << (8 * i)
-			}
-			instr.Imm[0] = val
+		if int(pc+10) <= len(idata) {
+			instr.Imm[0] = binary.LittleEndian.Uint64(idata[pc+2 : pc+10])
 		}
 
 	case InstrCatTwoImm:
