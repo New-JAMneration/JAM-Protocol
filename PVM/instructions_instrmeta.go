@@ -1,11 +1,6 @@
 package PVM
 
-import (
-	"math/bits"
-
-	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
-)
+import "math/bits"
 
 type instrMetaFn func(*Interpreter, *InstrMeta) (ExitReason, ProgramCounter)
 
@@ -577,118 +572,42 @@ func instSbrkMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 // opcode 102
 func instCountSetBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("insCountSetBits64 UnsignedToBits error: %v", err)
-	}
-	var sum uint64 = 0
-	for i := 0; i < 64; i++ {
-		if bitslice[i] {
-			sum++
-		}
-	}
-	interp.Registers[rD] = sum
+	interp.Registers[rD] = uint64(bits.OnesCount64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
 // opcode 103
 func instCountSetBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instCountSetBits32 UnsignedToBits error: %v", err)
-	}
-	var sum uint64 = 0
-	for i := 0; i < 32; i++ {
-		if bitslice[i] {
-			sum++
-		}
-	}
-	interp.Registers[rD] = sum
+	interp.Registers[rD] = uint64(bits.OnesCount32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
 // opcode 104
 func instLeadingZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("instLeadingZeroBits64 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 0; i < 64; i++ {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.LeadingZeros64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
 // opcode 105
 func instLeadingZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instLeadingZeroBits32 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 0; i < 32; i++ {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.LeadingZeros32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
 // opcode 106
 func instTrailZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("instTrailZeroBits64 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 63; i >= 0; i-- {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.TrailingZeros64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
 // opcode 107
 func instTrailZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instTrailZeroBits32 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 31; i >= 0; i-- {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.TrailingZeros32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
@@ -728,14 +647,7 @@ func instZeroExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 // opcode 111
 func instReverseBytesMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
-	// mutation
-	regA := types.U64(interp.Registers[rA])
-	bytes := utils.SerializeFixedLength(regA, types.U64(8))
-	var reversedBytes uint64 = 0
-	for i := uint8(0); i < 8; i++ {
-		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
-	}
-	interp.Registers[rD] = reversedBytes
+	interp.Registers[rD] = bits.ReverseBytes64(interp.Registers[rA])
 	return ExitContinue, instr.PC
 }
 
@@ -1463,7 +1375,7 @@ func instSub64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	rB := instr.Src[1]
 	rD := instr.Dst
 	// mutation
-	interp.Registers[rD] = interp.Registers[rA] + (^interp.Registers[rB] + 1)
+	interp.Registers[rD] = interp.Registers[rA] - interp.Registers[rB]
 
 	return ExitContinue, instr.PC
 }

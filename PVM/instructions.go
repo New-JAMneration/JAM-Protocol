@@ -836,19 +836,7 @@ func instCountSetBits64(interp *Interpreter, pc ProgramCounter, skipLength Progr
 		pvmLogger.Errorf("instCountSetBits64 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("insCountSetBits64 UnsignedToBits error: %v", err)
-	}
-	var sum uint64 = 0
-	for i := 0; i < 64; i++ {
-		if bitslice[i] {
-			sum++
-		}
-	}
-	interp.Registers[rD] = sum
+	interp.Registers[rD] = uint64(bits.OnesCount64(interp.Registers[rA]))
 
 	return ExitContinue, pc
 }
@@ -860,19 +848,7 @@ func instCountSetBits32(interp *Interpreter, pc ProgramCounter, skipLength Progr
 		pvmLogger.Errorf("instCountSetBits32 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instCountSetBits32 UnsignedToBits error: %v", err)
-	}
-	var sum uint64 = 0
-	for i := 0; i < 32; i++ {
-		if bitslice[i] {
-			sum++
-		}
-	}
-	interp.Registers[rD] = sum
+	interp.Registers[rD] = uint64(bits.OnesCount32(uint32(interp.Registers[rA])))
 
 	return ExitContinue, pc
 }
@@ -884,20 +860,7 @@ func instLeadingZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength Pr
 		pvmLogger.Errorf("instLeadingZeroBits64 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("instLeadingZeroBits64 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 0; i < 64; i++ {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.LeadingZeros64(interp.Registers[rA]))
 
 	return ExitContinue, pc
 }
@@ -909,20 +872,7 @@ func instLeadingZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength Pr
 		pvmLogger.Errorf("instLeadingZeroBits32 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instLeadingZeroBits32 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 0; i < 32; i++ {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.LeadingZeros32(uint32(interp.Registers[rA])))
 
 	return ExitContinue, pc
 }
@@ -934,20 +884,7 @@ func instTrailZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength Prog
 		pvmLogger.Errorf("instTrailZeroBits64 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits(regA, 8)
-	if err != nil {
-		pvmLogger.Errorf("instTrailZeroBits64 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 63; i >= 0; i-- {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.TrailingZeros64(interp.Registers[rA]))
 
 	return ExitContinue, pc
 }
@@ -959,20 +896,7 @@ func instTrailZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength Prog
 		pvmLogger.Errorf("instTrailZeroBits32 decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := interp.Registers[rA]
-	bitslice, err := UnsignedToBits((regA % (1 << 32)), 4)
-	if err != nil {
-		pvmLogger.Errorf("instTrailZeroBits32 UnsignedToBits error: %v", err)
-	}
-	var n uint64 = 0
-	for i := 31; i >= 0; i-- {
-		if bitslice[i] {
-			break
-		}
-		n++
-	}
-	interp.Registers[rD] = n
+	interp.Registers[rD] = uint64(bits.TrailingZeros32(uint32(interp.Registers[rA])))
 
 	return ExitContinue, pc
 }
@@ -1032,14 +956,7 @@ func instReverseBytes(interp *Interpreter, pc ProgramCounter, skipLength Program
 		pvmLogger.Errorf("instReverseBytes decodeTwoRegisters error: %v", err)
 		return ExitHalt, pc
 	}
-	// mutation
-	regA := types.U64(interp.Registers[rA])
-	bytes := utils.SerializeFixedLength(regA, types.U64(8))
-	var reversedBytes uint64 = 0
-	for i := uint8(0); i < 8; i++ {
-		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
-	}
-	interp.Registers[rD] = reversedBytes
+	interp.Registers[rD] = bits.ReverseBytes64(interp.Registers[rA])
 
 	return ExitContinue, pc
 }
@@ -1501,7 +1418,6 @@ func instCmovIzImm(interp *Interpreter, pc ProgramCounter, skipLength ProgramCou
 
 	if interp.Registers[rB] == 0 {
 		interp.Registers[rA] = vX
-	} else {
 	}
 
 	return ExitContinue, pc
@@ -1517,7 +1433,6 @@ func instCmovNzImm(interp *Interpreter, pc ProgramCounter, skipLength ProgramCou
 
 	if interp.Registers[rB] != 0 {
 		interp.Registers[rA] = vX
-	} else {
 	}
 
 	return ExitContinue, pc
@@ -1990,7 +1905,7 @@ func instSub64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter
 		return ExitHalt, pc
 	}
 	// mutation
-	interp.Registers[rD] = interp.Registers[rA] + (^interp.Registers[rB] + 1)
+	interp.Registers[rD] = interp.Registers[rA] - interp.Registers[rB]
 
 	return ExitContinue, pc
 }
@@ -2261,7 +2176,6 @@ func instCmovIz(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	if interp.Registers[rB] == 0 {
 		interp.Registers[rD] = interp.Registers[rA]
-	} else {
 	}
 
 	return ExitContinue, pc
@@ -2277,7 +2191,6 @@ func instCmovNz(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounte
 	// mutation
 	if interp.Registers[rB] != 0 {
 		interp.Registers[rD] = interp.Registers[rA]
-	} else {
 	}
 
 	return ExitContinue, pc

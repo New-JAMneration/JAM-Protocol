@@ -159,7 +159,7 @@ func inBasicBlock(data []byte, bitmask []byte, n int) bool {
 		return false
 	}
 
-	if _, exists := zeta[opcode(data[n])]; !exists {
+	if !IsValidOpcode(data[n]) {
 		return false
 	}
 
@@ -288,16 +288,12 @@ func decodeUintFirstByte(firstByte byte) (byte, int, error) {
 
 // GP 0.6.7 , for checking basic block first opcode validity
 func (code ProgramCode) isOpcodeValid(pc ProgramCounter) bool {
-	if _, opcodeExists := zeta[opcode(code[pc])]; opcodeExists {
-		return true
-	}
-
-	return false
+	return IsValidOpcode(code[pc])
 }
 
 // GP 0.6.7 formula A.19
 func (code ProgramCode) isOpcode(pc ProgramCounter) opcode {
-	if _, opcodeExists := zeta[opcode(code[pc])]; opcodeExists {
+	if IsValidOpcode(code[pc]) {
 		return opcode(code[pc])
 	}
 	return 0

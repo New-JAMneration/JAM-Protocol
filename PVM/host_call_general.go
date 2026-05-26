@@ -2,7 +2,6 @@ package PVM
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -231,7 +230,7 @@ func fetchConstants(input OmegaInput, _ *types.Encoder) ([]byte, error) {
 }
 
 func fetchEta(input OmegaInput, enc *types.Encoder) ([]byte, error) {
-	if reflect.ValueOf(input.Addition.Eta).IsZero() {
+	if input.Addition.Eta == (types.Entropy{}) {
 		return nil, nil
 	}
 	val, err := enc.Encode(&input.Addition.Eta)
@@ -828,41 +827,20 @@ func info(input OmegaInput) (output OmegaOutput) {
 	}
 
 	minBalance := service_account.CalcThresholdBalance(a.ServiceInfo.Items, a.ServiceInfo.Bytes, a.ServiceInfo.DepositOffset)
-	var v types.ByteSequence
 	encoder := types.NewEncoder()
-	// a_c
-	encoded, _ := encoder.Encode(&a.ServiceInfo.CodeHash)
-	v = append(v, encoded...)
-	// a_b
-	encoded, _ = encoder.Encode(&a.ServiceInfo.Balance)
-	v = append(v, encoded...)
-	// a_t
-	encoded, _ = encoder.Encode(&minBalance)
-	v = append(v, encoded...)
-	// a_g
-	encoded, _ = encoder.Encode(&a.ServiceInfo.MinItemGas)
-	v = append(v, encoded...)
-	// a_m
-	encoded, _ = encoder.Encode(&a.ServiceInfo.MinMemoGas)
-	v = append(v, encoded...)
-	// a_o
-	encoded, _ = encoder.Encode(&a.ServiceInfo.Bytes)
-	v = append(v, encoded...)
-	// a_i
-	encoded, _ = encoder.Encode(&a.ServiceInfo.Items)
-	v = append(v, encoded...)
-	// a_f
-	encoded, _ = encoder.Encode(&a.ServiceInfo.DepositOffset)
-	v = append(v, encoded...)
-	// a_r
-	encoded, _ = encoder.Encode(&a.ServiceInfo.CreationSlot)
-	v = append(v, encoded...)
-	// a_a
-	encoded, _ = encoder.Encode(&a.ServiceInfo.LastAccumulationSlot)
-	v = append(v, encoded...)
-	// a_p
-	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
-	v = append(v, encoded...)
+	v, _ := encoder.EncodeMany(
+		&a.ServiceInfo.CodeHash,           // a_c
+		&a.ServiceInfo.Balance,            // a_b
+		&minBalance,                       // a_t
+		&a.ServiceInfo.MinItemGas,          // a_g
+		&a.ServiceInfo.MinMemoGas,          // a_m
+		&a.ServiceInfo.Bytes,              // a_o
+		&a.ServiceInfo.Items,              // a_i
+		&a.ServiceInfo.DepositOffset,      // a_f
+		&a.ServiceInfo.CreationSlot,        // a_r
+		&a.ServiceInfo.LastAccumulationSlot, // a_a
+		&a.ServiceInfo.ParentService,      // a_p
+	)
 	f := min(input.VM.Registers[9], uint64(len(v)))
 	l := min(input.VM.Registers[10], uint64(len(v))-f)
 	o := input.VM.Registers[8]
