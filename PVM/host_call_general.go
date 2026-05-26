@@ -829,17 +829,17 @@ func info(input OmegaInput) (output OmegaOutput) {
 	minBalance := service_account.CalcThresholdBalance(a.ServiceInfo.Items, a.ServiceInfo.Bytes, a.ServiceInfo.DepositOffset)
 	encoder := types.NewEncoder()
 	v, _ := encoder.EncodeMany(
-		&a.ServiceInfo.CodeHash,           // a_c
-		&a.ServiceInfo.Balance,            // a_b
-		&minBalance,                       // a_t
-		&a.ServiceInfo.MinItemGas,          // a_g
-		&a.ServiceInfo.MinMemoGas,          // a_m
-		&a.ServiceInfo.Bytes,              // a_o
-		&a.ServiceInfo.Items,              // a_i
-		&a.ServiceInfo.DepositOffset,      // a_f
-		&a.ServiceInfo.CreationSlot,        // a_r
+		&a.ServiceInfo.CodeHash,             // a_c
+		&a.ServiceInfo.Balance,              // a_b
+		&minBalance,                         // a_t
+		&a.ServiceInfo.MinItemGas,           // a_g
+		&a.ServiceInfo.MinMemoGas,           // a_m
+		&a.ServiceInfo.Bytes,                // a_o
+		&a.ServiceInfo.Items,                // a_i
+		&a.ServiceInfo.DepositOffset,        // a_f
+		&a.ServiceInfo.CreationSlot,         // a_r
 		&a.ServiceInfo.LastAccumulationSlot, // a_a
-		&a.ServiceInfo.ParentService,      // a_p
+		&a.ServiceInfo.ParentService,        // a_p
 	)
 	f := min(input.VM.Registers[9], uint64(len(v)))
 	l := min(input.VM.Registers[10], uint64(len(v))-f)
