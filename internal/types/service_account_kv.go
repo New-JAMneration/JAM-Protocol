@@ -21,63 +21,24 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/statekey"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/safemath"
-	"golang.org/x/crypto/blake2b"
 )
 
-// BuildStorageStateKey mirrors merklization.NewStorageStateKey but lives in
-// the types package so that callers like unmarshal_json.go can populate
-// globalKV without creating a circular import.
-//
+// BuildStorageStateKey builds the StateKey for a storage (delta2) entry.
 // GP eq. (D.2): C(s, E4(2^32 - 1) ⌢ k) — prefix is 0xFFFFFFFF.
+//
+// Delegates to statekey.Storage (single source of truth for type-3 key construction).
 func BuildStorageStateKey(serviceID ServiceID, rawKey ByteSequence) StateKey {
-	preimage := make([]byte, 4+len(rawKey))
-	preimage[0], preimage[1], preimage[2], preimage[3] = 0xFF, 0xFF, 0xFF, 0xFF
-	copy(preimage[4:], rawKey)
-	return interleaveServiceIDIntoHash(serviceID, preimage)
+	return StateKey(statekey.Storage(uint32(serviceID), rawKey))
 }
 
-// BuildPreimageMetaStateKey mirrors merklization.NewPreimageMetaStateKey for
-// the same reason as BuildStorageStateKey.
-//
+// BuildPreimageMetaStateKey builds the StateKey for a preimage meta (delta4) entry.
 // GP eq. (D.2): C(s, E4(l) ⌢ h)
+//
+// Delegates to statekey.PreimageMeta (single source of truth for type-3 key construction).
 func BuildPreimageMetaStateKey(serviceID ServiceID, hash OpaqueHash, length U32) StateKey {
-	preimage := make([]byte, 4+len(hash))
-	v := uint32(length)
-	preimage[0] = byte(v)
-	preimage[1] = byte(v >> 8)
-	preimage[2] = byte(v >> 16)
-	preimage[3] = byte(v >> 24)
-	copy(preimage[4:], hash[:])
-	return interleaveServiceIDIntoHash(serviceID, preimage)
-}
-
-// interleaveServiceIDIntoHash performs the StateKey-type-3 layout from
-// merklization.ServiceWrapper.StateKeyConstruct:
-//
-//	[n0, h0, n1, h1, n2, h2, n3, h3, h4, h5, ..., h26]
-//
-// where n = encode_4(serviceID) and h = Blake2b(preimage)[:27].
-func interleaveServiceIDIntoHash(serviceID ServiceID, preimage []byte) StateKey {
-	digest := blake2b.Sum256(preimage)
-	h := digest[:27]
-
-	var n [4]byte
-	v := uint32(serviceID)
-	n[0] = byte(v)
-	n[1] = byte(v >> 8)
-	n[2] = byte(v >> 16)
-	n[3] = byte(v >> 24)
-
-	var out StateKey
-	for i := 0; i <= 3; i++ {
-		out[2*i] = n[i]
-		out[2*i+1] = h[i]
-	}
-	for i := 4; i <= 26; i++ {
-		out[i+4] = h[i]
-	}
-	return out
+	return StateKey(statekey.PreimageMeta(uint32(serviceID), [32]byte(hash), uint32(length)))
 }
 
 // NewServiceAccount is declared in state.go.

@@ -199,6 +199,17 @@ func (t *Trie) GetNodeRefCount(nodeHash types.OpaqueHash) (uint64, error) {
 // DeleteTrie recursively deletes a trie starting from the root hash.
 // The root is force-deleted regardless of refcount; children are only deleted
 // when their refcount reaches zero.
+//
+// KNOWN LIMITATION (Phase 2, Option A — fuzz-mode only):
+// Force-deleting the root means that if two tries share the same root hash
+// (identical state), deleting one destroys the root for both. Combined with
+// the incremental merklize path (which does NOT bump refcount on reused
+// subtrees), ring-buffer eviction via PersistStateForBlock can leave dangling
+// references in newer tries. The incremental path handles this gracefully by
+// falling back to full MerklizeAndCommit when GetNode fails.
+//
+// Production deployment requires Option B (batch-internal refcount with proper
+// shared-subtree refcount bumping) — Phase 3 gate.
 func (t *Trie) DeleteTrie(rootHash types.OpaqueHash) error {
 	return t.deleteNode(rootHash, true)
 }

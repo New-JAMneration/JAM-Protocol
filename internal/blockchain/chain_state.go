@@ -452,76 +452,6 @@ func (cs *ChainState) StateCommit() (types.StateRoot, error) {
 	return stateRoot, nil
 }
 
-// StateCommitWithPreComputedState persists state using pre-computed stateRoot and
-// fullStateKeyVals, skipping the redundant StateEncoder + Merklize in PersistStateForBlock.
-func (cs *ChainState) StateCommitWithPreComputedState(
-	blockHeaderHash types.HeaderHash,
-	stateRoot types.StateRoot,
-	fullStateKeyVals types.StateKeyVals,
-) {
-	sort.Slice(fullStateKeyVals, func(i, j int) bool {
-		return bytes.Compare(fullStateKeyVals[i].Key[:], fullStateKeyVals[j].Key[:]) < 0
-	})
-
-	err := cs.repo.SaveStateRootByHeaderHash(cs.repo.Database(), blockHeaderHash, stateRoot)
-	if err != nil {
-		logger.Errorf("StateCommitWithPreComputedState: failed to store state root mapping: %v", err)
-	}
-
-	// Write state data to both memory (for fast reads) and disk (for persistence).
-	err = cs.repo.SaveStateData(cs.repo.Database(), stateRoot, fullStateKeyVals)
-	if err != nil {
-		logger.Errorf("StateCommitWithPreComputedState: failed to store state data to memory: %v", err)
-	} else {
-		logger.Debugf("StateCommitWithPreComputedState: persisted state for block 0x%x", blockHeaderHash[:8])
-	}
-	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
-		logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
-	}
-
-	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
-	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
-	if len(cs.recentStateRoots) > types.MaxLookupAge {
-		evict := cs.recentStateRoots[0]
-		cs.recentStateRoots = cs.recentStateRoots[1:]
-		cs.repo.DeleteStateData(cs.repo.Database(), evict)
-		if fuzzenv.Enabled() {
-			cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), evict)
-			if err := cs.trieStore.DeleteTrie(types.OpaqueHash(evict)); err != nil {
-				logger.Warnf("StateCommitWithPreComputedState: failed to delete evicted trie %x: %v", evict[:8], err)
-			}
-		}
-	}
-
-	latestBlock := cs.GetLatestBlock()
-
-	// Persist block mapping
-	err = cs.repo.SaveBlock(cs.repo.Database(), &latestBlock)
-	if err != nil {
-		logger.Errorf("StateCommitWithPreComputedState: failed to persist block: %v", err)
-	} else {
-		logger.Debugf("StateCommitWithPreComputedState: persisted block 0x%x", blockHeaderHash[:8])
-	}
-
-	existingAncestry := cs.GetAncestry()
-	if len(existingAncestry) > 0 {
-		currentItem := types.AncestryItem{
-			Slot:       latestBlock.Header.Slot,
-			HeaderHash: blockHeaderHash,
-		}
-		last := existingAncestry[len(existingAncestry)-1]
-		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			cs.AppendAncestry(types.Ancestry{currentItem})
-		} else {
-			logger.Debugf("StateCommitWithPreComputedState: latest header already in ancestry (slot=%d, hash=0x%x), skipping append", currentItem.Slot, currentItem.HeaderHash[:8])
-		}
-	}
-
-	posterState := cs.GetPosteriorStates().GetState()
-	cs.GetPriorStates().SetState(posterState)
-	cs.GetPosteriorStates().SetState(*NewPosteriorStates().state)
-}
-
 /*
 	Ancestry management
 */
@@ -700,6 +630,12 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	}
 
 	// Evict oldest state data from memory when exceeding MaxLookupAge entries.
+	// NOTE: DeleteTrie force-deletes the root regardless of refcount, and the
+	// incremental merklize path does not bump refcount on reused subtrees.
+	// Shared nodes may be prematurely removed; the incremental path falls back
+	// to full MerklizeAndCommit when this happens. See DeleteTrie and
+	// incrementalMerklizeAndCommit doc comments for details. This eviction
+	// strategy is fuzz-mode only; production requires Option B (Phase 3).
 	cs.recentStateRoots = append(cs.recentStateRoots, stateRoot)
 	if len(cs.recentStateRoots) > types.MaxLookupAge {
 		evict := cs.recentStateRoots[0]
@@ -747,6 +683,21 @@ func (cs *ChainState) persistStateForBlockMerklize(fullStateKeyVals types.StateK
 
 // incrementalMerklizeAndCommit runs incremental merklize with persistence callbacks,
 // writes new nodes to DB via batch, then increments refcounts.
+//
+// REFCOUNT SEMANTICS (Phase 2, Option A — fuzz-mode only):
+// Only newly created nodes (emitted by the storeNode callback) get their refcount
+// incremented. Reused subtrees — unchanged children that IncrementalMerklize skips
+// — keep their existing refcount. This means shared nodes between consecutive tries
+// may have refcount=1 even though multiple roots reference them.
+//
+// When ring-buffer eviction (PersistStateForBlock) calls DeleteTrie on the oldest
+// root, shared nodes can be prematurely deleted. The incremental path is protected
+// by the fallback in persistStateForBlockMerklize: if GetNode fails (dangling
+// reference), full MerklizeAndCommit is used instead, which rebuilds the entire trie.
+//
+// This is acceptable for fuzz-mode (ResetInstance clears everything on crash).
+// Production deployment requires Option B (batch-internal refcount that bumps
+// reused subtrees) — see Phase 3 roadmap.
 func (cs *ChainState) incrementalMerklizeAndCommit(
 	priorRoot types.StateRoot,
 	dirtyEntries []store.DirtyEntry,

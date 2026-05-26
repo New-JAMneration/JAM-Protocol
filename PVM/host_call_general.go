@@ -644,10 +644,10 @@ func read(input OmegaInput) (output OmegaOutput) {
 	// v = a_s[k] ? — after the global-KV refactor a_s lives directly in
 	// account.globalKV, indexed by the storage StateKey. There is no longer
 	// a separate fallback pool to consult.
-	storageRawKey := input.Interpreter.Memory.Read(ko, kz)
+	storageRawKey := input.VM.Memory.Read(ko, kz)
 	storageStateKey, err := merklization.NewStorageStateKey(serviceID, storageRawKey)
 	if err != nil {
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -655,7 +655,7 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 	v, exists := a.GetStorage(storageStateKey)
 	if !exists {
-		input.Interpreter.Registers[7] = NONE
+		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
@@ -747,8 +747,8 @@ func write(input OmegaInput) (output OmegaOutput) {
 			_ = footprintItems
 			_ = footprintOctets
 		}
-	} else if isReadable(vo, vz, *input.Interpreter.Memory) { // storage append/update
-		storageRawData := input.Interpreter.Memory.Read(vo, vz)
+	} else if isReadable(vo, vz, *input.VM.Memory) { // storage append/update
+		storageRawData := input.VM.Memory.Read(vo, vz)
 
 		// Pre-check: project what the counters WOULD be after applying the
 		// write, then make sure the projected threshold balance still fits
@@ -885,9 +885,9 @@ func info(input OmegaInput) (output OmegaOutput) {
 	// a_p
 	encoded, _ = encoder.Encode(&a.ServiceInfo.ParentService)
 	v = append(v, encoded...)
-	f := min(input.Interpreter.Registers[9], uint64(len(v)))
-	l := min(input.Interpreter.Registers[10], uint64(len(v))-f)
-	o := input.Interpreter.Registers[8]
+	f := min(input.VM.Registers[9], uint64(len(v)))
+	l := min(input.VM.Registers[10], uint64(len(v))-f)
+	o := input.VM.Registers[8]
 	// nothing to write
 	if l == 0 {
 		input.VM.Registers[7] = uint64(len(v))

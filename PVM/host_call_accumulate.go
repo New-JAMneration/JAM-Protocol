@@ -362,7 +362,7 @@ func new(input OmegaInput) (output OmegaOutput) {
 	// otherwise if x_s = (x_e)_r and i < S
 	if serviceID == input.Addition.ResultContextX.PartialState.CreateAcct && i < types.MinimumServiceIndex {
 		// reg[7] = i
-		input.Interpreter.Registers[7] = i
+		input.VM.Registers[7] = i
 		finalA, fErr := finalizeNewAccount(a, types.ServiceID(i))
 		if fErr != nil {
 			return OmegaOutput{
@@ -593,7 +593,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	lookupData, lookupDataExists := accountD.GetPreimageMeta(lookupStateKey)
 
 	if accountD.GetTotalNumberOfItems() != 2 || !lookupDataExists {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -791,7 +791,7 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 	lookupData, lookupDataExists := a.GetPreimageMeta(lookupStateKey)
-	if result := processSolicitLookupData(&a, serviceID, lookupKey, lookupData, lookupDataExists, timeslot, &input.Interpreter.Registers); result != nil {
+	if result := processSolicitLookupData(&a, serviceID, lookupKey, lookupData, lookupDataExists, timeslot, input.VM.Registers); result != nil {
 		result.Addition = input.Addition
 		return *result
 	}
@@ -982,7 +982,7 @@ func provide(input OmegaInput) (output OmegaOutput) {
 
 	// otherwise if a_l[H(i), z] not in []
 	if lookupData, lookupDataExists := account.GetPreimageMeta(lookupStateKey); (lookupDataExists && len(lookupData) != 0) || !lookupDataExists {
-		input.Interpreter.Registers[7] = HUH
+		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
 			Addition:   input.Addition,
