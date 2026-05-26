@@ -75,11 +75,10 @@ const (
 )
 
 type Interpreter struct {
-	Program    *Program
-	Registers  Registers
-	Memory     *Memory
-	Gas        Gas
-	InstrCount uint64
+	Program   *Program
+	Registers Registers
+	Memory    *Memory
+	Gas       Gas
 }
 
 type Host struct {
@@ -90,11 +89,10 @@ type Host struct {
 
 func NewInterpreter(program *Program, registers Registers, memory *Memory, gas Gas) *Interpreter {
 	return &Interpreter{
-		Program:    program,
-		Registers:  registers,
-		Memory:     memory,
-		Gas:        gas,
-		InstrCount: 0,
+		Program:   program,
+		Registers: registers,
+		Memory:    memory,
+		Gas:       gas,
 	}
 }
 
@@ -108,11 +106,10 @@ type VMState struct {
 func NewHost(program *Program, registers Registers, memory *Memory, gas Gas, addition HostCallArgs, hostCalls Omegas) *Host {
 	return &Host{
 		Interpreter: Interpreter{
-			Program:    program,
-			Registers:  registers,
-			Memory:     memory,
-			Gas:        gas,
-			InstrCount: 0,
+			Program:   program,
+			Registers: registers,
+			Memory:    memory,
+			Gas:       gas,
 		},
 		Addition:  addition,
 		HostCalls: hostCalls,

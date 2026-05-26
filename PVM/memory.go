@@ -14,6 +14,7 @@ type Page struct {
 type Memory struct {
 	Pages       map[uint32]*Page // Key: Page Number, Value: Page Data
 	heapPointer uint64
+	heapLimit   uint64 // max heap pointer (stackStart from Y); Jan's max_heap_pointer
 }
 
 const (

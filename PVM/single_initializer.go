@@ -46,7 +46,11 @@ func SingleInitializer(p StandardCodeFormat, a Argument) (Instructions, Register
 	argumentEnd := argumentStart + uint32(len(a))
 	argumentPadding := argumentEnd + P(len(a))
 
-	mem := Memory{Pages: make(map[uint32]*Page), heapPointer: uint64(heapStart)}
+	mem := Memory{
+		Pages:       make(map[uint32]*Page),
+		heapPointer: uint64(heapStart),
+		heapLimit:   uint64(stackStart),
+	}
 
 	allocateMemorySegment(&mem, readOnlyStart, readOnlyEnd, o, MemoryReadOnly)
 	allocateMemorySegment(&mem, readOnlyEnd, readOnlyPadding, nil, MemoryReadOnly) // Padding

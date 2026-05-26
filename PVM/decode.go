@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -213,6 +214,59 @@ func decodeThreeRegisters(instructionCode []byte, pc ProgramCounter) (rA uint8, 
 	return rA, rB, rD, nil
 }
 
+func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, immediate uint64) ExitReason {
+	mem := interp.Memory
+	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
+		return ExitPanic
+	}
+
+	pageNum := memIndex / ZP
+	pageIndex := memIndex % ZP
+
+	page, ok := mem.Pages[pageNum]
+	if !ok {
+		return ExitPageFault | ExitReason(memIndex)
+	}
+	if page.Access != MemoryReadWrite {
+		return ExitPageFault | ExitReason(memIndex)
+	}
+
+	// Serialize little-endian directly to a stack buffer — no heap alloc.
+	var buf [8]byte
+	switch offset {
+	case 1:
+		buf[0] = byte(immediate)
+	case 2:
+		binary.LittleEndian.PutUint16(buf[:2], uint16(immediate))
+	case 4:
+		binary.LittleEndian.PutUint32(buf[:4], uint32(immediate))
+	case 8:
+		binary.LittleEndian.PutUint64(buf[:8], immediate)
+	}
+	src := buf[:offset]
+
+	// Fast path: entirely within current page.
+	if pageIndex+uint32(offset) <= ZP {
+		copy(page.Value[pageIndex:], src)
+		return ExitContinue
+	}
+
+	// Cross-page slow path.
+	nextPage, ok := mem.Pages[pageNum+1]
+	if !ok {
+		return ExitPageFault | ExitReason(memIndex)
+	}
+	if nextPage.Access != MemoryReadWrite {
+		return ExitPageFault | ExitReason(memIndex)
+	}
+
+	firstLen := ZP - pageIndex
+	copy(page.Value[pageIndex:], src[:firstLen])
+	copy(nextPage.Value, src[firstLen:])
+	return ExitContinue
+}
+
+/*
 func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, Immediate uint64) ExitReason {
 	mem := interp.Memory
 	if memIndex < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
@@ -250,39 +304,92 @@ func storeIntoMemory(interp *Interpreter, offset int, memIndex uint32, Immediate
 	}
 	return ExitContinue
 }
+*/
 
+/*
+	func loadFromMemory(interp *Interpreter, offset uint32, vx uint32) (uint64, ExitReason) {
+		mem := interp.Memory
+		if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
+			return 0, ExitPanic
+		}
+		vX := uint32(vx)
+
+		pageNum := vX / ZP
+		pageIndex := vX % ZP
+		// load memory : the page must be exist and at least readable
+		// we allocated memory at least read-only
+		// => if the memory is not allocated -> it's Inaccessible
+		if _, pageAllocated := mem.Pages[pageNum]; !pageAllocated {
+			return 0, ExitPageFault | ExitReason(vX)
+		}
+		memBytes := make([]byte, offset)
+
+		if pageIndex+offset <= ZP {
+			memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
+		} else { // cross page memory memory loading
+			if mem.Pages[pageNum+1] == nil {
+				return 0, ExitPageFault | ExitReason(vX)
+			}
+
+			remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
+			copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
+			copy(memBytes[ZP-pageIndex:], remainBytes)           // copy next page
+		}
+		memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
+		if err != nil {
+			pvmLogger.Errorf("loadFromMemory deserialization error %s", err)
+			return 0, ExitPanic
+		}
+		return uint64(memVal), ExitContinue
+	}
+*/
 func loadFromMemory(interp *Interpreter, offset uint32, vx uint32) (uint64, ExitReason) {
 	mem := interp.Memory
 	if vx < uint32(1<<16) { // 0.7.2  A.8 check memory > 2^16
 		return 0, ExitPanic
 	}
-	vX := uint32(vx)
 
-	pageNum := vX / ZP
-	pageIndex := vX % ZP
-	// load memory : the page must be exist and at least readable
-	// we allocated memory at least read-only
-	// => if the memory is not allocated -> it's Inaccessible
-	if _, pageAllocated := mem.Pages[pageNum]; !pageAllocated {
-		return 0, ExitPageFault | ExitReason(vX)
+	pageNum := vx / ZP
+	pageIndex := vx % ZP
+
+	page, ok := mem.Pages[pageNum]
+	if !ok {
+		return 0, ExitPageFault | ExitReason(vx)
 	}
-	memBytes := make([]byte, offset)
 
+	// Fast path: load fully within a single page — no alloc, no per-byte loop.
 	if pageIndex+offset <= ZP {
-		memBytes = mem.Pages[pageNum].Value[pageIndex : pageIndex+offset]
-	} else { // cross page memory memory loading
-		if mem.Pages[pageNum+1] == nil {
-			return 0, ExitPageFault | ExitReason(vX)
+		v := page.Value[pageIndex : pageIndex+offset]
+		switch offset {
+		case 1:
+			return uint64(v[0]), ExitContinue
+		case 2:
+			return uint64(binary.LittleEndian.Uint16(v)), ExitContinue
+		case 4:
+			return uint64(binary.LittleEndian.Uint32(v)), ExitContinue
+		case 8:
+			return binary.LittleEndian.Uint64(v), ExitContinue
 		}
+	}
 
-		remainBytes := mem.Pages[pageNum+1].Value[:offset-(ZP-pageIndex)]
-		copy(memBytes, mem.Pages[pageNum].Value[pageIndex:]) // copy current page
-		copy(memBytes[ZP-pageIndex:], remainBytes)           // copy next page
+	// Cross-page slow path: assemble bytes into a stack buffer.
+	nextPage, ok := mem.Pages[pageNum+1]
+	if !ok {
+		return 0, ExitPageFault | ExitReason(vx)
 	}
-	memVal, err := utils.DeserializeFixedLength(memBytes, types.U64(offset))
-	if err != nil {
-		pvmLogger.Errorf("loadFromMemory deserialization error %s", err)
-		return 0, ExitPanic
+
+	var buf [8]byte
+	firstLen := ZP - pageIndex
+	copy(buf[:firstLen], page.Value[pageIndex:])
+	copy(buf[firstLen:offset], nextPage.Value[:offset-firstLen])
+
+	switch offset {
+	case 2:
+		return uint64(binary.LittleEndian.Uint16(buf[:2])), ExitContinue
+	case 4:
+		return uint64(binary.LittleEndian.Uint32(buf[:4])), ExitContinue
+	case 8:
+		return binary.LittleEndian.Uint64(buf[:8]), ExitContinue
 	}
-	return uint64(memVal), ExitContinue
+	return 0, ExitPanic // unreachable: offset ∈ {1,2,4,8}
 }

@@ -48,7 +48,6 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 	skipLength := ProgramCounter(skip(int(pc), interp.Program.Bitmasks))
 
 	exitReason, newPC := execInstructions[opcodeData](interp, pc, skipLength) // update PVM states
-	interp.Program.InstrCount++
 
 	reason := exitReason.GetReasonType()
 	switch reason {
@@ -74,29 +73,38 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 }
 
 func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (ExitReason, ProgramCounter) {
+	prog := interp.Program
+	instrSlice := prog.Instrs
+
 	for {
-		if int(pc) >= len(interp.Program.InstructionData) {
+		n := len(prog.InstructionData)
+		if int(pc) >= n {
 			return ExitPanic, 0
 		}
 
 		var startIdx, endIdx int
 
-		if block := interp.Program.LookupBlock(pc); block != nil {
+		if block := prog.BlockAt[pc]; block != nil {
 			startIdx = block.InstrStart
 			endIdx = block.InstrEnd
-		} else if idx, ok := interp.Program.InstrMap[pc]; ok {
-			startIdx = idx
-			for endIdx = idx; endIdx < len(interp.Program.Instrs); endIdx++ {
-				if IsBlockTerminator(interp.Program.Instrs[endIdx].Opcode) {
+		} else if idx := prog.InstrIdxAt[pc]; idx >= 0 {
+			startIdx = int(idx)
+			foundTerminator := false
+			for endIdx = startIdx; endIdx < len(instrSlice); endIdx++ {
+				if IsBlockTerminator(instrSlice[endIdx].Opcode) {
 					endIdx++
+					foundTerminator = true
 					break
 				}
+			}
+			if !foundTerminator {
+				return ExitPanic, 0
 			}
 		} else {
 			return ExitPanic, 0
 		}
 
-		instrs := interp.Program.Instrs[startIdx:endIdx]
+		instrs := instrSlice[startIdx:endIdx]
 		branchTaken := false
 		for i := range instrs {
 			instr := &instrs[i]
@@ -105,24 +113,8 @@ func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (Exi
 				return ExitOOG, instr.PC
 			}
 			interp.Gas -= 1
-			/*
-				var src1Val, src2Val uint64
-				if instr.Src[0] != 0xff {
-					src1Val = interp.Registers[instr.Src[0]]
-				}
-				if instr.Src[1] != 0xff {
-					src2Val = interp.Registers[instr.Src[1]]
-				}
-			*/
 
-			handler := execInstructionsMeta[instr.Opcode]
-			if handler == nil {
-				pvmLogger.Errorf("instruction not implemented")
-				return ExitPanic, 0
-			}
-
-			exitReason, newPC := handler(interp, instr)
-			interp.Program.InstrCount++
+			exitReason, newPC := instr.Exec(interp, instr)
 
 			switch exitReason.GetReasonType() {
 			case HALT, PANIC:
@@ -187,7 +179,7 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 		}
 
 		// reach instruction block end
-		if isBasicBlockTerminationInstruction(instructionData[pcPrime]) {
+		if IsBlockTerminator(instructionData[pcPrime]) {
 			return pcPrime, count, ExitContinue
 		}
 		count++
@@ -206,7 +198,6 @@ func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime Progra
 		skipLength := ProgramCounter(skip(int(pc), interp.Program.Bitmasks))
 
 		exitReason, newPC := execInstructions[opcodeData](interp, pc, skipLength)
-		interp.Program.InstrCount++
 		interp.Gas -= 1
 		// logger.Debug("gasPrime: ", interp.Gas)
 		reason := exitReason.GetReasonType()

@@ -86,13 +86,12 @@ func isReadable(start, offset uint64, m Memory) bool {
 	if offset == 0 {
 		return true
 	}
-	startPage := uint32(start / ZP)
-	endPage := uint32((start + offset - 1) / ZP)
-
 	// overflow + PVM RAM (2^32) bound check
 	if offset > (1<<32) || start > (1<<32)-offset {
 		return false
 	}
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset - 1) / ZP)
 
 	for p := startPage; p <= endPage; p++ {
 		if m.GetPageAccess(p) == MemoryInaccessible {
@@ -106,13 +105,12 @@ func isWriteable(start, offset uint64, m Memory) bool {
 	if offset == 0 {
 		return true
 	}
-	startPage := uint32(start / ZP)
-	endPage := uint32((start + offset - 1) / ZP)
-
 	// overflow + PVM RAM (2^32) bound check
 	if offset > (1<<32) || start > (1<<32)-offset {
 		return false
 	}
+	startPage := uint32(start / ZP)
+	endPage := uint32((start + offset - 1) / ZP)
 
 	for p := startPage; p <= endPage; p++ {
 		if m.GetPageAccess(p) != MemoryReadWrite {
