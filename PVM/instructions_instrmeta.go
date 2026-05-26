@@ -7,183 +7,282 @@ import (
 	utils "github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 )
 
-var execInstructionsMeta = [231]func(*Interpreter, *InstrMeta) (ExitReason, ProgramCounter){
-	// A.5.1 Instructiopns without Arguments
-	0: instTrapMeta,
-	1: instFallthroughMeta,
-	// A.5.2 Instructions with Arguments of One Immediate
-	10: instEcalliMeta,
-	// A.5.3 Instructions with Arguments of One Register & One Extended With Immediate
-	20: instLoadImm64Meta, // passed testvector
-	// A.5.4 Instructions with Arguments of Two Immediates
-	30: instStoreImmU8Meta,
-	31: instStoreImmU16Meta,
-	32: instStoreImmU32Meta,
-	33: instStoreImmU64Meta,
-	// A.5.5 Instructions with Arguments of One Offset
-	40: instJumpMeta,
-	// A.5.6 Instructions with Arguments of One Register & One Immediate
-	50: instJumpIndMeta,
-	51: instLoadImmMeta,
-	52: instLoadU8Meta,
-	53: instLoadI8Meta,
-	54: instLoadU16Meta,
-	55: instLoadI16Meta,
-	56: instLoadU32Meta,
-	57: instLoadI32Meta,
-	58: instLoadU64Meta,
-	59: instStoreU8Meta,
-	60: instStoreU16Meta,
-	61: instStoreU32Meta,
-	62: instStoreU64Meta,
-	// A.5.7 Instructions with Arguments of One Register & Two Immediates
-	70: instStoreImmIndU8Meta,
-	71: instStoreImmIndU16Meta,
-	72: instStoreImmIndU32Meta,
-	73: instStoreImmIndU64Meta,
-	// A.5.8 Instructions without Arguments of One Register, One Immediate and One Offset
-	80: instImmediateBranchMeta,
-	81: instImmediateBranchMeta,
-	82: instImmediateBranchMeta,
-	83: instImmediateBranchMeta,
-	84: instImmediateBranchMeta,
-	85: instImmediateBranchMeta,
-	86: instImmediateBranchMeta,
-	87: instImmediateBranchMeta,
-	88: instImmediateBranchMeta,
-	89: instImmediateBranchMeta,
-	90: instImmediateBranchMeta,
-	// A.5.9 Instructions with arguments of Two Registers
-	100: instMoveRegMeta, // passed testvector
-	101: instSbrkMeta,
-	102: instCountSetBits64Meta,
-	103: instCountSetBits32Meta,
-	104: instLeadingZeroBits64Meta,
-	105: instLeadingZeroBits32Meta,
-	106: instTrailZeroBits64Meta,
-	107: instTrailZeroBits32Meta,
-	108: instSignExtend8Meta,
-	109: instSignExtend16Meta,
-	110: instZeroExtend16Meta,
-	111: instReverseBytesMeta,
-	120: instStoreIndU8Meta,
-	121: instStoreIndU16Meta,
-	122: instStoreIndU32Meta,
-	123: instStoreIndU64Meta,
-	124: instLoadIndU8Meta,
-	125: instLoadIndI8Meta,
-	126: instLoadIndU16Meta,
-	127: instLoadIndI16Meta,
-	128: instLoadIndU32Meta,
-	129: instLoadIndI32Meta,
-	130: instLoadIndU64Meta,
-	131: instAddImm32Meta,
-	132: instAndImmMeta,
-	133: instXORImmMeta,
-	134: instORImmMeta,
-	135: instMulImm32Meta,
-	136: instSetLtUImmMeta,
-	137: instSetLtSImmMeta,
-	138: instShloLImm32Meta,
-	139: instShloRImm32Meta,
-	140: instSharRImm32Meta,
-	141: instNegAddImm32Meta,
-	142: instSetGtUImmMeta,
-	143: instSetGtSImmMeta,
-	144: instShloLImmAlt32Meta,
-	145: instShloRImmAlt32Meta,
-	146: instSharRImmAlt32Meta,
-	147: instCmovIzImmMeta,
-	148: instCmovNzImmMeta,
-	149: instAddImm64Meta,
-	150: instMulImm64Meta,
-	151: instShloLImm64Meta,
-	152: instShloRImm64Meta,
-	153: instSharRImm64Meta,
-	154: instNegAddImm64Meta,
-	155: instShloLImmAlt64Meta,
-	156: instShloRImmAlt64Meta,
-	157: instSharRImmAlt64Meta,
-	158: instRotR64ImmMeta,
-	159: instRotR64ImmAltMeta,
-	160: instRotR32ImmMeta,
-	161: instRotR32ImmAltMeta,
-	170: instBranchMeta,
-	171: instBranchMeta,
-	172: instBranchMeta,
-	173: instBranchMeta,
-	174: instBranchMeta,
-	175: instBranchMeta,
-	// A.5.12 Instructions  with Arguments of Two Registers and Two Immediates
-	180: instLoadImmJumpIndMeta,
-	// A.5.13 Instructions with Arguments of Three Registers
-	190: instAdd32Meta,
-	191: instSub32Meta,
-	192: instMul32Meta,
-	193: instDivU32Meta,
-	194: instDivS32Meta,
-	195: instRemU32Meta,
-	196: instRemS32Meta,
-	197: instShloL32Meta,
-	198: instShloR32Meta,
-	199: instSharR32Meta,
-	200: instAdd64Meta,
-	201: instSub64Meta,
-	202: instMul64Meta,
-	203: instDivU64Meta,
-	204: instDivS64Meta,
-	205: instRemU64Meta,
-	206: instRemS64Meta,
-	207: instShloL64Meta,
-	208: instShloR64Meta,
-	209: instSharR64Meta,
-	210: instAndMeta,
-	211: instXorMeta,
-	212: instOrMeta,
-	213: instMulUpperSSMeta,
-	214: instMulUpperUUMeta,
-	215: instMulUpperSUMeta,
-	216: instSetLtUMeta,
-	217: instSetLtSSMeta,
-	218: instCmovIzMeta,
-	219: instCmovNzMeta,
-	220: instRotL64Meta,
-	221: instRotL32Meta,
-	222: instRotR64Meta,
-	223: instRotR32Meta,
-	224: instAndInvMeta,
-	225: instOrInvMeta,
-	226: instXnorMeta,
-	227: instMaxMeta,
-	228: instMaxUMeta,
-	229: instMinMeta,
-	230: instMinUMeta,
-	// register more instructions here
+type instrMetaFn func(*Interpreter, *InstrMeta) (ExitReason, ProgramCounter)
+
+func instrMetaExecForOpcode(op byte) instrMetaFn {
+	switch op {
+	case 0:
+		return instTrapMeta
+	case 1:
+		return instFallthroughMeta
+	case 10:
+		return instEcalliMeta
+	case 20:
+		return instLoadImm64Meta
+	case 30:
+		return instStoreImmU8Meta
+	case 31:
+		return instStoreImmU16Meta
+	case 32:
+		return instStoreImmU32Meta
+	case 33:
+		return instStoreImmU64Meta
+	case 40:
+		return instJumpMeta
+	case 50:
+		return instJumpIndMeta
+	case 51:
+		return instLoadImmMeta
+	case 52:
+		return instLoadU8Meta
+	case 53:
+		return instLoadI8Meta
+	case 54:
+		return instLoadU16Meta
+	case 55:
+		return instLoadI16Meta
+	case 56:
+		return instLoadU32Meta
+	case 57:
+		return instLoadI32Meta
+	case 58:
+		return instLoadU64Meta
+	case 59:
+		return instStoreU8Meta
+	case 60:
+		return instStoreU16Meta
+	case 61:
+		return instStoreU32Meta
+	case 62:
+		return instStoreU64Meta
+	case 70:
+		return instStoreImmIndU8Meta
+	case 71:
+		return instStoreImmIndU16Meta
+	case 72:
+		return instStoreImmIndU32Meta
+	case 73:
+		return instStoreImmIndU64Meta
+	case 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90:
+		return instImmediateBranchMeta
+	case 100:
+		return instMoveRegMeta
+	case 101:
+		return instSbrkMeta
+	case 102:
+		return instCountSetBits64Meta
+	case 103:
+		return instCountSetBits32Meta
+	case 104:
+		return instLeadingZeroBits64Meta
+	case 105:
+		return instLeadingZeroBits32Meta
+	case 106:
+		return instTrailZeroBits64Meta
+	case 107:
+		return instTrailZeroBits32Meta
+	case 108:
+		return instSignExtend8Meta
+	case 109:
+		return instSignExtend16Meta
+	case 110:
+		return instZeroExtend16Meta
+	case 111:
+		return instReverseBytesMeta
+	case 120:
+		return instStoreIndU8Meta
+	case 121:
+		return instStoreIndU16Meta
+	case 122:
+		return instStoreIndU32Meta
+	case 123:
+		return instStoreIndU64Meta
+	case 124:
+		return instLoadIndU8Meta
+	case 125:
+		return instLoadIndI8Meta
+	case 126:
+		return instLoadIndU16Meta
+	case 127:
+		return instLoadIndI16Meta
+	case 128:
+		return instLoadIndU32Meta
+	case 129:
+		return instLoadIndI32Meta
+	case 130:
+		return instLoadIndU64Meta
+	case 131:
+		return instAddImm32Meta
+	case 132:
+		return instAndImmMeta
+	case 133:
+		return instXORImmMeta
+	case 134:
+		return instORImmMeta
+	case 135:
+		return instMulImm32Meta
+	case 136:
+		return instSetLtUImmMeta
+	case 137:
+		return instSetLtSImmMeta
+	case 138:
+		return instShloLImm32Meta
+	case 139:
+		return instShloRImm32Meta
+	case 140:
+		return instSharRImm32Meta
+	case 141:
+		return instNegAddImm32Meta
+	case 142:
+		return instSetGtUImmMeta
+	case 143:
+		return instSetGtSImmMeta
+	case 144:
+		return instShloLImmAlt32Meta
+	case 145:
+		return instShloRImmAlt32Meta
+	case 146:
+		return instSharRImmAlt32Meta
+	case 147:
+		return instCmovIzImmMeta
+	case 148:
+		return instCmovNzImmMeta
+	case 149:
+		return instAddImm64Meta
+	case 150:
+		return instMulImm64Meta
+	case 151:
+		return instShloLImm64Meta
+	case 152:
+		return instShloRImm64Meta
+	case 153:
+		return instSharRImm64Meta
+	case 154:
+		return instNegAddImm64Meta
+	case 155:
+		return instShloLImmAlt64Meta
+	case 156:
+		return instShloRImmAlt64Meta
+	case 157:
+		return instSharRImmAlt64Meta
+	case 158:
+		return instRotR64ImmMeta
+	case 159:
+		return instRotR64ImmAltMeta
+	case 160:
+		return instRotR32ImmMeta
+	case 161:
+		return instRotR32ImmAltMeta
+	case 170, 171, 172, 173, 174, 175:
+		return instBranchMeta
+	case 180:
+		return instLoadImmJumpIndMeta
+	case 190:
+		return instAdd32Meta
+	case 191:
+		return instSub32Meta
+	case 192:
+		return instMul32Meta
+	case 193:
+		return instDivU32Meta
+	case 194:
+		return instDivS32Meta
+	case 195:
+		return instRemU32Meta
+	case 196:
+		return instRemS32Meta
+	case 197:
+		return instShloL32Meta
+	case 198:
+		return instShloR32Meta
+	case 199:
+		return instSharR32Meta
+	case 200:
+		return instAdd64Meta
+	case 201:
+		return instSub64Meta
+	case 202:
+		return instMul64Meta
+	case 203:
+		return instDivU64Meta
+	case 204:
+		return instDivS64Meta
+	case 205:
+		return instRemU64Meta
+	case 206:
+		return instRemS64Meta
+	case 207:
+		return instShloL64Meta
+	case 208:
+		return instShloR64Meta
+	case 209:
+		return instSharR64Meta
+	case 210:
+		return instAndMeta
+	case 211:
+		return instXorMeta
+	case 212:
+		return instOrMeta
+	case 213:
+		return instMulUpperSSMeta
+	case 214:
+		return instMulUpperUUMeta
+	case 215:
+		return instMulUpperSUMeta
+	case 216:
+		return instSetLtUMeta
+	case 217:
+		return instSetLtSSMeta
+	case 218:
+		return instCmovIzMeta
+	case 219:
+		return instCmovNzMeta
+	case 220:
+		return instRotL64Meta
+	case 221:
+		return instRotL32Meta
+	case 222:
+		return instRotR64Meta
+	case 223:
+		return instRotR32Meta
+	case 224:
+		return instAndInvMeta
+	case 225:
+		return instOrInvMeta
+	case 226:
+		return instXnorMeta
+	case 227:
+		return instMaxMeta
+	case 228:
+		return instMaxUMeta
+	case 229:
+		return instMinMeta
+	case 230:
+		return instMinUMeta
+	default:
+		return instTrapMeta
+	}
 }
 
 // opcode 0
 func instTrapMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
-	pvmLogger.Debugf("[%d]: pc: %d, %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)])
 	return ExitPanic, instr.PC
 }
 
 // opcode 1
 func instFallthroughMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
-	pvmLogger.Debugf("[%d]: pc: %d, %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)])
 	return ExitContinue, instr.PC
 }
 
 // opcode 10
 func instEcalliMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	nuX := instr.Imm[0]
-	pvmLogger.Debugf("[%d]: pc: %d, %s %d", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], nuX)
 	return ExitHostCall | ExitReason(nuX), instr.PC
 }
 
 // opcode 20
 func instLoadImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	interp.Registers[instr.Dst] = instr.Imm[0]
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[instr.Dst], formatInt(instr.Imm[0]))
 	return ExitContinue, instr.PC
 }
 
@@ -191,11 +290,6 @@ func instLoadImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 func instStoreImmU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	vx, vy := instr.Imm[0], uint64(uint8(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 1, uint32(vx), vy)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx), formatInt(vy))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx))
-	}
 	return exitReason, instr.PC
 }
 
@@ -203,11 +297,6 @@ func instStoreImmU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 func instStoreImmU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	vx, vy := instr.Imm[0], uint64(uint16(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 2, uint32(vx), vy)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx), formatInt(vy))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx))
-	}
 	return exitReason, instr.PC
 }
 
@@ -215,11 +304,6 @@ func instStoreImmU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 func instStoreImmU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	vx, vy := instr.Imm[0], uint64(uint32(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 4, uint32(vx), vy)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx), formatInt(vy))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx))
-	}
 	return exitReason, instr.PC
 }
 
@@ -227,11 +311,6 @@ func instStoreImmU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 func instStoreImmU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	vx, vy := instr.Imm[0], instr.Imm[1]
 	exitReason := storeIntoMemory(interp, 8, uint32(vx), vy)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx), formatInt(vy))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vx))
-	}
 	return exitReason, instr.PC
 }
 
@@ -240,10 +319,8 @@ func instJumpMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 	vX := ProgramCounter(instr.Imm[0])
 	reason, newPC := branch(instr.PC, vX, true, interp.Program.Bitmasks, interp.Program.InstructionData)
 	if reason != ExitContinue {
-		pvmLogger.Debugf("[%d]: pc: %d, %s %d panic", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], newPC)
 		return reason, instr.PC
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s %d", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], newPC)
 	return reason, newPC
 }
 
@@ -255,16 +332,10 @@ func instJumpIndMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	reason, newPC := djump(instr.PC, dest, interp.Program.JumpTable, interp.Program.Bitmasks)
 	switch reason {
 	case ExitPanic:
-		pvmLogger.Debugf("[%d]: pc: %d, %s %d panic, %s = %s, vX = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			newPC, RegName[rA], formatInt(interp.Registers[rA]), formatInt(vX))
 		return reason, instr.PC
 	case ExitHalt:
-		pvmLogger.Debugf("[%d]: pc: %d, %s %d HALT, %s = %s, vX = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			newPC, RegName[rA], formatInt(interp.Registers[rA]), formatInt(vX))
 		return reason, instr.PC
 	default:
-		pvmLogger.Debugf("[%d]: pc: %d, %s %d, %s = %s, vX = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			newPC, RegName[rA], formatInt(interp.Registers[rA]), formatInt(vX))
 		return reason, newPC
 	}
 }
@@ -272,8 +343,6 @@ func instJumpIndMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 // opcode 51
 func instLoadImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	interp.Registers[instr.Dst] = instr.Imm[0]
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(interp.Registers[instr.Dst]))
 	return ExitContinue, instr.PC
 }
 
@@ -285,8 +354,6 @@ func instLoadU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		return exitReason, instr.PC
 	}
 	interp.Registers[instr.Dst] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(memVal))
 	return ExitContinue, instr.PC
 }
 
@@ -303,8 +370,6 @@ func instLoadI8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[instr.Dst] = extend
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(memVal))
 	return ExitContinue, instr.PC
 }
 
@@ -316,8 +381,6 @@ func instLoadU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return exitReason, instr.PC
 	}
 	interp.Registers[instr.Dst] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(memVal))
 	return ExitContinue, instr.PC
 }
 
@@ -334,8 +397,6 @@ func instLoadI16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[instr.Dst] = extend
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(extend))
 	return ExitContinue, instr.PC
 }
 
@@ -347,8 +408,6 @@ func instLoadU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return exitReason, instr.PC
 	}
 	interp.Registers[instr.Dst] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(memVal))
 	return ExitContinue, instr.PC
 }
 
@@ -365,8 +424,6 @@ func instLoadI32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[instr.Dst] = extend
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(extend))
 	return ExitContinue, instr.PC
 }
 
@@ -378,8 +435,6 @@ func instLoadU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return exitReason, instr.PC
 	}
 	interp.Registers[instr.Dst] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[instr.Dst], formatInt(memVal))
 	return ExitContinue, instr.PC
 }
 
@@ -387,11 +442,6 @@ func instLoadU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 func instStoreU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX := instr.Dst, instr.Imm[0]
 	exitReason := storeIntoMemory(interp, 1, uint32(vX), uint64(uint8(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX), RegName[rA], formatInt(uint64(uint8(interp.Registers[rA]))))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -399,11 +449,6 @@ func instStoreU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 func instStoreU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX := instr.Dst, instr.Imm[0]
 	exitReason := storeIntoMemory(interp, 2, uint32(vX), uint64(uint16(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX), RegName[rA], formatInt(uint64(uint16(interp.Registers[rA]))))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -411,11 +456,6 @@ func instStoreU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 func instStoreU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX := instr.Dst, instr.Imm[0]
 	exitReason := storeIntoMemory(interp, 4, uint32(vX), uint64(uint32(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX), RegName[rA], formatInt(uint64(uint32(interp.Registers[rA]))))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -423,11 +463,6 @@ func instStoreU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 func instStoreU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX := instr.Dst, instr.Imm[0]
 	exitReason := storeIntoMemory(interp, 8, uint32(vX), interp.Registers[rA])
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ 0x%x ] = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX), RegName[rA], formatInt(interp.Registers[rA]))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], uint32(vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -435,11 +470,6 @@ func instStoreU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 func instStoreImmIndU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX, vY := instr.Src[0], instr.Imm[0], uint64(uint8(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 1, uint32(interp.Registers[rA]+vX), vY)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(vY))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -447,11 +477,6 @@ func instStoreImmIndU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 func instStoreImmIndU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX, vY := instr.Src[0], instr.Imm[0], uint64(uint16(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 2, uint32(interp.Registers[rA]+vX), vY)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(vY))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -459,11 +484,6 @@ func instStoreImmIndU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 func instStoreImmIndU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX, vY := instr.Src[0], instr.Imm[0], uint64(uint32(instr.Imm[1]))
 	exitReason := storeIntoMemory(interp, 4, uint32(interp.Registers[rA]+vX), vY)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(vY))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s= 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -471,11 +491,6 @@ func instStoreImmIndU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 func instStoreImmIndU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA, vX, vY := instr.Src[0], instr.Imm[0], instr.Imm[1]
 	exitReason := storeIntoMemory(interp, 8, uint32(interp.Registers[rA]+vX), vY)
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX), formatInt(vY))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], formatInt(uint32(vX)), uint32(interp.Registers[rA]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -511,17 +526,15 @@ func instImmediateBranchMeta(interp *Interpreter, instr *InstrMeta) (ExitReason,
 	case 90:
 		branchCondition = int64(interp.Registers[rA]) > int64(vX)
 	default:
-		pvmLogger.Fatalf("instImmediateBranch is supposed to be called with opcode in [80, 90]")
+		pvmLogger.Errorf("instImmediateBranchMeta: unexpected opcode %d, expected [80, 90]", instr.Opcode)
+		return ExitPanic, instr.PC
 	}
 
 	reason, newPC := branch(instr.PC, vY, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
 	if reason != ExitContinue {
-		pvmLogger.Debugf("[%d]: pc: %d, %s panic", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)])
 		return reason, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s branch(%d, %s=%s, vX=%s) = %t",
-		interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], vY, RegName[rA], formatInt(interp.Registers[rA]), formatInt(vX), branchCondition)
 	return reason, newPC
 }
 
@@ -530,7 +543,6 @@ func instMoveRegMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	rD, rA := instr.Dst, instr.Src[0]
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA]
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], RegName[rA], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -541,26 +553,24 @@ func instSbrkMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 	// this reivision is according to jam-test-vector traces: Note on SBRK
 	if interp.Registers[rA] == 0 {
 		interp.Registers[rD] = interp.Memory.heapPointer
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], formatInt(interp.Registers[rD]))
 		return ExitContinue, instr.PC
 	}
 
-	nextPageBoundary := P(int(interp.Memory.heapPointer))
-	newHeapPointer := interp.Memory.heapPointer + interp.Registers[rA]
-
-	if newHeapPointer > uint64(nextPageBoundary) {
-		finalBoundary := P(int(newHeapPointer))
-
-		// allocated memeory access
-		allocateMemorySegment(interp.Memory, uint32(interp.Memory.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
+	mem := interp.Memory
+	newHeapPointer := mem.heapPointer + interp.Registers[rA]
+	if newHeapPointer < mem.heapPointer || newHeapPointer > mem.heapLimit {
+		interp.Registers[rD] = 0
+		return ExitContinue, instr.PC
 	}
 
-	interp.Memory.heapPointer = newHeapPointer
-	interp.Registers[rD] = newHeapPointer
+	nextPageBoundary := P(int(mem.heapPointer))
+	if newHeapPointer > uint64(nextPageBoundary) {
+		finalBoundary := P(int(newHeapPointer))
+		allocateMemorySegment(mem, uint32(mem.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
+	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s + %s = %s + %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rD], RegName[rA], formatInt(interp.Registers[rD]), formatInt(interp.Registers[rA]), formatInt(interp.Registers[rD]))
+	mem.heapPointer = newHeapPointer
+	interp.Registers[rD] = newHeapPointer
 	return ExitContinue, instr.PC
 }
 
@@ -580,7 +590,6 @@ func instCountSetBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 		}
 	}
 	interp.Registers[rD] = sum
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -600,7 +609,6 @@ func instCountSetBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 		}
 	}
 	interp.Registers[rD] = sum
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -621,7 +629,6 @@ func instLeadingZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReaso
 		n++
 	}
 	interp.Registers[rD] = n
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -642,7 +649,6 @@ func instLeadingZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReaso
 		n++
 	}
 	interp.Registers[rD] = n
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -663,7 +669,6 @@ func instTrailZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason,
 		n++
 	}
 	interp.Registers[rD] = n
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -684,7 +689,6 @@ func instTrailZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason,
 		n++
 	}
 	interp.Registers[rD] = n
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -697,7 +701,6 @@ func instSignExtend8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 	unsignedInt := uint64(signedInt)
 
 	interp.Registers[rD] = unsignedInt
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -710,7 +713,6 @@ func instSignExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	unsignedInt := uint64(signedInt)
 
 	interp.Registers[rD] = unsignedInt
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -720,7 +722,6 @@ func instZeroExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	// mutation
 	regA := interp.Registers[rA]
 	interp.Registers[rD] = regA % (1 << 16)
-	pvmLogger.Debugf("[%d]: pc: %d, %s , %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -735,7 +736,6 @@ func instReverseBytesMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 		reversedBytes = (reversedBytes << 8) | uint64(bytes[i])
 	}
 	interp.Registers[rD] = reversedBytes
-	pvmLogger.Debugf("[%d]: pc: %d, %s , %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rD], formatInt(reversedBytes))
 	return ExitContinue, instr.PC
 }
 
@@ -745,13 +745,6 @@ func instStoreIndU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 
 	offset := 1
 	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint8(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), formatInt(uint64(uint8(interp.Registers[rA]))))
-	} else { // page fault error
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+0x%x = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], uint32(vX), uint32(interp.Registers[rB]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -761,13 +754,6 @@ func instStoreIndU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 
 	offset := 2
 	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint16(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(interp.Registers[rB]+vX)), formatInt(int64(uint16(interp.Registers[rA]))))
-	} else { // page fault error
-		pvmLogger.Debugf("[%d]: pc: %d, %s, page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), formatInt(uint32(interp.Registers[rB]+vX)))
-	}
 	return exitReason, instr.PC
 }
 
@@ -777,13 +763,6 @@ func instStoreIndU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 
 	offset := 4
 	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(uint32(interp.Registers[rA])))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s ,[ %s+%s = 0x%x ] = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), formatInt(uint64(uint32(interp.Registers[rA]))))
-	} else { // page fault error
-		pvmLogger.Debugf("[%d]: pc: %d, %s , page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX))
-	}
 	return exitReason, instr.PC
 }
 
@@ -793,13 +772,6 @@ func instStoreIndU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 
 	offset := 8
 	exitReason := storeIntoMemory(interp, offset, uint32(interp.Registers[rB]+vX), uint64(interp.Registers[rA]))
-	if exitReason.GetReasonType() == CONTINUE {
-		pvmLogger.Debugf("[%d]: pc: %d, %s ,[ %s+%s = 0x%x...+%d ] = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX), offset, RegName[rA], formatInt(uint64(interp.Registers[rA])))
-	} else { // page fault error
-		pvmLogger.Debugf("[%d]: pc: %d, %s , page fault error at mem[ %s+%s = 0x%x ]", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(uint32(vX)), uint32(interp.Registers[rB]+vX))
-	}
 
 	return exitReason, instr.PC
 }
@@ -815,8 +787,6 @@ func instLoadIndU8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	}
 
 	interp.Registers[rA] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA],
-		RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -831,7 +801,6 @@ func instLoadIndI8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	}
 
 	interp.Registers[rA] = uint64(int8(memVal))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -846,7 +815,6 @@ func instLoadIndU16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	}
 
 	interp.Registers[rA] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -861,7 +829,6 @@ func instLoadIndI16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	}
 
 	interp.Registers[rA] = uint64(int16(memVal))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -876,7 +843,6 @@ func instLoadIndU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	}
 
 	interp.Registers[rA] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -891,8 +857,6 @@ func instLoadIndI32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	}
 
 	interp.Registers[rA] = uint64(int32(memVal))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -907,8 +871,6 @@ func instLoadIndU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	}
 
 	interp.Registers[rA] = memVal
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = mem[ %s+%s = 0x%x ] = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), uint32(interp.Registers[rB]+vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -921,8 +883,6 @@ func instAddImm32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 		pvmLogger.Errorf("instAddImm32 SignExtend error: %v", err)
 	}
 	interp.Registers[rA] = val
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -931,8 +891,6 @@ func instAndImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = interp.Registers[rB] & vX
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s & %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -941,8 +899,6 @@ func instXORImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = interp.Registers[rB] ^ vX
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -951,8 +907,6 @@ func instORImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = interp.Registers[rB] | vX
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s | %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -966,8 +920,6 @@ func instMulImm32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = val
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -980,8 +932,6 @@ func instSetLtUImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	} else {
 		interp.Registers[rA] = 0
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s < %s) = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1024,8 +974,6 @@ func instShloRImm32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1035,8 +983,6 @@ func instSharRImm32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 
 	vX = vX & 31 // % 32
 	interp.Registers[rA] = uint64(int32(interp.Registers[rB]) >> vX)
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = 0x%x", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1050,8 +996,6 @@ func instNegAddImm32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = uint64(imm)
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (0x%x + (1<<32) - %s) = (0x%x + (1<<32) - %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], vX, RegName[rB], vX, formatInt(interp.Registers[rB]), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1064,8 +1008,6 @@ func instSetGtUImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	} else {
 		interp.Registers[rA] = 0
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s > %s) = (%s > %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1078,8 +1020,6 @@ func instSetGtSImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	} else {
 		interp.Registers[rA] = 0
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s > %s) = (0x%x > %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(int64(vX)), formatInt(interp.Registers[rB]), formatInt(int64(vX)), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1093,8 +1033,6 @@ func instShloLImmAlt32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s) ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1108,8 +1046,6 @@ func instShloRImmAlt32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]&31), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1119,8 +1055,6 @@ func instSharRImmAlt32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 
 	imm := uint64(int32(uint32(vX)) >> (interp.Registers[rB] & 31))
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> 0x%x) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(uint32(vX)), RegName[rB], formatInt(uint32(vX)), interp.Registers[rB], formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1130,11 +1064,6 @@ func instCmovIzImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 
 	if interp.Registers[rB] == 0 {
 		interp.Registers[rA] = vX
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s (%s == 0)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rA], formatInt(vX), RegName[rB])
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s (%s != 0)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rA], formatInt(interp.Registers[rA]), RegName[rB])
 	}
 
 	return ExitContinue, instr.PC
@@ -1146,11 +1075,6 @@ func instCmovNzImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 
 	if interp.Registers[rB] != 0 {
 		interp.Registers[rA] = vX
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s (%s != 0)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rA], formatInt(vX), RegName[rB])
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s (%s == 0)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rA], formatInt(vX), RegName[rB])
 	}
 
 	return ExitContinue, instr.PC
@@ -1161,8 +1085,6 @@ func instAddImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = interp.Registers[rB] + vX
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s)  = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1171,8 +1093,6 @@ func instMulImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progra
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = interp.Registers[rB] * vX
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(vX), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1186,8 +1106,6 @@ func instShloLImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(interp.Registers[rB]), formatInt(vX&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1201,8 +1119,6 @@ func instShloRImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 		return ExitHalt, instr.PC
 	}
 	interp.Registers[rA] = imm
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(interp.Registers[rB]), formatInt(vX&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1211,8 +1127,6 @@ func instSharRImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = uint64(int64(interp.Registers[rB]) >> (vX & 63))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], RegName[rB], formatInt(vX&63), formatInt(interp.Registers[rB]), formatInt(vX&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1221,8 +1135,6 @@ func instNegAddImm64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = vX - interp.Registers[rB]
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s + (1<<64) - %s) = (%s + (1<<64) - %s) = %s ", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1231,8 +1143,6 @@ func instShloLImmAlt64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = vX << (interp.Registers[rB] & 63)
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1241,8 +1151,6 @@ func instShloRImmAlt64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = vX >> (interp.Registers[rB] & 63)
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(vX), RegName[rB], formatInt(vX), formatInt(interp.Registers[rB]&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1251,8 +1159,6 @@ func instSharRImmAlt64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, P
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	interp.Registers[rA] = uint64(int64(vX) >> (interp.Registers[rB] & 63))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(int64(vX)), RegName[rB], formatInt(int64(vX)), formatInt(interp.Registers[rB]&63), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1263,8 +1169,6 @@ func instRotR64ImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 	// rotate right
 	interp.Registers[rA] = bits.RotateLeft64(interp.Registers[rB], -int(vX))
 	// interp.Registers[rA] = (interp.Registers[rB] >> vX) | (interp.Registers[rB] << (64 - vX))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1273,10 +1177,7 @@ func instRotR64ImmAltMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	rA, rB, vX := instr.Dst, instr.Src[0], instr.Imm[0]
 
 	// rotate right
-	interp.Registers[rB] &= 63 // % 64
-	interp.Registers[rA] = bits.RotateLeft64(vX, -int(interp.Registers[rB]))
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(interp.Registers[rA]))
+	interp.Registers[rA] = bits.RotateLeft64(vX, -int(interp.Registers[rB]&63))
 	return ExitContinue, instr.PC
 }
 
@@ -1293,8 +1194,6 @@ func instRotR32ImmMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Progr
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[rA] = val
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1311,8 +1210,6 @@ func instRotR32ImmAltMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 		return ExitPanic, instr.PC
 	}
 	interp.Registers[rA] = val
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rA], formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1321,38 +1218,30 @@ func instBranchMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	rA := instr.Src[0]
 	rB := instr.Src[1]
 	vX := ProgramCounter(instr.Imm[0])
-	var op string
 	branchCondition := false
 	switch instr.Opcode {
 	case 170:
 		branchCondition = interp.Registers[rA] == interp.Registers[rB]
-		op = "=="
 	case 171:
 		branchCondition = interp.Registers[rA] != interp.Registers[rB]
-		op = "!="
 	case 172:
 		branchCondition = interp.Registers[rA] < interp.Registers[rB]
-		op = "<"
 	case 173:
 		branchCondition = int64(interp.Registers[rA]) < int64(interp.Registers[rB])
-		op = "<(signed)"
 	case 174:
 		branchCondition = interp.Registers[rA] >= interp.Registers[rB]
-		op = ">="
 	case 175:
 		branchCondition = int64(interp.Registers[rA]) >= int64(interp.Registers[rB])
-		op = ">=(signed)"
 	default:
-		pvmLogger.Fatalf("instBranch is supposed to be called with opcode in [170, 175]")
+		pvmLogger.Errorf("instBranchMeta: unexpected opcode %d, expected [170, 175]", instr.Opcode)
+		return ExitPanic, instr.PC
 	}
 
 	reason, newPC := branch(instr.PC, vX, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
 	if reason != ExitContinue {
-		pvmLogger.Errorf("[%d]: pc: %d, %s panic", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)])
+		pvmLogger.Errorf("instBranchMeta branch error at pc: %d, opcode: %s", instr.PC, zeta[opcode(instr.Opcode)])
 		return ExitReason(reason), instr.PC
 	}
-	pvmLogger.Debugf("[%d]: pc: %d, %s branch(%d, %s=%s %s %s=%s) = %t",
-		interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], vX, RegName[rA], formatInt(interp.Registers[rA]), op, RegName[rB], formatInt(interp.Registers[rB]), branchCondition)
 	return reason, newPC
 }
 
@@ -1370,14 +1259,10 @@ func instLoadImmJumpIndMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 	interp.Registers[rA] = vX
 	switch reason {
 	case ExitPanic:
-		pvmLogger.Debugf("[%d]: pc: %d PANIC, %s, %v", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], reason)
 		return reason, instr.PC
 	case ExitHalt:
-		pvmLogger.Debugf("[%d]: pc: %d HALT, %s, %v", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)], reason)
 		return reason, instr.PC
 	default:
-		pvmLogger.Debugf("[%d]: pc: %d, %s, (%s + %s) = (%s + %s) mod (1<<32) = %s)", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rB], formatInt(vY), formatInt(interp.Registers[rB]), formatInt(vY), formatInt(dest))
 		return reason, newPC
 	}
 }
@@ -1395,8 +1280,6 @@ func instAdd32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = u32(%s + %s)  = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1414,8 +1297,6 @@ func instSub32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = u32(%s) - u32(%s) = u32(%s) - u32(%s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(uint32(interp.Registers[rA])), formatInt(uint32(interp.Registers[rB])), formatInt(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
@@ -1432,8 +1313,6 @@ func instMul32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1448,8 +1327,6 @@ func instDivU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 
 	if bMod32 == 0 {
 		interp.Registers[rD] = ^uint64(0) // 2^64 - 1
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], formatInt(interp.Registers[rD]))
 	} else {
 		var err error
 		interp.Registers[rD], err = SignExtend(4, uint64(aMod32/bMod32))
@@ -1457,8 +1334,6 @@ func instDivU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 			pvmLogger.Errorf("instDivU32 signExtend error: %v", err)
 			return ExitHalt, instr.PC
 		}
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s / %s) = (%s / %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	}
 
 	return ExitContinue, instr.PC
@@ -1480,8 +1355,6 @@ func instDivS32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = uint64(a / b)
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = 0x%x", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1504,8 +1377,6 @@ func instRemU32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1524,8 +1395,6 @@ func instRemS32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = uint64((smod(a, b)))
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1542,8 +1411,6 @@ func instShloL32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = (%s << %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1562,8 +1429,6 @@ func instShloR32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 		return ExitHalt, instr.PC
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1578,8 +1443,6 @@ func instSharR32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	shift := interp.Registers[rB] % 32
 	interp.Registers[rD] = uint64(signedA >> shift)
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(signedA), formatInt(shift), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1591,8 +1454,6 @@ func instAdd64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] + interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s + %s) = (%s + %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1604,8 +1465,6 @@ func instSub64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] + (^interp.Registers[rB] + 1)
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s - %s) = (%s - %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1617,8 +1476,6 @@ func instMul64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] * interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s • %s) = (%s • %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1634,8 +1491,6 @@ func instDivU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = interp.Registers[rA] / interp.Registers[rB]
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1653,8 +1508,6 @@ func instDivS64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = uint64((int64(interp.Registers[rA]) / int64(interp.Registers[rB])))
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1670,8 +1523,6 @@ func instRemU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = interp.Registers[rA] % interp.Registers[rB]
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1687,8 +1538,6 @@ func instRemS64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 		interp.Registers[rD] = uint64(smod(int64(interp.Registers[rA]), int64(interp.Registers[rB])))
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1700,8 +1549,6 @@ func instShloL64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] << (interp.Registers[rB] % 64)
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s << %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]%64), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1713,8 +1560,6 @@ func instShloR64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] >> (interp.Registers[rB] % 64)
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]%64), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1726,8 +1571,6 @@ func instSharR64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 	// mutation
 	interp.Registers[rD] = uint64(int64(interp.Registers[rA]) >> (interp.Registers[rB] % 64))
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s >> %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(int64(interp.Registers[rA])), formatInt(interp.Registers[rB]%64), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1739,8 +1582,6 @@ func instAndMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCoun
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] & interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s & %s) = (%s & %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1752,8 +1593,6 @@ func instXorMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCoun
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] ^ interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s ^ %s) = (%s ^ %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1765,8 +1604,6 @@ func instOrMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCount
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] | interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = (%s | %s) = (%s | %s) = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], RegName[rA], RegName[rB], formatInt(interp.Registers[rA]), formatInt(interp.Registers[rB]), formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1787,8 +1624,6 @@ func instMulUpperSSMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 		interp.Registers[rD] = uint64(-int64(hi))
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1801,8 +1636,6 @@ func instMulUpperUUMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 	hi, _ := bits.Mul64(interp.Registers[rA], interp.Registers[rB])
 	interp.Registers[rD] = hi
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1826,8 +1659,6 @@ func instMulUpperSUMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Prog
 		interp.Registers[rD] = hi
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1869,11 +1700,6 @@ func instCmovIzMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	// mutation
 	if interp.Registers[rB] == 0 {
 		interp.Registers[rD] = interp.Registers[rA]
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], RegName[rA], formatInt(interp.Registers[rD]))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], formatInt(interp.Registers[rD]))
 	}
 
 	return ExitContinue, instr.PC
@@ -1887,11 +1713,6 @@ func instCmovNzMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	// mutation
 	if interp.Registers[rB] != 0 {
 		interp.Registers[rD] = interp.Registers[rA]
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], RegName[rA], formatInt(interp.Registers[rD]))
-	} else {
-		pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-			RegName[rD], formatInt(interp.Registers[rD]))
 	}
 
 	return ExitContinue, instr.PC
@@ -1905,8 +1726,6 @@ func instRotL64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	// mutation
 	interp.Registers[rD] = bits.RotateLeft64(interp.Registers[rA], int(interp.Registers[rB]%64))
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1924,8 +1743,6 @@ func instRotL32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	}
 	interp.Registers[rD] = extend
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1937,8 +1754,6 @@ func instRotR64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	// mutation
 	interp.Registers[rD] = bits.RotateLeft64(interp.Registers[rA], -int(interp.Registers[rB]))
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1956,8 +1771,6 @@ func instRotR32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	}
 	interp.Registers[rD] = extend
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1969,8 +1782,6 @@ func instAndInvMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramC
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] & ^interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1982,8 +1793,6 @@ func instOrInvMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCo
 	// mutation
 	interp.Registers[rD] = interp.Registers[rA] | ^interp.Registers[rB]
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -1995,8 +1804,6 @@ func instXnorMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 	// mutation
 	interp.Registers[rD] = ^(interp.Registers[rA] ^ interp.Registers[rB])
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -2009,8 +1816,6 @@ func instMaxMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCoun
 	// mutation
 	interp.Registers[rD] = uint64(max(int64(interp.Registers[rA]), int64(interp.Registers[rB])))
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -2027,8 +1832,6 @@ func instMaxUMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 		interp.Registers[rD] = interp.Registers[rB]
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -2041,8 +1844,6 @@ func instMinMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCoun
 	// mutation
 	interp.Registers[rD] = uint64(min(int64(interp.Registers[rA]), int64(interp.Registers[rB])))
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }
 
@@ -2059,7 +1860,5 @@ func instMinUMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 		interp.Registers[rD] = interp.Registers[rB]
 	}
 
-	pvmLogger.Debugf("[%d]: pc: %d, %s, %s = %s", interp.InstrCount, instr.PC, zeta[opcode(instr.Opcode)],
-		RegName[rD], formatInt(interp.Registers[rD]))
 	return ExitContinue, instr.PC
 }

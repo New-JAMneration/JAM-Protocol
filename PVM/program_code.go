@@ -33,7 +33,7 @@ func MakeBitMasks(instruction []byte, bitmaskData []byte) (Bitmask, ExitReason) 
 		if bitmaskData[i/8]&(1<<(i%8)) > 0 {
 			bitmask[i] = 0x01
 
-			if i == 0 || isBasicBlockTerminationInstruction(instruction[prev]) {
+			if i == 0 || IsBlockTerminator(instruction[prev]) {
 				bitmask[i] |= 0x02
 			}
 
@@ -64,29 +64,15 @@ func (bitmask Bitmask) IsStartOfBasicBlock(addr ProgramCounter) bool {
 	return bitmask[addr] == 0x03
 }
 
-func isBasicBlockTerminationInstruction(opcode byte) bool {
-	switch opcode {
-	case 0, 1, 40, 50, 180:
-		return true
-	}
-
-	if (opcode >= 80 && opcode <= 90) || (opcode >= 170 && opcode <= 175) {
-		return true
-	}
-
-	return false
-}
-
 // type BasicBlock [][]byte // each sequence is a instruction
 type Program struct {
 	InstructionData ProgramCode // c , includes opcodes & instruction variables
 	Bitmasks        Bitmask     // k
 	JumpTable       JumpTable   // j, z, |j|
-	InstrCount      uint64
 
-	Instrs   []InstrMeta                   // pre-decoded instruction metadata (flat array)
-	BlockMap map[ProgramCounter]*BlockMeta // basic block lookup by startPC
-	InstrMap map[ProgramCounter]int        // PC → index into Instrs[] (for mid-block resume)
+	Instrs     []InstrMeta  // pre-decoded instruction metadata (flat array)
+	BlockAt    []*BlockMeta // PC-indexed: BlockAt[pc] non-nil if pc starts a basic block
+	InstrIdxAt []int32      // PC-indexed: InstrIdxAt[pc] = index into Instrs[], -1 if not an instruction start
 }
 
 // DeBlobProgramCode deblob code, jump table, bitmask | A.2

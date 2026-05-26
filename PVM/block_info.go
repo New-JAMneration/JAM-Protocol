@@ -8,10 +8,8 @@ type InstrMeta struct {
 	SkipLen uint8          // 1B, max 24
 	Dst     uint8          // 1B, destination reg index (0xFF = none)
 	Src     [2]uint8       // 2B, source reg indices (0xFF = unused)
-	_       [3]byte        // padding to 8-byte alignment
+	Exec    instrMetaFn    // pre-resolved handler; set at deblob time
 	Imm     [2]uint64      // 16B, immediates / branch target PC
-	// SrcMask uint16  // bitmask of source registers (13 PVM regs → bits 0..12)
-	// DstMask uint16  // bitmask of destination registers
 }
 
 // BlockMeta holds pre-decoded metadata for a single PVM basic block.
@@ -150,7 +148,7 @@ func decodeOperands(instr *InstrMeta, idata ProgramCode, bitmask Bitmask) {
 }
 
 // preDecodeBlocks performs a single-pass scan of the entire program blob,
-// populating Program.Instrs and Program.BlockMap.
+// populating Program.Instrs, Program.BlockAt, and Program.InstrIdxAt.
 // Called once at the end of DeBlobProgramCode.
 func (p *Program) preDecodeBlocks() ExitReason {
 	idata := p.InstructionData
@@ -158,8 +156,11 @@ func (p *Program) preDecodeBlocks() ExitReason {
 	n := len(idata)
 
 	p.Instrs = make([]InstrMeta, 0, n/4)
-	p.BlockMap = make(map[ProgramCounter]*BlockMeta, n/8)
-	p.InstrMap = make(map[ProgramCounter]int, n/4)
+	p.BlockAt = make([]*BlockMeta, n)
+	p.InstrIdxAt = make([]int32, n)
+	for i := range p.InstrIdxAt {
+		p.InstrIdxAt[i] = -1
+	}
 
 	pc := ProgramCounter(0)
 	for pc < ProgramCounter(n) {
@@ -189,21 +190,17 @@ func (p *Program) preDecodeBlocks() ExitReason {
 				PC:      pc,
 				Opcode:  op,
 				SkipLen: uint8(skipLen),
+				Exec:    instrMetaExecForOpcode(op),
 			})
-			p.InstrMap[pc] = idx
+			p.InstrIdxAt[pc] = int32(idx)
 
-			// v0.7.2 only — operands are decoded here so the
-			// interpreter can read them from InstrMeta. In v0.8.0 the JIT will be
-			// the sole consumer and decodeOperands should be removed from this loop.
 			decodeOperands(&p.Instrs[idx], idata, bitmask)
 
 			if IsBlockTerminator(op) {
 				block.EndPC = pc
 				block.InstrEnd = len(p.Instrs)
 				block.GasCost = Gas(block.InstrEnd - block.InstrStart)
-				// TODO(gas-model): 0.8.0 replace the line above with:
-				// block.GasCost = simulatePipeline(p.Instrs[block.InstrStart:block.InstrEnd])
-				p.BlockMap[block.StartPC] = block
+				p.BlockAt[block.StartPC] = block
 				pc += ProgramCounter(skipLen) + 1
 				break
 			}
@@ -218,5 +215,8 @@ func (p *Program) preDecodeBlocks() ExitReason {
 // LookupBlock returns the pre-decoded BlockMeta for a basic block starting at pc.
 // Returns nil if pc is not the start of a known basic block.
 func (p *Program) LookupBlock(pc ProgramCounter) *BlockMeta {
-	return p.BlockMap[pc]
+	if int(pc) >= len(p.BlockAt) {
+		return nil
+	}
+	return p.BlockAt[pc]
 }
