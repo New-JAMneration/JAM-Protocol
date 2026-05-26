@@ -26,7 +26,7 @@ type TestVector struct {
 func loadTestVectors(t *testing.T) []TestVector {
 	// Get the path to vectors.json relative to the test file
 	// Adjust this path based on your project structure
-	vectorsPath := filepath.Join("..", "..", "..", "pkg", "test_data", "jam-conformance", "crypto", "ed25519", "vectors.json")
+	vectorsPath := filepath.Join("..", "..", "pkg", "test_data", "jam-conformance", "crypto", "ed25519", "vectors.json")
 
 	// Alternative: use absolute path from workspace root
 	// vectorsPath := "pkg/test_data/jam-conformance/crypto/ed25519/vectors.json"
