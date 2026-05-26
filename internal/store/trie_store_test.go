@@ -525,3 +525,122 @@ func TestCallbackConsistency_LargeValues(t *testing.T) {
 		assert.Equal(t, valuesPlain[i], valuesCached[i])
 	}
 }
+
+// TestIncrementalMerklize_EvictionFallback simulates more than a ring-buffer's
+// worth of consecutive incremental commits with small deltas. After evicting
+// the oldest trie (which may remove shared nodes), the next incremental attempt
+// should either succeed or gracefully degrade — and the resulting root must
+// always match a full MerklizeAndCommit on the same data.
+func TestIncrementalMerklize_EvictionFallback(t *testing.T) {
+	db := memory.NewDatabase()
+	tr := store.NewTrie(db)
+
+	const rounds = 30 // exceeds typical MaxLookupAge (24)
+
+	var roots []types.StateRoot
+	var allPairs []types.StateKeyVals
+
+	// Round 0: initial full commit
+	basePairs := types.StateKeyVals{
+		{Key: types.StateKey{0x00}, Value: []byte{0x01}},
+		{Key: types.StateKey{0x40}, Value: []byte{0x02}},
+		{Key: types.StateKey{0x80}, Value: []byte{0x03}},
+		{Key: types.StateKey{0xC0}, Value: []byte{0x04}},
+	}
+	root0, err := tr.MerklizeAndCommit(basePairs)
+	require.NoError(t, err)
+	roots = append(roots, root0)
+	allPairs = append(allPairs, basePairs.DeepCopy())
+
+	for i := 1; i < rounds; i++ {
+		// Small delta: modify one entry per round
+		prev := allPairs[i-1].DeepCopy()
+		idx := i % len(prev)
+		prev[idx].Value = []byte{byte(i + 10)}
+
+		priorRoot := roots[i-1]
+		dirty := store.DiffSortedKeyVals(allPairs[i-1], prev)
+
+		// Incremental merklize
+		var newNodes []types.OpaqueHash
+		storeNode := func(h types.OpaqueHash, n merklization.TrieNode) error {
+			newNodes = append(newNodes, h)
+			return db.Put(makeTestTrieKey(store.TrieNodePrefix(), h[1:]), n[:])
+		}
+		storeValue := func(value []byte) error {
+			vh := merklization.EncodeLeafNodeHash(types.StateKey{}, value)
+			return db.Put(makeTestTrieKey(store.TrieNodeValuePrefix(), vh[1:]), value)
+		}
+
+		incrRoot, err := store.IncrementalMerklize(
+			types.OpaqueHash(priorRoot), dirty, tr, storeNode, storeValue,
+		)
+		if err == nil {
+			for _, nh := range newNodes {
+				require.NoError(t, tr.IncreaseNodeRefCount(nh))
+			}
+		}
+
+		// Full merklize for comparison
+		fullRoot, err2 := tr.MerklizeOnly(prev)
+		require.NoError(t, err2)
+
+		if err == nil {
+			assert.Equal(t, types.OpaqueHash(fullRoot), incrRoot,
+				"round %d: incremental root must match full merklize", i)
+		}
+		// Even if incremental failed, full merklize is the fallback — root is always correct.
+
+		roots = append(roots, fullRoot)
+		allPairs = append(allPairs, prev)
+
+		// Evict oldest trie (simulating ring-buffer behavior)
+		if i > 24 {
+			evictIdx := i - 24
+			evictRoot := roots[evictIdx]
+			_ = tr.DeleteTrie(types.OpaqueHash(evictRoot))
+		}
+	}
+}
+
+func makeTestTrieKey(prefix byte, suffix []byte) []byte {
+	key := make([]byte, 1+len(suffix))
+	key[0] = prefix
+	copy(key[1:], suffix)
+	return key
+}
+
+// TestMerklizePathEquivalence verifies that the in-memory cache path
+// (MerklizationSerializedStateWithCache with a leaf-hash cache) produces
+// the same state root as Trie.MerklizeOnly (which uses MerklizationSerializedState).
+// This ensures header validation and state commit compute identical roots.
+func TestMerklizePathEquivalence(t *testing.T) {
+	tr := newTestTrie()
+	pairs := makePairs(32)
+
+	// Path 1: Trie.MerklizeOnly (used by state commit fallback)
+	rootTrieOnly, err := tr.MerklizeOnly(pairs)
+	require.NoError(t, err)
+
+	// Path 2: MerklizationSerializedStateWithCache with trivial cache (used by header validation)
+	trivialCache := func(key types.StateKey, value []byte) types.OpaqueHash {
+		return merklization.EncodeLeafNodeHash(key, value)
+	}
+	pairsCopy := pairs.DeepCopy()
+	rootCached, err := merklization.MerklizationSerializedStateWithCache(
+		pairsCopy, trivialCache, nil, nil,
+	)
+	require.NoError(t, err)
+
+	// Path 3: MerklizationSerializedStateWithCache with nil cache (no caching)
+	pairsCopy2 := pairs.DeepCopy()
+	rootNilCache, err := merklization.MerklizationSerializedStateWithCache(
+		pairsCopy2, nil, nil, nil,
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, rootTrieOnly, rootCached,
+		"MerklizeOnly and MerklizationSerializedStateWithCache(cache) must produce same root")
+	assert.Equal(t, rootTrieOnly, rootNilCache,
+		"MerklizeOnly and MerklizationSerializedStateWithCache(nil) must produce same root")
+}

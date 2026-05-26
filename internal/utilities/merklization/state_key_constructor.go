@@ -1,8 +1,8 @@
 package merklization
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/statekey"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // StateKeyConstruct is an interface
@@ -54,25 +54,10 @@ func (w StateServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 	return output
 }
 
-// StateKeyConstruct returns a OpaqueHash
+// StateKeyConstruct returns a StateKey using the type-3 interleave layout.
+// Delegates to statekey.Interleave (single source of truth for type-3 key construction).
 func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
-	// [n_0, h_0, n_1, h_1, n_2, h_2, n_3, h_3, h_4, h_5,...,h_26] where n = encode_4(service_id)
-
-	// Encode the service index
-	n := encodeServiceID(w.ServiceIndex)
-
-	a := hash.Blake2bHashPartial(w.h[:], 27)
-
-	for i := 0; i <= 3; i++ {
-		output[2*i] = n[i]
-		output[2*i+1] = a[i]
-	}
-
-	for i := 4; i <= 26; i++ {
-		output[i+4] = a[i]
-	}
-
-	return output
+	return types.StateKey(statekey.Interleave(uint32(w.ServiceIndex), w.h))
 }
 
 // StateKey constructor helpers.
@@ -87,12 +72,10 @@ func (w ServiceWrapper) StateKeyConstruct() (output types.StateKey) {
 
 // NewStorageStateKey builds the StateKey for a storage (delta2) entry.
 // GP eq. (D.2): C(s, E4(2^32 - 1) ⌢ k)
+//
+// Delegates to statekey.Storage (single source of truth for type-3 key construction).
 func NewStorageStateKey(serviceID types.ServiceID, rawKey types.ByteSequence) (types.StateKey, error) {
-	h := make(types.ByteSequence, delta2PrefixLen+len(rawKey))
-	copy(h[:delta2PrefixLen], delta2Prefix)
-	copy(h[delta2PrefixLen:], rawKey)
-	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
-	return wrapper.StateKeyConstruct(), nil
+	return types.StateKey(statekey.Storage(uint32(serviceID), rawKey)), nil
 }
 
 // NewPreimageLookupStateKey builds the StateKey for a preimage lookup (delta3) entry.
@@ -100,24 +83,16 @@ func NewStorageStateKey(serviceID types.ServiceID, rawKey types.ByteSequence) (t
 //
 // NOTE: PreimageLookup is kept as an independent map; this helper is used by
 // deserialization (to identify delta3 entries) and tests only.
+//
+// Delegates to statekey.PreimageLookup (single source of truth for type-3 key construction).
 func NewPreimageLookupStateKey(serviceID types.ServiceID, preimageHash types.OpaqueHash) (types.StateKey, error) {
-	h := make(types.ByteSequence, delta3PrefixLen+len(preimageHash))
-	copy(h[:delta3PrefixLen], delta3Prefix)
-	copy(h[delta3PrefixLen:], preimageHash[:])
-	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
-	return wrapper.StateKeyConstruct(), nil
+	return types.StateKey(statekey.PreimageLookup(uint32(serviceID), [32]byte(preimageHash))), nil
 }
 
 // NewPreimageMetaStateKey builds the StateKey for a preimage meta / lookup-dict (delta4) entry.
 // GP eq. (D.2): C(s, E4(l) ⌢ h)
+//
+// Delegates to statekey.PreimageMeta (single source of truth for type-3 key construction).
 func NewPreimageMetaStateKey(serviceID types.ServiceID, preimageHash types.OpaqueHash, length types.U32) (types.StateKey, error) {
-	h := make(types.ByteSequence, uint32EncodedLen+len(preimageHash))
-	v := uint32(length)
-	h[0] = byte(v)
-	h[1] = byte(v >> 8)
-	h[2] = byte(v >> 16)
-	h[3] = byte(v >> 24)
-	copy(h[uint32EncodedLen:], preimageHash[:])
-	wrapper := ServiceWrapper{ServiceIndex: serviceID, h: h}
-	return wrapper.StateKeyConstruct(), nil
+	return types.StateKey(statekey.PreimageMeta(uint32(serviceID), [32]byte(preimageHash), uint32(length))), nil
 }
