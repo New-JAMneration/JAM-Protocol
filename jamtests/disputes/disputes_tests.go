@@ -28,9 +28,9 @@ var debugMode = false
 
 // var debugMode = true
 
-func cLog(color string, string string) {
+func cLog(color string, format string, args ...any) {
 	if debugMode {
-		fmt.Printf("%s%s%s\n", color, string, Reset)
+		fmt.Printf("%s%s%s\n", color, fmt.Sprintf(format, args...), Reset)
 	}
 }
 
@@ -190,7 +190,7 @@ func (do *DisputeOutput) Decode(d *types.Decoder) error {
 
 		do.Err = (*DisputeErrorCode)(&errByte)
 
-		cLog(Yellow, fmt.Sprintf("DisputesErrorCode: %d", *do.Err))
+		cLog(Yellow, "DisputesErrorCode: %d", *do.Err)
 	}
 
 	return nil
@@ -321,7 +321,7 @@ func (do *DisputeOutput) Encode(e *types.Encoder) error {
 			return err
 		}
 
-		cLog(Yellow, fmt.Sprintf("DisputeErrorCode: %d", *do.Err))
+		cLog(Yellow, "DisputeErrorCode: %d", *do.Err)
 
 		return nil
 	}

@@ -29,9 +29,9 @@ var debugMode = false
 
 // var debugMode = true
 
-func cLog(color string, string string) {
+func cLog(color string, format string, args ...any) {
 	if debugMode {
-		fmt.Printf("%s%s%s\n", color, string, Reset)
+		fmt.Printf("%s%s%s\n", color, fmt.Sprintf(format, args...), Reset)
 	}
 }
 
@@ -288,7 +288,7 @@ func (o *PreimageOutput) Decode(d *types.Decoder) error {
 
 		o.Err = (*PreimageErrorCode)(&errByte)
 
-		cLog(Yellow, fmt.Sprintf("PreimageErrorCode: %v", *o.Err))
+		cLog(Yellow, "PreimageErrorCode: %v", *o.Err)
 	}
 
 	return nil
@@ -330,7 +330,7 @@ func (l *LookupMetaMapEntry) Decode(d *types.Decoder) error {
 		// make a slice of length length
 		l.Val = make([]types.TimeSlot, length)
 		for i := uint64(0); i < length; i++ {
-			cLog(White, fmt.Sprintf("Decoding TimeSlot %d", i))
+			cLog(White, "Decoding TimeSlot %d", i)
 
 			if err = l.Val[i].Decode(d); err != nil {
 				return err
@@ -373,7 +373,7 @@ func (a *Account) Decode(d *types.Decoder) error {
 		// make a slice of length length
 		a.Preimages = make([]PreimagesMapEntry, preimagesLength)
 		for i := uint64(0); i < preimagesLength; i++ {
-			cLog(Gray, fmt.Sprintf("Decoding Preimage %d", i))
+			cLog(Gray, "Decoding Preimage %d", i)
 
 			if err = a.Preimages[i].Decode(d); err != nil {
 				return err
@@ -390,7 +390,7 @@ func (a *Account) Decode(d *types.Decoder) error {
 		// make a slice of length length
 		a.LookupMeta = make([]LookupMetaMapEntry, lookupMetaLength)
 		for i := uint64(0); i < lookupMetaLength; i++ {
-			cLog(Gray, fmt.Sprintf("Decoding LookupMeta %d", i))
+			cLog(Gray, "Decoding LookupMeta %d", i)
 
 			if err = a.LookupMeta[i].Decode(d); err != nil {
 				return err
@@ -435,7 +435,7 @@ func (p *PreimageState) Decode(d *types.Decoder) error {
 		// make a slice of length length
 		p.Accounts = make([]AccountsMapEntry, accountsLength)
 		for i := uint64(0); i < accountsLength; i++ {
-			cLog(Blue, fmt.Sprintf("Decoding Account %d", i))
+			cLog(Blue, "Decoding Account %d", i)
 
 			if err = p.Accounts[i].Decode(d); err != nil {
 				return err
