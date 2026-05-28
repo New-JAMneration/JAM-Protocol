@@ -1,5 +1,7 @@
 # JAM Protocol Implemetation
 
+<img width="1672" height="383" alt="ChatGPT Image May 28, 2026, 09_18_04 PM (1)" src="https://github.com/user-attachments/assets/181dd824-3310-4703-9220-c9691935b7b5" />
+
 [![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml)
 [![Release](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml)
 
