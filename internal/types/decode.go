@@ -14,7 +14,7 @@ func (h *HeaderHash) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("HeaderHash: %x", val))
+	cLog(Yellow, "HeaderHash: %x", val)
 
 	*h = val
 	return nil
@@ -28,7 +28,7 @@ func (s *StateRoot) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("StateRoot: %x", val))
+	cLog(Yellow, "StateRoot: %x", val)
 
 	*s = val
 	return nil
@@ -42,7 +42,7 @@ func (o *OpaqueHash) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("OpaqueHash: %x", val))
+	cLog(Yellow, "OpaqueHash: %x", val)
 
 	*o = val
 	return nil
@@ -56,7 +56,7 @@ func (t *TimeSlot) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("TimeSlot: %v", val))
+	cLog(Yellow, "TimeSlot: %v", val)
 
 	*t = val
 	return nil
@@ -113,13 +113,13 @@ func (e *EpochMark) Decode(d *Decoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Entropy: %x", e.Entropy))
+	cLog(Yellow, "Entropy: %x", e.Entropy)
 
 	if err = e.TicketsEntropy.Decode(d); err != nil {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketsEntropy: %x", e.TicketsEntropy))
+	cLog(Yellow, "TicketsEntropy: %x", e.TicketsEntropy)
 
 	// make the slice with validators count
 	e.Validators = make([]EpochMarkValidatorKeys, ValidatorsCount)
@@ -141,7 +141,7 @@ func (e *Entropy) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Entropy: %x", val))
+	cLog(Yellow, "Entropy: %x", val)
 
 	*e = val
 	return nil
@@ -156,7 +156,7 @@ func (b *BandersnatchPublic) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BandersnatchPublic: %x", val))
+	cLog(Yellow, "BandersnatchPublic: %x", val)
 
 	*b = val
 	return nil
@@ -171,7 +171,7 @@ func (t *TicketID) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("TicketID: %x", val))
+	cLog(Yellow, "TicketID: %x", val)
 
 	*t = val
 	return nil
@@ -185,7 +185,7 @@ func (t *TicketAttempt) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", val))
+	cLog(Yellow, "TicketAttempt: %v", val)
 
 	*t = TicketAttempt(val)
 	return nil
@@ -233,7 +233,7 @@ func (e *Ed25519Public) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Ed25519Public: %x", val))
+	cLog(Yellow, "Ed25519Public: %x", val)
 
 	*e = val
 	return nil
@@ -275,7 +275,7 @@ func (v *ValidatorIndex) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ValidatorIndex: %v", val))
+	cLog(Yellow, "ValidatorIndex: %v", val)
 
 	*v = val
 	return nil
@@ -290,7 +290,7 @@ func (b *BandersnatchVrfSignature) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BandersnatchVrfSignature: %x", val))
+	cLog(Yellow, "BandersnatchVrfSignature: %x", val)
 
 	*b = val
 	return nil
@@ -376,8 +376,8 @@ func (b *BandersnatchRingVrfSignature) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BandersnatchRingVrfSignature: %x", val))
-	cLog(Yellow, fmt.Sprintf("BandersnatchRingVrfSignature Length: %v", len(val)))
+	cLog(Yellow, "BandersnatchRingVrfSignature: %x", val)
+	cLog(Yellow, "BandersnatchRingVrfSignature Length: %v", len(val))
 
 	*b = val
 	return nil
@@ -435,7 +435,7 @@ func (s *ServiceID) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
+	cLog(Yellow, "ServiceID: %v", val)
 
 	*s = val
 	return nil
@@ -451,7 +451,7 @@ func (s *ServiceIDList) Decode(d *Decoder) error {
 			return err
 		}
 	}
-	cLog(Yellow, fmt.Sprintf("ServiceID: %v", val))
+	cLog(Yellow, "ServiceID: %v", val)
 	*s = val
 	return nil
 }
@@ -477,7 +477,7 @@ func (b *ByteSequence) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ByteSequence: %x", byteSequence))
+	cLog(Yellow, "ByteSequence: %x", byteSequence)
 
 	*b = byteSequence
 
@@ -538,7 +538,7 @@ func (e *Ed25519Signature) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Ed25519Signature: %x", val))
+	cLog(Yellow, "Ed25519Signature: %x", val)
 
 	*e = val
 	return nil
@@ -569,7 +569,7 @@ func (e *ErasureRoot) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ErasureRoot: %x", val))
+	cLog(Yellow, "ErasureRoot: %x", val)
 
 	*e = val
 	return nil
@@ -583,7 +583,7 @@ func (e *ExportsRoot) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExportsRoot: %x", val))
+	cLog(Yellow, "ExportsRoot: %x", val)
 
 	*e = val
 	return nil
@@ -626,7 +626,7 @@ func (b *BeefyRoot) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BeefyRoot: %x", val))
+	cLog(Yellow, "BeefyRoot: %x", val)
 
 	*b = val
 	return nil
@@ -688,7 +688,7 @@ func (c *CoreIndex) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("CoreIndex: %v", val))
+	cLog(Yellow, "CoreIndex: %v", val)
 
 	*c = val
 	return nil
@@ -702,7 +702,7 @@ func (w *WorkPackageHash) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("WorkPackageHash: %x", val))
+	cLog(Yellow, "WorkPackageHash: %x", val)
 
 	*w = val
 	return nil
@@ -810,7 +810,7 @@ func (g *Gas) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Gas: %v", val))
+	cLog(Yellow, "Gas: %v", val)
 
 	*g = val
 	return nil
@@ -913,7 +913,7 @@ func (w *WorkReport) Decode(d *Decoder) error {
 		return err
 	}
 	w.CoreIndex = CoreIndex(coreIndex)
-	cLog(Yellow, fmt.Sprintf("CoreIndex: %v", w.CoreIndex))
+	cLog(Yellow, "CoreIndex: %v", w.CoreIndex)
 
 	if err = w.AuthorizerHash.Decode(d); err != nil {
 		return err
@@ -1055,7 +1055,7 @@ func (bf *Bitfield) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BitField: %x", bytes))
+	cLog(Yellow, "BitField: %x", bytes)
 
 	bitfield, err := MakeBitfieldFromByteSlice(bytes)
 	if err != nil {
@@ -1101,7 +1101,7 @@ func (w *WorkReportHash) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("WorkReportHash: %x", val))
+	cLog(Yellow, "WorkReportHash: %x", val)
 
 	*w = val
 	return nil
@@ -1143,7 +1143,7 @@ func (f *Fault) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Vote: %v", vote))
+	cLog(Yellow, "Vote: %v", vote)
 
 	f.Vote = vote == 1
 
@@ -1166,7 +1166,7 @@ func (u *U8) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("U8: %v", val))
+	cLog(Yellow, "U8: %v", val)
 
 	*u = val
 	return nil
@@ -1180,7 +1180,7 @@ func (u *U16) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("U16: %v", val))
+	cLog(Yellow, "U16: %v", val)
 
 	*u = val
 	return nil
@@ -1194,7 +1194,7 @@ func (u *U32) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("U32: %v", val))
+	cLog(Yellow, "U32: %v", val)
 
 	*u = val
 	return nil
@@ -1208,7 +1208,7 @@ func (u *U64) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("U64: %v", val))
+	cLog(Yellow, "U64: %v", val)
 
 	*u = val
 	return nil
@@ -1225,7 +1225,7 @@ func (j *Judgement) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Vote: %v", vote))
+	cLog(Yellow, "Vote: %v", vote)
 
 	j.Vote = vote == 1
 
@@ -1627,7 +1627,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.DALoad = U32(daLoad)
-	cLog(Yellow, fmt.Sprintf("DALoad: %v", c.DALoad))
+	cLog(Yellow, "DALoad: %v", c.DALoad)
 
 	cLog(Cyan, "Decoding Popularity")
 	popularity, err := d.DecodeInteger()
@@ -1635,7 +1635,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.Popularity = U16(popularity)
-	cLog(Yellow, fmt.Sprintf("Popularity: %v", c.Popularity))
+	cLog(Yellow, "Popularity: %v", c.Popularity)
 
 	cLog(Cyan, "Decoding Imports")
 	imports, err := d.DecodeInteger()
@@ -1643,7 +1643,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.Imports = U16(imports)
-	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
+	cLog(Yellow, "Imports: %v", c.Imports)
 
 	// x
 	cLog(Cyan, "Decoding ExtrinsicCount")
@@ -1652,7 +1652,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.ExtrinsicCount = U16(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	cLog(Yellow, "ExtrinsicCount: %v", c.ExtrinsicCount)
 
 	// z
 	cLog(Cyan, "Decoding ExtrinsicSize")
@@ -1661,7 +1661,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.ExtrinsicSize = U32(extrinsicSize)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
+	cLog(Yellow, "ExtrinsicSize: %v", c.ExtrinsicSize)
 
 	cLog(Cyan, "Decoding Exports")
 	exports, err := d.DecodeInteger()
@@ -1669,7 +1669,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.Exports = U16(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	cLog(Yellow, "Exports: %v", c.Exports)
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	bundleSize, err := d.DecodeInteger()
@@ -1677,7 +1677,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.BundleSize = U32(bundleSize)
-	cLog(Yellow, fmt.Sprintf("BundleSize: %v", c.BundleSize))
+	cLog(Yellow, "BundleSize: %v", c.BundleSize)
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	gasUsed, err := d.DecodeInteger()
@@ -1685,7 +1685,7 @@ func (c *CoreActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	c.GasUsed = Gas(gasUsed)
-	cLog(Yellow, fmt.Sprintf("GasUsed: %v", c.GasUsed))
+	cLog(Yellow, "GasUsed: %v", c.GasUsed)
 
 	return nil
 }
@@ -1721,7 +1721,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.ProvidedCount = U16(providedCount)
-	cLog(Yellow, fmt.Sprintf("ProvidedCount: %v", s.ProvidedCount))
+	cLog(Yellow, "ProvidedCount: %v", s.ProvidedCount)
 
 	cLog(Cyan, "Decoding ProvidedSize")
 	providedSize, err := d.DecodeInteger()
@@ -1729,7 +1729,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.ProvidedSize = U32(providedSize)
-	cLog(Yellow, fmt.Sprintf("ProvidedSize: %v", s.ProvidedSize))
+	cLog(Yellow, "ProvidedSize: %v", s.ProvidedSize)
 
 	cLog(Cyan, "Decoding RefinementCount")
 	refinementCount, err := d.DecodeInteger()
@@ -1737,7 +1737,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.RefinementCount = U32(refinementCount)
-	cLog(Yellow, fmt.Sprintf("RefinementCount: %v", refinementCount))
+	cLog(Yellow, "RefinementCount: %v", refinementCount)
 
 	cLog(Cyan, "Decoding RefinementGasUsed")
 	refinementGasUsed, err := d.DecodeInteger()
@@ -1745,7 +1745,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.RefinementGasUsed = Gas(refinementGasUsed)
-	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", refinementGasUsed))
+	cLog(Yellow, "RefinementGasUsed: %v", refinementGasUsed)
 
 	cLog(Cyan, "Decoding Imports")
 	imports, err := d.DecodeInteger()
@@ -1753,7 +1753,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.Imports = U32(imports)
-	cLog(Yellow, fmt.Sprintf("Imports: %v", imports))
+	cLog(Yellow, "Imports: %v", imports)
 
 	cLog(Cyan, "Decoding ExtrinsicCount")
 	extrinsicCount, err := d.DecodeInteger()
@@ -1761,7 +1761,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.ExtrinsicCount = U32(extrinsicCount)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", extrinsicCount))
+	cLog(Yellow, "ExtrinsicCount: %v", extrinsicCount)
 
 	cLog(Cyan, "Decoding ExtrinsicSize")
 	extrinsicSize, err := d.DecodeInteger()
@@ -1769,7 +1769,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.ExtrinsicSize = U32(extrinsicSize)
-	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", extrinsicSize))
+	cLog(Yellow, "ExtrinsicSize: %v", extrinsicSize)
 
 	cLog(Cyan, "Decoding Exports")
 	exports, err := d.DecodeInteger()
@@ -1777,7 +1777,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.Exports = U32(exports)
-	cLog(Yellow, fmt.Sprintf("Exports: %v", exports))
+	cLog(Yellow, "Exports: %v", exports)
 
 	cLog(Cyan, "Decoding AccumulateCount")
 	accumulateCount, err := d.DecodeInteger()
@@ -1785,7 +1785,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.AccumulateCount = U32(accumulateCount)
-	cLog(Yellow, fmt.Sprintf("AccumulateCount: %v", accumulateCount))
+	cLog(Yellow, "AccumulateCount: %v", accumulateCount)
 
 	cLog(Cyan, "Decoding AccumulateGasUsed")
 	accumulateGasUsed, err := d.DecodeInteger()
@@ -1793,7 +1793,7 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 		return err
 	}
 	s.AccumulateGasUsed = Gas(accumulateGasUsed)
-	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", accumulateGasUsed))
+	cLog(Yellow, "AccumulateGasUsed: %v", accumulateGasUsed)
 
 	return nil
 }
@@ -1869,7 +1869,7 @@ func (b *BlsPublic) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BlsPublic: %x", val))
+	cLog(Yellow, "BlsPublic: %x", val)
 
 	*b = val
 	return nil
@@ -1884,7 +1884,7 @@ func (v *ValidatorMetadata) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ValidatorMetadata: %x", val))
+	cLog(Yellow, "ValidatorMetadata: %x", val)
 
 	*v = val
 
@@ -1922,7 +1922,7 @@ func (v *ValidatorsData) Decode(d *Decoder) error {
 
 	var err error
 
-	cLog(Yellow, fmt.Sprintf("ValidatorsCount: %v", ValidatorsCount))
+	cLog(Yellow, "ValidatorsCount: %v", ValidatorsCount)
 
 	// make the slice with length
 	validators := make([]Validator, ValidatorsCount)
@@ -1950,7 +1950,7 @@ func (e *EntropyBuffer) Decode(d *Decoder) error {
 			return err
 		}
 	}
-	cLog(Yellow, fmt.Sprintf("EntropyBuffer: %x", entropyBuffer))
+	cLog(Yellow, "EntropyBuffer: %x", entropyBuffer)
 
 	*e = entropyBuffer
 
@@ -2039,7 +2039,7 @@ func (b *BandersnatchRingCommitment) Decode(d *Decoder) error {
 	if err = binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BandersnatchRingCommitment: %x", val))
+	cLog(Yellow, "BandersnatchRingCommitment: %x", val)
 
 	*b = val
 	return nil
@@ -2243,7 +2243,7 @@ func (a *AuthorizerHash) Decode(d *Decoder) error {
 	if err := val.Decode(d); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("AuthorizerHash: %x", val))
+	cLog(Yellow, "AuthorizerHash: %x", val)
 
 	*a = val
 	return nil
@@ -2410,7 +2410,7 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 				return err
 			}
 		}
-		cLog(Yellow, fmt.Sprintf("Good: %v", good))
+		cLog(Yellow, "Good: %v", good)
 
 		d.Good = good
 	}
@@ -2428,7 +2428,7 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 				return err
 			}
 		}
-		cLog(Yellow, fmt.Sprintf("Bad: %v", bad))
+		cLog(Yellow, "Bad: %v", bad)
 
 		d.Bad = bad
 	}
@@ -2446,7 +2446,7 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 				return err
 			}
 		}
-		cLog(Yellow, fmt.Sprintf("Wonky: %v", wonky))
+		cLog(Yellow, "Wonky: %v", wonky)
 
 		d.Wonky = wonky
 	}
@@ -2464,7 +2464,7 @@ func (d *DisputesRecords) Decode(decoder *Decoder) error {
 				return err
 			}
 		}
-		cLog(Yellow, fmt.Sprintf("Offenders: %v", offenders))
+		cLog(Yellow, "Offenders: %v", offenders)
 
 		d.Offenders = offenders
 	}
@@ -3152,7 +3152,7 @@ func (e *ExtrinsicData) Decode(d *Decoder) error {
 	if _, err := d.buf.Read(data); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicData: %x", data))
+	cLog(Yellow, "ExtrinsicData: %x", data)
 	*e = data
 	return nil
 }
@@ -3180,7 +3180,7 @@ func (s *ExportSegment) Decode(d *Decoder) error {
 	if err := binary.Read(d.buf, binary.LittleEndian, &val); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("OpaqueHash: %x", val))
+	cLog(Yellow, "OpaqueHash: %x", val)
 
 	*s = val
 	return nil
@@ -3194,7 +3194,7 @@ func (s *StateKey) Decode(d *Decoder) error {
 	if err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("StateKey: %x", val))
+	cLog(Yellow, "StateKey: %x", val)
 
 	*s = val
 	return nil
@@ -3379,7 +3379,7 @@ func (a *AccumulatedServiceOutput) Decode(d *Decoder) error {
 		(*a)[key] = true // The value is always true in this context
 	}
 
-	cLog(Yellow, fmt.Sprintf("AccumulatedServiceOutput: %v", *a))
+	cLog(Yellow, "AccumulatedServiceOutput: %v", *a)
 
 	return nil
 }

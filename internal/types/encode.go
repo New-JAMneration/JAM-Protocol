@@ -28,7 +28,7 @@ func (u *U16) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("U16: %v", encoded))
+	cLog(Yellow, "U16: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -57,7 +57,7 @@ func (u *U32) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("U32: %v", encoded))
+	cLog(Yellow, "U32: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -74,7 +74,7 @@ func (u *U64) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("U64: %v", encoded))
+	cLog(Yellow, "U64: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -90,7 +90,7 @@ func (h *HeaderHash) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("HeaderHash: %v", h[:]))
+	cLog(Yellow, "HeaderHash: %v", h[:])
 
 	return nil
 }
@@ -102,7 +102,7 @@ func (s *StateRoot) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("StateRoot: %v", s[:]))
+	cLog(Yellow, "StateRoot: %v", s[:])
 
 	return nil
 }
@@ -114,7 +114,7 @@ func (o *OpaqueHash) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("OpaqueHash: %v", o[:]))
+	cLog(Yellow, "OpaqueHash: %v", o[:])
 
 	return nil
 }
@@ -127,7 +127,7 @@ func (t *TimeSlot) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TimeSlot: %v", encoded))
+	cLog(Yellow, "TimeSlot: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -143,7 +143,7 @@ func (e *Entropy) Encode(enc *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Entropy: %v", e[:]))
+	cLog(Yellow, "Entropy: %v", e[:])
 
 	return nil
 }
@@ -155,7 +155,7 @@ func (bp *BandersnatchPublic) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BandersnatchPublic: %v", bp[:]))
+	cLog(Yellow, "BandersnatchPublic: %v", bp[:])
 
 	return nil
 }
@@ -210,7 +210,7 @@ func (t *TicketID) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketID: %v", t[:]))
+	cLog(Yellow, "TicketID: %v", t[:])
 
 	return nil
 }
@@ -222,7 +222,7 @@ func (t *TicketAttempt) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("TicketAttempt: %v", *t))
+	cLog(Yellow, "TicketAttempt: %v", *t)
 
 	return nil
 }
@@ -265,7 +265,7 @@ func (ep *Ed25519Public) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Ed25519Public: %v", ep[:]))
+	cLog(Yellow, "Ed25519Public: %v", ep[:])
 
 	return nil
 }
@@ -296,7 +296,7 @@ func (v *ValidatorIndex) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ValidatorIndex: %v", encoded))
+	cLog(Yellow, "ValidatorIndex: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -312,7 +312,7 @@ func (bvs *BandersnatchVrfSignature) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BandersnatchVrfSignature: %v", bvs[:]))
+	cLog(Yellow, "BandersnatchVrfSignature: %v", bvs[:])
 
 	return nil
 }
@@ -406,7 +406,7 @@ func (b *BandersnatchRingVrfSignature) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BandersnatchRingVrfSignature: %v", b[:]))
+	cLog(Yellow, "BandersnatchRingVrfSignature: %v", b[:])
 
 	return nil
 }
@@ -453,7 +453,7 @@ func (s *ServiceID) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ServiceID: %v", encoded))
+	cLog(Yellow, "ServiceID: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -485,7 +485,7 @@ func (b *ByteSequence) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ByteSequence: %v", *b))
+	cLog(Yellow, "ByteSequence: %v", *b)
 
 	return nil
 }
@@ -531,7 +531,7 @@ func (w *WorkPackageHash) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("WorkPackageHash: %v", w[:]))
+	cLog(Yellow, "WorkPackageHash: %v", w[:])
 
 	return nil
 }
@@ -543,7 +543,7 @@ func (e *ErasureRoot) Encode(enc *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ErasureRoot: %v", e[:]))
+	cLog(Yellow, "ErasureRoot: %v", e[:])
 
 	return nil
 }
@@ -555,7 +555,7 @@ func (e *ExportsRoot) Encode(enc *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ExportsRoot: %v", e[:]))
+	cLog(Yellow, "ExportsRoot: %v", e[:])
 
 	return nil
 }
@@ -599,7 +599,7 @@ func (b *BeefyRoot) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BeefyRoot: %v", b[:]))
+	cLog(Yellow, "BeefyRoot: %v", b[:])
 
 	return nil
 }
@@ -689,7 +689,7 @@ func (c *CoreIndex) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("CoreIndex: %v", encoded))
+	cLog(Yellow, "CoreIndex: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -706,7 +706,7 @@ func (g *Gas) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Gas: %v", encoded))
+	cLog(Yellow, "Gas: %v", encoded)
 
 	if _, err := e.buf.Write(encoded); err != nil {
 		return err
@@ -733,7 +733,7 @@ func (w *WorkExecResult) Encode(e *Encoder) error {
 			return err
 		}
 
-		cLog(Yellow, fmt.Sprintf("WorkExecResult: %v", w.Data))
+		cLog(Yellow, "WorkExecResult: %v", w.Data)
 
 		return nil
 	case WorkExecResultOutOfGas:
@@ -905,7 +905,7 @@ func (e *Ed25519Signature) Encode(enc *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Ed25519Signature: %v", e[:]))
+	cLog(Yellow, "Ed25519Signature: %v", e[:])
 
 	return nil
 }
@@ -1086,7 +1086,7 @@ func (w *WorkReportHash) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("WorkReportHash: %v", w[:]))
+	cLog(Yellow, "WorkReportHash: %v", w[:])
 
 	return nil
 }
@@ -1127,12 +1127,12 @@ func (f *Fault) Encode(e *Encoder) error {
 		if _, err := e.buf.Write([]byte{1}); err != nil {
 			return err
 		}
-		cLog(Yellow, fmt.Sprintf("Fault Vote: %v", 1))
+		cLog(Yellow, "Fault Vote: %v", 1)
 	} else {
 		if _, err := e.buf.Write([]byte{0}); err != nil {
 			return err
 		}
-		cLog(Yellow, fmt.Sprintf("Fault Vote: %v", 0))
+		cLog(Yellow, "Fault Vote: %v", 0)
 	}
 
 	// Key
@@ -1473,56 +1473,56 @@ func (c *CoreActivityRecord) Encode(e *Encoder) error {
 	if err := e.EncodeInteger(uint64(c.DALoad)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("DALoad: %v", c.DALoad))
+	cLog(Yellow, "DALoad: %v", c.DALoad)
 
 	// Popularity
 	cLog(Cyan, "Encoding Popularity")
 	if err := e.EncodeInteger(uint64(c.Popularity)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Popularity: %v", c.Popularity))
+	cLog(Yellow, "Popularity: %v", c.Popularity)
 
 	// Imports
 	cLog(Cyan, "Encoding Imports")
 	if err := e.EncodeInteger(uint64(c.Imports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Imports: %v", c.Imports))
+	cLog(Yellow, "Imports: %v", c.Imports)
 
 	// ExtrinsicCount (x)
 	cLog(Cyan, "Encoding ExtrinsicCount")
 	if err := e.EncodeInteger(uint64(c.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", c.ExtrinsicCount))
+	cLog(Yellow, "ExtrinsicCount: %v", c.ExtrinsicCount)
 
 	// ExtrinsicSize (z)
 	cLog(Cyan, "Encoding ExtrinsicSize")
 	if err := e.EncodeInteger(uint64(c.ExtrinsicSize)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", c.ExtrinsicSize))
+	cLog(Yellow, "ExtrinsicSize: %v", c.ExtrinsicSize)
 
 	// Exports
 	cLog(Cyan, "Encoding Exports")
 	if err := e.EncodeInteger(uint64(c.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", c.Exports))
+	cLog(Yellow, "Exports: %v", c.Exports)
 
 	// BundleSize
 	cLog(Cyan, "Encoding BundleSize")
 	if err := e.EncodeInteger(uint64(c.BundleSize)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("BundleSize: %v", c.BundleSize))
+	cLog(Yellow, "BundleSize: %v", c.BundleSize)
 
 	// GasUSed
 	cLog(Cyan, "Encoding GasUSed")
 	if err := e.EncodeInteger(uint64(c.GasUsed)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("GasUSed: %v", c.GasUsed))
+	cLog(Yellow, "GasUSed: %v", c.GasUsed)
 
 	return nil
 }
@@ -1536,70 +1536,70 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 	if err := e.EncodeInteger(uint64(s.ProvidedCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ProvidedCount: %v", s.ProvidedCount))
+	cLog(Yellow, "ProvidedCount: %v", s.ProvidedCount)
 
 	// ProvidedSize
 	cLog(Cyan, "Encoding ProvidedSize")
 	if err := e.EncodeInteger(uint64(s.ProvidedSize)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ProvidedSize: %v", s.ProvidedSize))
+	cLog(Yellow, "ProvidedSize: %v", s.ProvidedSize)
 
 	// RefinementCount
 	cLog(Cyan, "Encoding RefinementCount")
 	if err := e.EncodeInteger(uint64(s.RefinementCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("RefinementCount: %v", s.RefinementCount))
+	cLog(Yellow, "RefinementCount: %v", s.RefinementCount)
 
 	// RefinementGasUsed
 	cLog(Cyan, "Encoding RefinementGasUsed")
 	if err := e.EncodeInteger(uint64(s.RefinementGasUsed)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("RefinementGasUsed: %v", s.RefinementGasUsed))
+	cLog(Yellow, "RefinementGasUsed: %v", s.RefinementGasUsed)
 
 	// Imports
 	cLog(Cyan, "Encoding Imports")
 	if err := e.EncodeInteger(uint64(s.Imports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Imports: %v", s.Imports))
+	cLog(Yellow, "Imports: %v", s.Imports)
 
 	// ExtrinsicCount
 	cLog(Cyan, "Encoding ExtrinsicCount")
 	if err := e.EncodeInteger(uint64(s.ExtrinsicCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicCount: %v", s.ExtrinsicCount))
+	cLog(Yellow, "ExtrinsicCount: %v", s.ExtrinsicCount)
 
 	// ExtrinsicSize
 	cLog(Cyan, "Encoding ExtrinsicSize")
 	if err := e.EncodeInteger(uint64(s.ExtrinsicSize)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExtrinsicSize: %v", s.ExtrinsicSize))
+	cLog(Yellow, "ExtrinsicSize: %v", s.ExtrinsicSize)
 
 	// Exports
 	cLog(Cyan, "Encoding Exports")
 	if err := e.EncodeInteger(uint64(s.Exports)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("Exports: %v", s.Exports))
+	cLog(Yellow, "Exports: %v", s.Exports)
 
 	// AccumulateCount
 	cLog(Cyan, "Encoding AccumulateCount")
 	if err := e.EncodeInteger(uint64(s.AccumulateCount)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("AccumulateCount: %v", s.AccumulateCount))
+	cLog(Yellow, "AccumulateCount: %v", s.AccumulateCount)
 
 	// AccumulateGasUsed
 	cLog(Cyan, "Encoding AccumulateGasUsed")
 	if err := e.EncodeInteger(uint64(s.AccumulateGasUsed)); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("AccumulateGasUsed: %v", s.AccumulateGasUsed))
+	cLog(Yellow, "AccumulateGasUsed: %v", s.AccumulateGasUsed)
 
 	return nil
 }
@@ -1692,7 +1692,7 @@ func (v *ValidatorMetadata) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ValidatorMetadata: %v", v[:]))
+	cLog(Yellow, "ValidatorMetadata: %v", v[:])
 
 	return nil
 }
@@ -1704,7 +1704,7 @@ func (b *BlsPublic) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BlsPublic: %v", b[:]))
+	cLog(Yellow, "BlsPublic: %v", b[:])
 
 	return nil
 }
@@ -1795,7 +1795,7 @@ func (b *BandersnatchRingCommitment) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("BandersnatchRingCommitment: %v", b[:]))
+	cLog(Yellow, "BandersnatchRingCommitment: %v", b[:])
 
 	return nil
 }
@@ -2022,7 +2022,7 @@ func (ah *AuthorizerHash) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("AuthorizerHash: %v", ah[:]))
+	cLog(Yellow, "AuthorizerHash: %v", ah[:])
 
 	return nil
 }
@@ -2906,7 +2906,7 @@ func (d *ExtrinsicData) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("ExtrinsicData: %v", *d))
+	cLog(Yellow, "ExtrinsicData: %v", *d)
 
 	return nil
 }
@@ -2929,7 +2929,7 @@ func (s *ExportSegment) Encode(e *Encoder) error {
 	if _, err := e.buf.Write(s[:]); err != nil {
 		return err
 	}
-	cLog(Yellow, fmt.Sprintf("ExportSegment: %v", *s))
+	cLog(Yellow, "ExportSegment: %v", *s)
 	return nil
 }
 
@@ -2992,7 +2992,7 @@ func (s *StateKey) Encode(e *Encoder) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("StateKey: %v", s[:]))
+	cLog(Yellow, "StateKey: %v", s[:])
 
 	return nil
 }

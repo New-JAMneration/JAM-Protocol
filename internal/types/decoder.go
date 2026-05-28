@@ -27,9 +27,9 @@ var debugMode = false
 
 // var debugMode = true
 
-func cLog(color string, string string) {
+func cLog(color string, format string, args ...any) {
 	if debugMode {
-		logger.Debugf("%s%s%s", color, string, Reset)
+		logger.Debugf("%s%s%s", color, fmt.Sprintf(format, args...), Reset)
 	}
 }
 
@@ -185,7 +185,7 @@ func (d *Decoder) DecodeLength() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	cLog(Yellow, fmt.Sprintf("Slice Length: %v", length))
+	cLog(Yellow, "Slice Length: %v", length)
 	return length, nil
 }
 
