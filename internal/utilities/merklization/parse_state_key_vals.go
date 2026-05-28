@@ -27,21 +27,21 @@ var debugMode = false
 
 // var debugMode = true
 
-func cLog(color string, string string) {
+func cLog(color string, format string, args ...any) {
 	if debugMode {
-		logger.Debugf("%s%s%s", color, string, Reset)
+		logger.Debugf("%s%s%s", color, fmt.Sprintf(format, args...), Reset)
 	}
 }
 
 func printStateKey(color string, stateKey types.StateKey) {
-	cLog(color, fmt.Sprintf("State Key: 0x%x", stateKey))
+	cLog(color, "State Key: 0x%x", stateKey)
 }
 
 func printStateValue(stateVal types.ByteSequence) {
 	if len(stateVal) > 32 {
-		cLog(Cyan, fmt.Sprintf("State Val: 0x%x...", stateVal[:32]))
+		cLog(Cyan, "State Val: 0x%x...", stateVal[:32])
 	} else {
-		cLog(Cyan, fmt.Sprintf("State Val: 0x%x", stateVal))
+		cLog(Cyan, "State Val: 0x%x", stateVal)
 	}
 }
 

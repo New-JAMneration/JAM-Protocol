@@ -28,9 +28,9 @@ var debugMode = false
 
 // var debugMode = true
 
-func cLog(color string, string string) {
+func cLog(color string, format string, args ...any) {
 	if debugMode {
-		fmt.Printf("%s%s%s\n", color, string, Reset)
+		fmt.Printf("%s%s%s\n", color, fmt.Sprintf(format, args...), Reset)
 	}
 }
 
@@ -228,7 +228,7 @@ func (a *AssuranceOutput) Decode(d *types.Decoder) error {
 
 		a.Err = (*AssuranceErrorCode)(&errByte)
 
-		cLog(Yellow, fmt.Sprintf("SafroleErrorCode: %v", *a.Err))
+		cLog(Yellow, "SafroleErrorCode: %v", *a.Err)
 	}
 
 	return nil
@@ -353,7 +353,7 @@ func (a *AssuranceOutput) Encode(e *types.Encoder) error {
 			return err
 		}
 
-		cLog(Yellow, fmt.Sprintf("AssuranceErrorCode: %d", *a.Err))
+		cLog(Yellow, "AssuranceErrorCode: %d", *a.Err)
 
 		return nil
 	}
