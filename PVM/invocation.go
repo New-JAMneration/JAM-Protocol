@@ -32,9 +32,8 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 
 	// (v0.7.1  A.19) check opcode validity
 	opcodeData := interp.Program.InstructionData.isOpcode(pc)
-	// check gas
-	if interp.Gas < 0 {
-		// pvmLogger.Debugf("service out-of-gas: required %d, but only %d", interp.InstrCount, interp.Gas)
+	// (GP A.6) OOG when ρ < 1 (gas insufficient for next instruction)
+	if interp.Gas < 1 {
 		return ExitOOG, pc
 	}
 	interp.Gas -= 1
@@ -109,7 +108,8 @@ func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (Exi
 		for i := range instrs {
 			instr := &instrs[i]
 
-			if interp.Gas < 0 {
+			// (GP A.6) OOG when ρ < 1 (gas insufficient for next instruction)
+			if interp.Gas < 1 {
 				return ExitOOG, instr.PC
 			}
 			interp.Gas -= 1
