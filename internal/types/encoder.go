@@ -149,7 +149,7 @@ func (e *Encoder) EncodeInteger(value uint64) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Encoded Integer: %v", encoded))
+	cLog(Yellow, "Encoded Integer: %v", encoded)
 
 	return nil
 }
@@ -166,7 +166,7 @@ func (e *Encoder) EncodeLength(length uint64) error {
 		return err
 	}
 
-	cLog(Yellow, fmt.Sprintf("Length: %v", encodedLength))
+	cLog(Yellow, "Length: %v", encodedLength)
 
 	return nil
 }
