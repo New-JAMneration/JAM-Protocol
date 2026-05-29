@@ -38,6 +38,10 @@ node_modules/
 # fuzz target docker bind-mount (fuzz.sock / cache); see scripts/run_fuzz_target_docker.sh
 .jam_fuzz_docker_run/
 
+# local fuzz validation artifacts
+.bench-fuzz-*/
+.ci/
+
 # build
 build/
 

@@ -19,6 +19,8 @@ This is the central index for all project documentation in the `READMERef/` dire
 | [DEVELOPMENT_DOC.md](./DEVELOPMENT_DOC.md) | Development documentation and guidelines |
 | [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md) | Project folder structure overview |
 | [GOLANG_TEST.md](./GOLANG_TEST.md) | Go testing guidelines |
+| [VALIDATE_FUZZ.md](./VALIDATE_FUZZ.md) | Fuzz target validation spec (vectors, trace, socket, CI) |
+| [PR_MANUAL_TEST_FUZZ_TARGET.md](./PR_MANUAL_TEST_FUZZ_TARGET.md) | Manual fuzz target socket test steps |
 
 ## Technical References
 
