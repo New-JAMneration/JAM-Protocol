@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 # Run conformance + fuzzy test_folder against a pre-built fuzz target Docker image.
-# Used by .github/workflows/fuzz-validate.yml (job fuzz-sock). Spec: READMERef/VALIDATE_FUZZ.md.
+# Used by .github/workflows/fuzz-validate.yml (jam-conformance-sock / jam-test-vectors-traces-fuzzy-sock).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# CI_FUZZ_SOCK_SUITE: all (default, local pre-push) | conformance | fuzzy
+CI_FUZZ_SOCK_SUITE="${CI_FUZZ_SOCK_SUITE:-all}"
+case "$CI_FUZZ_SOCK_SUITE" in
+all | conformance | fuzzy) ;;
+*)
+	die "invalid CI_FUZZ_SOCK_SUITE=${CI_FUZZ_SOCK_SUITE} (want all, conformance, or fuzzy)"
+	;;
+esac
 
 TARGET_IMAGE="${TARGET_IMAGE:-new-jamneration-target:ci}"
 FUZZ_TRACES="${FUZZ_TRACES:-pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces}"
@@ -106,10 +115,14 @@ trap cleanup EXIT
 
 wait_for_socket "${HOST_DATA}/fuzz.sock"
 
-run_test_folder "${FUZZ_TRACES}" "${VALIDATE_FUZZ_OUTPUT}"
-assert_sock_output "${VALIDATE_FUZZ_OUTPUT}" "${FUZZ_TRACES}" "conformance traces"
+if [[ "$CI_FUZZ_SOCK_SUITE" == "all" || "$CI_FUZZ_SOCK_SUITE" == "conformance" ]]; then
+	run_test_folder "${FUZZ_TRACES}" "${VALIDATE_FUZZ_OUTPUT}"
+	assert_sock_output "${VALIDATE_FUZZ_OUTPUT}" "${FUZZ_TRACES}" "jam-conformance"
+fi
 
-run_test_folder "${FUZZ_FUZZY_TRACES}" "${VALIDATE_FUZZ_OUTPUT_FUZZY}"
-assert_sock_output "${VALIDATE_FUZZ_OUTPUT_FUZZY}" "${FUZZ_FUZZY_TRACES}" "fuzzy traces"
+if [[ "$CI_FUZZ_SOCK_SUITE" == "all" || "$CI_FUZZ_SOCK_SUITE" == "fuzzy" ]]; then
+	run_test_folder "${FUZZ_FUZZY_TRACES}" "${VALIDATE_FUZZ_OUTPUT_FUZZY}"
+	assert_sock_output "${VALIDATE_FUZZ_OUTPUT_FUZZY}" "${FUZZ_FUZZY_TRACES}" "jam-test-vectors-traces-fuzzy"
+fi
 
-log "done"
+log "done (${CI_FUZZ_SOCK_SUITE})"

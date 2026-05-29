@@ -28,10 +28,10 @@ if ! docker image inspect "$TARGET_IMAGE" >/dev/null 2>&1; then
   make fuzz-docker-build JAM_FUZZ_IMAGE="$TARGET_IMAGE"
 fi
 
-log "=== validate-fuzz-ci (steps 1,2,3,fuzzy — like test-vectors + test-trace + fuzz-sock) ==="
+log "=== validate-fuzz-ci (steps 1,2,3,fuzzy — like jam-test-vectors + jam-test-vectors-traces + host sock) ==="
 make validate-fuzz-ci
 
-log "=== ci_fuzz_docker_sock (Docker target — CI fuzz-sock) ==="
+log "=== ci_fuzz_docker_sock (Docker target — CI jam-conformance-sock + jam-test-vectors-traces-fuzzy-sock) ==="
 ./scripts/ci_fuzz_docker_sock.sh
 
 log "pre-push smoke passed (optional: ./scripts/ci_jam_testing_full.sh for jam-testing job)"

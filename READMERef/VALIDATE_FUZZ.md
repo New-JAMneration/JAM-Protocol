@@ -95,7 +95,7 @@ Env: `TARGET_IMAGE`, `JAM_TESTING_DIR`, `JAM_TESTING_SUITE` (default `fallback`)
 | Target | Description |
 |--------|-------------|
 | `make validate-fuzz` | Steps 1–3 + fuzzy (full local run) |
-| `make validate-fuzz-ci` | Steps 1 + 2 + 3 (full conformance tree) + fuzzy; aligns with CI `test-vectors` / `test-trace` / `fuzz-sock` |
+| `make validate-fuzz-ci` | Steps 1 + 2 + 3 (full conformance tree) + fuzzy; aligns with CI `jam-test-vectors` / `jam-test-vectors-traces` / sock jobs |
 | `make validate-fuzz-vectors` | Step 1 only |
 | `make validate-fuzz-trace` | Step 2 only |
 | `make validate-fuzz-sock` | Step 3 only (full conformance traces) |
@@ -142,12 +142,13 @@ Workflow: `.github/workflows/fuzz-validate.yml`
 
 | Job | Content |
 |-----|---------|
-| `build-image` | Build `new-jamneration-target:ci` once; artifact for downstream jobs |
-| `test-vectors` | Step 1 (jam-test-vectors) |
-| `test-trace` | Step 2 (trace modes) |
-| `fuzz-sock` | Docker target + full conformance + fuzzy (`scripts/ci_fuzz_docker_sock.sh`) |
-| `jam-testing` | Minifuzz 6 + picofuzz 4 suites (`scripts/ci_jam_testing_full.sh`) |
-| `fuzz-validate` | Summary; all jobs must succeed |
+| `build-fuzz-target-image` | Build `new-jamneration-target:ci` once; artifact for downstream jobs |
+| `jam-test-vectors` | Step 1 (jam-test-vectors shell tests) |
+| `jam-test-vectors-traces` | Step 2 (trace modes) |
+| `jam-conformance-sock` | Docker target + conformance `fuzz-reports/0.7.2/traces` (1179) |
+| `jam-test-vectors-traces-fuzzy-sock` | Docker target + `jam-test-vectors/traces/fuzzy` (201) |
+| `jam-testing-minifuzz-picofuzz` | Minifuzz 6 + picofuzz 4 suites (`scripts/ci_jam_testing_full.sh`) |
+| `fuzz-validate-all-green` | Summary; all jobs must succeed |
 
 - Triggers: `pull_request` / `push` to `main` (path filters) / `workflow_dispatch`
 - Local equivalent: `make validate-fuzz` + `make fuzz-docker-build` + `./scripts/ci_fuzz_docker_sock.sh` + `./scripts/ci_jam_testing_full.sh`
