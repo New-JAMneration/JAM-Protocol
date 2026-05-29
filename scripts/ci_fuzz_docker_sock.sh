@@ -13,6 +13,9 @@ VALIDATE_FUZZ_OUTPUT="${VALIDATE_FUZZ_OUTPUT:-output.txt}"
 VALIDATE_FUZZ_OUTPUT_FUZZY="${VALIDATE_FUZZ_OUTPUT_FUZZY:-output_fuzzy.txt}"
 TARGET_CONTAINER="${TARGET_CONTAINER:-fuzz-target-ci}"
 HOST_DATA="${JAM_FUZZ_HOST_DIR:-.ci/fuzz_docker_run}"
+if [[ "$HOST_DATA" != /* ]]; then
+	HOST_DATA="${REPO_ROOT}/${HOST_DATA#./}"
+fi
 TARGET_STARTUP_SEC="${TARGET_STARTUP_SEC:-30}"
 
 log() { printf '[ci_fuzz_docker_sock] %s\n' "$*"; }
