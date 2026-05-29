@@ -7,11 +7,11 @@
 [![M1 Conformance](https://img.shields.io/badge/M1%20Conformance-passed-success)](https://fuzz.jamtoaster.network/attestation/0x4ec2d3b8498bf7938515820be78f187eefe46b7ef3c7e5bd6355c6e70bd4bbfd)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
-A **Go implementation of the Polkadot [JAM Protocol](https://jam.web3.foundation/)**, built by the **New-JAMneration** team and aligned with **Gray Paper v0.7.2**.
+A **Go implementation of the Polkadot [JAM Protocol](https://jam.web3.foundation/)**, built by the **New-JAMneration** team.
 
 ## Project Status
 
-- ✅ **Milestone 1 (M1) — Passed.** Validated for block-import conformance against the cross-team [JAM Conformance](https://github.com/davxy/jam-conformance) fuzzer. See our [on-chain attestation](https://fuzz.jamtoaster.network/attestation/0x4ec2d3b8498bf7938515820be78f187eefe46b7ef3c7e5bd6355c6e70bd4bbfd).
+- ✅ **Milestone 1 (M1)** — Passed. See our [on-chain attestation](https://fuzz.jamtoaster.network/attestation/0x4ec2d3b8498bf7938515820be78f187eefe46b7ef3c7e5bd6355c6e70bd4bbfd).
 
 ## Table of Contents
 
