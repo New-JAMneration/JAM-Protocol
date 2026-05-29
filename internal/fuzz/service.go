@@ -94,15 +94,6 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 		}
 	}
 
-	// Get the latest state root
-	latestState := cs.GetPriorStates().GetState()
-	serializedState, _ := m.StateEncoder(latestState)
-	priorUnmatchedKeyVals := cs.GetPriorStateUnmatchedKeyValsRef()
-	combinedState := make(types.StateKeyVals, 0, len(priorUnmatchedKeyVals)+len(serializedState))
-	combinedState = append(combinedState, priorUnmatchedKeyVals...)
-	combinedState = append(combinedState, serializedState...)
-	latestStateRoot := cs.ComputeStateRootWithCache(combinedState)
-
 	cs.AddBlock(block)
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
 
@@ -116,25 +107,29 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 			logger.Errorf("%s STF runtime error (unexpected bug): %v", ctx, err)
 			return types.StateRoot{}, fmt.Errorf("STF runtime error: %w", err)
 		}
-		// Protocol error: block is invalid, but node should continue
+		// Protocol error: block is invalid, but node should continue.
+		// The returned state root is discarded by the server (it replies with
+		// an ErrorMessage), so there is no need to compute the prior root here.
 		logger.Errorf("%s [PROTOCOL] block invalid: %v", ctx, err)
-		return latestStateRoot, err
+		return types.StateRoot{}, err
 	}
 
-	latestState = cs.GetPosteriorStates().GetState()
-	serializedState, err = m.StateEncoder(latestState)
+	latestState := cs.GetPosteriorStates().GetState()
+	serializedState, err := m.StateEncoder(latestState)
 	if err != nil {
 		logger.Errorf("%s state encoder error: %v", ctx, err)
 		return types.StateRoot{}, err
 	}
 	postUnmatchedKeyVals := cs.GetPostStateUnmatchedKeyValsRef()
-	combinedState = make(types.StateKeyVals, 0, len(postUnmatchedKeyVals)+len(serializedState))
+	combinedState := make(types.StateKeyVals, 0, len(postUnmatchedKeyVals)+len(serializedState))
 	combinedState = append(combinedState, postUnmatchedKeyVals...)
 	combinedState = append(combinedState, serializedState...)
-	latestStateRoot = cs.ComputeStateRootWithCache(combinedState)
+	latestStateRoot := cs.ComputeStateRootWithCache(combinedState)
 
-	// Commit the state and persist the state to Redis
-	cs.StateCommit()
+	// Commit using the already-computed state root + key-vals, skipping the
+	// redundant StateEncoder + merklize that StateCommit -> PersistStateForBlock
+	// would otherwise repeat for the same posterior state.
+	cs.StateCommitWithPreComputedState(headerHash, latestStateRoot, combinedState)
 
 	// In fuzz mode, prune old data from memory and disk to prevent exhaustion
 	if fuzzenv.Enabled() {
