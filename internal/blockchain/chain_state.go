@@ -65,6 +65,11 @@ type persistedEntry struct {
 }
 
 func getPersistentDatabase() database.Database {
+	if fuzzenv.Enabled() {
+		// Safety fallback only: fuzz ChainState uses newChainStateRepositories (repo == persistentRepo).
+		// No other call sites use getPersistentDatabase() under JAM_FUZZ today.
+		return memory.NewDatabase()
+	}
 	persistentDBOnce.Do(func() {
 		dbConfig := config.Config.Database
 		switch dbConfig.Type {
@@ -91,42 +96,19 @@ func getPersistentDatabase() database.Database {
 	return globalPersistentDB
 }
 
-// GetInstance returns the singleton instance of ChainState.
-// If the instance doesn't exist, it creates one.
-func GetInstance() *ChainState {
-	initOnce.Do(func() {
-		repo := store.NewRepository(memory.NewDatabase())
-		persistentRepo := store.NewRepository(getPersistentDatabase())
-
-		globalChainState = &ChainState{
-			repo:           repo,
-			persistentRepo: persistentRepo,
-
-			priorStates:        NewPriorStates(),
-			intermediateStates: NewIntermediateStates(),
-			posteriorStates:    NewPosteriorStates(),
-
-			unfinalizedBlocks: NewUnfinalizedBlocks(),
-			finalizedIndex:    make(map[types.HeaderHash]bool),
-			processingBlock:   NewProcessingBlock(),
-			ancestry:          NewAncestryCache(),
-
-			posteriorCurrentValidators: NewPosteriorValidators(),
-			preStateUnmatchedKeyVals:   types.StateKeyVals{},
-			postStateUnmatchedKeyVals:  types.StateKeyVals{},
-
-			keyLevelCache: NewKeyLevelCache(),
-		}
-		logger.Debug("🚀 ChainState initialized")
-	})
-	return globalChainState
+// newChainStateRepositories returns the memory repo and persistent repo.
+// Under JAM_FUZZ both point at the same in-memory repository (no disk I/O).
+func newChainStateRepositories() (repo *store.Repository, persistentRepo *store.Repository) {
+	repo = store.NewRepository(memory.NewDatabase())
+	if fuzzenv.Enabled() {
+		return repo, repo
+	}
+	return repo, store.NewRepository(getPersistentDatabase())
 }
 
-func ResetInstance() {
-	repo := store.NewRepository(memory.NewDatabase())
-	persistentRepo := store.NewRepository(getPersistentDatabase())
-
-	globalChainState = &ChainState{
+func newChainState() *ChainState {
+	repo, persistentRepo := newChainStateRepositories()
+	return &ChainState{
 		repo:           repo,
 		persistentRepo: persistentRepo,
 
@@ -145,7 +127,30 @@ func ResetInstance() {
 
 		keyLevelCache: NewKeyLevelCache(),
 	}
+}
+
+// GetInstance returns the singleton instance of ChainState.
+// If the instance doesn't exist, it creates one.
+func GetInstance() *ChainState {
+	initOnce.Do(func() {
+		globalChainState = newChainState()
+		logger.Debug("🚀 ChainState initialized")
+	})
+	return globalChainState
+}
+
+func ResetInstance() {
+	globalChainState = newChainState()
 	logger.Debug("🚀 ChainState reset")
+}
+
+// TrimUnfinalizedBlocksForFuzz keeps at most FuzzPersistentRetainBlocks entries in the
+// in-memory unfinalized chain. Safe to call after every ImportBlock in fuzz mode.
+func (cs *ChainState) TrimUnfinalizedBlocksForFuzz() {
+	if !fuzzenv.Enabled() {
+		return
+	}
+	cs.unfinalizedBlocks.KeepRecent(fuzzenv.FuzzPersistentRetainBlocks)
 }
 
 // Blockchain interface implementation
@@ -460,8 +465,10 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 	} else {
 		logger.Debugf("StateCommitWithPreComputedState: persisted state for block 0x%x", blockHeaderHash[:8])
 	}
-	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
-		logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
+	if !fuzzenv.Enabled() {
+		if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
+			logger.Warnf("StateCommitWithPreComputedState: failed to store state data to disk: %v", err)
+		}
 	}
 
 	latestBlock := cs.GetLatestBlock()
@@ -517,26 +524,26 @@ func (cs *ChainState) AppendAncestry(ancestry types.Ancestry) {
 	cs.ancestry.AppendAncestry(ancestry)
 }
 
-// PruneOldData deletes old state and block data from both memory and persistent storage,
-// keeping only the most recent FuzzPersistentRetainBlocks entries.
-// Called after each successful ImportBlock in fuzz mode to prevent disk/memory exhaustion.
+// PruneOldData deletes old state and block data from in-memory storage (and from disk
+// when not in fuzz mode), keeping only the most recent FuzzPersistentRetainBlocks entries.
+// Called after each successful ImportBlock in fuzz mode to prevent memory exhaustion.
 func (cs *ChainState) PruneOldData(stateRoot types.StateRoot, headerHash types.HeaderHash, slot types.TimeSlot) {
 	cs.persistedEntries = append(cs.persistedEntries, persistedEntry{stateRoot: stateRoot, headerHash: headerHash, slot: slot})
 	if len(cs.persistedEntries) <= fuzzenv.FuzzPersistentRetainBlocks {
 		return
 	}
 	cutoff := len(cs.persistedEntries) - fuzzenv.FuzzPersistentRetainBlocks
+	fuzzMemoryOnly := fuzzenv.Enabled()
 	for _, old := range cs.persistedEntries[:cutoff] {
-		// Memory cleanup
 		cs.repo.DeleteStateData(cs.repo.Database(), old.stateRoot)
 		cs.repo.DeleteBlock(cs.repo.Database(), old.headerHash, old.slot)
-		// Persistent cleanup
-		cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), old.stateRoot)
-		cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(old.headerHash))
-		cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), old.headerHash)
+		if !fuzzMemoryOnly {
+			cs.persistentRepo.DeleteStateData(cs.persistentRepo.Database(), old.stateRoot)
+			cs.persistentRepo.DeleteBlockByHash(cs.persistentRepo.Database(), types.OpaqueHash(old.headerHash))
+			cs.persistentRepo.DeleteHeaderTimeSlot(cs.persistentRepo.Database(), old.headerHash)
+		}
 	}
 	cs.persistedEntries = cs.persistedEntries[cutoff:]
-	// Trim unfinalizedBlocks to match
 	cs.unfinalizedBlocks.KeepRecent(fuzzenv.FuzzPersistentRetainBlocks)
 }
 
@@ -700,8 +707,10 @@ func (cs *ChainState) PersistStateForBlock(blockHeaderHash types.HeaderHash, sta
 	if err != nil {
 		return fmt.Errorf("failed to store state data to memory: %w", err)
 	}
-	if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
-		logger.Warnf("PersistStateForBlock: failed to store state data to disk: %v", err)
+	if !fuzzenv.Enabled() {
+		if err = cs.persistentRepo.SaveStateData(cs.persistentRepo.Database(), stateRoot, fullStateKeyVals); err != nil {
+			logger.Warnf("PersistStateForBlock: failed to store state data to disk: %v", err)
+		}
 	}
 
 	return nil
@@ -791,6 +800,16 @@ func (cs *ChainState) persistBlockMapping(block types.Block) error {
 	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
 	if err != nil {
 		return fmt.Errorf("failed to compute block header hash: %w", err)
+	}
+
+	if fuzzenv.Enabled() {
+		if err := cs.repo.SaveBlock(cs.repo.Database(), &block); err != nil {
+			return fmt.Errorf("failed to persist block to memory: %w", err)
+		}
+		if err := cs.repo.SaveHeaderTimeSlot(cs.repo.Database(), headerHash, block.Header.Slot); err != nil {
+			return fmt.Errorf("failed to persist header time slot to memory: %w", err)
+		}
+		return nil
 	}
 
 	if err := cs.SaveBlockByHashToPersistent(types.OpaqueHash(headerHash), &block); err != nil {

@@ -7,9 +7,9 @@ import (
 
 const EnvKey = "JAM_FUZZ"
 
-// FuzzPersistentRetainBlocks is the maximum number of blocks retained on disk
-// when running as a fuzz target. Independent of protocol L (MaxLookupAge) to
-// prevent disk exhaustion in constrained containers regardless of spec.
+// FuzzPersistentRetainBlocks caps in-memory block/state history for the fuzz
+// target (unfinalized chain + restore window). Independent of protocol L
+// (MaxLookupAge) to prevent OOM in constrained containers.
 const FuzzPersistentRetainBlocks = 24
 
 // Enabled reports whether the process is running as a JAM fuzz target.

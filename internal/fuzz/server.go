@@ -75,53 +75,61 @@ func (s *FuzzServer) serve(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
 	for {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			return
-		default:
-			var req, resp Message
-			_, err := req.ReadFrom(conn)
+		}
+		if err := s.serveOneRequest(conn); err != nil {
 			if err == io.EOF {
 				logger.Debugf("[fuzz-server] connection closed")
 				return
 			}
-
-			if err != nil {
-				logger.Errorf("[fuzz-server] error reading request: %v", err)
-				return
-			}
-
-			switch req.Type {
-			case MessageType_PeerInfo:
-				resp, err = s.handlePeerInfo(req)
-			case MessageType_ImportBlock:
-				resp, err = s.handleImportBlock(req)
-			case MessageType_SetState:
-				resp, err = s.handleSetState(req)
-			case MessageType_GetState:
-				resp, err = s.handleGetState(req)
-			default:
-				err = ErrInvalidMessageType
-			}
-
-			if err != nil {
-				logger.Errorf("[fuzz-server] error processing request[%v]: %v", req.Type, err)
-				return
-			}
-
-			respBytes, err := resp.MarshalBinary()
-			if err != nil {
-				logger.Errorf("[fuzz-server] error marshaling response: %v", err)
-				return
-			}
-
-			_, err = conn.Write(respBytes)
-			if err != nil {
-				logger.Errorf("[fuzz-server] error writing response: %v", err)
-				continue
-			}
+			logger.Errorf("[fuzz-server] %v", err)
+			return
 		}
 	}
+}
+
+func (s *FuzzServer) serveOneRequest(conn net.Conn) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("[fuzz-server] panic: %v", r)
+			err = fmt.Errorf("panic handling request: %v", r)
+		}
+	}()
+
+	var req, resp Message
+	_, err = req.ReadFrom(conn)
+	if err != nil {
+		return err
+	}
+
+	switch req.Type {
+	case MessageType_PeerInfo:
+		resp, err = s.handlePeerInfo(req)
+	case MessageType_ImportBlock:
+		resp, err = s.handleImportBlock(req)
+	case MessageType_SetState:
+		resp, err = s.handleSetState(req)
+	case MessageType_GetState:
+		resp, err = s.handleGetState(req)
+	default:
+		err = ErrInvalidMessageType
+	}
+
+	if err != nil {
+		return fmt.Errorf("error processing request[%v]: %w", req.Type, err)
+	}
+
+	respBytes, err := resp.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("error marshaling response: %w", err)
+	}
+
+	if _, err = conn.Write(respBytes); err != nil {
+		return fmt.Errorf("error writing response: %w", err)
+	}
+
+	return nil
 }
 
 func (s *FuzzServer) handlePeerInfo(m Message) (Message, error) {

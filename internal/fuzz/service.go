@@ -46,8 +46,10 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	ctx := logger.FormatContext(hashStr, slot, epoch, "ImportBlock")
 	logger.Debugf("%s Processing...", ctx)
 
-	// Get the latest block
 	cs := blockchain.GetInstance()
+	if fuzzenv.Enabled() {
+		defer cs.TrimUnfinalizedBlocksForFuzz()
+	}
 
 	blocks := cs.GetBlocks()
 	if len(blocks) > 0 {
