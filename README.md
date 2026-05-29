@@ -1,9 +1,32 @@
-# JAM Protocol Implemetation
+# JAM Protocol Implementation
 
-<img width="1672" height="383" alt="ChatGPT Image May 28, 2026, 09_18_04 PM (1)" src="https://github.com/user-attachments/assets/181dd824-3310-4703-9220-c9691935b7b5" />
+<img width="1672" height="383" alt="New-JAMneration JAM Protocol banner" src="https://github.com/user-attachments/assets/181dd824-3310-4703-9220-c9691935b7b5" />
 
 [![Go Format Check](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/go-format.yml)
 [![Release](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml/badge.svg)](https://github.com/New-JAMneration/JAM-Protocol/actions/workflows/release.yml)
+[![M1 Conformance](https://img.shields.io/badge/M1%20Conformance-passed-success)](https://fuzz.jamtoaster.network/attestation/0x4ec2d3b8498bf7938515820be78f187eefe46b7ef3c7e5bd6355c6e70bd4bbfd)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
+
+A **Go implementation of the Polkadot [JAM Protocol](https://jam.web3.foundation/)**, built by the **New-JAMneration** team and aligned with **Gray Paper v0.7.2**.
+
+## Project Status
+
+- ✅ **Milestone 1 (M1) — Passed.** Validated for block-import conformance against the cross-team [JAM Conformance](https://github.com/davxy/jam-conformance) fuzzer. See our [on-chain attestation](https://fuzz.jamtoaster.network/attestation/0x4ec2d3b8498bf7938515820be78f187eefe46b7ef3c7e5bd6355c6e70bd4bbfd).
+
+## Table of Contents
+
+- [Documentation](#documentation)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Clone the repository](#clone-the-repository)
+  - [Install dependencies](#install-dependencies)
+  - [Run](#run-the-jam-protocol)
+  - [Build](#build-the-jam-protocol)
+- [Testing](#testing)
+- [Conformance & Fuzzing](#conformance--fuzzing)
+- [Operations](#operations)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Documentation
 
@@ -20,25 +43,48 @@ If you want to update the mindmap, you can go to the [JAM-mindmap repository](ht
 - Development documentation: [Github Document](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/DEVELOPMENT_DOC.md)
 - Requires team member access - please contact project maintainers if you need access
 
-## Set up
+## Getting Started
 
-To install the libraries:
+### Prerequisites
+
+- [Go](https://go.dev/dl/) **1.25.5+**
+- [Rust toolchain](https://www.rust-lang.org/tools/install) — required to build the VRF submodule (see the [Rust VRF Compile Guide](./READMERef/RUST_VRF_COMPILE_GUIDE.md))
+- `make` and a POSIX shell
+- (Optional) [Docker](https://www.docker.com/) — for release builds and fuzz-target runs
+
+### Clone the repository
+
+This project uses git submodules (Rust-VRF and test-data vectors), so clone with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/New-JAMneration/JAM-Protocol.git
+```
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Install dependencies
 
 ```bash
 go mod tidy
 ```
 
-## Start the JAM Protocol
+### Run the JAM Protocol
 
 ```bash
 make run
 ```
 
-## Compile the JAM Protocol
+### Build the JAM Protocol
 
 ```bash
 make build
 ```
+
+## Testing
 
 ### Test jam-test-vectors
 
@@ -62,36 +108,25 @@ make test-jam-test-vectors
 make test-jam-test-vectors-trace
 ```
 
-## Release and Publish
+## Conformance & Fuzzing
 
-You can find the release and publish guide [here](./READMERef/RELEASE_AND_PUBLISH.md).
+We continuously validate the node against the JAM Conformance fuzz protocol. See the [Fuzz Validation guide](./READMERef/VALIDATE_FUZZ.md) for vectors, trace, socket, and CI steps.
 
-## Rust Submodule Guide
+## Operations
 
-For instructions on compiling and using the Rust library, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/RUST_VRF_COMPILE_GUIDE.md).
+- **Release and Publish**: see the [release and publish guide](./READMERef/RELEASE_AND_PUBLISH.md).
+- **Rust Submodule**: for compiling and using the Rust library, see the [Rust VRF Compile Guide](./READMERef/RUST_VRF_COMPILE_GUIDE.md).
+- **Encoder/Decoder**: for details of the encoder and decoder, see the [Encoder & Decoder guide](./READMERef/ENCODER_AND_DECODER.md).
 
-## Encoder/Decoder
+## Contributing
 
-For details of encoder and decoder, please refer to this [guide](https://github.com/New-JAMneration/JAM-Protocol/blob/main/READMERef/ENCODER_AND_DECODER.md).
+- **Coding Style**: our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
+- **Code Formatting**: we use `gofmt` to maintain consistent code formatting. See the [commands here](./READMERef/CODE_FORMATTING.md).
+- **Commit Message**: please stick to the [Semantic Commit Messages](./READMERef/SEMANTIC_COMMIT_MESSAGES.md) when submitting a commit.
+- **Pull Request**: before creating a pull request, please **rebase** (*instead of merging*) your branch onto the target branch. Also, follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket's issue.
 
-## Coding Style
+## License
 
-Our codebase follows the [Google Go Style Guide](https://google.github.io/styleguide/go/) for consistent and maintainable code.
+Licensed under the [Apache License 2.0](./LICENSE).
 
-Following these guidelines helps maintain code quality and ensures consistency across the project.
-
-## Code Formatting
-
-We use `gofmt` to maintain consistent code formatting. [Here](./READMERef/CODE_FORMATTING.md) are the commands you can use.
-
-## Commit massage
-
-Please stick to [here](./READMERef/SEMANTIC_COMMIT_MESSAGES.md) when you are going to submit a commit.
-
-## Pull Request
-
-Before creating a pull request, please **rebase** (*instead of merging*) your branch onto the branch you want to merge into.
-
-Also, follow these [instructions](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) to link your PR to the assigned ticket’s issue.
-
-![ARPm9rD](https://github.com/user-attachments/assets/6514346b-e691-45da-bd2d-bec332d89d88)
+![](https://github.com/user-attachments/assets/6514346b-e691-45da-bd2d-bec332d89d88)
