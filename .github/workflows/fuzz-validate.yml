@@ -1,0 +1,259 @@
+# Fuzz validation — full PR gate. Spec: READMERef/VALIDATE_FUZZ.md
+# Local: make validate-fuzz; CI mirrors all jobs in parallel where possible.
+
+name: Fuzz Validate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cmd/fuzz/**'
+      - 'internal/**'
+      - 'scripts/**'
+      - 'Makefile'
+      - 'docker/Dockerfile'
+      - 'VERSION_GP'
+      - 'VERSION_TARGET'
+      - '.github/workflows/fuzz-validate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/fuzz/**'
+      - 'internal/**'
+      - 'scripts/**'
+      - 'Makefile'
+      - 'docker/Dockerfile'
+      - '.github/workflows/fuzz-validate.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: fuzz-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Private submodule pkg/Rust-VRF — same PAT as release.yml (secrets.TOKEN).
+permissions:
+  contents: read
+
+env:
+  TARGET_IMAGE: new-jamneration-target:ci
+
+jobs:
+  build-image:
+    name: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Init submodules (Rust-VRF)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::secrets.TOKEN is required for private submodule pkg/Rust-VRF (PAT with repo scope). Fork PRs need Actions secret access enabled for forks."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init pkg/Rust-VRF
+
+      - name: Read versions
+        id: ver
+        run: |
+          echo "gp=$(cat VERSION_GP)" >> "$GITHUB_OUTPUT"
+          echo "target=$(cat VERSION_TARGET)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build fuzz target image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: ${{ env.TARGET_IMAGE }}
+          build-args: |
+            GP_VERSION=${{ steps.ver.outputs.gp }}
+            TARGET_VERSION=${{ steps.ver.outputs.target }}
+            OUTPUT=new-jamneration-target
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export image artifact
+        run: docker save "${{ env.TARGET_IMAGE }}" | gzip > fuzz-target-image.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-target-image
+          path: fuzz-target-image.tar.gz
+          retention-days: 3
+
+  test-vectors:
+    name: test-vectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Init submodules (Rust-VRF + jam-test-vectors)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::secrets.TOKEN is required for private submodule pkg/Rust-VRF (PAT with repo scope). Fork PRs need Actions secret access enabled for forks."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init pkg/Rust-VRF
+          git submodule update --init pkg/test_data/jam-test-vectors
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build VRF FFI library
+        working-directory: pkg/Rust-VRF/vrf-func-ffi
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          cargo build --release
+
+      - name: Step 1 — jam-test-vectors
+        run: |
+          chmod +x scripts/validate_fuzz.sh
+          VALIDATE_FUZZ_STEPS=1 ./scripts/validate_fuzz.sh
+
+  test-trace:
+    name: test-trace
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Init submodules (Rust-VRF + jam-test-vectors)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          if [ -z "${TOKEN}" ]; then
+            echo "::error::secrets.TOKEN is required for private submodule pkg/Rust-VRF (PAT with repo scope). Fork PRs need Actions secret access enabled for forks."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          git submodule update --init pkg/Rust-VRF
+          git submodule update --init pkg/test_data/jam-test-vectors
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build VRF FFI library
+        working-directory: pkg/Rust-VRF/vrf-func-ffi
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+          cargo build --release
+
+      - name: Step 2 — jam-test-vectors trace
+        run: |
+          chmod +x scripts/validate_fuzz.sh
+          VALIDATE_FUZZ_STEPS=2 ./scripts/validate_fuzz.sh
+
+  fuzz-sock:
+    name: fuzz-sock
+    needs: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Init submodules (conformance + fuzzy traces)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          if [ -n "${TOKEN}" ]; then
+            git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+          git submodule update --init pkg/test_data/jam-conformance
+          git submodule update --init pkg/test_data/jam-test-vectors
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fuzz-target-image
+
+      - name: Load target image
+        run: gunzip -c fuzz-target-image.tar.gz | docker load
+
+      - name: Conformance + fuzzy (full tree, Docker target)
+        env:
+          TARGET_IMAGE: ${{ env.TARGET_IMAGE }}
+        run: |
+          chmod +x scripts/ci_fuzz_docker_sock.sh
+          ./scripts/ci_fuzz_docker_sock.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-sock-output
+          path: |
+            output.txt
+            output_fuzzy.txt
+          if-no-files-found: ignore
+
+  jam-testing:
+    name: jam-testing
+    needs: build-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fuzz-target-image
+
+      - name: Load target image
+        run: gunzip -c fuzz-target-image.tar.gz | docker load
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Minifuzz + Picofuzz (FluffyLabs/jam-testing)
+        env:
+          TARGET_IMAGE: ${{ env.TARGET_IMAGE }}
+        run: |
+          chmod +x scripts/ci_jam_testing_full.sh
+          ./scripts/ci_jam_testing_full.sh
+
+  fuzz-validate:
+    name: fuzz-validate
+    needs: [build-image, test-vectors, test-trace, fuzz-sock, jam-testing]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs green
+        run: |
+          ok=1
+          for r in \
+            "${{ needs.build-image.result }}" \
+            "${{ needs.test-vectors.result }}" \
+            "${{ needs.test-trace.result }}" \
+            "${{ needs.fuzz-sock.result }}" \
+            "${{ needs.jam-testing.result }}"; do
+            if [[ "$r" != "success" ]]; then ok=0; fi
+          done
+          if [[ "$ok" -ne 1 ]]; then
+            echo "One or more fuzz jobs failed or were skipped"
+            exit 1
+          fi

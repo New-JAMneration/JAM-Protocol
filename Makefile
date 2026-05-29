@@ -129,3 +129,32 @@ release-target:
 .PHONY: run-release-target
 run-release-target:
 	bash ./scripts/run_release.sh
+
+# --- Fuzz validation (spec: READMERef/VALIDATE_FUZZ.md) ---
+VALIDATE_FUZZ_SCRIPT := ./scripts/validate_fuzz.sh
+FUZZ_SMOKE_TRACE_DIR ?= 1766241814
+
+.PHONY: validate-fuzz validate-fuzz-ci validate-fuzz-vectors validate-fuzz-trace validate-fuzz-sock validate-fuzz-sock-smoke validate-fuzz-fuzzy validate-fuzz-jam-testing-local
+validate-fuzz:
+	$(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-ci:
+	VALIDATE_FUZZ_STEPS=1,2,3,fuzzy $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-vectors:
+	VALIDATE_FUZZ_STEPS=1 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-trace:
+	VALIDATE_FUZZ_STEPS=2 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-sock:
+	VALIDATE_FUZZ_STEPS=3 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-sock-smoke:
+	VALIDATE_FUZZ_STEPS=3 FUZZ_SMOKE_TRACE_DIR=$(FUZZ_SMOKE_TRACE_DIR) $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-fuzzy:
+	VALIDATE_FUZZ_STEPS=fuzzy $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-jam-testing-local:
+	VALIDATE_FUZZ_RUN_JAM_TESTING=1 VALIDATE_FUZZ_STEPS=4 $(VALIDATE_FUZZ_SCRIPT)
