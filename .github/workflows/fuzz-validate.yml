@@ -38,8 +38,8 @@ env:
   TARGET_IMAGE: new-jamneration-target:ci
 
 jobs:
-  build-image:
-    name: build-image
+  build-fuzz-target-image:
+    name: build-fuzz-target-image
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -89,8 +89,8 @@ jobs:
           path: fuzz-target-image.tar.gz
           retention-days: 3
 
-  test-vectors:
-    name: test-vectors
+  jam-test-vectors:
+    name: jam-test-vectors
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -128,8 +128,8 @@ jobs:
           chmod +x scripts/validate_fuzz.sh
           VALIDATE_FUZZ_STEPS=1 ./scripts/validate_fuzz.sh
 
-  test-trace:
-    name: test-trace
+  jam-test-vectors-traces:
+    name: jam-test-vectors-traces
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -167,9 +167,9 @@ jobs:
           chmod +x scripts/validate_fuzz.sh
           VALIDATE_FUZZ_STEPS=2 ./scripts/validate_fuzz.sh
 
-  fuzz-sock:
-    name: fuzz-sock
-    needs: build-image
+  jam-conformance-sock:
+    name: jam-conformance-sock
+    needs: build-fuzz-target-image
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -177,7 +177,7 @@ jobs:
         with:
           token: ${{ secrets.TOKEN }}
 
-      - name: Init submodules (conformance + fuzzy traces)
+      - name: Init submodules (jam-conformance)
         env:
           TOKEN: ${{ secrets.TOKEN }}
         run: |
@@ -185,6 +185,46 @@ jobs:
             git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
           fi
           git submodule update --init pkg/test_data/jam-conformance
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fuzz-target-image
+
+      - name: Load target image
+        run: gunzip -c fuzz-target-image.tar.gz | docker load
+
+      - name: jam-conformance fuzz-reports (Docker target, 1179 traces)
+        env:
+          TARGET_IMAGE: ${{ env.TARGET_IMAGE }}
+          CI_FUZZ_SOCK_SUITE: conformance
+        run: |
+          chmod +x scripts/ci_fuzz_docker_sock.sh
+          ./scripts/ci_fuzz_docker_sock.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jam-conformance-sock-output
+          path: output.txt
+          if-no-files-found: ignore
+
+  jam-test-vectors-traces-fuzzy-sock:
+    name: jam-test-vectors-traces-fuzzy-sock
+    needs: build-fuzz-target-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN }}
+
+      - name: Init submodules (jam-test-vectors fuzzy traces)
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          if [ -n "${TOKEN}" ]; then
+            git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
           git submodule update --init pkg/test_data/jam-test-vectors
 
       - uses: actions/download-artifact@v4
@@ -194,9 +234,10 @@ jobs:
       - name: Load target image
         run: gunzip -c fuzz-target-image.tar.gz | docker load
 
-      - name: Conformance + fuzzy (full tree, Docker target)
+      - name: jam-test-vectors/traces/fuzzy (Docker target, 201 traces)
         env:
           TARGET_IMAGE: ${{ env.TARGET_IMAGE }}
+          CI_FUZZ_SOCK_SUITE: fuzzy
         run: |
           chmod +x scripts/ci_fuzz_docker_sock.sh
           ./scripts/ci_fuzz_docker_sock.sh
@@ -204,15 +245,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fuzz-sock-output
-          path: |
-            output.txt
-            output_fuzzy.txt
+          name: jam-test-vectors-traces-fuzzy-sock-output
+          path: output_fuzzy.txt
           if-no-files-found: ignore
 
-  jam-testing:
-    name: jam-testing
-    needs: build-image
+  jam-testing-minifuzz-picofuzz:
+    name: jam-testing (minifuzz + picofuzz)
+    needs: build-fuzz-target-image
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -236,9 +275,15 @@ jobs:
           chmod +x scripts/ci_jam_testing_full.sh
           ./scripts/ci_jam_testing_full.sh
 
-  fuzz-validate:
-    name: fuzz-validate
-    needs: [build-image, test-vectors, test-trace, fuzz-sock, jam-testing]
+  fuzz-validate-all-green:
+    name: fuzz-validate (all jobs green)
+    needs:
+      - build-fuzz-target-image
+      - jam-test-vectors
+      - jam-test-vectors-traces
+      - jam-conformance-sock
+      - jam-test-vectors-traces-fuzzy-sock
+      - jam-testing-minifuzz-picofuzz
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -246,11 +291,12 @@ jobs:
         run: |
           ok=1
           for r in \
-            "${{ needs.build-image.result }}" \
-            "${{ needs.test-vectors.result }}" \
-            "${{ needs.test-trace.result }}" \
-            "${{ needs.fuzz-sock.result }}" \
-            "${{ needs.jam-testing.result }}"; do
+            "${{ needs.build-fuzz-target-image.result }}" \
+            "${{ needs.jam-test-vectors.result }}" \
+            "${{ needs.jam-test-vectors-traces.result }}" \
+            "${{ needs.jam-conformance-sock.result }}" \
+            "${{ needs.jam-test-vectors-traces-fuzzy-sock.result }}" \
+            "${{ needs.jam-testing-minifuzz-picofuzz.result }}"; do
             if [[ "$r" != "success" ]]; then ok=0; fi
           done
           if [[ "$ok" -ne 1 ]]; then
