@@ -27,15 +27,18 @@ docker image inspect "${TARGET_IMAGE}" >/dev/null 2>&1 \
 	|| die "image not loaded: ${TARGET_IMAGE}"
 
 if [[ ! -d "${JAM_TESTING_DIR}/.git" ]]; then
-	mkdir -p "$(dirname "${JAM_TESTING_DIR}")"
-	log "cloning ${JAM_TESTING_REPO} (ref=${JAM_TESTING_REF}) -> ${JAM_TESTING_DIR}"
-	git clone --depth 1 --branch "${JAM_TESTING_REF}" "${JAM_TESTING_REPO}" "${JAM_TESTING_DIR}"
+	mkdir -p "${JAM_TESTING_DIR}"
+	log "init ${JAM_TESTING_REPO} -> ${JAM_TESTING_DIR}"
+	git init -q "${JAM_TESTING_DIR}"
+	git -C "${JAM_TESTING_DIR}" remote add origin "${JAM_TESTING_REPO}"
 fi
 
 (
 	cd "${JAM_TESTING_DIR}"
-	git fetch origin "${JAM_TESTING_REF}" --depth 1 2>/dev/null || true
-	git checkout "${JAM_TESTING_REF}" 2>/dev/null || git checkout "origin/${JAM_TESTING_REF}"
+	# --depth 1 fetch of a specific commit works for SHA / tag / branch on GitHub.
+	log "fetch jam-testing @ ${JAM_TESTING_REF}"
+	git fetch --depth 1 origin "${JAM_TESTING_REF}"
+	git checkout -q FETCH_HEAD
 	log "initializing jam-testing submodules (HTTPS; skip dashboard)"
 	# picofuzz-data nests jam-test-vectors via git@github.com — breaks non-interactive CI/WSL.
 	# forks/no_forks need picofuzz-conformance-data; picofuzz STF needs picofuzz-stf-data only (no nested jam-test-vectors).
