@@ -10,7 +10,8 @@ TARGET_NAME="${TARGET_NAME:-new-jamneration}"
 TARGET_CMD="${TARGET_CMD:-{TARGET_SOCK}}"
 TARGET_MEMORY="${TARGET_MEMORY:-2g}"
 JAM_TESTING_DIR="${JAM_TESTING_DIR:-${REPO_ROOT}/.ci/jam-testing}"
-JAM_TESTING_REF="${JAM_TESTING_REF:-main}"
+# Pinned commit (not a moving branch) for reproducible CI; bump deliberately.
+JAM_TESTING_REF="${JAM_TESTING_REF:-028072cc1c40c3d2c39210aff67036e2018b2022}"
 JAM_TESTING_REPO="${JAM_TESTING_REPO:-https://github.com/FluffyLabs/jam-testing.git}"
 
 # Cursor prompt 4 suites + official jam-testing extras (forks / no_forks)
