@@ -105,7 +105,6 @@ func DecodeAnnouncement(data []byte) (Announcement, error) {
 	if err := dec.Decode(data[:headerEnd], &a.Header); err != nil {
 		return Announcement{}, fmt.Errorf("decode header: %w", err)
 	}
-	_, _ = decodeBlockRef(data, headerEnd)
 	a.Final, _ = decodeBlockRef(data, headerEnd)
 	return a, nil
 }
