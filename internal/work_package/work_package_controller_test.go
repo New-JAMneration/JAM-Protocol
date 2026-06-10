@@ -6,6 +6,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/pvmcost"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/require"
@@ -149,12 +150,24 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	extrinsics := []byte("abcdef")
 	coreIndex := types.CoreIndex(0)
 
-	// mock PVM
+	// mock PVM (costs are #974 telemetry sidecar sentinels; see asserts
+	// on controller.TelemetryCost below)
+	isAuthCost := pvmcost.IsAuthorizedCost{
+		Total:        pvmcost.ExecCost{GasUsed: 11, ElapsedNanos: 12},
+		CompileNanos: 13,
+		HostCalls:    pvmcost.ExecCost{GasUsed: 14, ElapsedNanos: 15},
+	}
+	refineCost := pvmcost.RefineCost{
+		Total:        pvmcost.ExecCost{GasUsed: 21, ElapsedNanos: 22},
+		CompileNanos: 23,
+		Invoke:       pvmcost.ExecCost{GasUsed: 24, ElapsedNanos: 25},
+	}
 	mockPVM := new(MockPVMExecutor)
 	mockPVM.On("Psi_I", mock.Anything, mock.Anything, mock.Anything).Return(PVM.Psi_I_ReturnType{
 		WorkExecResult: types.WorkExecResultOk,
 		WorkOutput:     []byte("auth output"),
 		Gas:            types.Gas(10),
+		Cost:           isAuthCost,
 	})
 	mockPVM.On("RefineInvoke", mock.Anything).Return(PVM.RefineOutput{
 		WorkResult:   types.WorkExecResultOk,
@@ -162,7 +175,8 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 		ExportSegment: []types.ExportSegment{
 			[4104]byte{0x1F, 0x20, 0x21},
 		},
-		Gas: types.Gas(10),
+		Gas:  types.Gas(10),
+		Cost: refineCost,
 	})
 
 	// Mock fetch DA
@@ -193,6 +207,10 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	require.Equal(t, report.AuthOutput, types.ByteSequence("auth output"))
 
 	require.Equal(t, report.Results[0].Result.Data, []byte("refine output"))
+
+	// #974 Phase 1: Process must store the cost sidecar on the controller.
+	require.Equal(t, isAuthCost, controller.TelemetryCost.IsAuthorized)
+	require.Equal(t, []pvmcost.RefineCost{refineCost}, controller.TelemetryCost.Refine)
 
 	hashSegmentMap, err := cs.GetHashSegmentMap()
 	if err != nil {
