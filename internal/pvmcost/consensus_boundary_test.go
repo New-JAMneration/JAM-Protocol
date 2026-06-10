@@ -52,6 +52,12 @@ func TestConsensusStructsDoNotContainCost(t *testing.T) {
 // walk recursively inspects ty's fields / elements, failing the test
 // when it lands on a type listed in forbidden. visited prevents
 // infinite recursion on self-referential types (Mmr's tree etc.).
+//
+// Limitation: interface-typed fields are not walkable — reflect can't
+// see the dynamic type behind an `any` field, so a pvmcost value
+// smuggled through one would not be caught. Consensus structs have no
+// interface fields today; if one ever appears, this guard needs a
+// runtime-value check for it.
 func walk(t *testing.T, ty reflect.Type, forbidden map[reflect.Type]bool, path []string, visited map[reflect.Type]bool) {
 	t.Helper()
 	if ty == nil || visited[ty] {
@@ -65,16 +71,22 @@ func walk(t *testing.T, ty reflect.Type, forbidden map[reflect.Type]bool, path [
 		return
 	}
 
+	// Copy before extending: plain append(path, x) can share the backing
+	// array between sibling fields and corrupt the failure-message path.
+	extend := func(seg string) []string {
+		return append(append(make([]string, 0, len(path)+1), path...), seg)
+	}
+
 	switch ty.Kind() {
 	case reflect.Struct:
 		for i := 0; i < ty.NumField(); i++ {
 			f := ty.Field(i)
-			walk(t, f.Type, forbidden, append(path, f.Name), visited)
+			walk(t, f.Type, forbidden, extend(f.Name), visited)
 		}
 	case reflect.Slice, reflect.Array, reflect.Pointer, reflect.Chan:
-		walk(t, ty.Elem(), forbidden, append(path, "[elem]"), visited)
+		walk(t, ty.Elem(), forbidden, extend("[elem]"), visited)
 	case reflect.Map:
-		walk(t, ty.Key(), forbidden, append(path, "[key]"), visited)
-		walk(t, ty.Elem(), forbidden, append(path, "[value]"), visited)
+		walk(t, ty.Key(), forbidden, extend("[key]"), visited)
+		walk(t, ty.Elem(), forbidden, extend("[value]"), visited)
 	}
 }
