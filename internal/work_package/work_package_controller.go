@@ -37,8 +37,11 @@ type WorkPackageController struct {
 	Bundle      []byte             // Shared
 
 	// TelemetryCost is the JIP-3 cost sidecar (#974) from the last
-	// successful Process call. Observability-only; zero before that.
-	// The future event 95/101 bridge (#958) reads it after Process.
+	// successful Process call. Observability-only; zero before that, and
+	// left untouched when Process fails (JIP-3 failure paths map to event
+	// 92, which carries no cost — events 95/101 fire on success only).
+	// Not synchronized: read it only from the goroutine that called
+	// Process. The future event 95/101 bridge (#958) reads it here.
 	TelemetryCost WorkPackageTelemetryCost
 }
 
