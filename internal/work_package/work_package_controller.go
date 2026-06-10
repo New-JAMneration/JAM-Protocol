@@ -35,6 +35,11 @@ type WorkPackageController struct {
 	Extrinsics  []byte             // Initial
 	WorkPackage *types.WorkPackage // Initial
 	Bundle      []byte             // Shared
+
+	// TelemetryCost is the JIP-3 cost sidecar (#974) from the last
+	// successful Process call. Observability-only; zero before that.
+	// The future event 95/101 bridge (#958) reads it after Process.
+	TelemetryCost WorkPackageTelemetryCost
 }
 
 func NewInitialController(wp *types.WorkPackage, extrinsics []byte, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
@@ -75,10 +80,11 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	// and wait for them to send back work report hash and ed25519 signature
 	// two goroutines to two different guarantors
 
-	report, err := WorkReportCompute(&workPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackageBundle, workPackageHash, p.PVM)
+	report, cost, err := WorkReportCompute(&workPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackageBundle, workPackageHash, p.PVM)
 	if err != nil {
 		return types.WorkReport{}, err
 	}
+	p.TelemetryCost = cost
 	cs := blockchain.GetInstance()
 	newDict, err := cs.SetHashSegmentMapWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
 	if err != nil {

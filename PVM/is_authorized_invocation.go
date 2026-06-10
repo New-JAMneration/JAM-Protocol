@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/pvmcost"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -63,4 +64,8 @@ type Psi_I_ReturnType struct {
 	WorkExecResult types.WorkExecResultType
 	WorkOutput     []byte
 	Gas            types.Gas
+	// Cost is the JIP-3 event 95 cost summary (#974). Observability-only
+	// sidecar: it must never reach consensus-serialized types (CI guard in
+	// internal/pvmcost). Zero-filled until Phase 2a instrumentation lands.
+	Cost pvmcost.IsAuthorizedCost
 }
