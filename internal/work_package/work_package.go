@@ -126,6 +126,9 @@ func WorkReportCompute(
 	o := returnType.WorkOutput
 	g := returnType.Gas
 	if returnType.WorkExecResult != types.WorkExecResultOk || len(o) > types.WorkReportOutputBlobsMaximumSize {
+		// Discarding returnType.Cost here is deliberate: JIP-3 has no
+		// cost-carrying event on this path — failures map to event 92
+		// (reason string only); events 95/101 fire on success.
 		return types.WorkReport{}, WorkPackageTelemetryCost{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
 	}
 
@@ -191,22 +194,22 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 		ExtrinsicDataMap:    extrinsicMap,
 	}
 
-	refineOuput := pvm.RefineInvoke(refineInput)
-	r := refineOuput.RefineOutput
-	e := refineOuput.ExportSegment
-	u := refineOuput.Gas
+	refineOutput := pvm.RefineInvoke(refineInput)
+	r := refineOutput.RefineOutput
+	e := refineOutput.ExportSegment
+	u := refineOutput.Gas
 	z := len(o) + rSum
 	if len(r)+z > types.WorkReportOutputBlobsMaximumSize {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: types.WorkExecResultReportOversize}, u, emptyExport, refineOuput.Cost
+		return types.WorkExecResult{Type: types.WorkExecResultReportOversize}, u, emptyExport, refineOutput.Cost
 	} else if len(e) != int(workItem.ExportCount) {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: types.WorkExecResultBadExports}, u, emptyExport, refineOuput.Cost
-	} else if refineOuput.WorkResult != types.WorkExecResultOk {
+		return types.WorkExecResult{Type: types.WorkExecResultBadExports}, u, emptyExport, refineOutput.Cost
+	} else if refineOutput.WorkResult != types.WorkExecResultOk {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, emptyExport, refineOuput.Cost
+		return types.WorkExecResult{Type: refineOutput.WorkResult, Data: r}, u, emptyExport, refineOutput.Cost
 	} else {
-		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, e, refineOuput.Cost
+		return types.WorkExecResult{Type: refineOutput.WorkResult, Data: r}, u, e, refineOutput.Cost
 	}
 }
 
