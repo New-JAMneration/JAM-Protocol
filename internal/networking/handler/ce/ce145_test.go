@@ -590,7 +590,9 @@ func TestCE145Payload_Decode_TruncatedGuarantee(t *testing.T) {
 	encoded, err := payload.Encode()
 	require.NoError(t, err)
 
-	// Chop last 30 bytes — guarantee becomes incomplete
+	// Each guarantee signature entry is 66 bytes (2-byte index + 64-byte sig),
+	// so dropping 30 bytes leaves the final entry short of its 66-byte size and
+	// decodeGuaranteeBytes reports insufficient data.
 	err = (&CE145Payload{}).Decode(encoded[:len(encoded)-30])
 	require.Error(t, err)
 }
@@ -661,11 +663,16 @@ func TestCE145Payload_Validate_BadGuaranteeFails(t *testing.T) {
 // Stage 3: pin current trailing-bytes behavior on Decode
 //
 // Decode currently silently accepts arbitrary bytes after a valid CE145
-// header. JAMNP-style codecs commonly reject trailing bytes, but GP / spec
-// do not mandate it for CE145. This test pins the current behavior so a
+// payload. JAMNP-style codecs commonly reject trailing bytes, but GP / spec
+// do not mandate it for CE145. These tests pin the current behavior so a
 // future tightening (reject trailing bytes) is a deliberate choice rather
-// than an accidental break: if you tighten Decode, update this test to
-// assert error instead.
+// than an accidental break: if you tighten Decode, update them to assert
+// error instead.
+//
+// Both decode paths ignore trailing bytes and so both are pinned:
+//   - Validity == 1: nothing is read past the fixed header.
+//   - Validity == 0: decodeGuaranteeBytes consumes exactly `count` signature
+//     entries and ignores whatever follows.
 // --------------------------------------------------------------------------
 
 func TestCE145Payload_Decode_AcceptsTrailingBytes_CurrentBehavior(t *testing.T) {
@@ -682,4 +689,29 @@ func TestCE145Payload_Decode_AcceptsTrailingBytes_CurrentBehavior(t *testing.T) 
 	extended := append(encoded, []byte("XXXXX_TRAILING_GARBAGE_XXXXX")...)
 	err = (&CE145Payload{}).Decode(extended)
 	require.NoError(t, err, "current behavior: trailing bytes accepted (see comment above)")
+}
+
+// Companion to the above for the Validity == 0 path: trailing bytes after the
+// guarantee signatures are also silently accepted.
+func TestCE145Payload_Decode_AcceptsTrailingBytesAfterGuarantee_CurrentBehavior(t *testing.T) {
+	payload := &CE145Payload{
+		EpochIndex:     1,
+		ValidatorIndex: 1,
+		Validity:       0,
+		WorkReportHash: createTestWorkReportHash([]byte("trailing-guarantee")),
+		Signature:      createTestEd25519Signature([]byte("sig")),
+		Guarantee: &CE145Guarantee{
+			Slot: 100,
+			Signatures: []types.ValidatorSignature{
+				{ValidatorIndex: 1, Signature: createTestEd25519Signature([]byte("g1"))},
+				{ValidatorIndex: 2, Signature: createTestEd25519Signature([]byte("g2"))},
+			},
+		},
+	}
+	encoded, err := payload.Encode()
+	require.NoError(t, err)
+
+	extended := append(encoded, []byte("XXXXX_TRAILING_GARBAGE_XXXXX")...)
+	err = (&CE145Payload{}).Decode(extended)
+	require.NoError(t, err, "current behavior: trailing bytes after guarantee accepted (see comment above)")
 }
