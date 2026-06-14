@@ -443,7 +443,9 @@ func TestCE144Payload_Decode_TruncatedEvidence(t *testing.T) {
 	encoded, err := payload.Encode()
 	require.NoError(t, err)
 
-	// Chop off last 50 bytes from evidence
+	// Tranche-0 evidence is exactly one 96-byte Bandersnatch sig, so dropping
+	// the trailing 50 bytes leaves only 46 — below the fixed 96-byte size that
+	// parseMsg2 requires, forcing the decode to fail.
 	err = (&CE144Payload{}).Decode(encoded[:len(encoded)-50])
 	require.Error(t, err)
 }
@@ -494,9 +496,9 @@ func TestCE144Payload_TinyCoresFull(t *testing.T) {
 // TinyCoresFull only exercises the tranche=0 shape; this covers the other.
 
 func TestCE144Payload_TrancheNonZeroRoundtrip(t *testing.T) {
-	types.SetTinyMode()
-	t.Cleanup(types.SetTinyMode)
-
+	// Unlike TinyCoresFull, this test fixes the work-report count at 2 and
+	// never reads types.CoresCount, so it does not depend on tiny mode and
+	// needs no global lock.
 	workReports := []WorkReportEntry{
 		{CoreIndex: 0, WorkReportHash: createTestWorkReportHash([]byte("wr0"))},
 		{CoreIndex: 1, WorkReportHash: createTestWorkReportHash([]byte("wr1"))},
