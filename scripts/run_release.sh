@@ -1,6 +1,9 @@
 #!/bin/bash
 
+DOCKER_PLATFORM="${DOCKER_PLATFORM:---platform linux/amd64}"
+
 docker run \
+  ${DOCKER_PLATFORM} \
   --rm \
   -u $(id -u):$(id -g) \
   -v /tmp:/tmp \

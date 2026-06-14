@@ -26,6 +26,7 @@ if [[ "$HOST_DATA" != /* ]]; then
 	HOST_DATA="${REPO_ROOT}/${HOST_DATA#./}"
 fi
 TARGET_STARTUP_SEC="${TARGET_STARTUP_SEC:-30}"
+DOCKER_PLATFORM="${DOCKER_PLATFORM:---platform linux/amd64}"
 
 log() { printf '[ci_fuzz_docker_sock] %s\n' "$*"; }
 die() {
@@ -80,6 +81,7 @@ run_test_folder() {
 	rm -f "$outfile"
 	log "test_folder ${trace_path} -> ${outfile}"
 	docker run --rm \
+		${DOCKER_PLATFORM} \
 		-u "$(id -u):$(id -g)" \
 		-v "${HOST_DATA}:/tmp/jam_fuzz" \
 		-v "${abs_traces}:/traces:ro" \
@@ -97,6 +99,7 @@ rm -f "${HOST_DATA}/fuzz.sock"
 docker rm -f "${TARGET_CONTAINER}" >/dev/null 2>&1 || true
 log "starting target container ${TARGET_CONTAINER} (${TARGET_IMAGE})"
 docker run -d --name "${TARGET_CONTAINER}" \
+	${DOCKER_PLATFORM} \
 	--init \
 	-u "$(id -u):$(id -g)" \
 	--cap-add IPC_LOCK \

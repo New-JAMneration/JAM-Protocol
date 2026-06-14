@@ -98,10 +98,13 @@ run-target:
 	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
 
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
+# Matches CI release (linux/amd64). Required on arm64/aarch64 hosts (Apple Silicon, Linux ARM).
+DOCKER_PLATFORM ?= --platform linux/amd64
 
 .PHONY: fuzz-docker-build
 fuzz-docker-build:
 	docker build \
+		$(DOCKER_PLATFORM) \
 		--build-arg GP_VERSION=$(VERSION_GP) \
 		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
 		--build-arg OUTPUT=new-jamneration-target \
