@@ -3,8 +3,10 @@
 GP_VERSION=${1:-"0.7.0"}
 TARGET_VERSION=${2:-"0.1.0"}
 OUTPUT=${3:-"new-jamneration-target"}
+DOCKER_PLATFORM="${DOCKER_PLATFORM:---platform linux/amd64}"
 
 docker build \
+  ${DOCKER_PLATFORM} \
   --build-arg GP_VERSION=${GP_VERSION} \
   --build-arg TARGET_VERSION=${TARGET_VERSION} \
   --build-arg OUTPUT=${OUTPUT} \

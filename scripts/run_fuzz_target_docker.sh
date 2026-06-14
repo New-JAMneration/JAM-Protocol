@@ -4,11 +4,13 @@ set -euo pipefail
 
 IMAGE="${JAM_FUZZ_IMAGE:-new-jamneration-target:latest}"
 HOST_DATA="${JAM_FUZZ_HOST_DATA:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.jam_fuzz_docker_run}"
+DOCKER_PLATFORM="${DOCKER_PLATFORM:---platform linux/amd64}"
 
 mkdir -p "${HOST_DATA}"
 chmod a+rwx "${HOST_DATA}" 2>/dev/null || true
 
 exec docker run --rm \
+	${DOCKER_PLATFORM} \
 	--init \
 	-u "$(id -u):$(id -g)" \
 	--cap-add IPC_LOCK \
