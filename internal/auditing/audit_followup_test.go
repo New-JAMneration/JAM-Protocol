@@ -70,8 +70,11 @@ func TestIsAssignedByThreshold_BoundaryCases(t *testing.T) {
 }
 
 // Exhaustive: walk all 256 byte values for fixed (V, F, mn) and assert the
-// total number of "assigned" outcomes matches ⌈256·F·mn/V⌉. This pins the
-// formula's behavior across the full input domain in one go and catches
+// total number of "assigned" outcomes matches min(256, ⌈256·F·mn/V⌉). The
+// 256 cap matters once the threshold reaches the byte domain: e.g. tiny
+// mn=3 gives ⌈256·2·3/6⌉ = 256, so every X qualifies and the count
+// saturates rather than overflowing the 256-value range. This pins the
+// formula's behaviour across the full input domain in one go and catches
 // off-by-one errors at the threshold edge that a sparse boundary test
 // might miss.
 func TestIsAssignedByThreshold_ExhaustiveByteRangeCount(t *testing.T) {
