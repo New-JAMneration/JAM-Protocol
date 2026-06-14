@@ -265,6 +265,20 @@ func (cs *ChainState) GenerateGenesisBlock(block types.Block) error {
 	cs.unfinalizedBlocks.GenerateGenesisBlock(block)
 	// Genesis block is always finalized
 	cs.finalizedIndex[block.Header.Parent] = true
+
+	headerHash, err := hash.ComputeBlockHeaderHash(block.Header)
+	if err != nil {
+		return fmt.Errorf("compute genesis header hash: %w", err)
+	}
+
+	repoDB := cs.repo.Database()
+	if err := cs.repo.SaveBlock(repoDB, &block); err != nil {
+		return fmt.Errorf("save genesis block to repo: %w", err)
+	}
+	if err := cs.repo.SaveCanonicalHash(repoDB, headerHash, block.Header.Slot); err != nil {
+		return fmt.Errorf("save genesis canonical hash: %w", err)
+	}
+
 	if err := cs.persistBlockMapping(block); err != nil {
 		logger.Errorf("GenerateGenesisBlock: failed to index block: %v", err)
 	}

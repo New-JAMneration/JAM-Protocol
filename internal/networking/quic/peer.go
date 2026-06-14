@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -60,6 +61,7 @@ type Peer struct {
 	Best      *HeadInfo `json:"best"`      // Optional best block header
 	Finalized HeadInfo  `json:"finalized"` // Finalized block header
 	ID        string    `json:"id"`        // Peer identifier
+	eventBus  *EventBus
 }
 
 func NewPeer(config PeerConfig) (*Peer, error) {
@@ -108,6 +110,20 @@ func (p *Peer) Connect(addr net.Addr, role PeerRole) (*Connection, error) {
 		return nil, err
 	}
 	p.connManager.Add(addr.String(), conn)
+	if p.eventBus != nil {
+		if peerKey, err := extractPeerKey(conn.Conn); err == nil {
+			remote := &Peer{Ed25519Key: peerKey}
+			if err := p.peerSet.Add(remote, addr.String()); err != nil {
+				log.Println("peer set add error:", err)
+			}
+			remote.ID = addr.String()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			_ = p.eventBus.PublishPeerAdded(ctx, remote)
+		}
+	}
 	return conn, nil
 }
 
@@ -115,6 +131,10 @@ func (p *Peer) RegisterHandler(kind byte, h StreamHandlerFunc) {
 	p.handlerMu.Lock()
 	defer p.handlerMu.Unlock()
 	p.handlers[kind] = h
+}
+
+func (p *Peer) SetEventBus(eventBus *EventBus) {
+	p.eventBus = eventBus
 }
 
 func (p *Peer) Start(ctx context.Context) error {
@@ -165,6 +185,10 @@ func (p *Peer) handleConnection(qconn quic.Connection, peerKey ed25519.PublicKey
 	remote := &Peer{Ed25519Key: peerKey}
 	if err := p.peerSet.Add(remote, conn.Addr.String()); err != nil {
 		log.Println("peer set add error:", err)
+	}
+	if p.eventBus != nil {
+		remote.ID = conn.Addr.String()
+		_ = p.eventBus.PublishPeerAdded(p.ctx, remote)
 	}
 
 	for {
@@ -291,6 +315,26 @@ func (p *Peer) StartValidatorConnections(ctx context.Context, neighbors []types.
 			}
 		}(addr, v.Ed25519, isInitiator)
 	}
+}
+
+func (p *Peer) Close() error {
+	if p.cancel != nil {
+		p.cancel()
+	}
+
+	var closeErr error
+	for _, conn := range p.connManager.All() {
+		if err := conn.Close(); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+		p.connManager.Remove(conn.Addr.String())
+	}
+	if p.Listener != nil {
+		if err := p.Listener.Close(); err != nil {
+			closeErr = errors.Join(closeErr, err)
+		}
+	}
+	return closeErr
 }
 
 func extractPeerKey(conn quic.Connection) (ed25519.PublicKey, error) {

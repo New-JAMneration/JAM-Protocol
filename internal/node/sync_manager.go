@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -38,23 +39,32 @@ type SyncManager struct {
 
 const BLOCK_REQUEST_BLOCK_COUNT uint32 = 50
 
-func NewSyncManager() *SyncManager {
+func NewSyncManager(bc blockchain.Blockchain, eventBus *quic.EventBus) *SyncManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &SyncManager{
-		ctx:      ctx,
-		cancel:   cancel,
-		peers:    make(map[string]*quic.Peer),
-		eventBus: quic.NewEventBus(),
-		status:   Discovering,
-		// TODO: add blockchain
+		ctx:        ctx,
+		cancel:     cancel,
+		peers:      make(map[string]*quic.Peer),
+		eventBus:   eventBus,
+		blockchain: bc,
+		status:     Discovering,
 	}
 }
 
+func (sm *SyncManager) Start() {
+	sm.setupEventSubscriptions()
+}
+
 func (sm *SyncManager) setupEventSubscriptions() {
+	if sm.eventBus == nil {
+		return
+	}
 	sm.eventBus.Subscribe(quic.PeerAdded, sm.handlePeerAdded)
+	sm.subscriptions = append(sm.subscriptions, quic.PeerAdded)
 
 	// newBlockHeader should be in handlePeerUpdated event
 	sm.eventBus.Subscribe(quic.PeerUpdated, sm.handlePeerUpdated)
+	sm.subscriptions = append(sm.subscriptions, quic.PeerUpdated)
 }
 
 func (sm *SyncManager) handlePeerAdded(ctx context.Context, event quic.Event) error {
@@ -129,8 +139,9 @@ func (sm *SyncManager) onPeerUpdated(peer *quic.Peer, newBlockHeader *HeadInfo) 
 
 // getCurrentHead gets the current best head from the blockchain
 func (sm *SyncManager) getCurrentHead() (*HeadInfo, error) {
-	// TODO: implement real blockchain query
-	// For now, return genesis block info
+	if sm.blockchain == nil {
+		return nil, fmt.Errorf("sync manager blockchain dependency is nil")
+	}
 	head, err := sm.blockchain.GetCurrentHead()
 	if err != nil {
 		return nil, err
@@ -170,6 +181,10 @@ func (sm *SyncManager) importBlock(currentTimeslot types.TimeSlot, newHeader *He
 func (sm *SyncManager) Close() {
 	sm.cancel()
 
+	if sm.eventBus == nil {
+		sm.subscriptions = nil
+		return
+	}
 	for _, sub := range sm.subscriptions {
 		sm.eventBus.Unsubscribe(sub)
 	}
