@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -53,6 +55,17 @@ var cmd = &cli.Command{
 			Value:       "",
 			Destination: &telemetryEndpoint,
 		},
+		&cli.StringFlag{
+			Name:        "listen-addr",
+			Usage:       "QUIC listen address for node networking bootstrap",
+			Value:       "127.0.0.1:0",
+			Destination: &listenAddress,
+		},
+		&cli.StringFlag{
+			Name:        "role",
+			Usage:       "Node role: full or validator (omit to auto-detect from keystore)",
+			Destination: &nodeRoleFlag,
+		},
 	},
 	Commands: []*cli.Command{
 		exampleCmd,
@@ -65,6 +78,8 @@ var (
 	chainPath         string
 	mode              string
 	telemetryEndpoint string
+	listenAddress     string
+	nodeRoleFlag      string
 )
 
 func init() {
@@ -79,13 +94,12 @@ func init() {
 
 func node(ctx context.Context, cmd *cli.Command) error {
 	config.InitConfig(configPath, mode)
+	runCtx, stop := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 
 	// JIP-3 telemetry. Empty --telemetry endpoint disables (no-op client).
-	// TODO(jip3-main-loop): once cmd/node has a main loop (Q1 in the #775
-	// planning comment), the client will live for the node's lifetime;
-	// today node() returns immediately after setup, so the connection
-	// only has CloseTimeout (5s) to send Node Info before the client is
-	// torn down. Fine for foundation PR validation.
+	// The client now lives for the whole node lifecycle and is closed
+	// when the process receives SIGINT/SIGTERM.
 	tel, err := telemetry.New(telemetry.Config{
 		Endpoint: telemetryEndpoint,
 		NodeInfo: telemetry.NodeInfo{
@@ -103,6 +117,15 @@ func node(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	SetupJAMProtocol(chainPath)
+
+	nodeRuntime, err := startNodeNetworking(runCtx, chainPath, listenAddress, nodeRoleFlag)
+	if err != nil {
+		return err
+	}
+	defer nodeRuntime.Close()
+
+	<-runCtx.Done()
+	log.Printf("node shutdown: %v", runCtx.Err())
 	return nil
 }
 
@@ -120,7 +143,6 @@ func SetupJAMProtocol(chainPath string) {
 			log.Fatalf("failed to load chainspec: %v", err)
 		}
 
-		// log.Printf("types protocol params (before apply):\n%s", types.SnapshotProtocolParams().JSON())
 		pp, err := spec.ParseProtocolParameters()
 		if err != nil {
 			log.Fatalf("failed to decode protocol_parameters into struct: %v", err)
@@ -129,7 +151,7 @@ func SetupJAMProtocol(chainPath string) {
 		if err := types.ApplyProtocolParameters(pp); err != nil {
 			log.Fatalf("invalid protocol_parameters: %v", err)
 		}
-		// log.Printf("types protocol params (after apply):\n%s", types.SnapshotProtocolParams().JSON())
+
 		hdrBytes, err := spec.GenesisHeaderBytes()
 		if err != nil {
 			log.Fatalf("failed to decode genesis_header hex: %v", err)
@@ -145,11 +167,6 @@ func SetupJAMProtocol(chainPath string) {
 			log.Fatalf("failed to decode genesis_state: %v", err)
 		}
 
-		genesisHash, stateRoot, err := cs.SeedGenesisToBackend(ctx, *hdr, kvs)
-		if err != nil {
-			log.Fatalf("failed to seed genesis to backend: %v", err)
-		}
-
 		genesisBlock := types.Block{
 			Header: *hdr,
 			Extrinsic: types.Extrinsic{
@@ -161,7 +178,14 @@ func SetupJAMProtocol(chainPath string) {
 			},
 		}
 
-		cs.GenerateGenesisBlock(genesisBlock)
+		genesisHash, stateRoot, err := cs.SeedGenesisToBackend(ctx, genesisBlock.Header, kvs)
+		if err != nil {
+			log.Fatalf("failed to seed genesis to backend: %v", err)
+		}
+
+		if err := cs.GenerateGenesisBlock(genesisBlock); err != nil {
+			log.Fatalf("failed to generate genesis block: %v", err)
+		}
 
 		log.Printf("✅ Genesis seeded")
 		log.Printf("  genesis_hash: 0x%s", hex.EncodeToString(genesisHash[:]))
@@ -207,7 +231,9 @@ func SetupJAMProtocol(chainPath string) {
 		},
 	}
 
-	cs.GenerateGenesisBlock(genesisBlock)
+	if err := cs.GenerateGenesisBlock(genesisBlock); err != nil {
+		log.Fatalf("failed to generate genesis block: %v", err)
+	}
 
 	logger.Info("Genesis block parent header hash:")
 	logger.Infof("0x%s", hex.EncodeToString(cs.GetBlocks()[0].Header.Parent[:]))
