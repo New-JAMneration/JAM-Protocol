@@ -46,6 +46,27 @@ You can run the release binary with following command:
 make run-release-target
 ```
 
+### Docker platform (`DOCKER_PLATFORM`)
+
+Release and fuzz Docker workflows always produce a **linux/amd64** binary—the same architecture as CI and the published GHCR image (`docker/Dockerfile` sets `GOARCH=amd64` with CGO). On **arm64/aarch64** hosts (Apple Silicon Mac, Linux ARM), a plain `docker build` inside a native arm64 builder fails with errors such as `gcc: unrecognized command-line option '-m64'`, because the in-container toolchain cannot cross-compile to amd64 that way.
+
+To avoid that, Makefile targets and helper scripts pass Docker `--platform linux/amd64` by default through the **`DOCKER_PLATFORM`** environment variable:
+
+| | |
+|--|--|
+| **Default** | `DOCKER_PLATFORM=--platform linux/amd64` |
+| **Override** | `DOCKER_PLATFORM=` (empty) skips the flag and lets Docker use the host-native platform—rarely needed |
+| **Linux x86_64 / Intel Mac** | Native amd64 build; no emulation overhead |
+| **Apple Silicon / Linux ARM** | Build and run use QEMU emulation; the first image build takes longer |
+
+**Affected commands:** `make release-target`, `make run-release-target`, `make fuzz-docker-build`, `make fuzz-docker-run`, `scripts/release.sh`, `scripts/run_fuzz_target_docker.sh`, and `scripts/ci_fuzz_docker_sock.sh`.
+
+Example (override only if you intentionally want host-native Docker):
+
+```bash
+DOCKER_PLATFORM= make fuzz-docker-build   # do not pass --platform
+```
+
 ### Test with minifuzz
 
 You can test against a running fuzz target using [minifuzz](https://github.com/davxy/jam-conformance/tree/main/fuzz-proto/minifuzz).

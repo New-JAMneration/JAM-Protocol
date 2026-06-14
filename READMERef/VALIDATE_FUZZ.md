@@ -73,7 +73,7 @@ Step 4 (skipped by default; optional local smoke).
 
 - Repo: <https://github.com/FluffyLabs/jam-testing>
 - Official CI runs your Docker image on self-hosted runners (e.g. `ghcr.io/new-jamneration/new-jamneration-target:latest`) for minifuzz → picofuzz.
-- **Local run** requires Docker (e.g. `make fuzz-docker-build`), Node.js 20+, and a clone of jam-testing.
+- **Local run** requires Docker (e.g. `make fuzz-docker-build`), Node.js 20+, and a clone of jam-testing. On arm64/aarch64 hosts, build/run scripts default to `DOCKER_PLATFORM=--platform linux/amd64`; see [RELEASE_AND_PUBLISH.md § Docker platform](./RELEASE_AND_PUBLISH.md#docker-platform-docker_platform).
 
 ```bash
 # Optional one-shot smoke (minifuzz fallback only)
