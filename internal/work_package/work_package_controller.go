@@ -37,11 +37,13 @@ type WorkPackageController struct {
 	Bundle      []byte             // Shared
 
 	// TelemetryCost is the JIP-3 cost sidecar (#974) from the last
-	// successful Process call. Observability-only; zero before that, and
-	// left untouched when Process fails (JIP-3 failure paths map to event
-	// 92, which carries no cost — events 95/101 fire on success only).
-	// Not synchronized: read it only from the goroutine that called
-	// Process. The future event 95/101 bridge (#958) reads it here.
+	// fully-successful Process call — it is assigned only after every
+	// fallible step completes, so a failed Process never leaves a stale
+	// cost here. Observability-only; zero before the first success.
+	// (JIP-3 failure paths map to event 92, which carries no cost —
+	// events 95/101 fire on success only.) Not synchronized: read it only
+	// from the goroutine that called Process. The future event 95/101
+	// bridge (#958) reads it here.
 	TelemetryCost WorkPackageTelemetryCost
 }
 
@@ -87,7 +89,6 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	if err != nil {
 		return types.WorkReport{}, err
 	}
-	p.TelemetryCost = cost
 	cs := blockchain.GetInstance()
 	newDict, err := cs.SetHashSegmentMapWithLimit(workPackageHash, types.OpaqueHash(report.PackageSpec.ExportsRoot))
 	if err != nil {
@@ -98,6 +99,10 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 
 	// check if work report is same between all the guarantors
 
+	// Assign cost only after every fallible post-compute step has
+	// succeeded, so a failed Process never leaves a stale cost on the
+	// controller (#974 sidecar invariant: cost present ⇒ Process ok).
+	p.TelemetryCost = cost
 	return report, nil
 }
 
