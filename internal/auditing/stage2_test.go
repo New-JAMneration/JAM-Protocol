@@ -45,7 +45,7 @@ func TestStage2_BuildJudgements_SignatureVerification(t *testing.T) {
 		{CoreID: 1, Report: report1, ValidatorID: 3, AuditResult: false}, // → JamInvalid
 	}
 
-	signed := BuildJudgements(0, auditReports, hash.Blake2bHash, 3, privKey)
+	signed := BuildJudgements(0, auditReports, hash.Blake2bHash, privKey)
 	require.Len(t, signed, 2)
 
 	// Reconstruct each ⟨Xe(w) ⌢ H(w)⟩ message and verify with the public key.
@@ -71,7 +71,7 @@ func TestStage2_BuildJudgements_EmptyInput(t *testing.T) {
 	seed[0] = 7
 	privKey := ed25519.NewKeyFromSeed(seed)
 
-	signed := BuildJudgements(0, []types.AuditReport{}, hash.Blake2bHash, 3, privKey)
+	signed := BuildJudgements(0, []types.AuditReport{}, hash.Blake2bHash, privKey)
 	assert.Empty(t, signed)
 }
 
@@ -82,9 +82,11 @@ func TestStage2_BuildJudgements_EmptyInput(t *testing.T) {
 func TestStage2_GetTranchIndex(t *testing.T) {
 	setupChainState(t)
 
-	// Place the block's slot ~120 seconds before "now" so n ≈ 120/A is a
-	// stable, non-trivial answer (away from 0).
-	const targetSecondsBack = 120
+	// Place the block's slot far enough before "now" that the tranche index
+	// n = (T − P·Ht)/A lands well above 0 in any spec mode. Deriving the
+	// offset from A (rather than a hard-coded 120s) keeps n non-trivial even
+	// if TranchePeriod grows: targetSecondsBack ≈ 15·A ⇒ expected n ≈ 15.
+	targetSecondsBack := uint64(15 * types.TranchePeriod)
 	nowSec := header.GetCurrentTimeInSecond()
 	slot := types.TimeSlot((nowSec - targetSecondsBack) / uint64(types.SlotPeriod))
 

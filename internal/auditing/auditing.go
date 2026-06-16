@@ -417,7 +417,6 @@ func BuildJudgements(
 	tranche types.U8,
 	auditReports []types.AuditReport, // (c, w) ∈ aₙ
 	hashFunc func(types.ByteSequence) types.OpaqueHash,
-	validator_index types.ValidatorIndex,
 	validatorPrivKey ed25519.PrivateKey, // κ[v]ᵉ: Ed25519 private key
 ) []types.AuditReport {
 	for index, audit := range auditReports {
@@ -629,7 +628,7 @@ func SingleNodeAuditingAndPublish(
 	}
 	positiveJudgers = UpdatePositiveJudgersFromAudit(a0, positiveJudgers)
 
-	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+	signed := BuildJudgements(0, a0, hash.Blake2bHash, validatorPrivKey)
 	allJudgments = append(allJudgments, signed...)
 	BroadcastAuditReport(signed)
 
@@ -670,7 +669,7 @@ func SingleNodeAuditingAndPublish(
 		BroadcastAnnouncement(validatorIndex, tranche, assignmentMap, anAnn)
 
 		positiveJudgers = UpdatePositiveJudgersFromAudit(an, positiveJudgers)
-		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorIndex, validatorPrivKey)
+		signedAn := BuildJudgements(tranche, an, hash.Blake2bHash, validatorPrivKey)
 		allJudgments = append(allJudgments, signedAn...)
 		BroadcastAuditReport(signedAn)
 
