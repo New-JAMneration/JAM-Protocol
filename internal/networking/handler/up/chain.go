@@ -33,6 +33,19 @@ func NewChainView(blocks []types.Block) (ChainView, error) {
 	return cv, nil
 }
 
+// ViewAtFinalized builds a chain view and returns the finalized block ref.
+func ViewAtFinalized(blocks []types.Block, finalized types.HeaderHash) (ChainView, BlockRef, error) {
+	cv, err := NewChainView(blocks)
+	if err != nil {
+		return ChainView{}, BlockRef{}, err
+	}
+	finalRef, ok := cv.hashToRef[finalized]
+	if !ok {
+		return ChainView{}, BlockRef{}, fmt.Errorf("finalized block %x not in chain view", finalized[:4])
+	}
+	return cv, finalRef, nil
+}
+
 // IsDescendantOf reports whether descendant is a strict or non-strict descendant of ancestor.
 func (cv ChainView) IsDescendantOf(descendant, ancestor types.HeaderHash) bool {
 	if descendant == ancestor {
