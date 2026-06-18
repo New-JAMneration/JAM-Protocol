@@ -15,7 +15,8 @@ func mustHash(t *testing.T, header types.Header) types.HeaderHash {
 	return h
 }
 
-func TestCollectLeaves_fork(t *testing.T) {
+func testChain(t *testing.T) ([]types.Block, types.HeaderHash) {
+	t.Helper()
 	var genesis types.HeaderHash
 	genesis[0] = 0x01
 
@@ -25,10 +26,9 @@ func TestCollectLeaves_fork(t *testing.T) {
 	branchA := types.Header{Parent: finalized, Slot: 11}
 	aHash := mustHash(t, branchA)
 	bHeader := types.Header{Parent: aHash, Slot: 12}
-	bHash := mustHash(t, bHeader)
 
 	cHeader := types.Header{Parent: finalized, Slot: 13}
-	cHash := mustHash(t, cHeader)
+	_ = mustHash(t, cHeader)
 
 	blocks := []types.Block{
 		{Header: finalizedHeader},
@@ -36,9 +36,18 @@ func TestCollectLeaves_fork(t *testing.T) {
 		{Header: bHeader},
 		{Header: cHeader},
 	}
+	return blocks, finalized
+}
 
+func TestCollectLeavesWithFork(t *testing.T) {
+	blocks, finalized := testChain(t)
 	cv, err := NewChainView(blocks)
 	require.NoError(t, err)
+
+	branchB := blocks[2].Header
+	bHash := mustHash(t, branchB)
+	branchC := blocks[3].Header
+	cHash := mustHash(t, branchC)
 
 	leaves := cv.CollectLeaves(finalized)
 	require.Len(t, leaves, 2)
@@ -47,13 +56,12 @@ func TestCollectLeaves_fork(t *testing.T) {
 	for _, leaf := range leaves {
 		got[leaf.Hash] = struct{}{}
 	}
-	_, hasB := got[bHash]
-	_, hasC := got[cHash]
-	require.True(t, hasB, "expected tip b")
-	require.True(t, hasC, "expected tip c")
+	require.Contains(t, got, bHash)
+	require.Contains(t, got, cHash)
 }
 
-func TestShouldSkipAnnouncement(t *testing.T) {
+func skipAnnouncementFixture(t *testing.T) (ChainView, types.HeaderHash, types.HeaderHash, types.HeaderHash) {
+	t.Helper()
 	var genesis types.HeaderHash
 	genesis[0] = 1
 
@@ -73,20 +81,31 @@ func TestShouldSkipAnnouncement(t *testing.T) {
 
 	cv, err := NewChainView(blocks)
 	require.NoError(t, err)
+	return cv, finalized, aHash, bHash
+}
 
-	announcedByUs := map[types.HeaderHash]struct{}{bHash: {}}
-	require.True(t, ShouldSkipAnnouncement(aHash, finalized, cv, announcedByUs, nil),
-		"skip when we already announced a descendant")
+func TestShouldSkipAnnouncement(t *testing.T) {
+	t.Run("DescendantAlreadyAnnounced", func(t *testing.T) {
+		cv, finalized, aHash, bHash := skipAnnouncementFixture(t)
+		announcedByUs := map[types.HeaderHash]struct{}{bHash: {}}
+		require.True(t, ShouldSkipAnnouncement(aHash, finalized, cv, announcedByUs, nil))
+	})
 
-	announcedByPeer := map[types.HeaderHash]struct{}{aHash: {}}
-	require.True(t, ShouldSkipAnnouncement(aHash, finalized, cv, nil, announcedByPeer),
-		"skip when peer announced the block")
+	t.Run("PeerAlreadyAnnounced", func(t *testing.T) {
+		cv, finalized, aHash, _ := skipAnnouncementFixture(t)
+		announcedByPeer := map[types.HeaderHash]struct{}{aHash: {}}
+		require.True(t, ShouldSkipAnnouncement(aHash, finalized, cv, nil, announcedByPeer))
+	})
 
-	var orphan types.HeaderHash
-	orphan[9] = 9
-	require.True(t, ShouldSkipAnnouncement(orphan, finalized, cv, nil, nil),
-		"skip when block is not a finalized descendant")
+	t.Run("NotFinalizedDescendant", func(t *testing.T) {
+		cv, finalized, _, _ := skipAnnouncementFixture(t)
+		var orphan types.HeaderHash
+		orphan[9] = 9
+		require.True(t, ShouldSkipAnnouncement(orphan, finalized, cv, nil, nil))
+	})
 
-	require.False(t, ShouldSkipAnnouncement(aHash, finalized, cv, nil, nil),
-		"should announce when no skip rule applies")
+	t.Run("NoSkipRuleApplies", func(t *testing.T) {
+		cv, finalized, aHash, _ := skipAnnouncementFixture(t)
+		require.False(t, ShouldSkipAnnouncement(aHash, finalized, cv, nil, nil))
+	})
 }
