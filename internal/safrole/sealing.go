@@ -44,6 +44,7 @@ func SealingByTickets() error {
 	if err != nil {
 		return err
 	}
+	defer handler.Free()
 	signature, err := handler.IETFSign(context, message)
 	if err != nil {
 		return err
@@ -82,6 +83,7 @@ func SealingByBandersnatchs() error {
 	if err != nil {
 		return err
 	}
+	defer handler.Free()
 	signature, err := handler.IETFSign(context, message)
 	if err != nil {
 		return err
@@ -159,6 +161,10 @@ func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.Band
 		(6.17) Hv ∈ F [] Ha ⟨XE ⌢ Y(Hs)⟩
 	*/
 	handler, _ := CreateVRFHandler(public_key)
+	if handler == nil {
+		return nil
+	}
+	defer handler.Free()
 	var message types.ByteSequence                                        // message: []
 	context := make(types.ByteSequence, 0, len(types.JamEntropy)+32)      // context: XE ⌢ Y(Hs)
 	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE

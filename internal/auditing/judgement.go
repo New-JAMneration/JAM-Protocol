@@ -2,6 +2,7 @@ package auditing
 
 import (
 	"bytes"
+	"reflect"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/work_package"
@@ -34,14 +35,20 @@ func GetJudgement(auditReport types.AuditReport) bool {
 }
 
 // workReportsEqual compares two WorkReports via canonical serialization (GP §C.27).
+// If either report fails to encode (e.g. partial/test structs with invalid enum
+// fields), it falls back to reflect.DeepEqual so that structurally different
+// reports are still distinguished correctly.
 func workReportsEqual(a, b types.WorkReport) bool {
 	encoder := types.GetEncoder()
-	encodedA, _ := encoder.Encode(&a)
+	encodedA, errA := encoder.Encode(&a)
 	types.PutEncoder(encoder)
 
 	encoder = types.GetEncoder()
-	encodedB, _ := encoder.Encode(&b)
+	encodedB, errB := encoder.Encode(&b)
 	types.PutEncoder(encoder)
 
+	if errA != nil || errB != nil {
+		return reflect.DeepEqual(a, b)
+	}
 	return bytes.Equal(encodedA, encodedB)
 }
