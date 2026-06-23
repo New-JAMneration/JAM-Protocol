@@ -71,6 +71,7 @@ func GenerateValidatorAuditSeed(validatorIndex types.ValidatorIndex) (types.Band
 	if err != nil {
 		return types.BandersnatchVrfSignature{}, fmt.Errorf("failed to create validator VRF handler: %w", err)
 	}
+	defer validatorVRF.Free()
 
 	// Sign the context (empty message)
 	vrfSignature, err := validatorVRF.IETFSign(context, []byte(""))
@@ -111,6 +112,7 @@ func ComputeInitialAuditAssignment(Q []*types.WorkReport, validatorIndex types.V
 	if err != nil {
 		return nil, fmt.Errorf("ComputeA0ForValidator: failed to create VRF handler for validator: %w", err)
 	}
+	defer handler.Free()
 
 	vrfOutput, err := handler.VRFIetfOutput(s0[:])
 	if err != nil {
@@ -278,6 +280,7 @@ func ComputeAuthorEntropyVrfOutput() ([]byte, error) {
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to create author VRF handler: %w", err)
 	}
+	defer authorVRF.Free()
 
 	entropyHash, err := authorVRF.VRFIetfOutput(header.EntropySource[:])
 	if err != nil {
@@ -313,6 +316,7 @@ func ComputeAnForValidator(
 	if err != nil {
 		return nil, fmt.Errorf("CreateVRFHandler for validator: %w", err)
 	}
+	defer vrfHandler.Free()
 
 	for _, wPtr := range Q {
 		if wPtr == nil {

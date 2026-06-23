@@ -21,14 +21,18 @@ var cache = &ringVerifierCache{}
 func ClearVerifierCache() {
 	cache.Lock()
 	defer cache.Unlock()
-	cache.Free()
+	cache.release()
 }
 
-func (c *ringVerifierCache) Free() {
-	if c.Verifier != nil {
-		c.Verifier.Free()
-		c.Verifier = nil
-	}
+// release drops the cached Verifier reference WITHOUT calling its underlying
+// Free(). Because GetVerifier hands out the cached *vrf.Verifier under only a
+// read lock, another goroutine may still be mid-verification when an epoch
+// transition swaps the cache; freeing the Rust heap object here would be a
+// use-after-free. Instead we drop the Go reference and let the GC finalizer
+// (registered in vrf.NewVerifier) reclaim the Rust heap once no goroutine holds
+// the pointer anymore.
+func (c *ringVerifierCache) release() {
+	c.Verifier = nil
 	c.epoch = 0
 }
 
@@ -55,8 +59,10 @@ func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifi
 		return cache.Verifier, nil
 	}
 
-	// epoch transition or not initialized: free old verifiers
-	cache.Free()
+	// epoch transition or not initialized: drop the old verifier reference.
+	// Do not Free() it here — a concurrent reader may still hold the pointer
+	// from the read-lock fast path above. The finalizer frees it later.
+	cache.release()
 
 	// create ring verifier
 	keySize := len(types.BandersnatchPublic{})
