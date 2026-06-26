@@ -21,17 +21,27 @@ type Recompiler struct {
 	compiler *Compiler
 	program  *PVM.Program
 	ctx      *JITContext
+	cp       *CompiledProgram
 	Trace    *PVMtrace.Trace
 }
 
-// NewRecompiler creates a fresh Recompiler bound to the given program
-// and JIT context. The caller owns the ctx lifetime (Close/Release).
+// NewRecompiler builds a Recompiler over a fresh uncached artifact bound to ctx's
+// executable memory. Used by tests and any non-Psi_M caller; the Psi_M backend
+// uses the cached path (acquireCompiledProgram + newRecompiler). The caller owns
+// the ctx lifetime (Close/Release).
 func NewRecompiler(program *PVM.Program, ctx *JITContext) *Recompiler {
-	cache := NewCodeCache()
+	return newRecompiler(newUncachedCompiledProgram(program, ctx.executableMem), ctx)
+}
+
+// newRecompiler builds a Recompiler over a (possibly cached) compiled artifact.
+func newRecompiler(cp *CompiledProgram, ctx *JITContext) *Recompiler {
+	comp := NewCompiler(cp.program, ctx, cp.cache)
+	comp.djump = cp.djump
 	return &Recompiler{
-		compiler: NewCompiler(program, ctx, cache),
-		program:  program,
+		compiler: comp,
+		program:  cp.program,
 		ctx:      ctx,
+		cp:       cp,
 	}
 }
 
@@ -130,14 +140,31 @@ func (r *Recompiler) Ctx() *JITContext {
 }
 
 func (r *Recompiler) lookupOrCompileBlock(pc PVM.ProgramCounter) (*CompiledBlock, error) {
-	if block := r.compiler.cache.Get(pc); block != nil {
+	if block := r.cp.cache.Get(pc); block != nil {
+		if jitProfile {
+			jm.cacheHits.Add(1)
+		}
 		return block, nil
 	}
 
+	// Serialize compilation: a cached artifact's em/cache/dispatch are shared by
+	// concurrent invocations of the same code. Double-check under the lock so two
+	// goroutines don't compile the same block twice (CompileBasicBlock stores the
+	// block in the cache itself).
+	r.cp.mu.Lock()
+	defer r.cp.mu.Unlock()
+	if block := r.cp.cache.Get(pc); block != nil {
+		if jitProfile {
+			jm.cacheHits.Add(1)
+		}
+		return block, nil
+	}
+	if jitProfile {
+		jm.cacheMisses.Add(1)
+	}
 	block, err := r.compiler.CompileBasicBlock(pc)
 	if err != nil {
 		return nil, fmt.Errorf("compile block at PC=%d: %w", pc, err)
 	}
-	r.compiler.cache.Put(block)
 	return block, nil
 }

@@ -124,6 +124,7 @@ func Psi_A(
 		},
 	}
 	addition.AccumulateTrace = NewAccumulateTraceContextIfEnabled(serviceId, codeHash, timeslot)
+	addition.CodeHash = codeHash // key for the recompiler's cross-invocation program cache
 
 	resultM := Psi_M(StandardCodeFormat(code), 5, types.Gas(gas), Argument(serialized), AccumulateOmegas, addition)
 	partialState, deferredTransfer, result, gas, serviceBlobs, storageKeyVal := C(types.Gas(resultM.Gas), resultM.ReasonOrBytes, AccumulateArgs{

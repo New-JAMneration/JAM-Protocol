@@ -139,6 +139,7 @@ func RefineInvoke(input RefineInput) RefineOutput {
 	//	WorkExecResultOutOfGas                        = "out-of-gas"
 	// WorkExecResultPanic
 	// result = u, r, (m,e)
+	addition.CodeHash = workItem.CodeHash // key for the recompiler's cross-invocation program cache
 	result := Psi_M(StandardCodeFormat(code), 0, workItem.RefineGasLimit, a, RefineOmegas, addition)
 
 	if result.ReasonOrBytes == PANIC {

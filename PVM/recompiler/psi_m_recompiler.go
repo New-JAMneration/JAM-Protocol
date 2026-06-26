@@ -3,6 +3,8 @@
 package recompiler
 
 import (
+	"context"
+	"runtime/pprof"
 	"time"
 
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
@@ -19,6 +21,12 @@ func Psi_M_recompiler(
 	omegas PVM.Omegas,
 	addition PVM.HostCallArgs,
 ) PVM.Psi_M_ReturnType {
+	// Tag goroutine "phase:pvm" for `pprof -tagfocus=phase:pvm` (PVM-only view).
+	if jitProfile {
+		pprof.SetGoroutineLabels(pprof.WithLabels(context.Background(), pprof.Labels("phase", "pvm")))
+		defer pprof.SetGoroutineLabels(context.Background())
+	}
+
 	var tSetup time.Time
 	if jitProfile {
 		jm.invokes.Add(1)
@@ -33,13 +41,6 @@ func Psi_M_recompiler(
 	}
 	defer ctx.Close()
 
-	em, err := NewExecutableMemory(0)
-	if err != nil {
-		return jitPanicResult(addition)
-	}
-	defer em.Close()
-	ctx.SetExecutableMemory(em)
-
 	programCode, registers, err := ctx.InitFromProgram(code, argument)
 	if err != nil {
 		return jitPanicResult(addition)
@@ -52,14 +53,25 @@ func Psi_M_recompiler(
 	if jitProfile {
 		tDeblob = time.Now()
 	}
-	program, exitReason := PVM.DeBlobProgramCode(programCode)
+	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode)
 	if jitProfile {
 		jm.deblobNanos.Add(int64(time.Since(tDeblob)))
 	}
 	if exitReason != PVM.ExitContinue {
 		return jitPanicResult(addition)
 	}
-	addition.Program = &program
+	addition.Program = program
+
+	// Cross-invocation cache: reuse the compiled native code arena for this
+	// CodeHash. Uncached (zero-hash) artifacts are throwaway — close after use.
+	cp, cached, err := acquireCompiledProgram(addition.CodeHash, program)
+	if err != nil {
+		return jitPanicResult(addition)
+	}
+	if !cached {
+		defer cp.close()
+	}
+	cp.bindContext(ctx)
 
 	ctx.WriteRegisters(registers)
 	ctx.WriteGas(PVM.Gas(gas))
@@ -100,7 +112,7 @@ func Psi_M_recompiler(
 		})
 	}()
 
-	r := NewRecompiler(&program, ctx)
+	r := newRecompiler(cp, ctx)
 	r.Trace = trace
 	host := newHost(r, addition, omegas)
 	var tRun time.Time

@@ -31,7 +31,9 @@ func psiMInterpreter(
 		}
 	}
 
-	program, exitReason := PVM.DeBlobProgramCode(programCode)
+	// Cross-invocation cache: reuse the deblob'd *Program by CodeHash (shared with
+	// the recompiler backend; keeps the comparison fair). Read-only, safe to share.
+	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode)
 	if exitReason != PVM.ExitContinue {
 		return PVM.Psi_M_ReturnType{
 			Gas:           0,
@@ -40,9 +42,9 @@ func psiMInterpreter(
 		}
 	}
 
-	addition.Program = &program
+	addition.Program = program
 
-	host := NewHost(&program, registers, &memory, PVM.Gas(gas), addition, omegas)
+	host := NewHost(program, registers, &memory, PVM.Gas(gas), addition, omegas)
 	closeTrace := wireInterpreterAccumulateTrace(host, programCode, counter, gas, registers, addition)
 	psiHResult := host.HostCall(counter, 0)
 	closeTrace(psiHResult)

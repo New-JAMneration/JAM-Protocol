@@ -4,6 +4,7 @@ package recompiler
 
 import (
 	"fmt"
+	"sync/atomic"
 	"unsafe"
 
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
@@ -13,48 +14,73 @@ import (
 // djumpSupport holds read-only jump-table/bitmask rodata and a PC→native dispatch
 // table updated as blocks are compiled. Native djump resolves jump-table addresses
 // without exiting to Go; on dispatch miss it falls back to emitExitToPC.
+//
+// With the cross-invocation cache a single djumpSupport is shared by a
+// CompiledProgram across invocations: the rodata/dispatch addresses are resolved
+// once (buildDjumpSupport) and stamped into each JITContext's control region
+// (setDjumpPointers); dispatch entries are filled atomically (registerDispatch)
+// since native code reads them concurrently.
 type djumpSupport struct {
 	tableLen   uint32
 	tableSize  uint32
 	maxAddr    uint32
 	bitmaskLen uint32
 	dispatch   []uintptr
+
+	// Resolved once at build time, stamped into each context's control region.
+	tableAddr    uintptr
+	bitmaskAddr  uintptr
+	dispatchBase uintptr
 }
 
-func (c *Compiler) ensureDjumpSupport() error {
-	if c.djump != nil {
-		return nil
+// buildDjumpSupport writes the jump-table + bitmask rodata into em and allocates
+// the PC→native dispatch table, returning a djumpSupport with the resolved
+// rodata/dispatch addresses. It is a pure function of (em, program) with no
+// per-invocation state; the control-region pointers are stamped separately (per
+// JITContext) via setDjumpPointers. Used both eagerly at artifact creation
+// (cached path) and lazily on first compile (uncached/test path).
+func buildDjumpSupport(em *ExecutableMemory, program *PVM.Program) (*djumpSupport, error) {
+	if em == nil {
+		return nil, fmt.Errorf("executable memory not initialized")
 	}
-
-	jt := c.program.JumpTable
-	bm := c.program.Bitmasks
-	if c.ctx.executableMem == nil {
-		return fmt.Errorf("executable memory not initialized")
-	}
+	jt := program.JumpTable
+	bm := program.Bitmasks
 
 	blob := make([]byte, len(jt.Data)+len(bm))
 	copy(blob, jt.Data)
 	copy(blob[len(jt.Data):], bm)
 
-	em := c.ctx.executableMem
 	offset, err := em.Write(blob)
 	if err != nil {
-		return fmt.Errorf("write djump rodata: %w", err)
+		return nil, fmt.Errorf("write djump rodata: %w", err)
 	}
 
 	dispatch := make([]uintptr, len(bm))
-	c.djump = &djumpSupport{
-		tableLen:   jt.Length,
-		tableSize:  jt.Size,
-		maxAddr:    jt.Size * PVM.ZA,
-		bitmaskLen: uint32(len(bm)),
-		dispatch:   dispatch,
-	}
+	return &djumpSupport{
+		tableLen:     jt.Length,
+		tableSize:    jt.Size,
+		maxAddr:      jt.Size * PVM.ZA,
+		bitmaskLen:   uint32(len(bm)),
+		dispatch:     dispatch,
+		tableAddr:    em.GetPtr(offset),
+		bitmaskAddr:  em.GetPtr(offset + len(jt.Data)),
+		dispatchBase: uintptr(unsafe.Pointer(&dispatch[0])),
+	}, nil
+}
 
-	tableAddr := em.GetPtr(offset)
-	bitmaskAddr := em.GetPtr(offset + len(jt.Data))
-	dispatchBase := uintptr(unsafe.Pointer(&dispatch[0]))
-	c.ctx.setDjumpPointers(tableAddr, bitmaskAddr, dispatchBase)
+// ensureDjumpSupport builds djump support on first use and (re)stamps the current
+// context's control region with the rodata/dispatch pointers. The stamp must run
+// for every JITContext, including ones reusing a cached djumpSupport, so it is
+// outside the build guard.
+func (c *Compiler) ensureDjumpSupport() error {
+	if c.djump == nil {
+		d, err := buildDjumpSupport(c.ctx.executableMem, c.program)
+		if err != nil {
+			return err
+		}
+		c.djump = d
+	}
+	c.ctx.setDjumpPointers(c.djump.tableAddr, c.djump.bitmaskAddr, c.djump.dispatchBase)
 	return nil
 }
 
@@ -70,7 +96,9 @@ func (c *Compiler) registerDispatch(block *CompiledBlock) {
 	}
 	pc := int(block.PVMStartPC)
 	if pc >= 0 && pc < len(c.djump.dispatch) {
-		c.djump.dispatch[pc] = block.NativeAddr
+		// Atomic store: native djump code reads this slot (an aligned word load,
+		// atomic on amd64) concurrently from other invocations sharing this table.
+		atomic.StoreUintptr(&c.djump.dispatch[pc], block.NativeAddr)
 	}
 }
 

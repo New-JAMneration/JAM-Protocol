@@ -47,6 +47,19 @@ test-jam-test-vectors-trace:
 		done; \
 	fi
 
+# Fuzz conformance timing test (target server + test_folder client).
+# scripts/run_fuzz_timing_test.sh is self-contained: it prepares the trace symlink,
+# builds the target, replays the folder, and prints the STF + Psi_A timing summary on
+# shutdown. PVM_BACKEND defaults to the script's default (interpreter); override via env,
+# e.g. `PVM_BACKEND=recompiler make test-timing-fuzz-trace`.
+# Usage: make test-timing-fuzz-trace                          # all folders
+#        make test-timing-fuzz-trace folder=1766241814        # one folder
+FUZZ_TRACES ?= target/fuzz
+
+.PHONY: test-timing-fuzz-trace
+test-timing-fuzz-trace:
+	bash scripts/run_fuzz_timing_test.sh $(if $(folder),$(FUZZ_TRACES)/$(folder),)
+
 # Test with detailed timing breakdown for trace tests
 # Usage: make test-timing-jam-test-vectors-trace mode=safrole
 #        make test-timing-jam-test-vectors-trace (runs all trace modes)
@@ -91,11 +104,12 @@ fmt:
 
 # Fuzz host dir (matches scripts/run_fuzz_target_docker.sh default bind-mount path on host).
 JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
+PVM_BACKEND ?= recompiler
 
 .PHONY: run-target
 run-target:
 	mkdir -p $(JAM_FUZZ_HOST_DIR)
-	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
+	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_PVM_BACKEND=$(PVM_BACKEND) JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
 
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
 # Matches CI release (linux/amd64). Required on arm64/aarch64 hosts (Apple Silicon, Linux ARM).

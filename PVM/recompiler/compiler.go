@@ -425,6 +425,7 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 		InstrCount:   blockMeta.InstrCount(),
 	}
 	c.cache.Put(block)
+	recordPerfMapEntry(block)
 	c.registerDispatch(block)
 	return block, nil
 }

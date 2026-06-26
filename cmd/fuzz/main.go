@@ -13,13 +13,14 @@ import (
 	"strings"
 	"syscall"
 
+	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzz"
 	"github.com/New-JAMneration/JAM-Protocol/internal/fuzzenv"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
-	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/urfave/cli/v3"
 )
 
@@ -180,6 +181,11 @@ func main() {
 
 	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
 
+	if stopProfile := startProfiling(); stopProfile != nil {
+		defer stopProfile()
+	}
+	defer flushPVMProfile()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
@@ -225,6 +231,11 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 	}
 	applyFuzzLogLevelOverride(strings.TrimSpace(os.Getenv(envFuzzLogLevel)))
 
+	if timing.Enabled {
+		fuzz.ResetImportBlockTimings()
+		defer fuzz.PrintImportBlockTimingSummary()
+	}
+
 	socketAddr, err := fuzzServerSocketAddr(cmd)
 	if err != nil {
 		return err
@@ -248,9 +259,15 @@ func serve(ctx context.Context, cmd *cli.Command) error {
 }
 
 func applyPVMBackend(cmd *cli.Command) error {
+	// --pvm-backend has a non-empty default ("interpreter"), which would otherwise
+	// shadow JAM_PVM_BACKEND entirely (cmd.String never returns ""). Only treat the
+	// flag as authoritative when it was passed explicitly; otherwise fall back to
+	// the env var, then the default. Precedence: explicit flag > env var > default.
 	backend := strings.TrimSpace(cmd.String(pvmBackendFlag.Name))
-	if backend == "" {
-		backend = strings.TrimSpace(os.Getenv(envPVMBackend))
+	if !cmd.IsSet(pvmBackendFlag.Name) {
+		if env := strings.TrimSpace(os.Getenv(envPVMBackend)); env != "" {
+			backend = env
+		}
 	}
 	if backend == "" {
 		backend = PVM.BackendInterpreter

@@ -9,11 +9,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
 
-// maxFallthroughLinkDepth caps eager fallthrough pre-compile (strategy a).
-// Without a cap, long straight-line chains recurse through compileForLink until
-// Go stack exhaustion or until a terminator (e.g. jump_ind) is hit mid-chain.
-const maxFallthroughLinkDepth = 256
-
 // emitJmpNativeAddr jumps to an absolute native code address (block linking).
 func emitJmpNativeAddr(a *asm.Assembler, addr uintptr) {
 	a.MovImm64ToReg(RegScratch, uint64(addr))
@@ -71,22 +66,14 @@ func staticBranchTarget(instr *PVM.InstrMeta) (PVM.ProgramCounter, bool) {
 	}
 }
 
-// compileForLink returns a compiled block for static fallthrough linking
-// (strategy a). Must be called before the caller resets the shared Assembler;
-// calling it mid-emit clobbered the parent block (root cause of 183 conformance
-// failures).
-//
-// Returns an error when the target is still compiling (back-edge to parent)
-// or on compile failure; the caller falls back to emitExitToPC.
-func (c *Compiler) compileForLink(pc PVM.ProgramCounter, linkDepth int) (*CompiledBlock, error) {
-	if linkDepth >= maxFallthroughLinkDepth {
-		return nil, fmt.Errorf("fallthrough link depth limit at PC=%d", pc)
-	}
+// compileForLink links only to an already-compiled block; uncompiled targets
+// return an error and the caller falls back to emitExitToPC (lazy compile via
+// the Go dispatcher). We no longer eagerly pre-compile cold successors: JIT
+// profiling showed codegen dominates (~93% of run) and eager pre-compile built
+// ~38% more blocks than ever ran.
+func (c *Compiler) compileForLink(pc PVM.ProgramCounter, _ int) (*CompiledBlock, error) {
 	if block := c.cache.Get(pc); block != nil {
 		return block, nil
 	}
-	if c.linking != nil && c.linking[pc] {
-		return nil, fmt.Errorf("link target PC=%d still compiling", pc)
-	}
-	return c.compileBasicBlockAtDepth(pc, linkDepth)
+	return nil, fmt.Errorf("link target PC=%d not yet compiled", pc)
 }

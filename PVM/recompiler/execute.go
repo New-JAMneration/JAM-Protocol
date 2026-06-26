@@ -34,7 +34,7 @@ func ExecuteBlock(ctx *JITContext, block *CompiledBlock) PVM.ExitReason {
 // for the entire native execution loop; tests and standalone callers use ExecuteBlock.
 func executeBlockLocked(ctx *JITContext, block *CompiledBlock) PVM.ExitReason {
 	if jitProfile {
-		jm.execBlocks.Add(1)
+		jm.roundTrips.Add(1)
 	}
 	trampolineAddr, err := ctx.getTrampolineAddr()
 	if err != nil {
@@ -44,7 +44,10 @@ func executeBlockLocked(ctx *JITContext, block *CompiledBlock) PVM.ExitReason {
 
 	em := ctx.executableMem
 	codeStart := em.GetPtr(0)
-	codeEnd := codeStart + uintptr(em.Used())
+	// Use the arena capacity, not Used(): a shared cached arena can be grown by
+	// another goroutine compiling concurrently, so a Used()-based upper bound could
+	// exclude newly written code and misclassify a fault in it.
+	codeEnd := codeStart + uintptr(em.Size())
 	x86_signal_linux.SetFaultWindow(ctx.GuestBase(), codeStart, codeEnd)
 	defer x86_signal_linux.ClearFaultWindow()
 

@@ -87,6 +87,10 @@ type HostCallArgs struct {
 	RefineArgs
 	*Program
 	AccumulateTrace *AccumulateTraceContext
+	// CodeHash identifies the program code being run; the recompiler backend uses
+	// it as the key for the cross-invocation compiled-program cache. Zero value
+	// (e.g. is_authorized) bypasses the cache. Callers set it before Psi_M.
+	CodeHash types.OpaqueHash
 }
 
 func getPtr[T any](v T) *T { return &v }
