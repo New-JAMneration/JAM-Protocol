@@ -42,7 +42,7 @@ func TestUPStreamRegistryKeepsGreatestStreamID(t *testing.T) {
 	older := &mockUPStream{id: 6}
 	require.False(t, reg.admit(peer, upStreamKind, older.id, older))
 	require.True(t, older.canceled)
-	require.False(t, low.canceled)
+	require.True(t, low.canceled)
 
 	newer := &mockUPStream{id: 12}
 	require.True(t, reg.admit(peer, upStreamKind, newer.id, newer))

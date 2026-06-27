@@ -76,6 +76,6 @@ func cancelStream(stream quicgo.Stream) {
 	if stream == nil {
 		return
 	}
-	_ = stream.CancelRead(0)
-	_ = stream.CancelWrite(0)
+	stream.CancelRead(0)
+	stream.CancelWrite(0)
 }
