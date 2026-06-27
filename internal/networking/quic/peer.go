@@ -55,6 +55,9 @@ type Peer struct {
 	cancel         context.CancelFunc
 	handlerMu      sync.RWMutex
 	handlers       map[byte]StreamHandlerFunc
+	upStreams      *upStreamRegistry
+	up0Handler     StreamHandlerFunc
+	shouldOpenUP0  func(ed25519.PublicKey) bool
 	CEHandler      CEHandler
 	UPHandler      UPHandler
 	// Sync-related fields
@@ -92,6 +95,7 @@ func NewPeer(config PeerConfig) (*Peer, error) {
 		connManager: NewConnectionManager(),
 		peerSet:     NewPeerSet(),
 		handlers:    make(map[byte]StreamHandlerFunc),
+		upStreams:   newUPStreamRegistry(),
 		CEHandler:   config.CEHandler,
 		UPHandler:   config.UPHandler,
 
@@ -122,6 +126,7 @@ func (p *Peer) Connect(addr net.Addr, role PeerRole) (*Connection, error) {
 				ctx = context.Background()
 			}
 			_ = p.eventBus.PublishPeerAdded(ctx, remote)
+			p.tryOpenUP0(ctx, conn, peerKey)
 		}
 	}
 	return conn, nil
@@ -130,7 +135,17 @@ func (p *Peer) Connect(addr net.Addr, role PeerRole) (*Connection, error) {
 func (p *Peer) RegisterHandler(kind byte, h StreamHandlerFunc) {
 	p.handlerMu.Lock()
 	defer p.handlerMu.Unlock()
+	if kind == upStreamKind {
+		p.up0Handler = h
+	}
 	p.handlers[kind] = h
+}
+
+// SetShouldOpenUP0 configures when this node should open an outbound UP 0 stream after Connect.
+func (p *Peer) SetShouldOpenUP0(fn func(ed25519.PublicKey) bool) {
+	p.handlerMu.Lock()
+	defer p.handlerMu.Unlock()
+	p.shouldOpenUP0 = fn
 }
 
 func (p *Peer) SetEventBus(eventBus *EventBus) {
@@ -190,6 +205,7 @@ func (p *Peer) handleConnection(qconn quic.Connection, peerKey ed25519.PublicKey
 		remote.ID = conn.Addr.String()
 		_ = p.eventBus.PublishPeerAdded(p.ctx, remote)
 	}
+	p.tryOpenUP0(p.ctx, conn, peerKey)
 
 	for {
 		stream, err := conn.AcceptStream(p.ctx)
@@ -220,7 +236,55 @@ func (p *Peer) dispatchStream(stream *Stream, peerKey ed25519.PublicKey) {
 		return
 	}
 
+	if kind == upStreamKind {
+		p.runUPStream(p.ctx, kind, stream, peerKey, handler)
+		return
+	}
+
 	if err := handler(p.ctx, stream, peerKey); err != nil {
+		log.Println("stream handler error:", err)
+		_ = stream.Close()
+	}
+}
+
+func (p *Peer) tryOpenUP0(ctx context.Context, conn *Connection, peerKey ed25519.PublicKey) {
+	p.handlerMu.RLock()
+	handler := p.up0Handler
+	shouldOpen := p.shouldOpenUP0
+	p.handlerMu.RUnlock()
+	if handler == nil || shouldOpen == nil || !shouldOpen(peerKey) {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	go p.openUP0Stream(ctx, conn, peerKey, handler)
+}
+
+func (p *Peer) openUP0Stream(ctx context.Context, conn *Connection, peerKey ed25519.PublicKey, handler StreamHandlerFunc) {
+	qstream, err := conn.OpenStreamSync(ctx)
+	if err != nil {
+		return
+	}
+	wrapped := &Stream{Stream: qstream}
+	if err := wrapped.WriteStreamKind(upStreamKind); err != nil {
+		log.Println("write UP 0 stream kind error:", err)
+		_ = wrapped.Close()
+		return
+	}
+	p.runUPStream(ctx, upStreamKind, wrapped, peerKey, handler)
+}
+
+func (p *Peer) runUPStream(ctx context.Context, kind byte, stream *Stream, peerKey ed25519.PublicKey, handler StreamHandlerFunc) {
+	peerKeyStr := string(peerKey)
+	streamID := stream.StreamID()
+	if !p.upStreams.admit(peerKeyStr, kind, streamID, stream.Stream) {
+		_ = stream.Close()
+		return
+	}
+	defer p.upStreams.release(peerKeyStr, kind, streamID)
+
+	if err := handler(ctx, stream, peerKey); err != nil {
 		log.Println("stream handler error:", err)
 		_ = stream.Close()
 	}

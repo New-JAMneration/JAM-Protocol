@@ -22,6 +22,21 @@ func (vm *ValidatorManager) GetNeighbors() []types.Validator {
 	return vm.Grid.AllNeighborValidators(vm.SelfIndex)
 }
 
+// ShouldOpenUP0 reports whether this node should open UP 0 to peerKey.
+// Full nodes always open; validator-to-validator requires grid neighbour eligibility.
+func (vm *ValidatorManager) ShouldOpenUP0(peerKey types.Ed25519Public, localIsValidator bool) bool {
+	if !localIsValidator {
+		return true
+	}
+	if vm == nil || vm.Grid == nil {
+		return false
+	}
+	if !vm.Grid.IsKnownValidator(peerKey) {
+		return true
+	}
+	return vm.IsNeighbor(peerKey)
+}
+
 func (vm *ValidatorManager) IsNeighbor(key types.Ed25519Public) bool {
 	if vm == nil || vm.Grid == nil {
 		return false

@@ -101,3 +101,15 @@ func (g *GridMapper) FindIndex(key types.Ed25519Public) (int, bool) {
 	}
 	return -1, false
 }
+
+// IsKnownValidator reports whether key appears in any epoch validator set.
+func (g *GridMapper) IsKnownValidator(key types.Ed25519Public) bool {
+	for _, set := range []types.ValidatorsData{g.Current, g.Previous, g.Next} {
+		for _, v := range set {
+			if v.Ed25519 == key {
+				return true
+			}
+		}
+	}
+	return false
+}

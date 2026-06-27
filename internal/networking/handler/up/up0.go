@@ -55,7 +55,7 @@ func (h *UP0Handler) Handle(ctx context.Context, stream *quic.Stream, peerKey ed
 	}
 
 	h.registerSession(peerKey, session)
-	defer h.unregisterSession(peerKey)
+	defer h.unregisterSession(peerKey, session)
 
 	if err := session.exchangeHandshake(ctx); err != nil {
 		return err
@@ -98,10 +98,12 @@ func (h *UP0Handler) registerSession(peerKey ed25519.PublicKey, session *UP0Sess
 	h.sessions[string(peerKey)] = session
 }
 
-func (h *UP0Handler) unregisterSession(peerKey ed25519.PublicKey) {
+func (h *UP0Handler) unregisterSession(peerKey ed25519.PublicKey, session *UP0Session) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.sessions, string(peerKey))
+	if h.sessions[string(peerKey)] == session {
+		delete(h.sessions, string(peerKey))
+	}
 }
 
 // AnnounceBlock fans out a block announcement to all active UP 0 sessions.

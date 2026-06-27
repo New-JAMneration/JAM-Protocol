@@ -67,6 +67,10 @@ func (s *Stream) Close() error {
 	return s.Stream.Close()
 }
 
+func (s *Stream) StreamID() quicgo.StreamID {
+	return s.Stream.StreamID()
+}
+
 func (s *Stream) SetReadDeadline(t time.Time) error {
 	return s.Stream.SetReadDeadline(t)
 }

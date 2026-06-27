@@ -18,8 +18,12 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/chainspec"
 	cehandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
+	uphandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/up"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	validatorpkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	nodepkg "github.com/New-JAMneration/JAM-Protocol/internal/node"
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 type nodeRole string
@@ -75,6 +79,7 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	peer.SetEventBus(eventBus)
 
 	registerRequiredCEHandlers(peer, chain)
+	registerUP0Handler(peer, chain, role, nil)
 	if err := peer.Start(ctx); err != nil {
 		_ = peer.Close()
 		return nil, fmt.Errorf("start networking peer: %w", err)
@@ -103,6 +108,32 @@ func registerRequiredCEHandlers(peer *quic.Peer, chain blockchain.Blockchain) {
 	})
 	peer.RegisterHandler(byte(cehandler.StateRequest), func(ctx context.Context, stream *quic.Stream, peerKey ed25519.PublicKey) error {
 		return cehandler.HandleStateRequestStream(chain, stream)
+	})
+}
+
+func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role nodeRole, vm *validatorpkg.ValidatorManager) {
+	up0 := &uphandler.UP0Handler{
+		Blocks: func() []types.Block {
+			finalized := chain.GetFinalizedBlocks()
+			unfinalized := chain.GetUnfinalizedBlocks()
+			blocks := make([]types.Block, 0, len(finalized)+len(unfinalized))
+			blocks = append(blocks, finalized...)
+			blocks = append(blocks, unfinalized...)
+			return blocks
+		},
+		Finalized: func() (types.HeaderHash, error) {
+			block := chain.GetLatestFinalizedBlock()
+			return hash.ComputeBlockHeaderHash(block.Header)
+		},
+	}
+	peer.RegisterHandler(uphandler.StreamKindUP0, up0.Handle)
+
+	localIsValidator := role == validatorNodeRole
+	peer.SetShouldOpenUP0(func(peerKey ed25519.PublicKey) bool {
+		if vm == nil {
+			return true
+		}
+		return vm.ShouldOpenUP0(types.Ed25519Public(peerKey), localIsValidator)
 	})
 }
 
