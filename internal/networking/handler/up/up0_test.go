@@ -164,3 +164,78 @@ func TestAnnouncementInvokesCallback(t *testing.T) {
 	require.Equal(t, bHeader.Slot, received.Header.Slot)
 	require.Equal(t, wantKey, peerKey)
 }
+
+func TestUP0SessionReadLoopInvokesCallback(t *testing.T) {
+	blocks, finalized := testChain(t)
+	localStream, remoteStream := newLinkedTestUP0Streams()
+
+	var received Announcement
+	handler := testHandler(t, blocks, finalized)
+	handler.OnAnnouncement = func(ann Announcement, pk ed25519.PublicKey) error {
+		received = ann
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	localSession, err := handler.newSession(localStream, ed25519.PublicKey{1})
+	require.NoError(t, err)
+	remoteSession, err := handler.newSession(remoteStream, ed25519.PublicKey{2})
+	require.NoError(t, err)
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- localSession.exchangeHandshake(ctx) }()
+	go func() { errCh <- remoteSession.exchangeHandshake(ctx) }()
+	require.NoError(t, <-errCh)
+	require.NoError(t, <-errCh)
+
+	go func() { _ = localSession.readLoop(ctx) }()
+
+	bHeader := blocks[2].Header
+	require.NoError(t, remoteSession.AnnounceBlock(bHeader))
+
+	require.Eventually(t, func() bool {
+		return received.Header.Slot == bHeader.Slot
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestUP0HandlerDropsNonDescendantAnnouncement(t *testing.T) {
+	blocks, finalized := testChain(t)
+	stream := newTestUP0Stream(nil)
+
+	called := false
+	handler := testHandler(t, blocks, finalized)
+	handler.OnAnnouncement = func(Announcement, ed25519.PublicKey) error {
+		called = true
+		return nil
+	}
+
+	session, err := handler.newSession(stream, ed25519.PublicKey{1})
+	require.NoError(t, err)
+
+	var unrelated types.HeaderHash
+	unrelated[0] = 0x99
+	require.NoError(t, session.handleAnnouncement(Announcement{
+		Header: blocks[2].Header,
+		Final:  BlockRef{Hash: unrelated, Slot: 99},
+	}))
+	require.False(t, called)
+}
+
+func TestUP0HandlerUnregisterSessionKeepsReplacement(t *testing.T) {
+	handler := &UP0Handler{sessions: make(map[string]*UP0Session)}
+	peerKey := ed25519.PublicKey{1}
+
+	first := &UP0Session{peerKey: peerKey}
+	second := &UP0Session{peerKey: peerKey}
+
+	handler.registerSession(peerKey, first)
+	handler.registerSession(peerKey, second)
+	handler.unregisterSession(peerKey, first)
+
+	handler.mu.Lock()
+	active := handler.sessions[string(peerKey)]
+	handler.mu.Unlock()
+	require.Equal(t, second, active)
+}
