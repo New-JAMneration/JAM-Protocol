@@ -79,7 +79,7 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	peer.SetEventBus(eventBus)
 
 	registerRequiredCEHandlers(peer, chain)
-	registerUP0Handler(peer, chain, role, nil)
+	registerUP0Handler(peer, chain, role, nil, eventBus)
 	if err := peer.Start(ctx); err != nil {
 		_ = peer.Close()
 		return nil, fmt.Errorf("start networking peer: %w", err)
@@ -111,7 +111,7 @@ func registerRequiredCEHandlers(peer *quic.Peer, chain blockchain.Blockchain) {
 	})
 }
 
-func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role nodeRole, vm *validatorpkg.ValidatorManager) {
+func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role nodeRole, vm *validatorpkg.ValidatorManager, eventBus *quic.EventBus) {
 	up0 := &uphandler.UP0Handler{
 		Blocks: func() []types.Block {
 			finalized := chain.GetFinalizedBlocks()
@@ -125,6 +125,21 @@ func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role node
 			block := chain.GetLatestFinalizedBlock()
 			return hash.ComputeBlockHeaderHash(block.Header)
 		},
+	}
+	up0.OnAnnouncement = func(ann uphandler.Announcement, peerKey ed25519.PublicKey) error {
+		if eventBus == nil {
+			return nil
+		}
+		blockHash, err := hash.ComputeBlockHeaderHash(ann.Header)
+		if err != nil {
+			return fmt.Errorf("announcement header hash: %w", err)
+		}
+		head := &quic.HeadInfo{
+			Hash:     blockHash,
+			Timeslot: ann.Header.Slot,
+		}
+		remote := &quic.Peer{Ed25519Key: peerKey}
+		return eventBus.PublishPeerUpdated(context.Background(), remote, head)
 	}
 	peer.RegisterHandler(uphandler.StreamKindUP0, up0.Handle)
 
