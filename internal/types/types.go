@@ -531,11 +531,12 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 // Availability specification of a work package
 // GP §11.5, $\mathbb{Y}$
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash"`          // $p$: Hash of the work package
-	Length       U32             `json:"length"`        // $l$: Length of the work package in bytes
-	ErasureRoot  ErasureRoot     `json:"erasure_root"`  // $u$: Root hash of erasure-coded data
-	ExportsRoot  ExportsRoot     `json:"exports_root"`  // $e$: Root hash of exported data
-	ExportsCount U16             `json:"exports_count"` // $n$: Number of exports
+	Hash          WorkPackageHash `json:"hash"`           // $p$: Hash of the work package
+	Length        U32             `json:"length"`         // $l$: Length of the work package in bytes
+	ErasureRoot   ErasureRoot     `json:"erasure_root"`   // $u$: Root hash of erasure-coded data
+	ErasureShards U16             `json:"erasure_shards"` // GP v0.8.0 eq:avspec: erasure shard count, encode[2], between erasure_root and exports_root
+	ExportsRoot   ExportsRoot     `json:"exports_root"`   // $e$: Root hash of exported data
+	ExportsCount  U16             `json:"exports_count"`  // $n$: Number of exports
 }
 
 // Mapping between work package hash and segment tree root

@@ -607,6 +607,11 @@ func (w *WorkPackageSpec) Decode(d *Decoder) error {
 		return err
 	}
 
+	// ErasureShards (GP v0.8.0 eq:avspec, encode[2])
+	if err = w.ErasureShards.Decode(d); err != nil {
+		return err
+	}
+
 	if err = w.ExportsRoot.Decode(d); err != nil {
 		return err
 	}

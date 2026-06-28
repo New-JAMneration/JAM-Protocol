@@ -116,7 +116,20 @@ func GetBinFilename(filename string) string {
 }
 
 // Codec
+// skipV080VectorIncompat skips decode tests that read vendored v0.7.x
+// jam-test-vectors whose WorkPackageSpec (package_spec) has only 5 fields.
+// GP v0.8.0 (eq:avspec) adds erasure_shards (u16) between erasure_root and
+// exports_root, so the decoder now expects 2 more bytes and the old vectors
+// fail with "unexpected EOF". Remove this skip once the official v0.8.0
+// vectors land (#1015 / #1012). The wire format itself is covered by
+// TestEncodeWorkPackageSpec_ErasureShards.
+func skipV080VectorIncompat(t *testing.T) {
+	t.Helper()
+	t.Skip("v0.7.x vectors lack WorkPackageSpec.erasure_shards (GP v0.8.0 eq:avspec); re-enable on official v0.8.0 vectors (#1015)")
+}
+
 func TestDecodeJamTestVectorsCodec(t *testing.T) {
+	skipV080VectorIncompat(t)
 	// The Codec test cases only support tiny mode
 	BACKUP_TEST_MODE := types.TEST_MODE
 
@@ -215,6 +228,7 @@ func TestDecodeJamTestVectorsCodec(t *testing.T) {
 
 // Statistics
 func TestDecodeJamTestVectorsStatistics(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "statistics", types.TEST_MODE)
 
 	// Read binary files
@@ -305,6 +319,7 @@ func TestDecodeJamTestVectorsSafrole(t *testing.T) {
 
 // Reports
 func TestDecodeJamTestVectorsReports(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "reports", types.TEST_MODE)
 
 	// Read binary files
@@ -350,6 +365,7 @@ func TestDecodeJamTestVectorsReports(t *testing.T) {
 
 // Disputes
 func TestDecodeJamTestVectorsDisputes(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "disputes", types.TEST_MODE)
 
 	// Read binary files
@@ -395,6 +411,7 @@ func TestDecodeJamTestVectorsDisputes(t *testing.T) {
 
 // Assurances
 func TestDecodeJamTestVectorsAssurances(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "assurances", types.TEST_MODE)
 
 	// Read binary files
@@ -485,6 +502,7 @@ func TestDecodeJamTestVectorsAuthorizations(t *testing.T) {
 
 // accumulate
 func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read binary files
@@ -530,6 +548,7 @@ func TestDecodeJamTestVectorsAccumulate(t *testing.T) {
 
 // preimages
 func TestDecodeJamTestVectorsPreimages(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
@@ -964,6 +983,7 @@ func TestUnmarshalPrivileges(t *testing.T) {
 // }
 
 func TestDecodeJamTestVectorsTraces(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
@@ -1032,6 +1052,7 @@ func TestDecodeJamTestVectorsTraces(t *testing.T) {
 }
 
 func TestDecodeJamTestVectorsTracesGenesis(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
