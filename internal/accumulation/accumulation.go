@@ -37,7 +37,9 @@ func GetAccumulatedHashes() (output []types.WorkPackageHash) {
 	return output
 }
 
-// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E available work reports: blockchain.Vartheta
+// (12.3) ϑ ∈ ⟦⟦(W, {H})⟧⟧_E: blockchain.Vartheta is the ready queue (GP
+// \ready) — reports carried across slots, NOT the just-became-available set
+// (that is GetAvailableWorkReports, fed by the assurance pipeline).
 
 // (12.4) W! ≡ [w S w <− W, S(wx)pS = 0 ∧ wl = {}]
 // This function identifies and stores work reports that are immediately
@@ -186,7 +188,8 @@ func UpdateAccumulatableWorkReports() {
 	E := types.EpochLength
 	m := int(slot) % E
 
-	// Get θ: the available work reports (ϑ)
+	// Get ϑ: the ready queue (GP \ready), the per-epoch history of reports
+	// awaiting accumulation — not the just-became-available set.
 	vartheta := cs.GetPriorStates().GetVartheta()
 	WQ := cs.GetIntermediateStates().GetQueuedWorkReports()
 	Wbang := cs.GetIntermediateStates().GetAccumulatedWorkReports()
