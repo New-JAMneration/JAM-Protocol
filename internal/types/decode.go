@@ -646,6 +646,11 @@ func (r *RefineContext) Decode(d *Decoder) error {
 		return err
 	}
 
+	// AnchorSlot (GP v0.8.0 eq:workcontext)
+	if err = r.AnchorSlot.Decode(d); err != nil {
+		return err
+	}
+
 	if err = r.StateRoot.Decode(d); err != nil {
 		return err
 	}
@@ -659,6 +664,11 @@ func (r *RefineContext) Decode(d *Decoder) error {
 	}
 
 	if err = r.LookupAnchorSlot.Decode(d); err != nil {
+		return err
+	}
+
+	// LookupAnchorStateRoot (GP v0.8.0 eq:workcontext)
+	if err = r.LookupAnchorStateRoot.Decode(d); err != nil {
 		return err
 	}
 
