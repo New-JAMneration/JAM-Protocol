@@ -317,6 +317,20 @@ func TestSafroleTestVectors(t *testing.T) {
 		// if binFile != "enact-epoch-change-with-no-tickets-2.bin" {
 		// 	continue
 		// }
+
+		// publish-tickets-no-mark-1 submits ticket entry-index 3, which the
+		// v0.7.2 vector expects to fail with bad_ticket_attempt under the old
+		// fixed cap of 3. GP v0.8.0 (eq:ticketsextrinsic) makes the cap dynamic
+		// — tiny n = ceil(2E/|γ'_K|) = 4 — so entry-index 3 is now valid and the
+		// vector's expected error no longer holds. Skip until official v0.8.0
+		// vectors land (#1013 / #1012 non-goal: conformance gates wait on v0.8.0
+		// vectors). VerifyTicketsAttempt's dynamic cap is covered by the unit
+		// tests in extrinsic_tickets_test.go.
+		if binFile == "publish-tickets-no-mark-1.bin" {
+			t.Logf("⏭️  [%s] %s — skipped: v0.7.2 vector incompatible with v0.8.0 dynamic ticket cap (#1013)", types.TEST_MODE, binFile)
+			continue
+		}
+
 		// Read the binary file
 		binPath := filepath.Join(dir, binFile)
 		t.Logf("▶ Processing [%s] %s", types.TEST_MODE, binFile)
