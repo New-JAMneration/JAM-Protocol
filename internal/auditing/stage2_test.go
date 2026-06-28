@@ -17,7 +17,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/header"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	"github.com/New-JAMneration/JAM-Protocol/internal/utilities"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +55,7 @@ func TestStage2_BuildJudgements_SignatureVerification(t *testing.T) {
 		} else {
 			xe = []byte(types.JamInvalid)
 		}
-		hashW := hash.Blake2bHash(utilities.WorkReportSerialization(audit.Report))
+		hashW := hash.Blake2bHash(encodeWorkReportForHash(t, audit.Report))
 		msg := append(append([]byte{}, xe...), hashW[:]...)
 
 		assert.True(t, ed25519.Verify(pubKey, msg, audit.Signature[:]),

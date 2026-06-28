@@ -75,3 +75,43 @@ func TestValidateSealUsingTraceFile(t *testing.T) {
 	runSealValidationTraceTest(t, "1758622313", "00000012.bin")
 	runSealValidationTraceTest(t, "1757092821", "00000157.bin")
 }
+
+func TestSignHeaderEntropy_RoundTrip(t *testing.T) {
+	validators, err := LoadTinyValidatorsData()
+	if err != nil {
+		t.Fatalf("LoadTinyValidatorsData: %v", err)
+	}
+	validator := validators[0]
+	sk, err := LookupBandersnatchSecretSeed(validator.Bandersnatch)
+	if err != nil {
+		t.Fatalf("LookupBandersnatchSecretSeed: %v", err)
+	}
+
+	sealBytes, err := vrf.IETFSign(sk, []byte("test-seal-context"), nil)
+	if err != nil {
+		t.Fatalf("IETFSign seal: %v", err)
+	}
+	if len(sealBytes) != types.BandersnatchSigSize {
+		t.Fatalf("seal length: got %d want %d", len(sealBytes), types.BandersnatchSigSize)
+	}
+
+	var seal types.BandersnatchVrfSignature
+	copy(seal[:], sealBytes)
+
+	hv, err := SignHeaderEntropy(sk, seal)
+	if err != nil {
+		t.Fatalf("SignHeaderEntropy: %v", err)
+	}
+
+	header := types.Header{
+		Seal:          seal,
+		EntropySource: hv,
+		AuthorIndex:   0,
+	}
+	state := &types.State{
+		Kappa: types.ValidatorsData{{Bandersnatch: validator.Bandersnatch}},
+	}
+	if errCode := ValidateHeaderEntropy(header, state); errCode != nil {
+		t.Fatalf("ValidateHeaderEntropy failed: %v", *errCode)
+	}
+}
