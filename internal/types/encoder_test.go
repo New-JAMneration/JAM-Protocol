@@ -37,6 +37,7 @@ func CompareBinaryData(data1 []byte, data2 []byte) bool {
 
 // Codec
 func TestEncodeJamTestVectorsCodec(t *testing.T) {
+	skipV080VectorIncompat(t)
 	testCases := map[reflect.Type][]string{
 		reflect.TypeOf(types.AssurancesExtrinsic{}): {
 			"assurances_extrinsic",
@@ -132,6 +133,7 @@ func TestEncodeJamTestVectorsCodec(t *testing.T) {
 
 // Statistics
 func TestEncodeJamTestVectorsStatistics(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "statistics", types.TEST_MODE)
 
 	// Read json files
@@ -228,6 +230,7 @@ func TestEncodeJamTestVectorsSafrole(t *testing.T) {
 
 // Reports
 func TestEncodeJamTestVectorsReports(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "reports", types.TEST_MODE)
 
 	// Read json files
@@ -276,6 +279,7 @@ func TestEncodeJamTestVectorsReports(t *testing.T) {
 
 // Disputes
 func TestEncodeJamTestVectorsDisputes(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "disputes", types.TEST_MODE)
 
 	// Read json files
@@ -324,6 +328,7 @@ func TestEncodeJamTestVectorsDisputes(t *testing.T) {
 
 // Assurances
 func TestEncodeJamTestVectorsAssurances(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "assurances", types.TEST_MODE)
 
 	// Read json files
@@ -421,6 +426,7 @@ func TestEncodeJamTestVectorsAuthorizations(t *testing.T) {
 
 // Accumulate
 func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read json files
@@ -469,6 +475,7 @@ func TestEncodeJamTestVectorsAccumulate(t *testing.T) {
 
 // Preimages
 func TestEncodeJamTestVectorsPreimages(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read json files
@@ -907,6 +914,7 @@ func TestEncodeJamTestVectorsHistory(t *testing.T) {
 // }
 
 func TestEncodeJamTestVectorsTraces(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()
@@ -980,6 +988,7 @@ func TestEncodeJamTestVectorsTraces(t *testing.T) {
 }
 
 func TestEncodeJamTestVectorsTracesGenesis(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 	if types.TEST_MODE != "tiny" {
 		types.SetTinyMode()

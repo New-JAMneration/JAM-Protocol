@@ -432,11 +432,12 @@ func (w *WorkResult) UnmarshalJSON(data []byte) error {
 
 func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Hash         string `json:"hash,omitempty"`
-		Length       U32    `json:"length,omitempty"`
-		ErasureRoot  string `json:"erasure_root,omitempty"`
-		ExportsRoot  string `json:"exports_root,omitempty"`
-		ExportsCount U16    `json:"exports_count,omitempty"`
+		Hash          string `json:"hash,omitempty"`
+		Length        U32    `json:"length,omitempty"`
+		ErasureRoot   string `json:"erasure_root,omitempty"`
+		ErasureShards U16    `json:"erasure_shards,omitempty"`
+		ExportsRoot   string `json:"exports_root,omitempty"`
+		ExportsCount  U16    `json:"exports_count,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -456,6 +457,8 @@ func (w *WorkPackageSpec) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	w.ErasureRoot = ErasureRoot(erasureRootBytes)
+
+	w.ErasureShards = temp.ErasureShards
 
 	exportsRootBytes, err := hex.DecodeString(temp.ExportsRoot[2:])
 	if err != nil {
