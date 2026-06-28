@@ -119,9 +119,29 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
+// v080IncompatibleModes lists jam-test-vector modes whose vectors carry a
+// WorkReport (and therefore a WorkPackageSpec). GP v0.8.0 (eq:avspec) adds an
+// erasure_shards (u16) field to WorkPackageSpec between erasure_root and
+// exports_root, so the v0.7.x vectors no longer decode (unexpected EOF). The
+// whole mode is skipped until official v0.8.0 vectors land (#1012 non-goal:
+// conformance re-gate waits on v0.8.0 vectors). Remove an entry once its
+// v0.8.0 vector ships. The wire format itself is covered by the
+// WorkPackageSpec round-trip unit test in internal/types.
+var v080IncompatibleModes = map[TestMode]bool{
+	ReportsMode:    true,
+	AssurancesMode: true,
+	DisputesMode:   true,
+	AccumulateMode: true,
+}
+
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
+
+	// Whole-mode skip for v0.8.0-incompatible vectors (see v080IncompatibleModes).
+	if v080IncompatibleModes[r.mode] {
+		return nil, nil
+	}
 
 	// Read all files in the directory
 	err := filepath.Walk(r.basePath, func(path string, info os.FileInfo, err error) error {

@@ -398,3 +398,46 @@ func TestOpaqueHashMatrix_Encode(t *testing.T) {
 		t.Errorf("expected total length %d, got %d", offset, len(encoded))
 	}
 }
+
+// GP v0.8.0 eq:avspec: WorkPackageSpec gains an ErasureShards (u16) field
+// between ErasureRoot and ExportsRoot. This guards the wire layout:
+// round-trips, asserts the field survives, and pins the byte order so the
+// 2-byte shard count sits immediately after the 32-byte erasure root.
+func TestEncodeWorkPackageSpec_ErasureShards(t *testing.T) {
+	spec := WorkPackageSpec{
+		Hash:          WorkPackageHash{0x11},
+		Length:        0x04030201,
+		ErasureRoot:   ErasureRoot{0x22},
+		ErasureShards: 0x0A0B,
+		ExportsRoot:   ExportsRoot{0x33},
+		ExportsCount:  0x0C0D,
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&spec)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: hash(32) ++ length(4) ++ erasureRoot(32) ++ erasureShards(2)
+	// ++ exportsRoot(32) ++ exportsCount(2) = 104 bytes.
+	const want = 32 + 4 + 32 + 2 + 32 + 2
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// ErasureShards (0x0A0B little-endian) must follow the erasure root.
+	off := 32 + 4 + 32
+	if encoded[off] != 0x0B || encoded[off+1] != 0x0A {
+		t.Errorf("erasure_shards bytes = %x %x at offset %d, want 0b 0a",
+			encoded[off], encoded[off+1], off)
+	}
+
+	decoder := NewDecoder()
+	var got WorkPackageSpec
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(spec, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, spec)
+	}
+}

@@ -386,11 +386,12 @@ func (w *WorkResult) ScaleEncode() ([]byte, error) {
 }
 
 type WorkPackageSpec struct {
-	Hash         WorkPackageHash `json:"hash,omitempty"`
-	Length       U32             `json:"length,omitempty"`
-	ErasureRoot  ErasureRoot     `json:"erasure_root,omitempty"`
-	ExportsRoot  ExportsRoot     `json:"exports_root,omitempty"`
-	ExportsCount U16             `json:"exports_count,omitempty"`
+	Hash          WorkPackageHash `json:"hash,omitempty"`
+	Length        U32             `json:"length,omitempty"`
+	ErasureRoot   ErasureRoot     `json:"erasure_root,omitempty"`
+	ErasureShards U16             `json:"erasure_shards,omitempty"` // GP v0.8.0 eq:avspec, encode[2]
+	ExportsRoot   ExportsRoot     `json:"exports_root,omitempty"`
+	ExportsCount  U16             `json:"exports_count,omitempty"`
 }
 
 type SegmentRootLookupItem struct {

@@ -153,7 +153,7 @@ const (
 // work package constants
 const (
 	MaxTotalSize     = 13_791_360 // W_B = W_M * W_F + 4096 + 64 + 64 (14.7)
-	SegmentFootprint = 4488       // W_F = W_G + 32 * math.Ceil(math.Log2(float64(W_M))	(14.6)
+	SegmentFootprint = 4488       // W_F = W_G + 32*ceil(log2(W_X)) (GP v0.8.0 eq:segmentfootprint); W_X = max package exports = 3072 => 4104 + 32*12 = 4488
 	// MaxRefineGas            = 5_000_000_000 // G_R v0.6.4
 
 	// G_A: The maximum gas allocated to the Accumulation function.
