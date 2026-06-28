@@ -69,7 +69,16 @@ func setupForAnnouncement(t *testing.T) ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(seed)
 }
 
-// makeDetailedWorkReport builds a WorkReport with all fields populated using
+// encodeWorkReportForHash matches BuildAnnouncement / BuildJudgements hashing.
+func encodeWorkReportForHash(t *testing.T, report types.WorkReport) types.ByteSequence {
+	t.Helper()
+	encoder := types.GetEncoder()
+	encoded, err := encoder.Encode(&report)
+	types.PutEncoder(encoder)
+	require.NoError(t, err)
+	return encoded
+}
+
 // unique values derived from id, so map lookups stay easy to trace in tests.
 func makeDetailedWorkReport(id byte, coreID types.CoreIndex) types.WorkReport {
 	var hashValue types.WorkPackageHash
@@ -218,7 +227,7 @@ func TestAnnouncement_SignContext(t *testing.T) {
 	var xnPayload types.ByteSequence
 	for _, pair := range assignments {
 		xnPayload = append(xnPayload, utilities.SerializeFixedLength(types.U64(pair.CoreID), 2)...)
-		reportHash := hash.Blake2bHash(utilities.WorkReportSerialization(pair.Report))
+		reportHash := hash.Blake2bHash(encodeWorkReportForHash(t, pair.Report))
 		xnPayload = append(xnPayload, reportHash[:]...)
 	}
 

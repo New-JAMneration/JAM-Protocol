@@ -153,47 +153,15 @@ func TestKeyRotate(t *testing.T) {
 	// Simulate previous time slot to trigger key rotation
 	priorState.SetTau(tauPrime - types.TimeSlot(types.EpochLength))
 
-	fakeValidators := safrole.LoadTinyValidators()
-
-	priorKappa := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		priorKappa = append(priorKappa, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
+	fakeValidators, err := safrole.LoadTinyValidatorsData()
+	if err != nil {
+		t.Fatalf("LoadTinyValidatorsData: %v", err)
 	}
 
-	priorGammaK := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		priorGammaK = append(priorGammaK, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
-	}
-
-	priorIota := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		priorIota = append(priorIota, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
-	}
-
-	priorLambda := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		priorLambda = append(priorLambda, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
-	}
+	priorKappa := append(types.ValidatorsData(nil), fakeValidators...)
+	priorGammaK := append(types.ValidatorsData(nil), fakeValidators...)
+	priorIota := append(types.ValidatorsData(nil), fakeValidators...)
+	priorLambda := append(types.ValidatorsData(nil), fakeValidators...)
 
 	gammaZ := "0xa949a60ad754d683d398a0fb674a9bbe525ca26b0b0b9c8d79f210291b40d286d9886a9747a4587d497f2700baee229ca72c54ad652e03e74f35f075d0189a40d41e5ee65703beb5d7ae8394da07aecf9056b98c61156714fd1d9982367bee2992e630ae2b14e758ab0960e372172203f4c9a41777dadd529971d7ab9d23ab29fe0e9c85ec450505dde7f5ac038274cf"
 	priorGammaZ := types.BandersnatchRingCommitment(safrole.Hex2Bytes(gammaZ))
@@ -225,18 +193,9 @@ func TestKeyRotate(t *testing.T) {
 }
 
 func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
-	// Load fake validators
-	fakeValidators := safrole.LoadTinyValidators()
-
-	// Create validators data
-	validatorsData := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		validatorsData = append(validatorsData, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
+	validatorsData, err := safrole.LoadTinyValidatorsData()
+	if err != nil {
+		t.Fatalf("LoadTinyValidatorsData: %v", err)
 	}
 
 	// Set posterior state offenders to empty
@@ -253,23 +212,15 @@ func TestReplaceOffenderKeysEmptyOffenders(t *testing.T) {
 }
 
 func TestReplaceOffenderKeys(t *testing.T) {
-	// Load fake validators
-	fakeValidators := safrole.LoadTinyValidators()
-
-	// Create validators data
-	validatorsData := types.ValidatorsData{}
-	for _, fakeValidator := range fakeValidators {
-		validatorsData = append(validatorsData, types.Validator{
-			Bandersnatch: fakeValidator.Bandersnatch,
-			Ed25519:      fakeValidator.Ed25519,
-			Bls:          fakeValidator.BLS,
-			Metadata:     types.ValidatorMetadata{},
-		})
+	validatorsData, err := safrole.LoadTinyValidatorsData()
+	if err != nil {
+		t.Fatalf("LoadTinyValidatorsData: %v", err)
 	}
 
 	// Set posterior state offenders to the first validator
+	offenderEd25519 := validatorsData[0].Ed25519
 	s := blockchain.GetInstance()
-	s.GetPosteriorStates().SetPsiO(types.OffendersMark{fakeValidators[0].Ed25519})
+	s.GetPosteriorStates().SetPsiO(types.OffendersMark{offenderEd25519})
 
 	newValidators := safrole.ReplaceOffenderKeys(validatorsData)
 
@@ -282,7 +233,7 @@ func TestReplaceOffenderKeys(t *testing.T) {
 	// Check if the new validators data has the same elements as the original
 	// validators data, except for the offender
 	for i, newValidator := range newValidators {
-		if newValidator.Ed25519 == fakeValidators[0].Ed25519 {
+		if newValidator.Ed25519 == offenderEd25519 {
 			t.Errorf("Expected newValidators[%d] to be different from the offender, got %v", i, newValidator)
 		}
 	}

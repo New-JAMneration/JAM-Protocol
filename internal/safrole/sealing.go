@@ -40,16 +40,11 @@ func SealingByTickets() error {
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)        // η′3
 	context = append(context, types.ByteSequence([]byte{uint8(i_r)})...)     // ir
 
-	handler, err := CreateVRFHandler(publicKey)
+	signature, err := ietfSignForBandersnatchKey(publicKey, context, message)
 	if err != nil {
 		return err
 	}
-	defer handler.Free()
-	signature, err := handler.IETFSign(context, message)
-	if err != nil {
-		return err
-	}
-	cs.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	cs.GetProcessingBlockPointer().SetSeal(signature)
 	return nil
 }
 
@@ -79,16 +74,11 @@ func SealingByBandersnatchs() error {
 	context = append(context, types.ByteSequence(types.JamFallbackSeal[:])...) // XF
 	context = append(context, types.ByteSequence(eta_prime[3][:])...)          // η′3
 
-	handler, err := CreateVRFHandler(publicKey)
+	signature, err := ietfSignForBandersnatchKey(publicKey, context, message)
 	if err != nil {
 		return err
 	}
-	defer handler.Free()
-	signature, err := handler.IETFSign(context, message)
-	if err != nil {
-		return err
-	}
-	cs.GetProcessingBlockPointer().SetSeal(types.BandersnatchVrfSignature(signature))
+	cs.GetProcessingBlockPointer().SetSeal(signature)
 	return nil
 }
 
@@ -152,26 +142,59 @@ func UpdateEntropy(e types.TimeSlot, ePrime types.TimeSlot) {
 	cs.GetPosteriorStates().SetEta(eta)
 }
 
-func CalculateHeaderEntropy(public_key types.BandersnatchPublic, seal types.BandersnatchVrfSignature) (sign []byte) {
-	/*
-		F M K ⟨C⟩: The set of Bandersnatch signatures of the public key K, context C and message M. A subset of F.
-		See section 3.8.
-	*/
-	/*
-		(6.17) Hv ∈ F [] Ha ⟨XE ⌢ Y(Hs)⟩
-	*/
-	handler, _ := CreateVRFHandler(public_key)
-	if handler == nil {
-		return nil
+// ietfSignForBandersnatchKey signs an IETF VRF using the JIP-5 secret seed for a
+// known bandersnatch public key. Production callers should resolve sk from keystore.
+func ietfSignForBandersnatchKey(
+	bandersnatchKey types.BandersnatchPublic,
+	context, message types.ByteSequence,
+) (types.BandersnatchVrfSignature, error) {
+	sk, err := LookupBandersnatchSecretSeed(bandersnatchKey)
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("lookup bandersnatch secret: %w", err)
 	}
-	defer handler.Free()
-	var message types.ByteSequence                                        // message: []
-	context := make(types.ByteSequence, 0, len(types.JamEntropy)+32)      // context: XE ⌢ Y(Hs)
-	context = append(context, types.ByteSequence(types.JamEntropy[:])...) // XE
-	vrf, _ := handler.VRFIetfOutput(seal[:])
-	context = append(context, types.ByteSequence(vrf)...) // Y(Hs)
-	signature, _ := handler.IETFSign(context, message)    // F [] Ha ⟨XE ⌢ Y(Hs)⟩
-	return signature
+	signature, err := vrf.IETFSign(sk, context, message)
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("IETFSign: %w", err)
+	}
+	if len(signature) != types.BandersnatchSigSize {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf(
+			"unexpected signature length: got %d, want %d", len(signature), types.BandersnatchSigSize,
+		)
+	}
+	return types.BandersnatchVrfSignature(signature), nil
+}
+
+// SignHeaderEntropy computes Hv per GP (6.17): Hv ∈ F[] Ha ⟨XE ⌢ Y(Hs)⟩.
+// sk must be the 32-byte JIP-5 bandersnatch secret seed for the block author (Ha).
+// Callers resolve sk from keystore in production or LookupBandersnatchSecretSeed in tests.
+func SignHeaderEntropy(sk []byte, seal types.BandersnatchVrfSignature) (types.BandersnatchVrfSignature, error) {
+	if len(sk) != 32 {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("secret key must be 32 bytes, got %d", len(sk))
+	}
+
+	var message types.ByteSequence                                   // message: []
+	context := make(types.ByteSequence, 0, len(types.JamEntropy)+32) // context: XE ⌢ Y(Hs)
+	context = append(context, types.ByteSequence(types.JamEntropy[:])...)
+
+	vrfOutput, err := vrf.VRFIetfOutput(seal[:])
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("VRFIetfOutput: %w", err)
+	}
+	context = append(context, types.ByteSequence(vrfOutput)...)
+
+	signature, err := vrf.IETFSign(sk, context, message)
+	if err != nil {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf("IETFSign: %w", err)
+	}
+	if len(signature) != types.BandersnatchSigSize {
+		return types.BandersnatchVrfSignature{}, fmt.Errorf(
+			"unexpected signature length: got %d, want %d", len(signature), types.BandersnatchSigSize,
+		)
+	}
+
+	var hv types.BandersnatchVrfSignature
+	copy(hv[:], signature)
+	return hv, nil
 }
 
 func ValidateHeaderEntropy(header types.Header, priorState *types.State) *types.ErrorCode {
@@ -335,17 +358,26 @@ func ValidateHeaderSeal(header types.Header, state *types.State) *types.ErrorCod
 }
 
 // NO REFERENCES
-func UpdateHeaderEntropy() {
+func UpdateHeaderEntropy() error {
 	cs := blockchain.GetInstance()
-
-	// Get prior state
-	posterior_state := cs.GetPosteriorStates()
-
+	posteriorState := cs.GetPosteriorStates()
 	header := cs.GetProcessingBlockPointer().GetHeader()
 
-	publicKey := posterior_state.GetKappa()[header.AuthorIndex].Bandersnatch // Ha
-	seal := header.Seal                                                      // Hs
-	cs.GetProcessingBlockPointer().SetEntropySource(types.BandersnatchVrfSignature(CalculateHeaderEntropy(publicKey, seal)))
+	publicKey := posteriorState.GetKappa()[header.AuthorIndex].Bandersnatch // Ha
+	seal := header.Seal                                                     // Hs
+
+	sk, err := LookupBandersnatchSecretSeed(publicKey)
+	if err != nil {
+		return fmt.Errorf("UpdateHeaderEntropy: %w", err)
+	}
+
+	hv, err := SignHeaderEntropy(sk, seal)
+	if err != nil {
+		return fmt.Errorf("UpdateHeaderEntropy: %w", err)
+	}
+
+	cs.GetProcessingBlockPointer().SetEntropySource(hv)
+	return nil
 }
 
 // Calculate gamma^prime_s
