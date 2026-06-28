@@ -119,9 +119,26 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
+// v080IncompatibleVectors lists jam-test-vectors (keyed by mode) whose v0.7.2
+// expected outputs no longer hold under v0.8.0 behaviour. They are skipped
+// until official v0.8.0 vectors land (#1012 non-goal: conformance re-gate
+// waits on v0.8.0 vectors). Remove an entry once its v0.8.0 vector ships.
+//
+//   - safrole/publish-tickets-no-mark-1: submits ticket entry-index 3, which
+//     the v0.7.2 vector expects to fail (bad_ticket_attempt) under the old
+//     fixed cap of 3. GP v0.8.0 (eq:ticketsextrinsic) makes the cap dynamic —
+//     tiny n = ceil(2E/|γ'_K|) = 4 — so entry-index 3 is now valid (#1013).
+var v080IncompatibleVectors = map[TestMode]map[string]bool{
+	SafroleMode: {
+		"publish-tickets-no-mark-1.bin":  true,
+		"publish-tickets-no-mark-1.json": true,
+	},
+}
+
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
+	skip := v080IncompatibleVectors[r.mode]
 
 	// Read all files in the directory
 	err := filepath.Walk(r.basePath, func(path string, info os.FileInfo, err error) error {
@@ -137,6 +154,12 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 		// Check file extension based on format
 		ext := filepath.Ext(path)
 		if (r.format == JSONFormat && ext != ".json") || (r.format == BinaryFormat && ext != ".bin") {
+			return nil
+		}
+
+		// Skip vectors whose v0.7.2 expected output is incompatible with
+		// v0.8.0 behaviour (see v080IncompatibleVectors).
+		if skip[filepath.Base(path)] {
 			return nil
 		}
 
