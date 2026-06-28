@@ -441,3 +441,52 @@ func TestEncodeWorkPackageSpec_ErasureShards(t *testing.T) {
 		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, spec)
 	}
 }
+
+// TestEncodeRefineContext_V080Fields covers the GP v0.8.0 eq:workcontext
+// additions: anchor_slot (u32) right after the anchor hash, and
+// lookup_anchor_state_root (32 bytes) right after lookup_anchor_slot.
+func TestEncodeRefineContext_V080Fields(t *testing.T) {
+	ctx := RefineContext{
+		Anchor:                HeaderHash{0x11},
+		AnchorSlot:            0x0A0B0C0D,
+		StateRoot:             StateRoot{0x22},
+		BeefyRoot:             BeefyRoot{0x33},
+		LookupAnchor:          HeaderHash{0x44},
+		LookupAnchorSlot:      0x01020304,
+		LookupAnchorStateRoot: StateRoot{0x55},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&ctx)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: anchor(32) ++ anchorSlot(4) ++ stateRoot(32) ++ beefyRoot(32)
+	// ++ lookupAnchor(32) ++ lookupAnchorSlot(4) ++ lookupAnchorStateRoot(32)
+	// ++ prerequisites length prefix(1, value 0) = 169 bytes.
+	const want = 32 + 4 + 32 + 32 + 32 + 4 + 32 + 1
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// anchor_slot (0x0A0B0C0D little-endian) must follow the anchor hash.
+	if off := 32; encoded[off] != 0x0D || encoded[off+1] != 0x0C ||
+		encoded[off+2] != 0x0B || encoded[off+3] != 0x0A {
+		t.Errorf("anchor_slot bytes = % x at offset %d, want 0d 0c 0b 0a",
+			encoded[off:off+4], off)
+	}
+	// lookup_anchor_state_root (first byte 0x55) must follow lookup_anchor_slot.
+	if off := 32 + 4 + 32 + 32 + 32 + 4; encoded[off] != 0x55 {
+		t.Errorf("lookup_anchor_state_root[0] = %x at offset %d, want 55",
+			encoded[off], off)
+	}
+
+	decoder := NewDecoder()
+	var got RefineContext
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(ctx, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, ctx)
+	}
+}

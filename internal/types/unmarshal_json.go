@@ -177,12 +177,14 @@ func (s *ServiceInfo) UnmarshalJSON(data []byte) error {
 
 func (r *RefineContext) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Anchor           string   `json:"anchor,omitempty"`
-		StateRoot        string   `json:"state_root,omitempty"`
-		BeefyRoot        string   `json:"beefy_root,omitempty"`
-		LookupAnchor     string   `json:"lookup_anchor,omitempty"`
-		LookupAnchorSlot U64      `json:"lookup_anchor_slot,omitempty"`
-		Prerequisites    []string `json:"prerequisites,omitempty"`
+		Anchor                string   `json:"anchor,omitempty"`
+		AnchorSlot            U64      `json:"anchor_slot,omitempty"`
+		StateRoot             string   `json:"state_root,omitempty"`
+		BeefyRoot             string   `json:"beefy_root,omitempty"`
+		LookupAnchor          string   `json:"lookup_anchor,omitempty"`
+		LookupAnchorSlot      U64      `json:"lookup_anchor_slot,omitempty"`
+		LookupAnchorStateRoot string   `json:"lookup_anchor_state_root,omitempty"`
+		Prerequisites         []string `json:"prerequisites,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -194,6 +196,8 @@ func (r *RefineContext) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	r.Anchor = HeaderHash(anchorBytes)
+
+	r.AnchorSlot = TimeSlot(temp.AnchorSlot)
 
 	stateRootBytes, err := hex.DecodeString(temp.StateRoot[2:])
 	if err != nil {
@@ -214,6 +218,12 @@ func (r *RefineContext) UnmarshalJSON(data []byte) error {
 	r.LookupAnchor = HeaderHash(lookupAnchorBytes)
 
 	r.LookupAnchorSlot = TimeSlot(temp.LookupAnchorSlot)
+
+	lookupAnchorStateRootBytes, err := hex.DecodeString(temp.LookupAnchorStateRoot[2:])
+	if err != nil {
+		return err
+	}
+	r.LookupAnchorStateRoot = StateRoot(lookupAnchorStateRootBytes)
 
 	for _, prerequisite := range temp.Prerequisites {
 		prerequisiteBytes, err := hex.DecodeString(prerequisite[2:])

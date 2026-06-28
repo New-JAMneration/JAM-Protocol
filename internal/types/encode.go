@@ -618,6 +618,11 @@ func (r *RefineContext) Encode(e *Encoder) error {
 		return err
 	}
 
+	// AnchorSlot (GP v0.8.0 eq:workcontext)
+	if err := r.AnchorSlot.Encode(e); err != nil {
+		return err
+	}
+
 	// StateRoot
 	if err := r.StateRoot.Encode(e); err != nil {
 		return err
@@ -635,6 +640,11 @@ func (r *RefineContext) Encode(e *Encoder) error {
 
 	// LookupAnchorSlot
 	if err := r.LookupAnchorSlot.Encode(e); err != nil {
+		return err
+	}
+
+	// LookupAnchorStateRoot (GP v0.8.0 eq:workcontext)
+	if err := r.LookupAnchorStateRoot.Encode(e); err != nil {
 		return err
 	}
 

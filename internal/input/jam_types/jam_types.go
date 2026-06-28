@@ -180,12 +180,14 @@ func (assignments AvailabilityAssignments) Validate() error {
 // Refine Context
 
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor,omitempty"`
-	StateRoot        StateRoot    `json:"state_root,omitempty"`
-	BeefyRoot        BeefyRoot    `json:"beefy_root,omitempty"`
-	LookupAnchor     HeaderHash   `json:"lookup_anchor,omitempty"`
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot,omitempty"`
-	Prerequisites    []OpaqueHash `json:"prerequisites,omitempty"`
+	Anchor                HeaderHash   `json:"anchor,omitempty"`
+	AnchorSlot            TimeSlot     `json:"anchor_slot,omitempty"`
+	StateRoot             StateRoot    `json:"state_root,omitempty"`
+	BeefyRoot             BeefyRoot    `json:"beefy_root,omitempty"`
+	LookupAnchor          HeaderHash   `json:"lookup_anchor,omitempty"`
+	LookupAnchorSlot      TimeSlot     `json:"lookup_anchor_slot,omitempty"`
+	LookupAnchorStateRoot StateRoot    `json:"lookup_anchor_state_root,omitempty"`
+	Prerequisites         []OpaqueHash `json:"prerequisites,omitempty"`
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {
