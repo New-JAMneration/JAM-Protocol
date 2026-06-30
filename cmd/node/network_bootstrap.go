@@ -20,6 +20,7 @@ import (
 	cehandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	uphandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/up"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	topologypkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/topology"
 	validatorpkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	nodepkg "github.com/New-JAMneration/JAM-Protocol/internal/node"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -36,6 +37,7 @@ const (
 type nodeRuntime struct {
 	peer        *quic.Peer
 	syncManager *nodepkg.SyncManager
+	topology    *topologypkg.Manager
 }
 
 func (n *nodeRuntime) Close() {
@@ -93,6 +95,12 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	syncManager := nodepkg.NewSyncManager(chain, eventBus, peer)
 	syncManager.Start()
 
+	var topo *topologypkg.Manager
+	if role == validatorNodeRole && vm != nil {
+		topo = topologypkg.NewManager(peer, vm, chain, types.Ed25519Public(peer.Ed25519Key))
+		topo.Start(ctx, eventBus)
+	}
+
 	if err := bootstrapFromChainSpec(peer, chainPath); err != nil {
 		_ = peer.Close()
 		syncManager.Close()
@@ -104,6 +112,7 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	return &nodeRuntime{
 		peer:        peer,
 		syncManager: syncManager,
+		topology:    topo,
 	}, nil
 }
 

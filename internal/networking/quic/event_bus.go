@@ -39,6 +39,11 @@ type PeerUpdatedEvent struct {
 	NewBlockHeader *HeadInfo // Optional new block header announced by the peer
 }
 
+// BlockImportedEvent is emitted after SyncManager stores imported blocks (#567 CE128 path).
+type BlockImportedEvent struct {
+	Head HeadInfo
+}
+
 type Handler func(ctx context.Context, event Event) error
 
 type EventBus struct {
@@ -126,4 +131,9 @@ func (eb *EventBus) PublishPeerUpdated(ctx context.Context, peer *Peer, newBlock
 		NewBlockHeader: newBlockHeader,
 	}
 	return eb.Publish(ctx, PeerUpdated, event)
+}
+
+// PublishBlockImported publishes a BlockImported event after local chain head advances.
+func (eb *EventBus) PublishBlockImported(ctx context.Context, head HeadInfo) error {
+	return eb.Publish(ctx, BlockImported, &BlockImportedEvent{Head: head})
 }
