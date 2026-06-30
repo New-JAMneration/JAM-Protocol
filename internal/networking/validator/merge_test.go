@@ -24,24 +24,21 @@ func TestMergeValidators_deduplicatesByEd25519Key(t *testing.T) {
 	require.Equal(t, k3, merged[2].Ed25519)
 }
 
-func TestTransportTargets_returnsGridNeighbors(t *testing.T) {
-	var selfKey, neighborKey, strangerKey types.Ed25519Public
+func TestTransportTargets_returnsMergedEpochValidatorsMinusSelf(t *testing.T) {
+	var selfKey, k2, k3 types.Ed25519Public
 	selfKey[0] = 1
-	neighborKey[0] = 2
-	strangerKey[0] = 3
+	k2[0] = 2
+	k3[0] = 3
 
 	grid := &GridMapper{
-		Current: types.ValidatorsData{
-			{Ed25519: selfKey},
-			{Ed25519: neighborKey},
-			{Ed25519: types.Ed25519Public{4}},
-			{Ed25519: strangerKey},
-		},
+		Previous: types.ValidatorsData{{Ed25519: k3}},
+		Current:  types.ValidatorsData{{Ed25519: selfKey}, {Ed25519: k2}},
+		Next:     types.ValidatorsData{{Ed25519: k2}, {Ed25519: k3}},
 	}
-	targets := TransportTargets(grid, 0)
+	targets := TransportTargets(grid, selfKey)
 	require.Len(t, targets, 2)
-	require.Equal(t, neighborKey, targets[0].Ed25519)
-	require.Equal(t, types.Ed25519Public{4}, targets[1].Ed25519)
+	require.Equal(t, k3, targets[0].Ed25519)
+	require.Equal(t, k2, targets[1].Ed25519)
 }
 
 func TestGossipPeerKeys_excludesSelf(t *testing.T) {

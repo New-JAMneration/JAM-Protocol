@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/epochclock"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
@@ -26,6 +27,7 @@ type Manager struct {
 
 	pendingEpoch *pendingEpochTransition
 	appliedEpoch types.TimeSlot
+	connectivity *epochclock.ConnectivityApplied
 }
 
 type pendingEpochTransition struct {
@@ -60,7 +62,7 @@ func (m *Manager) handleBlockImported(ctx context.Context, event quic.Event) err
 	if !ok || imported == nil {
 		return nil
 	}
-	ts := readChainTimeslots(m.chain)
+	ts := epochclock.TimeslotsFrom(m.chain)
 	log.Printf("topology: block imported at slot %d (chain head %d, finalized %d)",
 		imported.Head.Timeslot, ts.BestHead, ts.Finalized)
 	m.reconcile(ctx)
@@ -68,8 +70,17 @@ func (m *Manager) handleBlockImported(ctx context.Context, event quic.Event) err
 }
 
 // CurrentTimeslots returns best-head and finalized slots from local chain state.
-func (m *Manager) CurrentTimeslots() ChainTimeslots {
-	return readChainTimeslots(m.chain)
+func (m *Manager) CurrentTimeslots() epochclock.Timeslots {
+	return epochclock.TimeslotsFrom(m.chain)
+}
+
+// LastConnectivityApplied returns the most recent connectivity anchor for Safrole / UP 0 timing.
+func (m *Manager) LastConnectivityApplied() *epochclock.ConnectivityApplied {
+	if m == nil || m.connectivity == nil {
+		return nil
+	}
+	cp := *m.connectivity
+	return &cp
 }
 
 // Run periodically reconciles transport connectivity until ctx is cancelled.
@@ -98,32 +109,67 @@ func (m *Manager) ReconcileOnce(ctx context.Context) {
 }
 
 func (m *Manager) reconcile(ctx context.Context) {
-	finalized := finalizedBlock(m.chain)
-	m.trackEpochTransition(finalized)
+	if m.chain == nil {
+		return
+	}
+	finalized := m.chain.GetLatestFinalizedBlock()
+	m.trackEpochTransition(ctx, finalized)
 
 	if m.pendingEpoch != nil && !m.canApplyEpochTransition(finalized) {
-		targets := validator.TransportTargets(m.vm.Grid, m.vm.SelfIndex)
+		// Keep pre-transition validator sets during the delay; only maintain existing transport links.
+		targets := validator.TransportTargets(m.vm.Grid, m.selfKey)
 		m.dialMissing(ctx, targets)
 		return
 	}
 	if m.pendingEpoch != nil {
 		log.Printf("topology: applying epoch %d connectivity after delay", m.pendingEpoch.targetEpoch)
 		m.appliedEpoch = m.pendingEpoch.targetEpoch
+		applied := epochclock.ConnectivityApplied{
+			Epoch:          m.pendingEpoch.targetEpoch,
+			EpochStartSlot: m.pendingEpoch.epochStartSlot,
+			AppliedAtSlot:  finalized.Header.Slot,
+		}
+		m.connectivity = &applied
 		m.pendingEpoch = nil
+		m.publishConnectivityApplied(ctx, applied)
 	}
 
 	m.vm.RefreshFromChain(m.chain)
-	targets := validator.TransportTargets(m.vm.Grid, m.vm.SelfIndex)
+	targets := validator.TransportTargets(m.vm.Grid, m.selfKey)
 	desired := desiredKeySet(targets, m.selfKey)
 
 	m.dialMissing(ctx, targets)
 	m.pruneStale(desired)
+	m.reconcileGossipUP0(ctx)
 }
 
-func (m *Manager) trackEpochTransition(finalized types.Block) {
+func (m *Manager) publishConnectivityApplied(ctx context.Context, applied epochclock.ConnectivityApplied) {
+	if m.eventBus == nil {
+		return
+	}
+	if err := m.eventBus.PublishConnectivityApplied(ctx, applied); err != nil {
+		log.Printf("topology: publish ConnectivityApplied: %v", err)
+	}
+}
+
+func (m *Manager) reconcileGossipUP0(ctx context.Context) {
+	if m.peer == nil || m.vm == nil {
+		return
+	}
+	m.peer.ReconcileUP0Streams(ctx, validator.GossipPeerKeys(m.vm))
+}
+
+func (m *Manager) trackEpochTransition(ctx context.Context, finalized types.Block) {
 	epoch := safrole.GetEpochIndex(finalized.Header.Slot)
 	if m.appliedEpoch == 0 {
 		m.appliedEpoch = epoch
+		applied := epochclock.ConnectivityApplied{
+			Epoch:          epoch,
+			EpochStartSlot: epoch * types.TimeSlot(types.EpochLength),
+			AppliedAtSlot:  finalized.Header.Slot,
+		}
+		m.connectivity = &applied
+		m.publishConnectivityApplied(ctx, applied)
 		return
 	}
 	if epoch <= m.appliedEpoch {
@@ -142,22 +188,11 @@ func (m *Manager) canApplyEpochTransition(finalized types.Block) bool {
 	if m.pendingEpoch == nil {
 		return true
 	}
-	epoch := safrole.GetEpochIndex(finalized.Header.Slot)
-	if epoch < m.pendingEpoch.targetEpoch {
-		return false
-	}
-	delay := EpochTransitionDelaySlots()
-	slotsSince := finalized.Header.Slot - m.pendingEpoch.epochStartSlot
-	return slotsSince >= types.TimeSlot(delay)
-}
-
-// EpochTransitionDelaySlots returns max(floor(E/30), 1) per JAMNP-S epoch transitions.
-func EpochTransitionDelaySlots() int {
-	delay := int(types.EpochLength) / 30
-	if delay < 1 {
-		delay = 1
-	}
-	return delay
+	return epochclock.CanApplyEpochTransition(
+		finalized.Header.Slot,
+		m.pendingEpoch.targetEpoch,
+		m.pendingEpoch.epochStartSlot,
+	)
 }
 
 // TransportPeerKeys returns desired transport peer Ed25519 keys (for tests and diagnostics).
@@ -166,7 +201,7 @@ func (m *Manager) TransportPeerKeys() []types.Ed25519Public {
 		return nil
 	}
 	m.vm.RefreshFromChain(m.chain)
-	targets := validator.TransportTargets(m.vm.Grid, m.vm.SelfIndex)
+	targets := validator.TransportTargets(m.vm.Grid, m.selfKey)
 	keys := make([]types.Ed25519Public, 0, len(targets))
 	for _, v := range targets {
 		if v.Ed25519 != m.selfKey {
@@ -205,6 +240,9 @@ func (m *Manager) dialMissing(ctx context.Context, targets []types.Validator) {
 func (m *Manager) pruneStale(desired map[string]struct{}) {
 	for _, key := range m.peer.ConnectedPeerKeys() {
 		if len(key) != ed25519.PublicKeySize {
+			continue
+		}
+		if role, ok := m.peer.ConnectionRoleFor(key); ok && role == quic.Builder {
 			continue
 		}
 		var typed types.Ed25519Public
