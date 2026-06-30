@@ -119,6 +119,35 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
+// v080IncompatibleVectors lists jam-test-vectors (keyed by mode) whose v0.7.2
+// expected outputs no longer hold under v0.8.0 behaviour. They are skipped
+// until official v0.8.0 vectors land (#1012 non-goal: conformance re-gate
+// waits on v0.8.0 vectors). Remove an entry once its v0.8.0 vector ships.
+//
+//   - safrole/publish-tickets-no-mark-1: submits ticket entry-index 3, which
+//     the v0.7.2 vector expects to fail (bad_ticket_attempt) under the old
+//     fixed cap of 3. GP v0.8.0 (eq:ticketsextrinsic) makes the cap dynamic —
+//     tiny n = ceil(2E/|γ'_K|) = 4 — so entry-index 3 is now valid (#1013).
+//
+// This is the single source of truth for the skip set. Both read paths funnel
+// through IsV080IncompatibleVector: ReadTestData (the cmd/node test path) and
+// the in-package vector tests (e.g. safrole's TestSafroleTestVectors). Keeping
+// one list means the eventual cleanup removes a vector from both paths at once.
+var v080IncompatibleVectors = map[TestMode]map[string]bool{
+	SafroleMode: {
+		"publish-tickets-no-mark-1.bin":  true,
+		"publish-tickets-no-mark-1.json": true,
+	},
+}
+
+// IsV080IncompatibleVector reports whether the vector file basename (e.g.
+// "publish-tickets-no-mark-1.bin") is skipped for mode because its v0.7.2
+// expected output is incompatible with v0.8.0 behaviour. See
+// v080IncompatibleVectors for the list and rationale.
+func IsV080IncompatibleVector(mode TestMode, basename string) bool {
+	return v080IncompatibleVectors[mode][basename]
+}
+
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
@@ -137,6 +166,12 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 		// Check file extension based on format
 		ext := filepath.Ext(path)
 		if (r.format == JSONFormat && ext != ".json") || (r.format == BinaryFormat && ext != ".bin") {
+			return nil
+		}
+
+		// Skip vectors whose v0.7.2 expected output is incompatible with
+		// v0.8.0 behaviour (see v080IncompatibleVectors).
+		if IsV080IncompatibleVector(r.mode, filepath.Base(path)) {
 			return nil
 		}
 
