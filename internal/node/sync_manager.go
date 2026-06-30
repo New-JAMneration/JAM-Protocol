@@ -2,20 +2,20 @@ package node
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"fmt"
 	"log"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	cehandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
 // HeadInfo is now defined in quic package, import it if needed
 type HeadInfo = quic.HeadInfo
-
-// public typealias Data32 = FixedSizeData<ConstInt32> // golang -> types.OpaqueHash or types.ByteArray32
-// public typealias TimeslotIndex = UInt32	// golang -> types.TimeSlot
-// NetAddr // golang -> quic.Connction.RemoteAddr()
 
 type SyncStatus int
 
@@ -28,22 +28,24 @@ const (
 type SyncManager struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
-	peers                map[string]*quic.Peer // Store quic.Peer directly
+	localPeer            *quic.Peer
+	peers                map[string]*quic.Peer
 	eventBus             *quic.EventBus
 	subscriptions        []quic.EventType
 	blockchain           blockchain.Blockchain
 	status               SyncStatus
-	networkBest          *HeadInfo // Optional network best block
-	networkFinalizedBest *HeadInfo // Optional network finalized best block
+	networkBest          *HeadInfo
+	networkFinalizedBest *HeadInfo
 }
 
-const BLOCK_REQUEST_BLOCK_COUNT uint32 = 50
+const blockRequestBlockCount uint32 = 50
 
-func NewSyncManager(bc blockchain.Blockchain, eventBus *quic.EventBus) *SyncManager {
+func NewSyncManager(bc blockchain.Blockchain, eventBus *quic.EventBus, localPeer *quic.Peer) *SyncManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &SyncManager{
 		ctx:        ctx,
 		cancel:     cancel,
+		localPeer:  localPeer,
 		peers:      make(map[string]*quic.Peer),
 		eventBus:   eventBus,
 		blockchain: bc,
@@ -61,8 +63,6 @@ func (sm *SyncManager) setupEventSubscriptions() {
 	}
 	sm.eventBus.Subscribe(quic.PeerAdded, sm.handlePeerAdded)
 	sm.subscriptions = append(sm.subscriptions, quic.PeerAdded)
-
-	// newBlockHeader should be in handlePeerUpdated event
 	sm.eventBus.Subscribe(quic.PeerUpdated, sm.handlePeerUpdated)
 	sm.subscriptions = append(sm.subscriptions, quic.PeerUpdated)
 }
@@ -81,63 +81,70 @@ func (sm *SyncManager) handlePeerUpdated(ctx context.Context, event quic.Event) 
 	return nil
 }
 
-// onPeerUpdated handles peer updates similar to the Swift implementation
 func (sm *SyncManager) onPeerUpdated(peer *quic.Peer, newBlockHeader *HeadInfo) error {
-	// TODO: improve this to handle the case misbehaved peers sending us the wrong best
-	log.Printf("on peer updated: peer=%s, best=%+v, finalized=%+v, newBlockHeader=%+v",
-		peer.ID, peer.Best, peer.Finalized, newBlockHeader)
-
-	// Update network best
-	if sm.networkBest != nil {
-		if peer.Best != nil && peer.Best.Timeslot > sm.networkBest.Timeslot {
-			sm.networkBest = peer.Best
+	if peer == nil {
+		return nil
+	}
+	if newBlockHeader != nil {
+		if peer.Best == nil || newBlockHeader.Timeslot > peer.Best.Timeslot {
+			peer.Best = newBlockHeader
 		}
-	} else {
-		sm.networkBest = peer.Best
+		if sm.networkBest == nil || newBlockHeader.Timeslot > sm.networkBest.Timeslot {
+			sm.networkBest = newBlockHeader
+		}
 	}
 
-	// Update network finalized best
+	log.Printf("on peer updated: peer=%s, best=%+v, finalized=%+v, newBlockHeader=%+v",
+		peerID(peer), peer.Best, peer.Finalized, newBlockHeader)
+
+	if peer.Best != nil {
+		if sm.networkBest == nil || peer.Best.Timeslot > sm.networkBest.Timeslot {
+			sm.networkBest = peer.Best
+		}
+	}
+
 	if sm.networkFinalizedBest != nil {
 		if peer.Finalized.Timeslot > sm.networkFinalizedBest.Timeslot {
 			sm.networkFinalizedBest = &peer.Finalized
 		}
-	} else {
+	} else if peer.Finalized.Timeslot > 0 || peer.Finalized.Hash != (types.HeaderHash{}) {
 		sm.networkFinalizedBest = &peer.Finalized
 	}
 
-	// Store peer
-	sm.peers[peer.ID] = peer
+	sm.peers[peerID(peer)] = peer
 
-	// Get current head from blockchain
 	currentHead, err := sm.getCurrentHead()
 	if err != nil {
 		log.Printf("Error getting current head: %v", err)
 		return err
 	}
 
-	// Check if sync is completed
+	if newBlockHeader != nil && newBlockHeader.Timeslot > currentHead.Timeslot && sm.localPeer != nil {
+		if err := sm.importBlock(peer, currentHead, newBlockHeader); err != nil {
+			log.Printf("CE128 import from announcement: %v", err)
+		} else {
+			currentHead, err = sm.getCurrentHead()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if sm.networkBest != nil && currentHead.Timeslot >= sm.networkBest.Timeslot {
 		sm.syncCompleted()
 		return nil
 	}
 
-	// Handle different sync states
-	switch sm.status {
-	case Discovering:
+	if sm.status == Discovering {
 		sm.status = BulkSyncing
-		return sm.bulkSync(currentHead)
-	case BulkSyncing:
-		return sm.bulkSync(currentHead)
-	case Syncing:
-		if newBlockHeader != nil {
-			return sm.importBlock(currentHead.Timeslot, newBlockHeader, peer.ID)
-		}
+	}
+	if sm.status == BulkSyncing {
+		return sm.bulkSync(peer, currentHead)
 	}
 
 	return nil
 }
 
-// getCurrentHead gets the current best head from the blockchain
 func (sm *SyncManager) getCurrentHead() (*HeadInfo, error) {
 	if sm.blockchain == nil {
 		return nil, fmt.Errorf("sync manager blockchain dependency is nil")
@@ -146,36 +153,100 @@ func (sm *SyncManager) getCurrentHead() (*HeadInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	headerHash, err := hash.ComputeBlockHeaderHash(head.Header)
+	if err != nil {
+		return nil, err
+	}
 	return &HeadInfo{
-		Hash:     head.Header.Parent,
+		Hash:     headerHash,
 		Timeslot: head.Header.Slot,
 	}, nil
 }
 
-// syncCompleted handles the completion of synchronization
 func (sm *SyncManager) syncCompleted() {
 	sm.status = Syncing
-	// TODO: notify waiting goroutines (equivalent to Swift's continuation)
 }
 
-// bulkSync performs bulk synchronization
-func (sm *SyncManager) bulkSync(currentHead *HeadInfo) error {
+func (sm *SyncManager) bulkSync(peer *quic.Peer, currentHead *HeadInfo) error {
 	log.Printf("Starting bulk sync from timeslot %d", currentHead.Timeslot)
-
-	if sm.networkBest == nil {
+	if sm.networkBest == nil || sm.localPeer == nil {
 		return nil
 	}
+	target := peer
+	if target == nil || len(target.Ed25519Key) == 0 {
+		target = sm.anyPeer()
+	}
+	if target == nil {
+		return nil
+	}
+	return sm.fetchAndStoreBlocks(target, currentHead.Hash, 0, blockRequestBlockCount)
+}
 
-	// TODO: implement actual bulk sync with block requests
+func (sm *SyncManager) importBlock(peer *quic.Peer, currentHead *HeadInfo, newHeader *HeadInfo) error {
+	log.Printf("Importing block from peer %s: timeslot=%d, hash=%x",
+		peerID(peer), newHeader.Timeslot, newHeader.Hash)
+	if sm.localPeer == nil {
+		return fmt.Errorf("local peer is nil")
+	}
+	if newHeader.Timeslot <= currentHead.Timeslot {
+		return nil
+	}
+	maxBlocks := uint32(newHeader.Timeslot - currentHead.Timeslot)
+	if maxBlocks > blockRequestBlockCount {
+		maxBlocks = blockRequestBlockCount
+	}
+	if maxBlocks == 0 {
+		maxBlocks = 1
+	}
+	return sm.fetchAndStoreBlocks(peer, currentHead.Hash, 0, maxBlocks)
+}
+
+func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) error {
+	conn, ok := sm.localPeer.ConnectionFor(peer.Ed25519Key)
+	if !ok {
+		return fmt.Errorf("no connection for peer %s", peerID(peer))
+	}
+
+	blocks, err := cehandler.RequestBlocks(sm.ctx, conn, cehandler.CE128Payload{
+		HeaderHash: from,
+		Direction:  direction,
+		MaxBlocks:  maxBlocks,
+	})
+	if err != nil {
+		return err
+	}
+	return sm.storeBlocks(blocks)
+}
+
+func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
+	chain, ok := sm.blockchain.(*blockchain.ChainState)
+	if !ok {
+		return fmt.Errorf("blockchain does not support AddBlock")
+	}
+	for _, block := range blocks {
+		chain.AddBlock(block)
+	}
 	return nil
 }
 
-// importBlock imports a single block during normal sync
-func (sm *SyncManager) importBlock(currentTimeslot types.TimeSlot, newHeader *HeadInfo, peerID string) error {
-	log.Printf("Importing block from peer %s: timeslot=%d, hash=%x",
-		peerID, newHeader.Timeslot, newHeader.Hash)
-	// TODO: implement actual block import logic
+func (sm *SyncManager) anyPeer() *quic.Peer {
+	for _, peer := range sm.peers {
+		return peer
+	}
 	return nil
+}
+
+func peerID(peer *quic.Peer) string {
+	if peer == nil {
+		return ""
+	}
+	if peer.ID != "" {
+		return peer.ID
+	}
+	if len(peer.Ed25519Key) == ed25519.PublicKeySize {
+		return hex.EncodeToString(peer.Ed25519Key)
+	}
+	return ""
 }
 
 func (sm *SyncManager) Close() {
