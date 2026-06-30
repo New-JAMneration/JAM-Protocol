@@ -141,6 +141,11 @@ var v080IncompatibleModes = map[TestMode]bool{
 //     the v0.7.2 vector expects to fail (bad_ticket_attempt) under the old
 //     fixed cap of 3. GP v0.8.0 (eq:ticketsextrinsic) makes the cap dynamic —
 //     tiny n = ceil(2E/|γ'_K|) = 4 — so entry-index 3 is now valid (#1013).
+//
+// This is the single source of truth for the skip set. Both read paths funnel
+// through IsV080IncompatibleVector: ReadTestData (the cmd/node test path) and
+// the in-package vector tests (e.g. safrole's TestSafroleTestVectors). Keeping
+// one list means the eventual cleanup removes a vector from both paths at once.
 var v080IncompatibleVectors = map[TestMode]map[string]bool{
 	SafroleMode: {
 		"publish-tickets-no-mark-1.bin":  true,
@@ -148,10 +153,17 @@ var v080IncompatibleVectors = map[TestMode]map[string]bool{
 	},
 }
 
+// IsV080IncompatibleVector reports whether the vector file basename (e.g.
+// "publish-tickets-no-mark-1.bin") is skipped for mode because its v0.7.2
+// expected output is incompatible with v0.8.0 behaviour. See
+// v080IncompatibleVectors for the list and rationale.
+func IsV080IncompatibleVector(mode TestMode, basename string) bool {
+	return v080IncompatibleVectors[mode][basename]
+}
+
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
-	skip := v080IncompatibleVectors[r.mode]
 
 	// Whole-mode skip for v0.8.0-incompatible vectors (see v080IncompatibleModes).
 	if v080IncompatibleModes[r.mode] {
@@ -177,7 +189,7 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 
 		// Skip vectors whose v0.7.2 expected output is incompatible with
 		// v0.8.0 behaviour (see v080IncompatibleVectors).
-		if skip[filepath.Base(path)] {
+		if IsV080IncompatibleVector(r.mode, filepath.Base(path)) {
 			return nil
 		}
 
