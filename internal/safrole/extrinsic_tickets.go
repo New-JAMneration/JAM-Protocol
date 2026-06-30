@@ -128,10 +128,15 @@ func VerifyTicketsDuplicate(tickets types.TicketsAccumulator) *types.ErrorCode {
 func VerifyTicketsAttempt(tickets types.TicketsExtrinsic) *types.ErrorCode {
 	numV := len(blockchain.GetInstance().GetPosteriorStates().GetGammaK())
 	if numV == 0 {
-		// Defensive only: γ'_K is never empty in this codebase (offenders
-		// are zeroed in place). Avoid a divide-by-zero if that ever changes.
-		err := SafroleErrorCode.BadTicketAttempt
-		return &err
+		// Defensive only: γ'_K is never empty in this codebase (offenders are
+		// zeroed in place). With no validators the cap n is undefined, so reject
+		// only if there is actually a ticket to bound; an empty extrinsic has
+		// nothing to reject. Also avoids a divide-by-zero if this ever changes.
+		if len(tickets) > 0 {
+			err := SafroleErrorCode.BadTicketAttempt
+			return &err
+		}
+		return nil
 	}
 	// n = ceil(2E / numV) via integer arithmetic.
 	n := (2*types.EpochLength + numV - 1) / numV
