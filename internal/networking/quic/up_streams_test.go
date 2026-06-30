@@ -63,3 +63,23 @@ func TestUPStreamRegistryReleaseOnlyCurrent(t *testing.T) {
 	_, exists = reg.active[peer][upStreamKind]
 	require.False(t, exists)
 }
+
+func TestUPStreamRegistry_closeExcept(t *testing.T) {
+	reg := newUPStreamRegistry()
+	keep := "peer-keep"
+	drop := "peer-drop"
+
+	keepStream := &mockUPStream{id: 1}
+	dropStream := &mockUPStream{id: 2}
+	require.True(t, reg.admit(keep, upStreamKind, keepStream.id, keepStream))
+	require.True(t, reg.admit(drop, upStreamKind, dropStream.id, dropStream))
+
+	eligible := map[string]struct{}{keep: {}}
+	reg.closeExcept(eligible, upStreamKind)
+
+	_, kept := reg.active[keep][upStreamKind]
+	require.True(t, kept)
+	_, removed := reg.active[drop]
+	require.False(t, removed)
+	require.True(t, dropStream.canceled)
+}

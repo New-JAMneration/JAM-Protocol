@@ -20,12 +20,20 @@ func MergeValidators(sets ...types.ValidatorsData) []types.Validator {
 }
 
 // TransportTargets returns validators this node must maintain QUIC transport connectivity to
-// per JAMNP required connectivity (grid neighbours + cross-epoch same-index peers).
-func TransportTargets(grid *GridMapper, selfIndex int) []types.Validator {
-	if grid == nil || selfIndex < 0 {
+// per JAMNP required connectivity (all unique validators in previous, current, and next epochs).
+func TransportTargets(grid *GridMapper, selfKey types.Ed25519Public) []types.Validator {
+	if grid == nil {
 		return nil
 	}
-	return grid.AllNeighborValidators(selfIndex)
+	merged := MergeValidators(grid.Previous, grid.Current, grid.Next)
+	out := make([]types.Validator, 0, len(merged))
+	for _, v := range merged {
+		if v.Ed25519 == selfKey {
+			continue
+		}
+		out = append(out, v)
+	}
+	return out
 }
 
 // GossipPeerKeys returns Ed25519 keys eligible for grid gossip streams (UP 0 / preimage).

@@ -220,9 +220,11 @@ func (p *Peer) handleConnection(qconn quic.Connection, peerKey ed25519.PublicKey
 	if strings.HasSuffix(tlsState.NegotiatedProtocol, "/builder") {
 		role = Builder
 		if p.CountConnectionsByRole(Builder) >= MaxBuilderConnections {
-			log.Printf("rejecting builder connection from %x: builder slot limit reached", peerKey[:4])
-			_ = qconn.CloseWithError(0, "builder slot limit")
-			return
+			if !p.evictOldestBuilderConnection() {
+				log.Printf("rejecting builder connection from %x: builder slot limit reached", peerKey[:4])
+				_ = qconn.CloseWithError(0, "builder slot limit")
+				return
+			}
 		}
 	}
 
@@ -431,6 +433,70 @@ func (p *Peer) Close() error {
 		}
 	}
 	return closeErr
+}
+
+// ConnectionRoleFor returns the QUIC connection role for a tracked peer, if connected.
+func (p *Peer) ConnectionRoleFor(peerKey ed25519.PublicKey) (PeerRole, bool) {
+	if p == nil {
+		return "", false
+	}
+	remote, ok := p.peerSet.GetByEd25519(peerKey)
+	if !ok || remote.ID == "" {
+		return "", false
+	}
+	conn, ok := p.connManager.GetByAddr(remote.ID)
+	if !ok {
+		return "", false
+	}
+	return conn.Role, true
+}
+
+// ReconcileUP0Streams opens UP 0 to eligible grid-gossip peers and closes it for ineligible ones.
+func (p *Peer) ReconcileUP0Streams(ctx context.Context, eligible []types.Ed25519Public) {
+	if p == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	eligibleSet := make(map[string]struct{}, len(eligible))
+	for _, key := range eligible {
+		eligibleSet[string(key[:])] = struct{}{}
+		conn, ok := p.ConnectionFor(ed25519.PublicKey(key[:]))
+		if !ok {
+			continue
+		}
+		p.tryOpenUP0(ctx, conn, ed25519.PublicKey(key[:]))
+	}
+	p.upStreams.closeExcept(eligibleSet, upStreamKind)
+}
+
+func (p *Peer) evictOldestBuilderConnection() bool {
+	if p == nil || p.connManager == nil {
+		return false
+	}
+	for _, conn := range p.connManager.All() {
+		if conn.Role != Builder {
+			continue
+		}
+		addr := conn.Addr.String()
+		for _, remote := range p.peerSet.All() {
+			if remote.ID != addr {
+				continue
+			}
+			if err := conn.Close(); err != nil {
+				log.Printf("evict builder connection %s: %v", addr, err)
+			}
+			p.connManager.Remove(addr)
+			p.peerSet.Remove(remote, addr)
+			if len(remote.Ed25519Key) == ed25519.PublicKeySize {
+				p.upStreams.closeKind(string(remote.Ed25519Key), upStreamKind)
+			}
+			return true
+		}
+	}
+	return false
 }
 
 // ConnectedPeerKeys returns Ed25519 keys for all tracked remote peers.

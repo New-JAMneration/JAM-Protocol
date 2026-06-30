@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/epochclock"
 )
 
 type EventType string
@@ -24,6 +26,7 @@ const (
 	PeerAdded                 EventType = "PeerAdded"
 	PeerUpdated               EventType = "PeerUpdated"
 	BulkSyncCompleted         EventType = "BulkSyncCompleted"
+	ConnectivityApplied       EventType = "ConnectivityApplied"
 )
 
 type Event interface{}
@@ -42,6 +45,11 @@ type PeerUpdatedEvent struct {
 // BlockImportedEvent is emitted after SyncManager stores imported blocks (#567 CE128 path).
 type BlockImportedEvent struct {
 	Head HeadInfo
+}
+
+// ConnectivityAppliedEvent is emitted when topology applies epoch connectivity per JAMNP-S.
+type ConnectivityAppliedEvent struct {
+	Applied epochclock.ConnectivityApplied
 }
 
 type Handler func(ctx context.Context, event Event) error
@@ -136,4 +144,9 @@ func (eb *EventBus) PublishPeerUpdated(ctx context.Context, peer *Peer, newBlock
 // PublishBlockImported publishes a BlockImported event after local chain head advances.
 func (eb *EventBus) PublishBlockImported(ctx context.Context, head HeadInfo) error {
 	return eb.Publish(ctx, BlockImported, &BlockImportedEvent{Head: head})
+}
+
+// PublishConnectivityApplied publishes when required connectivity is applied for an epoch.
+func (eb *EventBus) PublishConnectivityApplied(ctx context.Context, applied epochclock.ConnectivityApplied) error {
+	return eb.Publish(ctx, ConnectivityApplied, &ConnectivityAppliedEvent{Applied: applied})
 }
