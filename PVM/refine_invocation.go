@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"github.com/New-JAMneration/JAM-Protocol/internal/pvmcost"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -22,6 +23,10 @@ type RefineOutput struct {
 	RefineOutput  []byte
 	ExportSegment []types.ExportSegment
 	Gas           types.Gas
+	// Cost is the JIP-3 event 101 cost summary (#974). Observability-only
+	// sidecar: it must never reach consensus-serialized types (CI guard in
+	// internal/pvmcost). Zero-filled until Phase 2a instrumentation lands.
+	Cost pvmcost.RefineCost
 }
 
 // B.4 M

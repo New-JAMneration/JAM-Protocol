@@ -4,25 +4,27 @@ import (
 	"bytes"
 	"encoding/hex"
 	"testing"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/pvmcost"
 )
 
 // makeSampleExecCost returns an ExecCost with deterministic content.
-func makeSampleExecCost(seed uint64) ExecCost {
-	return ExecCost{
+func makeSampleExecCost(seed uint64) pvmcost.ExecCost {
+	return pvmcost.ExecCost{
 		GasUsed:      seed,
 		ElapsedNanos: seed*2 + 1,
 	}
 }
 
 func TestExecCost_EncodedSize(t *testing.T) {
-	if got := len(makeSampleExecCost(1).Encode()); got != execCostEncodedSize {
+	if got := len(EncodeExecCost(makeSampleExecCost(1))); got != execCostEncodedSize {
 		t.Errorf("ExecCost size = %d, want %d", got, execCostEncodedSize)
 	}
 }
 
 func TestExecCost_Roundtrip(t *testing.T) {
 	want := makeSampleExecCost(0xDEADBEEF)
-	got, err := NewDecoder(want.Encode()).ReadExecCost()
+	got, err := NewDecoder(EncodeExecCost(want)).ReadExecCost()
 	if err != nil {
 		t.Fatalf("ReadExecCost: %v", err)
 	}
@@ -36,7 +38,7 @@ func TestExecCost_Roundtrip(t *testing.T) {
 // must produce all-zero bytes for a zero-value struct so callers can
 // rely on it.
 func TestExecCost_ZeroEncodesToZeroes(t *testing.T) {
-	enc := ExecCost{}.Encode()
+	enc := EncodeExecCost(pvmcost.ExecCost{})
 	if len(enc) != execCostEncodedSize {
 		t.Fatalf("encoded size = %d, want %d", len(enc), execCostEncodedSize)
 	}
@@ -49,12 +51,12 @@ func TestExecCost_ZeroEncodesToZeroes(t *testing.T) {
 
 // IsAuthorizedCost roundtrip + size.
 func TestIsAuthorizedCost_RoundtripAndSize(t *testing.T) {
-	want := IsAuthorizedCost{
+	want := pvmcost.IsAuthorizedCost{
 		Total:        makeSampleExecCost(10),
 		CompileNanos: 0x1122334455667788,
 		HostCalls:    makeSampleExecCost(20),
 	}
-	enc := want.Encode()
+	enc := EncodeIsAuthorizedCost(want)
 	if len(enc) != isAuthorizedCostEncodedSize {
 		t.Fatalf("size = %d, want %d", len(enc), isAuthorizedCostEncodedSize)
 	}
@@ -68,7 +70,7 @@ func TestIsAuthorizedCost_RoundtripAndSize(t *testing.T) {
 }
 
 func TestIsAuthorizedCost_ZeroEncodesToZeroes(t *testing.T) {
-	enc := IsAuthorizedCost{}.Encode()
+	enc := EncodeIsAuthorizedCost(pvmcost.IsAuthorizedCost{})
 	if len(enc) != isAuthorizedCostEncodedSize {
 		t.Fatalf("encoded size = %d, want %d", len(enc), isAuthorizedCostEncodedSize)
 	}
@@ -81,7 +83,7 @@ func TestIsAuthorizedCost_ZeroEncodesToZeroes(t *testing.T) {
 
 // RefineCost roundtrip + size + zero-fill.
 func TestRefineCost_RoundtripAndSize(t *testing.T) {
-	want := RefineCost{
+	want := pvmcost.RefineCost{
 		Total:            makeSampleExecCost(100),
 		CompileNanos:     999,
 		HistoricalLookup: makeSampleExecCost(101),
@@ -90,7 +92,7 @@ func TestRefineCost_RoundtripAndSize(t *testing.T) {
 		Invoke:           makeSampleExecCost(104),
 		Other:            makeSampleExecCost(105),
 	}
-	enc := want.Encode()
+	enc := EncodeRefineCost(want)
 	if len(enc) != refineCostEncodedSize {
 		t.Fatalf("size = %d, want %d", len(enc), refineCostEncodedSize)
 	}
@@ -104,7 +106,7 @@ func TestRefineCost_RoundtripAndSize(t *testing.T) {
 }
 
 func TestRefineCost_ZeroEncodesToZeroes(t *testing.T) {
-	enc := RefineCost{}.Encode()
+	enc := EncodeRefineCost(pvmcost.RefineCost{})
 	if len(enc) != refineCostEncodedSize {
 		t.Fatalf("encoded size = %d, want %d", len(enc), refineCostEncodedSize)
 	}
@@ -118,7 +120,7 @@ func TestRefineCost_ZeroEncodesToZeroes(t *testing.T) {
 // AccumulateCost is the largest of the four; verify all 12 fields
 // roundtrip correctly.
 func TestAccumulateCost_RoundtripAndSize(t *testing.T) {
-	want := AccumulateCost{
+	want := pvmcost.AccumulateCost{
 		AccumulateCalls:           1,
 		TransfersProcessed:        2,
 		ItemsAccumulated:          3,
@@ -132,7 +134,7 @@ func TestAccumulateCost_RoundtripAndSize(t *testing.T) {
 		TotalTransferGas:          0x1234567890ABCDEF,
 		Other:                     makeSampleExecCost(70),
 	}
-	enc := want.Encode()
+	enc := EncodeAccumulateCost(want)
 	if len(enc) != accumulateCostEncodedSize {
 		t.Fatalf("size = %d, want %d", len(enc), accumulateCostEncodedSize)
 	}
@@ -146,7 +148,7 @@ func TestAccumulateCost_RoundtripAndSize(t *testing.T) {
 }
 
 func TestAccumulateCost_ZeroEncodesToZeroes(t *testing.T) {
-	enc := AccumulateCost{}.Encode()
+	enc := EncodeAccumulateCost(pvmcost.AccumulateCost{})
 	if len(enc) != accumulateCostEncodedSize {
 		t.Fatalf("encoded size = %d, want %d", len(enc), accumulateCostEncodedSize)
 	}
@@ -164,28 +166,28 @@ func TestCosts_DecoderConsumesExactlyEncodedSize(t *testing.T) {
 		fn   func() (int, error)
 	}{
 		{"ExecCost", func() (int, error) {
-			d := NewDecoder(ExecCost{}.Encode())
+			d := NewDecoder(EncodeExecCost(pvmcost.ExecCost{}))
 			if _, err := d.ReadExecCost(); err != nil {
 				return 0, err
 			}
 			return d.Remaining(), nil
 		}},
 		{"IsAuthorizedCost", func() (int, error) {
-			d := NewDecoder(IsAuthorizedCost{}.Encode())
+			d := NewDecoder(EncodeIsAuthorizedCost(pvmcost.IsAuthorizedCost{}))
 			if _, err := d.ReadIsAuthorizedCost(); err != nil {
 				return 0, err
 			}
 			return d.Remaining(), nil
 		}},
 		{"RefineCost", func() (int, error) {
-			d := NewDecoder(RefineCost{}.Encode())
+			d := NewDecoder(EncodeRefineCost(pvmcost.RefineCost{}))
 			if _, err := d.ReadRefineCost(); err != nil {
 				return 0, err
 			}
 			return d.Remaining(), nil
 		}},
 		{"AccumulateCost", func() (int, error) {
-			d := NewDecoder(AccumulateCost{}.Encode())
+			d := NewDecoder(EncodeAccumulateCost(pvmcost.AccumulateCost{}))
 			if _, err := d.ReadAccumulateCost(); err != nil {
 				return 0, err
 			}
@@ -217,41 +219,41 @@ func TestCosts_DecoderConsumesExactlyEncodedSize(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestExecCost_GoldenVector(t *testing.T) {
-	c := ExecCost{
+	c := pvmcost.ExecCost{
 		GasUsed:      0x0807060504030201,
 		ElapsedNanos: 0x1817161514131211,
 	}
 	// u64 LE GasUsed ++ u64 LE ElapsedNanos
 	want := mustHex(t, "0102030405060708"+"1112131415161718")
-	if got := c.Encode(); !bytes.Equal(got, want) {
+	if got := EncodeExecCost(c); !bytes.Equal(got, want) {
 		t.Fatalf("ExecCost golden mismatch:\n  got:  %x\n  want: %x", got, want)
 	}
 }
 
 func TestIsAuthorizedCost_GoldenVector(t *testing.T) {
-	c := IsAuthorizedCost{
-		Total:        ExecCost{GasUsed: 1, ElapsedNanos: 2},
+	c := pvmcost.IsAuthorizedCost{
+		Total:        pvmcost.ExecCost{GasUsed: 1, ElapsedNanos: 2},
 		CompileNanos: 3,
-		HostCalls:    ExecCost{GasUsed: 4, ElapsedNanos: 5},
+		HostCalls:    pvmcost.ExecCost{GasUsed: 4, ElapsedNanos: 5},
 	}
 	want := mustHex(t,
 		"0100000000000000"+"0200000000000000"+ // Total
 			"0300000000000000"+ // CompileNanos
 			"0400000000000000"+"0500000000000000") // HostCalls
-	if got := c.Encode(); !bytes.Equal(got, want) {
+	if got := EncodeIsAuthorizedCost(c); !bytes.Equal(got, want) {
 		t.Fatalf("IsAuthorizedCost golden mismatch:\n  got:  %x\n  want: %x", got, want)
 	}
 }
 
 func TestRefineCost_GoldenVector(t *testing.T) {
-	c := RefineCost{
-		Total:            ExecCost{GasUsed: 1, ElapsedNanos: 2},
+	c := pvmcost.RefineCost{
+		Total:            pvmcost.ExecCost{GasUsed: 1, ElapsedNanos: 2},
 		CompileNanos:     3,
-		HistoricalLookup: ExecCost{GasUsed: 4, ElapsedNanos: 5},
-		MachineExpunge:   ExecCost{GasUsed: 6, ElapsedNanos: 7},
-		PeekPokePages:    ExecCost{GasUsed: 8, ElapsedNanos: 9},
-		Invoke:           ExecCost{GasUsed: 10, ElapsedNanos: 11},
-		Other:            ExecCost{GasUsed: 12, ElapsedNanos: 13},
+		HistoricalLookup: pvmcost.ExecCost{GasUsed: 4, ElapsedNanos: 5},
+		MachineExpunge:   pvmcost.ExecCost{GasUsed: 6, ElapsedNanos: 7},
+		PeekPokePages:    pvmcost.ExecCost{GasUsed: 8, ElapsedNanos: 9},
+		Invoke:           pvmcost.ExecCost{GasUsed: 10, ElapsedNanos: 11},
+		Other:            pvmcost.ExecCost{GasUsed: 12, ElapsedNanos: 13},
 	}
 	want := mustHex(t,
 		"0100000000000000"+"0200000000000000"+ // Total
@@ -261,7 +263,7 @@ func TestRefineCost_GoldenVector(t *testing.T) {
 			"0800000000000000"+"0900000000000000"+ // PeekPokePages
 			"0a00000000000000"+"0b00000000000000"+ // Invoke
 			"0c00000000000000"+"0d00000000000000") // Other
-	if got := c.Encode(); !bytes.Equal(got, want) {
+	if got := EncodeRefineCost(c); !bytes.Equal(got, want) {
 		t.Fatalf("RefineCost golden mismatch:\n  got:  %x\n  want: %x", got, want)
 	}
 }
@@ -270,19 +272,19 @@ func TestRefineCost_GoldenVector(t *testing.T) {
 // Transfer ExecCost and the Other ExecCost. Easy to swap by accident in
 // a future refactor. The golden vector pins the order.
 func TestAccumulateCost_GoldenVector(t *testing.T) {
-	c := AccumulateCost{
+	c := pvmcost.AccumulateCost{
 		AccumulateCalls:           0x11,
 		TransfersProcessed:        0x22,
 		ItemsAccumulated:          0x33,
-		Total:                     ExecCost{GasUsed: 1, ElapsedNanos: 2},
+		Total:                     pvmcost.ExecCost{GasUsed: 1, ElapsedNanos: 2},
 		CompileNanos:              3,
-		ReadWrite:                 ExecCost{GasUsed: 4, ElapsedNanos: 5},
-		Lookup:                    ExecCost{GasUsed: 6, ElapsedNanos: 7},
-		QuerySolicitForgetProvide: ExecCost{GasUsed: 8, ElapsedNanos: 9},
-		InfoNewUpgradeEject:       ExecCost{GasUsed: 10, ElapsedNanos: 11},
-		Transfer:                  ExecCost{GasUsed: 12, ElapsedNanos: 13},
+		ReadWrite:                 pvmcost.ExecCost{GasUsed: 4, ElapsedNanos: 5},
+		Lookup:                    pvmcost.ExecCost{GasUsed: 6, ElapsedNanos: 7},
+		QuerySolicitForgetProvide: pvmcost.ExecCost{GasUsed: 8, ElapsedNanos: 9},
+		InfoNewUpgradeEject:       pvmcost.ExecCost{GasUsed: 10, ElapsedNanos: 11},
+		Transfer:                  pvmcost.ExecCost{GasUsed: 12, ElapsedNanos: 13},
 		TotalTransferGas:          0x44,
-		Other:                     ExecCost{GasUsed: 14, ElapsedNanos: 15},
+		Other:                     pvmcost.ExecCost{GasUsed: 14, ElapsedNanos: 15},
 	}
 	want := mustHex(t,
 		"11000000"+"22000000"+"33000000"+ // u32 counts
@@ -295,7 +297,7 @@ func TestAccumulateCost_GoldenVector(t *testing.T) {
 			"0c00000000000000"+"0d00000000000000"+ // Transfer
 			"4400000000000000"+ // TotalTransferGas — pinned BEFORE Other
 			"0e00000000000000"+"0f00000000000000") // Other
-	if got := c.Encode(); !bytes.Equal(got, want) {
+	if got := EncodeAccumulateCost(c); !bytes.Equal(got, want) {
 		t.Fatalf("AccumulateCost golden mismatch:\n  got:  %x\n  want: %x", got, want)
 	}
 }
@@ -316,19 +318,19 @@ func TestCosts_TruncatedInputErrors(t *testing.T) {
 		enc  []byte
 		read func(*Decoder) error
 	}{
-		{"ExecCost", makeSampleExecCost(1).Encode(), func(d *Decoder) error {
+		{"ExecCost", EncodeExecCost(makeSampleExecCost(1)), func(d *Decoder) error {
 			_, err := d.ReadExecCost()
 			return err
 		}},
-		{"IsAuthorizedCost", IsAuthorizedCost{Total: makeSampleExecCost(1)}.Encode(), func(d *Decoder) error {
+		{"IsAuthorizedCost", EncodeIsAuthorizedCost(pvmcost.IsAuthorizedCost{Total: makeSampleExecCost(1)}), func(d *Decoder) error {
 			_, err := d.ReadIsAuthorizedCost()
 			return err
 		}},
-		{"RefineCost", RefineCost{Total: makeSampleExecCost(1)}.Encode(), func(d *Decoder) error {
+		{"RefineCost", EncodeRefineCost(pvmcost.RefineCost{Total: makeSampleExecCost(1)}), func(d *Decoder) error {
 			_, err := d.ReadRefineCost()
 			return err
 		}},
-		{"AccumulateCost", AccumulateCost{AccumulateCalls: 1}.Encode(), func(d *Decoder) error {
+		{"AccumulateCost", EncodeAccumulateCost(pvmcost.AccumulateCost{AccumulateCalls: 1}), func(d *Decoder) error {
 			_, err := d.ReadAccumulateCost()
 			return err
 		}},

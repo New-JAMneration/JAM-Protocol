@@ -6,6 +6,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/pvmcost"
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
@@ -120,12 +121,20 @@ func WorkReportCompute(
 	workPackgeBundle []byte,
 	workPackageHash types.OpaqueHash,
 	pvm PVMExecutor,
-) (types.WorkReport, error) {
+) (types.WorkReport, WorkPackageTelemetryCost, error) {
 	returnType := pvm.Psi_I(*workPackage, coreIndex, pc)
 	o := returnType.WorkOutput
 	g := returnType.Gas
 	if returnType.WorkExecResult != types.WorkExecResultOk || len(o) > types.WorkReportOutputBlobsMaximumSize {
-		return types.WorkReport{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
+		// Discarding returnType.Cost here is deliberate: JIP-3 has no
+		// cost-carrying event on this path — failures map to event 92
+		// (reason string only); events 95/101 fire on success.
+		return types.WorkReport{}, WorkPackageTelemetryCost{}, fmt.Errorf("work item execution failed: %v", returnType.WorkExecResult)
+	}
+
+	cost := WorkPackageTelemetryCost{
+		IsAuthorized: returnType.Cost,
+		Refine:       make([]pvmcost.RefineCost, 0, len(workPackage.Items)),
 	}
 
 	results := make([]types.WorkResult, 0, len(workPackage.Items))
@@ -133,11 +142,12 @@ func WorkReportCompute(
 
 	rSum := 0
 	for j, item := range workPackage.Items {
-		r, u, e := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum, coreIndex)
+		r, u, e, rc := I(*workPackage, j, o, importSegments, extrinsicMap, delta, pvm, rSum, coreIndex)
 		rSum += len(r.Data)
 		result := C(item, r, u)
 		results = append(results, result)
 		exports = append(exports, e)
+		cost.Refine = append(cost.Refine, rc)
 	}
 
 	cp := 0
@@ -150,7 +160,7 @@ func WorkReportCompute(
 	}
 	s, err := A(workPackageHash, workPackgeBundle, exportsData)
 	if err != nil {
-		return types.WorkReport{}, fmt.Errorf("failed to create work package spec: %w", err)
+		return types.WorkReport{}, WorkPackageTelemetryCost{}, fmt.Errorf("failed to create work package spec: %w", err)
 	}
 	return types.WorkReport{
 		PackageSpec:    s,
@@ -160,10 +170,12 @@ func WorkReportCompute(
 		AuthOutput:     o,
 		Results:        results,
 		AuthGasUsed:    g,
-	}, nil
+	}, cost, nil
 }
 
-func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor, rSum int, coreIndex types.CoreIndex) (types.WorkExecResult, types.Gas, []types.ExportSegment) {
+// The trailing pvmcost.RefineCost is a telemetry sidecar (#974): carried on
+// every branch, including failed items, so per-item alignment holds.
+func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]types.ExportSegment, extrinsicMap PVM.ExtrinsicDataMap, delta types.ServiceAccountState, pvm PVMExecutor, rSum int, coreIndex types.CoreIndex) (types.WorkExecResult, types.Gas, []types.ExportSegment, pvmcost.RefineCost) {
 	workItem := workPackage.Items[j]
 	expectedCount := workItem.ExportCount
 	lSum := 0
@@ -182,22 +194,22 @@ func I(workPackage types.WorkPackage, j int, o types.ByteSequence, imports [][]t
 		ExtrinsicDataMap:    extrinsicMap,
 	}
 
-	refineOuput := pvm.RefineInvoke(refineInput)
-	r := refineOuput.RefineOutput
-	e := refineOuput.ExportSegment
-	u := refineOuput.Gas
+	refineOutput := pvm.RefineInvoke(refineInput)
+	r := refineOutput.RefineOutput
+	e := refineOutput.ExportSegment
+	u := refineOutput.Gas
 	z := len(o) + rSum
 	if len(r)+z > types.WorkReportOutputBlobsMaximumSize {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: types.WorkExecResultReportOversize}, u, emptyExport
+		return types.WorkExecResult{Type: types.WorkExecResultReportOversize}, u, emptyExport, refineOutput.Cost
 	} else if len(e) != int(workItem.ExportCount) {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: types.WorkExecResultBadExports}, u, emptyExport
-	} else if refineOuput.WorkResult != types.WorkExecResultOk {
+		return types.WorkExecResult{Type: types.WorkExecResultBadExports}, u, emptyExport, refineOutput.Cost
+	} else if refineOutput.WorkResult != types.WorkExecResultOk {
 		emptyExport := make([]types.ExportSegment, expectedCount)
-		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, emptyExport
+		return types.WorkExecResult{Type: refineOutput.WorkResult, Data: r}, u, emptyExport, refineOutput.Cost
 	} else {
-		return types.WorkExecResult{Type: refineOuput.WorkResult, Data: r}, u, e
+		return types.WorkExecResult{Type: refineOutput.WorkResult, Data: r}, u, e, refineOutput.Cost
 	}
 }
 

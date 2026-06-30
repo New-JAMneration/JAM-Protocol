@@ -35,6 +35,16 @@ type WorkPackageController struct {
 	Extrinsics  []byte             // Initial
 	WorkPackage *types.WorkPackage // Initial
 	Bundle      []byte             // Shared
+
+	// TelemetryCost is the JIP-3 cost sidecar (#974) from the last
+	// fully-successful Process call — it is assigned only after every
+	// fallible step completes, so a failed Process never leaves a stale
+	// cost here. Observability-only; zero before the first success.
+	// (JIP-3 failure paths map to event 92, which carries no cost —
+	// events 95/101 fire on success only.) Not synchronized: read it only
+	// from the goroutine that called Process. The future event 95/101
+	// bridge (#958) reads it here.
+	TelemetryCost WorkPackageTelemetryCost
 }
 
 func NewInitialController(wp *types.WorkPackage, extrinsics []byte, coreIndex types.CoreIndex, fetcher DASegmentFetcher) *WorkPackageController {
@@ -75,7 +85,7 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 	// and wait for them to send back work report hash and ed25519 signature
 	// two goroutines to two different guarantors
 
-	report, err := WorkReportCompute(&workPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackageBundle, workPackageHash, p.PVM)
+	report, cost, err := WorkReportCompute(&workPackage, p.CoreIndex, pa, pc, extrinsicMap, importSegments, delta, workPackageBundle, workPackageHash, p.PVM)
 	if err != nil {
 		return types.WorkReport{}, err
 	}
@@ -89,6 +99,10 @@ func (p *WorkPackageController) Process() (types.WorkReport, error) {
 
 	// check if work report is same between all the guarantors
 
+	// Assign cost only after every fallible post-compute step has
+	// succeeded, so a failed Process never leaves a stale cost on the
+	// controller (#974 sidecar invariant: cost present ⇒ Process ok).
+	p.TelemetryCost = cost
 	return report, nil
 }
 
