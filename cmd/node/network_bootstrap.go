@@ -20,6 +20,7 @@ import (
 	cehandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	uphandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/up"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	topologypkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/topology"
 	validatorpkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	nodepkg "github.com/New-JAMneration/JAM-Protocol/internal/node"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
@@ -36,6 +37,7 @@ const (
 type nodeRuntime struct {
 	peer        *quic.Peer
 	syncManager *nodepkg.SyncManager
+	topology    *topologypkg.Manager
 }
 
 func (n *nodeRuntime) Close() {
@@ -79,14 +81,25 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	peer.SetEventBus(eventBus)
 
 	registerRequiredCEHandlers(peer, chain)
-	registerUP0Handler(peer, chain, role, nil, eventBus)
+
+	var vm *validatorpkg.ValidatorManager
+	if role == validatorNodeRole {
+		vm = validatorpkg.NewValidatorManagerFromChain(chain, types.Ed25519Public(peer.Ed25519Key))
+	}
+	registerUP0Handler(peer, chain, role, vm, eventBus)
 	if err := peer.Start(ctx); err != nil {
 		_ = peer.Close()
 		return nil, fmt.Errorf("start networking peer: %w", err)
 	}
 
-	syncManager := nodepkg.NewSyncManager(chain, eventBus)
+	syncManager := nodepkg.NewSyncManager(chain, eventBus, peer)
 	syncManager.Start()
+
+	var topo *topologypkg.Manager
+	if role == validatorNodeRole && vm != nil {
+		topo = topologypkg.NewManager(peer, vm, chain, types.Ed25519Public(peer.Ed25519Key))
+		topo.Start(ctx, eventBus)
+	}
 
 	if err := bootstrapFromChainSpec(peer, chainPath); err != nil {
 		_ = peer.Close()
@@ -99,6 +112,7 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	return &nodeRuntime{
 		peer:        peer,
 		syncManager: syncManager,
+		topology:    topo,
 	}, nil
 }
 
@@ -138,7 +152,8 @@ func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role node
 			Hash:     blockHash,
 			Timeslot: ann.Header.Slot,
 		}
-		remote := &quic.Peer{Ed25519Key: peerKey}
+		remote := peer.RemotePeer(peerKey)
+		remote.Best = head
 		return eventBus.PublishPeerUpdated(context.Background(), remote, head)
 	}
 	peer.RegisterHandler(uphandler.StreamKindUP0, up0.Handle)
