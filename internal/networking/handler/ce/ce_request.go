@@ -106,11 +106,13 @@ func (h *DefaultCERequestHandler) Encode(req CERequestID, message interface{}) (
 }
 
 func (h *DefaultCERequestHandler) Decode(data []byte) (CERequestID, interface{}, error) {
-	// TODO: Implement decoding logic
-	// This would involve:
-	// 1. Reading the request type from the beginning of the data
-	// 2. Based on the request type, decoding the appropriate message structure
-	// 3. Returning the decoded request type and message
-
-	return BlockRequest, nil, fmt.Errorf("decoding not implemented yet")
+	reqID, payload, err := splitLeadingRequestID(data)
+	if err != nil {
+		return 0, nil, err
+	}
+	msg, err := h.DecodePayload(reqID, payload)
+	if err != nil {
+		return reqID, nil, err
+	}
+	return reqID, msg, nil
 }

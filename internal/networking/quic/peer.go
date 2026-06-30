@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,9 @@ type PeerRole string
 const (
 	Validator PeerRole = "validator"
 	Builder   PeerRole = "builder"
+
+	// MaxBuilderConnections reserves listener slots for builder ALPN peers (JAMNP-S).
+	MaxBuilderConnections = 20
 )
 
 type PeerConfig struct {
@@ -211,7 +215,18 @@ func (p *Peer) acceptLoop() {
 }
 
 func (p *Peer) handleConnection(qconn quic.Connection, peerKey ed25519.PublicKey) {
-	conn := NewConnection(qconn, Validator, qconn.RemoteAddr())
+	tlsState := qconn.ConnectionState().TLS
+	role := Validator
+	if strings.HasSuffix(tlsState.NegotiatedProtocol, "/builder") {
+		role = Builder
+		if p.CountConnectionsByRole(Builder) >= MaxBuilderConnections {
+			log.Printf("rejecting builder connection from %x: builder slot limit reached", peerKey[:4])
+			_ = qconn.CloseWithError(0, "builder slot limit")
+			return
+		}
+	}
+
+	conn := NewConnection(qconn, role, qconn.RemoteAddr())
 	p.connManager.Add(conn.Addr.String(), conn)
 
 	remote := &Peer{Ed25519Key: peerKey}
@@ -416,6 +431,57 @@ func (p *Peer) Close() error {
 		}
 	}
 	return closeErr
+}
+
+// ConnectedPeerKeys returns Ed25519 keys for all tracked remote peers.
+func (p *Peer) ConnectedPeerKeys() []ed25519.PublicKey {
+	if p == nil || p.peerSet == nil {
+		return nil
+	}
+	peers := p.peerSet.All()
+	keys := make([]ed25519.PublicKey, 0, len(peers))
+	for _, peer := range peers {
+		if len(peer.Ed25519Key) == ed25519.PublicKeySize {
+			keys = append(keys, peer.Ed25519Key)
+		}
+	}
+	return keys
+}
+
+// CountConnectionsByRole counts active QUIC connections with the given role.
+func (p *Peer) CountConnectionsByRole(role PeerRole) int {
+	if p == nil || p.connManager == nil {
+		return 0
+	}
+	count := 0
+	for _, conn := range p.connManager.All() {
+		if conn.Role == role {
+			count++
+		}
+	}
+	return count
+}
+
+// DisconnectPeer closes the QUIC connection to peerKey and removes it from tracking.
+func (p *Peer) DisconnectPeer(peerKey ed25519.PublicKey) error {
+	if p == nil {
+		return fmt.Errorf("nil peer")
+	}
+	remote, ok := p.peerSet.GetByEd25519(peerKey)
+	if !ok || remote.ID == "" {
+		return fmt.Errorf("peer not connected")
+	}
+	conn, ok := p.connManager.GetByAddr(remote.ID)
+	if !ok {
+		return fmt.Errorf("connection not found for peer")
+	}
+	addr := remote.ID
+	if err := conn.Close(); err != nil {
+		return err
+	}
+	p.connManager.Remove(addr)
+	p.peerSet.Remove(remote, addr)
+	return nil
 }
 
 func extractPeerKey(conn quic.Connection) (ed25519.PublicKey, error) {
