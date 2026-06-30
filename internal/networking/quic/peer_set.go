@@ -60,6 +60,10 @@ func (ps *PeerSet) Remove(p *Peer, addr string) {
 	}
 }
 
+func (ps *PeerSet) GetByEd25519(key ed25519.PublicKey) (*Peer, bool) {
+	return ps.GetByKey(peerKeyString(&Peer{Ed25519Key: key}))
+}
+
 func (ps *PeerSet) GetByKey(key string) (*Peer, bool) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
