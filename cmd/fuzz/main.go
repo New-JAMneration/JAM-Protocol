@@ -84,6 +84,7 @@ var cmd = cli.Command{
 		getStateCmd,
 		testFolderCmd,
 		testStepFolderCmd,
+		testTraceFolderCmd,
 	},
 }
 
