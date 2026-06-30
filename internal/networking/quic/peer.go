@@ -152,6 +152,23 @@ func (p *Peer) SetEventBus(eventBus *EventBus) {
 	p.eventBus = eventBus
 }
 
+// RemotePeer returns the tracked peer for key, or a minimal peer carrying only the key.
+func (p *Peer) RemotePeer(peerKey ed25519.PublicKey) *Peer {
+	if remote, ok := p.peerSet.GetByEd25519(peerKey); ok {
+		return remote
+	}
+	return &Peer{Ed25519Key: peerKey}
+}
+
+// ConnectionFor returns the QUIC connection to peerKey when known.
+func (p *Peer) ConnectionFor(peerKey ed25519.PublicKey) (*Connection, bool) {
+	remote, ok := p.peerSet.GetByEd25519(peerKey)
+	if !ok || remote.ID == "" {
+		return nil, false
+	}
+	return p.connManager.GetByAddr(remote.ID)
+}
+
 func (p *Peer) Start(ctx context.Context) error {
 	if p.Listener == nil {
 		return fmt.Errorf("listener is nil")

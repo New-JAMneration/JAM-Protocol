@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -13,6 +14,25 @@ type ValidatorManager struct {
 	Grid      *GridMapper
 	SelfIndex int
 	SelfKey   types.Ed25519Public
+}
+
+// NewValidatorManagerFromChain builds grid eligibility state from chain validator sets.
+func NewValidatorManagerFromChain(chain *blockchain.ChainState, selfKey types.Ed25519Public) *ValidatorManager {
+	if chain == nil {
+		return nil
+	}
+	prior := chain.GetPriorStates()
+	grid := &GridMapper{
+		Previous: prior.GetLambda(),
+		Current:  prior.GetKappa(),
+		Next:     prior.GetGammaK(),
+	}
+	selfIndex, _ := grid.FindIndex(selfKey)
+	return &ValidatorManager{
+		Grid:      grid,
+		SelfIndex: selfIndex,
+		SelfKey:   selfKey,
+	}
 }
 
 func (vm *ValidatorManager) GetNeighbors() []types.Validator {
