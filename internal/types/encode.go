@@ -224,7 +224,17 @@ func (t *TicketID) Encode(e *Encoder) error {
 // TicketAttempt
 func (t *TicketAttempt) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding TicketAttempt")
-	if err := e.EncodeLength(uint64(*t)); err != nil {
+	// GP v0.8.0 serialization: the ticket entry-index is a fixed single byte
+	// (encode[1]); v0.7.x used the compact natural encoding, which diverges
+	// for values >= 128.
+	if *t > 0xFF {
+		return fmt.Errorf("TicketAttempt %d does not fit in one byte", *t)
+	}
+	encoded, err := e.EncodeUintWithLength(uint64(*t), 1)
+	if err != nil {
+		return err
+	}
+	if _, err := e.buf.Write(encoded); err != nil {
 		return err
 	}
 
@@ -1783,6 +1793,13 @@ func (v *ValidatorsData) Encode(e *Encoder) error {
 
 	if len(*v) != int(ValidatorsCount) {
 		return fmt.Errorf("ValidatorsData length %d is not equal to ValidatorsCount %d", len(*v), ValidatorsCount)
+	}
+
+	// GP v0.8.0 merklization C(4)/C(7)-C(9): the validator-set sequences
+	// (gamma_p, iota, kappa, lambda) are length-prefixed (var); v0.7.x
+	// emitted them fixed-length.
+	if err := e.EncodeLength(uint64(len(*v))); err != nil {
+		return err
 	}
 
 	for _, validator := range *v {
