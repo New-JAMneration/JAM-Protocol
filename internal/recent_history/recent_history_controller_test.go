@@ -23,6 +23,13 @@ func TestMain(m *testing.M) {
 }
 
 func TestRecentHistoryTestVectors(t *testing.T) {
+	// GP v0.8.0 eq:recenthistoryspec adds a timeslot to each recent-history
+	// entry (#1014), so the v0.7.x history vectors' beta no longer decodes and
+	// the post-state comparison no longer holds. Re-enable on official v0.8.0
+	// vectors (#1012). The wire format is covered by
+	// TestEncodeBlockInfo_V080Timeslot in internal/types.
+	t.Skip("v0.7.x history vectors predate the GP v0.8.0 BlockInfo timeslot (#1014); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(utilities.JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
 
 	// Read binary files
@@ -96,7 +103,9 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		beefyBeltPrime, commitment := recent_history.AppendAndCommitMmr(history.PreState.Beta.Mmr, history.Input.AccumulateRoot)
 		t.Logf("mmr peaks after append: %+v", beefyBeltPrime.Peaks)
 		workReportHash := recent_history.MapWorkReportFromEg(block.Extrinsic.Guarantees)
-		item := recent_history.NewItem(history.Input.HeaderHash, workReportHash, commitment)
+		// Slot 0: the v0.7.x HistoryInput has no slot; the real value comes with
+		// the official v0.8.0 vector schema (#1012).
+		item := recent_history.NewItem(history.Input.HeaderHash, workReportHash, commitment, 0)
 		historyPrime := recent_history.AddItem2BetaHPrime(HistoryDagger, item)
 		// Set beta_B^prime and beta_H^prime to store
 		storeInstance.GetPosteriorStates().SetBetaB(beefyBeltPrime)

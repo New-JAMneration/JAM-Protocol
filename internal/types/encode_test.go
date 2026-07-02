@@ -490,3 +490,88 @@ func TestEncodeRefineContext_V080Fields(t *testing.T) {
 		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, ctx)
 	}
 }
+
+// TestEncodeBlockInfo_V080Timeslot covers the GP v0.8.0 eq:recenthistoryspec /
+// C(3) addition: a 4-byte timeslot between the state root and the reported
+// work packages.
+func TestEncodeBlockInfo_V080Timeslot(t *testing.T) {
+	info := BlockInfo{
+		HeaderHash: HeaderHash{0x11},
+		BeefyRoot:  OpaqueHash{0x22},
+		StateRoot:  StateRoot{0x33},
+		Timeslot:   0x0A0B0C0D,
+		Reported: []ReportedWorkPackage{
+			{Hash: WorkReportHash{0x44}, ExportsRoot: ExportsRoot{0x55}},
+		},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&info)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: headerHash(32) ++ beefyRoot(32) ++ stateRoot(32) ++ timeslot(4)
+	// ++ reported length prefix(1, value 1) ++ reported[0](32+32) = 165 bytes.
+	const want = 32 + 32 + 32 + 4 + 1 + 64
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// timeslot (0x0A0B0C0D little-endian) must follow the state root.
+	if off := 32 + 32 + 32; encoded[off] != 0x0D || encoded[off+1] != 0x0C ||
+		encoded[off+2] != 0x0B || encoded[off+3] != 0x0A {
+		t.Errorf("timeslot bytes = % x at offset %d, want 0d 0c 0b 0a",
+			encoded[off:off+4], off)
+	}
+
+	decoder := NewDecoder()
+	var got BlockInfo
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(info, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, info)
+	}
+}
+
+// TestEncodeEpochMark_V080LengthPrefix covers the GP v0.8.0 encodeepochmark
+// change: the validator-key sequence is length-prefixed (var{k}); v0.7.x
+// emitted it fixed-length.
+func TestEncodeEpochMark_V080LengthPrefix(t *testing.T) {
+	mark := EpochMark{
+		Entropy:        Entropy{0x11},
+		TicketsEntropy: Entropy{0x22},
+		Validators:     make([]EpochMarkValidatorKeys, ValidatorsCount),
+	}
+	for i := range mark.Validators {
+		mark.Validators[i].Bandersnatch = BandersnatchPublic{byte(i + 1)}
+		mark.Validators[i].Ed25519 = Ed25519Public{byte(i + 1)}
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&mark)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: entropy(32) ++ ticketsEntropy(32) ++ length prefix(1, value
+	// ValidatorsCount) ++ ValidatorsCount * (bandersnatch 32 + ed25519 32).
+	want := 32 + 32 + 1 + ValidatorsCount*64
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// The length prefix must follow the two entropies.
+	if off := 32 + 32; encoded[off] != byte(ValidatorsCount) {
+		t.Errorf("validators length prefix = %d at offset %d, want %d",
+			encoded[off], off, ValidatorsCount)
+	}
+
+	decoder := NewDecoder()
+	var got EpochMark
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(mark, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, mark)
+	}
+}

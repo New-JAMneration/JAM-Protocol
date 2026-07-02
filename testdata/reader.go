@@ -119,19 +119,28 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
-// v080IncompatibleModes lists jam-test-vector modes whose vectors carry a
-// WorkReport (and therefore a WorkPackageSpec). GP v0.8.0 (eq:avspec) adds an
-// erasure_shards (u16) field to WorkPackageSpec between erasure_root and
-// exports_root, so the v0.7.x vectors no longer decode (unexpected EOF). The
-// whole mode is skipped until official v0.8.0 vectors land (#1012 non-goal:
+// v080IncompatibleModes lists jam-test-vector STF modes whose v0.7.x vectors
+// no longer decode (or no longer hold) under GP v0.8.0 wire changes. The whole
+// mode is skipped until official v0.8.0 vectors land (#1012 non-goal:
 // conformance re-gate waits on v0.8.0 vectors). Remove an entry once its
-// v0.8.0 vector ships. The wire format itself is covered by the
-// WorkPackageSpec round-trip unit test in internal/types.
+// v0.8.0 vector ships. The wire formats themselves are covered by round-trip
+// unit tests in internal/types.
+//
+//   - reports/assurances/disputes/accumulate: vectors carry a WorkReport;
+//     WorkPackageSpec gains erasure_shards (eq:avspec, #1015) and
+//     RefineContext gains anchor_slot + lookup_anchor_state_root
+//     (eq:workcontext, #1016).
+//   - history: state beta entries (BlockInfo) gain a timeslot
+//     (eq:recenthistoryspec / C(3), #1014).
+//   - safrole: EpochMark's validator-key sequence gains a var length prefix
+//     (encodeepochmark, #1014), which the .bin vectors' output marks predate.
 var v080IncompatibleModes = map[TestMode]bool{
 	ReportsMode:    true,
 	AssurancesMode: true,
 	DisputesMode:   true,
 	AccumulateMode: true,
+	HistoryMode:    true,
+	SafroleMode:    true,
 }
 
 // ReadTestData reads all test files from the configured directory
@@ -140,6 +149,15 @@ func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 
 	// Whole-mode skip for v0.8.0-incompatible vectors (see v080IncompatibleModes).
 	if v080IncompatibleModes[r.mode] {
+		return nil, nil
+	}
+
+	// Trace vectors embed the full serialized state (and full blocks), so any
+	// state-serialization change invalidates every trace. GP v0.8.0 changes
+	// C(3) (BlockInfo timeslot, #1014) on top of the WorkReport changes
+	// (#1015/#1016), so all v0.7.x traces are skipped until official v0.8.0
+	// traces land (#1012).
+	if r.dataType == "trace" {
 		return nil, nil
 	}
 

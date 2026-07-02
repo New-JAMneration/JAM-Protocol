@@ -121,9 +121,18 @@ func (e *EpochMark) Decode(d *Decoder) error {
 
 	cLog(Yellow, "TicketsEntropy: %x", e.TicketsEntropy)
 
-	// make the slice with validators count
-	e.Validators = make([]EpochMarkValidatorKeys, ValidatorsCount)
-	for i := 0; i < ValidatorsCount; i++ {
+	// GP v0.8.0 encodeepochmark: the validator-key sequence is length-prefixed
+	// (var{k}); v0.7.x assumed a fixed ValidatorsCount entries.
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	if length != uint64(ValidatorsCount) {
+		return fmt.Errorf("epoch mark validators length %d is not equal to ValidatorCount %d", length, ValidatorsCount)
+	}
+
+	e.Validators = make([]EpochMarkValidatorKeys, length)
+	for i := uint64(0); i < length; i++ {
 		if err = e.Validators[i].Decode(d); err != nil {
 			return err
 		}
@@ -2185,6 +2194,11 @@ func (b *BlockInfo) Decode(d *Decoder) error {
 	}
 
 	if err = b.StateRoot.Decode(d); err != nil {
+		return err
+	}
+
+	// Timeslot (GP v0.8.0 eq:recenthistoryspec / C(3): E4 between state root and reported)
+	if err = b.Timeslot.Decode(d); err != nil {
 		return err
 	}
 
