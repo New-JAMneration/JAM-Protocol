@@ -1871,8 +1871,9 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 func (a *AvailabilityAssignment) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AvailabilityAssignment")
 
-	// Report
-	if err := a.Report.Encode(e); err != nil {
+	// Guarantee (GP v0.8.0 eq:reportingstate / C(10): report ++ E4(slot) ++
+	// var(credential); v0.7.x stored only the bare report)
+	if err := a.Guarantee.Encode(e); err != nil {
 		return err
 	}
 

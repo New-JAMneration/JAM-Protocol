@@ -1337,17 +1337,19 @@ func (a *AuthPools) UnmarshalJSON(data []byte) error {
 }
 
 // AvailabilityAssignment
+// GP v0.8.0 eq:reportingstate: the entry stores the full guarantee. The JSON
+// key ("guarantee") pends confirmation by the official v0.8.0 vector schema.
 func (a *AvailabilityAssignment) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Report       WorkReport `json:"report"`
-		AssignedSlot TimeSlot   `json:"timeout"`
+		Guarantee    ReportGuarantee `json:"guarantee"`
+		AssignedSlot TimeSlot        `json:"timeout"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
 
-	a.Report = temp.Report
+	a.Guarantee = temp.Guarantee
 	a.AssignedSlot = temp.AssignedSlot
 
 	return nil

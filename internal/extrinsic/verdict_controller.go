@@ -266,7 +266,7 @@ func (v *VerdictController) ClearWorkReports(verdictSumSequence []VerdictSummary
 			continue
 		}
 		encoder := types.GetEncoder()
-		encoded, _ := encoder.Encode(&priorStatesRho[i].Report)
+		encoded, _ := encoder.Encode(&priorStatesRho[i].Guarantee.Report)
 		types.PutEncoder(encoder)
 		hashReport := hash.Blake2bHash(encoded)
 		if clearReports[types.WorkReportHash(hashReport)] {

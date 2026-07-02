@@ -347,7 +347,7 @@ func (g *GuaranteeController) ValidateWorkPackageHashes() error {
 	aMap := make(map[types.WorkPackageHash]bool, len(rho))
 	for _, v := range rho {
 		if v != nil {
-			aMap[v.Report.PackageSpec.Hash] = true
+			aMap[v.Guarantee.Report.PackageSpec.Hash] = true
 		}
 	}
 	xiCap := 0
@@ -476,8 +476,10 @@ func (g *GuaranteeController) TransitionWorkReport() {
 	posteriorTau := cs.GetPosteriorStates().GetTau()
 
 	for _, guarantee := range g.Guarantees {
+		// GP v0.8.0 eq:reportingstate: rho stores the full guarantee, not just
+		// the bare work report.
 		rhoDoubleDagger[guarantee.Report.CoreIndex] = &types.AvailabilityAssignment{
-			Report:       guarantee.Report,
+			Guarantee:    guarantee,
 			AssignedSlot: posteriorTau,
 		}
 	}
