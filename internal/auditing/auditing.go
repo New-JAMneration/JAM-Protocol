@@ -40,7 +40,7 @@ func CollectAuditReportCandidates() []*types.WorkReport {
 	for index, assignment := range rho {
 		// check if core has an assignment
 		if assignment != nil {
-			report := assignment.Report
+			report := assignment.Guarantee.Report
 			// Only keep it if the assigned report is still available in W (ρ[c]w ∈ W)
 			if available[report.PackageSpec.Hash] {
 				Q[index] = &report

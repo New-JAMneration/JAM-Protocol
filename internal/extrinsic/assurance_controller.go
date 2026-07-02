@@ -178,7 +178,7 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 			}
 
 			// Append the work report to the available work reports
-			availableWorkReports = append(availableWorkReports, rhoDagger[i].Report)
+			availableWorkReports = append(availableWorkReports, rhoDagger[i].Guarantee.Report)
 		}
 	}
 
@@ -224,7 +224,7 @@ func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 			continue
 		}
 
-		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Report.CoreIndex]
+		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Guarantee.Report.CoreIndex]
 		reportIsTimeout := headerTimeSlot >= rhoDagger[coreIndex].AssignedSlot+types.TimeSlot(types.WorkReportTimeout)
 
 		if reportIsAvailable || reportIsTimeout {
