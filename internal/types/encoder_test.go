@@ -182,6 +182,7 @@ func TestEncodeJamTestVectorsStatistics(t *testing.T) {
 
 // Safrole
 func TestEncodeJamTestVectorsSafrole(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	// Read json files
@@ -524,6 +525,7 @@ func TestEncodeJamTestVectorsPreimages(t *testing.T) {
 
 // History
 func TestEncodeJamTestVectorsHistory(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
 
 	// Read json files

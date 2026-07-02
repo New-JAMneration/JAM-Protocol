@@ -647,6 +647,7 @@ type BlockInfo struct {
 	HeaderHash HeaderHash            `json:"header_hash"` // $h$: Hash of the block header
 	BeefyRoot  OpaqueHash            `json:"beefy_root"`  // $b$: Merkle Mountain Range root
 	StateRoot  StateRoot             `json:"state_root"`  // $s$: Posterior state root
+	Timeslot   TimeSlot              `json:"slot"`        // GP v0.8.0 eq:recenthistoryspec: time slot of the block (H_t), encode[4]
 	Reported   []ReportedWorkPackage `json:"reported"`    // $\mathbf{p}$: Work packages reported in this block (...Cores)
 }
 
