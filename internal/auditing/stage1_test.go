@@ -122,7 +122,7 @@ func makeDetailedAvailabilityAssignments(reports ...types.WorkReport) types.Avai
 	assignments := make(types.AvailabilityAssignments, types.CoresCount)
 	for _, report := range reports {
 		assignments[report.CoreIndex] = &types.AvailabilityAssignment{
-			Report:       report,
+			Guarantee:    types.ReportGuarantee{Report: report},
 			AssignedSlot: 1,
 		}
 	}

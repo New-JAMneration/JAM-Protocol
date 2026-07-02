@@ -256,7 +256,7 @@ func TestAssuranceTestVectors(t *testing.T) {
 					// For debugging
 					// t.Logf("rhoDagger[%d]: %v", i, a.PreState.AvailAssignments[i])
 					// t.Logf("rhoDoubleDagger[%d]: %v", i, rhoDoubleDagger[i])
-					ourOutput = append(ourOutput, a.PreState.AvailAssignments[i].Report)
+					ourOutput = append(ourOutput, a.PreState.AvailAssignments[i].Guarantee.Report)
 				}
 			}
 		}
