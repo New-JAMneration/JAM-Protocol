@@ -117,15 +117,17 @@ func GetBinFilename(filename string) string {
 
 // Codec
 // skipV080VectorIncompat skips decode tests that read vendored v0.7.x
-// jam-test-vectors whose WorkPackageSpec (package_spec) has only 5 fields.
-// GP v0.8.0 (eq:avspec) adds erasure_shards (u16) between erasure_root and
-// exports_root, so the decoder now expects 2 more bytes and the old vectors
-// fail with "unexpected EOF". Remove this skip once the official v0.8.0
-// vectors land (#1015 / #1012). The wire format itself is covered by
-// TestEncodeWorkPackageSpec_ErasureShards.
+// jam-test-vectors whose WorkPackageSpec/RefineContext layouts predate
+// GP v0.8.0. v0.8.0 adds erasure_shards (u16) to WorkPackageSpec between
+// erasure_root and exports_root (eq:avspec, #1015), and adds anchor_slot (u32)
+// and lookup_anchor_state_root (32 bytes) to RefineContext (eq:workcontext,
+// #1016), so the decoder now expects more bytes and the old vectors fail with
+// "unexpected EOF". Remove this skip once the official v0.8.0 vectors land
+// (#1015 / #1016 / #1012). The wire formats themselves are covered by
+// TestEncodeWorkPackageSpec_ErasureShards and TestEncodeRefineContext_V080Fields.
 func skipV080VectorIncompat(t *testing.T) {
 	t.Helper()
-	t.Skip("v0.7.x vectors lack WorkPackageSpec.erasure_shards (GP v0.8.0 eq:avspec); re-enable on official v0.8.0 vectors (#1015)")
+	t.Skip("v0.7.x vectors predate WorkPackageSpec.erasure_shards / RefineContext.anchor_slot+lookup_anchor_state_root (GP v0.8.0); re-enable on official v0.8.0 vectors (#1015/#1016)")
 }
 
 func TestDecodeJamTestVectorsCodec(t *testing.T) {

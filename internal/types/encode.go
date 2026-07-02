@@ -618,6 +618,11 @@ func (r *RefineContext) Encode(e *Encoder) error {
 		return err
 	}
 
+	// AnchorSlot (GP v0.8.0 eq:workcontext)
+	if err := r.AnchorSlot.Encode(e); err != nil {
+		return err
+	}
+
 	// StateRoot
 	if err := r.StateRoot.Encode(e); err != nil {
 		return err
@@ -635,6 +640,11 @@ func (r *RefineContext) Encode(e *Encoder) error {
 
 	// LookupAnchorSlot
 	if err := r.LookupAnchorSlot.Encode(e); err != nil {
+		return err
+	}
+
+	// LookupAnchorStateRoot (GP v0.8.0 eq:workcontext)
+	if err := r.LookupAnchorStateRoot.Encode(e); err != nil {
 		return err
 	}
 
@@ -1861,8 +1871,9 @@ func (t *TicketsOrKeys) Encode(e *Encoder) error {
 func (a *AvailabilityAssignment) Encode(e *Encoder) error {
 	cLog(Cyan, "Encoding AvailabilityAssignment")
 
-	// Report
-	if err := a.Report.Encode(e); err != nil {
+	// Guarantee (GP v0.8.0 eq:reportingstate / C(10): report ++ E4(slot) ++
+	// var(credential); v0.7.x stored only the bare report)
+	if err := a.Guarantee.Encode(e); err != nil {
 		return err
 	}
 

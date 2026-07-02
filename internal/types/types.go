@@ -168,10 +168,12 @@ type MetaCode struct {
 
 // GP §11.1, $\rho$
 type (
-	// Assignment of a work report with reported timeslot
+	// Assignment of a reported guarantee with reported timeslot.
+	// GP v0.8.0 eq:reportingstate: each core's entry stores the FULL guarantee
+	// (work report + slot + credential), not just the bare work report.
 	AvailabilityAssignment struct {
-		Report       WorkReport `json:"report"`  // $\mathbf{r}$: The work report being assigned
-		AssignedSlot TimeSlot   `json:"timeout"` // $t$: Reported timeslot of the work report
+		Guarantee    ReportGuarantee `json:"guarantee"` // $g$: The guarantee being assigned
+		AssignedSlot TimeSlot        `json:"timeout"`   // $t$: Reported timeslot of the guarantee
 	}
 
 	// Optional availability assignment (Some/None pattern)
@@ -182,7 +184,7 @@ type (
 )
 
 func (a *AvailabilityAssignment) Validate() error {
-	if err := a.Report.Validate(); err != nil {
+	if err := a.Guarantee.Report.Validate(); err != nil {
 		return fmt.Errorf("AvailabilityAssignment Report validation failed: %v", err)
 	}
 
@@ -203,12 +205,14 @@ func (assignments *AvailabilityAssignments) Validate() error {
 // Context for the refinement process when executing a work package
 // GP §11.4, $\mathbb{C}$
 type RefineContext struct {
-	Anchor           HeaderHash   `json:"anchor"`             // $a$: Anchor block hash
-	StateRoot        StateRoot    `json:"state_root"`         // $s$: Posterior state root at the anchor
-	BeefyRoot        BeefyRoot    `json:"beefy_root"`         // $b$: Posterior BEEFY consensus root ( accumulation output log super-peak )
-	LookupAnchor     HeaderHash   `json:"lookup_anchor"`      // $l$: Block hash for preimage lookups
-	LookupAnchorSlot TimeSlot     `json:"lookup_anchor_slot"` // $t$: Time slot of the lookup anchor
-	Prerequisites    []OpaqueHash `json:"prerequisites"`      // $\mathbf{p}$: Hashes of prerequisite work packages
+	Anchor                HeaderHash   `json:"anchor"`                   // $a$: Anchor block hash
+	AnchorSlot            TimeSlot     `json:"anchor_slot"`              // GP v0.8.0 eq:workcontext: anchor time slot, encode[4]
+	StateRoot             StateRoot    `json:"state_root"`               // $s$: Posterior state root at the anchor
+	BeefyRoot             BeefyRoot    `json:"beefy_root"`               // $b$: Posterior BEEFY consensus root ( accumulation output log super-peak )
+	LookupAnchor          HeaderHash   `json:"lookup_anchor"`            // $l$: Block hash for preimage lookups
+	LookupAnchorSlot      TimeSlot     `json:"lookup_anchor_slot"`       // $t$: Time slot of the lookup anchor
+	LookupAnchorStateRoot StateRoot    `json:"lookup_anchor_state_root"` // GP v0.8.0 eq:workcontext: lookup-anchor posterior state root
+	Prerequisites         []OpaqueHash `json:"prerequisites"`            // $\mathbf{p}$: Hashes of prerequisite work packages
 }
 
 func (r *RefineContext) ScaleDecode(data []byte) error {

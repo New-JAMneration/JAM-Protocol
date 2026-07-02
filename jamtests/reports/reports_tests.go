@@ -844,8 +844,8 @@ func (r *ReportsTestCase) wrapOutputData() ReportsOutputData {
 			continue
 		}
 		reportedPackage := ReportedPackage{
-			WorkPackageHash: report.Report.PackageSpec.Hash,
-			SegmentTreeRoot: types.OpaqueHash(report.Report.PackageSpec.ExportsRoot),
+			WorkPackageHash: report.Guarantee.Report.PackageSpec.Hash,
+			SegmentTreeRoot: types.OpaqueHash(report.Guarantee.Report.PackageSpec.ExportsRoot),
 		}
 
 		// find the corresponding guarantee in input

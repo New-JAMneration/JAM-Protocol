@@ -646,6 +646,11 @@ func (r *RefineContext) Decode(d *Decoder) error {
 		return err
 	}
 
+	// AnchorSlot (GP v0.8.0 eq:workcontext)
+	if err = r.AnchorSlot.Decode(d); err != nil {
+		return err
+	}
+
 	if err = r.StateRoot.Decode(d); err != nil {
 		return err
 	}
@@ -659,6 +664,11 @@ func (r *RefineContext) Decode(d *Decoder) error {
 	}
 
 	if err = r.LookupAnchorSlot.Decode(d); err != nil {
+		return err
+	}
+
+	// LookupAnchorStateRoot (GP v0.8.0 eq:workcontext)
+	if err = r.LookupAnchorStateRoot.Decode(d); err != nil {
 		return err
 	}
 
@@ -2056,7 +2066,9 @@ func (a *AvailabilityAssignment) Decode(d *Decoder) error {
 
 	var err error
 
-	if err = a.Report.Decode(d); err != nil {
+	// Guarantee (GP v0.8.0 eq:reportingstate / C(10): report ++ E4(slot) ++
+	// var(credential); v0.7.x stored only the bare report)
+	if err = a.Guarantee.Decode(d); err != nil {
 		return err
 	}
 
