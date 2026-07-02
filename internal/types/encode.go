@@ -1091,6 +1091,12 @@ func (v *Verdict) Encode(e *Encoder) error {
 		return fmt.Errorf("Votes length %d is not equal to ValidatorsSuperMajority %d", len(v.Votes), ValidatorsSuperMajority)
 	}
 
+	// GP v0.8.0 encodedisputes: the judgment sequence is length-prefixed
+	// (var{...}); v0.7.x emitted it fixed-length.
+	if err := e.EncodeLength(uint64(len(v.Votes))); err != nil {
+		return err
+	}
+
 	for _, vote := range v.Votes {
 		if err := vote.Encode(e); err != nil {
 			return err
