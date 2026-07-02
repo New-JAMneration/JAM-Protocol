@@ -15,6 +15,7 @@ type OuterAccumulationOutput struct {
 	PartialStateSet                types.PartialStateSet          // e a posterior state-context
 	AccumulatedServiceOutput       types.AccumulatedServiceOutput // b service/hash pairs
 	ServiceGasUsedList             types.ServiceGasUsedList       // u service/gas pairs
+	ProcessedTransfers             []types.DeferredTransfer       // t ⌢ t† processed deferred transfers (GP v0.8.0 eq:accseq 5th output; feeds T(s) in eq:accumulationstatisticsdef)
 }
 
 type ParallelizedAccumulationInput struct {

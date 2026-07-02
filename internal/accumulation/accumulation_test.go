@@ -320,6 +320,13 @@ func TestProcessPreimageExtrinsics_PartialIntegrate(t *testing.T) {
 }
 
 func TestAccumulateTestVectors(t *testing.T) {
+	// The v0.7.x accumulate vectors carry WorkReports whose wire layout
+	// predates GP v0.8.0 (#1015/#1016), so the decoder mis-parses a length
+	// prefix and dies on a giant allocation (OOM). Re-enable on official
+	// v0.8.0 vectors (#1012); the CI path already skips the mode via
+	// testdata.v080IncompatibleModes.
+	t.Skip("v0.7.x accumulate vectors predate GP v0.8.0 wire changes (#1015/#1016); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
 	// Read binary files
