@@ -190,7 +190,9 @@ func (t *TicketID) Decode(d *Decoder) error {
 func (t *TicketAttempt) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding TicketAttempt")
 
-	val, err := d.DecodeLength()
+	// GP v0.8.0 serialization: the ticket entry-index is a fixed single byte
+	// (encode[1]); v0.7.x used the compact natural encoding.
+	val, err := d.buf.ReadByte()
 	if err != nil {
 		return err
 	}
@@ -1970,13 +1972,20 @@ func (v *Validator) Decode(d *Decoder) error {
 func (v *ValidatorsData) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ValidatorsData")
 
-	var err error
-
-	cLog(Yellow, "ValidatorsCount: %v", ValidatorsCount)
+	// GP v0.8.0 merklization C(4)/C(7)-C(9): the validator-set sequences
+	// (gamma_p, iota, kappa, lambda) are length-prefixed (var); v0.7.x
+	// assumed a fixed ValidatorsCount entries.
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	if length != uint64(ValidatorsCount) {
+		return fmt.Errorf("ValidatorsData length %d is not equal to ValidatorsCount %d", length, ValidatorsCount)
+	}
 
 	// make the slice with length
-	validators := make([]Validator, ValidatorsCount)
-	for i := 0; i < ValidatorsCount; i++ {
+	validators := make([]Validator, length)
+	for i := uint64(0); i < length; i++ {
 		if err = validators[i].Decode(d); err != nil {
 			return err
 		}
