@@ -194,6 +194,12 @@ func (em *EpochMark) Encode(e *Encoder) error {
 		return fmt.Errorf("validators length %d is not equal to ValidatorCount %d", len(em.Validators), ValidatorsCount)
 	}
 
+	// GP v0.8.0 encodeepochmark: the validator-key sequence is length-prefixed
+	// (var{k}); v0.7.x emitted it fixed-length.
+	if err := e.EncodeLength(uint64(len(em.Validators))); err != nil {
+		return err
+	}
+
 	for _, validator := range em.Validators {
 		if err := validator.Encode(e); err != nil {
 			return err
@@ -1977,6 +1983,11 @@ func (bi *BlockInfo) Encode(e *Encoder) error {
 
 	// StateRoot
 	if err := bi.StateRoot.Encode(e); err != nil {
+		return err
+	}
+
+	// Timeslot (GP v0.8.0 eq:recenthistoryspec / C(3): E4 between state root and reported)
+	if err := bi.Timeslot.Encode(e); err != nil {
 		return err
 	}
 

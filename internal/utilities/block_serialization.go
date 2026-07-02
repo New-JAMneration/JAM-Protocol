@@ -126,6 +126,41 @@ func ExtrinsicGuaranteeSerialization(guarantees types.GuaranteesExtrinsic) (outp
 	return output
 }
 
+// p — the preimages component of the extrinsic-hash sequence.
+// GP v0.8.0 header.tex: p = E(var[(E4(s), blake(d)) for (s, d) in E_P]) — each
+// preimage blob is committed by its Blake2b hash (32 bytes, no length prefix),
+// replacing v0.7.x's full C.15 encoding of the blobs.
+func p(preimagesExtrinsic types.PreimagesExtrinsic) ([]byte, error) {
+	encoder := types.GetEncoder()
+	defer types.PutEncoder(encoder)
+
+	// Encode the length of the preimages
+	preimagesLength := uint64(len(preimagesExtrinsic))
+	encodedLength, err := encoder.EncodeUint(preimagesLength)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pre-allocate capacity: encodedLength + per preimage (requester 4 + hash 32)
+	encoded := make([]byte, 0, len(encodedLength)+len(preimagesExtrinsic)*36)
+	encoded = append(encoded, encodedLength...)
+
+	for _, preimage := range preimagesExtrinsic {
+		// E4(s): requester service index, fixed 4 bytes
+		encodedRequester, err := encoder.Encode(&preimage.Requester)
+		if err != nil {
+			return nil, err
+		}
+		encoded = append(encoded, encodedRequester...)
+
+		// blake(d): hash of the preimage blob
+		blobHash := hash.Blake2bHash(types.ByteSequence(preimage.Blob))
+		encoded = append(encoded, blobHash[:]...)
+	}
+
+	return encoded, nil
+}
+
 // g (5.6)
 // INFO: This is different between Appendix C (C.16) and (5.6).
 func g(guaranteesExtrinsic types.GuaranteesExtrinsic) ([]byte, error) {
@@ -297,7 +332,9 @@ func CreateExtrinsicHash(extrinsic types.Extrinsic) (extrinsicHash types.OpaqueH
 		return types.OpaqueHash{}, err
 	}
 
-	encodedPreimagesExtrinsic, err := EncodeExtrinsicPreimages(extrinsic.Preimages)
+	// GP v0.8.0: the preimages component commits blake(blob) per item (see p()),
+	// not the full C.15 preimage encoding.
+	encodedPreimagesExtrinsic, err := p(extrinsic.Preimages)
 	if err != nil {
 		return types.OpaqueHash{}, err
 	}

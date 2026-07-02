@@ -454,6 +454,7 @@ type BlockInfo struct {
 	HeaderHash HeaderHash            `json:"header_hash,omitempty"`
 	Mmr        Mmr                   `json:"mmr"`
 	StateRoot  StateRoot             `json:"state_root,omitempty"`
+	Timeslot   TimeSlot              `json:"slot,omitempty"` // GP v0.8.0 eq:recenthistoryspec
 	Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 }
 
