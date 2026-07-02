@@ -940,21 +940,23 @@ func (a *AccumulateTestCase) Validate() error {
 	}
 
 	for _, serviceID := range serviceIDs {
-		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
-		// Skip if the service has no accumulated reports or gas used
-		if accumulateCount == 0 && accumulateGasUsed == 0 {
+		accumulateCount, accumulateTransfersCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
+		// Skip if the service has no accumulated reports, transfers, or gas used
+		if accumulateCount == 0 && accumulateTransfersCount == 0 && accumulateGasUsed == 0 {
 			continue
 		}
 		// Update the statistics for the service
 		thisServiceActivityRecord, ok := ourStatisticsServices[serviceID]
 		if ok {
 			thisServiceActivityRecord.AccumulateCount = accumulateCount
+			thisServiceActivityRecord.AccumulateTransfersCount = accumulateTransfersCount
 			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
 			ourStatisticsServices[serviceID] = thisServiceActivityRecord
 		} else {
 			newServiceActivityRecord := types.ServiceActivityRecord{
-				AccumulateCount:   accumulateCount,
-				AccumulateGasUsed: accumulateGasUsed,
+				AccumulateCount:          accumulateCount,
+				AccumulateTransfersCount: accumulateTransfersCount,
+				AccumulateGasUsed:        accumulateGasUsed,
 			}
 			ourStatisticsServices[serviceID] = newServiceActivityRecord
 		}

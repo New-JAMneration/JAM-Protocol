@@ -93,6 +93,13 @@ func GetTestJsonFiles(dir string) []string {
 
 // We use the report's test vectors to test the cores and services statistics.
 func TestStatisticsWithReportTestVectors(t *testing.T) {
+	// v0.7.x vectors predate GP v0.8.0 statistics changes (#1021): C(13) var
+	// length prefixes on pi_V/pi_L, the (count, transfers, gas) accumulation
+	// 3-tuple, and assurances credited before the epoch rollover. Re-enable on
+	// official v0.8.0 vectors (#1012). (Note: the dir below also predates the
+	// stf/ vector layout and currently matches zero files.)
+	t.Skip("v0.7.x vectors predate GP v0.8.0 statistics changes (#1021); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "reports", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
 	for _, file := range jsonFiles {
@@ -156,6 +163,9 @@ func TestStatisticsWithReportTestVectors(t *testing.T) {
 // This function uses the statistics test vectors to test the statistics logic.
 // However, the test vector does not include the core and services statistics.
 func TestStatistics(t *testing.T) {
+	// Same rationale as TestStatisticsWithReportTestVectors (#1021).
+	t.Skip("v0.7.x vectors predate GP v0.8.0 statistics changes (#1021); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "statistics", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
 	for _, file := range jsonFiles {

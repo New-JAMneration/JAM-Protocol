@@ -30,6 +30,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestPreimageTestVectors(t *testing.T) {
+	// The v0.7.x preimages vectors carry pi_S service statistics in state,
+	// whose per-service accumulation stat became a (count, transfers, gas)
+	// 3-tuple in GP v0.8.0 (#1021), so the .bin vectors no longer decode.
+	// Re-enable on official v0.8.0 vectors (#1012).
+	t.Skip("v0.7.x preimages vectors predate the GP v0.8.0 accumulation-stats 3-tuple (#1021); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read binary files
@@ -474,21 +480,23 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	for _, serviceID := range serviceIDs {
-		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
-		// Skip if the service has no accumulated reports or gas used
-		if accumulateCount == 0 && accumulateGasUsed == 0 {
+		accumulateCount, accumulateTransfersCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
+		// Skip if the service has no accumulated reports, transfers, or gas used
+		if accumulateCount == 0 && accumulateTransfersCount == 0 && accumulateGasUsed == 0 {
 			continue
 		}
 		// Update the statistics for the service
 		thisServiceActivityRecord, ok := ourStatisticsServices[serviceID]
 		if ok {
 			thisServiceActivityRecord.AccumulateCount = accumulateCount
+			thisServiceActivityRecord.AccumulateTransfersCount = accumulateTransfersCount
 			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
 			ourStatisticsServices[serviceID] = thisServiceActivityRecord
 		} else {
 			newServiceActivityRecord := types.ServiceActivityRecord{
-				AccumulateCount:   accumulateCount,
-				AccumulateGasUsed: accumulateGasUsed,
+				AccumulateCount:          accumulateCount,
+				AccumulateTransfersCount: accumulateTransfersCount,
+				AccumulateGasUsed:        accumulateGasUsed,
 			}
 			ourStatisticsServices[serviceID] = newServiceActivityRecord
 		}

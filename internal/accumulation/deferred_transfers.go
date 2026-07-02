@@ -85,33 +85,49 @@ func getWorkResultByService(s types.ServiceID, n types.U64) []types.WorkResult {
 	return output
 }
 
-// (12.23) (12.24) (12.25)
-// u from outer accuulation function
+// u, t from outer accumulation function
 // INFO: Acutally, The I(accumulation statistics) used in chapter 13 (pi_S)
 // We save the accumulation statistics in the cs
-func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, n types.U64) types.AccumulationStatistics {
-	// (12.28–12.29)
-	// S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
+func calculateAccumulationStatistics(serviceGasUsedList types.ServiceGasUsedList, processedTransfers []types.DeferredTransfer, n types.U64) types.AccumulationStatistics {
+	// GP v0.8.0 eq:accumulationstatisticsdef
+	// S ≡ {(s ↦ (N(s), T(s), G(s))) | (N(s), T(s), G(s)) ≠ (0, 0, 0)}
 	// where:
-	//   G(s) ≡ Σ₍ₛ,ᵤ₎∈ᵤ(u)
 	//   N(s) ≡ [[d | r ∈ R*...n, d ∈ r_d, dₛ = s]]
+	//   T(s) ≡ |[t | t ∈ processedtransfers, t_dest = s]|   (new in v0.8.0)
+	//   G(s) ≡ Σ₍ₛ,ᵤ₎∈ᵤ(u)
 	G := map[types.ServiceID]types.Gas{} // G(s)
 	for _, serviceGasUsed := range serviceGasUsedList {
 		G[serviceGasUsed.ServiceID] += serviceGasUsed.Gas
 	}
 
-	// calcualte the number of work reports accumulated
+	T := map[types.ServiceID]types.U64{} // T(s)
+	for _, transfer := range processedTransfers {
+		T[transfer.ReceiverID]++
+	}
+
+	// key domain: services with gas usage or processed transfers
+	keys := make(map[types.ServiceID]bool, len(G)+len(T))
+	for s := range G {
+		keys[s] = true
+	}
+	for s := range T {
+		keys[s] = true
+	}
+
 	S := types.AccumulationStatistics{}
-	for s, Gs := range G {
+	for s := range keys {
+		Gs := G[s]
+		Ts := T[s]
 		Ns := types.U64(len(getWorkResultByService(s, n)))
 
-		if types.U64(Gs)+Ns == 0 {
-			continue // skip, N(S) = []
+		if types.U64(Gs)+Ns+Ts == 0 {
+			continue // skip, (N, T, G) = (0, 0, 0)
 		}
 
 		S[s] = types.GasAndNumAccumulatedReports{
 			Gas:                   Gs,
 			NumAccumulatedReports: Ns,
+			NumProcessedTransfers: Ts,
 		}
 	}
 	return S
@@ -293,10 +309,10 @@ func DeferredTransfers() error {
 	}
 	n := output.NumberOfWorkResultsAccumulated // n
 	u := output.ServiceGasUsedList             // u
-	// (12.23) (12.24) (12.25)
-	// Calculate the accumulation statistics I
-	// (12.28–12.29) S ≡ {(s ↦ (G(s), N(s))) | G(s)+N(s) ≠ 0}
-	S := calculateAccumulationStatistics(u, n)
+	// Calculate the accumulation statistics S (GP v0.8.0
+	// eq:accumulationstatisticsdef: (N(s), T(s), G(s)) 3-tuples, with T(s)
+	// counted from the processed transfers)
+	S := calculateAccumulationStatistics(u, output.ProcessedTransfers, n)
 	cs.GetIntermediateStates().SetAccumulationStatistics(S)
 
 	// (12.27) (12.28) (12.29) (12.30)

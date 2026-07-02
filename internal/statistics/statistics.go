@@ -100,9 +100,12 @@ func UpdateReportStatistics(statistics *types.Statistics, guarantees types.Guara
 }
 
 // a: The number of availability assurances made by the validator.
-func UpdateAvailabilityStatistics(statistics *types.Statistics, authorIndex types.ValidatorIndex, assurances types.AssurancesExtrinsic) {
+// GP v0.8.0: assurances are credited to pi_V-dagger BEFORE the epoch rollover
+// (so on an epoch-boundary block they land in pi_L', not the fresh
+// accumulator); the other five counters apply after the rollover.
+func applyAssuranceStatistics(vals types.ValidatorsStatistics, assurances types.AssurancesExtrinsic) {
 	for _, assurance := range assurances {
-		statistics.ValsCurr[assurance.ValidatorIndex].Assurances++
+		vals[assurance.ValidatorIndex].Assurances++
 	}
 }
 
@@ -127,7 +130,8 @@ func UpdateCurrentStatistics(extrinsic types.Extrinsic) {
 	UpdatePreimageStatistics(&statistics, authorIndex, extrinsic.Preimages)
 	UpdatePreimageOctetStatistics(&statistics, authorIndex, extrinsic.Preimages)
 	UpdateReportStatistics(&statistics, extrinsic.Guarantees, tau, kappa)
-	UpdateAvailabilityStatistics(&statistics, authorIndex, extrinsic.Assurances)
+	// Assurances are NOT applied here: GP v0.8.0 credits them to pi_V-dagger
+	// before the epoch rollover (see UpdateValidatorActivityStatistics).
 
 	// Update current statistics
 	cs.GetPosteriorStates().SetPiCurrent(statistics.ValsCurr)
@@ -384,17 +388,17 @@ func CalculateServiceResults(serviceID types.ServiceID, serviceWorkResultsMap Se
 	return output
 }
 
-// v0.7.1
-// (13.12) a
-// AccumulateCount, AccumulateGasUsed
-func CalculateAccumulationStatistics(serviceID types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateGasUsed types.Gas) {
+// GP v0.8.0 eq:accumulationstatisticsspec: ss-accumulation is the 3-tuple
+// (count, transfers, gas), defaulting to (0, 0, 0) for absent services.
+func CalculateAccumulationStatistics(serviceID types.ServiceID, accumulationStatistics types.AccumulationStatistics) (accumulateCount types.U32, accumulateTransfersCount types.U32, accumulateGasUsed types.Gas) {
 	value, ok := accumulationStatistics[serviceID]
 	if ok {
 		accumulateCount = types.U32(value.NumAccumulatedReports)
+		accumulateTransfersCount = types.U32(value.NumProcessedTransfers)
 		accumulateGasUsed = value.Gas
 	}
-	// else, the service id is not found, accumulateCount and accumulateGasUsed are 0
-	return accumulateCount, accumulateGasUsed
+	// else, the service id is not found and all three default to 0
+	return accumulateCount, accumulateTransfersCount, accumulateGasUsed
 }
 
 // v0.7.1
@@ -431,19 +435,20 @@ func UpdateServiceActivityStatistics(extrinsic types.Extrinsic) {
 		ps := preimageStatsMap[serviceID]
 
 		// a
-		accumulateCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
+		accumulateCount, accumulateTransfersCount, accumulateGasUsed := CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
 
 		servicesStatistics[serviceID] = types.ServiceActivityRecord{
-			ProvidedCount:     ps.count,
-			ProvidedSize:      ps.size,
-			RefinementCount:   R.n,
-			RefinementGasUsed: R.GasUsed,
-			Imports:           R.Imports,
-			Exports:           R.Exports,
-			ExtrinsicSize:     R.ExtrinsicSize,
-			ExtrinsicCount:    R.ExtrinsicCount,
-			AccumulateCount:   accumulateCount,
-			AccumulateGasUsed: accumulateGasUsed,
+			ProvidedCount:            ps.count,
+			ProvidedSize:             ps.size,
+			RefinementCount:          R.n,
+			RefinementGasUsed:        R.GasUsed,
+			Imports:                  R.Imports,
+			Exports:                  R.Exports,
+			ExtrinsicSize:            R.ExtrinsicSize,
+			ExtrinsicCount:           R.ExtrinsicCount,
+			AccumulateCount:          accumulateCount,
+			AccumulateTransfersCount: accumulateTransfersCount,
+			AccumulateGasUsed:        accumulateGasUsed,
 		}
 	}
 
@@ -470,16 +475,23 @@ func UpdateValidatorActivityStatistics() {
 
 	preStatistics := cs.GetPriorStates().GetPi()
 
+	// pi_V-dagger (GP v0.8.0): credit this block's assurances on a copy of the
+	// prior accumulator BEFORE the epoch rollover, so on an epoch-boundary
+	// block they roll into pi_L' rather than the fresh accumulator.
+	valsDagger := make(types.ValidatorsStatistics, len(preStatistics.ValsCurr))
+	copy(valsDagger, preStatistics.ValsCurr)
+	applyAssuranceStatistics(valsDagger, extrinsic.Assurances)
+
 	if preEpochIndex == postEpochIndex {
 		// If the epoch index is the same, we will keep using the same statistics.
-		valsCurrent := preStatistics.ValsCurr
+		valsCurrent := valsDagger
 		valsLast := preStatistics.ValsLast
 		cs.GetPosteriorStates().SetPiCurrent(valsCurrent)
 		cs.GetPosteriorStates().SetPiLast(valsLast)
 	} else {
 		// If the epoch index is different, we will reset the statistics.
 		valsCurrent := make(types.ValidatorsStatistics, types.ValidatorsCount)
-		valsLast := preStatistics.ValsCurr
+		valsLast := valsDagger
 		cs.GetPosteriorStates().SetPiCurrent(valsCurrent)
 		cs.GetPosteriorStates().SetPiLast(valsLast)
 	}
