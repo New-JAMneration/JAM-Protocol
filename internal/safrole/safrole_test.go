@@ -303,6 +303,13 @@ func TestMain(m *testing.M) {
 }
 
 func TestSafroleTestVectors(t *testing.T) {
+	// GP v0.8.0 encodeepochmark adds a var length prefix to the epoch mark's
+	// validator-key sequence (#1014), so the v0.7.x .bin vectors' output marks
+	// no longer decode. Re-enable on official v0.8.0 vectors (#1012). The wire
+	// format is covered by TestEncodeEpochMark_V080LengthPrefix in
+	// internal/types.
+	t.Skip("v0.7.x safrole vectors predate the GP v0.8.0 epoch-mark length prefix (#1014); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	types.SetTestMode()
@@ -473,6 +480,12 @@ func validateState(t *testing.T, expectedState jamtests_safrole.SafroleState) {
 }
 
 func TestJamtestvectorsTraces(t *testing.T) {
+	// Trace vectors embed the full serialized state and full blocks, which the
+	// GP v0.8.0 wire changes invalidate (BlockInfo timeslot + epoch-mark length
+	// prefix #1014, on top of #1015/#1016). Re-enable on official v0.8.0
+	// traces (#1012).
+	t.Skip("v0.7.x traces predate GP v0.8.0 wire changes (#1014/#1015/#1016); re-enable on official v0.8.0 vectors")
+
 	dirsPath := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "traces")
 
 	// Set test mode

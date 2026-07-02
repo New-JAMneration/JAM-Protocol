@@ -117,17 +117,25 @@ func GetBinFilename(filename string) string {
 
 // Codec
 // skipV080VectorIncompat skips decode tests that read vendored v0.7.x
-// jam-test-vectors whose WorkPackageSpec/RefineContext layouts predate
-// GP v0.8.0. v0.8.0 adds erasure_shards (u16) to WorkPackageSpec between
-// erasure_root and exports_root (eq:avspec, #1015), and adds anchor_slot (u32)
-// and lookup_anchor_state_root (32 bytes) to RefineContext (eq:workcontext,
-// #1016), so the decoder now expects more bytes and the old vectors fail with
-// "unexpected EOF". Remove this skip once the official v0.8.0 vectors land
-// (#1015 / #1016 / #1012). The wire formats themselves are covered by
-// TestEncodeWorkPackageSpec_ErasureShards and TestEncodeRefineContext_V080Fields.
+// jam-test-vectors whose wire layouts predate GP v0.8.0:
+//   - WorkPackageSpec gains erasure_shards (u16) between erasure_root and
+//     exports_root (eq:avspec, #1015)
+//   - RefineContext gains anchor_slot (u32) and lookup_anchor_state_root
+//     (32 bytes) (eq:workcontext, #1016)
+//   - BlockInfo gains a timeslot (u32) between state_root and reported
+//     (eq:recenthistoryspec / C(3), #1014)
+//   - EpochMark's validator-key sequence gains a var length prefix
+//     (encodeepochmark, #1014)
+//
+// The decoder now expects more bytes, so the old vectors fail with
+// "unexpected EOF" or mismatches. Remove this skip once the official v0.8.0
+// vectors land (#1012). The wire formats themselves are covered by the
+// round-trip unit tests (TestEncodeWorkPackageSpec_ErasureShards,
+// TestEncodeRefineContext_V080Fields, TestEncodeBlockInfo_V080Timeslot,
+// TestEncodeEpochMark_V080LengthPrefix).
 func skipV080VectorIncompat(t *testing.T) {
 	t.Helper()
-	t.Skip("v0.7.x vectors predate WorkPackageSpec.erasure_shards / RefineContext.anchor_slot+lookup_anchor_state_root (GP v0.8.0); re-enable on official v0.8.0 vectors (#1015/#1016)")
+	t.Skip("v0.7.x vectors predate GP v0.8.0 wire changes (#1015/#1016/#1014); re-enable on official v0.8.0 vectors")
 }
 
 func TestDecodeJamTestVectorsCodec(t *testing.T) {
@@ -276,6 +284,7 @@ func TestDecodeJamTestVectorsStatistics(t *testing.T) {
 
 // Safrole
 func TestDecodeJamTestVectorsSafrole(t *testing.T) {
+	skipV080VectorIncompat(t)
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "safrole", types.TEST_MODE)
 
 	// Read binary files
@@ -605,6 +614,7 @@ func TestDecodeJamTestVectorsPreimages(t *testing.T) {
 
 // History
 func TestDecodeJamTestVectorsHistory(t *testing.T) {
+	skipV080VectorIncompat(t)
 	BACKUP_TEST_MODE := types.TEST_MODE
 
 	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "history", types.TEST_MODE)
