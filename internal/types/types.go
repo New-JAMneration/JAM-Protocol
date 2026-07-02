@@ -168,10 +168,12 @@ type MetaCode struct {
 
 // GP §11.1, $\rho$
 type (
-	// Assignment of a work report with reported timeslot
+	// Assignment of a reported guarantee with reported timeslot.
+	// GP v0.8.0 eq:reportingstate: each core's entry stores the FULL guarantee
+	// (work report + slot + credential), not just the bare work report.
 	AvailabilityAssignment struct {
-		Report       WorkReport `json:"report"`  // $\mathbf{r}$: The work report being assigned
-		AssignedSlot TimeSlot   `json:"timeout"` // $t$: Reported timeslot of the work report
+		Guarantee    ReportGuarantee `json:"guarantee"` // $g$: The guarantee being assigned
+		AssignedSlot TimeSlot        `json:"timeout"`   // $t$: Reported timeslot of the guarantee
 	}
 
 	// Optional availability assignment (Some/None pattern)
@@ -182,7 +184,7 @@ type (
 )
 
 func (a *AvailabilityAssignment) Validate() error {
-	if err := a.Report.Validate(); err != nil {
+	if err := a.Guarantee.Report.Validate(); err != nil {
 		return fmt.Errorf("AvailabilityAssignment Report validation failed: %v", err)
 	}
 
