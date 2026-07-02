@@ -134,6 +134,12 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 //     (eq:recenthistoryspec / C(3), #1014).
 //   - safrole: EpochMark's validator-key sequence gains a var length prefix
 //     (encodeepochmark, #1014), which the .bin vectors' output marks predate.
+//   - statistics: pi_V/pi_L gain C(13) var length prefixes, the per-service
+//     accumulation stat becomes a (count, transfers, gas) 3-tuple, and
+//     assurances are credited before the epoch rollover (#1021). NOTE: the
+//     validate_fuzz.sh statistics expectation moves to 0/0 with this skip.
+//   - preimages: the vectors carry pi_S service statistics in state, hit by
+//     the same accumulation-stats 3-tuple change (#1021).
 var v080IncompatibleModes = map[TestMode]bool{
 	ReportsMode:    true,
 	AssurancesMode: true,
@@ -141,6 +147,8 @@ var v080IncompatibleModes = map[TestMode]bool{
 	AccumulateMode: true,
 	HistoryMode:    true,
 	SafroleMode:    true,
+	StatisticsMode: true,
+	PreimagesMode:  true,
 }
 
 // ReadTestData reads all test files from the configured directory

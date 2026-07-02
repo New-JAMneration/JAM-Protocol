@@ -1482,6 +1482,12 @@ func (a *ValidatorsStatistics) Encode(e *Encoder) error {
 		return fmt.Errorf("ActivityRecords length is not equal to ValidatorsCount")
 	}
 
+	// GP v0.8.0 merklization C(13): pi_V / pi_L are length-prefixed (var)
+	// sequences; v0.7.x emitted them fixed-length.
+	if err := e.EncodeLength(uint64(len(*a))); err != nil {
+		return err
+	}
+
 	for _, record := range *a {
 		if err := record.Encode(e); err != nil {
 			return err
@@ -1620,6 +1626,14 @@ func (s *ServiceActivityRecord) Encode(e *Encoder) error {
 		return err
 	}
 	cLog(Yellow, "AccumulateCount: %v", s.AccumulateCount)
+
+	// AccumulateTransfersCount (GP v0.8.0 eq:accumulationstatisticsspec: the
+	// accumulation stat is a (count, transfers, gas) 3-tuple)
+	cLog(Cyan, "Encoding AccumulateTransfersCount")
+	if err := e.EncodeInteger(uint64(s.AccumulateTransfersCount)); err != nil {
+		return err
+	}
+	cLog(Yellow, "AccumulateTransfersCount: %v", s.AccumulateTransfersCount)
 
 	// AccumulateGasUsed
 	cLog(Cyan, "Encoding AccumulateGasUsed")

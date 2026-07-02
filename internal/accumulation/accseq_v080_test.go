@@ -3,6 +3,7 @@ package accumulation
 import (
 	"testing"
 
+	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
@@ -63,5 +64,38 @@ func TestAccumulationPrefixLen_V080GasBudget(t *testing.T) {
 				t.Errorf("accumulationPrefixLen = %d, want %d", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestCalculateAccumulationStatistics_V080Transfers covers the GP v0.8.0
+// eq:accumulationstatisticsdef 3-tuple: T(s) counts processed transfers per
+// destination service, transfer-only services enter the key domain, and
+// (0,0,0) entries are dropped.
+func TestCalculateAccumulationStatistics_V080Transfers(t *testing.T) {
+	blockchain.ResetInstance() // empty accumulatable reports => N(s) = 0
+
+	gasUsed := types.ServiceGasUsedList{
+		{ServiceID: 9, Gas: 500},
+		{ServiceID: 5, Gas: 0}, // all-zero entry must be dropped
+	}
+	transfers := []types.DeferredTransfer{
+		{SenderID: 9, ReceiverID: 7, GasLimit: 10},
+		{SenderID: 9, ReceiverID: 7, GasLimit: 10},
+		{SenderID: 7, ReceiverID: 8, GasLimit: 10},
+	}
+
+	S := calculateAccumulationStatistics(gasUsed, transfers, 0)
+
+	if got := S[7]; got.NumProcessedTransfers != 2 || got.Gas != 0 || got.NumAccumulatedReports != 0 {
+		t.Errorf("S[7] = %+v, want (N=0, T=2, G=0)", got)
+	}
+	if got := S[8]; got.NumProcessedTransfers != 1 {
+		t.Errorf("S[8].NumProcessedTransfers = %d, want 1 (transfer-only service must be present)", got.NumProcessedTransfers)
+	}
+	if got := S[9]; got.Gas != 500 || got.NumProcessedTransfers != 0 {
+		t.Errorf("S[9] = %+v, want (N=0, T=0, G=500)", got)
+	}
+	if _, ok := S[5]; ok {
+		t.Errorf("S[5] must be dropped: (N, T, G) == (0, 0, 0)")
 	}
 }

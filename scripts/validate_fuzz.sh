@@ -20,9 +20,11 @@ FUZZ_SMOKE_TRACE_DIR="${FUZZ_SMOKE_TRACE_DIR:-}"
 TARGET_STARTUP_SEC="${TARGET_STARTUP_SEC:-30}"
 FUZZ_TARGET_BIN="${FUZZ_TARGET_BIN:-${JAM_FUZZ_HOST_DIR}/fuzz-target-bin}"
 VALIDATE_FUZZ_TARGET_LOG="${VALIDATE_FUZZ_TARGET_LOG:-${JAM_FUZZ_HOST_DIR}/fuzz_target.log}"
-# statistics tiny: 預期 1 passed / 2 failed（1/3 通過才是正確現況）
-STATISTICS_EXPECT_PASSED="${STATISTICS_EXPECT_PASSED:-1}"
-STATISTICS_EXPECT_FAILED="${STATISTICS_EXPECT_FAILED:-2}"
+# statistics tiny: the v0.7.x vectors are skipped as v0.8.0-incompatible
+# (testdata.v080IncompatibleModes, #1021), so the mode yields 0 vectors.
+# Restore the real expectations when official v0.8.0 vectors land (#1012).
+STATISTICS_EXPECT_PASSED="${STATISTICS_EXPECT_PASSED:-0}"
+STATISTICS_EXPECT_FAILED="${STATISTICS_EXPECT_FAILED:-0}"
 
 log() { printf '[validate_fuzz] %s\n' "$*"; }
 die() { printf '[validate_fuzz] ERROR: %s\n' "$*" >&2; exit 1; }

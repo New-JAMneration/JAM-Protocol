@@ -733,16 +733,17 @@ func (c *CoresStatistics) Validate() error {
 // Record of a service's activity
 // GP §13.7, $\pi_S$
 type ServiceActivityRecord struct {
-	ProvidedCount     U16 `json:"provided_count"`      // $p$: Number of preimages provided to this service
-	ProvidedSize      U32 `json:"provided_size"`       // $p$: Total size of preimages provided to this service
-	RefinementCount   U32 `json:"refinement_count"`    // $r$: Number of work-items refined
-	RefinementGasUsed Gas `json:"refinement_gas_used"` // $r$: Amount of gas used for refinement
-	Imports           U32 `json:"imports"`             // $i$: Number of segments imported from the DL
-	ExtrinsicCount    U32 `json:"extrinsic_count"`     // $x$: Total number of extrinsics used
-	ExtrinsicSize     U32 `json:"extrinsic_size"`      // $z$: Total size of extrinsics used
-	Exports           U32 `json:"exports"`             // $e$: Number of segments exported into the DL
-	AccumulateCount   U32 `json:"accumulate_count"`    // $a$: Number of work-items accumulated
-	AccumulateGasUsed Gas `json:"accumulate_gas_used"` // $a$: Amount of gas used for accumulation
+	ProvidedCount            U16 `json:"provided_count"`             // $p$: Number of preimages provided to this service
+	ProvidedSize             U32 `json:"provided_size"`              // $p$: Total size of preimages provided to this service
+	RefinementCount          U32 `json:"refinement_count"`           // $r$: Number of work-items refined
+	RefinementGasUsed        Gas `json:"refinement_gas_used"`        // $r$: Amount of gas used for refinement
+	Imports                  U32 `json:"imports"`                    // $i$: Number of segments imported from the DL
+	ExtrinsicCount           U32 `json:"extrinsic_count"`            // $x$: Total number of extrinsics used
+	ExtrinsicSize            U32 `json:"extrinsic_size"`             // $z$: Total size of extrinsics used
+	Exports                  U32 `json:"exports"`                    // $e$: Number of segments exported into the DL
+	AccumulateCount          U32 `json:"accumulate_count"`           // $a$: Number of work-items accumulated
+	AccumulateTransfersCount U32 `json:"accumulate_transfers_count"` // $a$: Number of transfers processed for this service (GP v0.8.0 eq:accumulationstatisticsspec)
+	AccumulateGasUsed        Gas `json:"accumulate_gas_used"`        // $a$: Amount of gas used for accumulation
 }
 
 // Statistics for all services
@@ -1414,14 +1415,15 @@ type LastAccOut []AccumulatedServiceHash
 // - We convert the AccumulatedServiceOutput to LastAccOut (a slice of AccumulatedServiceHash) for (7.4) Theta
 type AccumulatedServiceOutput map[AccumulatedServiceHash]bool
 
-// (12.28)
+// GP v0.8.0 eq:accumulationstatisticsdef: S(s) = (N(s), T(s), G(s))
 type GasAndNumAccumulatedReports struct {
-	Gas                   Gas // $\mathbf{u}$: gas used by the service
-	NumAccumulatedReports U64 // $n$: number of work-reports accumulated by the service
+	Gas                   Gas // $G(s)$: gas used by the service
+	NumAccumulatedReports U64 // $N(s)$: number of work-items accumulated by the service
+	NumProcessedTransfers U64 // $T(s)$: number of processed transfers destined to the service (GP v0.8.0)
 }
 
-// GP §12.26, $\mathbf{S}$: accumulation statistics
-// dictionary<ServiceID, (gas used, the number of work-reports accumulated)>
+// GP v0.8.0 eq:accumulationstatisticsspec, $\mathbf{S}$: accumulation statistics
+// dictionary<ServiceID, (count, transfers, gas used)>
 type AccumulationStatistics map[ServiceID]GasAndNumAccumulatedReports
 
 // ============================================================================
