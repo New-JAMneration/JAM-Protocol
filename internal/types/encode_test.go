@@ -575,3 +575,48 @@ func TestEncodeEpochMark_V080LengthPrefix(t *testing.T) {
 		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, mark)
 	}
 }
+
+// TestEncodeVerdict_V080LengthPrefix covers the GP v0.8.0 encodedisputes
+// change: a verdict's judgment sequence is length-prefixed (var{...});
+// v0.7.x emitted a fixed ValidatorsSuperMajority entries.
+func TestEncodeVerdict_V080LengthPrefix(t *testing.T) {
+	verdict := Verdict{
+		Target: WorkReportHash{0x11},
+		Age:    0x0A0B0C0D,
+		Votes:  make([]Judgement, ValidatorsSuperMajority),
+	}
+	for i := range verdict.Votes {
+		verdict.Votes[i] = Judgement{
+			Vote:      i%2 == 0,
+			Index:     ValidatorIndex(i),
+			Signature: Ed25519Signature{byte(i + 1)},
+		}
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&verdict)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: target(32) ++ age(4) ++ length prefix(1, value
+	// ValidatorsSuperMajority) ++ votes * (vote 1 + index 2 + signature 64).
+	want := 32 + 4 + 1 + ValidatorsSuperMajority*(1+2+64)
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// The length prefix must follow target ++ age.
+	if off := 32 + 4; encoded[off] != byte(ValidatorsSuperMajority) {
+		t.Errorf("votes length prefix = %d at offset %d, want %d",
+			encoded[off], off, ValidatorsSuperMajority)
+	}
+
+	decoder := NewDecoder()
+	var got Verdict
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(verdict, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, verdict)
+	}
+}
