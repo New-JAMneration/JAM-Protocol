@@ -1277,11 +1277,19 @@ func (v *Verdict) Decode(d *Decoder) error {
 		return err
 	}
 
-	length := ValidatorsSuperMajority
+	// GP v0.8.0 encodedisputes: the judgment sequence is length-prefixed
+	// (var{...}); v0.7.x assumed a fixed ValidatorsSuperMajority entries.
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	if length != uint64(ValidatorsSuperMajority) {
+		return fmt.Errorf("verdict votes length %d is not equal to ValidatorsSuperMajority %d", length, ValidatorsSuperMajority)
+	}
 
 	// make the slice with length
 	votes := make([]Judgement, length)
-	for i := 0; i < length; i++ {
+	for i := uint64(0); i < length; i++ {
 		if err = votes[i].Decode(d); err != nil {
 			return err
 		}
