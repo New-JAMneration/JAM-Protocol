@@ -81,8 +81,20 @@ func GetTestJsonFiles(dir string) []string {
 }
 
 func TestDisputes(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", types.TEST_MODE)
+	// The v0.7.x disputes vectors predate GP v0.8.0: the verdict judgment
+	// sequence is now length-prefixed (encodedisputes var{...}, #1017) and the
+	// ">= 2 culprits per bad verdict" rule (not_enough_culprits) was dropped,
+	// so both the .bin layout and several expected outputs no longer hold.
+	// Re-enable on official v0.8.0 vectors (#1012).
+	t.Skip("v0.7.x disputes vectors predate GP v0.8.0 (#1017); re-enable on official v0.8.0 vectors")
+
+	// Vectors live under stf/disputes (the old bare "disputes" path silently
+	// yielded zero test files).
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "disputes", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
+	if len(jsonFiles) == 0 {
+		t.Fatalf("no disputes vectors found under %s", dir)
+	}
 	for _, file := range jsonFiles {
 		filename := filepath.Join(dir, file)
 

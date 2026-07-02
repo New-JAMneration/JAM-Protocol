@@ -10,6 +10,19 @@ func Disputes() (types.OffendersMark, error) {
 	block := blockchain.GetInstance().GetLatestBlock()
 	disputeExtrinsic := block.Extrinsic.Disputes
 
+	// GP v0.8.0 eq:disputesextrinsics caps the extrinsic sequences:
+	// |verdicts| <= Cmaxextrinsicverdicts, |culprits|,|faults| <=
+	// Cmaxextrinsicoffenses (both 16).
+	if len(disputeExtrinsic.Verdicts) > types.MaxExtrinsicVerdicts {
+		errCode := DisputesErrorCode.DisputesErrorMap["too_many_verdicts"]
+		return nil, &errCode
+	}
+	if len(disputeExtrinsic.Culprits) > types.MaxExtrinsicOffenses ||
+		len(disputeExtrinsic.Faults) > types.MaxExtrinsicOffenses {
+		errCode := DisputesErrorCode.DisputesErrorMap["too_many_offenses"]
+		return nil, &errCode
+	}
+
 	// init controllers
 	verdictController := NewVerdictController()
 	// Pre-allocate capacity for verdicts
@@ -43,10 +56,8 @@ func Disputes() (types.OffendersMark, error) {
 	verdictController.GenerateVerdictSumSequence()
 	disputeController := NewDisputeController(verdictController, faultController, culpritController)
 
-	if err := disputeController.ValidateCulprits(); err != nil {
-		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
-		return nil, &errCode
-	}
+	// GP v0.8.0 dropped the v0.7.x "bad verdict requires >= 2 culprits" rule;
+	// only the fault condition below remains.
 	if err := disputeController.ValidateFaults(); err != nil {
 		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
 		return nil, &errCode

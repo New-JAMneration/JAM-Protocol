@@ -163,6 +163,8 @@ const (
 	MaxImportCount          = 3072      // W_M: The maximum number of import segments in a work package (14.4). graypaper v0.6.3
 	MaxExportCount          = 3072      // W_X: The maximum number of export segments in a work package (14.4). graypaper v0.6.5
 	MaxExtrinsics           = 128       // T (14.4). graypaper 0.6.3
+	MaxExtrinsicVerdicts    = 16        // Cmaxextrinsicverdicts (GP v0.8.0 eq:disputesextrinsics): max verdicts per disputes extrinsic
+	MaxExtrinsicOffenses    = 16        // Cmaxextrinsicoffenses (GP v0.8.0 eq:disputesextrinsics): max culprits / max faults per disputes extrinsic
 	MaxServiceCodeSize      = 4_000_000 // W_C v0.6.4
 	MaxIsAuthorizedCodeSize = 64_000    // W_A v0.6.6 The maximum size of is-authorized code in octets
 	// --- end ProtocolParameters ---

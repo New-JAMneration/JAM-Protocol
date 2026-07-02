@@ -9,7 +9,7 @@ const (
 	JudgementsNotSortedUnique                        // 3
 	CulpritsNotSortedUnique                          // 4
 	FaultsNotSortedUnique                            // 5
-	NotEnoughCulprits                                // 6
+	NotEnoughCulprits                                // 6 — unused since GP v0.8.0 dropped the ">= 2 culprits per bad verdict" rule; ordinal kept until the official v0.8.0 error enum lands (#1017)
 	NotEnoughFaults                                  // 7
 	CulpritsVerdictNotBad                            // 8
 	FaultVerdictWrong                                // 9
@@ -19,6 +19,10 @@ const (
 	BadSignature                                     // 13
 	BadGuarantorKey                                  // 14
 	BadAuditorKey                                    // 15
+	// GP v0.8.0 eq:disputesextrinsics sequence caps. Ordinals are provisional
+	// until the official v0.8.0 error enum ships (#1017 / #1012).
+	TooManyVerdicts // 16
+	TooManyOffenses // 17
 )
 
 var DisputesErrorMap = map[string]types.ErrorCode{
@@ -38,6 +42,8 @@ var DisputesErrorMap = map[string]types.ErrorCode{
 	"bad_signature":                BadSignature,
 	"bad_guarantor_key":            BadGuarantorKey,
 	"bad_auditor_key":              BadAuditorKey,
+	"too_many_verdicts":            TooManyVerdicts,
+	"too_many_offenses":            TooManyOffenses,
 }
 
 // This map provides human-readable messages following the fuzz-proto examples
@@ -57,4 +63,6 @@ var DisputesErrorCodeMessages = map[types.ErrorCode]string{
 	BadValidatorIndex:         "bad validator index",
 	BadSignature:              "bad signature",
 	BadGuarantorKey:           "bad guarantor key",
+	TooManyVerdicts:           "too many verdicts",
+	TooManyOffenses:           "too many offenses",
 }
