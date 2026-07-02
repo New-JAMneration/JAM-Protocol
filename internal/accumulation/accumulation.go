@@ -229,6 +229,34 @@ func UpdateAccumulatableWorkReports() {
 	cs.GetIntermediateStates().SetAccumulatableWorkReports(WStar)
 }
 
+// accumulationPrefixLen picks the maximal report prefix i per GP v0.8.0
+// eq:accseq: sum of the prefix's work-digest gas limits, PLUS the incoming
+// deferred transfers' gas, PLUS the privileged free-accumulation allowances,
+// must fit within g. (v0.7.x summed only the work-digest gas limits.)
+func accumulationPrefixLen(g types.Gas, t []types.DeferredTransfer, r []types.WorkReport, f types.AlwaysAccumulateMap) int {
+	reservedGas := types.Gas(0)
+	for _, transfer := range t {
+		reservedGas += transfer.GasLimit
+	}
+	for _, freeGas := range f {
+		reservedGas += freeGas
+	}
+
+	gasSum := reservedGas
+	i := 0
+	for idx, report := range r {
+		for _, result := range report.Results {
+			gasSum += result.AccumulateGas
+		}
+		if gasSum <= g {
+			i = idx + 1
+		} else {
+			break
+		}
+	}
+	return i
+}
+
 // (12.16) ∆+ outer accumulation function
 func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOutput, err error) {
 	defer timing.Track("accumulation.OuterAccumulation")()
@@ -240,20 +268,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	e := input.InitPartialStateSet
 	f := input.ServicesWithFreeAccumulation
 
-	gasSum := types.Gas(0)
-	i := 0
-
-	// Determine the maximal prefix of reports that fits within the gas limit
-	for idx, report := range r {
-		for _, result := range report.Results {
-			gasSum += result.AccumulateGas
-		}
-		if gasSum <= g {
-			i = idx + 1
-		} else {
-			break
-		}
-	}
+	i := accumulationPrefixLen(g, t, r, f)
 	// n = |t| + i + |f|
 	n := len(t) + i + len(f)
 	if n == 0 {
@@ -261,6 +276,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		output.PartialStateSet = e
 		output.AccumulatedServiceOutput = make(map[types.AccumulatedServiceHash]bool)
 		output.ServiceGasUsedList = []types.ServiceGasUsed{}
+		output.ProcessedTransfers = []types.DeferredTransfer{}
 		return output, nil
 	}
 
@@ -284,9 +300,11 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 
 	// Recurse on the remaining reports with the remaining gas
 	// (j, e′, b, u) = ∆+(g∗ − ∑(s,u)∈u∗(u), t∗, ri..., e∗, {})
+	// GP v0.8.0 eq:accseq: the transfer-gas term of g* sums the transfers
+	// PRODUCED this round (t*), not the incoming t as in v0.7.x.
 	gStar := input.GasLimit
-	for _, DeferredTransfer := range t {
-		gStar += DeferredTransfer.GasLimit
+	for _, producedTransfer := range tStar {
+		gStar += producedTransfer.GasLimit
 	}
 
 	gasLimitForRecursion := gStar
@@ -308,8 +326,9 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 	ePrime := recursiveOuterOutput.PartialStateSet
 	b := recursiveOuterOutput.AccumulatedServiceOutput
 	u := recursiveOuterOutput.ServiceGasUsedList
+	tDagger := recursiveOuterOutput.ProcessedTransfers
 	// Combine results from this batch and the recursive tail
-	// (i + j, e′, b∗ ∪ b, u∗⌢ u)
+	// (i + j, e′, b∗ ∪ b, u∗⌢ u, t ⌢ t†)  (GP v0.8.0 eq:accseq)
 	{
 		output.NumberOfWorkResultsAccumulated = types.U64(i) + j
 		output.PartialStateSet = ePrime // need to set post state?
@@ -323,6 +342,12 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		combinedGasUsed = append(combinedGasUsed, uStar...)
 		combinedGasUsed = append(combinedGasUsed, u...)
 		output.ServiceGasUsedList = combinedGasUsed
+		// Processed transfers: the ones applied this round (the incoming t)
+		// followed by the recursion's (t†).
+		processed := make([]types.DeferredTransfer, 0, len(t)+len(tDagger))
+		processed = append(processed, t...)
+		processed = append(processed, tDagger...)
+		output.ProcessedTransfers = processed
 	}
 
 	return output, nil
