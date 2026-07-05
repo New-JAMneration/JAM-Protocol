@@ -1,4 +1,4 @@
-// 6.7. The Extrinsic and Tickets (graypaper 0.5.4)
+// 6.7. The Extrinsic and Tickets (graypaper 0.8.0)
 package safrole
 
 import (
@@ -25,9 +25,9 @@ func VerifyEpochTail(tickets types.TicketsExtrinsic) *types.ErrorCode {
 	// m'
 	mPrime := GetSlotIndex(tauPrime)
 
-	// m' < Y => |E_T| <= K
+	// m' < Y => |E_T| <= K  (K = MaxTicketsPerBlock, GP v0.8.0 eq:enforceticketlimit)
 	if mPrime < types.TimeSlot(types.SlotSubmissionEnd) {
-		if len(tickets) > types.ValidatorsCount {
+		if len(tickets) > types.MaxTicketsPerBlock {
 			err := SafroleErrorCode.UnexpectedTicket
 			return &err
 		}
@@ -114,11 +114,36 @@ func VerifyTicketsDuplicate(tickets types.TicketsAccumulator) *types.ErrorCode {
 	return nil
 }
 
-// Tickets Attempt must be less than or equal to TicketsPerValidator
+// VerifyTicketsAttempt bounds each ticket's entry-index (Attempt) by the
+// dynamic cap n from GP v0.8.0 eq:ticketsextrinsic:
+//
+//	n = ceil(2E / |γ'_K|)   (E = epoch length, γ'_K = posterior pending
+//	                          validator sequence), entry-index ∈ N_max{n}
+//	                          i.e. the bound is exclusive: Attempt < n.
+//
+// Fewer validators ⇒ larger n, so the ticket accumulator can still be
+// saturated. With the offender keys zeroed (not removed), |γ'_K| equals
+// ValidatorsCount here, so n is in practice constant per chainspec (tiny 4,
+// full 2) — but it MUST be computed from |γ'_K|, not hard-coded.
 func VerifyTicketsAttempt(tickets types.TicketsExtrinsic) *types.ErrorCode {
+	numV := len(blockchain.GetInstance().GetPosteriorStates().GetGammaK())
+	if numV == 0 {
+		// Defensive only: γ'_K is never empty in this codebase (offenders are
+		// zeroed in place). With no validators the cap n is undefined, so reject
+		// only if there is actually a ticket to bound; an empty extrinsic has
+		// nothing to reject. Also avoids a divide-by-zero if this ever changes.
+		if len(tickets) > 0 {
+			err := SafroleErrorCode.BadTicketAttempt
+			return &err
+		}
+		return nil
+	}
+	// n = ceil(2E / numV) via integer arithmetic.
+	n := (2*types.EpochLength + numV - 1) / numV
+
 	for _, ticket := range tickets {
-		// ticket.Attempt is an entry index (0-based)
-		if ticket.Attempt >= types.TicketAttempt(types.TicketsPerValidator) {
+		// ticket.Attempt is an entry index (0-based); reject Attempt >= n.
+		if ticket.Attempt >= types.TicketAttempt(n) {
 			err := SafroleErrorCode.BadTicketAttempt
 			return &err
 		}
