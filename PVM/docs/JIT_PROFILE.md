@@ -66,9 +66,26 @@ go tool pprof -tagfocus='phase:pvm' "http://localhost:6060/debug/pprof/profile?s
 ### 1.3 Expert: perf — "which PVM block is hottest?"
 
 ```bash
-JIT_PROFILE=1 JIT_PERFMAP=1 perf record -g -- <program that runs the PVM>
-perf report          # see which pvm_block_<PC> is hottest
+# Batch run: launch under perf
+JIT_PROFILE=1 JIT_PERFMAP=1 perf record -- <program that runs the PVM>
+
+# Long-lived server (the usual fuzz setup): start the target with the map on,
+# then attach perf while the fuzzer replays
+JIT_PROFILE=1 JIT_PERFMAP=1 make run-target PVM_BACKEND=recompiler    # terminal 1
+perf record -p <target-pid> -- sleep 30                               # terminal 3
+
+perf report                    # hottest pvm_block_<PC>
+perf annotate pvm_block_1234   # hottest x86 instruction inside that block
+                               # (the arena is mapped R+X, so perf can read it)
+
+# Emitted-code quality (hardware counters, no map needed)
+perf stat -e cache-misses,branch-misses,instructions,cycles -p <target-pid> -- sleep 30
 ```
+
+Notes:
+- Permissions: needs `perf_event_paranoid` ≤ 1, or CAP_PERFMON / root.
+- Skip `-g`: JIT blocks keep no frame pointer, so call graphs cannot stitch
+  across the Go↔native boundary — flat per-block attribution is what works.
 
 > ⚠️ Needs **bare-metal Linux**. WSL2 usually restricts the PMU, so perf won't
 > sample — use pprof there instead.
