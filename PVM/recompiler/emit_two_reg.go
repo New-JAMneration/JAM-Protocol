@@ -3,8 +3,6 @@
 package recompiler
 
 import (
-	"fmt"
-
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
@@ -30,9 +28,8 @@ func (c *Compiler) emitMoveReg(a *asm.Assembler, instr *PVM.InstrMeta) error {
 // raise a hardware SIGSEGV.
 func (c *Compiler) emitSbrk(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	dReg, aReg := twoRegFromMeta(instr)
-	pc := instr.PC
-	queryLabel := fmt.Sprintf("sbrk_query_%08x", uint32(pc))
-	doneLabel := fmt.Sprintf("sbrk_done_%08x", uint32(pc))
+	queryLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	a.TestRegReg(aReg, aReg)
 	a.Jcc(asm.CondEQ, queryLabel)
@@ -49,12 +46,11 @@ func (c *Compiler) emitSbrk(a *asm.Assembler, instr *PVM.InstrMeta) error {
 //   - overflow or limit exceeded → rD = 0, continue in JIT
 //   - no page crossing → update heapPointer and rD inline, continue in JIT
 //   - page crossing → exit to Go for mprotect (HandleSbrk)
-func (c *Compiler) emitSbrkExpand(a *asm.Assembler, dReg, aReg asm.Register, instr *PVM.InstrMeta, doneLabel string) {
-	pc := instr.PC
+func (c *Compiler) emitSbrkExpand(a *asm.Assembler, dReg, aReg asm.Register, instr *PVM.InstrMeta, doneLabel asm.Label) {
 	heapLimit := c.ctx.heapLimit
 	t0 := PVMToX86[2]
-	fail := fmt.Sprintf("sbrk_fail_%08x", uint32(pc))
-	mprotect := fmt.Sprintf("sbrk_mprotect_%08x", uint32(pc))
+	fail := a.NewLabel()
+	mprotect := a.NewLabel()
 
 	// Save t0 (PVM T0 / RBX) — we borrow it as scratch.
 	a.MovRegToMem(RegGuestBase, regOffset(2), t0)

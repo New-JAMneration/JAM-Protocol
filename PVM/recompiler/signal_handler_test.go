@@ -140,7 +140,7 @@ func (tc *testCompiler) compileBasicBlock(startPC PVM.ProgramCounter) (*Compiled
 
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(fallthroughPC))
 	a.MovMemImm32(RegGuestBase, -int32(OffsetExitReason), 0)
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 	EmitExitTrampoline(a)
 
 	code, err := a.Finalize()
@@ -167,7 +167,7 @@ func emitInstrForTest(a *asm.Assembler, instr *PVM.InstrMeta) {
 	case 0: // trap
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-		a.Jmp("exit_trampoline")
+		a.Jmp(a.ExitTrampoline())
 	case 59: // store_u8
 		xReg := PVMReg(instr.Dst)
 		a.MovRegToReg(RegScratch, xReg)

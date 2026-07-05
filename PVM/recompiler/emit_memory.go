@@ -3,26 +3,24 @@
 package recompiler
 
 import (
-	"fmt"
-
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
 
 // emitMemoryBoundsCheck emits a software bounds check (Phase 4 temporary).
 // If the address in addrReg < ZZ (0x10000), jump to panic_exit.
-func emitMemoryBoundsCheck(a *asm.Assembler, addrReg asm.Register, panicLabel string) {
+func emitMemoryBoundsCheck(a *asm.Assembler, addrReg asm.Register, panicLabel asm.Label) {
 	a.CmpRegImm32(addrReg, int32(PVM.ZZ))
 	a.Jcc(asm.CondB, panicLabel)
 }
 
 // emitPanicExitAt emits an inline panic exit at the given label.
-func emitPanicExitAt(a *asm.Assembler, label string, pc PVM.ProgramCounter) {
+func emitPanicExitAt(a *asm.Assembler, label asm.Label, pc PVM.ProgramCounter) {
 	_ = a.BindLabel(label)
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 // ---- 4.5.2 Store instructions ----
@@ -36,8 +34,8 @@ func (c *Compiler) emitStoreImm(a *asm.Assembler, instr *PVM.InstrMeta, size int
 // emitStoreImmGeneric stores a compile-time-known value to a compile-time-known address.
 // For 8-byte stores, temporarily spills PVM T0 to the control region as a second scratch.
 func (c *Compiler) emitStoreImmGeneric(a *asm.Assembler, pc PVM.ProgramCounter, addr uint32, val uint64, size int) error {
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	if addr < 0x80000000 {
 		a.MovImm32ToReg(RegScratch, int32(addr))
@@ -83,8 +81,8 @@ func (c *Compiler) emitStore(a *asm.Assembler, instr *PVM.InstrMeta, size int) e
 	pc := instr.PC
 	xReg, vX := oneRegImmFromMeta(instr)
 
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	emitDirectMemAddr(a, vX)
 
@@ -115,8 +113,8 @@ func (c *Compiler) emitStoreImmInd(a *asm.Assembler, instr *PVM.InstrMeta, size 
 	pc := instr.PC
 	xReg, vX, vY := oneRegTwoImmFromMeta(instr)
 
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, xReg)
 	emitAddUint64ToReg(a, RegScratch, vX)
@@ -163,8 +161,8 @@ func (c *Compiler) emitStoreInd(a *asm.Assembler, instr *PVM.InstrMeta, size int
 	pc := instr.PC
 	aReg, bReg, vX := twoRegImmFromMeta(instr)
 
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	emitAddUint64ToReg(a, RegScratch, vX)
@@ -201,8 +199,8 @@ func (c *Compiler) emitLoad(a *asm.Assembler, instr *PVM.InstrMeta, size int, si
 	pc := instr.PC
 	xReg, vX := oneRegImmFromMeta(instr)
 
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	emitDirectMemAddr(a, vX)
 
@@ -224,8 +222,8 @@ func (c *Compiler) emitLoadInd(a *asm.Assembler, instr *PVM.InstrMeta, size int,
 	pc := instr.PC
 	aReg, bReg, vX := twoRegImmFromMeta(instr)
 
-	panicLabel := fmt.Sprintf("panic_%d", pc)
-	doneLabel := fmt.Sprintf("done_%d", pc)
+	panicLabel := a.NewLabel()
+	doneLabel := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	emitAddUint64ToReg(a, RegScratch, vX)

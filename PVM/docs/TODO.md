@@ -1,111 +1,81 @@
 # Recompiler 優化 TODO
 
-以下是已確認值得實作的優化項目。前提：正確性已通過 conformance test。
+前提:正確性已通過 conformance(0.7.2 fuzz,1179/1179)。**優先序一律以實測為準**。
+
+量測工具(皆 env-gated,預設關閉):
+- `JIT_PROFILE=1`:per-phase 計時(setup/deblob/compile/host/run)+ 計數(roundTrips、lock、cache hit/miss、host、compile、djump),每 10s 印累計,退出時印 `[JIT-PROFILE TOTAL]`。
+- `JIT_CPUPROFILE=<file>` / `JIT_PPROF_ADDR=host:port`:pprof CPU。Psi_M 標 `phase=pvm`,可 `go tool pprof -tagfocus=phase:pvm`。
+- `JIT_PERFMAP=1`:寫 `/tmp/perf-<pid>.map` 供 perf 依 block symbolize(WSL2 perf 受限,用 pprof)。
+- `make test-timing-fuzz-trace`:fuzz target 端的 per-ImportBlock STF + Psi_A timing(現行資料集 + recompiler 路徑)。
 
 ---
 
-## 1. Block Chaining（jump / branch linking）
+## 目前狀態(2026-07-05,conformance corpus,645 invokes)
 
-**現狀**：fallthrough block linking 已實作（`block_link.go`）。當 block A 的 sequential successor（block B）已編譯完，A 的 epilogue 直接 `JMP` 到 B 的 native address，不回 Go dispatcher。
+cross-invoke cache + chaining + label handle + gas 融合後的 JIT_PROFILE:
 
-**尚未做**：static jump 和 branch 的 linking。目前 `jump` 和 `branch_eq` 等指令的目標即使已編譯，仍走 `emitExitToPC` → 回 Go → `lookupOrCompileBlock` → 重新進入 native。
-
-**目標**：當 branch/jump 的靜態目標已編譯，直接 emit `JMP targetBlock.NativeAddr`，消除 Go dispatcher round-trip。
-
-**設計選項**：
-
-| 策略 | 優點 | 缺點 |
+| 項目 | 量級 | 說明 |
 |------|------|------|
-| (a) 先遞迴 compile 目標再 link | 無 runtime patch、實作直覺 | 可能 compile 未執行的 cold block |
-| (b) stub + runtime patch | 只 compile 熱路徑 | dual mapping 下 patch 簡單，但需記錄 patch site |
-| (c) PC → native dispatch table | 漸進填表、可與 djump 收斂 | 多一次間接跳 |
+| invoke 總計 | ~1086ms | 原 ~1897ms(chaining 前) |
+| run | ~838ms | 最大宗;roundTrips 28k(原 3.3M,幾乎只剩 host call 22.7k 必要出口) |
+| setup | ~195ms | `NewJITContext` per-invocation mmap → **現行最大可挖項(待辦 #1(b))** |
+| host | ~125ms | 必要成本 |
+| compile | ~35ms / 4.5k 次 | per-distinct-code + label handle 化(原 per-invocation 2.09M 次) |
+| deblob | <1% | Program cache |
 
-目前 fallthrough 用策略 (a)（`compileForLink` 遞迴 compile），jump/branch 可延續相同策略。
-
-**預期效益**：消除 per-block trampoline 開銷（實測約佔 execute 時間 ~40%）。配合 dual-mapping（已完成），Go dispatcher 只在 host call / sbrk / djump miss / OOG / halt 才觸發。
-
-**相關檔案**：
-- `block_link.go`：`emitFallthroughEpilogue`、`emitLinkOrExit`、`compileForLink`
-- `compiler.go`：`linkFallthrough` / `linkTaken`、block epilogue emit
+對 interpreter:tiny corpus 的 **UpdateAccumulate 1.57×+**。**full dataset(fork session)兩 backend 等速**——該資料 PVM 佔 STF <4%,Safrole ring-VRF 佔 ~51%,且其中 ~107s/run 是 fork-restore 每 block 清 ring-verifier cache 造成的 `GetVerifier` 重建(**非 PVM 問題**,修法:cache key 加 gammaK hash、restore 不清 cache,潛在 ~2× STF)。
 
 ---
 
-## 2. 常數折疊（Constant Folding）
+## ✅ 已完成(已 commit)
 
-**現狀**：single-pass compiler 逐條指令 emit，不做跨指令分析。每條 `load_imm` 都 emit `MOV r64, imm64`（10 bytes），後續使用該 register 的指令再 emit 完整的 reg-reg 操作。
-
-**機會**：如果 `load_imm` 的目標 register 緊接著被一條算術指令消耗（且中間無 branch 進入），可以直接用 immediate 編碼：
-
-```
-// 現在 emit 的：
-MOV R10, 42          // 10 bytes (movabs)
-ADD RAX, R10         // 3 bytes
-
-// 優化後：
-ADD RAX, 42          // 7 bytes (ADD r64, imm32) 或 4 bytes (ADD r64, imm8)
-```
-
-**實作思路**：
-
-1. 在 compile loop 中維護一個 per-register 的 `knownImm` map
-2. `load_imm` 時不立即 emit，而是記錄 `knownImm[dst] = imm`
-3. 下一條指令使用該 register 時，如果 imm 在 imm8/imm32 範圍內，直接用 immediate encoding
-4. 如果下一條指令是 branch target（有其他路徑跳入）或 register 被其他指令修改前未消耗 → flush `knownImm`，正常 emit `MOV r64, imm`
-
-**注意**：
-- Single-pass 限制：只能看「前一條」，不能回頭改
-- Branch target 會 invalidate 所有 knownImm（因為其他路徑可能帶不同值進來）
-- 這是 peephole optimization，不是完整的 constant propagation
-
-**預期效益**：減少 code size（少 emit movabs）+ 可能減少 register pressure（scratch 少用一次）。在 `load_imm + op` 密集的 code 中效益明顯。
+- **lazy block linking**:`compileForLink` 只連已編好的 block(`block_link.go`)。
+- **跨 invocation code cache**(`compiled_program.go`):per-CodeHash 共用編譯產物,single-flight、`cp.mu` 序列化編譯。
+  - Phase 1:cache deblob 的 `*Program`(`PVM/program_cache.go`,兩 backend 共用)。
+  - Phase 2:cache `ExecutableMemory`/`CodeCache`/djump dispatch table(recompiler-only)。
+  - 結果:recompiler accumulate 反超 interpreter;fuzz 1179/1179、`-race` 0 races。
+- **backend 選擇修正**(`cmd/fuzz`):`--pvm-backend` flag 預設曾蓋掉 `JAM_PVM_BACKEND` env(bench 兩邊都跑 interpreter);已修。
+  - 註:`cmd/node` 的 `--pvm-backend` switch 仍為**本地未 commit**。
+- **JIT_PROFILE 工具**:counters/pprof/perf + `FlushProfile` + `jit_perfmap.go`;退役 `exec(est)` 減法桶、`execBlocks`→`roundTrips`、加 `cacheHits/Misses`。
+- **fuzz-target STF timing**:`internal/fuzz` 累計 per-ImportBlock STF timing,`make test-timing-fuzz-trace` 驅動。
+- **eviction(cross-invoke cache Phase 3 v1)**——**已完成、未 commit**(`compiled_program.go` + `compiled_program_test.go`):
+  - 觸發:reactive——只在「編了新 distinct CodeHash、insert 進 cache」且超過 cap 時。
+  - victim:`refCount==0` 中 `lastUsed` 最小者(LRU;map + 單調序號,淘汰是罕見的 O(n) 掃描)。
+  - 保護:`refCount>0`(執行中 arena)絕不 Munmap;全在用 → soft cap。acquire/release 配對(release 接 `Psi_M_recompiler` defer)。
+  - cap:`JIT_CACHE_MAX_PROGRAMS`(預設 256,count-based)。
+  - 驗收:單元測試(LRU 淘汰/Munmap/重建/soft-cap);cap=1 conformance **1179/1179**;node fuzzy `-race` **0 races**。
+- **native block chaining(原待辦 #1(a))**——**已完成、未 commit**(`block_link.go` `emitChainOrExit`):
+  - static exit(fallthrough / branch 兩路 / jump)改為查 PC→native dispatch table:hit 直接 `jmp` 進目標 block,miss 才 `emitExitToPC` 回 Go;miss 由 dispatcher 編譯目標 + `registerDispatch` 填表後自癒 → 迴圈收斂成全 native(back-edge 不再每圈回 Go)。
+  - dispatch table 從 djump-only 擴為所有非空 program 皆建(`len(Bitmasks)>0`);slot 原子寫、native 端 aligned 8B 讀(同 djump hit path)。compile-time 直接 link 保留(省 lookup)。
+  - single-step(trace tag)設 `c.singleStep` 關 chaining,維持每指令回 Go。
+  - 驗收(fuzz conformance 0.7.2,645 invokes):roundTrips **3,310,512 → 28,302(117×↓)**、roundTrips/lock 142.7 → 1.22、invoke **1897ms → 1143ms(-40%)**、run 1652ms → 883ms;conformance **1179/1179**;traces 全 modes 800/800;fuzzy_light `-race` 0 races。
+  - 註:全 native 迴圈 Go runtime 無法 preempt,靠每 block 的 gas check 保證有界。
 
 ---
 
-## 3. Memory Access 合併 Bounds Check
+## 待辦(尚未實作)
 
-**現狀**：目前 PVM 的 memory access **不做 software bounds check**，完全依賴硬體 MMU（PROT_NONE page → SIGSEGV → signal handler → ExitPageFault）。這是零成本的。
+### 1. 減少執行階段開銷
+- ~~(a) native block chaining~~ ✅ 已完成(見上)。
+- **(b) per-invocation mmap / syscall**:`NewJITContext` 每次 mmap/munmap 大 guest region → 評估 **pooling/重用 JITContext**;`SetFaultWindow` 從 per-block 移到 per-invocation。chaining 後 setup(207ms)相對佔比升高,此項效益上升。
 
-**但有另一種 overhead**：每個 load/store emit 都是獨立的 `MOV ECX, addr_reg` + `MOV dst, [R15+RCX]`，即使連續存取已知在同一頁的位址。
+### 2.(低)codegen / emitted-code 品質
+compile 已小,純 codegen 速度優先序低。經解剖,子項的判定:
+- ~~gas check 融合(4→2 條)~~ ✅ 已完成、未 commit(`gas.go`):`load+test+jcc+sub` 融成 `sub [R15-48],1; js oog`(語意等價:pre<1 ⟺ post-sub<0;OOG 冷路徑 `sub -1` 補回,回報 gas 與 interpreter 一致)。run 883→838ms(-5%);驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
+- ~~label `fmt.Sprintf` → int handle~~ ✅ 已完成、未 commit(`asm` + 全 emit 檔;設計/實測見 `2_x86_Assembler.md` §3.3.1)。compile 70ms→37ms(-47%),emitted bytes 不變;驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
+- 常數折疊:緩,要 profile 證明才動。連續 memory access 合併:**不做**(page-fault 語意 per-access,正確性風險)。
 
-**機會**：連續 load/store 且 offset 差小於 page size（4KB）時，可以省掉重複的 address setup：
+### 3.(低)eviction 後續
+proactive 淘汰(從 state 訊號主動刪「已知不會再用」的 CodeHash);bytes-based cap;arena-full 優雅處理(目前滿了 → compile error,16MB/service 通常夠);`*Program` cache 也加界限。
 
-```
-// 現在（兩次獨立的 address calculation）：
-MOV ECX, R10         // addr for load_u32 [r7]
-MOV EAX, [R15+RCX]
-MOV ECX, R10         // addr for load_u32 [r7+4]  ← 重複！
-ADD ECX, 4
-MOV EDX, [R15+RCX]
-
-// 優化後（reuse base）：
-MOV ECX, R10
-MOV EAX, [R15+RCX]
-MOV EDX, [R15+RCX+4]  // 直接用 disp 偏移
-```
-
-**實作思路**：
-
-1. 在 compile loop 追蹤「上一次 memory access 的 base register + 已知 address expression」
-2. 如果下一條 memory op 的 base 相同且 offset 差在 disp8/disp32 範圍內：
-   - 直接用 `[R15 + RCX + disp]` 定址（SIB + displacement）
-   - 省掉重複的 `MOV ECX, reg` + `ADD ECX, offset`
-3. 如果中間有可能改變 address register 的指令 → invalidate tracking
-
-**注意**：
-- PVM 地址是 32-bit wrap-around，offset 計算要用 32-bit 算術
-- 如果兩次存取跨頁（addr 在 page boundary 附近），第二次可能 fault 但第一次沒有 → 語意正確（signal handler 照樣接住）
-- 這個優化只省 code size 和 instruction count，不影響正確性
-
-**預期效益**：在 struct field access 密集的 code（連續 load 同一 base + 不同 offset）中，每組省 2-3 條 x86 指令。
+### 4.(暫緩)block-based gas(GP 0.8.0)
+0.7.2 仍 per-instruction,改了**沒測資料可驗**。`gas.go` 已備好 `emitBlockGasCheck` / `emitBlockOutOfGasExit`,等 0.8 向量再開。
 
 ---
 
-## 優先序建議
-
-```
-1. Block Chaining (jump/branch)  ← 效益最大（消除 ~40% execute overhead）
-2. 常數折疊                      ← 中等效益、低風險
-3. Memory Access 合併            ← 小效益、需 careful tracking
-```
-
-Block chaining 的前置條件（dual-mapping）已完成，可以直接做。
+## 收尾(非優化,commit 前處理)
+- commit(累積中的未 commit 工作):eviction(`compiled_program.go`/`_test.go`)、native block chaining(`block_link.go` 等)、label handle 化(`asm` + emit 檔)、gas check 融合(`gas.go`)、`.bin` 讀取(`cmd/fuzz/main.go`,含 `--format`/`--skip`)。
+- `cmd/fuzz/main.go` 拿掉 `Ancestry item added` debug print、更新過時的 ancestry NOTE 註解。
+- `cmd/node` 的 backend switch + profiling 檔案仍為本地未 commit(上次刻意排除)。
+- 清掉 stray build 產物(repo 根目錄 `fuzz`、`node` binary)或加 `.gitignore`。
+- (非 PVM)ring-verifier cache 修法交給 blockchain 側:`GetVerifier` cache key 加 gammaK hash、`restoreWithState` 不再 `ClearVerifierCache`(full-dataset 實測 `GetVerifier` 107s/run、45%)。

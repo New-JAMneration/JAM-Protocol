@@ -3,6 +3,8 @@
 package recompiler
 
 import (
+	"os"
+	"strconv"
 	"sync"
 
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
@@ -15,21 +17,31 @@ import (
 // the pre-emitted entry trampoline. Per-invocation guest state lives in a fresh
 // JITContext bound via bindContext.
 type CompiledProgram struct {
+	hash    types.OpaqueHash
 	program *PVM.Program
 	em      *ExecutableMemory
 	cache   *CodeCache
-	djump   *djumpSupport // nil if the program has no jump table
+	djump   *djumpSupport // dispatch table (block chaining) + djump rodata; nil only for empty code
 	tramp   uintptr       // entry trampoline in em (0 ⇒ emitted lazily, uncached path)
 
 	// mu serializes lazy block compilation (em append + cache.Put + dispatch
 	// store) when the artifact is shared by concurrent invocations of the same
 	// code. Already-compiled blocks execute lock-free.
 	mu sync.Mutex
+
+	// refCount and lastUsed are guarded by programStore.mu. refCount is the number
+	// of in-flight invocations using this artifact; eviction only reclaims
+	// artifacts with refCount == 0, so an arena a goroutine is executing is never
+	// Munmapped. lastUsed is the store sequence at the most recent acquire; the
+	// reclaimable artifact with the smallest lastUsed is the LRU victim.
+	refCount int32
+	lastUsed uint64
 }
 
 // buildCompiledProgram creates a fresh artifact with its own executable arena, a
-// pre-emitted entry trampoline, and (if the program uses a jump table) djump
-// support. Used both for the cached store and the uncached (zero-hash) path.
+// pre-emitted entry trampoline, and djump support (PC→native dispatch for block
+// chaining + jump-table rodata). Used both for the cached store and the uncached
+// (zero-hash) path.
 func buildCompiledProgram(program *PVM.Program) (*CompiledProgram, error) {
 	em, err := NewExecutableMemory(0)
 	if err != nil {
@@ -45,7 +57,7 @@ func buildCompiledProgram(program *PVM.Program) (*CompiledProgram, error) {
 
 	cp := &CompiledProgram{program: program, em: em, cache: cache, tramp: tramp}
 
-	if jt := program.JumpTable; jt.Length > 0 && jt.Size > 0 && len(jt.Data) > 0 {
+	if len(program.Bitmasks) > 0 {
 		d, err := buildDjumpSupport(em, program)
 		if err != nil {
 			_ = em.Close()
@@ -75,9 +87,8 @@ func (cp *CompiledProgram) bindContext(ctx *JITContext) {
 	}
 }
 
-// close releases the executable arena. Only for uncached artifacts (zero-hash);
-// cached artifacts are never removed from the store — they live for the process
-// lifetime (eviction is not implemented yet).
+// close releases the executable arena (Munmap). Called for uncached artifacts
+// (zero-hash) after use, and by the store when it evicts a cached artifact.
 func (cp *CompiledProgram) close() {
 	if cp != nil && cp.em != nil {
 		_ = cp.em.Close()
@@ -99,48 +110,155 @@ func emitEntryTrampolineInto(em *ExecutableMemory) (uintptr, error) {
 	return em.GetPtr(offset), nil
 }
 
-// --- cross-invocation artifact store (keyed by CodeHash, single-flight) ---
+// --- cross-invocation artifact store (keyed by CodeHash) ---
+//
+// Single-flight build (one compile per distinct hash, even concurrently) + LRU
+// eviction with a soft, refcount-protected cap. Eviction triggers only on insert
+// when over cap; victim selection is an O(n) scan (n <= cap, rare) for the
+// reclaimable (refCount==0) artifact with the smallest lastUsed — no linked list,
+// since the LRU is touched once per invocation, not per block.
 
-type artifactEntry struct {
+const defaultMaxCachedPrograms = 256
+
+type buildState struct {
 	ready chan struct{} // closed once cp/err are set
 	cp    *CompiledProgram
 	err   error
 }
 
-var artifactStore = struct {
-	mu sync.Mutex
-	m  map[types.OpaqueHash]*artifactEntry
-}{m: make(map[types.OpaqueHash]*artifactEntry)}
+type programStore struct {
+	mu       sync.Mutex
+	built    map[types.OpaqueHash]*CompiledProgram
+	inflight map[types.OpaqueHash]*buildState
+	seq      uint64 // monotonic LRU clock
+	max      int    // soft cap on cached artifacts
+}
+
+var theProgramStore = newProgramStore()
+
+func newProgramStore() *programStore {
+	return &programStore{
+		built:    make(map[types.OpaqueHash]*CompiledProgram),
+		inflight: make(map[types.OpaqueHash]*buildState),
+		max:      cacheMaxFromEnv(),
+	}
+}
+
+// cacheMaxFromEnv reads JIT_CACHE_MAX_PROGRAMS (positive int) or falls back to
+// the default. The cap is soft (in-use artifacts are never evicted).
+func cacheMaxFromEnv() int {
+	if v := os.Getenv("JIT_CACHE_MAX_PROGRAMS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return defaultMaxCachedPrograms
+}
 
 // acquireCompiledProgram returns the cached compiled artifact for hash, building
-// it at most once per distinct hash even under concurrent callers (single-flight).
-// A zero hash is not cached: it returns a fresh artifact with cached=false and the
-// caller must close() it. Cached artifacts are never evicted; they live for the
-// process lifetime.
+// it at most once per distinct hash even under concurrent callers (single-flight),
+// and increments its refcount (pair with releaseCompiledProgram). A zero hash is
+// not cached: it returns a fresh artifact with cached=false and the caller must
+// close() it.
 func acquireCompiledProgram(hash types.OpaqueHash, program *PVM.Program) (cp *CompiledProgram, cached bool, err error) {
 	var zero types.OpaqueHash
 	if hash == zero {
 		cp, err = buildCompiledProgram(program)
 		return cp, false, err
 	}
+	cp, err = theProgramStore.acquire(hash, program)
+	return cp, true, err
+}
 
-	artifactStore.mu.Lock()
-	if e, ok := artifactStore.m[hash]; ok {
-		artifactStore.mu.Unlock()
-		<-e.ready
-		return e.cp, true, e.err
+func (s *programStore) acquire(hash types.OpaqueHash, program *PVM.Program) (*CompiledProgram, error) {
+	s.mu.Lock()
+	if cp := s.built[hash]; cp != nil {
+		cp.refCount++
+		s.touchLocked(cp)
+		s.mu.Unlock()
+		return cp, nil
 	}
-	e := &artifactEntry{ready: make(chan struct{})}
-	artifactStore.m[hash] = e
-	artifactStore.mu.Unlock()
+	if bs := s.inflight[hash]; bs != nil {
+		// Another goroutine is building this hash; wait, then retry the lookup
+		// (it may have been evicted between the build finishing and our retry).
+		s.mu.Unlock()
+		<-bs.ready
+		if bs.err != nil {
+			return nil, bs.err
+		}
+		return s.acquire(hash, program)
+	}
+	bs := &buildState{ready: make(chan struct{})}
+	s.inflight[hash] = bs
+	s.mu.Unlock()
 
-	e.cp, e.err = buildCompiledProgram(program)
-	close(e.ready)
-	if e.err != nil {
-		// Don't keep a failed entry; allow a retry on the next call.
-		artifactStore.mu.Lock()
-		delete(artifactStore.m, hash)
-		artifactStore.mu.Unlock()
+	cp, err := buildCompiledProgram(program) // expensive; outside the lock
+	if cp != nil {
+		cp.hash = hash
 	}
-	return e.cp, true, e.err
+
+	s.mu.Lock()
+	delete(s.inflight, hash)
+	bs.cp, bs.err = cp, err
+	var evicted []*CompiledProgram
+	if err == nil {
+		cp.refCount = 1 // this acquire's reference
+		s.touchLocked(cp)
+		s.built[hash] = cp
+		evicted = s.evictLocked()
+	}
+	s.mu.Unlock()
+	close(bs.ready)
+
+	for _, v := range evicted {
+		v.close() // Munmap outside the lock; victims are already removed + refCount==0
+	}
+	return cp, err
+}
+
+// touchLocked marks cp as most-recently-used. Caller holds s.mu.
+func (s *programStore) touchLocked(cp *CompiledProgram) {
+	s.seq++
+	cp.lastUsed = s.seq
+}
+
+// evictLocked removes least-recently-used, reclaimable (refCount==0) artifacts
+// until the cache is within its cap, returning them to be close()d outside the
+// lock. In-use artifacts are skipped (soft cap). Caller holds s.mu.
+func (s *programStore) evictLocked() []*CompiledProgram {
+	var evicted []*CompiledProgram
+	for len(s.built) > s.max {
+		var victim *CompiledProgram
+		for _, cp := range s.built {
+			if cp.refCount != 0 {
+				continue
+			}
+			if victim == nil || cp.lastUsed < victim.lastUsed {
+				victim = cp
+			}
+		}
+		if victim == nil {
+			break // every artifact is in use — exceed the cap rather than evict one
+		}
+		delete(s.built, victim.hash)
+		evicted = append(evicted, victim)
+	}
+	return evicted
+}
+
+// releaseCompiledProgram drops one reference taken by acquireCompiledProgram.
+// The artifact becomes evictable once its refcount reaches zero.
+func releaseCompiledProgram(cp *CompiledProgram) {
+	theProgramStore.release(cp)
+}
+
+func (s *programStore) release(cp *CompiledProgram) {
+	if cp == nil {
+		return
+	}
+	s.mu.Lock()
+	if cp.refCount > 0 {
+		cp.refCount--
+	}
+	s.mu.Unlock()
 }

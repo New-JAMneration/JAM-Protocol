@@ -18,10 +18,15 @@ func (c *Compiler) CompileSingleInstruction(instr *PVM.InstrMeta) (*CompiledBloc
 	a := c.asm
 	a.Reset()
 
+	// Single-step must trampoline to Go after every instruction; block chaining
+	// would jump block-to-block natively and skip per-instruction trace capture.
+	c.singleStep = true
+
 	pc := instr.PC
 	fallthroughPC := fallthroughPC(instr)
 
-	c.emitGasCheck(a, instr.PC)
+	oog := a.NewLabel()
+	c.emitGasCheck(a, oog)
 
 	handler := opcodeHandlers[instr.Opcode]
 	if handler == nil {
@@ -33,7 +38,7 @@ func (c *Compiler) CompileSingleInstruction(instr *PVM.InstrMeta) (*CompiledBloc
 
 	emitExitToPC(a, fallthroughPC)
 	EmitExitTrampoline(a)
-	emitOutOfGasExit(a, instr.PC)
+	emitOutOfGasExit(a, oog, instr.PC)
 
 	code, err := a.Finalize()
 	if err != nil {

@@ -254,6 +254,8 @@ type Compiler struct {
 	// THIS block only after all pre-compilation — see compileBasicBlockAtDepth.
 	linkFallthrough *CompiledBlock // not-taken / sequential successor
 	linkTaken       *CompiledBlock // static jump / branch-taken target
+
+	singleStep bool // set by CompileSingleInstruction: exits must reach Go every instruction, no chaining
 }
 
 func NewCompiler(program *PVM.Program, ctx *JITContext, cache *CodeCache) *Compiler {
@@ -291,8 +293,9 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	c.linking[startPC] = true
 	defer delete(c.linking, startPC)
 
-	jt := c.program.JumpTable
-	if jt.Length > 0 && jt.Size > 0 && len(jt.Data) > 0 {
+	// Block chaining needs the PC→native dispatch table for every program, not
+	// just ones with a jump table (djump rodata rides along, unused if empty).
+	if len(c.program.Bitmasks) > 0 {
 		if err := c.ensureDjumpSupport(); err != nil {
 			return nil, err
 		}
@@ -367,14 +370,23 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	a := c.asm
 	a.Reset()
 
+	// Per-instruction OOG landing-pad labels: the gas check (hot, in the loop)
+	// references instruction i's label before the landing pad (cold, after the
+	// loop) binds it — the two loops walk instrs in the same order, so an
+	// index-aligned slice pairs them.
+	oogLabels := make([]asm.Label, len(instrs))
+	for i := range oogLabels {
+		oogLabels[i] = a.NewLabel()
+	}
+
 	// blockBased gas charging (0.8.0 uncommented this):
-	// c.emitBlockGasCheck(a, blockMeta.StartPC, int64(blockMeta.GasCost))
+	// c.emitBlockGasCheck(a, blockOOG, int64(blockMeta.GasCost))
 
 	for i := range instrs {
 		instr := &instrs[i]
 
 		// per-instruction gas charging (GP v0.7.2, remove this in 0.8.0):
-		c.emitGasCheck(a, instr.PC)
+		c.emitGasCheck(a, oogLabels[i])
 
 		handler := opcodeHandlers[instr.Opcode]
 		if handler == nil {
@@ -386,18 +398,18 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	}
 
 	// blockBased gas charging (0.8.0 uncommented this):
-	// emitBlockOutOfGasExit(a, blockMeta.StartPC)
+	// emitBlockOutOfGasExit(a, blockOOG, blockMeta.StartPC)
 
-	blockEpilogue := fmt.Sprintf("block_epilogue_%d", blockMeta.StartPC)
+	blockEpilogue := a.NewLabel()
 	a.Jmp(blockEpilogue)
 
 	// per-instruction gas charging (GP v0.7.2, remove this in 0.8.0):
 	for i := range instrs {
-		emitOutOfGasExit(a, instrs[i].PC)
+		emitOutOfGasExit(a, oogLabels[i], instrs[i].PC)
 	}
 
 	_ = a.BindLabel(blockEpilogue)
-	emitFallthroughEpilogue(a, fallthroughPC, linkFallthrough)
+	c.emitFallthroughEpilogue(a, fallthroughPC, linkFallthrough)
 	EmitExitTrampoline(a)
 
 	code, err := a.Finalize()

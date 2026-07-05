@@ -3,8 +3,6 @@
 package recompiler
 
 import (
-	"fmt"
-
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
@@ -43,10 +41,9 @@ func (c *Compiler) emitMul32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 193: div_u_32 — Reg[rD] = sext_4(uint32(Reg[rA]) /u uint32(Reg[rB])); div0 → 2^64-1
 func (c *Compiler) emitDivU32(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	emitZeroExt32(a, RegScratch)
@@ -71,12 +68,11 @@ func (c *Compiler) emitDivU32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 194: div_s_32 — Reg[rD] = int32(Reg[rA]) / int32(Reg[rB]); div0 → 2^64-1
 func (c *Compiler) emitDivS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	overflow := fmt.Sprintf("ovf_%d", pc)
-	doDiv := fmt.Sprintf("do_div_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	overflow := a.NewLabel()
+	doDiv := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -113,10 +109,9 @@ func (c *Compiler) emitDivS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 195: rem_u_32 — Reg[rD] = sext_4(uint32(Reg[rA]) %u uint32(Reg[rB])); div0 → Reg[rA]
 func (c *Compiler) emitRemU32(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	emitZeroExt32(a, RegScratch)
@@ -141,11 +136,10 @@ func (c *Compiler) emitRemU32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 196: rem_s_32 — Reg[rD] = smod(int32(Reg[rA]), int32(Reg[rB]))
 func (c *Compiler) emitRemS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	divNegOne := fmt.Sprintf("divm1_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	divNegOne := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -233,10 +227,9 @@ func (c *Compiler) emitMul64(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 203: div_u_64 — Reg[rD] = Reg[rA] /u Reg[rB]; div0 → 2^64-1
 func (c *Compiler) emitDivU64(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -258,12 +251,11 @@ func (c *Compiler) emitDivU64(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 204: div_s_64 — Reg[rD] = int64(Reg[rA]) / int64(Reg[rB]); div0 → 2^64-1
 func (c *Compiler) emitDivS64(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	divNegOne := fmt.Sprintf("divm1_%d", pc)
-	normalDiv := fmt.Sprintf("div_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	divNegOne := a.NewLabel()
+	normalDiv := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -303,10 +295,9 @@ func (c *Compiler) emitDivS64(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 205: rem_u_64 — Reg[rD] = Reg[rA] % Reg[rB]; div0 → Reg[rA]
 func (c *Compiler) emitRemU64(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -328,11 +319,10 @@ func (c *Compiler) emitRemU64(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 206: rem_s_64 — Reg[rD] = smod(int64(Reg[rA]), int64(Reg[rB]))
 func (c *Compiler) emitRemS64(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	divByZero := fmt.Sprintf("divz_%d", pc)
-	divNegOne := fmt.Sprintf("divm1_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	divByZero := a.NewLabel()
+	divNegOne := a.NewLabel()
+	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
 	a.TestRegReg(RegScratch, RegScratch)
@@ -470,10 +460,9 @@ func (c *Compiler) emitMulUpperUU(a *asm.Assembler, instr *PVM.InstrMeta) error 
 
 // opcode 215: mul_upper_s_u — Reg[rD] = high 64 bits of int64(Reg[rA]) *u Reg[rB]
 func (c *Compiler) emitMulUpperSU(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	dReg, aReg, bReg := threeRegFromMeta(instr)
-	positive := fmt.Sprintf("positive_%d", pc)
-	done := fmt.Sprintf("done_%d", pc)
+	positive := a.NewLabel()
+	done := a.NewLabel()
 
 	emitSaveRAXRDX(a, dReg)
 	a.MovRegToReg(RegScratch, bReg)

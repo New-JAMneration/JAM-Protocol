@@ -20,6 +20,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
+	jamteststrace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 	"github.com/urfave/cli/v3"
 )
@@ -152,6 +153,22 @@ var (
 		Arguments: []cli.Argument{
 			socketAddrArg,
 			folderPathArg,
+		},
+		// Read .bin instead of .json, e.g.:
+		//   go run ./cmd/fuzz/ test_folder --format=bin <sock> <dir>
+		// --skip N drops the first N fixtures so SetState runs on a later block
+		// (e.g. skip leading fork variants of a mid-chain dataset).
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "format",
+				Usage: "Fixture format to read: json or binary (.bin)",
+				Value: "json",
+			},
+			&cli.IntFlag{
+				Name:  "skip",
+				Usage: "Drop the first N fixtures before replaying (SetState on the new first)",
+				Value: 0,
+			},
 		},
 	}
 )
@@ -533,6 +550,19 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("test_folder requires a json file path argument")
 	}
 
+	// Decoding fixtures (.bin or .json) needs the chainspec, so the client inits
+	// config too. Default tiny; set JAM_FUZZ_SPEC=full for full-spec data.
+	spec := strings.TrimSpace(os.Getenv(envFuzzSpec))
+	if spec == "" {
+		spec = "tiny"
+	}
+	spec = strings.ToLower(spec)
+	if spec != "tiny" && spec != "full" {
+		return fmt.Errorf("%s must be tiny or full, got %q", envFuzzSpec, spec)
+	}
+	config.InitConfig(cmd.String(configPathFlag.Name), spec)
+	config.UpdateVersion(GP_VERSION, TARGET_VERSION)
+
 	// Connect to server
 	client, err := fuzz.NewFuzzClient("unix", socketAddr)
 	if err != nil {
@@ -540,18 +570,39 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer client.Close()
 
-	// Read all (~100) JSON files in the folder
-	jsonFiles := make([]string, 0, 100)
+	// Pick a single fixture format for the whole folder (never mixed).
+	fixtureExt := ".json"
+	if f := strings.ToLower(strings.TrimSpace(cmd.String("format"))); f == "bin" || f == "binary" {
+		fixtureExt = ".bin"
+	}
+	// report.bin is fuzz-session metadata (FuzzerReport), not a fixture.
+	isFixture := func(path string, d fs.DirEntry) bool {
+		return !d.IsDir() && strings.HasSuffix(strings.ToLower(path), fixtureExt) && filepath.Base(path) != "report.bin"
+	}
+
+	// Count first so the slice is sized exactly — sessions can hold ~1000 files,
+	// and a small fixed cap would re-allocate repeatedly on append.
+	fileCount := 0
+	if err := filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && isFixture(path, d) {
+			fileCount++
+		}
+		return err
+	}); err != nil {
+		return fmt.Errorf("error walking directory: %w", err)
+	}
+
+	// Read all fixture files in the folder
+	jsonFiles := make([]string, 0, fileCount)
 	firstFiles := make(map[string]string)
 	err = filepath.WalkDir(folderPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && strings.HasSuffix(strings.ToLower(path), ".json") {
-			jsonFiles = append(jsonFiles, path)
-		} else {
+		if !isFixture(path, d) {
 			return nil
 		}
+		jsonFiles = append(jsonFiles, path)
 
 		folderName := strings.Split(path, "/")
 		folderIndex := folderName[len(folderName)-2]
@@ -577,6 +628,24 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 
 	if len(jsonFiles) == 0 {
 		return errors.New("no JSON files found in the specified folder")
+	}
+
+	// --skip N drops the leading N fixtures; the new first per group then does
+	// SetState. Rebuild firstFiles so setStateRequired tracks the new boundary.
+	if skip := cmd.Int("skip"); skip > 0 {
+		if skip >= len(jsonFiles) {
+			return fmt.Errorf("--skip %d drops all %d fixtures", skip, len(jsonFiles))
+		}
+		jsonFiles = jsonFiles[skip:]
+		firstFiles = make(map[string]string)
+		for _, f := range jsonFiles {
+			parts := strings.Split(f, "/")
+			folderIndex := parts[len(parts)-2]
+			if _, ok := firstFiles[folderIndex]; !ok {
+				firstFiles[folderIndex] = strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
+			}
+		}
+		logger.Infof("Skipped first %d fixtures", skip)
 	}
 
 	logger.Infof("Found %d JSON files to test", len(jsonFiles))
@@ -614,10 +683,27 @@ func testFolder(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired bool) error {
-	data, err := os.ReadFile(jsonFile)
+// traceFixture is the format-agnostic input to the replay logic, populated from
+// either a JSON fixture or a binary TraceTestCase.
+type traceFixture struct {
+	Block         types.Block
+	PreStateRoot  types.StateRoot
+	PostStateRoot types.StateRoot
+	PostKeyVals   types.StateKeyVals
+}
+
+func testFixtureFile(client *fuzz.FuzzClient, path string, setStateRequired bool) error {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("error reading JSON file: %w", err)
+		return fmt.Errorf("error reading file: %w", err)
+	}
+
+	// Binary: dispatch by filename — genesis.bin is a Genesis, NNNNNNNN.bin a TraceStep.
+	if strings.HasSuffix(strings.ToLower(path), ".bin") {
+		if filepath.Base(path) == "genesis.bin" {
+			return testGenesisBin(client, path, data)
+		}
+		return testTraceBin(client, path, data, setStateRequired)
 	}
 
 	var probe struct {
@@ -630,33 +716,68 @@ func testFixtureFile(client *fuzz.FuzzClient, jsonFile string, setStateRequired 
 	}
 
 	if len(probe.PreState) > 0 {
-		return testTraceFixture(client, jsonFile, data, setStateRequired)
+		return testTraceFixture(client, path, data, setStateRequired)
 	}
 
 	if len(probe.State) > 0 {
-		return testGenesisFixture(client, jsonFile, data)
+		return testGenesisFixture(client, path, data)
 	}
 
 	return errors.New("unknown fixture format")
 }
 
+// testTraceFixture loads a JSON trace fixture and replays it.
 func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, setStateRequired bool) error {
-	mismatchCount := 0
-	var testData TestData
-	if err := json.Unmarshal(data, &testData); err != nil {
+	var jsonData TestData
+	if err := json.Unmarshal(data, &jsonData); err != nil {
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
-	logger.ColorBlue("File: %s", jsonFile)
 
-	expectedPreStateRoot, err := parseStateRoot(testData.PreState.StateRoot)
+	expectedPreStateRoot, err := parseStateRoot(jsonData.PreState.StateRoot)
 	if err != nil {
 		return fmt.Errorf("error parsing pre_state state_root: %w", err)
 	}
 
-	expectedPostStateRoot, err := parseStateRoot(testData.PostState.StateRoot)
+	expectedPostStateRoot, err := parseStateRoot(jsonData.PostState.StateRoot)
 	if err != nil {
 		return fmt.Errorf("error parsing post_state state_root: %w", err)
 	}
+
+	return replayTrace(client, jsonFile, traceFixture{
+		Block:         jsonData.Block,
+		PreStateRoot:  expectedPreStateRoot,
+		PostStateRoot: expectedPostStateRoot,
+		PostKeyVals:   jsonData.PostState.KeyVals,
+	}, setStateRequired)
+}
+
+// testTraceBin loads a binary TraceStep (NNNNNNNN.bin) and replays it.
+func testTraceBin(client *fuzz.FuzzClient, file string, data []byte, setStateRequired bool) error {
+	var tc jamteststrace.TraceTestCase
+	n, err := types.NewDecoder().DecodeWithConsumed(data, &tc)
+	if err != nil {
+		return fmt.Errorf("decode TraceTestCase: %w", err)
+	}
+	if n != len(data) {
+		return fmt.Errorf("partial decode: consumed %d of %d bytes (spec/layout mismatch)", n, len(data))
+	}
+
+	return replayTrace(client, file, traceFixture{
+		Block:         tc.Block,
+		PreStateRoot:  tc.PreState.StateRoot,
+		PostStateRoot: tc.PostState.StateRoot,
+		PostKeyVals:   tc.PostState.KeyVals,
+	}, setStateRequired)
+}
+
+// replayTrace drives a single trace fixture against the target: SetState for the
+// first fixture in a group, otherwise ImportBlock + state-root compare.
+func replayTrace(client *fuzz.FuzzClient, jsonFile string, testData traceFixture, setStateRequired bool) error {
+	mismatchCount := 0
+	logger.ColorBlue("File: %s", jsonFile)
+
+	expectedPreStateRoot := testData.PreStateRoot
+	expectedPostStateRoot := testData.PostStateRoot
 	/*
 		Step 1: Initialization (SetState) to the post_state
 	*/
@@ -665,11 +786,11 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		decoder := types.NewDecoder()
 		recentBlocks := &types.RecentBlocks{}
 		recentBlocksKeyVal := types.StateKeyVal{}
-		for _, kv := range testData.PostState.KeyVals {
+		for _, kv := range testData.PostKeyVals {
 			if len(kv.Key) > 0 && kv.Key[0] == 0x03 {
 				recentBlocksKeyVal = kv
 				// Decode the recent history value
-				err = decoder.Decode(recentBlocksKeyVal.Value, recentBlocks)
+				err := decoder.Decode(recentBlocksKeyVal.Value, recentBlocks)
 				if err != nil {
 					logger.Debugf("error decoding recent blocks: %v", err)
 					// Service related key might be misleaded as recent blocks
@@ -694,7 +815,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		// Print Sending SetState
 		// NOTE: default ancestry is empty, cause the current test-data is not provided with ancestry
 		logger.ColorGreen("[SetState][Request] state_root= 0x%x", expectedPostStateRoot)
-		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostState.KeyVals, types.Ancestry{})
+		actualPostStateRoot, err := client.SetState(testData.Block.Header, testData.PostKeyVals, types.Ancestry{})
 		logger.ColorYellow("[SetState][Response] state_root= 0x%x", actualPostStateRoot)
 		if err != nil {
 			return fmt.Errorf("SetState failed: %w", err)
@@ -710,11 +831,6 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	/*
 		Step 2: ImportBlock
 	*/
-	expectedPostStateRoot, err = parseStateRoot(testData.PostState.StateRoot)
-	if err != nil {
-		return fmt.Errorf("error parsing post_state state_root: %w", err)
-	}
-
 	// Print Sending ImportBlock
 	headerHash, err := hash.ComputeBlockHeaderHash(testData.Block.Header)
 	if err != nil {
@@ -739,7 +855,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 		BlockHeaderHash:   types.HeaderHash(headerHash),
 		ExpectedStateRoot: expectedPostStateRoot,
 		ActualStateRoot:   actualPostStateRoot,
-		ExpectedPostState: testData.PostState.KeyVals,
+		ExpectedPostState: testData.PostKeyVals,
 	})
 	if err != nil {
 		return err
@@ -755,6 +871,7 @@ func testTraceFixture(client *fuzz.FuzzClient, jsonFile string, data []byte, set
 	return nil
 }
 
+// testGenesisFixture loads a JSON genesis fixture and replays it (SetState).
 func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) error {
 	var genesisData struct {
 		Header types.Header `json:"header"`
@@ -768,20 +885,39 @@ func testGenesisFixture(client *fuzz.FuzzClient, jsonFile string, data []byte) e
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
-	logger.ColorBlue("File: %s", jsonFile)
-
 	expectedStateRoot, err := parseStateRoot(genesisData.State.StateRoot)
 	if err != nil {
 		return fmt.Errorf("error parsing state state_root: %w", err)
 	}
 
-	headerHash, err := hash.ComputeBlockHeaderHash(genesisData.Header)
+	return replayGenesis(client, jsonFile, genesisData.Header, genesisData.State.KeyVals, expectedStateRoot)
+}
+
+// testGenesisBin loads a binary Genesis (genesis.bin) and replays it (SetState).
+func testGenesisBin(client *fuzz.FuzzClient, file string, data []byte) error {
+	var genesisData jamteststrace.Genesis
+	n, err := types.NewDecoder().DecodeWithConsumed(data, &genesisData)
+	if err != nil {
+		return fmt.Errorf("decode Genesis: %w", err)
+	}
+	if n != len(data) {
+		return fmt.Errorf("partial decode: consumed %d of %d bytes (spec/layout mismatch)", n, len(data))
+	}
+
+	return replayGenesis(client, file, genesisData.Header, genesisData.State.KeyVals, genesisData.State.StateRoot)
+}
+
+// replayGenesis sets the genesis state on the target and checks the state root.
+func replayGenesis(client *fuzz.FuzzClient, jsonFile string, header types.Header, keyVals types.StateKeyVals, expectedStateRoot types.StateRoot) error {
+	logger.ColorBlue("File: %s", jsonFile)
+
+	headerHash, err := hash.ComputeBlockHeaderHash(header)
 	if err != nil {
 		return fmt.Errorf("error computing header hash: %w", err)
 	}
 	logger.ColorGreen("[SetState][Request] genesis header_hash= 0x%x and state_root= 0x%x", headerHash[:8], expectedStateRoot)
 	// Genesis state does not have ancestry
-	actualStateRoot, err := client.SetState(genesisData.Header, genesisData.State.KeyVals, types.Ancestry{})
+	actualStateRoot, err := client.SetState(header, keyVals, types.Ancestry{})
 	logger.ColorYellow("[SetState][Response] genesis state_root= 0x%x", actualStateRoot)
 	if err != nil {
 		return fmt.Errorf("SetState failed: %w", err)

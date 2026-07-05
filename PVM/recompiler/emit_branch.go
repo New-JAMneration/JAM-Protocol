@@ -3,8 +3,6 @@
 package recompiler
 
 import (
-	"fmt"
-
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
@@ -23,7 +21,7 @@ func emitHaltAtPC(a *asm.Assembler, instrPC PVM.ProgramCounter) {
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(instrPC))
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitHalt))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 // emitExitToPC emits the exit sequence that sets ExitPC and ExitReason=CONTINUE,
@@ -31,7 +29,7 @@ func emitHaltAtPC(a *asm.Assembler, instrPC PVM.ProgramCounter) {
 func emitExitToPC(a *asm.Assembler, targetPC PVM.ProgramCounter) {
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(targetPC))
 	a.MovMemImm32(RegGuestBase, -int32(OffsetExitReason), 0) // ExitContinue = 0
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 // ---- 4.9.1 Unconditional jump ----
@@ -47,11 +45,11 @@ func (c *Compiler) emitJump(a *asm.Assembler, instr *PVM.InstrMeta) error {
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp("exit_trampoline")
+		a.Jmp(a.ExitTrampoline())
 		return nil
 	}
 
-	emitLinkOrExit(a, c.linkTaken, targetPC)
+	c.emitLinkOrExit(a, c.linkTaken, targetPC)
 	return nil
 }
 
@@ -69,7 +67,7 @@ func (c *Compiler) emitJumpInd(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 	// Check for HALT: target == 0xFFFF0000
 	// RegScratch is already zero-extended to 32-bit. Use 32-bit CMP.
-	haltLabel := fmt.Sprintf("halt_%d", pc)
+	haltLabel := a.NewLabel()
 	emitCmpReg32Imm32Unsigned(a, RegScratch, haltTarget)
 	a.Jcc(asm.CondEQ, haltLabel)
 
@@ -101,11 +99,11 @@ func (c *Compiler) emitLoadImmJump(a *asm.Assembler, instr *PVM.InstrMeta) error
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp("exit_trampoline")
+		a.Jmp(a.ExitTrampoline())
 		return nil
 	}
 
-	emitLinkOrExit(a, c.linkTaken, targetPC)
+	c.emitLinkOrExit(a, c.linkTaken, targetPC)
 	return nil
 }
 
@@ -113,7 +111,7 @@ func (c *Compiler) emitLoadImmJump(a *asm.Assembler, instr *PVM.InstrMeta) error
 func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.ConditionCode) error {
 	pc := instr.PC
 	xReg, vX, targetPC := branchOneRegImmFromMeta(instr)
-	takenLabel := fmt.Sprintf("taken_%d", pc)
+	takenLabel := a.NewLabel()
 
 	// Compare Reg[rA] with vX
 	if fitsInt32(vX) {
@@ -127,7 +125,7 @@ func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.
 
 	// Not taken: fall through to next instruction (block exit handled by caller)
 	nextPC := fallthroughPC(instr)
-	emitLinkOrExit(a, c.linkFallthrough, nextPC)
+	c.emitLinkOrExit(a, c.linkFallthrough, nextPC)
 
 	// Taken: exit to target PC
 	_ = a.BindLabel(takenLabel)
@@ -135,9 +133,9 @@ func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp("exit_trampoline")
+		a.Jmp(a.ExitTrampoline())
 	} else {
-		emitLinkOrExit(a, c.linkTaken, targetPC)
+		c.emitLinkOrExit(a, c.linkTaken, targetPC)
 	}
 
 	return nil
@@ -149,14 +147,14 @@ func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.
 func (c *Compiler) emitBranch(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.ConditionCode) error {
 	pc := instr.PC
 	aReg, bReg, targetPC := branchTwoRegFromMeta(instr)
-	takenLabel := fmt.Sprintf("taken_%d", pc)
+	takenLabel := a.NewLabel()
 
 	a.CmpRegReg(aReg, bReg)
 	a.Jcc(cc, takenLabel)
 
 	// Not taken
 	nextPC := fallthroughPC(instr)
-	emitLinkOrExit(a, c.linkFallthrough, nextPC)
+	c.emitLinkOrExit(a, c.linkFallthrough, nextPC)
 
 	// Taken
 	_ = a.BindLabel(takenLabel)
@@ -164,9 +162,9 @@ func (c *Compiler) emitBranch(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.Con
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp("exit_trampoline")
+		a.Jmp(a.ExitTrampoline())
 	} else {
-		emitLinkOrExit(a, c.linkTaken, targetPC)
+		c.emitLinkOrExit(a, c.linkTaken, targetPC)
 	}
 
 	return nil
@@ -181,7 +179,7 @@ func emitDjumpExit(a *asm.Assembler, targetReg asm.Register) {
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitPC), targetReg)
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitHostCall)|uint64(DjumpCallID))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 // opcode 180: load_imm_jump_ind — Reg[rA] = vX, then djump(uint32(Reg[rB] + vY))
@@ -202,7 +200,7 @@ func (c *Compiler) emitLoadImmJumpInd(a *asm.Assembler, instr *PVM.InstrMeta) er
 	}
 
 	// Check for HALT
-	haltLabel := fmt.Sprintf("halt_%d", pc)
+	haltLabel := a.NewLabel()
 	emitCmpReg32Imm32Unsigned(a, RegScratch, haltTarget)
 	a.Jcc(asm.CondEQ, haltLabel)
 

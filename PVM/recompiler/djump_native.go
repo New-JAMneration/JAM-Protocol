@@ -106,13 +106,13 @@ func (c *Compiler) emitDjumpPanic(a *asm.Assembler, instrPC PVM.ProgramCounter) 
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(instrPC))
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 func (c *Compiler) emitDjumpMiss(a *asm.Assembler, destReg asm.Register) {
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitPC), destReg)
 	a.MovMemImm32(RegGuestBase, -int32(OffsetExitReason), 0)
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }
 
 func (c *Compiler) emitLoadJumpEntry(a *asm.Assembler, tablePtr asm.Register, entryLen uint32) {
@@ -161,8 +161,8 @@ func (c *Compiler) emitDjumpNative(a *asm.Assembler, targetReg asm.Register, ins
 	}
 
 	meta := c.djump
-	panicLabel := fmt.Sprintf("djump_panic_%d", instrPC)
-	missLabel := fmt.Sprintf("djump_miss_%d", instrPC)
+	panicLabel := a.NewLabel()
+	missLabel := a.NewLabel()
 
 	if targetReg != RegScratch {
 		a.MovRegToReg(RegScratch, targetReg)

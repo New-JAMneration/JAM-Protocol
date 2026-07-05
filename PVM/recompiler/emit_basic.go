@@ -15,7 +15,7 @@ func (c *Compiler) emitTrap(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 	return nil
 }
 
@@ -37,7 +37,7 @@ func (c *Compiler) emitEcalli(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	a.MovImm64ToReg(RegScratch, uint64(exitReason))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(nextPC))
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 	return nil
 }
 

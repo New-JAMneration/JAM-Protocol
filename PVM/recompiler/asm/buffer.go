@@ -5,24 +5,29 @@ import (
 	"fmt"
 )
 
+// Label is an integer handle for a jump target, allocated by NewLabel and
+// resolved at Finalize. Handles are only meaningful within one Reset cycle.
+type Label int32
+
+const unboundLabel = int32(-1)
+
 // CodeBuffer accumulates emitted machine code bytes and manages labels
 // with forward-reference fixups.
 type CodeBuffer struct {
-	data   []byte
-	labels map[string]int // label name → byte offset in data
-	fixups []fixup
+	data     []byte
+	labelPos []int32 // index = Label; value = byte offset in data; -1 = unbound
+	fixups   []fixup
 }
 
 type fixup struct {
-	label  string
-	offset int // position in data where the rel value should be written
-	size   int // 1 (rel8) or 4 (rel32)
+	label  Label
+	offset int32 // position in data where the rel value should be written
+	size   int8  // 1 (rel8) or 4 (rel32)
 }
 
 func NewCodeBuffer() *CodeBuffer {
 	return &CodeBuffer{
-		data:   make([]byte, 0, 4096),
-		labels: make(map[string]int),
+		data: make([]byte, 0, 4096),
 	}
 }
 
@@ -58,25 +63,34 @@ func (b *CodeBuffer) Bytes() []byte {
 
 func (b *CodeBuffer) Reset() {
 	b.data = b.data[:0]
-	clear(b.labels)
+	b.labelPos = b.labelPos[:0]
 	b.fixups = b.fixups[:0]
 }
 
-// BindLabel records the current buffer offset for the named label.
-func (b *CodeBuffer) BindLabel(name string) error {
-	if _, exists := b.labels[name]; exists {
-		return fmt.Errorf("label %q already bound", name)
+// NewLabel allocates a fresh unbound label handle.
+func (b *CodeBuffer) NewLabel() Label {
+	b.labelPos = append(b.labelPos, unboundLabel)
+	return Label(len(b.labelPos) - 1)
+}
+
+// BindLabel records the current buffer offset for the label.
+func (b *CodeBuffer) BindLabel(l Label) error {
+	if int(l) < 0 || int(l) >= len(b.labelPos) {
+		return fmt.Errorf("label %d not allocated", l)
 	}
-	b.labels[name] = len(b.data)
+	if b.labelPos[l] != unboundLabel {
+		return fmt.Errorf("label %d already bound", l)
+	}
+	b.labelPos[l] = int32(len(b.data))
 	return nil
 }
 
 // UseLabel32 emits a 4-byte placeholder at the current position for a
-// PC-relative reference to the named label, to be resolved later.
-func (b *CodeBuffer) UseLabel32(name string) {
+// PC-relative reference to the label, to be resolved later.
+func (b *CodeBuffer) UseLabel32(l Label) {
 	b.fixups = append(b.fixups, fixup{
-		label:  name,
-		offset: len(b.data),
+		label:  l,
+		offset: int32(len(b.data)),
 		size:   4,
 	})
 	b.EmitInt32LE(0) // placeholder
@@ -86,24 +100,27 @@ func (b *CodeBuffer) UseLabel32(name string) {
 // PC-relative encoding: target - (fixupPos + fixupSize).
 func (b *CodeBuffer) ResolveFixups() error {
 	for _, f := range b.fixups {
-		target, ok := b.labels[f.label]
-		if !ok {
-			return fmt.Errorf("unresolved label %q", f.label)
+		if int(f.label) < 0 || int(f.label) >= len(b.labelPos) {
+			return fmt.Errorf("label %d not allocated", f.label)
 		}
-		rel := target - (f.offset + f.size)
+		target := b.labelPos[f.label]
+		if target == unboundLabel {
+			return fmt.Errorf("unresolved label %d", f.label)
+		}
+		rel := int(target) - int(f.offset) - int(f.size)
 		switch f.size {
 		case 4:
 			if rel < -(1<<31) || rel >= (1<<31) {
-				return fmt.Errorf("label %q: rel32 overflow (%d)", f.label, rel)
+				return fmt.Errorf("label %d: rel32 overflow (%d)", f.label, rel)
 			}
 			binary.LittleEndian.PutUint32(b.data[f.offset:], uint32(int32(rel)))
 		case 1:
 			if rel < -128 || rel > 127 {
-				return fmt.Errorf("label %q: rel8 overflow (%d)", f.label, rel)
+				return fmt.Errorf("label %d: rel8 overflow (%d)", f.label, rel)
 			}
 			b.data[f.offset] = byte(int8(rel))
 		default:
-			return fmt.Errorf("label %q: unsupported fixup size %d", f.label, f.size)
+			return fmt.Errorf("label %d: unsupported fixup size %d", f.label, f.size)
 		}
 	}
 	return nil

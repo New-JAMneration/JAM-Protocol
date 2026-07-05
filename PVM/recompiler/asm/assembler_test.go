@@ -127,9 +127,10 @@ func TestCodeBuffer_Reset(t *testing.T) {
 
 func TestLabel_BackwardReference(t *testing.T) {
 	a := NewAssembler()
-	_ = a.BindLabel("loop")
+	loop := a.NewLabel()
+	_ = a.BindLabel(loop)
 	a.Nop()
-	a.Jmp("loop")
+	a.Jmp(loop)
 	code, err := a.Finalize()
 	if err != nil {
 		t.Fatal(err)
@@ -146,10 +147,11 @@ func TestLabel_BackwardReference(t *testing.T) {
 
 func TestLabel_ForwardReference(t *testing.T) {
 	a := NewAssembler()
-	a.Jmp("end")
+	end := a.NewLabel()
+	a.Jmp(end)
 	a.Nop()
 	a.Nop()
-	_ = a.BindLabel("end")
+	_ = a.BindLabel(end)
 	a.Ret()
 	code, err := a.Finalize()
 	if err != nil {
@@ -170,10 +172,11 @@ func TestLabel_ForwardReference(t *testing.T) {
 
 func TestLabel_MultipleReferences(t *testing.T) {
 	a := NewAssembler()
-	a.Jmp("target")
+	target := a.NewLabel()
+	a.Jmp(target)
 	a.Nop()
-	a.Jmp("target")
-	_ = a.BindLabel("target")
+	a.Jmp(target)
+	_ = a.BindLabel(target)
 	a.Ret()
 	code, err := a.Finalize()
 	if err != nil {
@@ -193,7 +196,7 @@ func TestLabel_MultipleReferences(t *testing.T) {
 
 func TestLabel_Unresolved(t *testing.T) {
 	a := NewAssembler()
-	a.Jmp("nowhere")
+	a.Jmp(a.NewLabel())
 	_, err := a.Finalize()
 	if err == nil {
 		t.Fatal("expected error for unresolved label")
@@ -202,10 +205,11 @@ func TestLabel_Unresolved(t *testing.T) {
 
 func TestLabel_Duplicate(t *testing.T) {
 	a := NewAssembler()
-	if err := a.BindLabel("x"); err != nil {
+	x := a.NewLabel()
+	if err := a.BindLabel(x); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.BindLabel("x"); err == nil {
+	if err := a.BindLabel(x); err == nil {
 		t.Fatal("expected error for duplicate label")
 	}
 }
@@ -646,8 +650,9 @@ func TestJmpReg(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	a := NewAssembler()
-	a.Call("func1")
-	_ = a.BindLabel("func1")
+	func1 := a.NewLabel()
+	a.Call(func1)
+	_ = a.BindLabel(func1)
 	a.Ret()
 	code, err := a.Finalize()
 	if err != nil {
@@ -671,9 +676,10 @@ func TestCallReg(t *testing.T) {
 
 func TestJcc_Forward(t *testing.T) {
 	a := NewAssembler()
-	a.Jcc(CondEQ, "equal")
+	equal := a.NewLabel()
+	a.Jcc(CondEQ, equal)
 	a.Nop()
-	_ = a.BindLabel("equal")
+	_ = a.BindLabel(equal)
 	a.Ret()
 	code, err := a.Finalize()
 	if err != nil {
@@ -868,8 +874,9 @@ func TestLeaRegMem(t *testing.T) {
 
 func TestLeaRIPRel(t *testing.T) {
 	a := NewAssembler()
-	a.LeaRIPRel(RAX, "data")
-	_ = a.BindLabel("data")
+	data := a.NewLabel()
+	a.LeaRIPRel(RAX, data)
+	_ = a.BindLabel(data)
 	code, err := a.Finalize()
 	if err != nil {
 		t.Fatal(err)

@@ -68,8 +68,12 @@ func Psi_M_recompiler(
 	if err != nil {
 		return jitPanicResult(addition)
 	}
-	if !cached {
-		defer cp.close()
+	if cached {
+		// Hold a reference for this whole invocation so eviction can't Munmap the
+		// arena while we execute in it; release when done.
+		defer releaseCompiledProgram(cp)
+	} else {
+		defer cp.close() // zero-hash throwaway: free its arena
 	}
 	cp.bindContext(ctx)
 

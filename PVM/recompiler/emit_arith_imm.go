@@ -3,8 +3,6 @@
 package recompiler
 
 import (
-	"fmt"
-
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
@@ -380,9 +378,8 @@ func (c *Compiler) emitSetGtSImm(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 147: cmov_iz_imm — if Reg[rB] == 0 then Reg[rA] = vX
 func (c *Compiler) emitCmovIzImm(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	aReg, bReg, vX := twoRegImmFromMeta(instr)
-	skipLabel := fmt.Sprintf("skip_cmov_%d", pc)
+	skipLabel := a.NewLabel()
 	a.TestRegReg(bReg, bReg)
 	a.Jcc(asm.CondNE, skipLabel)
 	if fitsInt32(vX) {
@@ -396,9 +393,8 @@ func (c *Compiler) emitCmovIzImm(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // opcode 148: cmov_nz_imm — if Reg[rB] != 0 then Reg[rA] = vX
 func (c *Compiler) emitCmovNzImm(a *asm.Assembler, instr *PVM.InstrMeta) error {
-	pc := instr.PC
 	aReg, bReg, vX := twoRegImmFromMeta(instr)
-	skipLabel := fmt.Sprintf("skip_cmov_%d", pc)
+	skipLabel := a.NewLabel()
 	a.TestRegReg(bReg, bReg)
 	a.Jcc(asm.CondEQ, skipLabel)
 	if fitsInt32(vX) {

@@ -47,8 +47,10 @@ func EmitEntryTrampoline(a *asm.Assembler) {
 	// 2. Set R15 = guestBase (passed in RAX)
 	a.MovRegToReg(asm.R15, asm.RAX)
 
+	returnLabel := a.NewLabel()
+
 	// 3. Save return address and stack pointer for signal handler / exit trampoline
-	a.LeaRIPRel(asm.RAX, "return_label")
+	a.LeaRIPRel(asm.RAX, returnLabel)
 	a.MovRegToMem(asm.R15, -int32(OffsetReturnAddr), asm.RAX)
 	a.MovRegToMem(asm.R15, -int32(OffsetReturnStack), asm.RSP)
 
@@ -61,7 +63,7 @@ func EmitEntryTrampoline(a *asm.Assembler) {
 	a.JmpReg(asm.RCX)
 
 	// return_label: exit trampoline or signal handler jumps here
-	_ = a.BindLabel("return_label")
+	_ = a.BindLabel(returnLabel)
 
 	// 6. Restore host callee-saved registers (reverse order)
 	a.Pop(asm.R15)
@@ -84,7 +86,7 @@ func EmitEntryTrampoline(a *asm.Assembler) {
 //  2. Restores RSP from control region (ReturnStack)
 //  3. Jumps to return_label (ReturnAddr in control region)
 func EmitExitTrampoline(a *asm.Assembler) {
-	_ = a.BindLabel("exit_trampoline")
+	_ = a.BindLabel(a.ExitTrampoline())
 
 	// 1. Store all 13 PVM registers back to control region
 	for i := 0; i < PVMRegCount; i++ {
@@ -96,15 +98,6 @@ func EmitExitTrampoline(a *asm.Assembler) {
 	a.JmpMem(asm.R15, -int32(OffsetReturnAddr))
 }
 
-// EmitExitWithReason emits a short stub that sets ExitReason to a constant
-// and then jumps to the shared exit_trampoline.
-// Used for halt, panic, out-of-gas exits.
-func EmitExitWithReason(a *asm.Assembler, label string, reason int32) {
-	_ = a.BindLabel(label)
-	a.MovMemImm32(asm.R15, -int32(OffsetExitReason), reason)
-	a.Jmp("exit_trampoline")
-}
-
 // EmitHostCallExit emits an inline exit sequence for a specific ecalli instruction.
 // It stores ExitReason (encoded as host_call + callID), ExitPC (next PVM PC),
 // then jumps to exit_trampoline.
@@ -114,5 +107,5 @@ func EmitExitWithReason(a *asm.Assembler, label string, reason int32) {
 func EmitHostCallExit(a *asm.Assembler, exitReason int32, nextPC int32) {
 	a.MovMemImm32(asm.R15, -int32(OffsetExitReason), exitReason)
 	a.MovMemImm32_32(asm.R15, -int32(OffsetExitPC), nextPC)
-	a.Jmp("exit_trampoline")
+	a.Jmp(a.ExitTrampoline())
 }

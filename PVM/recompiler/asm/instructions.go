@@ -131,7 +131,7 @@ func (a *Assembler) LeaRegMem(dst, base Register, disp int32) {
 }
 
 // LeaRIPRel emits LEA r64, [RIP+rel32]. Encoding: REX.W 8D /r (mod=00, rm=101)
-func (a *Assembler) LeaRIPRel(dst Register, label string) {
+func (a *Assembler) LeaRIPRel(dst Register, label Label) {
 	a.buf.Emit(rexByte(true, dst.IsExtended(), false, false))
 	a.buf.Emit(0x8D, modRM(0x00, dst.Lo3(), 0x05))
 	a.buf.UseLabel32(label)
@@ -142,7 +142,7 @@ func (a *Assembler) LeaRIPRel(dst Register, label string) {
 // ---------------------------------------------------------------------------
 
 // Jmp emits JMP rel32 (near jump to label). Encoding: E9 cd
-func (a *Assembler) Jmp(label string) {
+func (a *Assembler) Jmp(label Label) {
 	a.buf.Emit(0xE9)
 	a.buf.UseLabel32(label)
 }
@@ -165,7 +165,7 @@ func (a *Assembler) JmpMem(base Register, disp int32) {
 }
 
 // Call emits CALL rel32 (near call to label). Encoding: E8 cd
-func (a *Assembler) Call(label string) {
+func (a *Assembler) Call(label Label) {
 	a.buf.Emit(0xE8)
 	a.buf.UseLabel32(label)
 }
@@ -189,14 +189,14 @@ func (a *Assembler) Nop() { a.buf.Emit(0x90) }
 // ---------------------------------------------------------------------------
 
 // Jcc emits Jcc rel32 (conditional jump to label). Encoding: 0F 8x cd
-func (a *Assembler) Jcc(cc ConditionCode, label string) {
+func (a *Assembler) Jcc(cc ConditionCode, label Label) {
 	a.buf.Emit(0x0F, 0x80+byte(cc))
 	a.buf.UseLabel32(label)
 }
 
 // BindLabel binds a label at the current code position.
-func (a *Assembler) BindLabel(name string) error {
-	return a.buf.BindLabel(name)
+func (a *Assembler) BindLabel(l Label) error {
+	return a.buf.BindLabel(l)
 }
 
 // ---------------------------------------------------------------------------
