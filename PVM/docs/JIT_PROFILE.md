@@ -124,6 +124,14 @@ run    = compile + exec(native) + host
 entering/leaving native" are mixed together, so a single number would mislead — to
 split them, use pprof (see §3).
 
+Two more caveats:
+- `invoke ≈ setup + deblob + run` is an approximation, not an identity: per-invoke
+  work outside the sub-buckets (artifact acquire/bind, register writes, trace init)
+  lands in the gap.
+- Numbers from a **`-tags trace` build are not comparable** to a standard build:
+  single-step mode enters native once per *instruction* (roundTrips explodes) and
+  compiles outside the counted path.
+
 ---
 
 ## 3. How it works
@@ -169,6 +177,11 @@ To find *which PVM block* is hottest you need perf. `JIT_PERFMAP=1` writes each
 compiled block's "address, size, name (`pvm_block_<PC>`)" to `/tmp/perf-<pid>.map`;
 perf reads that file to map native addresses back to block names. Bare-metal Linux
 only.
+
+> Cache eviction caveat: evicted artifacts (`JIT_CACHE_MAX_PROGRAMS`) unmap their
+> arenas and the address range can be reused by later blocks, leaving stale map
+> lines. When profiling with perf, raise the cap so nothing evicts during the run
+> (proper fix would be jitdump + `perf inject --jit`).
 
 ---
 
