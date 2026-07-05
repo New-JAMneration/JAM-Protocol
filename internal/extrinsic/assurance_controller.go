@@ -46,10 +46,14 @@ func (a *AvailAssuranceController) ValidateAnchor() *types.ErrorCode {
 	return nil
 }
 
-// Eq. 11.11
+// Eq. 11.11 (GP v0.8.0 eq:xtassurances: the assurer index is bounded by |κ|,
+// the active validator sequence — the same κ the signature check indexes —
+// not the protocol constant V. Identical values while offender keys are
+// zeroed in place; see #1037 for genuinely variable |κ|.)
 func (a *AvailAssuranceController) CheckValidatorIndex() *types.ErrorCode {
+	kappa := blockchain.GetInstance().GetPriorStates().GetKappa()
 	for _, availAssurance := range a.AvailAssurances {
-		if int(availAssurance.ValidatorIndex) >= types.ValidatorsCount {
+		if int(availAssurance.ValidatorIndex) >= len(kappa) {
 			errCode := AssuranceErrorCode.BadValidatorIndex
 			return &errCode
 		}
@@ -167,18 +171,25 @@ func (a *AvailAssuranceController) UpdateNewlyAvailableWorkReports(rhoDagger typ
 		}
 	}
 
+	// GP v0.8.0 eq:availableworkreports: a report is available when assured by
+	// strictly more than 2/3 of the active validator sequence (3·count > 2·|κ|).
+	// Equals the ValidatorsSuperMajority constant while |κ| ≡ V (offender keys
+	// zeroed in place); computed from |κ| so it stays correct if that changes
+	// (#1037).
+	kappa := blockchain.GetInstance().GetPriorStates().GetKappa()
+
 	// Pre-allocate capacity: estimate that about half of cores have available reports
 	availableWorkReports := make([]types.WorkReport, 0, types.CoresCount/2)
 	for i := 0; i < types.CoresCount; i++ {
 		// If the votes for this core are greater than the available number, add the work report to the available work reports
-		if totalAvailable[i] >= types.ValidatorsSuperMajority {
+		if 3*totalAvailable[i] > 2*len(kappa) {
 			// Get work reports from rhoDagger
 			if rhoDagger[i] == nil {
 				continue
 			}
 
 			// Append the work report to the available work reports
-			availableWorkReports = append(availableWorkReports, rhoDagger[i].Report)
+			availableWorkReports = append(availableWorkReports, rhoDagger[i].Guarantee.Report)
 		}
 	}
 
@@ -219,15 +230,21 @@ func (a *AvailAssuranceController) FilterAvailableReports() *types.ErrorCode {
 	// Create a map of available work reports for faster lookup
 	availableWorkReportsMap := a.CreateWorkReportMap(availableWorkReports)
 
+	// GP v0.8.0 eq:availassignmentspostassurancesdef: an assignment is also
+	// cleared when the active validator sequence changes size (|κ| ≠ |κ'|).
+	// Never true while offender keys are zeroed in place (|κ| ≡ |κ'| ≡ V), but
+	// kept spec-shaped for variable |κ| (#1037).
+	activeSetSizeChanged := len(cs.GetPriorStates().GetKappa()) != len(cs.GetPosteriorStates().GetKappa())
+
 	for coreIndex := 0; coreIndex < types.CoresCount; coreIndex++ {
 		if rho[coreIndex] == nil {
 			continue
 		}
 
-		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Report.CoreIndex]
+		reportIsAvailable := availableWorkReportsMap[rho[coreIndex].Guarantee.Report.CoreIndex]
 		reportIsTimeout := headerTimeSlot >= rhoDagger[coreIndex].AssignedSlot+types.TimeSlot(types.WorkReportTimeout)
 
-		if reportIsAvailable || reportIsTimeout {
+		if reportIsAvailable || reportIsTimeout || activeSetSizeChanged {
 			rhoDoubleDagger[coreIndex] = nil
 		}
 	}

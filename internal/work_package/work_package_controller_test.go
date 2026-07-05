@@ -206,6 +206,9 @@ func TestWorkPackageController_InitialProcess(t *testing.T) {
 	require.NoError(t, err)
 	workPackageHash := hash.Blake2bHash(encoded)
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
+	// GP v0.8.0 eq:avspec: the availability specifier carries the shard count
+	// the bundle is erasure-coded into.
+	require.Equal(t, types.U16(types.TotalShards), report.PackageSpec.ErasureShards)
 
 	// Check the local map with report
 	dict, err := cs.GetHashSegmentMap()
@@ -338,6 +341,9 @@ func TestPrepareInputs_Shared(t *testing.T) {
 	require.NoError(t, err)
 	workPackageHash := hash.Blake2bHash(encoded)
 	require.Equal(t, report.PackageSpec.Hash, types.WorkPackageHash(workPackageHash))
+	// GP v0.8.0 eq:avspec: the availability specifier carries the shard count
+	// the bundle is erasure-coded into.
+	require.Equal(t, types.U16(types.TotalShards), report.PackageSpec.ErasureShards)
 
 	// Check the local map with report
 	dict, err := cs.GetHashSegmentMap()
