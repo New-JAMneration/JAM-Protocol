@@ -11,6 +11,11 @@ import (
 // publish-tickets-no-mark-1.json
 // Submit an extrinsic with a bad ticket attempt number.
 func TestCheckTicketsAttempt(t *testing.T) {
+	// VerifyTicketsAttempt now derives the cap n = ceil(2E / |γ'_K|) from the
+	// posterior pending validator sequence (GP v0.8.0 eq:ticketsextrinsic).
+	// Seed γ'_K to full length so |γ'_K| = ValidatorsCount ⇒ tiny n = 4.
+	blockchain.GetInstance().GetPosteriorStates().SetGammaK(make(types.ValidatorsData, types.ValidatorsCount))
+
 	ticketAttemptErr := SaforleErrorCode.BadTicketAttempt
 	testCases := []struct {
 		tickets     types.TicketsExtrinsic
@@ -48,7 +53,12 @@ func TestCheckTicketsAttempt(t *testing.T) {
 					Signature: types.BandersnatchRingVrfSignature(Hex2Bytes("0x38eff9f9cac7ca015bafd5c84e84ed75ee86b6ecc98902044a7a7aa28d60f0e547f9c1bf782f01bc5fe47d19858abe928ad3eed82e0f77680e91ed8a1603c6a11028f8df1478991aa1a24cb243603d3f434a3d563d7ec08931c6f2bfa38f9ebf99527196430c2f6bc38cc775336bffb82ecea3e8040f80a846b638a4a1a7388d629bbd5c127a56b0a1b5d6b1d7fefcef0c39218c084a6921141376ed64f72b0869c6301b8fd3a0721774ae1353cbb31228f04f5491aa72387550d12f813d15188f55a0c9095bc21a9a084bf10b434b2fbfc2f1879f2235342bcc03ce4dbe0c2902c6c5dfa4b309da00a8b72eb3be15d28d6db123d2815dbfa6cbe74866ed9855eecbbab8e2011f84f71a2e360caeac3bcd64c4b46b11ca167e238cf5f0ccfe7f819e2ee13f4951a970075b928f4f53614c2038cb899083c5b0ffe5fbe5685a8ce738129c83791d0331b7bdf75dbde863addc1440fc771664e6ced8803cbb074c377c8203e453035d4061a7ccf651f7aa70782322cf5a9ade316f62b2c109f22156b466c349402da1333b8c144aa503c1aaedd49097055e780fc849b3ba68365a710e12206af8802ead9536aab3535be932bd78360283c6aa70a457146921021b05656dc7ca225f390fb80740a08ff15c340dfddbd4521088b0d2c253a6fa9014529489123c923fed4d2d0dbe9035192d51a1248dba1420cd6149d71215add23092d1eb598dbd38be337d6f11255a9905d60113a0a8cff319834396f46dcb802b84c64915bf2a5f65546188d8b17824a9f7ef77ec2aa173112135dc6c4b0ae81b238470f7b19c8e47e9e34d4003b257735936b257984e182bc6e4af1240e5505f927c65e506314c345cac1e5001af7e41436fb1836ec06c0cd1c8bb90041aadbd265a074f58f047e371e31625ed919eb78e0dc40f7970b17ee399c66cb9b3c58dce8cb9e3488c1571d3489bba82262d15947524a1e3aadb625067ccbdb8f63e5b52dbe5e579e37a13b39df9655e0b2045de14ece78958e4843b912ef3debd8462ab6b13c10588bde65f9af8ceaf575b45797fe80dae6d7e79b1ed37c891b709be039ea1e12761b85475abd453b032e720")),
 				},
 				{
-					Attempt:   3,
+					// Attempt 4 ≥ n (tiny n=4) ⇒ BadTicketAttempt. Under the
+					// old fixed cap of 3 this case used Attempt 3, which is now
+					// valid; bumped to 4 to keep the negative path meaningful.
+					// The signature is not verified by VerifyTicketsAttempt, so
+					// the stale blob below is fine for this unit.
+					Attempt:   4,
 					Signature: types.BandersnatchRingVrfSignature(Hex2Bytes("0xfe088f1bb3f1d2bd9412f40675eb3f916feb60d772649447a8efa0b83e205c691f1369ac6785852d5469fd673a111a6d4f8d28c2b23f57b7c6040b050f0ac2b7bece0cf45d498dea58451a0c53625fccb4d55408f02f38a338b4eea5664572dec26081caa9f2643d3e10be045cb44e2f0d0505d50c580e58a651376eb32e89d2a5ca12ecc722b330cbfc039c3c97d202b9b1ef853f3095c02cb697148d33ef18245b842880ae824623450d8179affe49ead9992bb259ac1e9cbb846e41035d1890d3440407102824f9e4d56b10263ab9deb327506cd2daef0f928b41067d0119f643224d352939ba7e37891c71a231ac8d6db123d2815dbfa6cbe74866ed9855eecbbab8e2011f84f71a2e360caeac3bcd64c4b46b11ca167e238cf5f0ccfe7fb46ac862727e5d2255aa1c6682b57a9e47d15e1b3eab721e05d16822cf0c234623eac35a8e1f092419a10320e5115c77a6ae5e2a2affa64f3fe2768a02e3738c73589193d1bf7d60d13aae555e265e62923a460a0f5c354252acf32024763f798ffa2f16b84c9a83a1f6d753c9aeda0a4d501c1c3280075c307a1bf92a5cfd0d076cf20d04930d9fe2527f94643736034da5a76eee730c6c637f0533f69fd872e8f27c4d192a563b493fd557b99a131eaf4e032780389786b5967df8c380681185040a25fd4501a34778fd770c36ae17c8350a4f6ec2f0aa9a787f7e7ea94311455ab012b6b80327fe08777233dd2bc5f14f74ac364d12e1e5ed9164f1dec952fbea646c0d122962eea7c266babcd568e4d72796f414176fddc70bd12ce6ad301f42727cf1433dfcfedd6e37f23262cd4ecb5652fe52f2eaf712ff07f63b7a5e8b8374d2791b16a0086fbb21b8eff72d78cf1b399c3cceed5da34274b17856916c6162af17cb6b7d696573f9359bce26972ff6251437685da89996cd1060aebc83ad096b6f5afbb0313c7bffe3b3a315afde15db3afa0791622e6d8d5f3039393bfb31333a2c8ebb926e4b7c4612a943bb002ddaffbc29593ad650568642ca46ae35205f576315b6d49ae87179176549527c788d587f54c0d0dc216a3e4747a7230a55de871fa9c5ea489caebb157ec7")),
 				},
 			},
@@ -71,6 +81,39 @@ func TestCheckTicketsAttempt(t *testing.T) {
 	}
 }
 
+// TestTicketsAttemptDynamicCap proves the entry-index cap n is computed from
+// |γ'_K| per GP v0.8.0 eq:ticketsextrinsic (n = ceil(2E/|γ'_K|)), not
+// hard-coded. The boundary index n-1 is accepted and n is rejected.
+func TestTicketsAttemptDynamicCap(t *testing.T) {
+	mkTickets := func(attempt types.TicketAttempt) types.TicketsExtrinsic {
+		return types.TicketsExtrinsic{{Attempt: attempt}}
+	}
+	cases := []struct {
+		name  string
+		numV  int // |γ'_K|
+		wantN types.TicketAttempt
+	}{
+		// |γ'_K| = ValidatorsCount in practice (offenders zeroed, not removed):
+		// tiny E=12,V=6 ⇒ n=4 ; full E=600,V=1023 ⇒ n=2. Plus a synthetic
+		// short sequence to prove the formula tracks |γ'_K|.
+		{"chainspec", types.ValidatorsCount, types.TicketAttempt((2*types.EpochLength + types.ValidatorsCount - 1) / types.ValidatorsCount)},
+		{"synthetic-3", 3, types.TicketAttempt((2*types.EpochLength + 2) / 3)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			blockchain.GetInstance().GetPosteriorStates().SetGammaK(make(types.ValidatorsData, c.numV))
+			// n-1 accepted.
+			if err := VerifyTicketsAttempt(mkTickets(c.wantN - 1)); err != nil {
+				t.Errorf("attempt n-1=%d should be accepted, got %v", c.wantN-1, err)
+			}
+			// n rejected.
+			if err := VerifyTicketsAttempt(mkTickets(c.wantN)); err == nil {
+				t.Errorf("attempt n=%d should be rejected", c.wantN)
+			}
+		})
+	}
+}
+
 // publish-tickets-no-mark-7.json
 // Submit tickets when epoch's lottery is over.
 func TestVerifyEpochTail(t *testing.T) {
@@ -86,6 +129,7 @@ func TestVerifyEpochTail(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			// Exactly K tickets pre-tail (tiny K=3): allowed.
 			slot: types.TimeSlot(types.SlotSubmissionEnd - 1),
 			tickets: types.TicketsExtrinsic{
 				{
@@ -102,6 +146,19 @@ func TestVerifyEpochTail(t *testing.T) {
 				},
 			},
 			expectedErr: nil,
+		},
+		{
+			// K+1 tickets pre-tail (tiny K=3, so 4 entries): rejected.
+			// Regression for GP v0.8.0 eq:enforceticketlimit (cap is K, not V):
+			// under the old V=6 cap this block wrongly passed.
+			slot: types.TimeSlot(types.SlotSubmissionEnd - 1),
+			tickets: types.TicketsExtrinsic{
+				{Attempt: 0, Signature: types.BandersnatchRingVrfSignature{1}},
+				{Attempt: 1, Signature: types.BandersnatchRingVrfSignature{2}},
+				{Attempt: 2, Signature: types.BandersnatchRingVrfSignature{3}},
+				{Attempt: 3, Signature: types.BandersnatchRingVrfSignature{4}},
+			},
+			expectedErr: &unexpectedTicketErr,
 		},
 		// publish-tickets-no-mark-7.json
 		// Submit tickets when epoch's lottery is over.
