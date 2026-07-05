@@ -18,6 +18,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
 	jamtests_safrole "github.com/New-JAMneration/JAM-Protocol/jamtests/safrole"
 	jamtests_trace "github.com/New-JAMneration/JAM-Protocol/jamtests/trace"
+	"github.com/New-JAMneration/JAM-Protocol/testdata"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -317,6 +318,22 @@ func TestSafroleTestVectors(t *testing.T) {
 		// if binFile != "enact-epoch-change-with-no-tickets-2.bin" {
 		// 	continue
 		// }
+
+		// Skip vectors whose v0.7.2 expected output is incompatible with v0.8.0
+		// behaviour. This consumes the same shared list as the cmd/node test
+		// path (testdata.ReadTestData) so the eventual cleanup, once official
+		// v0.8.0 vectors land, removes a vector from both paths at once.
+		// For safrole that is publish-tickets-no-mark-1: it submits ticket
+		// entry-index 3, which the v0.7.2 vector expects to fail with
+		// bad_ticket_attempt under the old fixed cap of 3, but GP v0.8.0
+		// (eq:ticketsextrinsic) makes the cap dynamic (tiny n = ceil(2E/|γ'_K|)
+		// = 4) so entry-index 3 is now valid. VerifyTicketsAttempt's dynamic cap
+		// is covered by the unit tests in extrinsic_tickets_test.go (#1013).
+		if testdata.IsV080IncompatibleVector(testdata.SafroleMode, binFile) {
+			t.Logf("⏭️  [%s] %s — skipped: v0.7.2 vector incompatible with v0.8.0 dynamic ticket cap (#1013)", types.TEST_MODE, binFile)
+			continue
+		}
+
 		// Read the binary file
 		binPath := filepath.Join(dir, binFile)
 		t.Logf("▶ Processing [%s] %s", types.TEST_MODE, binFile)
