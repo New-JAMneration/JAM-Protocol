@@ -21,26 +21,24 @@ func RequestBlocks(ctx context.Context, conn *quic.Connection, req CE128Payload)
 		return nil, fmt.Errorf("open CE 128 stream: %w", err)
 	}
 	stream := &quic.Stream{Stream: qstream}
+	defer stream.Close()
 
 	if err := stream.WriteStreamKind(byte(BlockRequest)); err != nil {
-		_ = stream.Close()
 		return nil, fmt.Errorf("write stream kind: %w", err)
 	}
 
 	handler := NewDefaultCERequestHandler()
 	payload, err := handler.Encode(BlockRequest, &req)
 	if err != nil {
-		_ = stream.Close()
 		return nil, fmt.Errorf("encode CE 128 request: %w", err)
 	}
 	if err := stream.WriteMessage(payload); err != nil {
-		_ = stream.Close()
 		return nil, fmt.Errorf("write CE 128 request: %w", err)
 	}
 
 	decoder := types.NewDecoder()
 	blocks := make([]types.Block, 0, req.MaxBlocks)
-	for {
+	for len(blocks) < int(req.MaxBlocks) {
 		data, err := stream.ReadMessage()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
