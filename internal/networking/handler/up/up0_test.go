@@ -167,7 +167,17 @@ func TestAnnouncementInvokesCallback(t *testing.T) {
 
 func TestUP0SessionReadLoopInvokesCallback(t *testing.T) {
 	blocks, finalized := testChain(t)
-	localStream, remoteStream := newLinkedTestUP0Streams()
+	bHeader := blocks[2].Header
+	branchD := types.Header{Parent: mustHash(t, bHeader), Slot: 14}
+	blocks = append(blocks, types.Block{Header: branchD})
+
+	ann := Announcement{Header: branchD, Final: BlockRef{Hash: finalized, Slot: 10}}
+	payload, err := EncodeAnnouncement(ann)
+	require.NoError(t, err)
+
+	var framed bytes.Buffer
+	require.NoError(t, quic.WriteMessageFrame(&framed, payload))
+	stream := newTestUP0Stream(framed.Bytes())
 
 	var received Announcement
 	handler := testHandler(t, blocks, finalized)
@@ -179,24 +189,14 @@ func TestUP0SessionReadLoopInvokesCallback(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	localSession, err := handler.newSession(localStream, ed25519.PublicKey{1})
-	require.NoError(t, err)
-	remoteSession, err := handler.newSession(remoteStream, ed25519.PublicKey{2})
+	session, err := handler.newSession(stream, ed25519.PublicKey{2})
 	require.NoError(t, err)
 
-	errCh := make(chan error, 2)
-	go func() { errCh <- localSession.exchangeHandshake(ctx) }()
-	go func() { errCh <- remoteSession.exchangeHandshake(ctx) }()
-	require.NoError(t, <-errCh)
-	require.NoError(t, <-errCh)
-
-	go func() { _ = localSession.readLoop(ctx) }()
-
-	bHeader := blocks[2].Header
-	require.NoError(t, remoteSession.AnnounceBlock(bHeader))
+	errCh := make(chan error, 1)
+	go func() { errCh <- session.readLoop(ctx) }()
 
 	require.Eventually(t, func() bool {
-		return received.Header.Slot == bHeader.Slot
+		return received.Header.Slot == branchD.Slot
 	}, time.Second, 10*time.Millisecond)
 }
 

@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/epochclock"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	"github.com/New-JAMneration/JAM-Protocol/internal/networking/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
@@ -27,7 +28,13 @@ func SetLocalBandersnatchKey(key types.BandersnatchPublic) {
 	localBandersnatchKey = key
 }
 
-func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Stream) error {
+// SafroleHandlerDeps carries CE 131/132 handler dependencies injected at registration time.
+type SafroleHandlerDeps struct {
+	Chain blockchain.Blockchain
+	Gate  safrole.TimingGate
+}
+
+func HandleSafroleTicketDistribution(deps SafroleHandlerDeps, stream *quic.Stream) error {
 	payload, err := stream.ReadMessage()
 	if err != nil {
 		return err
@@ -62,7 +69,7 @@ func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Strea
 			}
 		}
 
-		delaySlots := int(math.Max(float64(types.EpochLength)/20.0, 1.0))
+		delaySlots := epochclock.SafroleStep2DelaySlots()
 
 		lotteryPeriod := types.EpochLength - types.SlotSubmissionEnd
 		halfLotteryPeriod := lotteryPeriod / 2
@@ -72,7 +79,13 @@ func HandleSafroleTicketDistribution(_ blockchain.Blockchain, stream *quic.Strea
 			forwardingSlots = 1
 		}
 		go func() {
-			time.Sleep(time.Duration(delaySlots) * time.Duration(types.SlotPeriod) * time.Second)
+			ctx := context.Background()
+			if deps.Gate != nil {
+				if err := deps.Gate.WaitForwardStep2(ctx); err != nil {
+					fmt.Printf("Safrole CE 132 forwarding cancelled: %v\n", err)
+					return
+				}
+			}
 
 			for i, validator := range currentValidators {
 				if validator.Bandersnatch == localBandersnatchKey {

@@ -1,6 +1,7 @@
 package topology
 
 import (
+	"context"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
@@ -25,6 +26,29 @@ func TestCanApplyEpochTransition_respectsDelay(t *testing.T) {
 
 	block.Header.Slot = 13
 	require.True(t, m.canApplyEpochTransition(block), "slot 13 meets delay of 1 for E=12")
+}
+
+func TestTrackEpochTransition_recordsPendingEpoch(t *testing.T) {
+	backup := types.EpochLength
+	t.Cleanup(func() { types.EpochLength = backup })
+	types.EpochLength = 12
+
+	m := &Manager{appliedEpoch: 1}
+	finalized := types.Block{Header: types.Header{Slot: 24}}
+	m.trackEpochTransition(context.Background(), finalized)
+
+	require.NotNil(t, m.pendingEpoch)
+	require.Equal(t, types.TimeSlot(2), m.pendingEpoch.targetEpoch)
+	require.Equal(t, types.TimeSlot(24), m.pendingEpoch.epochStartSlot)
+}
+
+func TestTrackEpochTransition_skipsDuplicatePending(t *testing.T) {
+	m := &Manager{
+		appliedEpoch: 0,
+		pendingEpoch: &pendingEpochTransition{targetEpoch: 1, epochStartSlot: 12},
+	}
+	m.trackEpochTransition(context.Background(), types.Block{Header: types.Header{Slot: 12}})
+	require.Equal(t, types.TimeSlot(12), m.pendingEpoch.epochStartSlot)
 }
 
 func TestDesiredKeySet_usesFullTransportTargets(t *testing.T) {
