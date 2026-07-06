@@ -65,7 +65,7 @@ func ExtractExtrinsics(data types.ByteSequence, specs []types.ExtrinsicSpec) (PV
 	return result, nil
 }
 
-// (14.15) second param: E(p,X#(pw),S#(pw),J#(pw))
+// make-bundle (GP v0.8.0 eq:makebundle); second param: E(p,X#(pw),S#(pw),J#(pw))
 func BuildWorkPackageBundle(
 	wp *types.WorkPackage,
 	extrinsicMap PVM.ExtrinsicDataMap,
@@ -108,7 +108,7 @@ func BuildWorkPackageBundle(
 	return output, nil
 }
 
-// Xi (14.11)
+// compute-report Xi (GP v0.8.0 eq:computereport)
 func WorkReportCompute(
 	workPackage *types.WorkPackage,
 	coreIndex types.CoreIndex,
@@ -226,7 +226,7 @@ func C(item types.WorkItem, result types.WorkExecResult, gas types.Gas) types.Wo
 	}
 }
 
-// A (14.16)
+// A: availability specifier (GP v0.8.0 eq:availabilityspecifier)
 func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []types.ExportSegment) (types.WorkPackageSpec, error) {
 	exports := make([]types.ByteSequence, 0, len(exportsData))
 	for _, export := range exportsData {
@@ -238,11 +238,15 @@ func A(workPackageHash types.OpaqueHash, workPackgeBundle []byte, exportsData []
 		return types.WorkPackageSpec{}, fmt.Errorf("failed to compute erasure root: %w", err)
 	}
 	return types.WorkPackageSpec{
-		Hash:         types.WorkPackageHash(workPackageHash),
-		Length:       types.U32(len(workPackgeBundle)),
-		ErasureRoot:  types.ErasureRoot(erasureRoot),
-		ExportsRoot:  types.ExportsRoot(exportsRoot),
-		ExportsCount: types.U16(len(exportsData)),
+		Hash:        types.WorkPackageHash(workPackageHash),
+		Length:      types.U32(len(workPackgeBundle)),
+		ErasureRoot: types.ErasureRoot(erasureRoot),
+		// GP v0.8.0 eq:avspec: erasure shard count = the number of shards the
+		// bundle is erasure-coded into (TotalShards, matching the assuring
+		// validator set; ComputeErasureRoot above encodes into TotalShards).
+		ErasureShards: types.U16(types.TotalShards),
+		ExportsRoot:   types.ExportsRoot(exportsRoot),
+		ExportsCount:  types.U16(len(exportsData)),
 	}, nil
 }
 

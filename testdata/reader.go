@@ -119,8 +119,25 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 	return reader
 }
 
+// v080IncompatibleModes lists jam-test-vector modes whose vectors carry a
+// WorkReport (and therefore a WorkPackageSpec). GP v0.8.0 (eq:avspec) adds an
+// erasure_shards (u16) field to WorkPackageSpec between erasure_root and
+// exports_root, so the v0.7.x vectors no longer decode (unexpected EOF). The
+// whole mode is skipped until official v0.8.0 vectors land (#1012 non-goal:
+// conformance re-gate waits on v0.8.0 vectors). Remove an entry once its
+// v0.8.0 vector ships. The wire format itself is covered by the
+// WorkPackageSpec round-trip unit test in internal/types.
+var v080IncompatibleModes = map[TestMode]bool{
+	ReportsMode:    true,
+	AssurancesMode: true,
+	DisputesMode:   true,
+	AccumulateMode: true,
+}
+
 // v080IncompatibleVectors lists jam-test-vectors (keyed by mode) whose v0.7.2
-// expected outputs no longer hold under v0.8.0 behaviour. They are skipped
+// expected outputs no longer hold under v0.8.0 behaviour, for modes that are
+// otherwise still compatible (contrast v080IncompatibleModes above, which
+// skips a whole mode when the vectors no longer even decode). They are skipped
 // until official v0.8.0 vectors land (#1012 non-goal: conformance re-gate
 // waits on v0.8.0 vectors). Remove an entry once its v0.8.0 vector ships.
 //
@@ -129,10 +146,11 @@ func NewTracesReader(mode TestMode, format DataFormat) *TestDataReader {
 //     fixed cap of 3. GP v0.8.0 (eq:ticketsextrinsic) makes the cap dynamic —
 //     tiny n = ceil(2E/|γ'_K|) = 4 — so entry-index 3 is now valid (#1013).
 //
-// This is the single source of truth for the skip set. Both read paths funnel
-// through IsV080IncompatibleVector: ReadTestData (the cmd/node test path) and
-// the in-package vector tests (e.g. safrole's TestSafroleTestVectors). Keeping
-// one list means the eventual cleanup removes a vector from both paths at once.
+// This is the single source of truth for the per-vector skip set. Both read
+// paths funnel through IsV080IncompatibleVector: ReadTestData (the cmd/node
+// test path) and the in-package vector tests (e.g. safrole's
+// TestSafroleTestVectors). Keeping one list means the eventual cleanup removes
+// a vector from both paths at once.
 var v080IncompatibleVectors = map[TestMode]map[string]bool{
 	SafroleMode: {
 		"publish-tickets-no-mark-1.bin":  true,
@@ -151,6 +169,11 @@ func IsV080IncompatibleVector(mode TestMode, basename string) bool {
 // ReadTestData reads all test files from the configured directory
 func (r *TestDataReader) ReadTestData() ([]TestData, error) {
 	var testFiles []TestData
+
+	// Whole-mode skip for v0.8.0-incompatible vectors (see v080IncompatibleModes).
+	if v080IncompatibleModes[r.mode] {
+		return nil, nil
+	}
 
 	// Read all files in the directory
 	err := filepath.Walk(r.basePath, func(path string, info os.FileInfo, err error) error {

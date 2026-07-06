@@ -194,6 +194,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestAssuranceTestVectors(t *testing.T) {
+	// v0.7.x assurance vectors carry WorkReports whose WorkPackageSpec has only
+	// 5 fields; GP v0.8.0 (eq:avspec) adds erasure_shards (u16), so decoding the
+	// old vectors fails. Re-enable on official v0.8.0 vectors (#1015 / #1016).
+	t.Skip("v0.7.x vectors lack WorkPackageSpec.erasure_shards (GP v0.8.0 eq:avspec); re-enable on official v0.8.0 vectors (#1015)")
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "assurances", types.TEST_MODE)
 
 	// Read binary files
