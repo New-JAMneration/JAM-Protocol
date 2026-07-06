@@ -43,7 +43,7 @@ func TestHandleSafroleTicketDistribution_Proxy(t *testing.T) {
 	framed := makeFramedCE131Payload(42, 0, proof)
 	stream := newMockStream(framed)
 
-	err := HandleSafroleTicketDistribution(nil, &quic.Stream{Stream: stream})
+	err := HandleSafroleTicketDistribution(SafroleHandlerDeps{}, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestHandleSafroleTicketDistribution_NotProxy(t *testing.T) {
 	framed := makeFramedCE131Payload(42, 0, proof)
 	stream := newMockStream(framed)
 
-	err := HandleSafroleTicketDistribution(nil, &quic.Stream{Stream: stream})
+	err := HandleSafroleTicketDistribution(SafroleHandlerDeps{}, &quic.Stream{Stream: stream})
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}

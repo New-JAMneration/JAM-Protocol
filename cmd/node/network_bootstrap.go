@@ -20,6 +20,7 @@ import (
 	cehandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/ce"
 	uphandler "github.com/New-JAMneration/JAM-Protocol/internal/networking/handler/up"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
+	safrolepkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/safrole"
 	topologypkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/topology"
 	validatorpkg "github.com/New-JAMneration/JAM-Protocol/internal/networking/validator"
 	nodepkg "github.com/New-JAMneration/JAM-Protocol/internal/node"
@@ -35,9 +36,10 @@ const (
 )
 
 type nodeRuntime struct {
-	peer        *quic.Peer
-	syncManager *nodepkg.SyncManager
-	topology    *topologypkg.Manager
+	peer             *quic.Peer
+	syncManager      *nodepkg.SyncManager
+	topology         *topologypkg.Manager
+	safroleScheduler *safrolepkg.Scheduler
 }
 
 func (n *nodeRuntime) Close() {
@@ -63,6 +65,9 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	}
 
 	chain := blockchain.GetInstance()
+	if err := applyTopologySmokeConfig(chain); err != nil {
+		return nil, err
+	}
 	eventBus := quic.NewEventBus()
 	upHandler := quic.NewDefaultUPHandler()
 	ceHandler := quic.NewDefaultCEHandler(chain)
@@ -83,8 +88,12 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	registerRequiredCEHandlers(peer, chain)
 
 	var vm *validatorpkg.ValidatorManager
+	var safroleSched *safrolepkg.Scheduler
 	if role == validatorNodeRole {
 		vm = validatorpkg.NewValidatorManagerFromChain(chain, types.Ed25519Public(peer.Ed25519Key))
+		safroleSched = safrolepkg.NewScheduler(chain)
+		safroleSched.Start(eventBus)
+		registerSafroleCEHandlers(peer, chain, safroleSched)
 	}
 	registerUP0Handler(peer, chain, role, vm, eventBus)
 	if err := peer.Start(ctx); err != nil {
@@ -110,10 +119,20 @@ func startNodeNetworking(ctx context.Context, chainPath, listenAddr, roleFlag st
 	log.Printf("node role mode: %s", role)
 	log.Printf("node networking started at %s", peer.Listener.ListenAddress())
 	return &nodeRuntime{
-		peer:        peer,
-		syncManager: syncManager,
-		topology:    topo,
+		peer:             peer,
+		syncManager:      syncManager,
+		topology:         topo,
+		safroleScheduler: safroleSched,
 	}, nil
+}
+
+func registerSafroleCEHandlers(peer *quic.Peer, chain blockchain.Blockchain, gate safrolepkg.TimingGate) {
+	deps := cehandler.SafroleHandlerDeps{Chain: chain, Gate: gate}
+	registerSafrole := func(ctx context.Context, stream *quic.Stream, _ ed25519.PublicKey) error {
+		return cehandler.HandleSafroleTicketDistribution(deps, stream)
+	}
+	peer.RegisterHandler(byte(cehandler.CE131SafroleTicketDistribution), registerSafrole)
+	peer.RegisterHandler(byte(cehandler.CE132SafroleTicketDistribution), registerSafrole)
 }
 
 func registerRequiredCEHandlers(peer *quic.Peer, chain blockchain.Blockchain) {
