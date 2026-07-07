@@ -115,7 +115,7 @@ SIB: scale=00, index=RSP(100=none), base=RSP(100) → 0x24
 
 ---
 
-## 3. Assembler 架構（`PVM/asm/` package）
+## 3. Assembler 架構（`PVM/recompiler/asm/` package）
 
 ### 3.1 分層
 
@@ -338,10 +338,10 @@ PVM InstrMeta                          x86-64 machine code
 
 | 檔案 | 職責 |
 |------|------|
-| `PVM/asm/registers.go` | Register type + ConditionCode 定義 |
-| `PVM/asm/encoding.go` | REX / ModR/M / SIB encoding helpers |
-| `PVM/asm/buffer.go` | CodeBuffer：byte emit + label + fixup |
-| `PVM/asm/assembler.go` | Assembler：high-level API wrapper |
-| `PVM/asm/instructions.go` | 所有 x86 指令 emit 方法（MOV/ADD/JMP/...） |
+| `PVM/recompiler/asm/registers.go` | Register type + ConditionCode 定義 |
+| `PVM/recompiler/asm/encoding.go` | REX / ModR/M / SIB encoding helpers |
+| `PVM/recompiler/asm/buffer.go` | CodeBuffer：byte emit + label + fixup |
+| `PVM/recompiler/asm/assembler.go` | Assembler：high-level API wrapper |
+| `PVM/recompiler/asm/instructions.go` | 所有 x86 指令 emit 方法（MOV/ADD/JMP/...） |
 | `PVM/recompiler/compiler.go` | CompileBasicBlock + opcodeHandlers dispatch |
 | `PVM/recompiler/emit_*.go` | 各類 PVM opcode 的翻譯實作 |

@@ -236,5 +236,5 @@ only.
 
 - Counters and the `[JIT-PROFILE]` line: `PVM/recompiler/jit_hotpath.go`
 - perf symbol map: `PVM/recompiler/jit_perfmap.go`
-- pprof wiring (env vars): `cmd/fuzz/profile.go`, `cmd/node/profile.go`
+- pprof wiring (env vars): `cmd/fuzz/profile.go`
 - The `phase=pvm` pprof label: `PVM/recompiler/psi_m_recompiler.go`

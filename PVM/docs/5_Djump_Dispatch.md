@@ -226,7 +226,7 @@ if jt.Length == 0 || jt.Size == 0 {
 | Hit 路徑指令數 | ~30-40 條 x86（含所有 validation） |
 | Miss 次數 | 只在首次遇到新 destPC 時 miss，之後永遠 hit |
 | 典型 loop | 第一次 miss，之後全 hit → 等同 native indirect jump |
-| Go-side resolve 計數 | 實測接近 0（PERFORMANCE.md `djump=0`） |
+| Go-side resolve 計數 | 實測接近 0（`JIT_PROFILE` 的 `djump=0` 計數） |
 
 djump native dispatch 是 recompiler 能跑 tight loop 的關鍵：如果每次 indirect jump 都回 Go，loop 效能會直接打折。
 

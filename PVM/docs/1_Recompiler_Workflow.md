@@ -23,7 +23,7 @@ Psi_M_recompiler
 
 ```
 host.HostCall ─────────────────── 外層（≈ host call 段數，~30–40 次/invoke）
-  └─ BlockBasedInvoke ────────── 內層（≈ block 數，~4000+ 次/invoke）
+  └─ BlockBasedInvoke ────────── 內層（≈ Go→native round-trip 呼叫數）
        lookupOrCompileBlock       ← Decode + Translate（lazy）
        executeBlockLocked         ← Execute（trampoline + native）
 ```
@@ -64,8 +64,9 @@ CompileBasicBlock(startPC)
        emitGasCheck (GP v0.7.2: load / test / sub / OOG label)
        opcodeHandlers[opcode](c, asm, instr) → emit x86 指令
   3. Block epilogue：
-       fallthrough 目標已編譯 → JMP NativeAddr（block linking）
-       否則 → emitExitToPC（寫 CONTINUE + 下一 PC → exit_trampoline）
+       fallthrough 目標已編譯 → JMP NativeAddr（compile-time link）
+       否則 → emitChainOrExit：runtime 查 PC→native dispatch table，
+              hit 直接 jmp 進目標；miss 才寫 CONTINUE + 下一 PC → exit_trampoline
   4. 每指令 OOG landing pad + EmitExitTrampoline
   5. Assembler.Finalize() → []byte（機器碼）
   6. em.Write(code) → 寫入 ExecutableMemory
@@ -90,8 +91,14 @@ nativeAddr := em.GetPtr(offset)     // 從 rxMem view 取得可執行位址
 ### 附加決策
 
 - **On-demand compile**：不是整份 program 一次編完，跑到哪編到哪
-- **Fallthrough linking**：epilogue 前可 eager 編下一 block（depth cap = 256）
-- **Forward reference**：目標 block 尚未存在 → fallback `emitExitToPC` 回 Go loop 再查
+- **Lazy-only linking**：`compileForLink` 只連結「已編譯」的目標，**不** eager 預編下一個
+  block。早期 eager 版（沿 fallthrough 遞迴預編，depth cap 256）實測多編了 ~38% 從未
+  執行到的 block，而 codegen 正是 compile 的主成本 → 改為目標已存在才 compile-time `JMP`
+- **Forward reference → runtime chaining**：目標尚未編譯時 emit `emitChainOrExit`
+  （`block_link.go`）：查 PC→native dispatch table，hit 直接 `jmp` 進目標；miss 才
+  `emitExitToPC` 回 Go。Go dispatcher 編譯目標並 `registerDispatch` 填表後，同一出口
+  從此走 native（miss 自癒），loop back-edge 因此收斂成全 native。適用 fallthrough /
+  靜態 branch 兩路 / `jump`；indirect jump 另走 djump dispatch（見 `5_Djump_Dispatch.md`）
 
 ---
 
@@ -142,6 +149,19 @@ BlockBasedInvoke(pc)                          [LockOSThread 一次, L1]
       HALT/PANIC/OOG/PAGE_FAULT → 結束
 ```
 
+### Chaining 對迴圈次數的影響
+
+Chaining 前，每個 basic block 執行完都經 exit trampoline 回 Go，由本 loop 查下一個
+block 再進 native——round-trip 次數 ≈ 走過的 block 數（conformance dataset 實測
+**~4000+ 次/invoke**）。
+
+Chaining 後，block epilogue 在 native 內直接 `jmp` 進下一個已編譯 block
+（compile-time link 或 dispatch table hit）：PVM registers 全程留在 x86 register、
+不經 trampoline、不回本 loop。只有 **host call、chain/djump miss（冷啟一次性）、
+sbrk 跨頁、終止類出口** 才回 Go。同一 dataset 實測 round-trip 降至
+**~40 次/invoke**（roundTrips 3,310,512 → 28,302，117×↓）——一次 invoke 的內層
+loop 幾乎只在必要出口才轉一圈。
+
 ### callNative 內部
 
 ```asm
@@ -185,8 +205,8 @@ Native code 存取 `PROT_NONE` 頁面 → CPU page fault → SIGSEGV → signal 
 
 | 出口 | 處理位置 | 是否離開 native loop |
 |------|----------|----------------------|
-| fallthrough CONTINUE | `BlockBasedInvoke` | 否 |
-| block linking JMP | native 內 | 否（完全不回 Go） |
+| chain miss（static 目標未編譯） | `BlockBasedInvoke` 編譯 + 填 dispatch table | 否（一次性；之後同出口 native chain） |
+| block link / chain hit JMP | native 內 | 否（完全不回 Go） |
 | `ecalli` | `host.HostCall` → omega | 是（外層 loop） |
 | sbrk 跨頁 | `HandleSbrk`（Go mprotect） | 否（resolve 後 continue） |
 | djump hit | native `JmpReg`（dispatch table） | 否 |
@@ -215,14 +235,18 @@ Native code 存取 `PROT_NONE` 頁面 → CPU page fault → SIGSEGV → signal 
 | Memory | paged map (`Memory`) | flat 4GB mmap + mprotect |
 | Registers | Go struct | control region + x86 register |
 | Gas | Go 變數 | control region `[R15-48]` |
-| 跨 invoke 重用 | 無 | 目前無（規劃中：by codeHash） |
+| 跨 invoke 重用 | deblob 後的 `*Program`（`PVM/program_cache.go`，兩 backend 共用） | 同左 + per-CodeHash 編譯產物（`compiled_program.go`：`ExecutableMemory` / `CodeCache` / djump dispatch table；single-flight + LRU eviction） |
 
 ### 效能演進 timeline
 
 1. ~~per-block W^X toggle~~ → **已解決：dual mapping**（mprotect 歸零，原頭號成本 ~49%）
-2. **現況**：per-invoke cold start + per-block trampoline（exec ~42% 為次大成本）
-3. **近期**：block linking 全面化（jump/branch 也 link，減少 Go 往返）
-4. **中期**：cross-invoke cache（`ExecutableMemory` by codeHash；`JITContext` 仍 per-invoke）
+2. ~~per-block trampoline~~ → **已解決：native block chaining**（fallthrough / 靜態 branch /
+   jump 全走 dispatch table chain；roundTrips 3.31M → 28.3k（117×↓），迴圈收斂成全 native）
+3. ~~per-invoke cold start（重編）~~ → **已解決：cross-invoke cache**（per-CodeHash 共用
+   `ExecutableMemory` / `CodeCache` / djump dispatch，single-flight + LRU eviction；
+   `JITContext` 仍 per-invoke）
+4. **現況最大可挖項**：per-invocation mmap/munmap（`NewJITContext`，setup ~195ms）→
+   評估 JITContext pooling（TODO #1(b)），並將 `SetFaultWindow` 從 per-block 移到 per-invocation
 5. **可選**：L2 LockOSThread 外提到 `host.HostCall` 整段
 
 ### Graypaper 語意 vs Recompiler 特有
@@ -245,6 +269,7 @@ Native code 存取 `PROT_NONE` 頁面 → CPU page fault → SIGSEGV → signal 
 | `execute.go` | executeBlockLocked + HandleSbrk |
 | `x86signal/` | Signal handler（C stub） |
 | `gas.go` | Per-instruction / block-based gas emit |
-| `block_link.go` | Fallthrough linking |
+| `block_link.go` | Block chaining：compile-time link + runtime dispatch-table chain |
+| `compiled_program.go` | 跨 invocation code cache（per-CodeHash artifact、single-flight、LRU eviction） |
 | `djump_native.go` | Native djump dispatch |
 | `code_cache.go` | PC → CompiledBlock 快取 |

@@ -35,16 +35,15 @@ cross-invoke cache + chaining + label handle + gas 融合後的 JIT_PROFILE:
   - Phase 2:cache `ExecutableMemory`/`CodeCache`/djump dispatch table(recompiler-only)。
   - 結果:recompiler accumulate 反超 interpreter;fuzz 1179/1179、`-race` 0 races。
 - **backend 選擇修正**(`cmd/fuzz`):`--pvm-backend` flag 預設曾蓋掉 `JAM_PVM_BACKEND` env(bench 兩邊都跑 interpreter);已修。
-  - 註:`cmd/node` 的 `--pvm-backend` switch 仍為**本地未 commit**。
 - **JIT_PROFILE 工具**:counters/pprof/perf + `FlushProfile` + `jit_perfmap.go`;退役 `exec(est)` 減法桶、`execBlocks`→`roundTrips`、加 `cacheHits/Misses`。
 - **fuzz-target STF timing**:`internal/fuzz` 累計 per-ImportBlock STF timing,`make test-timing-fuzz-trace` 驅動。
-- **eviction(cross-invoke cache Phase 3 v1)**——**已完成、未 commit**(`compiled_program.go` + `compiled_program_test.go`):
+- **eviction(cross-invoke cache Phase 3 v1)**——**已完成**(`compiled_program.go` + `compiled_program_test.go`):
   - 觸發:reactive——只在「編了新 distinct CodeHash、insert 進 cache」且超過 cap 時。
   - victim:`refCount==0` 中 `lastUsed` 最小者(LRU;map + 單調序號,淘汰是罕見的 O(n) 掃描)。
   - 保護:`refCount>0`(執行中 arena)絕不 Munmap;全在用 → soft cap。acquire/release 配對(release 接 `Psi_M_recompiler` defer)。
   - cap:`JIT_CACHE_MAX_PROGRAMS`(預設 256,count-based)。
   - 驗收:單元測試(LRU 淘汰/Munmap/重建/soft-cap);cap=1 conformance **1179/1179**;node fuzzy `-race` **0 races**。
-- **native block chaining(原待辦 #1(a))**——**已完成、未 commit**(`block_link.go` `emitChainOrExit`):
+- **native block chaining(原待辦 #1(a))**——**已完成**(`block_link.go` `emitChainOrExit`):
   - static exit(fallthrough / branch 兩路 / jump)改為查 PC→native dispatch table:hit 直接 `jmp` 進目標 block,miss 才 `emitExitToPC` 回 Go;miss 由 dispatcher 編譯目標 + `registerDispatch` 填表後自癒 → 迴圈收斂成全 native(back-edge 不再每圈回 Go)。
   - dispatch table 從 djump-only 擴為所有非空 program 皆建(`len(Bitmasks)>0`);slot 原子寫、native 端 aligned 8B 讀(同 djump hit path)。compile-time 直接 link 保留(省 lookup)。
   - single-step(trace tag)設 `c.singleStep` 關 chaining,維持每指令回 Go。
@@ -61,8 +60,8 @@ cross-invoke cache + chaining + label handle + gas 融合後的 JIT_PROFILE:
 
 ### 2.(低)codegen / emitted-code 品質
 compile 已小,純 codegen 速度優先序低。經解剖,子項的判定:
-- ~~gas check 融合(4→2 條)~~ ✅ 已完成、未 commit(`gas.go`):`load+test+jcc+sub` 融成 `sub [R15-48],1; js oog`(語意等價:pre<1 ⟺ post-sub<0;OOG 冷路徑 `sub -1` 補回,回報 gas 與 interpreter 一致)。run 883→838ms(-5%);驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
-- ~~label `fmt.Sprintf` → int handle~~ ✅ 已完成、未 commit(`asm` + 全 emit 檔;設計/實測見 `2_x86_Assembler.md` §3.3.1)。compile 70ms→37ms(-47%),emitted bytes 不變;驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
+- ~~gas check 融合(4→2 條)~~ ✅ 已完成(`gas.go`):`load+test+jcc+sub` 融成 `sub [R15-48],1; js oog`(語意等價:pre<1 ⟺ post-sub<0;OOG 冷路徑 `sub -1` 補回,回報 gas 與 interpreter 一致)。run 883→838ms(-5%);驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
+- ~~label `fmt.Sprintf` → int handle~~ ✅ 已完成(`asm` + 全 emit 檔;設計/實測見 `2_x86_Assembler.md` §3.3.1)。compile 70ms→37ms(-47%),emitted bytes 不變;驗收:traces 800/800、conformance 1179/1179、`-race` 0 races。
 - 常數折疊:緩,要 profile 證明才動。連續 memory access 合併:**不做**(page-fault 語意 per-access,正確性風險)。
 
 ### 3.(低)eviction 後續
@@ -71,11 +70,15 @@ proactive 淘汰(從 state 訊號主動刪「已知不會再用」的 CodeHash);
 ### 4.(暫緩)block-based gas(GP 0.8.0)
 0.7.2 仍 per-instruction,改了**沒測資料可驗**。`gas.go` 已備好 `emitBlockGasCheck` / `emitBlockOutOfGasExit`,等 0.8 向量再開。
 
+### 5.(低)已知語意缺口與待補測試
+- **跨頁 memory access 語意**:recompiler 靠硬體 fault——PAGE_FAULT payload 用 `si_addr`(實際 fault 位址,常為第二頁),且 store 在 fault 前可能已部分寫入第一頁;interpreter 則先檢查兩頁權限、fault 回報起始位址、all-or-nothing。僅在存取剛好跨 mapped/PROT_NONE 邊界時分歧;conformance 未覆蓋此細節,PVMtrace 對齊可能受影響。修法:emit page-aware check 對齊 interpreter 兩頁邏輯(`emit_memory.go` vs `decode.go`)。
+- **待補單元測試**:`jump_ind` + HALT sentinel → `Psi_H.Counter == instr.PC`(程式碼已對齊 interpreter,conformance 測不到此項)。
+- (長期)inline sbrk 擴大(同頁內不出 native)、hot omega 的 native stub——皆需 profile 證明才動。
+
 ---
 
 ## 收尾(非優化,commit 前處理)
-- commit(累積中的未 commit 工作):eviction(`compiled_program.go`/`_test.go`)、native block chaining(`block_link.go` 等)、label handle 化(`asm` + emit 檔)、gas check 融合(`gas.go`)、`.bin` 讀取(`cmd/fuzz/main.go`,含 `--format`/`--skip`)。
-- `cmd/fuzz/main.go` 拿掉 `Ancestry item added` debug print、更新過時的 ancestry NOTE 註解。
-- `cmd/node` 的 backend switch + profiling 檔案仍為本地未 commit(上次刻意排除)。
+- ✅ commit:eviction、native block chaining、label handle 化、gas check 融合、`.bin` 讀取——已進 `b4def943`。
+- ✅ `cmd/fuzz/main.go` 拿掉 `Ancestry item added` debug print。
 - 清掉 stray build 產物(repo 根目錄 `fuzz`、`node` binary)或加 `.gitignore`。
 - (非 PVM)ring-verifier cache 修法交給 blockchain 側:`GetVerifier` cache key 加 gammaK hash、`restoreWithState` 不再 `ClearVerifierCache`(full-dataset 實測 `GetVerifier` 107s/run、45%)。
