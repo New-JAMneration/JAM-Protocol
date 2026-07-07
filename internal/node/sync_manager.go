@@ -36,6 +36,12 @@ type SyncManager struct {
 	status               SyncStatus
 	networkBest          *HeadInfo
 	networkFinalizedBest *HeadInfo
+
+	// testFetch, when set, replaces fetchAndStoreBlocks (unit/integration tests only).
+	testFetch func(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) (int, error)
+
+	// testFetchAndStore, when set, replaces fetchAndStoreBlocks body for peer-fallback tests.
+	testFetchAndStore func(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) (int, error)
 }
 
 const blockRequestBlockCount uint32 = 50
@@ -190,9 +196,10 @@ func (sm *SyncManager) bulkSync(peer *quic.Peer) error {
 		}
 
 		log.Printf("bulk sync: local slot %d, network best %d", currentHead.Timeslot, sm.networkBest.Timeslot)
-		imported, err := sm.fetchAndStoreBlocks(target, currentHead.Hash, 0, blockRequestBlockCount)
+		imported, err := sm.fetchBlocksFromPeer(target, currentHead.Hash, 0, blockRequestBlockCount)
 		if err != nil {
-			return err
+			log.Printf("bulk sync: fetch failed: %v", err)
+			return nil
 		}
 		if imported == 0 {
 			return nil
@@ -216,11 +223,21 @@ func (sm *SyncManager) importBlock(peer *quic.Peer, currentHead *HeadInfo, newHe
 	if maxBlocks == 0 {
 		maxBlocks = 1
 	}
-	_, err := sm.fetchAndStoreBlocks(peer, currentHead.Hash, 0, maxBlocks)
+	_, err := sm.fetchBlocksFromPeer(peer, currentHead.Hash, 0, maxBlocks)
 	return err
 }
 
+func (sm *SyncManager) fetchBlocksFromPeer(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) (int, error) {
+	if sm.testFetch != nil {
+		return sm.testFetch(peer, from, direction, maxBlocks)
+	}
+	return sm.fetchWithPeerFallback(peer, from, direction, maxBlocks)
+}
+
 func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) (int, error) {
+	if sm.testFetchAndStore != nil {
+		return sm.testFetchAndStore(peer, from, direction, maxBlocks)
+	}
 	conn, ok := sm.localPeer.ConnectionFor(peer.Ed25519Key)
 	if !ok {
 		return 0, fmt.Errorf("no connection for peer %s", peerID(peer))
