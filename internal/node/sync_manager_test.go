@@ -33,7 +33,7 @@ func TestSyncManager_storeBlocks_skipsBlockImportedOnImportError(t *testing.T) {
 	block := types.Block{
 		Header: types.Header{Slot: 3, Parent: types.HeaderHash{0xff}},
 	}
-	err := sm.storeBlocks([]types.Block{block})
+	_, err := sm.storeBlocks([]types.Block{block})
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrParentMismatch))
 

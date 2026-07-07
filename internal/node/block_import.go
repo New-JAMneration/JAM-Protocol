@@ -53,5 +53,6 @@ func ImportBlock(cs *blockchain.ChainState, block types.Block) (types.HeaderHash
 	}
 
 	cs.StateCommit()
+	cs.SetCurrentHead(types.HeaderHash(headerHash))
 	return types.HeaderHash(headerHash), nil
 }

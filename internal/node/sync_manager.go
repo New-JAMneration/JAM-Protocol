@@ -139,7 +139,7 @@ func (sm *SyncManager) onPeerUpdated(peer *quic.Peer, newBlockHeader *HeadInfo) 
 		sm.status = BulkSyncing
 	}
 	if sm.status == BulkSyncing {
-		return sm.bulkSync(peer, currentHead)
+		return sm.bulkSync(peer)
 	}
 
 	return nil
@@ -167,8 +167,7 @@ func (sm *SyncManager) syncCompleted() {
 	sm.status = Syncing
 }
 
-func (sm *SyncManager) bulkSync(peer *quic.Peer, currentHead *HeadInfo) error {
-	log.Printf("Starting bulk sync from timeslot %d", currentHead.Timeslot)
+func (sm *SyncManager) bulkSync(peer *quic.Peer) error {
 	if sm.networkBest == nil || sm.localPeer == nil {
 		return nil
 	}
@@ -179,7 +178,26 @@ func (sm *SyncManager) bulkSync(peer *quic.Peer, currentHead *HeadInfo) error {
 	if target == nil {
 		return nil
 	}
-	return sm.fetchAndStoreBlocks(target, currentHead.Hash, 0, blockRequestBlockCount)
+
+	for {
+		currentHead, err := sm.getCurrentHead()
+		if err != nil {
+			return err
+		}
+		if currentHead.Timeslot >= sm.networkBest.Timeslot {
+			sm.syncCompleted()
+			return nil
+		}
+
+		log.Printf("bulk sync: local slot %d, network best %d", currentHead.Timeslot, sm.networkBest.Timeslot)
+		imported, err := sm.fetchAndStoreBlocks(target, currentHead.Hash, 0, blockRequestBlockCount)
+		if err != nil {
+			return err
+		}
+		if imported == 0 {
+			return nil
+		}
+	}
 }
 
 func (sm *SyncManager) importBlock(peer *quic.Peer, currentHead *HeadInfo, newHeader *HeadInfo) error {
@@ -198,13 +216,14 @@ func (sm *SyncManager) importBlock(peer *quic.Peer, currentHead *HeadInfo, newHe
 	if maxBlocks == 0 {
 		maxBlocks = 1
 	}
-	return sm.fetchAndStoreBlocks(peer, currentHead.Hash, 0, maxBlocks)
+	_, err := sm.fetchAndStoreBlocks(peer, currentHead.Hash, 0, maxBlocks)
+	return err
 }
 
-func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) error {
+func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHash, direction byte, maxBlocks uint32) (int, error) {
 	conn, ok := sm.localPeer.ConnectionFor(peer.Ed25519Key)
 	if !ok {
-		return fmt.Errorf("no connection for peer %s", peerID(peer))
+		return 0, fmt.Errorf("no connection for peer %s", peerID(peer))
 	}
 
 	blocks, err := cehandler.RequestBlocks(sm.ctx, conn, cehandler.CE128Payload{
@@ -213,15 +232,15 @@ func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHas
 		MaxBlocks:  maxBlocks,
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	return sm.storeBlocks(blocks)
 }
 
-func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
+func (sm *SyncManager) storeBlocks(blocks []types.Block) (int, error) {
 	chain, ok := sm.blockchain.(*blockchain.ChainState)
 	if !ok {
-		return fmt.Errorf("blockchain does not support STF import")
+		return 0, fmt.Errorf("blockchain does not support STF import")
 	}
 
 	var lastHead HeadInfo
@@ -230,7 +249,7 @@ func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
 		headerHash, err := ImportBlock(chain, block)
 		if err != nil {
 			if imported == 0 {
-				return err
+				return 0, err
 			}
 			log.Printf("block import: stopped after %d block(s): %v", imported, err)
 			break
@@ -247,7 +266,7 @@ func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
 			log.Printf("publish BlockImported: %v", err)
 		}
 	}
-	return nil
+	return imported, nil
 }
 
 func (sm *SyncManager) anyPeer() *quic.Peer {

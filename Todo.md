@@ -11,8 +11,8 @@ Branch: `966-feat-ce128-stf-import`
 - [x] Step 1：`ImportBlock` — parent 檢查 + `stf.RunSTF` + `StateCommit`
 - [x] Step 1：`SyncManager.storeBlocks` 改走 `ImportBlock`
 - [x] Step 1：單元測試（parent mismatch、失敗不發 `BlockImported`）
-- [ ] Step 2：head / finalized 更新
-- [ ] Step 3：bulk sync 多輪 loop
+- [x] Step 2：head / finalized 更新（UP0 Final → peer.Finalized、ImportBlock SetCurrentHead）
+- [x] Step 3：bulk sync 多輪 loop（追到 networkBest 或無進度）
 - [ ] Step 4：錯誤處理 / retry policy
 - [ ] Step 5：整合測試（mock CE128 responder）
 - [ ] Step 6：dual-node E2E（#567）

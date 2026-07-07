@@ -154,6 +154,10 @@ func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role node
 		}
 		remote := peer.RemotePeer(peerKey)
 		remote.Best = head
+		remote.Finalized = quic.HeadInfo{
+			Hash:     ann.Final.Hash,
+			Timeslot: ann.Final.Slot,
+		}
 		return eventBus.PublishPeerUpdated(context.Background(), remote, head)
 	}
 	peer.RegisterHandler(uphandler.StreamKindUP0, up0.Handle)
