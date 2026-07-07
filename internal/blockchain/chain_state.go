@@ -892,9 +892,9 @@ func (cs *ChainState) restoreWithState(
 	// Keep only ancestry up to the restored headerHash (fallback point)
 	cs.KeepAncestryUpTo(blockHeaderHash)
 
-	// Clear verifier cache when restoring to a different state point
-	// as the epoch may have changed
-	ClearVerifierCache()
+	// The ring verifier cache is keyed by the validator-set content hash, so a
+	// restore that lands on a fork sharing the same validator set reuses the
+	// cached verifier; no clear is needed here.
 
 	return nil
 }

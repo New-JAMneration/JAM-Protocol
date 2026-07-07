@@ -181,7 +181,7 @@ func OuterUsedSafrole() *types.ErrorCode {
 
 	func() {
 		defer timing.Track("safrole.GetVerifier")()
-		ringVerifier, err = blockchain.GetVerifier(ePrime, postGammaK)
+		ringVerifier, err = blockchain.GetVerifier(postGammaK)
 	}()
 	if err != nil {
 		// This error should not happen
