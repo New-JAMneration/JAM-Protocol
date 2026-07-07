@@ -5,13 +5,19 @@ import (
 	"sync"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 
 	vrf "github.com/New-JAMneration/JAM-Protocol/pkg/Rust-VRF/vrf-func-ffi/src"
 )
 
+type ringVerifierCacheKey struct {
+	epoch      types.TimeSlot
+	gammaKHash types.OpaqueHash
+}
+
 type ringVerifierCache struct {
 	sync.RWMutex
-	epoch types.TimeSlot
+	key ringVerifierCacheKey
 	*vrf.Verifier
 }
 
@@ -33,7 +39,7 @@ func ClearVerifierCache() {
 // the pointer anymore.
 func (c *ringVerifierCache) release() {
 	c.Verifier = nil
-	c.epoch = 0
+	c.key = ringVerifierCacheKey{}
 }
 
 func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifier, error) {
@@ -41,10 +47,15 @@ func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifi
 		return nil, fmt.Errorf("gammaK size %d is not equal to validators count %d", len(gammaK), types.ValidatorsCount)
 	}
 
+	key, err := newRingVerifierCacheKey(epoch, gammaK)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash gammaK: %w", err)
+	}
+
 	// First path: read lock
 	// Try to get both cached verifiers
 	cache.RLock()
-	if cache.epoch == epoch && cache.Verifier != nil {
+	if cache.key == key && cache.Verifier != nil {
 		cache.RUnlock()
 		return cache.Verifier, nil
 	}
@@ -55,11 +66,11 @@ func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifi
 	defer cache.Unlock()
 
 	// Double check
-	if cache.epoch == epoch && cache.Verifier != nil {
+	if cache.key == key && cache.Verifier != nil {
 		return cache.Verifier, nil
 	}
 
-	// epoch transition or not initialized: drop the old verifier reference.
+	// Cache miss or key transition: drop the old verifier reference.
 	// Do not Free() it here — a concurrent reader may still hold the pointer
 	// from the read-lock fast path above. The finalizer frees it later.
 	cache.release()
@@ -77,7 +88,19 @@ func GetVerifier(epoch types.TimeSlot, gammaK types.ValidatorsData) (*vrf.Verifi
 	}
 
 	// update cache and return
-	cache.epoch = epoch
+	cache.key = key
 	cache.Verifier = ringVerifier
 	return ringVerifier, nil
+}
+
+func newRingVerifierCacheKey(epoch types.TimeSlot, gammaK types.ValidatorsData) (ringVerifierCacheKey, error) {
+	gammaKHash, err := hash.HashEncode(&gammaK)
+	if err != nil {
+		return ringVerifierCacheKey{}, err
+	}
+
+	return ringVerifierCacheKey{
+		epoch:      epoch,
+		gammaKHash: gammaKHash,
+	}, nil
 }

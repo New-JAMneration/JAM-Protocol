@@ -892,10 +892,6 @@ func (cs *ChainState) restoreWithState(
 	// Keep only ancestry up to the restored headerHash (fallback point)
 	cs.KeepAncestryUpTo(blockHeaderHash)
 
-	// Clear verifier cache when restoring to a different state point
-	// as the epoch may have changed
-	ClearVerifierCache()
-
 	return nil
 }
 
