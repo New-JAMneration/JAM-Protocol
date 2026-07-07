@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSyncManager_storeBlocks_publishesBlockImported(t *testing.T) {
+func TestSyncManager_storeBlocks_skipsBlockImportedOnImportError(t *testing.T) {
 	blockchain.ResetInstance()
 	chain := blockchain.GetInstance()
 	genesis := types.Block{Header: types.Header{Slot: 0}, Extrinsic: types.Extrinsic{}}
@@ -30,14 +31,15 @@ func TestSyncManager_storeBlocks_publishesBlockImported(t *testing.T) {
 
 	sm := NewSyncManager(chain, eventBus, nil)
 	block := types.Block{
-		Header: types.Header{Slot: 3, Parent: chain.GenesisBlockHash()},
+		Header: types.Header{Slot: 3, Parent: types.HeaderHash{0xff}},
 	}
-	require.NoError(t, sm.storeBlocks([]types.Block{block}))
+	err := sm.storeBlocks([]types.Block{block})
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrParentMismatch))
 
 	select {
-	case head := <-imported:
-		require.Equal(t, types.TimeSlot(3), head.Timeslot)
+	case <-imported:
+		t.Fatal("did not expect BlockImported on failed import")
 	default:
-		t.Fatal("expected BlockImported event")
 	}
 }

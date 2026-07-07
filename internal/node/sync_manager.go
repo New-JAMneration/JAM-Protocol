@@ -221,22 +221,29 @@ func (sm *SyncManager) fetchAndStoreBlocks(peer *quic.Peer, from types.HeaderHas
 func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
 	chain, ok := sm.blockchain.(*blockchain.ChainState)
 	if !ok {
-		return fmt.Errorf("blockchain does not support AddBlock")
+		return fmt.Errorf("blockchain does not support STF import")
 	}
+
+	var lastHead HeadInfo
+	imported := 0
 	for _, block := range blocks {
-		chain.AddBlock(block)
-	}
-	if sm.eventBus != nil && len(blocks) > 0 {
-		last := blocks[len(blocks)-1]
-		headerHash, err := hash.ComputeBlockHeaderHash(last.Header)
+		headerHash, err := ImportBlock(chain, block)
 		if err != nil {
-			return err
+			if imported == 0 {
+				return err
+			}
+			log.Printf("block import: stopped after %d block(s): %v", imported, err)
+			break
 		}
-		head := quic.HeadInfo{
+		imported++
+		lastHead = HeadInfo{
 			Hash:     headerHash,
-			Timeslot: last.Header.Slot,
+			Timeslot: block.Header.Slot,
 		}
-		if err := sm.eventBus.PublishBlockImported(sm.ctx, head); err != nil {
+	}
+
+	if sm.eventBus != nil && imported > 0 {
+		if err := sm.eventBus.PublishBlockImported(sm.ctx, lastHead); err != nil {
 			log.Printf("publish BlockImported: %v", err)
 		}
 	}
