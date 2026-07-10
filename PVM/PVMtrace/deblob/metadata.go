@@ -12,15 +12,15 @@ import (
 
 // InstrMetaJSON is the JSON representation of a single instruction's metadata.
 type InstrMetaJSON struct {
-	Index       int      `json:"index"`
-	PC          uint32   `json:"pc"`
-	Opcode      byte     `json:"opcode"`
-	OpcodeName  string   `json:"opcode_name"`
-	SkipLen     uint8    `json:"skip_len"`
-	Dst         uint8    `json:"dst"`
-	Src         [2]uint8 `json:"src"`
-	Imm         [2]uint64 `json:"imm"`
-	BlockStartPC uint32  `json:"block_start_pc"`
+	Index        int       `json:"index"`
+	PC           uint32    `json:"pc"`
+	Opcode       byte      `json:"opcode"`
+	OpcodeName   string    `json:"opcode_name"`
+	SkipLen      uint8     `json:"skip_len"`
+	Dst          uint8     `json:"dst"`
+	Src          [2]uint8  `json:"src"`
+	Imm          [2]uint64 `json:"imm"`
+	BlockStartPC uint32    `json:"block_start_pc"`
 }
 
 // BlockMetaJSON is the JSON representation of a basic block.

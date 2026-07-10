@@ -12,20 +12,20 @@ import (
 
 // Trace is the active trace recorder (trace build only).
 type Trace struct {
-	cfg     TraceConfig
-	dir     string
-	info    TraceInfo
-	steps   int64
-	closed  bool
+	cfg    TraceConfig
+	dir    string
+	info   TraceInfo
+	steps  int64
+	closed bool
 
-	pcW      *streamWriter
-	opcodeW  *streamWriter
-	gasW     *streamWriter
-	dstValW  *streamWriter
-	src1ValW *streamWriter
-	src2ValW *streamWriter
-	loadsW   *streamWriter
-	storesW  *streamWriter
+	pcW       *streamWriter
+	opcodeW   *streamWriter
+	gasW      *streamWriter
+	dstValW   *streamWriter
+	src1ValW  *streamWriter
+	src2ValW  *streamWriter
+	loadsW    *streamWriter
+	storesW   *streamWriter
 	hostCallW *streamWriter
 
 	// reusable buffers

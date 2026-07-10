@@ -18,8 +18,8 @@ func (s *stubGuestMemory) IsReadable(addr, length uint64) bool {
 	return true
 }
 func (s *stubGuestMemory) IsWriteable(addr, length uint64) bool { return true }
-func (s *stubGuestMemory) Read(addr, length uint64) []byte       { return make([]byte, length) }
-func (s *stubGuestMemory) Write(addr uint64, data []byte)        {}
+func (s *stubGuestMemory) Read(addr, length uint64) []byte      { return make([]byte, length) }
+func (s *stubGuestMemory) Write(addr uint64, data []byte)       {}
 
 func TestBeginHostCallMemTraceRecordsAddrAndLenOnly(t *testing.T) {
 	detailsFn, wrapped := BeginHostCallMemTrace(&stubGuestMemory{})

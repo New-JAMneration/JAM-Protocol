@@ -7,7 +7,7 @@
 package PVMtrace
 
 const (
-	FormatVersion   = 1
+	FormatVersion    = 1
 	GraypaperVersion = "0.7.2"
 
 	BackendInterpreter = "interpreter"

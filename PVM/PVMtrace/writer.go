@@ -14,20 +14,24 @@ import (
 
 // streamWriter wraps a gzip-compressed file writer with buffering and SHA-256 sidecar.
 type streamWriter struct {
-	path     string
-	file     *os.File
-	buf      *bufio.Writer
-	gz       *gzip.Writer
-	hash     *sha256Writer
-	written  int64
-	closed   bool
+	path    string
+	file    *os.File
+	buf     *bufio.Writer
+	gz      *gzip.Writer
+	hash    *sha256Writer
+	written int64
+	closed  bool
 }
 
 // sha256Writer is an io.Writer that tees all writes through a SHA-256 hasher.
 type sha256Writer struct {
 	w    io.Writer
 	hash [32]byte
-	h    interface{ Sum([]byte) []byte; Write([]byte) (int, error); Reset() }
+	h    interface {
+		Sum([]byte) []byte
+		Write([]byte) (int, error)
+		Reset()
+	}
 }
 
 func newSha256Writer(w io.Writer) *sha256Writer {

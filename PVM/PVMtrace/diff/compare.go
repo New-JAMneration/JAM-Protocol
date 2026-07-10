@@ -18,14 +18,14 @@ type DivergenceResult struct {
 
 // StepData holds decoded values for one step from one side.
 type StepData struct {
-	PC       uint64
-	Opcode   byte
-	Gas      int64
-	DstVal   uint64
-	Src1Val  uint64
-	Src2Val  uint64
-	LoadAddr uint32
-	LoadVal  uint64
+	PC        uint64
+	Opcode    byte
+	Gas       int64
+	DstVal    uint64
+	Src1Val   uint64
+	Src2Val   uint64
+	LoadAddr  uint32
+	LoadVal   uint64
 	StoreAddr uint32
 	StoreVal  uint64
 }

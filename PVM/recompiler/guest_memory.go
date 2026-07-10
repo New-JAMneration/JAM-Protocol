@@ -54,14 +54,14 @@ func (ctx *JITContext) InitFromProgram(p PVM.StandardCodeFormat, a PVM.Argument)
 	ctx.heapLimit = uint64(stackStart)
 	// Record segment boundaries for segment-aware GuestMemory checks (Layer 1).
 	ctx.seg = guestSegments{
-		roStart:       uint64(readOnlyStart),
-		roEnd:         uint64(readOnlyPadding),
-		rwStart:       uint64(readWriteStart),
-		rwPaddingEnd:  uint64(readWritePadding),
-		stackStart:    uint64(stackStart),
-		stackEnd:      uint64(stackEnd),
-		argStart:      uint64(argumentStart),
-		argEnd:        uint64(argumentPadding),
+		roStart:      uint64(readOnlyStart),
+		roEnd:        uint64(readOnlyPadding),
+		rwStart:      uint64(readWriteStart),
+		rwPaddingEnd: uint64(readWritePadding),
+		stackStart:   uint64(stackStart),
+		stackEnd:     uint64(stackEnd),
+		argStart:     uint64(argumentStart),
+		argEnd:       uint64(argumentPadding),
 	}
 
 	var regs PVM.Registers
@@ -230,4 +230,3 @@ func (g jitGuestMemory) Read(addr, length uint64) []byte {
 func (g jitGuestMemory) Write(addr uint64, data []byte) {
 	copy(g.ctx.guestMem[addr:addr+uint64(len(data))], data)
 }
-

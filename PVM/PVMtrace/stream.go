@@ -23,14 +23,14 @@ const (
 
 // StreamName constants.
 const (
-	StreamPC      = "pc.gz"
-	StreamOpcode  = "opcode.gz"
-	StreamGas     = "gas.gz"
-	StreamDstVal  = "dst_val.gz"
-	StreamSrc1Val = "src1_val.gz"
-	StreamSrc2Val = "src2_val.gz"
-	StreamLoads   = "loads.gz"
-	StreamStores  = "stores.gz"
+	StreamPC        = "pc.gz"
+	StreamOpcode    = "opcode.gz"
+	StreamGas       = "gas.gz"
+	StreamDstVal    = "dst_val.gz"
+	StreamSrc1Val   = "src1_val.gz"
+	StreamSrc2Val   = "src2_val.gz"
+	StreamLoads     = "loads.gz"
+	StreamStores    = "stores.gz"
 	StreamHostCalls = "host_calls.jsonl.gz"
 )
 

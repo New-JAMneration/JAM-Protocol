@@ -179,14 +179,14 @@ func buildProgramMetadata(program *PVM.Program, codeHashHex string) *deblob.Prog
 	for i, instr := range program.Instrs {
 		bpc, _ := blockStartPCs[uint32(instr.PC)]
 		meta.Instructions[i] = deblob.InstrMetaJSON{
-			Index:       i,
-			PC:          uint32(instr.PC),
-			Opcode:      instr.Opcode,
-			OpcodeName:  PVM.OpcodeName(instr.Opcode),
-			SkipLen:     instr.SkipLen,
-			Dst:         instr.Dst,
-			Src:         instr.Src,
-			Imm:         instr.Imm,
+			Index:        i,
+			PC:           uint32(instr.PC),
+			Opcode:       instr.Opcode,
+			OpcodeName:   PVM.OpcodeName(instr.Opcode),
+			SkipLen:      instr.SkipLen,
+			Dst:          instr.Dst,
+			Src:          instr.Src,
+			Imm:          instr.Imm,
 			BlockStartPC: bpc,
 		}
 	}

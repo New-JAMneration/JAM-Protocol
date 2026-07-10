@@ -7,13 +7,13 @@ import (
 
 // TraceConfig holds runtime configuration for trace output.
 type TraceConfig struct {
-	Dir        string // JAM_PVM_TRACE_DIR
-	RunID      string // JAM_PVM_TRACE_RUN_ID
-	Streams    string // JAM_PVM_TRACE_STREAMS ("all" or comma-separated)
-	BufferMB   int    // JAM_PVM_TRACE_BUFFER_MB
-	MaxSteps   int64  // JAM_PVM_TRACE_MAX_STEPS (0 = unlimited)
-	TotalMB    int64  // JAM_PVM_TRACE_TOTAL_MB (0 = unlimited)
-	GzipLevel  int    // JAM_PVM_TRACE_GZIP_LEVEL (1-9, default 6)
+	Dir       string // JAM_PVM_TRACE_DIR
+	RunID     string // JAM_PVM_TRACE_RUN_ID
+	Streams   string // JAM_PVM_TRACE_STREAMS ("all" or comma-separated)
+	BufferMB  int    // JAM_PVM_TRACE_BUFFER_MB
+	MaxSteps  int64  // JAM_PVM_TRACE_MAX_STEPS (0 = unlimited)
+	TotalMB   int64  // JAM_PVM_TRACE_TOTAL_MB (0 = unlimited)
+	GzipLevel int    // JAM_PVM_TRACE_GZIP_LEVEL (1-9, default 6)
 }
 
 const (
