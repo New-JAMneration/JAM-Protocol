@@ -72,6 +72,19 @@ func (e *Encoder) EncodeMany(vs ...any) ([]byte, error) {
 	return bytes.Clone(e.buf.Bytes()), nil
 }
 
+// EncodeFunc resets the buffer, runs fn against the encoder, and returns the
+// written bytes. Used for alternate encodings that are not a type's canonical
+// Encode (e.g. PreimagesExtrinsic.EncodeForExtrinsicHash).
+func (e *Encoder) EncodeFunc(fn func(*Encoder) error) ([]byte, error) {
+	e.buf.Reset()
+
+	if err := fn(e); err != nil {
+		return nil, err
+	}
+
+	return bytes.Clone(e.buf.Bytes()), nil
+}
+
 type Encodable interface {
 	Encode(e *Encoder) error
 }
