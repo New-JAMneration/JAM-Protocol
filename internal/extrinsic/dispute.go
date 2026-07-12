@@ -10,17 +10,14 @@ func Disputes() (types.OffendersMark, error) {
 	block := blockchain.GetInstance().GetLatestBlock()
 	disputeExtrinsic := block.Extrinsic.Disputes
 
-	// GP v0.8.0 eq:disputesextrinsics caps the extrinsic sequences:
-	// |verdicts| <= Cmaxextrinsicverdicts, |culprits|,|faults| <=
-	// Cmaxextrinsicoffenses (both 16).
-	if len(disputeExtrinsic.Verdicts) > types.MaxExtrinsicVerdicts {
-		errCode := DisputesErrorCode.DisputesErrorMap["too_many_verdicts"]
-		return nil, &errCode
-	}
-	if len(disputeExtrinsic.Culprits) > types.MaxExtrinsicOffenses ||
-		len(disputeExtrinsic.Faults) > types.MaxExtrinsicOffenses {
-		errCode := DisputesErrorCode.DisputesErrorMap["too_many_offenses"]
-		return nil, &errCode
+	// GP v0.8.0 eq:disputesextrinsics sequence caps (and per-verdict shape)
+	// are enforced by the type-layer Validate; map the known error strings to
+	// their conformance codes.
+	if err := disputeExtrinsic.Validate(); err != nil {
+		if errCode, ok := DisputesErrorCode.DisputesErrorMap[err.Error()]; ok {
+			return nil, &errCode
+		}
+		return nil, err
 	}
 
 	// init controllers

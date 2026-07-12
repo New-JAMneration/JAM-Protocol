@@ -11,6 +11,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	disputesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 )
 
@@ -213,4 +214,58 @@ func arraysContainSameElements(a, b []types.Ed25519Public) bool {
 		counts[item]--
 	}
 	return true
+}
+
+// GP v0.8.0 eq:disputesextrinsics sequence caps (#1017): oversized disputes
+// extrinsics are rejected before any signature or set validation.
+func TestDisputesExtrinsicCaps(t *testing.T) {
+	cases := []struct {
+		name      string
+		disputes  types.DisputesExtrinsic
+		wantError string
+	}{
+		{
+			name:      "too many verdicts",
+			disputes:  types.DisputesExtrinsic{Verdicts: make([]types.Verdict, types.MaxExtrinsicVerdicts+1)},
+			wantError: "too_many_verdicts",
+		},
+		{
+			name:      "too many culprits",
+			disputes:  types.DisputesExtrinsic{Culprits: make([]types.Culprit, types.MaxExtrinsicOffenses+1)},
+			wantError: "too_many_offenses",
+		},
+		{
+			name:      "too many faults",
+			disputes:  types.DisputesExtrinsic{Faults: make([]types.Fault, types.MaxExtrinsicOffenses+1)},
+			wantError: "too_many_offenses",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			blockchain.ResetInstance()
+			blockchain.GetInstance().AddBlock(types.Block{
+				Extrinsic: types.Extrinsic{Disputes: tc.disputes},
+			})
+
+			_, err := Disputes()
+			if err == nil {
+				t.Fatalf("expected %s, got nil", tc.wantError)
+			}
+			wantCode := disputesErrorCodes.DisputesErrorMap[tc.wantError]
+			gotCode, ok := err.(*types.ErrorCode)
+			if !ok || *gotCode != wantCode {
+				t.Errorf("error = %v, want code %v (%s)", err, wantCode, tc.wantError)
+			}
+		})
+	}
+
+	// At the caps themselves the extrinsic passes the type-layer check.
+	atCap := types.DisputesExtrinsic{
+		Culprits: make([]types.Culprit, types.MaxExtrinsicOffenses),
+		Faults:   make([]types.Fault, types.MaxExtrinsicOffenses),
+	}
+	if err := atCap.Validate(); err != nil {
+		t.Errorf("extrinsic at the caps must validate, got %v", err)
+	}
 }
