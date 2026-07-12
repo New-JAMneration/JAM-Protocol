@@ -906,6 +906,18 @@ type DisputesExtrinsic struct {
 }
 
 func (d *DisputesExtrinsic) Validate() error {
+	// GP v0.8.0 eq:disputesextrinsics sequence caps:
+	// |verdicts| <= Cmaxextrinsicverdicts, |culprits|, |faults| <=
+	// Cmaxextrinsicoffenses (both 16). Enforced here so both the decode path
+	// (ScaleDecode) and the STF (extrinsic.Disputes) reject oversized
+	// extrinsics at the type layer.
+	if len(d.Verdicts) > MaxExtrinsicVerdicts {
+		return errors.New("too_many_verdicts")
+	}
+	if len(d.Culprits) > MaxExtrinsicOffenses || len(d.Faults) > MaxExtrinsicOffenses {
+		return errors.New("too_many_offenses")
+	}
+
 	for _, verdict := range d.Verdicts {
 		if err := verdict.Validate(); err != nil {
 			return err
