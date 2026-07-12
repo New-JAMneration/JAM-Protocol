@@ -229,6 +229,11 @@ func UpdateAccumulatableWorkReports() {
 	cs.GetIntermediateStates().SetAccumulatableWorkReports(WStar)
 }
 
+// parallelize invokes the parallelized accumulation (∆*). Indirection point so
+// tests can stub the PVM-backed execution and exercise OuterAccumulation's
+// recursion (gas budget, processed-transfer threading) deterministically.
+var parallelize = ParallelizedAccumulation
+
 // accumulationPrefixLen picks the maximal report prefix i per GP v0.8.0
 // eq:accseq: sum of the prefix's work-digest gas limits, PLUS the incoming
 // deferred transfers' gas, PLUS the privileged free-accumulation allowances,
@@ -289,7 +294,7 @@ func OuterAccumulation(input OuterAccumulationInput) (output OuterAccumulationOu
 		AlwaysAccumulateMap: f,
 	}
 
-	parallelResult, err := ParallelizedAccumulation(parallelInput)
+	parallelResult, err := parallelize(parallelInput)
 	eStar := parallelResult.PartialStateSet
 	tStar := parallelResult.DeferredTransfers
 	bStar := parallelResult.AccumulatedServiceOutput

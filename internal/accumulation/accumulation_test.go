@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -319,13 +320,32 @@ func TestProcessPreimageExtrinsics_PartialIntegrate(t *testing.T) {
 	}
 }
 
+// skipUnlessV080Vectors skips vector-driven tests while the vendored
+// jam-test-vectors are still pre-v0.8.0, detected from the vendored ASN.1
+// schema (GP v0.8.0 adds erasure-shards to WorkPackageSpec, eq:avspec). The
+// gated test resumes automatically once the submodule ships a v0.8.0 schema,
+// and fails loudly if the version cannot be determined.
+func skipUnlessV080Vectors(t *testing.T) {
+	t.Helper()
+
+	schemaPath := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "lib", "jam-types.asn")
+	schema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("cannot determine jam-test-vectors version (read %s): %v", schemaPath, err)
+	}
+	if !strings.Contains(string(schema), "erasure-shards") {
+		t.Skip("vendored jam-test-vectors are pre-v0.8.0 (no erasure-shards in jam-types.asn); skipped until official v0.8.0 vectors land (#1012)")
+	}
+}
+
 func TestAccumulateTestVectors(t *testing.T) {
 	// The v0.7.x accumulate vectors carry WorkReports whose wire layout
 	// predates GP v0.8.0 (#1015/#1016), so the decoder mis-parses a length
-	// prefix and dies on a giant allocation (OOM). Re-enable on official
-	// v0.8.0 vectors (#1012); the CI path already skips the mode via
-	// testdata.v080IncompatibleModes.
-	t.Skip("v0.7.x accumulate vectors predate GP v0.8.0 wire changes (#1015/#1016); re-enable on official v0.8.0 vectors")
+	// prefix and dies on a giant allocation (OOM). Gated on the vendored
+	// vector version so the test resumes automatically once official v0.8.0
+	// vectors land (#1012); the CI path skips the mode via
+	// testdata.v080IncompatibleModes until then.
+	skipUnlessV080Vectors(t)
 
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "accumulate", types.TEST_MODE)
 
