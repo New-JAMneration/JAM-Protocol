@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // U8
@@ -523,6 +525,34 @@ func (p *PreimagesExtrinsic) Encode(e *Encoder) error {
 
 	for _, preimage := range *p {
 		if err := preimage.Encode(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// EncodeForExtrinsicHash implements the extrinsic-hash preimages component of
+// GP v0.8.0 header.tex: p = E(var[(E4(s), blake(d)) for (s, d) in E_P]) —
+// each preimage blob committed by its Blake2b hash (32 bytes, no length
+// prefix). NOT the C.15 block-wire encoding; see Encode above for that.
+// Hash-only commitment, so there is no matching decode.
+func (p *PreimagesExtrinsic) EncodeForExtrinsicHash(e *Encoder) error {
+	cLog(Cyan, "Encoding PreimagesExtrinsic for the extrinsic hash")
+
+	if err := e.EncodeLength(uint64(len(*p))); err != nil {
+		return err
+	}
+
+	for _, preimage := range *p {
+		// E4(s): requester service index, fixed 4 bytes
+		if err := preimage.Requester.Encode(e); err != nil {
+			return err
+		}
+
+		// blake(d): hash of the preimage blob
+		blobHash := blake2b.Sum256(preimage.Blob)
+		if _, err := e.buf.Write(blobHash[:]); err != nil {
 			return err
 		}
 	}
