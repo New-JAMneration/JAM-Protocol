@@ -65,3 +65,81 @@ func TestAccumulationPrefixLen_V080GasBudget(t *testing.T) {
 		})
 	}
 }
+
+// TestOuterAccumulation_V080RecursionBudgetAndProcessedTransfers stubs the
+// PVM-backed ∆* (via the parallelize indirection) to exercise the two
+// remaining eq:accseq changes end to end: the recursion budget
+// g* = g + Σ(t*_gas) − Σ(u*) sums the transfers PRODUCED by the round (not
+// the incoming ones), and the processed-transfers output preserves the
+// t ⌢ t† order across recursion rounds.
+func TestOuterAccumulation_V080RecursionBudgetAndProcessedTransfers(t *testing.T) {
+	report := func(gas types.Gas) types.WorkReport {
+		return types.WorkReport{Results: []types.WorkResult{{AccumulateGas: gas}}}
+	}
+	incoming := types.DeferredTransfer{ReceiverID: 7, GasLimit: 50}
+	produced := types.DeferredTransfer{ReceiverID: 8, GasLimit: 5}
+
+	run := func(t *testing.T, roundOneGasUsed types.Gas) OuterAccumulationOutput {
+		t.Helper()
+
+		calls := 0
+		orig := parallelize
+		parallelize = func(input ParallelizedAccumulationInput) (ParallelizedAccumulationOutput, error) {
+			calls++
+			out := ParallelizedAccumulationOutput{
+				PartialStateSet:          input.PartialStateSet,
+				AccumulatedServiceOutput: types.AccumulatedServiceOutput{},
+			}
+			if calls == 1 {
+				out.DeferredTransfers = []types.DeferredTransfer{produced}
+				out.ServiceGasUsedList = types.ServiceGasUsedList{{ServiceID: 1, Gas: roundOneGasUsed}}
+			}
+			return out, nil
+		}
+		t.Cleanup(func() { parallelize = orig })
+
+		output, err := OuterAccumulation(OuterAccumulationInput{
+			GasLimit:          100,
+			DeferredTransfers: []types.DeferredTransfer{incoming},
+			WorkReports:       []types.WorkReport{report(30), report(30)},
+		})
+		if err != nil {
+			t.Fatalf("OuterAccumulation: %v", err)
+		}
+		return output
+	}
+
+	t.Run("g* sums produced transfers, not incoming", func(t *testing.T) {
+		// Round 1: reserved 50 (incoming) + 30 <= 100 selects exactly one
+		// report. Recursion budget g* = 100 + 5 (produced t*) − 100 (u*) = 5,
+		// too small for the second report (5 reserved + 30 digest > 5). Under
+		// the v0.7.x rule (incoming t: 100 + 50 − 100 = 50) it would still
+		// fit — the accumulated count tells the two apart.
+		output := run(t, 100)
+		if got := output.NumberOfWorkResultsAccumulated; got != 1 {
+			t.Errorf("accumulated = %d, want 1 (g* must sum produced t*, not incoming t)", got)
+		}
+	})
+
+	t.Run("larger g* admits the second report", func(t *testing.T) {
+		// Same setup with zero gas used: g* = 100 + 5 − 0 = 105 fits the
+		// second report — proving the count above is budget-driven.
+		output := run(t, 0)
+		if got := output.NumberOfWorkResultsAccumulated; got != 2 {
+			t.Errorf("accumulated = %d, want 2", got)
+		}
+	})
+
+	t.Run("processed transfers preserve t concat t-dagger order", func(t *testing.T) {
+		output := run(t, 100)
+		want := []types.ServiceID{7, 8} // incoming first, then the round's produced
+		if len(output.ProcessedTransfers) != len(want) {
+			t.Fatalf("processed transfers = %d, want %d", len(output.ProcessedTransfers), len(want))
+		}
+		for i, receiver := range want {
+			if output.ProcessedTransfers[i].ReceiverID != receiver {
+				t.Errorf("processed[%d].ReceiverID = %d, want %d", i, output.ProcessedTransfers[i].ReceiverID, receiver)
+			}
+		}
+	})
+}
