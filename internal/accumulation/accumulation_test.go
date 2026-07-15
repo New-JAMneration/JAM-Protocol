@@ -31,6 +31,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestPreimageTestVectors(t *testing.T) {
+	// The v0.7.x preimages vectors carry pi_S service statistics in state,
+	// whose per-service accumulation stat became a (count, transfers, gas)
+	// 3-tuple in GP v0.8.0 (#1021), so the .bin vectors no longer decode.
+	// Re-enable on official v0.8.0 vectors (#1012).
+	t.Skip("v0.7.x preimages vectors predate the GP v0.8.0 accumulation-stats 3-tuple (#1021); re-enable on official v0.8.0 vectors")
+
 	dir := filepath.Join(utils.JAM_TEST_VECTORS_DIR, "stf", "preimages", types.TEST_MODE)
 
 	// Read binary files
@@ -494,21 +500,23 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 	}
 
 	for _, serviceID := range serviceIDs {
-		accumulateCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
-		// Skip if the service has no accumulated reports or gas used
-		if accumulateCount == 0 && accumulateGasUsed == 0 {
+		accumulateCount, accumulateTransfersCount, accumulateGasUsed := statistics.CalculateAccumulationStatistics(serviceID, accumulationStatisitcs)
+		// Skip if the service has no accumulated reports, transfers, or gas used
+		if accumulateCount == 0 && accumulateTransfersCount == 0 && accumulateGasUsed == 0 {
 			continue
 		}
 		// Update the statistics for the service
 		thisServiceActivityRecord, ok := ourStatisticsServices[serviceID]
 		if ok {
 			thisServiceActivityRecord.AccumulateCount = accumulateCount
+			thisServiceActivityRecord.AccumulateTransfersCount = accumulateTransfersCount
 			thisServiceActivityRecord.AccumulateGasUsed = accumulateGasUsed
 			ourStatisticsServices[serviceID] = thisServiceActivityRecord
 		} else {
 			newServiceActivityRecord := types.ServiceActivityRecord{
-				AccumulateCount:   accumulateCount,
-				AccumulateGasUsed: accumulateGasUsed,
+				AccumulateCount:          accumulateCount,
+				AccumulateTransfersCount: accumulateTransfersCount,
+				AccumulateGasUsed:        accumulateGasUsed,
 			}
 			ourStatisticsServices[serviceID] = newServiceActivityRecord
 		}
@@ -586,5 +594,38 @@ func validateFinalState(t *testing.T, expectedState jamtests_accumulate.Accumula
 				t.Errorf("serviceID %v has extra Storage key %q in actualDelta", key, storageKey)
 			}
 		}
+	}
+}
+
+// TestCalculateAccumulationStatistics_V080Transfers covers the GP v0.8.0
+// eq:accumulationstatisticsdef 3-tuple: T(s) counts processed transfers per
+// destination service, transfer-only services enter the key domain, and
+// (0,0,0) entries are dropped.
+func TestCalculateAccumulationStatistics_V080Transfers(t *testing.T) {
+	blockchain.ResetInstance() // empty accumulatable reports => N(s) = 0
+
+	gasUsed := types.ServiceGasUsedList{
+		{ServiceID: 9, Gas: 500},
+		{ServiceID: 5, Gas: 0}, // all-zero entry must be dropped
+	}
+	transfers := []types.DeferredTransfer{
+		{SenderID: 9, ReceiverID: 7, GasLimit: 10},
+		{SenderID: 9, ReceiverID: 7, GasLimit: 10},
+		{SenderID: 7, ReceiverID: 8, GasLimit: 10},
+	}
+
+	S := calculateAccumulationStatistics(gasUsed, transfers, 0)
+
+	if got := S[7]; got.NumProcessedTransfers != 2 || got.Gas != 0 || got.NumAccumulatedReports != 0 {
+		t.Errorf("S[7] = %+v, want (N=0, T=2, G=0)", got)
+	}
+	if got := S[8]; got.NumProcessedTransfers != 1 {
+		t.Errorf("S[8].NumProcessedTransfers = %d, want 1 (transfer-only service must be present)", got.NumProcessedTransfers)
+	}
+	if got := S[9]; got.Gas != 500 || got.NumProcessedTransfers != 0 {
+		t.Errorf("S[9] = %+v, want (N=0, T=0, G=500)", got)
+	}
+	if _, ok := S[5]; ok {
+		t.Errorf("S[5] must be dropped: (N, T, G) == (0, 0, 0)")
 	}
 }

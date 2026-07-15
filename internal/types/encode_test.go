@@ -658,6 +658,7 @@ func TestPreimagesExtrinsic_EncodeForExtrinsicHash_V080(t *testing.T) {
 
 	encoder := NewEncoder()
 	encoded, err := encoder.EncodeFunc(preimages.EncodeForExtrinsicHash)
+
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -688,6 +689,36 @@ func TestPreimagesExtrinsic_EncodeForExtrinsicHash_V080(t *testing.T) {
 	}
 	if len(empty) != 1 || empty[0] != 0 {
 		t.Errorf("empty preimages encoding = % x, want a single 0 byte", empty)
+	}
+}
+
+// TestEncodeValidatorsStatistics_V080LengthPrefix covers the GP v0.8.0
+// merklization C(13) change: pi_V / pi_L are length-prefixed (var) sequences;
+// v0.7.x emitted them fixed-length.
+func TestEncodeValidatorsStatistics_V080LengthPrefix(t *testing.T) {
+	stats := make(ValidatorsStatistics, ValidatorsCount)
+	stats[0].Blocks = 7
+	stats[1].Assurances = 3
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&stats)
+
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// The length prefix (value ValidatorsCount) must lead the sequence.
+	if encoded[0] != byte(ValidatorsCount) {
+		t.Errorf("length prefix = %d, want %d", encoded[0], ValidatorsCount)
+	}
+
+	decoder := NewDecoder()
+	var got ValidatorsStatistics
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(stats, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, stats)
 	}
 }
 
