@@ -245,3 +245,31 @@ func TestGFunc(t *testing.T) {
 		t.Fatalf("GStar failed.\nExpected: %v\nGot:      %v", expected, gVal.CoreAssignments)
 	}
 }
+
+func TestGFuncReplacesOffenderKeyWithoutRejectingAssignments(t *testing.T) {
+	blockchain.ResetInstance()
+	t.Cleanup(blockchain.ResetInstance)
+	cs := blockchain.GetInstance()
+
+	validators := make(types.ValidatorsData, types.ValidatorsCount)
+	for i := range validators {
+		validators[i].Ed25519[0] = byte(i + 1)
+	}
+	offender := validators[0].Ed25519
+
+	cs.GetPosteriorStates().SetEta(types.EntropyBuffer{})
+	cs.GetPosteriorStates().SetTau(0)
+	cs.GetPosteriorStates().SetKappa(validators)
+	cs.GetPosteriorStates().SetPsiO(types.OffendersMark{offender})
+
+	assignments, err := GFunc(map[types.Ed25519Public]bool{offender: true})
+	if err != nil {
+		t.Fatalf("GFunc() rejected the complete assignment set: %v", err)
+	}
+	if assignments.PublicKeys[0].Ed25519 != (types.Ed25519Public{}) {
+		t.Fatalf("offender key was not replaced with the null key")
+	}
+	if assignments.PublicKeys[1].Ed25519 == (types.Ed25519Public{}) {
+		t.Fatalf("non-offender key was unexpectedly replaced")
+	}
+}

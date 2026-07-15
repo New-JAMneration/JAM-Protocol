@@ -1171,12 +1171,8 @@ func (r *ReportGuarantee) Validate() error {
 		return err
 	}
 
-	if len(r.Signatures) < GuaranteeMinCount {
+	if len(r.Signatures) < GuaranteeMinCount || len(r.Signatures) > GuaranteeMaxCount {
 		return errors.New("insufficient_guarantees")
-	}
-
-	if len(r.Signatures) > GuaranteeMaxCount {
-		logger.Warn("too_many_guarantees")
 	}
 
 	for _, sig := range r.Signatures {
@@ -1693,6 +1689,7 @@ type HashSegmentMap map[OpaqueHash]OpaqueHash
 type AncestryItem struct {
 	Slot       TimeSlot
 	HeaderHash HeaderHash
+	StateRoot  StateRoot
 }
 
 type Ancestry []AncestryItem
