@@ -1632,11 +1632,19 @@ func (a *ValidatorActivityRecord) Decode(d *Decoder) error {
 func (a *ValidatorsStatistics) Decode(d *Decoder) error {
 	cLog(Cyan, "Decoding ActivityRecords")
 
-	var err error
+	// GP v0.8.0 merklization C(13): pi_V / pi_L are length-prefixed (var)
+	// sequences; v0.7.x assumed a fixed ValidatorsCount entries.
+	length, err := d.DecodeLength()
+	if err != nil {
+		return err
+	}
+	if length != uint64(ValidatorsCount) {
+		return fmt.Errorf("ActivityRecords length %d is not equal to ValidatorsCount %d", length, ValidatorsCount)
+	}
 
 	// make the slice with length
-	records := make([]ValidatorActivityRecord, ValidatorsCount)
-	for i := 0; i < ValidatorsCount; i++ {
+	records := make([]ValidatorActivityRecord, length)
+	for i := uint64(0); i < length; i++ {
 		if err = records[i].Decode(d); err != nil {
 			return err
 		}
@@ -1818,6 +1826,16 @@ func (s *ServiceActivityRecord) Decode(d *Decoder) error {
 	}
 	s.AccumulateCount = U32(accumulateCount)
 	cLog(Yellow, "AccumulateCount: %v", accumulateCount)
+
+	// AccumulateTransfersCount (GP v0.8.0 eq:accumulationstatisticsspec: the
+	// accumulation stat is a (count, transfers, gas) 3-tuple)
+	cLog(Cyan, "Decoding AccumulateTransfersCount")
+	accumulateTransfersCount, err := d.DecodeInteger()
+	if err != nil {
+		return err
+	}
+	s.AccumulateTransfersCount = U32(accumulateTransfersCount)
+	cLog(Yellow, "AccumulateTransfersCount: %v", accumulateTransfersCount)
 
 	cLog(Cyan, "Decoding AccumulateGasUsed")
 	accumulateGasUsed, err := d.DecodeInteger()
