@@ -41,10 +41,13 @@ func SetTinyMode() {
 	UnreferencedPreimageTimeslots = 32 // D
 	TotalGas = 20_000_000              // G_T
 	MaxRefineGas = 1_000_000_000       // G_R
-	ECPiecesPerSegment = 1026
-	ECBasicSize = 4
-	MaxLookupAge = 24                       // L
-	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cache size limit
+	// Erasure coding (GP v0.8.0 eq:ecoriginalshards): tiny 3:6
+	DataShards = OriginalShards(ValidatorsCount)   // 3
+	TotalShards = ValidatorsCount                  // 6
+	ECBasicSize = 2 * DataShards                   // W_E = 6
+	ECPiecesPerSegment = SegmentSize / ECBasicSize // W_P = 684
+	MaxLookupAge = 24                              // L
+	MaxKeyLevelCacheSize = EpochLength * 50        // Temporary Constant for cache size limit
 }
 
 func SetFullMode() {
@@ -62,10 +65,14 @@ func SetFullMode() {
 	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
 	TotalGas = 3_500_000_000                                  // G_T
 	MaxRefineGas = 5_000_000_000                              // G_R
-	ECPiecesPerSegment = 6
-	ECBasicSize = 684
-	MaxLookupAge = 14400                    // L
-	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cache size limit
+	// Erasure coding (GP v0.8.0 eq:ecoriginalshards): full 342:1023
+	// (byte-identical to v0.7.x full mode)
+	DataShards = OriginalShards(ValidatorsCount)   // 342
+	TotalShards = ValidatorsCount                  // 1023
+	ECBasicSize = 2 * DataShards                   // W_E = 684
+	ECPiecesPerSegment = SegmentSize / ECBasicSize // W_P = 6
+	MaxLookupAge = 14400                           // L
+	MaxKeyLevelCacheSize = EpochLength * 50        // Temporary Constant for cache size limit
 }
 
 // changeable constants depends on chainspec
@@ -93,8 +100,8 @@ var (
 	UnreferencedPreimageTimeslots = 32
 	TotalGas                      = 20_000_000    // G_T  , davxy-spec : max_block_gas
 	MaxRefineGas                  = 1_000_000_000 // G_R v0.6.4 The total gas allocated across for all Accumulation. Should be no smaller than GA ⋅ C + ∑g∈V(χg) (g).
-	ECPiecesPerSegment            = 1026          // W_P: The number of erasure-coded pieces in a segment
-	ECBasicSize                   = 4             // W_E: The basic size of erasure-coded pieces in octets
+	ECPiecesPerSegment            = 684           // W_P: The number of erasure-coded pieces in a segment (tiny, GP v0.8.0)
+	ECBasicSize                   = 6             // W_E: The basic size of erasure-coded pieces in octets (2 * original_shards, tiny)
 	MaxLookupAge                  = 24            // L
 	// --- end ProtocolParameters ---
 
@@ -184,12 +191,29 @@ const (
 	MinimumServiceIndex = 65536 // S (GP 0.7.1)
 )
 
-// erasure coding constants
-// 342:1023 (Appendix H)
-const (
-	DataShards  = 342
-	TotalShards = 1023
+// erasure coding parameters, derived from the validator count per
+// GP v0.8.0 eq:ecoriginalshards (tiny 3:6, full 342:1023). Set by
+// SetTinyMode/SetFullMode; defaults are tiny.
+var (
+	DataShards  = OriginalShards(6)
+	TotalShards = 6
 )
+
+// OriginalShards implements GP v0.8.0 eq:ecoriginalshards:
+//
+//	original_shards(v) = max{d in Nmax{v/3 + 2} : 4104 mod 2d = 0}
+//
+// i.e. the largest d < v/3 + 2 for which the 4104-byte segment splits
+// evenly into 2d-byte pieces. original_shards(6) = 3, original_shards(1023)
+// = 342.
+func OriginalShards(v int) int {
+	for d := v/3 + 1; d > 0; d-- {
+		if SegmentSize%(2*d) == 0 {
+			return d
+		}
+	}
+	return 1
+}
 
 // genesis file path
 const (
