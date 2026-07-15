@@ -45,3 +45,8 @@ func TestAnnouncementRoundTrip(t *testing.T) {
 	require.Equal(t, a.Header.Parent, decoded.Header.Parent)
 	require.Equal(t, a.Final, decoded.Final)
 }
+
+func TestDecodeAnnouncementRejectsTruncatedPayload(t *testing.T) {
+	_, err := DecodeAnnouncement([]byte{0x01, 0x02})
+	require.Error(t, err)
+}

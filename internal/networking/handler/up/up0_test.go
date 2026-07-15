@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,25 @@ func (s *testUP0Stream) writtenPayloads() [][]byte {
 	return out
 }
 
+type pipeQuicStream struct {
+	inner *testUP0Stream
+}
+
+func asQuicStream(inner *testUP0Stream) *quic.Stream {
+	return &quic.Stream{Stream: &pipeQuicStream{inner: inner}}
+}
+
+func (s *pipeQuicStream) Read(p []byte) (int, error)  { return s.inner.reader.Read(p) }
+func (s *pipeQuicStream) Write(p []byte) (int, error) { return s.inner.writer.Write(p) }
+func (s *pipeQuicStream) Close() error                { return s.inner.Close() }
+func (s *pipeQuicStream) StreamID() quicgo.StreamID   { return 1 }
+func (s *pipeQuicStream) CancelRead(quicgo.StreamErrorCode)  {}
+func (s *pipeQuicStream) CancelWrite(quicgo.StreamErrorCode) {}
+func (s *pipeQuicStream) SetReadDeadline(time.Time) error    { return nil }
+func (s *pipeQuicStream) SetWriteDeadline(time.Time) error   { return nil }
+func (s *pipeQuicStream) SetDeadline(time.Time) error        { return nil }
+func (s *pipeQuicStream) Context() context.Context           { return context.Background() }
+
 func TestHandshakeExchangeConcurrent(t *testing.T) {
 	blocks, finalized := testChain(t)
 	streamA, streamB := newLinkedTestUP0Streams()
@@ -165,39 +185,67 @@ func TestAnnouncementInvokesCallback(t *testing.T) {
 	require.Equal(t, wantKey, peerKey)
 }
 
-func TestUP0SessionReadLoopInvokesCallback(t *testing.T) {
+func TestUP0HandlerHandleInvokesOnAnnouncement(t *testing.T) {
 	blocks, finalized := testChain(t)
 	localStream, remoteStream := newLinkedTestUP0Streams()
 
 	var received Announcement
+	var peerKey ed25519.PublicKey
 	handler := testHandler(t, blocks, finalized)
 	handler.OnAnnouncement = func(ann Announcement, pk ed25519.PublicKey) error {
 		received = ann
+		peerKey = pk
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	localSession, err := handler.newSession(localStream, ed25519.PublicKey{1})
-	require.NoError(t, err)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- handler.Handle(ctx, asQuicStream(localStream), ed25519.PublicKey{1})
+	}()
+
 	remoteSession, err := handler.newSession(remoteStream, ed25519.PublicKey{2})
 	require.NoError(t, err)
-
-	errCh := make(chan error, 2)
-	go func() { errCh <- localSession.exchangeHandshake(ctx) }()
-	go func() { errCh <- remoteSession.exchangeHandshake(ctx) }()
-	require.NoError(t, <-errCh)
-	require.NoError(t, <-errCh)
-
-	go func() { _ = localSession.readLoop(ctx) }()
+	require.NoError(t, remoteSession.exchangeHandshake(ctx))
 
 	bHeader := blocks[2].Header
-	require.NoError(t, remoteSession.AnnounceBlock(bHeader))
+	ann := Announcement{Header: bHeader, Final: BlockRef{Hash: finalized, Slot: blocks[0].Header.Slot}}
+	payload, err := EncodeAnnouncement(ann)
+	require.NoError(t, err)
+	require.NoError(t, remoteStream.WriteMessage(payload))
 
 	require.Eventually(t, func() bool {
 		return received.Header.Slot == bHeader.Slot
 	}, time.Second, 10*time.Millisecond)
+	require.Equal(t, ed25519.PublicKey{1}, peerKey)
+
+	cancel()
+	<-errCh
+}
+
+func TestUP0HandlerHandleRejectsMalformedAnnouncement(t *testing.T) {
+	blocks, finalized := testChain(t)
+	localStream, remoteStream := newLinkedTestUP0Streams()
+	handler := testHandler(t, blocks, finalized)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- handler.Handle(ctx, asQuicStream(localStream), ed25519.PublicKey{1})
+	}()
+
+	remoteSession, err := handler.newSession(remoteStream, ed25519.PublicKey{2})
+	require.NoError(t, err)
+	require.NoError(t, remoteSession.exchangeHandshake(ctx))
+	require.NoError(t, remoteStream.WriteMessage([]byte{0x01, 0x02, 0x03}))
+
+	err = <-errCh
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "decode announcement")
 }
 
 func TestUP0HandlerDropsNonDescendantAnnouncement(t *testing.T) {
