@@ -42,4 +42,4 @@
 - [x] Run targeted Docker tests for each phase.
 - [x] Run related package tests with `-race`.
 - [x] Run scoped `go vet`, `gofmt -s`, and Linux Docker build.
-- [ ] Commit each phase independently and update PR #1042.
+- [x] Commit each phase independently and update PR #1042.
