@@ -422,16 +422,11 @@ func (cs *ChainState) StateCommit() {
 			logger.Debugf("StateCommit: persisted block 0x%x", blockHeaderHash[:8])
 		}
 
-		existingAncestry := cs.GetAncestry()
-		if len(existingAncestry) > 0 {
-			currentItem := types.AncestryItem{
-				Slot:       latestBlock.Header.Slot,
-				HeaderHash: blockHeaderHash,
-			}
-			last := existingAncestry[len(existingAncestry)-1]
-			if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-				cs.AppendAncestry(types.Ancestry{currentItem})
-			}
+		stateRoot, stateRootErr := cs.GetStateRootByBlockHash(blockHeaderHash)
+		if stateRootErr != nil {
+			logger.Errorf("StateCommit: failed to load state root for ancestry: %v", stateRootErr)
+		} else {
+			cs.appendCommittedAncestry(latestBlock.Header, blockHeaderHash, stateRoot)
 		}
 	}
 
@@ -481,17 +476,7 @@ func (cs *ChainState) StateCommitWithPreComputedState(
 		logger.Debugf("StateCommitWithPreComputedState: persisted block 0x%x", blockHeaderHash[:8])
 	}
 
-	existingAncestry := cs.GetAncestry()
-	if len(existingAncestry) > 0 {
-		currentItem := types.AncestryItem{
-			Slot:       latestBlock.Header.Slot,
-			HeaderHash: blockHeaderHash,
-		}
-		last := existingAncestry[len(existingAncestry)-1]
-		if last.Slot != currentItem.Slot || last.HeaderHash != currentItem.HeaderHash {
-			cs.AppendAncestry(types.Ancestry{currentItem})
-		}
-	}
+	cs.appendCommittedAncestry(latestBlock.Header, blockHeaderHash, stateRoot)
 
 	posterState := cs.GetPosteriorStates().GetState()
 	cs.GetPriorStates().SetState(posterState)
@@ -511,12 +496,28 @@ func (cs *ChainState) AddAncestorHeader(header types.Header) {
 		logger.Errorf("AddAncestorHeader: failed to compute header hash: %v", err)
 		return
 	}
-	cs.AppendAncestry(types.Ancestry{
-		{
-			Slot:       header.Slot,
-			HeaderHash: headerHash,
-		},
-	})
+	stateRoot, err := cs.GetStateRootByBlockHash(headerHash)
+	if err != nil {
+		logger.Errorf("AddAncestorHeader: failed to load state root: %v", err)
+		return
+	}
+	cs.appendCommittedAncestry(header, headerHash, stateRoot)
+}
+
+func (cs *ChainState) appendCommittedAncestry(header types.Header, headerHash types.HeaderHash, stateRoot types.StateRoot) {
+	currentItem := types.AncestryItem{
+		Slot:       header.Slot,
+		HeaderHash: headerHash,
+		StateRoot:  stateRoot,
+	}
+	existingAncestry := cs.GetAncestry()
+	if len(existingAncestry) > 0 {
+		last := existingAncestry[len(existingAncestry)-1]
+		if last.Slot == currentItem.Slot && last.HeaderHash == currentItem.HeaderHash {
+			return
+		}
+	}
+	cs.AppendAncestry(types.Ancestry{currentItem})
 }
 
 // AppendAncestry appends ancestry items to the blockchain.

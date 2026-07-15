@@ -140,3 +140,58 @@ func TestRecentHistoryTestVectors(t *testing.T) {
 		}
 	}
 }
+
+func TestHistory2HistoryDaggerDoesNotMutatePriorHistory(t *testing.T) {
+	originalRoot := types.StateRoot{0x11}
+	correctedRoot := types.StateRoot{0x22}
+	history := types.BlocksHistory{{StateRoot: originalRoot}}
+
+	got := recent_history.History2HistoryDagger(history, correctedRoot)
+
+	if history[0].StateRoot != originalRoot {
+		t.Fatalf("prior history was mutated: got %x, want %x", history[0].StateRoot, originalRoot)
+	}
+	if got[0].StateRoot != correctedRoot {
+		t.Fatalf("corrected state root = %x, want %x", got[0].StateRoot, correctedRoot)
+	}
+}
+
+func TestAddItem2BetaHPrimeEvictsOldestAtCapacity(t *testing.T) {
+	history := make(types.BlocksHistory, types.MaxBlocksHistory)
+	for i := range history {
+		history[i].Timeslot = types.TimeSlot(i + 1)
+	}
+	item := types.BlockInfo{Timeslot: 999}
+
+	got := recent_history.AddItem2BetaHPrime(history, item)
+
+	if len(got) != types.MaxBlocksHistory {
+		t.Fatalf("history length = %d, want %d", len(got), types.MaxBlocksHistory)
+	}
+	if got[0].Timeslot != history[1].Timeslot {
+		t.Fatalf("oldest retained slot = %d, want %d", got[0].Timeslot, history[1].Timeslot)
+	}
+	if got[len(got)-1].Timeslot != item.Timeslot {
+		t.Fatalf("newest slot = %d, want %d", got[len(got)-1].Timeslot, item.Timeslot)
+	}
+}
+
+func TestSTFBetaHDagger2BetaHPrimeUsesBlockTimeslot(t *testing.T) {
+	blockchain.ResetInstance()
+	t.Cleanup(blockchain.ResetInstance)
+	cs := blockchain.GetInstance()
+	const slot = types.TimeSlot(42)
+	cs.AddBlock(types.Block{Header: types.Header{Slot: slot}})
+	cs.GetIntermediateStates().SetBetaHDagger(types.BlocksHistory{})
+
+	if err := recent_history.STFBetaHDagger2BetaHPrime(); err != nil {
+		t.Fatalf("STFBetaHDagger2BetaHPrime(): %v", err)
+	}
+	history := cs.GetPosteriorStates().GetBeta().History
+	if len(history) != 1 {
+		t.Fatalf("history length = %d, want 1", len(history))
+	}
+	if history[0].Timeslot != slot {
+		t.Fatalf("history timeslot = %d, want %d", history[0].Timeslot, slot)
+	}
+}
