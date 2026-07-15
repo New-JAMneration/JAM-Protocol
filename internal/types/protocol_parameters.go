@@ -132,12 +132,18 @@ func applyProtocolParametersImpl(pp ProtocolParameters) error {
 	RotationPeriod = int(uint16(pp.R))
 	ValidatorsCount = int(uint16(pp.V))
 
-	if ECBasicSize, err = assignIntFromU32("pp.W_E", uint32(pp.WE)); err != nil {
-		return err
+	// GP v0.8.0 eq:ecoriginalshards: the erasure parameters are derived from
+	// the validator count. Sync them here, then validate that the chainspec's
+	// own W_E / W_P agree with the derived values — a node running a different
+	// coding rate produces divergent erasure roots and shards.
+	SetErasureParameters(ValidatorsCount)
+	if uint32(pp.WE) != uint32(ECBasicSize) {
+		return fmt.Errorf("pp.W_E (ECBasicSize) mismatch: got %d want %d (derived from V=%d via original_shards)", uint32(pp.WE), ECBasicSize, ValidatorsCount)
 	}
-	if ECPiecesPerSegment, err = assignIntFromU32("pp.W_P", uint32(pp.WP)); err != nil {
-		return err
+	if uint32(pp.WP) != uint32(ECPiecesPerSegment) {
+		return fmt.Errorf("pp.W_P (ECPiecesPerSegment) mismatch: got %d want %d (derived from V=%d via original_shards)", uint32(pp.WP), ECPiecesPerSegment, ValidatorsCount)
 	}
+
 	if SlotSubmissionEnd, err = assignIntFromU32("pp.Y", uint32(pp.Y)); err != nil {
 		return err
 	}
