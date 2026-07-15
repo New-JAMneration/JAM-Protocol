@@ -38,16 +38,12 @@ func SetTinyMode() {
 	TicketsPerValidator = 3 // N
 	ValidatorsSuperMajority = 5
 	AvailBitfieldBytes = 1
-	UnreferencedPreimageTimeslots = 32 // D
-	TotalGas = 20_000_000              // G_T
-	MaxRefineGas = 1_000_000_000       // G_R
-	// Erasure coding (GP v0.8.0 eq:ecoriginalshards): tiny 3:6
-	DataShards = OriginalShards(ValidatorsCount)   // 3
-	TotalShards = ValidatorsCount                  // 6
-	ECBasicSize = 2 * DataShards                   // W_E = 6
-	ECPiecesPerSegment = SegmentSize / ECBasicSize // W_P = 684
-	MaxLookupAge = 24                              // L
-	MaxKeyLevelCacheSize = EpochLength * 50        // Temporary Constant for cache size limit
+	UnreferencedPreimageTimeslots = 32      // D
+	TotalGas = 20_000_000                   // G_T
+	MaxRefineGas = 1_000_000_000            // G_R
+	SetErasureParameters(ValidatorsCount)   // tiny 3:6
+	MaxLookupAge = 24                       // L
+	MaxKeyLevelCacheSize = EpochLength * 50 // Temporary Constant for cache size limit
 }
 
 func SetFullMode() {
@@ -65,14 +61,22 @@ func SetFullMode() {
 	UnreferencedPreimageTimeslots = LookupAnchorMaxAge + 4800 // D
 	TotalGas = 3_500_000_000                                  // G_T
 	MaxRefineGas = 5_000_000_000                              // G_R
-	// Erasure coding (GP v0.8.0 eq:ecoriginalshards): full 342:1023
-	// (byte-identical to v0.7.x full mode)
-	DataShards = OriginalShards(ValidatorsCount)   // 342
-	TotalShards = ValidatorsCount                  // 1023
-	ECBasicSize = 2 * DataShards                   // W_E = 684
-	ECPiecesPerSegment = SegmentSize / ECBasicSize // W_P = 6
-	MaxLookupAge = 14400                           // L
-	MaxKeyLevelCacheSize = EpochLength * 50        // Temporary Constant for cache size limit
+	SetErasureParameters(ValidatorsCount)                     // full 342:1023 (byte-identical to v0.7.x)
+	MaxLookupAge = 14400                                      // L
+	MaxKeyLevelCacheSize = EpochLength * 50                   // Temporary Constant for cache size limit
+}
+
+// SetErasureParameters derives the erasure-coding parameters from the
+// validator count per GP v0.8.0 eq:ecoriginalshards (tiny 3:6, full
+// 342:1023). Every path that changes ValidatorsCount — SetTinyMode,
+// SetFullMode, the chainspec (ApplyProtocolParameters), and custom-mode
+// config — must call this, or the coding rate goes stale and the node
+// produces divergent erasure roots and shards.
+func SetErasureParameters(v int) {
+	DataShards = OriginalShards(v)
+	TotalShards = v
+	ECBasicSize = 2 * DataShards                   // W_E
+	ECPiecesPerSegment = SegmentSize / ECBasicSize // W_P
 }
 
 // changeable constants depends on chainspec

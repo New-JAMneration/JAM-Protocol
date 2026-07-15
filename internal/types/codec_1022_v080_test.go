@@ -97,3 +97,71 @@ func TestEncodeValidatorsData_V080LengthPrefix(t *testing.T) {
 		t.Errorf("round-trip mismatch")
 	}
 }
+
+// TestSetErasureParameters_SyncOnValidatorCountChange is the regression for
+// the #1035 review finding: every path that changes ValidatorsCount must
+// re-derive the erasure parameters (GP v0.8.0 eq:ecoriginalshards), or a node
+// keeps a stale coding rate and produces divergent erasure roots.
+func TestSetErasureParameters_SyncOnValidatorCountChange(t *testing.T) {
+	t.Cleanup(SetTinyMode)
+
+	assertParams := func(t *testing.T, wantData, wantTotal, wantWE, wantWP int) {
+		t.Helper()
+		if DataShards != wantData || TotalShards != wantTotal {
+			t.Errorf("shards = %d:%d, want %d:%d", DataShards, TotalShards, wantData, wantTotal)
+		}
+		if ECBasicSize != wantWE || ECPiecesPerSegment != wantWP {
+			t.Errorf("W_E/W_P = %d/%d, want %d/%d", ECBasicSize, ECPiecesPerSegment, wantWE, wantWP)
+		}
+	}
+
+	// Mode switches keep everything in sync.
+	SetFullMode()
+	assertParams(t, 342, 1023, 684, 6)
+	SetTinyMode()
+	assertParams(t, 3, 6, 6, 684)
+
+	// The custom-config path funnels through SetErasureParameters directly.
+	SetErasureParameters(1023)
+	assertParams(t, 342, 1023, 684, 6)
+	SetErasureParameters(6)
+	assertParams(t, 3, 6, 6, 684)
+}
+
+// TestApplyProtocolParameters_ErasureSync covers the chainspec path: applying
+// protocol parameters with a new validator count re-derives the erasure
+// parameters, and a chainspec whose W_E / W_P disagree with the values
+// derived from V is rejected.
+func TestApplyProtocolParameters_ErasureSync(t *testing.T) {
+	t.Cleanup(SetTinyMode)
+
+	fullPP := func() ProtocolParameters {
+		return ProtocolParameters{
+			BI: 10, BL: 1, BS: 100,
+			C: 341, D: LookupAnchorMaxAge + 4800, E: 600,
+			GA: 10_000_000, GI: 50_000_000, GR: 5_000_000_000, GT: 3_500_000_000,
+			H: 8, I: 16, J: 8, K: 16, L: 14400, N: 2, O: 8, P: 6, Q: 80, R: 10,
+			T: 128, U: 5, V: 1023,
+			WA: 64_000, WB: 13_791_360, WC: 4_000_000,
+			WE: 684, WM: 3072, WP: 6, WR: 48 * 1024, WT: 128, WX: 3072,
+			Y: 500,
+		}
+	}
+
+	// Valid full chainspec: erasure parameters follow V.
+	SetTinyMode() // start from the stale tiny values the bug left behind
+	if err := applyProtocolParametersImpl(fullPP()); err != nil {
+		t.Fatalf("apply full chainspec: %v", err)
+	}
+	if DataShards != 342 || TotalShards != 1023 || ECBasicSize != 684 || ECPiecesPerSegment != 6 {
+		t.Errorf("after full chainspec: shards %d:%d W_E %d W_P %d, want 342:1023 684 6",
+			DataShards, TotalShards, ECBasicSize, ECPiecesPerSegment)
+	}
+
+	// A chainspec whose W_E disagrees with the V-derived value is rejected.
+	bad := fullPP()
+	bad.WE = 4
+	if err := applyProtocolParametersImpl(bad); err == nil {
+		t.Errorf("chainspec with mismatched W_E must be rejected")
+	}
+}

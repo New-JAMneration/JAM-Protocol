@@ -174,6 +174,9 @@ func initJamConst() {
 	types.TicketsPerValidator = Config.Const.TicketsPerValidator
 	types.ValidatorsSuperMajority = Config.Const.ValidatorsSuperMajority
 	types.AvailBitfieldBytes = Config.Const.AvailBitfieldBytes
+	// GP v0.8.0 eq:ecoriginalshards: the erasure parameters are derived from
+	// the validator count and must be re-synced whenever it changes.
+	types.SetErasureParameters(types.ValidatorsCount)
 }
 
 func initLog() {
