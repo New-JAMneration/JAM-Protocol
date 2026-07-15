@@ -3,6 +3,7 @@ package recent_history
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
@@ -31,8 +32,8 @@ func CheckDuplicate(blocksHistory types.BlocksHistory, headerhash types.HeaderHa
 	β†_H ≡ β_H except β†_H [|β_H| − 1]s = H_r
 */
 func History2HistoryDagger(history types.BlocksHistory, parentStateRoot types.StateRoot) types.BlocksHistory {
-	// Duplicate beta_H into beta_H^dagger
-	historyDagger := history
+	// Keep the prior-state history immutable while applying the correction.
+	historyDagger := slices.Clone(history)
 
 	if len(history) != 0 {
 		// Except for the stateroot need to be updated
