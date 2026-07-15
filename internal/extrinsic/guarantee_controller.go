@@ -92,11 +92,6 @@ func CheckSignaturesAreSorted(signatures []types.ValidatorSignature) error {
 // ValidateSignatures | Eq. 11.26
 func (g *GuaranteeController) ValidateSignatures() error {
 	tau := blockchain.GetInstance().GetPosteriorStates().GetTau()
-	offenders := blockchain.GetInstance().GetPosteriorStates().GetPsiO()
-	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
-	for _, offender := range offenders {
-		offendersMap[offender] = true
-	}
 
 	// Parallelize signature verifications across guarantees
 	eg := new(errgroup.Group)
@@ -106,15 +101,10 @@ func (g *GuaranteeController) ValidateSignatures() error {
 		guarantee := guarantee
 
 		var guranatorAssignments GuranatorAssignments
-		var err error
 		if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
-			guranatorAssignments, err = GFunc(offendersMap)
+			guranatorAssignments, _ = GFunc(nil)
 		} else {
-			guranatorAssignments, err = GStarFunc(offendersMap)
-		}
-
-		if err != nil {
-			return err
+			guranatorAssignments, _ = GStarFunc(nil)
 		}
 
 		if !((int(tau)/types.RotationPeriod-1)*types.RotationPeriod <= int(guarantee.Slot)) {
@@ -171,10 +161,18 @@ func (g *GuaranteeController) WorkReportSet() []types.WorkReport {
 // ValidateWorkReports | Eq. 11.29-11.30
 func (g *GuaranteeController) ValidateWorkReports() error {
 	workReports := g.WorkReportSet()
-	alpha := blockchain.GetInstance().GetPriorStates().GetAlpha()
-	delta := blockchain.GetInstance().GetPriorStates().GetDelta()
-	rhoDoubleDagger := blockchain.GetInstance().GetIntermediateStates().GetRhoDoubleDagger()
+	cs := blockchain.GetInstance()
+	alpha := cs.GetPriorStates().GetAlpha()
+	delta := cs.GetPriorStates().GetDelta()
+	rhoDoubleDagger := cs.GetIntermediateStates().GetRhoDoubleDagger()
+	activeValidators := cs.GetPosteriorStates().GetKappa()
 	for _, workReport := range workReports {
+		// GP v0.8.0: one erasure-coded chunk is distributed to every member
+		// of the posterior active validator set.
+		if int(workReport.PackageSpec.ErasureShards) != len(activeValidators) {
+			err := ReportsErrorCode.BadErasureShards
+			return &err
+		}
 		if rhoDoubleDagger[workReport.CoreIndex] != nil {
 			err := ReportsErrorCode.CoreEngaged
 			return &err
@@ -261,12 +259,11 @@ func (g *GuaranteeController) ValidateContexts() error {
 		stateRootMatch := false
 		beefyRootMatch := false
 		for _, blockInfo := range betaDagger {
-			// xa = yh
-			if context.Anchor == blockInfo.HeaderHash {
+			// GP v0.8.0 requires the complete anchor tuple to match recent
+			// history, including the newly explicit anchor timeslot.
+			if context.Anchor == blockInfo.HeaderHash && context.AnchorSlot == blockInfo.Timeslot {
 				recentAnchorMatch = true
-				// xs = ys
 				stateRootMatch = (context.StateRoot == blockInfo.StateRoot)
-				// xb = yb
 				beefyRootMatch = context.BeefyRoot == types.BeefyRoot(blockInfo.BeefyRoot)
 				break
 			}
@@ -285,37 +282,33 @@ func (g *GuaranteeController) ValidateContexts() error {
 		}
 
 		// ∀x ∈ x ∶ xt ≥ HT − L (11.34)
-		timeDiff := headerTimeSlot - context.LookupAnchorSlot
-		if types.TimeSlot(types.MaxLookupAge) < timeDiff {
+		if context.LookupAnchorSlot > headerTimeSlot ||
+			headerTimeSlot-context.LookupAnchorSlot > types.TimeSlot(types.MaxLookupAge) {
 			err := ReportsErrorCode.ReportEpochBeforeLast
 			return &err
 		}
 	}
 
-	// 11.35   ancestors currently not maintained
 	ancestry := blockchain.GetInstance().GetAncestry()
-
-	if len(ancestry) > 0 {
-		// ∀x ∈ x ∶ ∃h ∈ A ∶ hT = xt ∧ H(h) = xl (11.35)
-		for _, context := range contexts {
-			// logger.Debugf("Validating context with LookupAnchor: %x and LookupAnchorSlot: %d", context.LookupAnchor, context.LookupAnchorSlot)
-
-			anchorHashCondition := false
-			for _, item := range ancestry {
-				cond1 := item.Slot == context.LookupAnchorSlot
-				// logger.Debugf("Cond1: %v for item.Slot: %d and context.LookupAnchorSlot: %d", cond1, item.Slot, context.LookupAnchorSlot)
-				cond2 := item.HeaderHash == context.LookupAnchor
-				// logger.Debugf("Cond2: %v for item.HeaderHash: %x and context.LookupAnchor: %x", cond2, item.HeaderHash, context.LookupAnchor)
-				if cond1 && cond2 {
-					anchorHashCondition = true
-					break
-				}
+	// The lookup anchor must be retained and its posterior state root must
+	// match the value committed by the work context.
+	for _, context := range contexts {
+		lookupAnchorFound := false
+		lookupStateRootMatch := false
+		for _, item := range ancestry {
+			if item.Slot == context.LookupAnchorSlot && item.HeaderHash == context.LookupAnchor {
+				lookupAnchorFound = true
+				lookupStateRootMatch = item.StateRoot == context.LookupAnchorStateRoot
+				break
 			}
-
-			if !anchorHashCondition {
-				err := ReportsErrorCode.LookupAnchorNotRecent
-				return &err
-			}
+		}
+		if !lookupAnchorFound {
+			err := ReportsErrorCode.LookupAnchorNotRecent
+			return &err
+		}
+		if !lookupStateRootMatch {
+			err := ReportsErrorCode.BadStateRoot
+			return &err
 		}
 	}
 
@@ -526,23 +519,13 @@ func (r *GuaranteeController) Add(newReportGuarantee types.ReportGuarantee) {
 
 func GetGuarantors(guarantee types.ReportGuarantee) ([]types.Ed25519Public, error) {
 	tau := blockchain.GetInstance().GetPosteriorStates().GetTau()
-	offenders := blockchain.GetInstance().GetPriorStates().GetPsiO()
-	offendersMap := make(map[types.Ed25519Public]bool, len(offenders))
-	for _, offender := range offenders {
-		offendersMap[offender] = true
-	}
 
 	var guranatorAssignments GuranatorAssignments
-	var err error
 	guarantors := make([]types.Ed25519Public, 0, len(guarantee.Signatures))
 	if (int(tau))/types.RotationPeriod == int(guarantee.Slot)/types.RotationPeriod {
-		guranatorAssignments, err = GFunc(offendersMap)
+		guranatorAssignments, _ = GFunc(nil)
 	} else {
-		guranatorAssignments, err = GStarFunc(offendersMap)
-	}
-
-	if err != nil {
-		return []types.Ed25519Public{}, err
+		guranatorAssignments, _ = GStarFunc(nil)
 	}
 
 	for _, sig := range guarantee.Signatures {

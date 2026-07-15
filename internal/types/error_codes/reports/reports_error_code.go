@@ -33,6 +33,8 @@ const (
 	// 26 is not align to asn.1, since there is MissingWorkResults
 	// define TooManyWrokResults to check work reports validation
 	TooManyWorkResults // 26
+	// Provisional until the official v0.8.0 conformance error enum ships.
+	BadErasureShards // 27
 )
 
 var ReportsErrorMap = map[string]types.ErrorCode{
@@ -63,6 +65,7 @@ var ReportsErrorMap = map[string]types.ErrorCode{
 	"lookup_anchor_not_recent":        LookupAnchorNotRecent,
 	"missing_work_results":            MissingWorkResults,
 	"too_many_work_results":           TooManyWorkResults,
+	"bad_erasure_shards":              BadErasureShards,
 }
 
 // This map provides human-readable messages following the fuzz-proto examples
@@ -94,4 +97,5 @@ var ReportsErrorCodeMessages = map[types.ErrorCode]string{
 	LookupAnchorNotRecent:       "lookup anchor not recent",
 	MissingWorkResults:          "missing work results",
 	TooManyWorkResults:          "too many work results",
+	BadErasureShards:            "erasure shard count does not match active validator set",
 }

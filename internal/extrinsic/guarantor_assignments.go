@@ -4,7 +4,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/safrole"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
-	ReportsErrorCode "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/reports"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/shuffle"
 )
 
@@ -82,7 +81,7 @@ func NewGuranatorAssignments(
 
 // (11.21) G(e, t, k) = (P(e, t), H_K)
 // G ≡ (P (η′2, τ ′), Φ(κ′))
-func GFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
+func GFunc(_ map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
 	state := blockchain.GetInstance().GetPosteriorStates()
 	etaPrime := state.GetEta()
 
@@ -90,18 +89,11 @@ func GFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, err
 	e := etaPrime[2]
 	validators := state.GetKappa()
 
-	for _, validator := range validators {
-		if _, offenderExists := offendersMap[validator.Ed25519]; offenderExists {
-			err := ReportsErrorCode.BannedValidator
-			return GuranatorAssignments{}, &err
-		}
-	}
-
 	return NewGuranatorAssignments(e, state.GetTau(), validators), nil
 }
 
 // (11.22) G∗ ≡ (P (e, τ ′ − R), Φ(k))
-func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
+func GStarFunc(_ map[types.Ed25519Public]bool) (GuranatorAssignments, error) {
 	state := blockchain.GetInstance().GetPosteriorStates()
 	var e types.Entropy
 	validators := make(types.ValidatorsData, types.ValidatorsCount)
@@ -111,22 +103,10 @@ func GStarFunc(offendersMap map[types.Ed25519Public]bool) (GuranatorAssignments,
 		// (η′2, κ′)
 		e = etaPrime[2]
 		validators = state.GetKappa()
-		for _, validator := range validators {
-			if _, offenderExists := offendersMap[validator.Ed25519]; offenderExists {
-				err := ReportsErrorCode.BannedValidator
-				return GuranatorAssignments{}, &err
-			}
-		}
 	} else {
 		// (η′3, λ′)
 		e = etaPrime[3]
 		validators = state.GetLambda()
-		for _, validator := range validators {
-			if _, offenderExists := offendersMap[validator.Ed25519]; offenderExists {
-				err := ReportsErrorCode.BannedValidator
-				return GuranatorAssignments{}, &err
-			}
-		}
 	}
 
 	return NewGuranatorAssignments(e, state.GetTau()-types.TimeSlot(types.RotationPeriod), validators), nil
