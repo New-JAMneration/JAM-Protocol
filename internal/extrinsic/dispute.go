@@ -10,6 +10,16 @@ func Disputes() (types.OffendersMark, error) {
 	block := blockchain.GetInstance().GetLatestBlock()
 	disputeExtrinsic := block.Extrinsic.Disputes
 
+	// GP v0.8.0 eq:disputesextrinsics sequence caps (and per-verdict shape)
+	// are enforced by the type-layer Validate; map the known error strings to
+	// their conformance codes.
+	if err := disputeExtrinsic.Validate(); err != nil {
+		if errCode, ok := DisputesErrorCode.DisputesErrorMap[err.Error()]; ok {
+			return nil, &errCode
+		}
+		return nil, err
+	}
+
 	// init controllers
 	verdictController := NewVerdictController()
 	// Pre-allocate capacity for verdicts
@@ -43,10 +53,8 @@ func Disputes() (types.OffendersMark, error) {
 	verdictController.GenerateVerdictSumSequence()
 	disputeController := NewDisputeController(verdictController, faultController, culpritController)
 
-	if err := disputeController.ValidateCulprits(); err != nil {
-		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
-		return nil, &errCode
-	}
+	// GP v0.8.0 dropped the v0.7.x "bad verdict requires >= 2 culprits" rule;
+	// only the fault condition below remains.
 	if err := disputeController.ValidateFaults(); err != nil {
 		errCode := DisputesErrorCode.DisputesErrorMap[err.Error()]
 		return nil, &errCode

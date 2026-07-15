@@ -11,6 +11,7 @@ import (
 
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	disputesErrorCodes "github.com/New-JAMneration/JAM-Protocol/internal/types/error_codes/disputes"
 	jamtests "github.com/New-JAMneration/JAM-Protocol/jamtests/disputes"
 )
 
@@ -81,8 +82,20 @@ func GetTestJsonFiles(dir string) []string {
 }
 
 func TestDisputes(t *testing.T) {
-	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "disputes", types.TEST_MODE)
+	// The v0.7.x disputes vectors predate GP v0.8.0: the verdict judgment
+	// sequence is now length-prefixed (encodedisputes var{...}, #1017) and the
+	// ">= 2 culprits per bad verdict" rule (not_enough_culprits) was dropped,
+	// so both the .bin layout and several expected outputs no longer hold.
+	// Re-enable on official v0.8.0 vectors (#1012).
+	t.Skip("v0.7.x disputes vectors predate GP v0.8.0 (#1017); re-enable on official v0.8.0 vectors")
+
+	// Vectors live under stf/disputes (the old bare "disputes" path silently
+	// yielded zero test files).
+	dir := filepath.Join(JAM_TEST_VECTORS_DIR, "stf", "disputes", types.TEST_MODE)
 	jsonFiles := GetTestJsonFiles(dir)
+	if len(jsonFiles) == 0 {
+		t.Fatalf("no disputes vectors found under %s", dir)
+	}
 	for _, file := range jsonFiles {
 		filename := filepath.Join(dir, file)
 
@@ -201,4 +214,58 @@ func arraysContainSameElements(a, b []types.Ed25519Public) bool {
 		counts[item]--
 	}
 	return true
+}
+
+// GP v0.8.0 eq:disputesextrinsics sequence caps (#1017): oversized disputes
+// extrinsics are rejected before any signature or set validation.
+func TestDisputesExtrinsicCaps(t *testing.T) {
+	cases := []struct {
+		name      string
+		disputes  types.DisputesExtrinsic
+		wantError string
+	}{
+		{
+			name:      "too many verdicts",
+			disputes:  types.DisputesExtrinsic{Verdicts: make([]types.Verdict, types.MaxExtrinsicVerdicts+1)},
+			wantError: "too_many_verdicts",
+		},
+		{
+			name:      "too many culprits",
+			disputes:  types.DisputesExtrinsic{Culprits: make([]types.Culprit, types.MaxExtrinsicOffenses+1)},
+			wantError: "too_many_offenses",
+		},
+		{
+			name:      "too many faults",
+			disputes:  types.DisputesExtrinsic{Faults: make([]types.Fault, types.MaxExtrinsicOffenses+1)},
+			wantError: "too_many_offenses",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			blockchain.ResetInstance()
+			blockchain.GetInstance().AddBlock(types.Block{
+				Extrinsic: types.Extrinsic{Disputes: tc.disputes},
+			})
+
+			_, err := Disputes()
+			if err == nil {
+				t.Fatalf("expected %s, got nil", tc.wantError)
+			}
+			wantCode := disputesErrorCodes.DisputesErrorMap[tc.wantError]
+			gotCode, ok := err.(*types.ErrorCode)
+			if !ok || *gotCode != wantCode {
+				t.Errorf("error = %v, want code %v (%s)", err, wantCode, tc.wantError)
+			}
+		})
+	}
+
+	// At the caps themselves the extrinsic passes the type-layer check.
+	atCap := types.DisputesExtrinsic{
+		Culprits: make([]types.Culprit, types.MaxExtrinsicOffenses),
+		Faults:   make([]types.Fault, types.MaxExtrinsicOffenses),
+	}
+	if err := atCap.Validate(); err != nil {
+		t.Errorf("extrinsic at the caps must validate, got %v", err)
+	}
 }

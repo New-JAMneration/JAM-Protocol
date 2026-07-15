@@ -25,7 +25,10 @@ func NewDisputeController(VerdictController *VerdictController, FaultController 
 	}
 }
 
-// ValidateFaults validates the faults in the verdict | Eq. 10.13
+// ValidateFaults validates the faults in the verdict (GP v0.8.0
+// judgments.tex: a good verdict requires at least one matching fault; the
+// v0.7.x companion rule "bad verdict requires >= 2 culprits" was dropped in
+// v0.8.0).
 func (d *DisputeController) ValidateFaults() error {
 	// Pre-allocate capacity for fault map
 	faultMap := make(map[types.WorkReportHash]bool, len(d.FaultController.Faults))
@@ -38,26 +41,6 @@ func (d *DisputeController) ValidateFaults() error {
 		if report.PositiveJudgmentsSum == good {
 			if !faultMap[types.WorkReportHash(report.ReportHash)] {
 				return errors.New("not_enough_faults")
-			}
-		}
-	}
-	return nil
-}
-
-// ValidateCulprits validates the culprits in the verdict | Eq. 10.14
-func (d *DisputeController) ValidateCulprits() error {
-	// Pre-allocate capacity for culprit map
-	culpritMap := make(map[types.WorkReportHash]int, len(d.CulpritController.Culprits))
-
-	for _, report := range d.CulpritController.Culprits {
-		culpritMap[report.Target]++
-	}
-
-	bad := 0
-	for _, report := range d.VerdictController.VerdictSumSequence {
-		if report.PositiveJudgmentsSum == bad {
-			if culpritMap[types.WorkReportHash(report.ReportHash)] < 2 {
-				return errors.New("not_enough_culprits")
 			}
 		}
 	}
