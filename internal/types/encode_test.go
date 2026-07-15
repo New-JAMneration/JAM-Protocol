@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 func TestEncodeHeader(t *testing.T) {
@@ -556,5 +558,135 @@ func TestEncodeAvailabilityAssignment_V080Guarantee(t *testing.T) {
 	}
 	if got.AssignedSlot != assignment.AssignedSlot {
 		t.Errorf("assigned slot = %d, want %d", got.AssignedSlot, assignment.AssignedSlot)
+	}
+}
+
+// TestEncodeBlockInfo_V080Timeslot covers the GP v0.8.0 eq:recenthistoryspec /
+// C(3) addition: a 4-byte timeslot between the state root and the reported
+// work packages.
+func TestEncodeBlockInfo_V080Timeslot(t *testing.T) {
+	info := BlockInfo{
+		HeaderHash: HeaderHash{0x11},
+		BeefyRoot:  OpaqueHash{0x22},
+		StateRoot:  StateRoot{0x33},
+		Timeslot:   0x0A0B0C0D,
+		Reported: []ReportedWorkPackage{
+			{Hash: WorkReportHash{0x44}, ExportsRoot: ExportsRoot{0x55}},
+		},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&info)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: headerHash(32) ++ beefyRoot(32) ++ stateRoot(32) ++ timeslot(4)
+	// ++ reported length prefix(1, value 1) ++ reported[0](32+32) = 165 bytes.
+	const want = 32 + 32 + 32 + 4 + 1 + 64
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// timeslot (0x0A0B0C0D little-endian) must follow the state root.
+	if off := 32 + 32 + 32; encoded[off] != 0x0D || encoded[off+1] != 0x0C ||
+		encoded[off+2] != 0x0B || encoded[off+3] != 0x0A {
+		t.Errorf("timeslot bytes = % x at offset %d, want 0d 0c 0b 0a",
+			encoded[off:off+4], off)
+	}
+
+	decoder := NewDecoder()
+	var got BlockInfo
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(info, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, info)
+	}
+}
+
+// TestEncodeEpochMark_V080LengthPrefix covers the GP v0.8.0 encodeepochmark
+// change: the validator-key sequence is length-prefixed (var{k}); v0.7.x
+// emitted it fixed-length.
+func TestEncodeEpochMark_V080LengthPrefix(t *testing.T) {
+	mark := EpochMark{
+		Entropy:        Entropy{0x11},
+		TicketsEntropy: Entropy{0x22},
+		Validators:     make([]EpochMarkValidatorKeys, ValidatorsCount),
+	}
+	for i := range mark.Validators {
+		mark.Validators[i].Bandersnatch = BandersnatchPublic{byte(i + 1)}
+		mark.Validators[i].Ed25519 = Ed25519Public{byte(i + 1)}
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.Encode(&mark)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: entropy(32) ++ ticketsEntropy(32) ++ length prefix(1, value
+	// ValidatorsCount) ++ ValidatorsCount * (bandersnatch 32 + ed25519 32).
+	want := 32 + 32 + 1 + ValidatorsCount*64
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	// The length prefix must follow the two entropies.
+	if off := 32 + 32; encoded[off] != byte(ValidatorsCount) {
+		t.Errorf("validators length prefix = %d at offset %d, want %d",
+			encoded[off], off, ValidatorsCount)
+	}
+
+	decoder := NewDecoder()
+	var got EpochMark
+	if err := decoder.Decode(encoded, &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !reflect.DeepEqual(mark, got) {
+		t.Errorf("round-trip mismatch:\n got %+v\nwant %+v", got, mark)
+	}
+}
+
+// TestPreimagesExtrinsic_EncodeForExtrinsicHash_V080 covers the GP v0.8.0
+// header.tex extrinsic-hash preimages component: p = E(var[(E4(s), blake(d))])
+// — count prefix, 4-byte requester, then the blob committed by its Blake2b
+// hash. Distinct from the C.15 block-wire Encode, which inlines the blob.
+func TestPreimagesExtrinsic_EncodeForExtrinsicHash_V080(t *testing.T) {
+	blob := ByteSequence{0xDE, 0xAD, 0xBE, 0xEF}
+	preimages := PreimagesExtrinsic{
+		{Requester: 0x0A0B0C0D, Blob: blob},
+	}
+
+	encoder := NewEncoder()
+	encoded, err := encoder.EncodeFunc(preimages.EncodeForExtrinsicHash)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	// Layout: count prefix(1, value 1) ++ requester E4(4) ++ blake(blob)(32).
+	const want = 1 + 4 + 32
+	if len(encoded) != want {
+		t.Fatalf("encoded length = %d, want %d", len(encoded), want)
+	}
+	if encoded[0] != 1 {
+		t.Errorf("count prefix = %d, want 1", encoded[0])
+	}
+	// requester (0x0A0B0C0D little-endian)
+	if encoded[1] != 0x0D || encoded[2] != 0x0C || encoded[3] != 0x0B || encoded[4] != 0x0A {
+		t.Errorf("requester bytes = % x, want 0d 0c 0b 0a", encoded[1:5])
+	}
+	// blob committed by hash, not inlined
+	blobHash := blake2b.Sum256(blob)
+	if !bytes.Equal(encoded[5:], blobHash[:]) {
+		t.Errorf("blob commitment = %x, want blake2b(blob) = %x", encoded[5:], blobHash)
+	}
+
+	// Empty extrinsic encodes as a bare zero count.
+	emptyPreimages := PreimagesExtrinsic{}
+	empty, err := encoder.EncodeFunc(emptyPreimages.EncodeForExtrinsicHash)
+	if err != nil {
+		t.Fatalf("encode empty: %v", err)
+	}
+	if len(empty) != 1 || empty[0] != 0 {
+		t.Errorf("empty preimages encoding = % x, want a single 0 byte", empty)
 	}
 }

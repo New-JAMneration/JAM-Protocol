@@ -106,16 +106,18 @@ func MapWorkReportFromEg(eg types.GuaranteesExtrinsic) []types.ReportedWorkPacka
 	return reports
 }
 
-// pack item $n$ (7.8) GP 0.6.7
+// pack item $n$ (GP v0.8.0 eq:recenthistorydef)
 /*
-	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$, WorkReportHash $\mathbf{p}$)
+	item $n$ = (header hash $h$, accumulation-result mmr $b$, state root $s$,
+	            time slot $t$ = H_t, WorkReportHash $\mathbf{p}$)
 */
-func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash) (item types.BlockInfo) {
+func NewItem(headerHash types.HeaderHash, workReportHash []types.ReportedWorkPackage, accumulationResultMmr types.OpaqueHash, slot types.TimeSlot) (item types.BlockInfo) {
 	zeroHash := types.StateRoot{}
 	item = types.BlockInfo{
 		HeaderHash: headerHash,
 		BeefyRoot:  accumulationResultMmr,
 		StateRoot:  zeroHash,
+		Timeslot:   slot,
 		Reported:   workReportHash,
 	}
 	return item
@@ -184,8 +186,8 @@ func STFBetaHDagger2BetaHPrime() error {
 	headser, _ := encoder.Encode(&block.Header)
 	hashed := hash.Blake2bHash(headser)
 
-	// build item n = (h, b, s, p)
-	item := NewItem(types.HeaderHash(hashed), workReportHash, commitment)
+	// build item n = (h, b, s, t, p)
+	item := NewItem(types.HeaderHash(hashed), workReportHash, commitment, block.Header.Slot)
 
 	// add item n to beta^prime
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)
@@ -211,9 +213,9 @@ func STFBetaHDagger2BetaHPrime_ForTestVector() error {
 	// calculate workReportHash(p) from guarantees
 	workReportHash := MapWorkReportFromEg(block.Extrinsic.Guarantees)
 
-	// build item n = (h, b, s, p)
+	// build item n = (h, b, s, t, p)
 	// Note: block.Header.Parent is actually the header hash
-	item := NewItem(block.Header.Parent, workReportHash, commitment)
+	item := NewItem(block.Header.Parent, workReportHash, commitment, block.Header.Slot)
 
 	// add item n to beta^prime
 	historyPrime := AddItem2BetaHPrime(historyDagger, item)

@@ -623,6 +623,7 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 		HeaderHash string                `json:"header_hash,omitempty"`
 		BeefyRoot  string                `json:"beefy_root,omitempty"`
 		StateRoot  string                `json:"state_root,omitempty"`
+		Timeslot   U64                   `json:"slot,omitempty"`
 		Reported   []ReportedWorkPackage `json:"reported,omitempty"`
 	}
 
@@ -647,6 +648,8 @@ func (b *BlockInfo) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	b.StateRoot = StateRoot(stateRootBytes)
+
+	b.Timeslot = TimeSlot(temp.Timeslot)
 
 	if len(temp.Reported) == 0 {
 		b.Reported = nil

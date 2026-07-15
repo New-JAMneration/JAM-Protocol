@@ -297,7 +297,12 @@ func CreateExtrinsicHash(extrinsic types.Extrinsic) (extrinsicHash types.OpaqueH
 		return types.OpaqueHash{}, err
 	}
 
-	encodedPreimagesExtrinsic, err := EncodeExtrinsicPreimages(extrinsic.Preimages)
+	// GP v0.8.0: the preimages component commits blake(blob) per item
+	// (PreimagesExtrinsic.EncodeForExtrinsicHash), not the full C.15 preimage
+	// encoding.
+	preimagesEncoder := types.GetEncoder()
+	encodedPreimagesExtrinsic, err := preimagesEncoder.EncodeFunc(extrinsic.Preimages.EncodeForExtrinsicHash)
+	types.PutEncoder(preimagesEncoder)
 	if err != nil {
 		return types.OpaqueHash{}, err
 	}
