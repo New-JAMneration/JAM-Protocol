@@ -57,12 +57,14 @@ func (v *VerdictWrapper) VerifySignature() error {
 	state := blockchain.GetInstance().GetPriorStates()
 
 	a := types.U32(state.GetTau()) / types.U32(types.EpochLength)
-	if v.Verdict.Age != a && v.Verdict.Age != a-1 {
+	isCurrentEpoch := v.Verdict.Age == a
+	isPreviousEpoch := a > 0 && v.Verdict.Age == a-1
+	if !isCurrentEpoch && !isPreviousEpoch {
 		return errors.New("bad_judgement_age")
 	}
 
 	k := make(types.ValidatorsData, types.ValidatorsCount)
-	if v.Verdict.Age == a {
+	if isCurrentEpoch {
 		k = state.GetKappa()
 	} else {
 		k = state.GetLambda()
@@ -77,7 +79,7 @@ func (v *VerdictWrapper) VerifySignature() error {
 
 	for i := 0; i < VoteNum; i++ {
 		if int(v.Verdict.Votes[i].Index) >= len(k) {
-			return errors.New("bad_guarantor_key")
+			return errors.New("bad_validator_index")
 		}
 		publicKey := k[v.Verdict.Votes[i].Index].Ed25519[:]
 		// Pre-allocate capacity: vote type (1 byte) + target (32 bytes)

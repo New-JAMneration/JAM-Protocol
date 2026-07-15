@@ -98,11 +98,14 @@ func (f *FaultController) VerifyReportHashValidty() error {
 
 	length := len(f.Faults)
 	for i := 0; i < length; i++ {
-		vote := f.Faults[i].Vote
-		// if vote not contradict verdict, should not be in faults
-		inGood := goodMap[f.Faults[i].Target] && !badMap[f.Faults[i].Target]
-		inBad := !goodMap[f.Faults[i].Target] && badMap[f.Faults[i].Target]
-		if (vote && inGood) || (!vote && inBad) {
+		fault := f.Faults[i]
+		inGood := goodMap[fault.Target]
+		inBad := badMap[fault.Target]
+		// GP v0.8.0 requires:
+		// target ∈ bad' ⇔ target ∉ good' ⇔ fault validity.
+		// Therefore the target must have exactly one decided verdict and the
+		// signed validity must contradict it: valid for bad, invalid for good.
+		if inGood == inBad || fault.Vote != inBad {
 			return errors.New("fault_verdict_wrong")
 		}
 	}
