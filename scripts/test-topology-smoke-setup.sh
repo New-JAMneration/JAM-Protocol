@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Generate temp keystores + smoke config for 3-validator topology reconcile smoke.
+# Local test-only harness: generate temp keystores and topology smoke config.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SMOKE_DIR="${SMOKE_DIR:-/tmp/jam-topology-smoke}"
 CHAIN="${ROOT}/cmd/node/test_data/dev.chainspec.json"
 BASE_PORT=10101

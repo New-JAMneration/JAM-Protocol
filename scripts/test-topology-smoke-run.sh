@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Run 3 Go validator nodes with topology smoke config and collect results.
+# Local test-only harness: run 3 validator nodes and verify topology reconcile logs.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SMOKE_DIR="${SMOKE_DIR:-/tmp/jam-topology-smoke}"
 BIN="${BIN:-/tmp/jam-node-test}"
 BASE_PORT=10101
 WAIT_SECS=20
 
-"$ROOT/scripts/topology-smoke/setup.sh"
+"$ROOT/scripts/test-topology-smoke-setup.sh"
 
 echo "Building node..."
 (cd "$ROOT" && go build -o "$BIN" ./cmd/node)
