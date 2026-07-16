@@ -25,7 +25,8 @@ type smokeTopologyConfig struct {
 }
 
 // applyTopologySmokeConfig seeds kappa/lambda/gamma_k with mock validator metadata when
-// JAM_TOPOLOGY_SMOKE_CONFIG points at a JSON file (local smoke harness only).
+// JAM_TOPOLOGY_SMOKE_CONFIG points at a JSON file. This is intended for local
+// test/smoke harnesses only.
 func applyTopologySmokeConfig(chain *blockchain.ChainState) error {
 	cfgPath := os.Getenv("JAM_TOPOLOGY_SMOKE_CONFIG")
 	if cfgPath == "" || chain == nil {

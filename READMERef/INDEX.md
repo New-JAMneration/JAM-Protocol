@@ -19,6 +19,7 @@ This is the central index for all project documentation in the `READMERef/` dire
 | [DEVELOPMENT_DOC.md](./DEVELOPMENT_DOC.md) | Development documentation and guidelines |
 | [FOLDER_STRUCTURE.md](./FOLDER_STRUCTURE.md) | Project folder structure overview |
 | [GOLANG_TEST.md](./GOLANG_TEST.md) | Go testing guidelines |
+| [TOPOLOGY_RECONCILE_SMOKE.md](./TOPOLOGY_RECONCILE_SMOKE.md) | Local/manual smoke procedure for topology, UP 0, and Safrole timing |
 
 ## Technical References
 
