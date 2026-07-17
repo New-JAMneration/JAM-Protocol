@@ -68,7 +68,11 @@ func (h *host) HostCall(pc PVM.ProgramCounter) PVM.Psi_H_ReturnType {
 		}
 
 		omega := PVM.GetOmega(h.HostCalls, input.Operation)
-		PVMtrace.LogHostCallDispatchEnv(uint32(*h.Addition.ServiceID), PVM.HostCallName(int(input.Operation)), regsBuf, int64(*gasBuf))
+		logServiceID := int64(-1) // -1: no service context (Psi_I sets ServiceID = nil)
+		if h.Addition.ServiceID != nil {
+			logServiceID = int64(*h.Addition.ServiceID)
+		}
+		PVMtrace.LogHostCallDispatchEnv(logServiceID, PVM.HostCallName(int(input.Operation)), regsBuf, int64(*gasBuf))
 		if omega == nil {
 			if *gasBuf < 0 {
 				omega = PVM.HostCallOutOfGas
