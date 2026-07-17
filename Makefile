@@ -104,7 +104,13 @@ fmt:
 
 # Fuzz host dir (matches scripts/run_fuzz_target_docker.sh default bind-mount path on host).
 JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
+# Recompiler is linux/amd64-only (cmd/fuzz errors if requested elsewhere), so
+# pick the default per platform. Override: make run-target PVM_BACKEND=interpreter
+ifeq ($(shell go env GOOS GOARCH),linux amd64)
 PVM_BACKEND ?= recompiler
+else
+PVM_BACKEND ?= interpreter
+endif
 
 .PHONY: run-target
 run-target:
@@ -116,17 +122,21 @@ JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
 DOCKER_PLATFORM ?= --platform linux/amd64
 JAM_FUZZ_TRACE_IMAGE ?= new-jamneration-target:trace
 
+# Debug image (:trace): BUILD_TAGS=trace compiles the PVMtrace recorder in, for
+# pvmtrace-fuzz-capture / pvm-diff. Not for conformance runs — tracing adds overhead.
 .PHONY: fuzz-docker-build-trace
 fuzz-docker-build-trace:
 	docker buildx build $(DOCKER_PLATFORM) \
 		--build-arg GP_VERSION=$(VERSION_GP) \
 		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
 		--build-arg OUTPUT=new-jamneration-target \
-		-t $(JAM_FUZZ_IMAGE) \
+		--build-arg BUILD_TAGS=trace \
+		-t $(JAM_FUZZ_TRACE_IMAGE) \
 		-f docker/Dockerfile \
 		--load .
 
 # Capture interpreter + recompiler PVM traces for a fuzz folder and run pvm-diff.
+# The script rebuilds the :trace image each run; SKIP_DOCKER_BUILD=1 reuses an existing one.
 # Usage: make pvmtrace-fuzz-capture TRACE_FOLDER=pkg/test_data/.../1766241814
 TRACE_FOLDER ?= pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces/1766241814
 DEBLOB_JSON ?= $(TRACE_FOLDER)/00000179.json
@@ -136,15 +146,17 @@ pvmtrace-fuzz-capture:
 	JAM_FUZZ_IMAGE=$(JAM_FUZZ_TRACE_IMAGE) \
 		bash scripts/run_pvmtrace_fuzz_capture.sh "$(TRACE_FOLDER)" "$(DEBLOB_JSON)"
 
+# Production image (:latest): no build tags, trace hooks compile to no-ops.
+# Used by CI releases and fuzz-docker-run. buildx: the Dockerfile needs BuildKit.
 .PHONY: fuzz-docker-build
 fuzz-docker-build:
-	docker build \
-		$(DOCKER_PLATFORM) \
+	docker buildx build $(DOCKER_PLATFORM) \
 		--build-arg GP_VERSION=$(VERSION_GP) \
 		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
 		--build-arg OUTPUT=new-jamneration-target \
 		-t $(JAM_FUZZ_IMAGE) \
-		-f docker/Dockerfile .
+		-f docker/Dockerfile \
+		--load .
 
 .PHONY: fuzz-docker-run
 fuzz-docker-run:
@@ -167,6 +179,10 @@ release-target:
 .PHONY: run-release-target
 run-release-target:
 	bash ./scripts/run_release.sh
+
+.PHONY: validate-fuzz validate-fuzz-ci validate-fuzz-vectors validate-fuzz-trace validate-fuzz-sock validate-fuzz-sock-smoke validate-fuzz-fuzzy validate-fuzz-jam-testing-local
+validate-fuzz:
+	$(VALIDATE_FUZZ_SCRIPT)
 
 # Build the recompiler unit-test container (linux/amd64)
 .PHONY: build-recompiler-test-env
