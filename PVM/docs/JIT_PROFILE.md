@@ -145,7 +145,7 @@ Two more caveats:
 - `invoke ≈ setup + deblob + run` is an approximation, not an identity: per-invoke
   work outside the sub-buckets (artifact acquire/bind, register writes, trace init)
   lands in the gap.
-- Numbers from a **`-tags trace` build are not comparable** to a standard build:
+- Numbers from a **`-tags pvmtrace` build are not comparable** to a standard build:
   single-step mode enters native once per *instruction* (roundTrips explodes) and
   compiles outside the counted path.
 

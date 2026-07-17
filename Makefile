@@ -122,30 +122,30 @@ run-target:
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
 # Matches CI release (linux/amd64). Required on arm64/aarch64 hosts (Apple Silicon, Linux ARM).
 DOCKER_PLATFORM ?= --platform linux/amd64
-JAM_FUZZ_TRACE_IMAGE ?= new-jamneration-target:trace
+JAM_FUZZ_PVMTRACE_IMAGE ?= new-jamneration-target:pvmtrace
 
-# Debug image (:trace): BUILD_TAGS=trace compiles the PVMtrace recorder in, for
-# pvmtrace-fuzz-capture / pvm-diff. Not for conformance runs — tracing adds overhead.
-.PHONY: fuzz-docker-build-trace
-fuzz-docker-build-trace:
+# Debug image (:pvmtrace): BUILD_TAGS=pvmtrace compiles the PVMtrace recorder in,
+# for pvmtrace-fuzz-capture / pvm-diff. Not for conformance runs — tracing adds overhead.
+.PHONY: fuzz-docker-build-pvmtrace
+fuzz-docker-build-pvmtrace:
 	docker buildx build $(DOCKER_PLATFORM) \
 		--build-arg GP_VERSION=$(VERSION_GP) \
 		--build-arg TARGET_VERSION=$(VERSION_TARGET) \
 		--build-arg OUTPUT=new-jamneration-target \
-		--build-arg BUILD_TAGS=trace \
-		-t $(JAM_FUZZ_TRACE_IMAGE) \
+		--build-arg BUILD_TAGS=pvmtrace \
+		-t $(JAM_FUZZ_PVMTRACE_IMAGE) \
 		-f docker/Dockerfile \
 		--load .
 
 # Capture interpreter + recompiler PVM traces for a fuzz folder and run pvm-diff.
-# The script rebuilds the :trace image each run; SKIP_DOCKER_BUILD=1 reuses an existing one.
+# The script rebuilds the :pvmtrace image each run; SKIP_DOCKER_BUILD=1 reuses an existing one.
 # Usage: make pvmtrace-fuzz-capture TRACE_FOLDER=pkg/test_data/.../1766241814
 TRACE_FOLDER ?= pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces/1766241814
 DEBLOB_JSON ?= $(TRACE_FOLDER)/00000179.json
 
 .PHONY: pvmtrace-fuzz-capture
 pvmtrace-fuzz-capture:
-	JAM_FUZZ_IMAGE=$(JAM_FUZZ_TRACE_IMAGE) \
+	JAM_FUZZ_IMAGE=$(JAM_FUZZ_PVMTRACE_IMAGE) \
 		bash scripts/run_pvmtrace_fuzz_capture.sh "$(TRACE_FOLDER)" "$(DEBLOB_JSON)"
 
 # Production image (:latest): no build tags, trace hooks compile to no-ops.

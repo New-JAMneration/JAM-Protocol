@@ -22,7 +22,7 @@ host-call 的內部行為詳細記錄——例如每次 omega 實際做了什麼
 ## 1. Build Tag 控制
 
 ```
--tags=trace       → 啟用 trace（實際記錄）
+-tags=pvmtrace       → 啟用 trace（實際記錄）
 無 tag（預設）     → 所有方法為 no-op stub，零運行成本
 ```
 
@@ -145,7 +145,7 @@ $JAM_PVM_TRACE_DIR/
 
 ## 6. Recompiler Trace Mode — Debug Single-Step
 
-當 `trace` build tag 啟用且 `Trace != nil` 時，recompiler 自動切換為
+當 `pvmtrace` build tag 啟用且 `Trace != nil` 時，recompiler 自動切換為
 **Debug Single-Step** 模式（`DebugSingleStepInvoke`）：
 
 ```
@@ -246,14 +246,14 @@ diff.PrintStepTable(os.Stdout, leftDir, rightDir, step-5, 10)
 ```bash
 cd JAM-Protocol
 JAM_PVM_TRACE_DIR=/tmp/traces \
-  go test -tags=trace -run TestXxx ./PVM/...
+  go test -tags=pvmtrace -run TestXxx ./PVM/...
 ```
 
 ### 9.2 產生 Recompiler Trace
 
 ```bash
 JAM_PVM_TRACE_DIR=/tmp/traces \
-  go test -tags=trace -run TestXxx ./PVM/recompiler/...
+  go test -tags=pvmtrace -run TestXxx ./PVM/recompiler/...
 ```
 
 ### 9.3 比對兩份 Trace

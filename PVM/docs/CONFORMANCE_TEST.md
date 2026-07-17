@@ -35,8 +35,8 @@
 
 **重要差異**
 
-- Fuzz conformance 的 recompiler 使用 **BlockBasedInvoke**（production 路徑），映像為 `new-jamneration-target:latest`（無 `trace` build tag）。
-- PVMtrace 的 recompiler 使用 **DebugSingleStepInvoke**（`trace` build tag 自動啟用），映像為 `new-jamneration-target:trace`。
+- Fuzz conformance 的 recompiler 使用 **BlockBasedInvoke**（production 路徑），映像為 `new-jamneration-target:latest`（無 `pvmtrace` build tag）。
+- PVMtrace 的 recompiler 使用 **DebugSingleStepInvoke**（`pvmtrace` build tag 自動啟用），映像為 `new-jamneration-target:pvmtrace`。
 - 兩層都失敗時，先用 PVMtrace 找第一個 `dst_val` 分歧，再回頭修 recompiler emit/執行邏輯。
 
 ---
@@ -78,8 +78,8 @@ make fuzz-docker-build
 ### Trace 映像（PVMtrace 用）
 
 ```bash
-make fuzz-docker-build-trace
-# 產出 new-jamneration-target:trace
+make fuzz-docker-build-pvmtrace
+# 產出 new-jamneration-target:pvmtrace
 ```
 
 ---
@@ -169,7 +169,7 @@ docker run --rm \
 
 腳本 `scripts/run_pvmtrace_fuzz_capture.sh` 會自動：
 
-1. 建置 `new-jamneration-target:trace`（可用 `SKIP_DOCKER_BUILD=1` 跳過）
+1. 建置 `new-jamneration-target:pvmtrace`（可用 `SKIP_DOCKER_BUILD=1` 跳過）
 2. 分別用 interpreter / recompiler 重放同一 trace 資料夾並錄製 trace
 3. 執行 `pvm-diff find-diff`
 
@@ -194,18 +194,18 @@ make pvmtrace-fuzz-capture \
 
 ```bash
 # 找第一個分歧
-go run -tags trace ./cmd/pvmtrace/ pvm-diff find-diff \
+go run -tags pvmtrace ./cmd/pvmtrace/ pvm-diff find-diff \
   --left  ./pvmtrace-out/interp/<service>_<hash> \
   --right ./pvmtrace-out/recomp/<service>_<hash>
 
 # 檢視分歧附近步驟
-go run -tags trace ./cmd/pvmtrace/ pvm-diff show \
+go run -tags pvmtrace ./cmd/pvmtrace/ pvm-diff show \
   --left ./pvmtrace-out/interp/<service>_<hash> \
   --right ./pvmtrace-out/recomp/<service>_<hash> \
   --from 3415 --limit 30
 
 # 單步詳情
-go run -tags trace ./cmd/pvmtrace/ pvm-diff detail \
+go run -tags pvmtrace ./cmd/pvmtrace/ pvm-diff detail \
   --left ./pvmtrace-out/interp/<service>_<hash> \
   --right ./pvmtrace-out/recomp/<service>_<hash> \
   --step 3443
@@ -272,7 +272,7 @@ func main() {
   }
 }
 GO
-go run -tags trace /tmp/trace_dst_scan.go
+go run -tags pvmtrace /tmp/trace_dst_scan.go
 ```
 
 ---
@@ -309,13 +309,13 @@ make run-asm-test
 
 ### Q: 改了 code 但結果不變
 
-Production 與 trace 是 **兩個映像**。conformance 改動後需重建 `new-jamneration-target:latest`；PVMtrace 需重建 `new-jamneration-target:trace`。
+Production 與 trace 是 **兩個映像**。conformance 改動後需重建 `new-jamneration-target:latest`；PVMtrace 需重建 `new-jamneration-target:pvmtrace`。
 
 ### Q: `pvm-diff` 出現 `platform (linux/amd64) does not match host (linux/arm64)` warning
 
-`new-jamneration-target:trace` 映像是以 `--platform=linux/amd64` 建置的。在 Apple Silicon 上若執行 `docker run` 時**未加** `--platform=linux/amd64`，Docker 會用 arm64 相容層跑 amd64 映像並印出此 warning。
+`new-jamneration-target:pvmtrace` 映像是以 `--platform=linux/amd64` 建置的。在 Apple Silicon 上若執行 `docker run` 時**未加** `--platform=linux/amd64`，Docker 會用 arm64 相容層跑 amd64 映像並印出此 warning。
 
-解法：對所有使用該映像的 `docker run` 加上 `--platform=linux/amd64`。`scripts/run_pvmtrace_fuzz_capture.sh` 的 `pvm-diff` 步驟已包含此參數；本機可直接用 `go run -tags trace ./cmd/pvmtrace/` 避免跨架構 emulation。
+解法：對所有使用該映像的 `docker run` 加上 `--platform=linux/amd64`。`scripts/run_pvmtrace_fuzz_capture.sh` 的 `pvm-diff` 步驟已包含此參數；本機可直接用 `go run -tags pvmtrace ./cmd/pvmtrace/` 避免跨架構 emulation。
 
 ### Q: `deblob metadata not found`
 
@@ -329,7 +329,7 @@ Production 與 trace 是 **兩個映像**。conformance 改動後需重建 `new-
 |---|---|
 | `make run-target` | 本機 interpreter fuzz server |
 | `make fuzz-docker-build` | 建置 production 映像 |
-| `make fuzz-docker-build-trace` | 建置 trace 映像 |
+| `make fuzz-docker-build-pvmtrace` | 建置 pvmtrace 映像 |
 | `make pvmtrace-fuzz-capture` | 錄製雙 backend trace + pvm-diff |
 | `make run-recompiler-test` | recompiler 單元測試 |
 

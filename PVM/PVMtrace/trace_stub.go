@@ -1,10 +1,10 @@
-//go:build !trace
+//go:build !pvmtrace
 
 package PVMtrace
 
 import "encoding/json"
 
-// Trace is a no-op stub when built without -tags=trace.
+// Trace is a no-op stub when built without -tags=pvmtrace.
 type Trace struct{}
 
 func NewTrace(serviceID uint32, codeHash [32]byte, timeslot uint64, programCode []byte, init InitialState, invocationType, backend string) *Trace {

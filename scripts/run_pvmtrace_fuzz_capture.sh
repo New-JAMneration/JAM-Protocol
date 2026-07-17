@@ -10,7 +10,7 @@
 #   json-for-deblob = <trace-folder>/00000179.json
 #
 # Env:
-#   JAM_FUZZ_IMAGE     docker image (default: new-jamneration-target:trace)
+#   JAM_FUZZ_IMAGE     docker image (default: new-jamneration-target:pvmtrace)
 #   PVMTRACE_OUT       host output root (default: ./pvmtrace-out)
 #   PVM_DEBLOB_DIR     deblob output root (default: ./pvm-deblob)
 #   SKIP_DOCKER_BUILD  set to 1 to skip image build
@@ -22,7 +22,7 @@ cd "$ROOT"
 
 TRACE_FOLDER="${1:-pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces/1766241814}"
 DEBLOB_JSON="${2:-${TRACE_FOLDER}/00000179.json}"
-IMAGE="${JAM_FUZZ_IMAGE:-new-jamneration-target:trace}"
+IMAGE="${JAM_FUZZ_IMAGE:-new-jamneration-target:pvmtrace}"
 OUT_ROOT="${PVMTRACE_OUT:-./pvmtrace-out}"
 DEBLOB_ROOT="${PVM_DEBLOB_DIR:-./pvm-deblob}"
 SOCK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pvmtrace-sock.XXXXXX")"
@@ -49,12 +49,12 @@ mkdir -p "${OUT_ROOT}" "${DEBLOB_ROOT}" "${SOCK_DIR}"
 chmod a+rwx "${SOCK_DIR}" 2>/dev/null || true
 
 if [[ "${SKIP_DOCKER_BUILD:-0}" != "1" ]]; then
-	echo "==> Building trace-enabled fuzz image (${IMAGE})..."
+	echo "==> Building pvmtrace-enabled fuzz image (${IMAGE})..."
 	docker buildx build --platform=linux/amd64 \
 		--build-arg GP_VERSION="$(cat VERSION_GP)" \
 		--build-arg TARGET_VERSION="$(cat VERSION_TARGET)" \
 		--build-arg OUTPUT=new-jamneration-target \
-		--build-arg BUILD_TAGS=trace \
+		--build-arg BUILD_TAGS=pvmtrace \
 		-t "${IMAGE}" \
 		-f docker/Dockerfile --load .
 fi

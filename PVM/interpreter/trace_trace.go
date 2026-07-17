@@ -1,4 +1,4 @@
-//go:build trace
+//go:build pvmtrace
 
 package interpreter
 

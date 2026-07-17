@@ -3,7 +3,7 @@
 // fixed-width binary streams (pc, opcode, gas, dst_val, src1_val, src2_val,
 // loads, stores) plus NDJSON host-call records (host_calls.jsonl.gz).
 //
-// Controlled by //go:build trace. Without the tag, all methods are no-op stubs.
+// Controlled by //go:build pvmtrace. Without the tag, all methods are no-op stubs.
 package PVMtrace
 
 const (
