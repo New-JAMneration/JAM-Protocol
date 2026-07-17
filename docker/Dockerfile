@@ -56,33 +56,40 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /app
-COPY . .
-COPY --from=rust-builder /out/libbandersnatch_vrfs_ffi.a \
-    /app/pkg/Rust-VRF/vrf-func-ffi/target/release/
 
 # Build-platform tooling (runs natively on the builder).
 RUN apk add --no-cache clang lld tar zip
 # Target-platform toolchain (musl headers + libs for $TARGETPLATFORM).
 RUN xx-apk add --no-cache musl-dev gcc
 
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+COPY --from=rust-builder /out/libbandersnatch_vrfs_ffi.a \
+    /app/pkg/Rust-VRF/vrf-func-ffi/target/release/
+
 ARG GP_VERSION=latest
 ARG TARGET_VERSION=latest
 ARG OUTPUT=new-jamneration-target
 ARG BUILD_TAGS=
 
-RUN go mod tidy
-
 # xx-go wraps `go` with the right CC / GOOS / GOARCH / pkg-config for the
 # target platform; CGO_ENABLED=1 is required for the Rust FFI static archive
 # and the JIT signal-handler cgo code.
-RUN CGO_ENABLED=1 \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 \
     xx-go build \
         -tags "${BUILD_TAGS}" \
         -ldflags "-s -w -linkmode external -extldflags '-static -O3' -X main.GP_VERSION=${GP_VERSION} -X main.TARGET_VERSION=${TARGET_VERSION}" \
         -o ./build/${OUTPUT} ./cmd/fuzz && \
     xx-verify --static ./build/${OUTPUT}
 
-RUN CGO_ENABLED=0 \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 \
     xx-go build \
         -tags "${BUILD_TAGS}" \
         -o ./build/pvmtrace ./cmd/pvmtrace
