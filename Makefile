@@ -104,6 +104,8 @@ fmt:
 
 # Fuzz host dir (matches scripts/run_fuzz_target_docker.sh default bind-mount path on host).
 JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
+# Chainspec for cmd/fuzz: tiny or full.
+JAM_FUZZ_SPEC ?= tiny
 # Recompiler is linux/amd64-only (cmd/fuzz errors if requested elsewhere), so
 # pick the default per platform. Override: make run-target PVM_BACKEND=interpreter
 ifeq ($(shell go env GOOS GOARCH),linux amd64)
@@ -115,7 +117,7 @@ endif
 .PHONY: run-target
 run-target:
 	mkdir -p $(JAM_FUZZ_HOST_DIR)
-	JAM_FUZZ=1 JAM_FUZZ_SPEC=tiny JAM_PVM_BACKEND=$(PVM_BACKEND) JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
+	JAM_FUZZ=1 JAM_FUZZ_SPEC=$(JAM_FUZZ_SPEC) JAM_PVM_BACKEND=$(PVM_BACKEND) JAM_FUZZ_DATA_PATH=$(JAM_FUZZ_HOST_DIR)/ JAM_FUZZ_SOCK_PATH=$(JAM_FUZZ_HOST_DIR)/fuzz.sock go run ./cmd/fuzz/
 
 JAM_FUZZ_IMAGE ?= new-jamneration-target:latest
 # Matches CI release (linux/amd64). Required on arm64/aarch64 hosts (Apple Silicon, Linux ARM).
