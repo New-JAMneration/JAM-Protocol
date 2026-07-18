@@ -106,13 +106,7 @@ fmt:
 JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
 # Chainspec for cmd/fuzz: tiny or full.
 JAM_FUZZ_SPEC ?= tiny
-# Recompiler is linux/amd64-only (cmd/fuzz errors if requested elsewhere), so
-# pick the default per platform. Override: make run-target PVM_BACKEND=interpreter
-ifeq ($(shell go env GOOS GOARCH),linux amd64)
-PVM_BACKEND ?= recompiler
-else
 PVM_BACKEND ?= interpreter
-endif
 
 .PHONY: run-target
 run-target:
@@ -182,9 +176,11 @@ release-target:
 run-release-target:
 	bash ./scripts/run_release.sh
 
+VALIDATE_FUZZ_SCRIPT := ./scripts/validate_fuzz.sh
+
 .PHONY: validate-fuzz validate-fuzz-ci validate-fuzz-vectors validate-fuzz-trace validate-fuzz-sock validate-fuzz-sock-smoke validate-fuzz-fuzzy validate-fuzz-jam-testing-local
 validate-fuzz:
-	$(VALIDATE_FUZZ_SCRIPT)
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=1,2,3,fuzzy $(VALIDATE_FUZZ_SCRIPT)
 
 # Build the recompiler unit-test container (linux/amd64)
 .PHONY: build-recompiler-test-env

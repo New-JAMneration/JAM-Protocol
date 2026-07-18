@@ -23,6 +23,7 @@ VALIDATE_FUZZ_TARGET_LOG="${VALIDATE_FUZZ_TARGET_LOG:-${JAM_FUZZ_HOST_DIR}/fuzz_
 # statistics tiny: 預期 1 passed / 2 failed（1/3 通過才是正確現況）
 STATISTICS_EXPECT_PASSED="${STATISTICS_EXPECT_PASSED:-1}"
 STATISTICS_EXPECT_FAILED="${STATISTICS_EXPECT_FAILED:-2}"
+JAM_PVM_BACKEND="${PVM_BACKEND:-interpreter}"
 
 log() { printf '[validate_fuzz] %s\n' "$*"; }
 die() { printf '[validate_fuzz] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -222,6 +223,7 @@ step4_jam_testing_hint() {
 
 main() {
 	log "repo: $REPO_ROOT"
+	log "PVM_BACKEND: $JAM_PVM_BACKEND"
 	log "steps: $VALIDATE_FUZZ_STEPS"
 	step_enabled 1 && step1_jam_test_vectors
 	step_enabled 2 && step2_jam_test_vectors_trace
