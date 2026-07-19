@@ -2,6 +2,7 @@ package safrole
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -63,9 +64,10 @@ func TestScheduler_WaitForwardStep2UnblocksOnImport(t *testing.T) {
 	t.Cleanup(func() { types.EpochLength = backup })
 	types.EpochLength = 60
 
-	var finalized types.TimeSlot = 60
+	var finalized atomic.Uint32
+	finalized.Store(60)
 	s := NewScheduler(nil)
-	s.finalizedOverride = func() types.TimeSlot { return finalized }
+	s.finalizedOverride = func() types.TimeSlot { return types.TimeSlot(finalized.Load()) }
 	s.mu.Lock()
 	s.connectivity = &epochclock.ConnectivityApplied{
 		Epoch:          1,
@@ -87,8 +89,56 @@ func TestScheduler_WaitForwardStep2UnblocksOnImport(t *testing.T) {
 	default:
 	}
 
-	finalized = 63
+	finalized.Store(63)
 	s.notifySlotAdvance()
 
 	require.NoError(t, <-done)
+}
+
+func TestScheduler_WaitForwardStep2BroadcastsToMultipleWaiters(t *testing.T) {
+	backup := types.EpochLength
+	t.Cleanup(func() { types.EpochLength = backup })
+	types.EpochLength = 60
+
+	var finalized atomic.Uint32
+	finalized.Store(60)
+
+	s := NewScheduler(nil)
+	s.finalizedOverride = func() types.TimeSlot {
+		return types.TimeSlot(finalized.Load())
+	}
+	s.mu.Lock()
+	s.connectivity = &epochclock.ConnectivityApplied{
+		Epoch:          1,
+		EpochStartSlot: 60,
+		AppliedAtSlot:  60,
+	}
+	s.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	const waiters = 8
+	done := make(chan error, waiters)
+	for i := 0; i < waiters; i++ {
+		go func() {
+			done <- s.WaitForwardStep2(ctx)
+		}()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	for i := 0; i < waiters; i++ {
+		select {
+		case err := <-done:
+			t.Fatalf("waiter %d returned early: %v", i, err)
+		default:
+		}
+	}
+
+	finalized.Store(63)
+	s.notifySlotAdvance()
+
+	for i := 0; i < waiters; i++ {
+		require.NoError(t, <-done)
+	}
 }

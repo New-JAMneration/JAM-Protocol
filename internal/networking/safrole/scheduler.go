@@ -34,7 +34,7 @@ type Scheduler struct {
 func NewScheduler(chain *blockchain.ChainState) *Scheduler {
 	return &Scheduler{
 		chain:       chain,
-		slotAdvance: make(chan struct{}, 1),
+		slotAdvance: make(chan struct{}),
 	}
 }
 
@@ -127,13 +127,19 @@ func (s *Scheduler) WaitForwardStep2(ctx context.Context) error {
 		return nil
 	}
 	for {
-		if s.CanForwardStep2(s.finalizedSlot()) {
+		finalized := s.finalizedSlot()
+		s.mu.Lock()
+		if s.connectivity != nil && s.connectivity.CanForwardSafroleStep2(finalized) {
+			s.mu.Unlock()
 			return nil
 		}
+		slotAdvance := s.slotAdvance
+		s.mu.Unlock()
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-s.slotAdvance:
+		case <-slotAdvance:
 		}
 	}
 }
@@ -155,8 +161,8 @@ func (s *Scheduler) notifySlotAdvance() {
 	if s == nil {
 		return
 	}
-	select {
-	case s.slotAdvance <- struct{}{}:
-	default:
-	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	close(s.slotAdvance)
+	s.slotAdvance = make(chan struct{})
 }
