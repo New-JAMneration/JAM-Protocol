@@ -177,10 +177,32 @@ run-release-target:
 	bash ./scripts/run_release.sh
 
 VALIDATE_FUZZ_SCRIPT := ./scripts/validate_fuzz.sh
+FUZZ_SMOKE_TRACE_DIR ?= 1766241814
 
 .PHONY: validate-fuzz validate-fuzz-ci validate-fuzz-vectors validate-fuzz-trace validate-fuzz-sock validate-fuzz-sock-smoke validate-fuzz-fuzzy validate-fuzz-jam-testing-local
 validate-fuzz:
 	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=1,2,3,fuzzy $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-ci:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=1,2,3,fuzzy $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-vectors:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=1 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-trace:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=2 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-sock:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=3 $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-sock-smoke:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=3 FUZZ_SMOKE_TRACE_DIR=$(FUZZ_SMOKE_TRACE_DIR) $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-fuzzy:
+	PVM_BACKEND=$(PVM_BACKEND) VALIDATE_FUZZ_STEPS=fuzzy $(VALIDATE_FUZZ_SCRIPT)
+
+validate-fuzz-jam-testing-local:
+	VALIDATE_FUZZ_RUN_JAM_TESTING=1 VALIDATE_FUZZ_STEPS=4 $(VALIDATE_FUZZ_SCRIPT)
 
 # Build the recompiler unit-test container (linux/amd64)
 .PHONY: build-recompiler-test-env
