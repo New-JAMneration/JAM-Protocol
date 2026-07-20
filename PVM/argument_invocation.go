@@ -35,7 +35,7 @@ var (
 	// blank-import PVM/interpreter.
 	Psi_M_interpreterHook PsiMBackend
 	// Psi_M_recompilerHook is registered by PVM/recompiler when linked
-	// (linux/amd64 only).
+	// (linux/amd64 + cgo only).
 	Psi_M_recompilerHook PsiMBackend
 )
 

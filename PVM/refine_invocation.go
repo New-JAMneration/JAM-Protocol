@@ -53,7 +53,7 @@ func zeroPadding(seq types.ByteSequence, n int) types.ByteSequence {
 // registers the hook:
 //
 //	import _ ".../PVM/interpreter"  // cross-platform default; always available
-//	import _ ".../PVM/recompiler"   // optional, linux/amd64 only
+//	import _ ".../PVM/recompiler"   // optional, linux/amd64 + cgo only
 //
 // The backend is selected at runtime via PVM.ExecutionBackend (interpreter is
 // the default and fallback). With no backend registered, Psi_M panics.

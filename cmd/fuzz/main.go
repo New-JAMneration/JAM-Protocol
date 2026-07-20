@@ -295,7 +295,7 @@ func applyPVMBackend(cmd *cli.Command) error {
 		PVM.ExecutionBackend = PVM.BackendInterpreter
 	case PVM.BackendRecompiler:
 		if PVM.Psi_M_recompilerHook == nil {
-			return fmt.Errorf("pvm-backend %q is not available in this build (requires linux/amd64 with recompiler linked)", backend)
+			return fmt.Errorf("pvm-backend %q is not available in this build (requires linux/amd64 with cgo and recompiler linked)", backend)
 		}
 		PVM.ExecutionBackend = PVM.BackendRecompiler
 	default:
