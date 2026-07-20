@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && amd64 && cgo
 
 package recompiler
 
@@ -458,6 +458,48 @@ func testArith3Reg(t *testing.T) {
 			inst:     []byte{203, packRegs(3, 4), 2},
 			initRegs: regsWithValues(3, 100, 4, 0),
 			wantRegs: regsWithValues(2, ^uint64(0), 3, 100, 4, 0),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "div_s_32: r2 = int32(r3) / int32(r4)",
+			inst:     []byte{194, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 100, 4, 3),
+			wantRegs: regsWithValues(2, 33, 3, 100, 4, 3),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "div_s_32_upper_bits_divisor: int32(2^32) == 0 → 2^64-1",
+			inst:     []byte{194, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 100, 4, 1<<32),
+			wantRegs: regsWithValues(2, ^uint64(0), 3, 100, 4, 1<<32),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "div_s_32_by_neg_one: r2 = -int32(r3)",
+			inst:     []byte{194, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 10, 4, 0xFFFFFFFF),
+			wantRegs: regsWithValues(2, 0xFFFFFFFFFFFFFFF6, 3, 10, 4, 0xFFFFFFFF),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "div_s_32_overflow: INT32_MIN / -1 → INT32_MIN",
+			inst:     []byte{194, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 0x80000000, 4, 0xFFFFFFFF),
+			wantRegs: regsWithValues(2, 0xFFFFFFFF80000000, 3, 0x80000000, 4, 0xFFFFFFFF),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "rem_s_32_upper_bits_divisor: int32(2^32) == 0 → sext32(r3)",
+			inst:     []byte{196, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 10, 4, 1<<32),
+			wantRegs: regsWithValues(2, 10, 3, 10, 4, 1<<32),
+			wantExit: PVM.ExitPanic,
+		},
+		{
+			name:     "rem_s_32_by_neg_one: r2 = smod(int32(r3), -1) → 0",
+			inst:     []byte{196, packRegs(3, 4), 2},
+			initRegs: regsWithValues(3, 10, 4, 0xFFFFFFFF),
+			wantRegs: regsWithValues(2, 0, 3, 10, 4, 0xFFFFFFFF),
 			wantExit: PVM.ExitPanic,
 		},
 		{

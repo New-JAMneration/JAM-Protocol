@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && amd64 && cgo
 
 package recompiler
 
@@ -75,6 +75,7 @@ func (c *Compiler) emitDivS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
+	a.MovFromDwordToRegSx(RegScratch, RegScratch)
 	a.TestRegReg(RegScratch, RegScratch)
 	a.Jcc(asm.CondEQ, divByZero)
 
@@ -86,14 +87,12 @@ func (c *Compiler) emitDivS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	a.MovRegToReg(asm.RAX, aReg)
 	a.MovFromDwordToRegSx(asm.RAX, asm.RAX)
 	a.Cqo()
-	a.MovFromDwordToRegSx(RegScratch, RegScratch)
 	a.Idiv(RegScratch)
 	emitRestoreDiv32Result(a, dReg)
 	a.Jmp(done)
 
 	_ = a.BindLabel(overflow)
-	a.MovRegToReg(RegScratch, aReg)
-	a.CmpReg32Imm32(RegScratch, -2147483648)
+	a.CmpReg32Imm32(aReg, -2147483648)
 	a.Jcc(asm.CondNE, doDiv)
 	a.MovImm32ToReg(dReg, -2147483648)
 	emitSignExt32(a, dReg)
@@ -142,6 +141,7 @@ func (c *Compiler) emitRemS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	done := a.NewLabel()
 
 	a.MovRegToReg(RegScratch, bReg)
+	a.MovFromDwordToRegSx(RegScratch, RegScratch)
 	a.TestRegReg(RegScratch, RegScratch)
 	a.Jcc(asm.CondEQ, divByZero)
 
@@ -152,7 +152,6 @@ func (c *Compiler) emitRemS32(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	a.MovRegToReg(asm.RAX, aReg)
 	a.MovFromDwordToRegSx(asm.RAX, asm.RAX)
 	a.Cqo()
-	a.MovFromDwordToRegSx(RegScratch, RegScratch)
 	a.Idiv(RegScratch)
 	emitRestoreDiv32Remainder(a, dReg)
 	a.Jmp(done)
