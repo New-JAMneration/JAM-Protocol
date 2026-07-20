@@ -1,4 +1,4 @@
-//go:build linux && amd64
+//go:build linux && amd64 && cgo
 
 // Package recompiler implements the PVM JIT recompiler's memory management layer,
 // including executable memory (W^X), guest memory (unified mmap with slice aliasing),
