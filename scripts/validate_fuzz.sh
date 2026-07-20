@@ -43,7 +43,7 @@ run_jam_test_vectors_mode() {
 	local log
 	log="$(mktemp)"
 	log "step 1: mode=${mode}"
-	if ! go run ./cmd/node test \
+	if ! JAM_PVM_BACKEND="$JAM_PVM_BACKEND" go run ./cmd/node test \
 		--mode "$mode" --size "$TEST_SIZE" --type jam-test-vectors --format "$TEST_FORMAT" \
 		>"$log" 2>&1; then
 		cat "$log" >&2
@@ -84,7 +84,7 @@ run_trace_mode() {
 	local log
 	log="$(mktemp)"
 	log "step 2: trace mode=${mode}"
-	if ! go run ./cmd/node test --type trace --mode "$mode" >"$log" 2>&1; then
+	if ! JAM_PVM_BACKEND="$JAM_PVM_BACKEND" go run ./cmd/node test --type trace --mode "$mode" >"$log" 2>&1; then
 		cat "$log" >&2
 		rm -f "$log"
 		return 1

@@ -19,16 +19,20 @@ size ?= tiny
 type ?= jam-test-vectors
 format ?= binary
 
+# PVM backend for all PVM-running targets. interpreter (default) or recompiler
+# (linux/amd64 + cgo). Usage: PVM_BACKEND=recompiler make <target>
+PVM_BACKEND ?= interpreter
+
 .PHONY: test-jam-test-vectors
 test-jam-test-vectors:
 	@if [ -n "$(mode)" ]; then \
 	    echo "Testing $(mode) (size=$(size), type=$(type), format=$(format))..."; \
-	    go run ./cmd/node test --mode $(mode) --size $(size) --type $(type) --format $(format); \
+	    JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --mode $(mode) --size $(size) --type $(type) --format $(format); \
 	else \
 		MODES="safrole assurances preimages disputes history accumulate authorizations statistics reports"; \
 		for m in $$MODES; do \
 			echo "Testing $$m (size=$(size))..."; \
-			go run ./cmd/node test --mode "$$m" --size "$(size)" --type "$(type)" --format "$(format)"; \
+			JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --mode "$$m" --size "$(size)" --type "$(type)" --format "$(format)"; \
 			echo ""; \
 		done; \
 	fi
@@ -37,12 +41,12 @@ test-jam-test-vectors:
 test-jam-test-vectors-trace:
 	@if [ -n "$(mode)" ]; then \
 		echo "Testing trace $(mode)..."; \
-		go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+		JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
 		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
 			echo "Testing trace $$mode..."; \
-			go run ./cmd/node test --type "trace" --mode "$$mode"; \
+			JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --type "trace" --mode "$$mode"; \
 			echo ""; \
 		done; \
 	fi
@@ -67,7 +71,7 @@ test-timing-fuzz-trace:
 test-timing-jam-test-vectors-trace:
 	@if [ -n "$(mode)" ]; then \
 		echo "Testing trace $(mode) with timing..."; \
-		TIMING=1 go run ./cmd/node test --type "trace" --mode "$(mode)"; \
+		TIMING=1 JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --type "trace" --mode "$(mode)"; \
 	else \
 		MODES="fallback safrole preimages_light preimages storage_light storage fuzzy_light"; \
 		for mode in $$MODES; do \
@@ -75,7 +79,7 @@ test-timing-jam-test-vectors-trace:
 			echo "========================================"; \
 			echo "Testing trace $$mode with timing..."; \
 			echo "========================================"; \
-			TIMING=1 go run ./cmd/node test --type "trace" --mode "$$mode"; \
+			TIMING=1 JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --type "trace" --mode "$$mode"; \
 		done; \
 	fi
 
@@ -88,7 +92,7 @@ test-benchmark-trace:
 		exit 1; \
 	fi
 	@echo "Running benchmark for trace $(mode) (5 runs)..."
-	TIMING=1 go run ./cmd/node test --type "trace" --mode "$(mode)" --benchmark 5
+	TIMING=1 JAM_PVM_BACKEND=$(PVM_BACKEND) go run ./cmd/node test --type "trace" --mode "$(mode)" --benchmark 5
 
 .PHONY: lint
 lint:
@@ -106,7 +110,6 @@ fmt:
 JAM_FUZZ_HOST_DIR ?= .jam_fuzz_docker_run
 # Chainspec for cmd/fuzz: tiny or full.
 JAM_FUZZ_SPEC ?= tiny
-PVM_BACKEND ?= interpreter
 
 .PHONY: run-target
 run-target:
