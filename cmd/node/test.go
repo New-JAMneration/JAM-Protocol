@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
+	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/config"
 	"github.com/New-JAMneration/JAM-Protocol/internal/blockchain"
 	"github.com/New-JAMneration/JAM-Protocol/internal/stf"
@@ -18,6 +21,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const envPVMBackend = "JAM_PVM_BACKEND"
+
 var (
 	testMode       string
 	testSize       string
@@ -26,6 +31,12 @@ var (
 	testRunSTF     bool
 	testGenesis    string
 	benchmarkRuns  int
+
+	pvmBackendFlag = &cli.StringFlag{
+		Name:  "pvm-backend",
+		Usage: "PVM execution backend: interpreter or recompiler",
+		Value: PVM.BackendInterpreter,
+	}
 )
 
 var testCmd = &cli.Command{
@@ -80,8 +91,13 @@ For example:
 			Value:       0,
 			Destination: &benchmarkRuns,
 		},
+		pvmBackendFlag,
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
+		if err := applyPVMBackend(c); err != nil {
+			logger.Fatal(err)
+		}
+
 		// Initialize config
 		config.InitConfig(configPath, testSize)
 
@@ -380,6 +396,38 @@ For example:
 
 		return nil
 	},
+}
+
+func applyPVMBackend(cmd *cli.Command) error {
+	// --pvm-backend has a non-empty default ("interpreter"), which would otherwise
+	// shadow JAM_PVM_BACKEND entirely (cmd.String never returns ""). Only treat the
+	// flag as authoritative when it was passed explicitly; otherwise fall back to
+	// the env var, then the default. Precedence: explicit flag > env var > default.
+	backend := strings.TrimSpace(cmd.String(pvmBackendFlag.Name))
+	if !cmd.IsSet(pvmBackendFlag.Name) {
+		if env := strings.TrimSpace(os.Getenv(envPVMBackend)); env != "" {
+			backend = env
+		}
+	}
+	if backend == "" {
+		backend = PVM.BackendInterpreter
+	}
+
+	switch backend {
+	case PVM.BackendInterpreter:
+		PVM.ExecutionBackend = PVM.BackendInterpreter
+	case PVM.BackendRecompiler:
+		if PVM.Psi_M_recompilerHook == nil {
+			return fmt.Errorf("pvm-backend %q is not available in this build (requires linux/amd64 with cgo and recompiler linked)", backend)
+		}
+		PVM.ExecutionBackend = PVM.BackendRecompiler
+	default:
+		return fmt.Errorf("pvm-backend must be %q or %q, got %q",
+			PVM.BackendInterpreter, PVM.BackendRecompiler, backend)
+	}
+
+	logger.Infof("PVM ExecutionBackend: %s", PVM.ExecutionBackend)
+	return nil
 }
 
 // Encapsulate validation logic into separate functions

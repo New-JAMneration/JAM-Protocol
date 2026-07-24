@@ -10,6 +10,7 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 	m "github.com/New-JAMneration/JAM-Protocol/internal/utilities/merklization"
+	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/timing"
 	"github.com/New-JAMneration/JAM-Protocol/logger"
 )
 
@@ -100,7 +101,16 @@ func (s *FuzzServiceStub) ImportBlock(block types.Block) (types.StateRoot, error
 	logger.Infof("%s Block 0x%x... added for ImportBlock", ctx, headerHash[:8])
 
 	// Run the STF and get the state root
-	isProtocolError, err := stf.RunSTF()
+	var isProtocolError bool
+	if timing.Enabled {
+		var stfTiming stf.STFTiming
+		isProtocolError, err, stfTiming = stf.RunSTFWithTiming()
+		if err == nil || !isProtocolError {
+			RecordImportBlockTiming(stfTiming)
+		}
+	} else {
+		isProtocolError, err = stf.RunSTF()
+	}
 	if err != nil {
 		if !isProtocolError {
 			// Runtime error: unexpected bug, should terminate the program

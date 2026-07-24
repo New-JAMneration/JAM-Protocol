@@ -23,6 +23,7 @@ VALIDATE_FUZZ_TARGET_LOG="${VALIDATE_FUZZ_TARGET_LOG:-${JAM_FUZZ_HOST_DIR}/fuzz_
 # statistics tiny: 預期 1 passed / 2 failed（1/3 通過才是正確現況）
 STATISTICS_EXPECT_PASSED="${STATISTICS_EXPECT_PASSED:-1}"
 STATISTICS_EXPECT_FAILED="${STATISTICS_EXPECT_FAILED:-2}"
+JAM_PVM_BACKEND="${PVM_BACKEND:-interpreter}"
 
 log() { printf '[validate_fuzz] %s\n' "$*"; }
 die() { printf '[validate_fuzz] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -42,7 +43,7 @@ run_jam_test_vectors_mode() {
 	local log
 	log="$(mktemp)"
 	log "step 1: mode=${mode}"
-	if ! go run ./cmd/node test \
+	if ! JAM_PVM_BACKEND="$JAM_PVM_BACKEND" go run ./cmd/node test \
 		--mode "$mode" --size "$TEST_SIZE" --type jam-test-vectors --format "$TEST_FORMAT" \
 		>"$log" 2>&1; then
 		cat "$log" >&2
@@ -83,7 +84,7 @@ run_trace_mode() {
 	local log
 	log="$(mktemp)"
 	log "step 2: trace mode=${mode}"
-	if ! go run ./cmd/node test --type trace --mode "$mode" >"$log" 2>&1; then
+	if ! JAM_PVM_BACKEND="$JAM_PVM_BACKEND" go run ./cmd/node test --type trace --mode "$mode" >"$log" 2>&1; then
 		cat "$log" >&2
 		rm -f "$log"
 		return 1
@@ -186,6 +187,7 @@ step_sock_traces() {
 		JAM_FUZZ_DATA_PATH="${JAM_FUZZ_HOST_DIR}/" \
 		JAM_FUZZ_SOCK_PATH="$FUZZ_SOCK" \
 		JAM_FUZZ_LOG_LEVEL="${JAM_FUZZ_LOG_LEVEL:-ERROR}" \
+		JAM_PVM_BACKEND="$JAM_PVM_BACKEND" \
 		"$FUZZ_TARGET_BIN" >>"$VALIDATE_FUZZ_TARGET_LOG" 2>&1 &
 	FUZZ_TARGET_PID=$!
 	wait_for_socket "$FUZZ_SOCK"
@@ -222,6 +224,7 @@ step4_jam_testing_hint() {
 
 main() {
 	log "repo: $REPO_ROOT"
+	log "PVM_BACKEND: $JAM_PVM_BACKEND"
 	log "steps: $VALIDATE_FUZZ_STEPS"
 	step_enabled 1 && step1_jam_test_vectors
 	step_enabled 2 && step2_jam_test_vectors_trace

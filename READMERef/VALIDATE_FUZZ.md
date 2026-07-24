@@ -103,10 +103,13 @@ Env: `TARGET_IMAGE`, `JAM_TESTING_DIR`, `JAM_TESTING_SUITE` (default `fallback`)
 | `make validate-fuzz-fuzzy` | Fuzzy `test_folder` only |
 | `make validate-fuzz-jam-testing-local` | Optional jam-testing minifuzz smoke |
 
+> All targets honor `PVM_BACKEND` (default `interpreter`). `PVM_BACKEND=recompiler make validate-fuzz` runs every step — including steps 1/2 (`cmd/node`) — on the recompiler.
+
 ### Environment variables (`scripts/validate_fuzz.sh`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `PVM_BACKEND` | `interpreter` | `interpreter` or `recompiler` (linux/amd64 + cgo build only). Applied to all steps. |
 | `VALIDATE_FUZZ_STEPS` | `1,2,3,fuzzy` | Steps: `1`, `2`, `3`, `fuzzy`, `4` |
 | `FUZZ_SMOKE_TRACE_DIR` | (empty) | If set, step 3 runs only that subdirectory |
 | `VALIDATE_FUZZ_OUTPUT` | `output.txt` | Step 3 client output |
