@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	quicgo "github.com/quic-go/quic-go"
 	"github.com/New-JAMneration/JAM-Protocol/internal/networking/quic"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -102,10 +102,10 @@ func asQuicStream(inner *testUP0Stream) *quic.Stream {
 	return &quic.Stream{Stream: &pipeQuicStream{inner: inner}}
 }
 
-func (s *pipeQuicStream) Read(p []byte) (int, error)  { return s.inner.reader.Read(p) }
-func (s *pipeQuicStream) Write(p []byte) (int, error) { return s.inner.writer.Write(p) }
-func (s *pipeQuicStream) Close() error                { return s.inner.Close() }
-func (s *pipeQuicStream) StreamID() quicgo.StreamID   { return 1 }
+func (s *pipeQuicStream) Read(p []byte) (int, error)         { return s.inner.reader.Read(p) }
+func (s *pipeQuicStream) Write(p []byte) (int, error)        { return s.inner.writer.Write(p) }
+func (s *pipeQuicStream) Close() error                       { return s.inner.Close() }
+func (s *pipeQuicStream) StreamID() quicgo.StreamID          { return 1 }
 func (s *pipeQuicStream) CancelRead(quicgo.StreamErrorCode)  {}
 func (s *pipeQuicStream) CancelWrite(quicgo.StreamErrorCode) {}
 func (s *pipeQuicStream) SetReadDeadline(time.Time) error    { return nil }
@@ -220,6 +220,44 @@ func TestUP0HandlerHandleInvokesOnAnnouncement(t *testing.T) {
 		return received.Header.Slot == bHeader.Slot
 	}, time.Second, 10*time.Millisecond)
 	require.Equal(t, ed25519.PublicKey{1}, peerKey)
+
+	cancel()
+	<-errCh
+}
+
+func TestUP0SessionReadLoopInvokesCallback(t *testing.T) {
+	blocks, finalized := testChain(t)
+	bHeader := blocks[2].Header
+	branchD := types.Header{Parent: mustHash(t, bHeader), Slot: 14}
+	blocks = append(blocks, types.Block{Header: branchD})
+
+	ann := Announcement{Header: branchD, Final: BlockRef{Hash: finalized, Slot: 10}}
+	payload, err := EncodeAnnouncement(ann)
+	require.NoError(t, err)
+
+	var framed bytes.Buffer
+	require.NoError(t, quic.WriteMessageFrame(&framed, payload))
+	stream := newTestUP0Stream(framed.Bytes())
+
+	var received Announcement
+	handler := testHandler(t, blocks, finalized)
+	handler.OnAnnouncement = func(ann Announcement, pk ed25519.PublicKey) error {
+		received = ann
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	session, err := handler.newSession(stream, ed25519.PublicKey{2})
+	require.NoError(t, err)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- session.readLoop(ctx) }()
+
+	require.Eventually(t, func() bool {
+		return received.Header.Slot == branchD.Slot
+	}, time.Second, 10*time.Millisecond)
 
 	cancel()
 	<-errCh

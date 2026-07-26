@@ -55,6 +55,50 @@ func (r *upStreamRegistry) admit(peerKey string, kind byte, id quicgo.StreamID, 
 	return true
 }
 
+func (r *upStreamRegistry) closeKind(peerKey string, kind byte) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	byKind, ok := r.active[peerKey]
+	if !ok {
+		return
+	}
+	if tracked, ok := byKind[kind]; ok {
+		cancelStream(tracked.stream)
+		delete(byKind, kind)
+	}
+	if len(byKind) == 0 {
+		delete(r.active, peerKey)
+	}
+}
+
+func (r *upStreamRegistry) closeExcept(eligible map[string]struct{}, kind byte) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for peerKey, byKind := range r.active {
+		if _, ok := eligible[peerKey]; ok {
+			continue
+		}
+		if tracked, ok := byKind[kind]; ok {
+			cancelStream(tracked.stream)
+			delete(byKind, kind)
+		}
+		if len(byKind) == 0 {
+			delete(r.active, peerKey)
+		}
+	}
+}
+
+func (r *upStreamRegistry) hasKind(peerKey string, kind byte) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	byKind, ok := r.active[peerKey]
+	if !ok {
+		return false
+	}
+	_, ok = byKind[kind]
+	return ok
+}
+
 func (r *upStreamRegistry) release(peerKey string, kind byte, id quicgo.StreamID) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
