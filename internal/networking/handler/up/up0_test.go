@@ -271,6 +271,60 @@ func TestUP0HandlerDropsNonDescendantAnnouncement(t *testing.T) {
 	require.False(t, called)
 }
 
+func TestUnknownAnnouncementInvokesHookAndUpdatesPeerView(t *testing.T) {
+	blocks, finalized := testChain(t)
+	// Receiver only knows finalized + branchA; peer announces a new child of branchA.
+	known := blocks[:2]
+	handler := testHandler(t, known, finalized)
+
+	var received Announcement
+	handler.OnAnnouncement = func(ann Announcement, _ ed25519.PublicKey) error {
+		received = ann
+		return nil
+	}
+
+	session, err := handler.newSession(newTestUP0Stream(nil), ed25519.PublicKey{3})
+	require.NoError(t, err)
+
+	parentHash := mustHash(t, blocks[1].Header)
+	unknownHeader := types.Header{Parent: parentHash, Slot: 42}
+	unknownHash := mustHash(t, unknownHeader)
+	finalRef := BlockRef{Hash: finalized, Slot: blocks[0].Header.Slot}
+
+	require.NoError(t, session.handleAnnouncement(Announcement{
+		Header: unknownHeader,
+		Final:  finalRef,
+	}))
+	require.Equal(t, unknownHeader.Slot, received.Header.Slot)
+
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	require.Equal(t, finalRef, session.peerFinal)
+	_, isLeaf := session.peerLeaves[unknownHash]
+	require.True(t, isLeaf)
+	_, parentStillLeaf := session.peerLeaves[parentHash]
+	require.False(t, parentStillLeaf)
+}
+
+func TestHandshakeTracksPeerFinalAndLeaves(t *testing.T) {
+	blocks, finalized := testChain(t)
+	session, err := testHandler(t, blocks, finalized).newSession(newTestUP0Stream(nil), ed25519.PublicKey{1})
+	require.NoError(t, err)
+
+	leafHash := mustHash(t, blocks[2].Header)
+	hs := Handshake{
+		Final:  BlockRef{Hash: finalized, Slot: 10},
+		Leaves: []BlockRef{{Hash: leafHash, Slot: blocks[2].Header.Slot}},
+	}
+	session.trackHandshake(hs, true)
+
+	session.mu.Lock()
+	defer session.mu.Unlock()
+	require.Equal(t, hs.Final, session.peerFinal)
+	_, ok := session.peerLeaves[leafHash]
+	require.True(t, ok)
+}
+
 func TestUP0HandlerUnregisterSessionKeepsReplacement(t *testing.T) {
 	handler := &UP0Handler{sessions: make(map[string]*UP0Session)}
 	peerKey := ed25519.PublicKey{1}

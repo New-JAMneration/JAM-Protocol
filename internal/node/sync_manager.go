@@ -226,6 +226,17 @@ func (sm *SyncManager) storeBlocks(blocks []types.Block) error {
 	for _, block := range blocks {
 		chain.AddBlock(block)
 	}
+	if sm.eventBus != nil && len(blocks) > 0 {
+		last := blocks[len(blocks)-1]
+		headerHash, err := hash.ComputeBlockHeaderHash(last.Header)
+		if err != nil {
+			return err
+		}
+		head := HeadInfo{Hash: headerHash, Timeslot: last.Header.Slot}
+		if err := sm.eventBus.PublishBlockImported(sm.ctx, head, last.Header); err != nil {
+			log.Printf("publish BlockImported: %v", err)
+		}
+	}
 	return nil
 }
 

@@ -46,6 +46,12 @@ func ViewAtFinalized(blocks []types.Block, finalized types.HeaderHash) (ChainVie
 	return cv, finalRef, nil
 }
 
+// Has reports whether hash is present in the chain view.
+func (cv ChainView) Has(h types.HeaderHash) bool {
+	_, ok := cv.hashToRef[h]
+	return ok
+}
+
 // IsDescendantOf reports whether descendant is a strict or non-strict descendant of ancestor.
 func (cv ChainView) IsDescendantOf(descendant, ancestor types.HeaderHash) bool {
 	if descendant == ancestor {
@@ -61,6 +67,22 @@ func (cv ChainView) IsDescendantOf(descendant, ancestor types.HeaderHash) bool {
 		}
 		cur = parent
 	}
+}
+
+// ExtendsFinalized reports whether an announced block descends from finalized.
+// Known blocks use ancestry in the view; unknown blocks are accepted when their
+// parent is finalized or a known descendant of finalized (fetch-hook path).
+func (cv ChainView) ExtendsFinalized(blockHash types.HeaderHash, header types.Header, finalized types.HeaderHash) bool {
+	if cv.Has(blockHash) {
+		return cv.IsDescendantOf(blockHash, finalized)
+	}
+	if header.Parent == finalized {
+		return true
+	}
+	if cv.Has(header.Parent) {
+		return cv.IsDescendantOf(header.Parent, finalized)
+	}
+	return false
 }
 
 // CollectLeaves returns tips that are descendants of finalized and have no known children.

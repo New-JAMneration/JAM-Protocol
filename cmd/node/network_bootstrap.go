@@ -145,6 +145,13 @@ func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role node
 		}
 		remote := peer.RemotePeer(peerKey)
 		remote.Best = head
+		if ann.Final.Slot >= remote.Finalized.Timeslot {
+			remote.Finalized = quic.HeadInfo{
+				Hash:     ann.Final.Hash,
+				Timeslot: ann.Final.Slot,
+			}
+		}
+		// Fetch hook only (#965). CE 128 import is handled by SyncManager (#966).
 		return eventBus.PublishPeerUpdated(context.Background(), remote, head)
 	}
 	peer.RegisterHandler(uphandler.StreamKindUP0, up0.Handle)
@@ -156,6 +163,17 @@ func registerUP0Handler(peer *quic.Peer, chain *blockchain.ChainState, role node
 		}
 		return vm.ShouldOpenUP0(types.Ed25519Public(peerKey), localIsValidator)
 	})
+
+	if eventBus != nil {
+		eventBus.Subscribe(quic.BlockImported, func(ctx context.Context, event quic.Event) error {
+			imported, ok := event.(*quic.BlockImportedEvent)
+			if !ok {
+				return nil
+			}
+			up0.AnnounceBlock(imported.Header)
+			return nil
+		})
+	}
 }
 
 func bootstrapFromChainSpec(peer *quic.Peer, chainPath string) error {
