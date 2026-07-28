@@ -109,3 +109,22 @@ func TestShouldSkipAnnouncement(t *testing.T) {
 		require.False(t, ShouldSkipAnnouncement(aHash, finalized, cv, nil, nil))
 	})
 }
+
+func TestExtendsFinalizedUnknownChild(t *testing.T) {
+	blocks, finalized := testChain(t)
+	// Local view stops at branchA; peer announces a new child of branchA.
+	known := blocks[:2]
+	cv, err := NewChainView(known)
+	require.NoError(t, err)
+
+	parentHash := mustHash(t, blocks[1].Header)
+	unknown := types.Header{Parent: parentHash, Slot: 20}
+	unknownHash := mustHash(t, unknown)
+
+	require.False(t, cv.Has(unknownHash))
+	require.True(t, cv.ExtendsFinalized(unknownHash, unknown, finalized))
+
+	var badFinal types.HeaderHash
+	badFinal[0] = 0x99
+	require.False(t, cv.ExtendsFinalized(unknownHash, unknown, badFinal))
+}

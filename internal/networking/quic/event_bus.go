@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 type EventType string
@@ -37,6 +39,13 @@ type PeerAddedEvent struct {
 type PeerUpdatedEvent struct {
 	Peer           *Peer
 	NewBlockHeader *HeadInfo // Optional new block header announced by the peer
+}
+
+// BlockImportedEvent is emitted after a block is stored locally (produce or import).
+// Header is used by UP 0 to fan out announcements; Head is the compact sync view.
+type BlockImportedEvent struct {
+	Head   HeadInfo
+	Header types.Header
 }
 
 type Handler func(ctx context.Context, event Event) error
@@ -126,4 +135,9 @@ func (eb *EventBus) PublishPeerUpdated(ctx context.Context, peer *Peer, newBlock
 		NewBlockHeader: newBlockHeader,
 	}
 	return eb.Publish(ctx, PeerUpdated, event)
+}
+
+// PublishBlockImported publishes a BlockImported event after local chain head advances.
+func (eb *EventBus) PublishBlockImported(ctx context.Context, head HeadInfo, header types.Header) error {
+	return eb.Publish(ctx, BlockImported, &BlockImportedEvent{Head: head, Header: header})
 }

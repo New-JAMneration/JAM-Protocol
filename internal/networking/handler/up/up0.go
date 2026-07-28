@@ -40,6 +40,8 @@ type UP0Session struct {
 	mu              sync.Mutex
 	cv              ChainView
 	ourFinal        BlockRef
+	peerFinal       BlockRef
+	peerLeaves      map[types.HeaderHash]struct{}
 	announcedByUs   map[types.HeaderHash]struct{}
 	announcedByPeer map[types.HeaderHash]struct{}
 }
@@ -84,6 +86,7 @@ func (h *UP0Handler) newSession(stream framedStream, peerKey ed25519.PublicKey) 
 		onAnnouncement:    h.OnAnnouncement,
 		cv:                cv,
 		ourFinal:          finalRef,
+		peerLeaves:        make(map[types.HeaderHash]struct{}),
 		announcedByUs:     make(map[types.HeaderHash]struct{}),
 		announcedByPeer:   make(map[types.HeaderHash]struct{}),
 	}, nil
@@ -211,15 +214,30 @@ func (s *UP0Session) handleAnnouncement(ann Announcement) error {
 	cv := s.cv
 	s.mu.Unlock()
 
-	if !cv.IsDescendantOf(blockHash, ann.Final.Hash) {
+	if !cv.ExtendsFinalized(blockHash, ann.Header, ann.Final.Hash) {
 		return nil
 	}
 
+	s.updatePeerView(ann, blockHash)
 	s.trackAnnounced(true, blockHash)
 	if s.onAnnouncement != nil {
 		return s.onAnnouncement(ann, s.peerKey)
 	}
 	return nil
+}
+
+// updatePeerView records the peer's finalized anchor and leaf set from an announcement.
+func (s *UP0Session) updatePeerView(ann Announcement, blockHash types.HeaderHash) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ann.Final.Slot >= s.peerFinal.Slot || s.peerFinal.Hash == (types.HeaderHash{}) {
+		s.peerFinal = ann.Final
+	}
+	if s.peerLeaves == nil {
+		s.peerLeaves = make(map[types.HeaderHash]struct{})
+	}
+	delete(s.peerLeaves, ann.Header.Parent)
+	s.peerLeaves[blockHash] = struct{}{}
 }
 
 // AnnounceBlock sends an announcement when skip rules do not apply.
@@ -275,6 +293,17 @@ func (s *UP0Session) refreshChainView() error {
 }
 
 func (s *UP0Session) trackHandshake(h Handshake, fromPeer bool) {
+	if fromPeer {
+		s.mu.Lock()
+		s.peerFinal = h.Final
+		if s.peerLeaves == nil {
+			s.peerLeaves = make(map[types.HeaderHash]struct{})
+		}
+		for _, leaf := range h.Leaves {
+			s.peerLeaves[leaf.Hash] = struct{}{}
+		}
+		s.mu.Unlock()
+	}
 	for _, ref := range HandshakeRefs(h) {
 		s.trackAnnounced(fromPeer, ref.Hash)
 	}
