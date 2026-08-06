@@ -44,7 +44,7 @@ const (
 // touch.
 //
 // GuestMemory permission checks (Layer 1) mirror interpreter isReadable/isWriteable:
-// walk the page table (ctx.pages) populated by mapSegment and sbrk SetPageAccess.
+// walk the page table (ctx.pages) populated by mapSegment and grow_heap SetPageAccess.
 // stackStart == JITContext.heapLimit.
 type guestSegments struct {
 	roStart, roEnd        uint64 // read-only program code/data (padded)
@@ -62,7 +62,7 @@ type JITContext struct {
 	guestMem       []byte         // rawMem[ControlRegionSize : ControlRegionSize+GuestMemorySize]
 	executableMem  *ExecutableMemory
 	trampolineAddr uintptr               // cached entry trampoline for this executable memory
-	heapLimit      uint64                // stackStart; sbrk must not grow past this (A.36 / instSbrkMeta)
+	heapLimit      uint64                // stackStart; grow_heap must not grow past this
 	seg            guestSegments         // segment boundaries (init layout metadata)
 	pages          map[uint32]pageAccess // Layer-1 page permissions for host-call checks
 }
@@ -221,7 +221,26 @@ const (
 	OffsetDjumpTable    = 176 // R15 - 176: uintptr — jump table rodata in ExecutableMemory
 	OffsetDjumpBitmask  = 184 // R15 - 184: uintptr — bitmask rodata in ExecutableMemory
 	OffsetDjumpDispatch = 192 // R15 - 192: uintptr — PC→native dispatch table ([]uintptr)
+
+	// GP 0.8.0 formula A.7: block gas pre-charge flag (gaschargedflag)
+	OffsetGasCharged = 200 // R15 - 200: uint8 (1=charged, 0=not)
 )
+
+// ReadGasCharged returns the block gas pre-charge flag.
+func (ctx *JITContext) ReadGasCharged() bool {
+	off := ControlRegionSize - OffsetGasCharged
+	return ctx.rawMem[off] != 0
+}
+
+// WriteGasCharged sets the block gas pre-charge flag.
+func (ctx *JITContext) WriteGasCharged(v bool) {
+	off := ControlRegionSize - OffsetGasCharged
+	if v {
+		ctx.rawMem[off] = 1
+	} else {
+		ctx.rawMem[off] = 0
+	}
+}
 
 // HasMemAccess returns true if the last instruction recorded a memory access.
 func (ctx *JITContext) HasMemAccess() bool {

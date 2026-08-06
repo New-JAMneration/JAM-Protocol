@@ -19,8 +19,23 @@ func (c *Compiler) emitTrap(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	return nil
 }
 
-// opcode 1: fallthrough — no-op
+// opcode 1: fallthrough — sjump(ι + 1 + skip(ι)); epilogue links to the target.
 func (c *Compiler) emitFallthrough(a *asm.Assembler, instr *PVM.InstrMeta) error {
+	pc := instr.PC
+	targetPC := fallthroughPC(instr)
+	if !c.program.Bitmasks.IsStartOfBasicBlock(targetPC) {
+		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
+		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
+		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
+		a.Jmp(a.ExitTrampoline())
+		return nil
+	}
+	a.Nop()
+	return nil
+}
+
+// opcode 2: unlikely — hint only, no mutation (GP 0.8.0)
+func (c *Compiler) emitUnlikely(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	_ = instr
 	a.Nop()
 	return nil

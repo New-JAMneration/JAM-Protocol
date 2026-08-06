@@ -32,6 +32,11 @@ type GuestMemory interface {
 	IsWriteable(addr, length uint64) bool
 	Read(addr, length uint64) []byte // caller must have checked IsReadable
 	Write(addr uint64, data []byte)  // caller must have checked IsWriteable
+
+	// B.5 Ω_♊: heap state in page indices.
+	HeapPages() uint64              // h: current heap-top page index
+	HeapMaxPages() uint64           // b: max possible heap-top page index
+	GrowHeapTo(targetPage uint64)   // expand heap to targetPage (caller ensures h < target ≤ b)
 }
 
 // pagedGuestMemory adapts the interpreter's paged Memory to GuestMemory.
@@ -74,4 +79,25 @@ func (p pagedGuestMemory) Read(addr, length uint64) []byte {
 // Writeable. Mirrors Memory.Write.
 func (p pagedGuestMemory) Write(addr uint64, data []byte) {
 	p.mem.Write(addr, data)
+}
+
+func (p pagedGuestMemory) HeapPages() uint64 {
+	return p.mem.heapPointer / uint64(ZP)
+}
+
+func (p pagedGuestMemory) HeapMaxPages() uint64 {
+	return p.mem.heapLimit / uint64(ZP)
+}
+
+// GrowHeapTo expands the heap so pages [h..targetPage) become writable.
+// Caller has already verified h < targetPage ≤ b.
+func (p pagedGuestMemory) GrowHeapTo(targetPage uint64) {
+	mem := p.mem
+	newHP := targetPage * uint64(ZP)
+	oldBound := P(int(mem.heapPointer))
+	newBound := P(int(newHP))
+	if newHP > uint64(oldBound) {
+		allocateMemorySegment(mem, uint32(mem.heapPointer), uint32(newBound), nil, MemoryReadWrite)
+	}
+	mem.heapPointer = newHP
 }

@@ -5,7 +5,7 @@ type InstrCategory uint8
 
 const (
 	InstrCatInvalid      InstrCategory = iota // not a valid opcode
-	InstrCatNoArg                             // 0, 1
+	InstrCatNoArg                             // 0-2
 	InstrCatOneImm                            // 10
 	InstrCatOneRegExtImm                      // 20
 	InstrCatTwoImm                            // 30-33
@@ -13,7 +13,7 @@ const (
 	InstrCatOneRegOneImm                      // 50-62
 	InstrCatOneRegTwoImm                      // 70-73
 	InstrCatOneRegImmOff                      // 80-90
-	InstrCatTwoReg                            // 100-111
+	InstrCatTwoReg                            // 100-110
 	InstrCatTwoRegOneImm                      // 120-161
 	InstrCatTwoRegOneOff                      // 170-175
 	InstrCatTwoRegTwoImm                      // 180
@@ -27,16 +27,16 @@ type OpcodeInfo struct {
 	IsTerminator bool // ends a basic block
 	IsLoad       bool // guest memory read (μ)
 	IsStore      bool // guest memory write (μ)
-	// TODO(gas-model): add OpcodeResource when integrating GP v0.8.0 gas cost model.
-	// Resource OpcodeResource  // cycles, decode slots, exec units (A.10)
+	// Gas costs (A.10) are resolved in gas_opcode.go / InstructionCost.
 }
 
 // opcodeInfoTable is indexed by the raw opcode byte (0–255).
 // Invalid opcodes have zero-value entries (Category == InstrCatInvalid).
 var opcodeInfoTable = [256]OpcodeInfo{
-	// A.5.1 No-argument (terminators)
+	// A.5.1 No-argument
 	0: {Name: "trap", Category: InstrCatNoArg, IsTerminator: true},
 	1: {Name: "fallthrough", Category: InstrCatNoArg, IsTerminator: true},
+	2: {Name: "unlikely", Category: InstrCatNoArg, IsTerminator: false}, // GP 0.8.0: hint only
 
 	// A.5.2 One immediate
 	10: {Name: "ecalli", Category: InstrCatOneImm, IsTerminator: false},
@@ -87,19 +87,18 @@ var opcodeInfoTable = [256]OpcodeInfo{
 	89: {Name: "branch_ge_s_imm", Category: InstrCatOneRegImmOff, IsTerminator: true},
 	90: {Name: "branch_gt_s_imm", Category: InstrCatOneRegImmOff, IsTerminator: true},
 
-	// A.5.9 Two registers
+	// A.5.9 Two registers | GP 0.8.0: sbrk removed, 102-111→101-110
 	100: {Name: "move_reg", Category: InstrCatTwoReg, IsTerminator: false},
-	101: {Name: "sbrk", Category: InstrCatTwoReg, IsTerminator: false},
-	102: {Name: "count_set_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
-	103: {Name: "count_set_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
-	104: {Name: "leading_zero_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
-	105: {Name: "leading_zero_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
-	106: {Name: "trailing_zero_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
-	107: {Name: "trailing_zero_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
-	108: {Name: "sign_extend_8", Category: InstrCatTwoReg, IsTerminator: false},
-	109: {Name: "sign_extend_16", Category: InstrCatTwoReg, IsTerminator: false},
-	110: {Name: "zero_extend_16", Category: InstrCatTwoReg, IsTerminator: false},
-	111: {Name: "reverse_bytes", Category: InstrCatTwoReg, IsTerminator: false},
+	101: {Name: "count_set_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
+	102: {Name: "count_set_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
+	103: {Name: "leading_zero_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
+	104: {Name: "leading_zero_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
+	105: {Name: "trailing_zero_bits_64", Category: InstrCatTwoReg, IsTerminator: false},
+	106: {Name: "trailing_zero_bits_32", Category: InstrCatTwoReg, IsTerminator: false},
+	107: {Name: "sign_extend_8", Category: InstrCatTwoReg, IsTerminator: false},
+	108: {Name: "sign_extend_16", Category: InstrCatTwoReg, IsTerminator: false},
+	109: {Name: "zero_extend_16", Category: InstrCatTwoReg, IsTerminator: false},
+	110: {Name: "reverse_bytes", Category: InstrCatTwoReg, IsTerminator: false},
 
 	// A.5.10 Two reg + one imm (store_ind, load_ind, arithmetic)
 	120: {Name: "store_ind_u8", Category: InstrCatTwoRegOneImm, IsTerminator: false, IsStore: true},

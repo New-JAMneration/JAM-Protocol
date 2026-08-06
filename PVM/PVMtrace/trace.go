@@ -8,7 +8,7 @@ package PVMtrace
 
 const (
 	FormatVersion    = 1
-	GraypaperVersion = "0.7.2"
+	GraypaperVersion = "0.8.0" // GP 0.8.0: conformance re-gate pending official test vectors
 
 	BackendInterpreter = "interpreter"
 	BackendRecompiler  = "recompiler"

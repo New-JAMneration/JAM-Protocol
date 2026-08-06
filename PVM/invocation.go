@@ -1,7 +1,7 @@
 package PVM
 
-// Currently keep for refine host-call -> invoke host-call transition
-// per-instruction based of (A.1) ψ_1,
+// SingleStepInvoke is kept for GP 0.7.2; deprecated for v0.8.0 and later.
+// Used by refine host-call → invoke host-call transition (per-instruction gas).
 func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	for {
 		exitReason, pcPrime := interp.SingleStepStateTransition(pc)
@@ -17,7 +17,8 @@ func (interp *Interpreter) SingleStepInvoke(pc ProgramCounter) (ExitReason, Prog
 	}
 }
 
-// (v.0.7.1 A.6, A.7) SingleStepStateTransition
+// SingleStepStateTransition is kept for GP 0.7.2; deprecated for v0.8.0 and later.
+// Per-instruction gas charging (1 gas per instruction).
 func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	// check program-counter exceed blob length
 	if int(pc) >= len(interp.Program.InstructionData) {
@@ -60,13 +61,11 @@ func (interp *Interpreter) SingleStepStateTransition(pc ProgramCounter) (ExitRea
 
 	// iota' = iota + 1 +skip(iota)
 	newPC += skipLength + 1
-	// detailed instruction print
-	// logger.Debugf("instr:%s(%d) pc=%d operand=%v gas=%d registers=%x", zeta[opcode(opcodeData)], opcodeData, programCounter, instructionCode[programCounter:programCounter+skipLength+1], interp.Gas, interp.Registers)
-	// logger.Debugf("       gas : %d -> %d", interp.Gas+gasDelta, interp.Gas)
-
 	return exitReason, newPC
 }
 
+// SingleStepInvokeDecodedBlocks is kept for GP 0.7.2; deprecated for v0.8.0 and later.
+// Pre-decoded block execution with per-instruction gas charging.
 func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (ExitReason, ProgramCounter) {
 	prog := interp.Program
 	instrSlice := prog.Instrs
@@ -78,7 +77,6 @@ func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (Exi
 		}
 
 		var startIdx, endIdx int
-
 		if block := prog.BlockAt[pc]; block != nil {
 			startIdx = block.InstrStart
 			endIdx = block.InstrEnd
@@ -143,27 +141,241 @@ func (interp *Interpreter) SingleStepInvokeDecodedBlocks(pc ProgramCounter) (Exi
 	}
 }
 
-// block based version of (A.1) ψ_1
+// BlockBasedInvoke: runtime DecodeInstructionBlock + A.9 block gas via pre-decoded
+// BlockMeta (tests / legacy). Requires preDecodeBlocks on prog.
+// Production: outer Ψ_M → BlockBasedInvokeDecodedBlocks; refine Ω_K invoke → same.
 func (interp *Interpreter) BlockBasedInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
-	// decode instructions in a block
-	pcPrime, _, exitReason := DecodeInstructionBlock(interp.Program.InstructionData, pc, interp.Program.Bitmasks)
-	if exitReason.GetReasonType() != CONTINUE {
-		pvmLogger.Errorf("DecodeInstructionBlock error : %v", exitReason)
-		return exitReason, 0
+	prog := interp.Program
+	if prog == nil {
+		return ExitPanic, 0
 	}
 
-	// execute instructions in the block
-	pc, exitReason = interp.ExecuteInstructions(pc, pcPrime)
-	reason := exitReason.GetReasonType()
-	switch reason {
-	case PANIC, HALT:
-		return exitReason, 0
-	case HOST_CALL, OUT_OF_GAS:
-		return exitReason, pc
+	for {
+		blockStart, ok := containingBlockStart(pc, prog.Bitmasks)
+		if !ok {
+			return ExitPanic, 0
+		}
+
+		pcPrime, _, exitReason := DecodeInstructionBlock(prog.InstructionData, blockStart, prog.Bitmasks)
+		if exitReason.GetReasonType() != CONTINUE {
+			pvmLogger.Errorf("DecodeInstructionBlock error : %v", exitReason)
+			return exitReason, 0
+		}
+
+		block := prog.BlockContaining(pc)
+		if block == nil {
+			return ExitPanic, 0
+		}
+
+		if !interp.GasCharged {
+			cost := blockGasAtPC(prog, pc, block)
+			if interp.Gas < cost {
+				return ExitOOG, pc
+			}
+			interp.Gas -= cost
+			interp.GasCharged = true
+		}
+
+		pc, exitReason = interp.ExecuteInstructions(pc, pcPrime)
+		switch exitReason.GetReasonType() {
+		case PANIC, HALT:
+			return exitReason, 0
+		case HOST_CALL, OUT_OF_GAS, PAGE_FAULT:
+			return exitReason, pc
+		case CONTINUE:
+			// fallthrough to next block
+		default:
+			return ExitPanic, 0
+		}
+	}
+}
+
+// containingBlockStart is 𝔏(pc) via the bitmask: nearest basic-block start
+// at or before pc. pc itself must be an instruction start.
+func containingBlockStart(pc ProgramCounter, bitmask Bitmask) (ProgramCounter, bool) {
+	if !bitmask.IsStartOfInstruction(int(pc)) {
+		return 0, false
+	}
+	for b := pc; ; b-- {
+		if bitmask.IsStartOfBasicBlock(b) {
+			return b, true
+		}
+		if b == 0 {
+			return 0, false
+		}
+	}
+}
+
+// gasChargedForIntegratedResume decides whether integrated gaschargedflag may be
+// restored for inner Ψ at pc. A stored ⊤ at a basic-block entry is treated as
+// stale so block gas is charged again (A.4).
+func gasChargedForIntegratedResume(prog *Program, pc ProgramCounter, stored bool) bool {
+	if !stored || prog == nil {
+		return false
+	}
+	blockStart, ok := prog.StartOfBasicBlock(pc)
+	if !ok {
+		return false
+	}
+	if pc == blockStart {
+		return false
+	}
+	return true
+}
+
+// blockGasAtPC returns A.9 block gas for entering at pc within block.
+// Uses cached block.GasCost at block entry; suffix GasCostFromPC mid-block.
+func blockGasAtPC(prog *Program, pc ProgramCounter, block *BlockMeta) Gas {
+	if pc == block.StartPC {
+		return block.GasCost
+	}
+	return GasCostFromPC(prog, pc)
+}
+
+// BlockBasedInvokeDecodedBlocks: pre-decoded blocks + A.7 gas. Production path for
+// outer Ψ_M (MachineInvoke) and refine Ω_K invoke (host_call_refine).
+func (interp *Interpreter) BlockBasedInvokeDecodedBlocks(pc ProgramCounter) (ExitReason, ProgramCounter) {
+	prog := interp.Program
+	if prog == nil {
+		return ExitPanic, 0
 	}
 
-	// reason == CONTINUE
-	return interp.BlockBasedInvoke(pc)
+	for {
+		if int(pc) >= len(prog.InstrIdxAt) {
+			return ExitPanic, 0
+		}
+
+		instrIdx := prog.InstrIdxAt[pc]
+		block := prog.BlockContaining(pc)
+		if instrIdx < 0 || block == nil {
+			return ExitPanic, 0
+		}
+
+		startIdx := int(instrIdx)
+		if startIdx < block.InstrStart || startIdx >= block.InstrEnd {
+			return ExitPanic, 0
+		}
+
+		if !interp.GasCharged {
+			blockGas := blockGasAtPC(prog, pc, block)
+			if interp.Gas < blockGas {
+				return ExitOOG, pc
+			}
+			interp.Gas -= blockGas
+			interp.GasCharged = true
+		}
+
+		instrs := prog.Instrs[startIdx:block.InstrEnd]
+		branchTaken := false
+		for i := range instrs {
+			instr := &instrs[i]
+
+			var src1Val, src2Val uint64
+			if instr.Src[0] != 0xff {
+				src1Val = interp.Registers[instr.Src[0]]
+			}
+			if instr.Src[1] != 0xff {
+				src2Val = interp.Registers[instr.Src[1]]
+			}
+
+			exitReason, newPC := instr.Exec(interp, instr)
+			interp.recordInstrTraceStepAfterMeta(instr, src1Val, src2Val)
+
+			reason := exitReason.GetReasonType()
+			if IsBlockTerminator(instr.Opcode) && (reason == CONTINUE || reason == HOST_CALL) {
+				interp.GasCharged = false
+			}
+
+			switch reason {
+			case PANIC, HALT:
+				return exitReason, 0
+			case PAGE_FAULT, OUT_OF_GAS:
+				return exitReason, instr.PC
+			case HOST_CALL:
+				return exitReason, instr.PC + ProgramCounter(instr.SkipLen) + 1
+			}
+
+			if instr.PC != newPC {
+				pc = newPC
+				branchTaken = true
+				break
+			}
+		}
+
+		if !branchTaken {
+			last := &instrs[len(instrs)-1]
+			pc = last.PC + ProgramCounter(last.SkipLen) + 1
+		}
+	}
+}
+
+// DebugSingleStepInvoke runs one pre-decoded instruction per iteration with
+// block-level gas pre-charge (A.7). Used by pvmtrace to emit per-instruction
+// streams aligned with recompiler DebugSingleStepInvoke.
+func (interp *Interpreter) DebugSingleStepInvoke(pc ProgramCounter) (ExitReason, ProgramCounter) {
+	prog := interp.Program
+	if prog == nil {
+		return ExitPanic, 0
+	}
+
+	for {
+		if int(pc) >= len(prog.InstrIdxAt) {
+			return ExitPanic, 0
+		}
+
+		instrIdx := prog.InstrIdxAt[pc]
+		block := prog.BlockContaining(pc)
+		if instrIdx < 0 || block == nil {
+			return ExitPanic, 0
+		}
+
+		startIdx := int(instrIdx)
+		if startIdx < block.InstrStart || startIdx >= block.InstrEnd {
+			return ExitPanic, 0
+		}
+
+		if !interp.GasCharged {
+			blockGas := blockGasAtPC(prog, pc, block)
+			if interp.Gas < blockGas {
+				return ExitOOG, pc
+			}
+			interp.Gas -= blockGas
+			interp.GasCharged = true
+		}
+
+		instr := &prog.Instrs[startIdx]
+
+		var src1Val, src2Val uint64
+		if instr.Src[0] != 0xff {
+			src1Val = interp.Registers[instr.Src[0]]
+		}
+		if instr.Src[1] != 0xff {
+			src2Val = interp.Registers[instr.Src[1]]
+		}
+
+		exitReason, newPC := instr.Exec(interp, instr)
+		interp.recordInstrTraceStepAfterMeta(instr, src1Val, src2Val)
+
+		reason := exitReason.GetReasonType()
+		if IsBlockTerminator(instr.Opcode) && (reason == CONTINUE || reason == HOST_CALL) {
+			interp.GasCharged = false
+		}
+
+		switch reason {
+		case PANIC, HALT:
+			return exitReason, 0
+		case PAGE_FAULT, OUT_OF_GAS:
+			return exitReason, instr.PC
+		case HOST_CALL:
+			return exitReason, instr.PC + ProgramCounter(instr.SkipLen) + 1
+		}
+
+		if instr.PC != newPC {
+			pc = newPC
+			continue
+		}
+		pc = instr.PC + ProgramCounter(instr.SkipLen) + 1
+	}
 }
 
 func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitmask Bitmask) (ProgramCounter, int64, ExitReason) {
@@ -177,9 +389,7 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 			return pc, 0, ExitPanic
 		}
 
-		// check opcode is valid after computing with skip
-		if !instructionData.isOpcodeValid(pcPrime) {
-			// pvmLogger.Debugf("PVM panic: decode program failed: opcode invalid")
+		if !IsValidOpcode(instructionData[pcPrime]) {
 			return pc, 0, ExitPanic
 		}
 
@@ -193,28 +403,33 @@ func DecodeInstructionBlock(instructionData ProgramCode, pc ProgramCounter, bitm
 	}
 }
 
-// execute each instruction in block[pc:pcPrime] , pcPrime is computed by DecodeInstructionBlock
-func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime ProgramCounter) (ProgramCounter, ExitReason) { // no need to worry about gas, opcode valid here, it's checked in HostCall and DecodeInstructionBlock respectively
+// ExecuteInstructions executes block[pc:pcPrime]. Gas is pre-charged at block entry.
+func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime ProgramCounter) (ProgramCounter, ExitReason) {
 	for pc <= pcPrime {
-		if interp.Gas < 1 {
-			return pc, ExitOOG
-		}
 		opcodeData := interp.Program.InstructionData[pc]
 		skipLength := ProgramCounter(skip(int(pc), interp.Program.Bitmasks))
 
-		exitReason, newPC := execInstructions[opcodeData](interp, pc, skipLength)
-		interp.Gas -= 1
-		// logger.Debug("gasPrime: ", interp.Gas)
+		target := execInstructions[opcodeData]
+		if target == nil {
+			return pc, ExitPanic
+		}
+		exitReason, newPC := target(interp, pc, skipLength)
+
 		reason := exitReason.GetReasonType()
+		if IsBlockTerminator(opcodeData) && (reason == CONTINUE || reason == HOST_CALL) {
+			interp.GasCharged = false
+		}
+
 		switch reason {
 		case PANIC, HALT:
 			return 0, exitReason
+		case PAGE_FAULT, OUT_OF_GAS:
+			return pc, exitReason
 		case HOST_CALL:
 			return pc + skipLength + 1, exitReason
 		}
 
 		if pc != newPC {
-			// check branch
 			return newPC, exitReason
 		}
 

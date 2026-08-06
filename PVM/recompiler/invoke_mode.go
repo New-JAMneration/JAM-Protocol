@@ -4,7 +4,9 @@ package recompiler
 
 import PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 
-// MachineInvoke runs native PVM execution until a non-CONTINUE exit.
+// MachineInvoke: run until non-CONTINUE exit. Forwards to BlockBasedInvoke
+// (pre-decoded blocks → native JIT; symmetrical to interpreter
+// BlockBasedInvokeDecodedBlocks). Trace routing in invoke_mode_trace.go.
 func (r *Recompiler) MachineInvoke(pc PVM.ProgramCounter) (PVM.ExitReason, PVM.ProgramCounter) {
 	return r.BlockBasedInvoke(pc)
 }

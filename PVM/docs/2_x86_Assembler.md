@@ -152,12 +152,12 @@ type CodeBuffer struct {
 Compiler 是 **single-pass**，遇到跳轉目標可能還沒 emit（forward reference）：
 
 ```
-oog := a.NewLabel()
-emitGasCheck → Jcc(oog)     ← 目標尚未存在（unbound handle）
-...（更多指令）...
-BindLabel(oog)               ← 現在存在了
+blockOOG := a.NewLabel()
+emitBlockGasCheck → Jcc(blockOOG)   ← 目標尚未存在（unbound handle）
+...（block 內指令 emit）...
+BindLabel(blockOOG)                 ← OOG landing pad
 ...
-Finalize() → ResolveFixups() ← 回填所有 placeholder
+Finalize() → ResolveFixups()        ← 回填所有 placeholder
 ```
 
 `Jcc` 會 emit `0F 8x [placeholder_4bytes]`，`ResolveFixups` 最後算出相對距離填回去。
@@ -188,7 +188,7 @@ Jcc(cc, l Label)    // fixups append {l, 洞位置}
 |------|------|------|
 | ① 區域 label（最大宗）：taken、halt、djump_miss/panic、chain_miss、div 系列 | 名字編入 PC 保唯一 | 產生與使用在同一 emit 函式內 → `l := a.NewLabel()` 區域變數，`NewLabel` 天生唯一，**不需任何註冊** |
 | ② 跨 emit 函式、per-block 共用：exit trampoline | 各 emit 函式用字串約定 `"exit_trampoline"` | Assembler 欄位，`Reset()` 時預配，call site 用 `a.Jmp(a.ExitTrampoline())`（return_label 只在 `EmitEntryTrampoline` 內自產自用，屬 ①） |
-| ③ 成對但分離的 per-PC：OOG landing pad | hot 端先引用、cold 端後 bind，靠「同 PC 算同名」對上 | **不用 map[PC]Label**——編譯迴圈按同序走兩遍，用 index 對齊的 slice：迴圈前 `oogLabels := make([]asm.Label, len(instrs))` 一次配好，`emitGasCheck` 與 landing-pad 迴圈都用 `oogLabels[i]` |
+| ③ block 入口 OOG landing pad | hot 端先引用、cold 端後 bind | block 開頭 `emitBlockGasCheck` 引用 `blockOOG`；指令 loop 後 `emitBlockOutOfGasExit` bind 同一 label |
 
 **成本對照**（每個 label 引用點）：
 
@@ -220,16 +220,23 @@ Jcc(cc, l Label)    // fixups append {l, 洞位置}
 
 ## 4. Emit 設計模式（Compiler 層）
 
-### 4.1 每條 PVM 指令的 emit 流程
+### 4.1 Block emit 流程
 
 ```go
-// compiler.go 主迴圈（oogLabels 在迴圈前一次配好，見 §3.3.1 ③）
+// compiler.go（GP 0.8.0 block gas）
+blockOOG := a.NewLabel()
+blockGas := c.blockGasCostAt(startPC)   // A.9 GasCostFromPC / GasCostForBlock
+c.emitBlockGasCheck(a, blockOOG, blockGas)
+
 for i := range instrs {
     instr := &instrs[i]
-    c.emitGasCheck(a, oogLabels[i])       // 2 條 x86（sub + js，見 §4.5）
+    if i == len(instrs)-1 && IsBlockTerminator(instr.Opcode) {
+        emitGasCharged(a, false)       // 離開 block 重置 gaschargedflag
+    }
     handler := opcodeHandlers[instr.Opcode]
-    handler(c, a, instr)                   // PVM opcode → x86 序列
+    handler(c, a, instr)               // PVM opcode → x86 序列
 }
+emitBlockOutOfGasExit(a, blockOOG, blockMeta.StartPC, blockGas)
 ```
 
 ### 4.2 opcodeHandlers dispatch table
@@ -266,7 +273,7 @@ opcodeHandlers[131] = (*Compiler).emitAddImm32  // add_imm
 | `emit_arith_three.go` | 兩個 reg 的算術（add、sub、mul、div、shift、bitwise） |
 | `emit_two_reg.go` | 兩 reg 特殊操作（move_reg、sbrk、clz、ctz、popcnt、bswap） |
 | `emit_branch.go` | branch（條件跳轉）、djump（indirect jump） |
-| `gas.go` | per-instruction / block-based gas check emit |
+| `gas.go` | block-level gas check emit（`emitBlockGasCheck` / `emitBlockOutOfGasExit`） |
 | `emit_record_mem.go` | debug trace 的 memory access 記錄 |
 
 ### 4.4 Memory 存取的 emit 模式
@@ -285,36 +292,35 @@ MOV [R15 + RCX], src32
 
 如果地址越界（碰到 PROT_NONE page）→ 硬體 SIGSEGV → signal handler 捕獲 → ExitPageFault。
 
-### 4.5 Gas Check emit（GP v0.7.2 per-instruction，charge+check 融合）
+### 4.5 Gas Check emit（GP 0.8.0 block-level，A.4 / A.9）
 
-**為什麼融合**：早期版本每條 PVM 指令插 4 條 x86（`MOV` 讀 gas → `TEST` → `Jcc` →
-`SUB` 扣費），2 次 memory op。而 payload 本身（如 `ADD r64,r64`）常常只有 1 條 —
-gas 協議是 emitted code 熱路徑的最大宗（常為 payload 的 2–6 倍）。把扣費與檢查融合
-成 `SUB` + `JS` 後開銷減半（4→2 條、2→1 次 memory op），且不必等 GP 0.8.0 的
-block-based gas：語意仍是 per-instruction，只是換一個等價的檢查形式。實測
-conformance run 桶 883ms → 838ms（-5%）。
+GP 0.8.0 改為 **basic block 入口一次性 pre-charge**（`gascostforblock`），recompiler 在 compile 時用 `blockGasCostAt(startPC)` 算出成本並 bake 進 native code。mid-block resume（host call 返回等）編譯 suffix block，gas 同樣在 suffix 入口一次扣除。
 
-每條 PVM 指令前插入 2 條 x86（扣費與檢查融合）：
+Block 開頭插入 gas check（扣費與檢查融合）：
 
 ```asm
-SUB qword [R15 - 48], 1        // 扣 1 gas
-JS  oog_i                      // 結果 < 0 ⟺ 扣費前 gas < 1 → 跳 OOG exit
+; gaschargedflag == 0 時才扣費
+TEST byte [R15 - gasChargedOff], 0
+JNE  charged
+SUB  qword [R15 - 48], blockGas    // 扣整段 block gas
+JS   block_oog                     // 結果 < 0 → OOG
+MOV  byte [R15 - gasChargedOff], 1
+charged:
+; ... block 指令 payload ...
 ```
 
-等價性：進 block 時 gas 永遠 ≥ 0,所以 `post < 0 ⟺ pre ≤ 0 ⟺ pre < 1`——與
-interpreter 的 `Gas < 1` 判斷相同,兩個 backend 在同一條指令停下。
-
-Block epilogue 再 emit 每指令的 OOG landing pad（`oog_i` 是 §3.3.1 ③ 的
-index 對齊 label）：
+OOG landing pad（interpreter OOG 不扣費，需補回）：
 
 ```asm
-oog_i:
-  SUB qword [R15-48], -1       // 把融合扣掉的 1 補回（interpreter OOG 不扣費）
-  MOV dword [R15-32], pc       // 設 ExitPC
-  MOV RCX, ExitOOG             // 設 ExitReason
+block_oog:
+  SUB qword [R15-48], -blockGas    // 把剛扣的 block gas 補回
+  MOV dword [R15-32], blockStartPC // 設 ExitPC = block 起始 PC（A.4）
+  MOV RCX, ExitOOG
   MOV [R15-40], RCX
   JMP exit_trampoline
 ```
+
+> **歷史**：v0.7.2 曾用 per-instruction `SUB [gas], 1` + 每指令 OOG pad；GP 0.8.0 改 block gas 後已移除。
 
 ---
 

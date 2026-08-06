@@ -17,7 +17,7 @@ import (
 // are kept for cheap online monitoring and per-call averages. The old
 // subtracted "exec(est) = run - compile - host" bucket has been retired: it
 // conflated native execution with dispatch glue (LockOSThread, SetFaultWindow,
-// snapshot, cache lookup, djump/sbrk resolution) and so could not tell a slow
+// snapshot, cache lookup, djump resolution) and so could not tell a slow
 // JIT from slow glue. For native-vs-glue attribution use pprof; for per-PVM-block
 // hotness use perf + a JIT symbol map. See PVM/docs/JIT_PROFILE_ANALYSIS.md.
 //

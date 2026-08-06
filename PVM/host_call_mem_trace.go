@@ -72,6 +72,18 @@ func (t *hostCallMemTracer) Write(addr uint64, data []byte) {
 	t.inner.Write(addr, data)
 }
 
+func (t *hostCallMemTracer) HeapPages() uint64 {
+	return t.inner.HeapPages()
+}
+
+func (t *hostCallMemTracer) HeapMaxPages() uint64 {
+	return t.inner.HeapMaxPages()
+}
+
+func (t *hostCallMemTracer) GrowHeapTo(targetPage uint64) {
+	t.inner.GrowHeapTo(targetPage)
+}
+
 func (t *hostCallMemTracer) detailsJSON() json.RawMessage {
 	if len(t.reads) == 0 && len(t.writes) == 0 {
 		return nil

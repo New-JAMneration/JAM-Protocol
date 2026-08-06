@@ -42,22 +42,23 @@ func NewHost(program *PVM.Program, registers PVM.Registers, memory *PVM.Memory, 
 	}
 }
 
-// (A.34) Ψ_H
+// (A.34) Ψ_H — outer loop: MachineInvoke → omega on HOST_CALL (see docs/4_HostCall_Integration.md §5).
 func (h *Host) HostCall(pc PVM.ProgramCounter, instrCount uint64) (psi_result PVM.Psi_H_ReturnType) {
 	for {
 		var exitReason PVM.ExitReason
 		var pcPrime PVM.ProgramCounter
 
-		exitReason, pcPrime = h.Interpreter.SingleStepInvokeDecodedBlocks(pc)
+		exitReason, pcPrime = h.MachineInvoke(pc)
 
 		switch exitReason.GetReasonType() {
 		case PVM.HALT, PVM.PANIC, PVM.OUT_OF_GAS, PVM.PAGE_FAULT:
 			psi_result.ExitReason = exitReason
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.VM = &PVM.VMState{
-				Registers: &h.Interpreter.Registers,
-				Mem:       PVM.NewPagedGuestMemory(h.Interpreter.Memory),
-				Gas:       &h.Interpreter.Gas,
+				Registers:  &h.Interpreter.Registers,
+				Mem:        PVM.NewPagedGuestMemory(h.Interpreter.Memory),
+				Gas:        &h.Interpreter.Gas,
+				GasCharged: h.Interpreter.GasCharged,
 			}
 			psi_result.Addition = h.Addition
 			return
@@ -70,9 +71,10 @@ func (h *Host) HostCall(pc PVM.ProgramCounter, instrCount uint64) (psi_result PV
 		var input PVM.OmegaInput
 		input.Operation = PVM.OperationType(exitReason.GetHostCallID())
 		input.VM = &PVM.VMState{
-			Registers: &h.Interpreter.Registers,
-			Mem:       tracedMem,
-			Gas:       &h.Interpreter.Gas,
+			Registers:  &h.Interpreter.Registers,
+			Mem:        tracedMem,
+			Gas:        &h.Interpreter.Gas,
+			GasCharged: h.Interpreter.GasCharged,
 		}
 		input.Addition = h.Addition
 		input.HostCalls = h.HostCalls
@@ -90,6 +92,7 @@ func (h *Host) HostCall(pc PVM.ProgramCounter, instrCount uint64) (psi_result PV
 		ecalliPC := PVM.HostCallInstrPC(h.Interpreter.Program, pcPrime)
 
 		omegaResult := omega(input)
+		h.Interpreter.GasCharged = input.VM.GasCharged
 
 		var rout [13]uint64
 		var details json.RawMessage
@@ -108,17 +111,16 @@ func (h *Host) HostCall(pc PVM.ProgramCounter, instrCount uint64) (psi_result PV
 		switch omegaResult.ExitReason {
 		case PVM.ExitContinue:
 			h.Addition = omegaResult.Addition
-			// SingleStepInvokeDecodedBlocks already returns the next instruction PC
-			// (ecalli.PC + skipLen + 1 = fallthrough PC), so no skip needed.
 			pc = pcPrime
 			continue
 		default:
 			psi_result.ExitReason = omegaResult.ExitReason
 			psi_result.Counter = uint32(pcPrime)
 			psi_result.VM = &PVM.VMState{
-				Registers: &h.Interpreter.Registers,
-				Mem:       PVM.NewPagedGuestMemory(h.Interpreter.Memory),
-				Gas:       &h.Interpreter.Gas,
+				Registers:  &h.Interpreter.Registers,
+				Mem:        PVM.NewPagedGuestMemory(h.Interpreter.Memory),
+				Gas:        &h.Interpreter.Gas,
+				GasCharged: h.Interpreter.GasCharged,
 			}
 			psi_result.Addition = omegaResult.Addition
 			return

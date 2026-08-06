@@ -24,11 +24,13 @@ type RefineOutput struct {
 	Gas           types.Gas
 }
 
-// B.4 M
+// B.4 M | GP 0.8.0: added GasCharged (gaschargedflag)
 type IntegratedPVMType struct {
-	ProgramCode ProgramCode    // p
+	ProgramCode ProgramCode    // p — raw blob from Ω_M
+	Program     *Program       // decoded at Ω_M; invoke re-validates entry PC only
 	Memory      Memory         // u
 	PC          ProgramCounter // i
+	GasCharged  bool           // GP 0.8.0 A.4: block gas pre-charge flag
 }
 
 type (

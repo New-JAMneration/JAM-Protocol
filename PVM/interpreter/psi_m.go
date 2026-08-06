@@ -33,7 +33,7 @@ func psiMInterpreter(
 
 	// Cross-invocation cache: reuse the deblob'd *Program by CodeHash (shared with
 	// the recompiler backend; keeps the comparison fair). Read-only, safe to share.
-	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode)
+	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode, uint64(counter))
 	if exitReason != PVM.ExitContinue {
 		return PVM.Psi_M_ReturnType{
 			Gas:           0,

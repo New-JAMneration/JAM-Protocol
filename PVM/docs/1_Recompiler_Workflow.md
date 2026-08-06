@@ -60,17 +60,19 @@ host.HostCall ─────────────────── 外層�
 ```
 CompileBasicBlock(startPC)
   1. 從 Program.BlockAt[startPC] 取 BlockMeta + 指令切片
-  2. 對每條指令：
-       emitGasCheck (GP v0.7.2: load / test / sub / OOG label)
+  2. blockGas = blockGasCostAt(startPC)（A.9，compile 時 bake 進 native code）
+  3. emitBlockGasCheck(blockGas) + block OOG landing pad
+  4. 對每條指令：
        opcodeHandlers[opcode](c, asm, instr) → emit x86 指令
-  3. Block epilogue：
+       terminator 最後一條 → emitGasCharged(false)（離開 block 重置 flag）
+  5. Block epilogue：
        fallthrough 目標已編譯 → JMP NativeAddr（compile-time link）
        否則 → emitChainOrExit：runtime 查 PC→native dispatch table，
               hit 直接 jmp 進目標；miss 才寫 CONTINUE + 下一 PC → exit_trampoline
-  4. 每指令 OOG landing pad + EmitExitTrampoline
-  5. Assembler.Finalize() → []byte（機器碼）
-  6. em.Write(code) → 寫入 ExecutableMemory
-  7. CodeCache.Put + registerDispatch（djump dispatch table）
+  6. EmitExitTrampoline
+  7. Assembler.Finalize() → []byte（機器碼）
+  8. em.Write(code) → 寫入 ExecutableMemory
+  9. CodeCache.Put + registerDispatch（djump dispatch table）
 ```
 
 ### 寫入 ExecutableMemory（Dual Mapping，零 mprotect）

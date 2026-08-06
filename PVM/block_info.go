@@ -5,13 +5,14 @@ import "encoding/binary"
 // InstrMeta holds pre-decoded metadata for a single PVM instruction.
 // Populated once at deblob time; never mutated afterwards.
 type InstrMeta struct {
-	PC      ProgramCounter // 4B
-	Opcode  byte           // 1B
-	SkipLen uint8          // 1B, max 24
-	Dst     uint8          // 1B, destination reg index (0xFF = none)
-	Src     [2]uint8       // 2B, source reg indices (0xFF = unused)
-	Exec    instrMetaFn    // pre-resolved handler; set at deblob time
-	Imm     [2]uint64      // 16B, immediates / branch target PC
+	PC         ProgramCounter // 4B
+	Opcode     byte           // 1B
+	SkipLen    uint8          // 1B, max 24
+	Dst        uint8          // 1B, destination reg index (0xFF = none)
+	Src        [2]uint8       // 2B, source reg indices (0xFF = unused)
+	BlockStart ProgramCounter // 4B, 𝔏(PC) (A.6): start of the enclosing basic block
+	Exec       instrMetaFn    // pre-resolved handler; set at deblob time
+	Imm        [2]uint64      // 16B, immediates / branch target PC
 }
 
 // BlockMeta holds pre-decoded metadata for a single PVM basic block.
@@ -21,7 +22,7 @@ type BlockMeta struct {
 	EndPC      ProgramCounter // PC of the terminating instruction (inclusive)
 	InstrStart int            // index into Program.Instrs[]
 	InstrEnd   int            // exclusive upper bound into Program.Instrs[]
-	GasCost    Gas            // v0.7.2: = InstrCount; TODO(gas-model): = simulatePipeline()
+	GasCost    Gas            // A.9 gascostforblock = max(cycles − 3, 1)
 }
 
 // InstrCount returns the number of instructions in this block.
@@ -145,13 +146,17 @@ func decodeOperands(instr *InstrMeta, idata ProgramCode, bitmask Bitmask) {
 	}
 }
 
-// preDecodeBlocks performs a single-pass scan of the entire program blob,
-// populating Program.Instrs, Program.BlockAt, and Program.InstrIdxAt.
-// Called once at the end of DeBlobProgramCode.
+// preDecodeBlocks builds InstrMeta / BlockMeta and caches A.9 gas per block.
+// If code ends without a terminator, the prefix is still emitted; bad PCs panic
+// at execution. Mid-stream 𝔳_inst failures remain fatal.
 func (p *Program) preDecodeBlocks() ExitReason {
 	idata := p.InstructionData
 	bitmask := p.Bitmasks
 	n := len(idata)
+
+	if len(bitmask) != n || n == 0 {
+		return ExitPanic
+	}
 
 	p.Instrs = make([]InstrMeta, 0, n/4)
 	p.BlockAt = make([]*BlockMeta, n)
@@ -160,54 +165,63 @@ func (p *Program) preDecodeBlocks() ExitReason {
 		p.InstrIdxAt[i] = -1
 	}
 
-	pc := ProgramCounter(0)
-	for pc < ProgramCounter(n) {
-		if !bitmask.IsStartOfBasicBlock(pc) {
-			pc++
-			continue
-		}
+	blockStartPC := 0
+	blockInstrStart := 0
 
+	// emitBlock writes BlockMeta + gas for [blockStartPC, endPC].
+	// Used on terminators and at EOF when the last op is not a terminator.
+	emitBlock := func(endPC int) {
 		block := &BlockMeta{
-			StartPC:    pc,
-			InstrStart: len(p.Instrs),
+			StartPC:    ProgramCounter(blockStartPC),
+			EndPC:      ProgramCounter(endPC),
+			InstrStart: blockInstrStart,
+			InstrEnd:   len(p.Instrs),
 		}
-
-		for {
-			if pc >= ProgramCounter(n) {
-				return ExitPanic
-			}
-			op := idata[pc]
-			if !IsValidOpcode(op) {
-				return ExitPanic
-			}
-
-			skipLen := skip(int(pc), bitmask)
-
-			idx := len(p.Instrs)
-			p.Instrs = append(p.Instrs, InstrMeta{
-				PC:      pc,
-				Opcode:  op,
-				SkipLen: uint8(skipLen),
-				Exec:    instrMetaExecForOpcode(op),
-			})
-			p.InstrIdxAt[pc] = int32(idx)
-
-			decodeOperands(&p.Instrs[idx], idata, bitmask)
-
-			if IsBlockTerminator(op) {
-				block.EndPC = pc
-				block.InstrEnd = len(p.Instrs)
-				block.GasCost = Gas(block.InstrEnd - block.InstrStart)
-				p.BlockAt[block.StartPC] = block
-				pc += ProgramCounter(skipLen) + 1
-				break
-			}
-
-			pc += ProgramCounter(skipLen) + 1
+		block.GasCost = GasCostForBlock(p, block.StartPC)
+		for i := block.InstrStart; i < block.InstrEnd; i++ {
+			p.Instrs[i].BlockStart = block.StartPC
 		}
+		p.BlockAt[blockStartPC] = block
 	}
 
-	return ExitContinue
+	for pc := 0; ; {
+		if pc >= n {
+			// Code ended mid-block (no terminator): keep the prefix block.
+			if blockInstrStart < len(p.Instrs) {
+				emitBlock(int(p.Instrs[len(p.Instrs)-1].PC))
+			}
+			return ExitContinue
+		}
+
+		skipLen := skip(pc, bitmask)
+		next := pc + 1 + int(skipLen)
+
+		// 𝔳_inst: every step of the walk lands on a defined instruction.
+		if !validInst(idata, bitmask, uint64(pc)) {
+			return ExitPanic
+		}
+
+		op := idata[pc]
+		idx := len(p.Instrs)
+		p.Instrs = append(p.Instrs, InstrMeta{
+			PC:      ProgramCounter(pc),
+			Opcode:  op,
+			SkipLen: uint8(skipLen),
+			Exec:    instrMetaExecForOpcode(op),
+		})
+		p.InstrIdxAt[pc] = int32(idx)
+
+		decodeOperands(&p.Instrs[idx], idata, bitmask)
+
+		if IsBlockTerminator(op) {
+			emitBlock(pc)
+			// ϖ | A.3: the index following a terminator starts the next block.
+			blockStartPC = next
+			blockInstrStart = len(p.Instrs)
+		}
+
+		pc = next
+	}
 }
 
 // LookupBlock returns the pre-decoded BlockMeta for a basic block starting at pc.
@@ -219,22 +233,29 @@ func (p *Program) LookupBlock(pc ProgramCounter) *BlockMeta {
 	return p.BlockAt[pc]
 }
 
+// StartOfBasicBlock is 𝔏(ι) | A.3: the start of the basic block containing pc.
+// Reports false when pc is not an instruction start, for which 𝔏 is undefined.
+func (p *Program) StartOfBasicBlock(pc ProgramCounter) (ProgramCounter, bool) {
+	if int(pc) >= len(p.InstrIdxAt) {
+		return 0, false
+	}
+	idx := p.InstrIdxAt[pc]
+	if idx < 0 {
+		return 0, false
+	}
+	return p.Instrs[idx].BlockStart, true
+}
+
 // BlockContaining returns the BlockMeta whose instruction range includes pc.
 // LookupBlock only works at block entry PCs; this resolves mid-block resume PCs
-// (e.g. after sbrk returns to Go and continues at the fallthrough instruction).
+// (e.g. after a host-call returns to Go and continues at the next instruction).
 func (p *Program) BlockContaining(pc ProgramCounter) *BlockMeta {
 	if b := p.LookupBlock(pc); b != nil {
 		return b
 	}
-	idx := p.InstrIdxAt[pc]
-	if idx < 0 {
+	start, ok := p.StartOfBasicBlock(pc)
+	if !ok {
 		return nil
 	}
-	i := int(idx)
-	for _, b := range p.BlockAt {
-		if b != nil && i >= b.InstrStart && i < b.InstrEnd {
-			return b
-		}
-	}
-	return nil
+	return p.LookupBlock(start)
 }

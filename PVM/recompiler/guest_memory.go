@@ -230,3 +230,27 @@ func (g jitGuestMemory) Read(addr, length uint64) []byte {
 func (g jitGuestMemory) Write(addr uint64, data []byte) {
 	copy(g.ctx.guestMem[addr:addr+uint64(len(data))], data)
 }
+
+func (g jitGuestMemory) HeapPages() uint64 {
+	return g.ctx.ReadHeapPointer() / PVM.ZP
+}
+
+func (g jitGuestMemory) HeapMaxPages() uint64 {
+	return g.ctx.heapLimit / PVM.ZP
+}
+
+// GrowHeapTo expands the heap to targetPage, mprotecting new pages as RW.
+// Caller has already verified h < targetPage ≤ b.
+func (g jitGuestMemory) GrowHeapTo(targetPage uint64) {
+	ctx := g.ctx
+	oldHP := ctx.ReadHeapPointer()
+	newHP := targetPage * PVM.ZP
+	oldBound := PVM.P(int(oldHP))
+	newBound := PVM.P(int(newHP))
+	if newHP > uint64(oldBound) {
+		for addr := uint32(oldHP); addr < uint32(newBound); addr += PVM.ZP {
+			_ = ctx.SetPageAccess(addr/PVM.ZP, unix.PROT_READ|unix.PROT_WRITE)
+		}
+	}
+	ctx.WriteHeapPointer(newHP)
+}

@@ -10,6 +10,8 @@ func instrMetaExecForOpcode(op byte) instrMetaFn {
 		return instTrapMeta
 	case 1:
 		return instFallthroughMeta
+	case 2:
+		return instUnlikelyMeta
 	case 10:
 		return instEcalliMeta
 	case 20:
@@ -58,31 +60,31 @@ func instrMetaExecForOpcode(op byte) instrMetaFn {
 		return instStoreImmIndU32Meta
 	case 73:
 		return instStoreImmIndU64Meta
-	case 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90:
+	case 80:
+		return instLoadImmJumpMeta
+	case 81, 82, 83, 84, 85, 86, 87, 88, 89, 90:
 		return instImmediateBranchMeta
 	case 100:
 		return instMoveRegMeta
 	case 101:
-		return instSbrkMeta
-	case 102:
 		return instCountSetBits64Meta
-	case 103:
+	case 102:
 		return instCountSetBits32Meta
-	case 104:
+	case 103:
 		return instLeadingZeroBits64Meta
-	case 105:
+	case 104:
 		return instLeadingZeroBits32Meta
-	case 106:
+	case 105:
 		return instTrailZeroBits64Meta
-	case 107:
+	case 106:
 		return instTrailZeroBits32Meta
-	case 108:
+	case 107:
 		return instSignExtend8Meta
-	case 109:
+	case 108:
 		return instSignExtend16Meta
-	case 110:
+	case 109:
 		return instZeroExtend16Meta
-	case 111:
+	case 110:
 		return instReverseBytesMeta
 	case 120:
 		return instStoreIndU8Meta
@@ -264,8 +266,13 @@ func instTrapMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCou
 	return ExitPanic, instr.PC
 }
 
-// opcode 1
+// opcode 1: sjump(ι + 1 + skip(ι))
 func instFallthroughMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
+	return sjump(instr.PC, instr.PC+ProgramCounter(instr.SkipLen)+1, interp.Program.Bitmasks)
+}
+
+// opcode 2: unlikely — hint only, no mutation
+func instUnlikelyMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	return ExitContinue, instr.PC
 }
 
@@ -309,14 +316,9 @@ func instStoreImmU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 	return exitReason, instr.PC
 }
 
-// opcode 40
+// opcode 40: sjump(imm_X)
 func instJumpMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
-	vX := ProgramCounter(instr.Imm[0])
-	reason, newPC := branch(instr.PC, vX, true, interp.Program.Bitmasks, interp.Program.InstructionData)
-	if reason != ExitContinue {
-		return reason, instr.PC
-	}
-	return reason, newPC
+	return sjump(instr.PC, ProgramCounter(instr.Imm[0]), interp.Program.Bitmasks)
 }
 
 // opcode 50
@@ -489,48 +491,46 @@ func instStoreImmIndU64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, 
 	return exitReason, instr.PC
 }
 
-// opcode in [80, 90]
+// opcode 80: sjump(imm_Y), reg'_A = imm_X
+func instLoadImmJumpMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
+	interp.Registers[instr.Src[0]] = instr.Imm[0]
+	return sjump(instr.PC, ProgramCounter(instr.Imm[1]), interp.Program.Bitmasks)
+}
+
+// opcode in [81, 90] | GP 0.8.0 A.5: branch(imm_Y, cond) — dual-target validation
 func instImmediateBranchMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA := instr.Src[0]
 	vX := instr.Imm[0]
 	vY := ProgramCounter(instr.Imm[1])
-	branchCondition := false
+	ft := instr.PC + ProgramCounter(instr.SkipLen) + 1
 
+	var cond bool
 	switch instr.Opcode {
-	case 80:
-		interp.Registers[rA] = vX
-		branchCondition = true
 	case 81:
-		branchCondition = interp.Registers[rA] == vX
+		cond = interp.Registers[rA] == vX
 	case 82:
-		branchCondition = interp.Registers[rA] != vX
+		cond = interp.Registers[rA] != vX
 	case 83:
-		branchCondition = interp.Registers[rA] < vX
+		cond = interp.Registers[rA] < vX
 	case 84:
-		branchCondition = interp.Registers[rA] <= vX
+		cond = interp.Registers[rA] <= vX
 	case 85:
-		branchCondition = interp.Registers[rA] >= vX
+		cond = interp.Registers[rA] >= vX
 	case 86:
-		branchCondition = interp.Registers[rA] > vX
+		cond = interp.Registers[rA] > vX
 	case 87:
-		branchCondition = int64(interp.Registers[rA]) < int64(vX)
+		cond = int64(interp.Registers[rA]) < int64(vX)
 	case 88:
-		branchCondition = int64(interp.Registers[rA]) <= int64(vX)
+		cond = int64(interp.Registers[rA]) <= int64(vX)
 	case 89:
-		branchCondition = int64(interp.Registers[rA]) >= int64(vX)
+		cond = int64(interp.Registers[rA]) >= int64(vX)
 	case 90:
-		branchCondition = int64(interp.Registers[rA]) > int64(vX)
+		cond = int64(interp.Registers[rA]) > int64(vX)
 	default:
-		pvmLogger.Errorf("instImmediateBranchMeta: unexpected opcode %d, expected [80, 90]", instr.Opcode)
+		pvmLogger.Errorf("instImmediateBranchMeta: unexpected opcode %d", instr.Opcode)
 		return ExitPanic, instr.PC
 	}
-
-	reason, newPC := branch(instr.PC, vY, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
-	if reason != ExitContinue {
-		return reason, instr.PC
-	}
-
-	return reason, newPC
+	return branch(instr.PC, vY, cond, ft, interp.Program.Bitmasks)
 }
 
 // opcode 100
@@ -542,76 +542,48 @@ func instMoveRegMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Program
 }
 
 // opcode 101
-func instSbrkMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
-	rD, rA := instr.Dst, instr.Src[0]
-
-	// this reivision is according to jam-test-vector traces: Note on SBRK
-	if interp.Registers[rA] == 0 {
-		interp.Registers[rD] = interp.Memory.heapPointer
-		return ExitContinue, instr.PC
-	}
-
-	mem := interp.Memory
-	newHeapPointer := mem.heapPointer + interp.Registers[rA]
-	if newHeapPointer < mem.heapPointer || newHeapPointer > mem.heapLimit {
-		interp.Registers[rD] = 0
-		return ExitContinue, instr.PC
-	}
-
-	nextPageBoundary := P(int(mem.heapPointer))
-	if newHeapPointer > uint64(nextPageBoundary) {
-		finalBoundary := P(int(newHeapPointer))
-		allocateMemorySegment(mem, uint32(mem.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
-	}
-
-	mem.heapPointer = newHeapPointer
-	interp.Registers[rD] = newHeapPointer
-	return ExitContinue, instr.PC
-}
-
-// opcode 102
 func instCountSetBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.OnesCount64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
-// opcode 103
+// opcode 102
 func instCountSetBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.OnesCount32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
-// opcode 104
+// opcode 103
 func instLeadingZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.LeadingZeros64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
-// opcode 105
+// opcode 104
 func instLeadingZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.LeadingZeros32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
-// opcode 106
+// opcode 105
 func instTrailZeroBits64Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.TrailingZeros64(interp.Registers[rA]))
 	return ExitContinue, instr.PC
 }
 
-// opcode 107
+// opcode 106
 func instTrailZeroBits32Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = uint64(bits.TrailingZeros32(uint32(interp.Registers[rA])))
 	return ExitContinue, instr.PC
 }
 
-// opcode 108
+// opcode 107
 func instSignExtend8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	// mutation
@@ -623,7 +595,7 @@ func instSignExtend8Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pro
 	return ExitContinue, instr.PC
 }
 
-// opcode 109
+// opcode 108
 func instSignExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	// mutation
@@ -635,7 +607,7 @@ func instSignExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	return ExitContinue, instr.PC
 }
 
-// opcode 110
+// opcode 109
 func instZeroExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	// mutation
@@ -644,7 +616,7 @@ func instZeroExtend16Meta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	return ExitContinue, instr.PC
 }
 
-// opcode 111
+// opcode 110
 func instReverseBytesMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rD, rA := instr.Dst, instr.Src[0]
 	interp.Registers[rD] = bits.ReverseBytes64(interp.Registers[rA])
@@ -1125,36 +1097,32 @@ func instRotR32ImmAltMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, Pr
 	return ExitContinue, instr.PC
 }
 
-// opcode in [170, 175]
+// opcode in [170, 175]: branch(imm_X, cond) — dual-target validation
 func instBranchMeta(interp *Interpreter, instr *InstrMeta) (ExitReason, ProgramCounter) {
 	rA := instr.Src[0]
 	rB := instr.Src[1]
 	vX := ProgramCounter(instr.Imm[0])
-	branchCondition := false
+	ft := instr.PC + ProgramCounter(instr.SkipLen) + 1
+
+	var cond bool
 	switch instr.Opcode {
 	case 170:
-		branchCondition = interp.Registers[rA] == interp.Registers[rB]
+		cond = interp.Registers[rA] == interp.Registers[rB]
 	case 171:
-		branchCondition = interp.Registers[rA] != interp.Registers[rB]
+		cond = interp.Registers[rA] != interp.Registers[rB]
 	case 172:
-		branchCondition = interp.Registers[rA] < interp.Registers[rB]
+		cond = interp.Registers[rA] < interp.Registers[rB]
 	case 173:
-		branchCondition = int64(interp.Registers[rA]) < int64(interp.Registers[rB])
+		cond = int64(interp.Registers[rA]) < int64(interp.Registers[rB])
 	case 174:
-		branchCondition = interp.Registers[rA] >= interp.Registers[rB]
+		cond = interp.Registers[rA] >= interp.Registers[rB]
 	case 175:
-		branchCondition = int64(interp.Registers[rA]) >= int64(interp.Registers[rB])
+		cond = int64(interp.Registers[rA]) >= int64(interp.Registers[rB])
 	default:
-		pvmLogger.Errorf("instBranchMeta: unexpected opcode %d, expected [170, 175]", instr.Opcode)
+		pvmLogger.Errorf("instBranchMeta: unexpected opcode %d", instr.Opcode)
 		return ExitPanic, instr.PC
 	}
-
-	reason, newPC := branch(instr.PC, vX, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
-	if reason != ExitContinue {
-		pvmLogger.Errorf("instBranchMeta branch error at pc: %d, opcode: %s", instr.PC, zeta[opcode(instr.Opcode)])
-		return ExitReason(reason), instr.PC
-	}
-	return reason, newPC
+	return branch(instr.PC, vX, cond, ft, interp.Program.Bitmasks)
 }
 
 // opcode 180

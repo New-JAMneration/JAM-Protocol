@@ -18,6 +18,7 @@ var zeta = map[opcode]string{
 	// Ins w/o Arg
 	0: "trap",
 	1: "fallthrough",
+	2: "unlikely",
 	// Ins w/ Arg of One Imm
 	10: "ecalli",
 	// Ins w/ Arg of One Reg and One Extended Width Imm
@@ -62,17 +63,16 @@ var zeta = map[opcode]string{
 	90: "branch_gt_s_imm",
 	// Ins w/ Arg of Two Reg
 	100: "move_reg",
-	101: "sbrk",
-	102: "count_set_bits_64",
-	103: "count_set_bits_32",
-	104: "leading_zero_bits_64",
-	105: "leading_zero_bits_32",
-	106: "trailing_zero_bits_64",
-	107: "trailing_zero_bits_32",
-	108: "sign_extend_8",
-	109: "sign_extend_16",
-	110: "zero_extend_16",
-	111: "reverse_bytes",
+	101: "count_set_bits_64",
+	102: "count_set_bits_32",
+	103: "leading_zero_bits_64",
+	104: "leading_zero_bits_32",
+	105: "trailing_zero_bits_64",
+	106: "trailing_zero_bits_32",
+	107: "sign_extend_8",
+	108: "sign_extend_16",
+	109: "zero_extend_16",
+	110: "reverse_bytes",
 	// Ins w/ Arg of Two Reg & One Imm
 	120: "store_ind_u8",
 	121: "store_ind_u16",
@@ -186,9 +186,10 @@ func abs(x int64) int64 {
 
 // input: interpreter, programCounter, skipLength
 var execInstructions = [231]func(*Interpreter, ProgramCounter, ProgramCounter) (ExitReason, ProgramCounter){
-	// A.5.1 Instructiopns without Arguments
+	// A.5.1 Instructions without Arguments
 	0: instTrap,
 	1: instFallthrough,
+	2: instUnlikely,
 	// A.5.2 Instructions with Arguments of One Immediate
 	10: instEcalli,
 	// A.5.3 Instructions with Arguments of One Register & One Extended With Immediate
@@ -219,8 +220,8 @@ var execInstructions = [231]func(*Interpreter, ProgramCounter, ProgramCounter) (
 	71: instStoreImmIndU16,
 	72: instStoreImmIndU32,
 	73: instStoreImmIndU64,
-	// A.5.8 Instructions without Arguments of One Register, One Immediate and One Offset
-	80: instImmediateBranch,
+	// A.5.8 One register, one immediate and one offset
+	80: instLoadImmJump,
 	81: instImmediateBranch,
 	82: instImmediateBranch,
 	83: instImmediateBranch,
@@ -231,19 +232,18 @@ var execInstructions = [231]func(*Interpreter, ProgramCounter, ProgramCounter) (
 	88: instImmediateBranch,
 	89: instImmediateBranch,
 	90: instImmediateBranch,
-	// A.5.9 Instructions with arguments of Two Registers
-	100: instMoveReg, // passed testvector
-	101: instSbrk,
-	102: instCountSetBits64,
-	103: instCountSetBits32,
-	104: instLeadingZeroBits64,
-	105: instLeadingZeroBits32,
-	106: instTrailZeroBits64,
-	107: instTrailZeroBits32,
-	108: instSignExtend8,
-	109: instSignExtend16,
-	110: instZeroExtend16,
-	111: instReverseBytes,
+	// A.5.9 Two Registers
+	100: instMoveReg,
+	101: instCountSetBits64,
+	102: instCountSetBits32,
+	103: instLeadingZeroBits64,
+	104: instLeadingZeroBits32,
+	105: instTrailZeroBits64,
+	106: instTrailZeroBits32,
+	107: instSignExtend8,
+	108: instSignExtend16,
+	109: instZeroExtend16,
+	110: instReverseBytes,
 	120: instStoreIndU8,
 	121: instStoreIndU16,
 	122: instStoreIndU32,
@@ -344,8 +344,13 @@ func instTrap(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter)
 	return ExitPanic, pc
 }
 
-// opcode 1
+// opcode 1: sjump(ι + 1 + skip(ι))
 func instFallthrough(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
+	return sjump(pc, pc+1+skipLength, interp.Program.Bitmasks)
+}
+
+// opcode 2: unlikely — hint only, no mutation
+func instUnlikely(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	return ExitContinue, pc
 }
 
@@ -434,21 +439,14 @@ func instStoreImmU64(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	return exitReason, pc
 }
 
-// opcode 40
+// opcode 40: sjump(imm_X)
 func instJump(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	vX, err := decodeOneOffset(interp.Program.InstructionData, pc, skipLength)
 	if err != nil {
 		pvmLogger.Errorf("instJump decodeOneOffset error: %v", err)
 		return ExitPanic, pc
 	}
-
-	reason, newPC := branch(pc, vX, true, interp.Program.Bitmasks, interp.Program.InstructionData)
-
-	if reason != ExitContinue {
-		return reason, pc
-	}
-
-	return reason, newPC
+	return sjump(pc, vX, interp.Program.Bitmasks)
 }
 
 // opcode 50
@@ -738,50 +736,51 @@ func instStoreImmIndU64(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	return exitReason, pc
 }
 
-// opcode in [80, 90]
+// opcode 80: sjump(imm_Y), reg'_A = imm_X
+func instLoadImmJump(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
+	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(interp.Program.InstructionData, pc, skipLength)
+	if err != nil {
+		pvmLogger.Errorf("instLoadImmJump decode error: %v", err)
+		return ExitPanic, pc
+	}
+	interp.Registers[rA] = vX
+	return sjump(pc, vY, interp.Program.Bitmasks)
+}
+
+// opcode in [81, 90]: branch(imm_Y, cond) — dual-target validation
 func instImmediateBranch(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rA, vX, vY, err := decodeOneRegisterOneImmediateAndOneOffset(interp.Program.InstructionData, pc, skipLength)
 	if err != nil {
-		pvmLogger.Errorf("instImmediateBranch decodeOneRegisterOneImmediateAndOneOffset error: %v", err)
-		return ExitHalt, pc
-	}
-	branchCondition := false
-
-	switch interp.Program.InstructionData[pc] {
-	case 80:
-		interp.Registers[rA] = vX
-		branchCondition = true
-	case 81:
-		branchCondition = interp.Registers[rA] == vX
-	case 82:
-		branchCondition = interp.Registers[rA] != vX
-	case 83:
-		branchCondition = interp.Registers[rA] < vX
-	case 84:
-		branchCondition = interp.Registers[rA] <= vX
-	case 85:
-		branchCondition = interp.Registers[rA] >= vX
-	case 86:
-		branchCondition = interp.Registers[rA] > vX
-	case 87:
-		branchCondition = int64(interp.Registers[rA]) < int64(vX)
-	case 88:
-		branchCondition = int64(interp.Registers[rA]) <= int64(vX)
-	case 89:
-		branchCondition = int64(interp.Registers[rA]) >= int64(vX)
-	case 90:
-		branchCondition = int64(interp.Registers[rA]) > int64(vX)
-	default:
-		pvmLogger.Errorf("instImmediateBranch: unexpected opcode %d, expected [80, 90]", interp.Program.InstructionData[pc])
+		pvmLogger.Errorf("instImmediateBranch decode error: %v", err)
 		return ExitPanic, pc
 	}
-
-	reason, newPC := branch(pc, vY, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
-	if reason != ExitContinue {
-		return reason, pc
+	var cond bool
+	switch interp.Program.InstructionData[pc] {
+	case 81:
+		cond = interp.Registers[rA] == vX
+	case 82:
+		cond = interp.Registers[rA] != vX
+	case 83:
+		cond = interp.Registers[rA] < vX
+	case 84:
+		cond = interp.Registers[rA] <= vX
+	case 85:
+		cond = interp.Registers[rA] >= vX
+	case 86:
+		cond = interp.Registers[rA] > vX
+	case 87:
+		cond = int64(interp.Registers[rA]) < int64(vX)
+	case 88:
+		cond = int64(interp.Registers[rA]) <= int64(vX)
+	case 89:
+		cond = int64(interp.Registers[rA]) >= int64(vX)
+	case 90:
+		cond = int64(interp.Registers[rA]) > int64(vX)
+	default:
+		pvmLogger.Errorf("instImmediateBranch: unexpected opcode %d", interp.Program.InstructionData[pc])
+		return ExitPanic, pc
 	}
-
-	return reason, newPC
+	return branch(pc, vY, cond, pc+1+skipLength, interp.Program.Bitmasks)
 }
 
 // opcode 100
@@ -797,39 +796,10 @@ func instMoveReg(interp *Interpreter, pc ProgramCounter, skipLength ProgramCount
 	return ExitContinue, pc
 }
 
+// GP 0.8.0: sbrk (old opcode 101) removed; heap growth via grow_heap host call (B.5).
+// Opcodes 102–111 shifted to 101–110.
+
 // opcode 101
-func instSbrk(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
-	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
-	if err != nil {
-		pvmLogger.Errorf("instSbrk decodeTwoRegisters error: %v", err)
-		return ExitHalt, pc
-	}
-
-	// this reivision is according to jam-test-vector traces: Note on SBRK
-	if interp.Registers[rA] == 0 {
-		interp.Registers[rD] = interp.Memory.heapPointer
-		return ExitContinue, pc
-	}
-
-	mem := interp.Memory
-	newHeapPointer := mem.heapPointer + interp.Registers[rA]
-	if newHeapPointer < mem.heapPointer || newHeapPointer > mem.heapLimit {
-		interp.Registers[rD] = 0
-		return ExitContinue, pc
-	}
-
-	nextPageBoundary := P(int(mem.heapPointer))
-	if newHeapPointer > uint64(nextPageBoundary) {
-		finalBoundary := P(int(newHeapPointer))
-		allocateMemorySegment(mem, uint32(mem.heapPointer), uint32(finalBoundary), nil, MemoryReadWrite)
-	}
-
-	mem.heapPointer = newHeapPointer
-	interp.Registers[rD] = newHeapPointer
-	return ExitContinue, pc
-}
-
-// opcode 102
 func instCountSetBits64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -841,7 +811,7 @@ func instCountSetBits64(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	return ExitContinue, pc
 }
 
-// opcode 103
+// opcode 102
 func instCountSetBits32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -853,7 +823,7 @@ func instCountSetBits32(interp *Interpreter, pc ProgramCounter, skipLength Progr
 	return ExitContinue, pc
 }
 
-// opcode 104
+// opcode 103
 func instLeadingZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -865,7 +835,7 @@ func instLeadingZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength Pr
 	return ExitContinue, pc
 }
 
-// opcode 105
+// opcode 104
 func instLeadingZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -877,7 +847,7 @@ func instLeadingZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength Pr
 	return ExitContinue, pc
 }
 
-// opcode 106
+// opcode 105
 func instTrailZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -889,7 +859,7 @@ func instTrailZeroBits64(interp *Interpreter, pc ProgramCounter, skipLength Prog
 	return ExitContinue, pc
 }
 
-// opcode 107
+// opcode 106
 func instTrailZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -901,7 +871,7 @@ func instTrailZeroBits32(interp *Interpreter, pc ProgramCounter, skipLength Prog
 	return ExitContinue, pc
 }
 
-// opcode 108
+// opcode 107
 func instSignExtend8(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -918,7 +888,7 @@ func instSignExtend8(interp *Interpreter, pc ProgramCounter, skipLength ProgramC
 	return ExitContinue, pc
 }
 
-// opcode 109
+// opcode 108
 func instSignExtend16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -935,7 +905,7 @@ func instSignExtend16(interp *Interpreter, pc ProgramCounter, skipLength Program
 	return ExitContinue, pc
 }
 
-// opcode 110
+// opcode 109
 func instZeroExtend16(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -949,7 +919,7 @@ func instZeroExtend16(interp *Interpreter, pc ProgramCounter, skipLength Program
 	return ExitContinue, pc
 }
 
-// opcode 111
+// opcode 110
 func instReverseBytes(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rD, rA, err := decodeTwoRegisters(interp.Program.InstructionData, pc)
 	if err != nil {
@@ -1634,38 +1604,31 @@ func instRotR32ImmAlt(interp *Interpreter, pc ProgramCounter, skipLength Program
 	return ExitContinue, pc
 }
 
-// opcode in [170, 175]
+// opcode in [170, 175]: branch(imm_X, cond) — dual-target validation
 func instBranch(interp *Interpreter, pc ProgramCounter, skipLength ProgramCounter) (ExitReason, ProgramCounter) {
 	rA, rB, vX, err := decodeTwoRegistersAndOneOffset(interp.Program.InstructionData, pc, skipLength)
 	if err != nil {
-		return ExitHalt, pc
-	}
-	var branchCondition bool
-	switch interp.Program.InstructionData[pc] {
-	case 170:
-		branchCondition = interp.Registers[rA] == interp.Registers[rB]
-	case 171:
-		branchCondition = interp.Registers[rA] != interp.Registers[rB]
-	case 172:
-		branchCondition = interp.Registers[rA] < interp.Registers[rB]
-	case 173:
-		branchCondition = int64(interp.Registers[rA]) < int64(interp.Registers[rB])
-	case 174:
-		branchCondition = interp.Registers[rA] >= interp.Registers[rB]
-	case 175:
-		branchCondition = int64(interp.Registers[rA]) >= int64(interp.Registers[rB])
-	default:
-		pvmLogger.Errorf("instBranch: unexpected opcode %d, expected [170, 175]", interp.Program.InstructionData[pc])
 		return ExitPanic, pc
 	}
-
-	reason, newPC := branch(pc, vX, branchCondition, interp.Program.Bitmasks, interp.Program.InstructionData)
-	if reason != ExitContinue {
-		pvmLogger.Errorf("instBranch branch error at pc: %d, opcode: %s", pc, zeta[opcode(interp.Program.InstructionData[pc])])
-		return ExitReason(reason), pc
+	var cond bool
+	switch interp.Program.InstructionData[pc] {
+	case 170:
+		cond = interp.Registers[rA] == interp.Registers[rB]
+	case 171:
+		cond = interp.Registers[rA] != interp.Registers[rB]
+	case 172:
+		cond = interp.Registers[rA] < interp.Registers[rB]
+	case 173:
+		cond = int64(interp.Registers[rA]) < int64(interp.Registers[rB])
+	case 174:
+		cond = interp.Registers[rA] >= interp.Registers[rB]
+	case 175:
+		cond = int64(interp.Registers[rA]) >= int64(interp.Registers[rB])
+	default:
+		pvmLogger.Errorf("instBranch: unexpected opcode %d", interp.Program.InstructionData[pc])
+		return ExitPanic, pc
 	}
-
-	return reason, newPC
+	return branch(pc, vX, cond, pc+1+skipLength, interp.Program.Bitmasks)
 }
 
 // opcode 180

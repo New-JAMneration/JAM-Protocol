@@ -84,8 +84,9 @@ func NewInterpreter(program *Program, registers Registers, memory *Memory, gas G
 }
 
 type VMState struct {
-	Registers *Registers
-	Gas       *Gas
+	Registers  *Registers
+	Gas        *Gas
+	GasCharged bool
 
 	// Mem is the GuestMemory abstraction that omega host-calls and R() use for
 	// all guest memory access. The interpreter sets it via NewPagedGuestMemory

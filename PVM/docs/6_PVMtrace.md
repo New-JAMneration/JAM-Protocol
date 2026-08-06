@@ -158,7 +158,7 @@ MachineInvoke(pc):
 
 ```
 for each instruction at pc:
-    1. CompileSingleInstruction(instr) → 只編譯一條指令的 native code
+    1. CompileBlockInstruction(instr) → one instr, A.7 block gas, trampoline to Go
     2. 記錄 src1_val, src2_val（執行前）
     3. ClearMemAccess()
     4. executeBlockLocked(block)        → 執行這一條指令

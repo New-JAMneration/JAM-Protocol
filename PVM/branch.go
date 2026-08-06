@@ -1,14 +1,24 @@
 package PVM
 
-func branch(pc ProgramCounter, b ProgramCounter, C bool, bitmask Bitmask, instruction ProgramCode) (ExitReason, ProgramCounter) {
-	switch {
-	case !C:
-		return ExitContinue, pc
-	case !bitmask.IsStartOfBasicBlock(b) && instruction.isOpcodeValid(b):
+// sjump (A.20): unconditional static jump.
+// Panics if target b is not a basic block start (b ∉ ϖ).
+func sjump(pc ProgramCounter, b ProgramCounter, bitmask Bitmask) (ExitReason, ProgramCounter) {
+	if !bitmask.IsStartOfBasicBlock(b) {
 		return ExitPanic, pc
-	default:
-		return ExitContinue, b
 	}
+	return ExitContinue, b
+}
+
+// branch (A.21): conditional jump with dual-target validation.
+// Both b and ft must be basic block starts; panics otherwise.
+func branch(pc ProgramCounter, b ProgramCounter, C bool, ft ProgramCounter, bitmask Bitmask) (ExitReason, ProgramCounter) {
+	if !bitmask.IsStartOfBasicBlock(b) || !bitmask.IsStartOfBasicBlock(ft) {
+		return ExitPanic, pc
+	}
+	if !C {
+		return ExitContinue, ft
+	}
+	return ExitContinue, b
 }
 
 // ResolveDynamicJump resolves a jump-table address to a program PC.
@@ -33,12 +43,8 @@ func djump(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (E
 	return DjumpResolve(pc, a, jumpTable, bitmask)
 }
 
-// DjumpResolve performs the full graypaper §4.4.4 dynamic-jump resolution and validation:
-// HALT for the sentinel address, panic on misaligned / out-of-range / non-basic-block targets,
-// otherwise returns the resolved program counter.
-// The pc parameter is the PC reported on panic (typically the jump_ind instruction PC).
-// Exported for the JIT recompiler to call from its dispatcher; the interpreter
-// continues to use the lowercase djump alias above.
+// DjumpResolve (A.22): dynamic jump resolution and validation.
+// Exported for the JIT recompiler; interpreter uses the lowercase djump alias.
 func DjumpResolve(pc ProgramCounter, a uint32, jumpTable JumpTable, bitmask Bitmask) (ExitReason, ProgramCounter) {
 	if a == 0xffff0000 {
 		return ExitHalt, pc

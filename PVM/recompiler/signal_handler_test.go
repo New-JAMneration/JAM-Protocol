@@ -73,7 +73,7 @@ func compileTestBlock(t *testing.T, ctx *JITContext, instBytes []byte, boundarie
 	t.Helper()
 
 	blob := buildBlobExact(instBytes, boundaries)
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
+	prog, exitReason := PVM.DeBlobProgramCode(blob, 0)
 	if exitReason != PVM.ExitContinue {
 		t.Fatalf("DeBlobProgramCode: %v", exitReason)
 	}
@@ -347,66 +347,8 @@ func TestSignalHandler_RegisterPreservation(t *testing.T) {
 	}
 }
 
-func TestSbrk_ExpandHeap(t *testing.T) {
-	ctx, cleanup := setupTestContext(t)
-	defer cleanup()
-
-	rwStart := uint32(2 * PVM.ZZ)
-	rwEnd := rwStart + uint32(PVM.ZP)
-	if err := ctx.mapSegment(rwStart, rwEnd, nil, unix.PROT_READ|unix.PROT_WRITE); err != nil {
-		t.Fatalf("mapSegment: %v", err)
-	}
-	ctx.WriteHeapPointer(uint64(rwEnd))
-
-	amount := uint64(2 * PVM.ZP)
-	regs := PVM.Registers{}
-	regs[7] = amount
-	ctx.WriteRegisters(regs)
-
-	result := HandleSbrk(ctx, 0, 7)
-	if result != PVM.ExitContinue {
-		t.Fatalf("HandleSbrk: got %v, want ExitContinue", result)
-	}
-
-	gotHP := ctx.ReadHeapPointer()
-	wantHP := uint64(rwEnd) + amount
-	if gotHP != wantHP {
-		t.Errorf("heap pointer: got 0x%x, want 0x%x", gotHP, wantHP)
-	}
-
-	gotRegs := ctx.ReadRegisters()
-	if gotRegs[0] != wantHP {
-		t.Errorf("Reg[rD]: got 0x%x, want 0x%x", gotRegs[0], wantHP)
-	}
-
-	newAddr := uint32(rwEnd) + uint32(PVM.ZP)
-	ctx.guestMem[newAddr] = 0x42
-	if ctx.guestMem[newAddr] != 0x42 {
-		t.Error("new heap page not writable")
-	}
-}
-
-func TestSbrk_ZeroAmount(t *testing.T) {
-	ctx, cleanup := setupTestContext(t)
-	defer cleanup()
-
-	hp := uint64(0x30000)
-	ctx.WriteHeapPointer(hp)
-
-	regs := PVM.Registers{}
-	regs[7] = 0
-	ctx.WriteRegisters(regs)
-
-	result := HandleSbrk(ctx, 0, 7)
-	if result != PVM.ExitContinue {
-		t.Fatalf("HandleSbrk: got %v, want ExitContinue", result)
-	}
-
-	gotRegs := ctx.ReadRegisters()
-	if gotRegs[0] != hp {
-		t.Errorf("Reg[rD]: got 0x%x, want 0x%x", gotRegs[0], hp)
-	}
-}
+// GP 0.8.0: TestSbrk_ExpandHeap, TestSbrk_ZeroAmount removed;
+// sbrk replaced by grow_heap host call (B.5).
 
 func TestGoRuntimeCoexistence(t *testing.T) {
 	ctx, cleanup := setupTestContext(t)

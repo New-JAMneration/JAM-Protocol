@@ -69,8 +69,8 @@ func TestSingleInitializer(t *testing.T) {
 	}
 
 	// validate a in argument memory
-	stackEnd := uint32(1<<32 - 2*ZZ - ZI)
-	argumentPageNum := uint32(stackEnd / ZP)
+	argumentStart := uint32(1<<32 - ZZ - ZI)
+	argumentPageNum := argumentStart / ZP
 	if page, exists := mem.Pages[argumentPageNum]; !exists {
 		t.Errorf("Expected argument memory at page %d, but not found", argumentPageNum)
 	} else if page.Access != MemoryReadOnly {
@@ -80,6 +80,7 @@ func TestSingleInitializer(t *testing.T) {
 	}
 
 	// validate stack memory
+	stackEnd := uint32(1<<32 - 2*ZZ - ZI)
 	stackStart := stackEnd - P(int(32))
 	for addr := stackStart; addr < stackEnd; addr += ZP {
 		pageNum := addr / ZP

@@ -96,7 +96,7 @@ func tryWriteDeBlobOutput(targetFile string, programBlob []byte, codeHashHex, ou
 	if exitReason != PVM.ExitContinue {
 		return fmt.Errorf("SingleInitializer failed: exit=%v", exitReason)
 	}
-	program, exitReason := PVM.DeBlobProgramCode(programCode)
+	program, exitReason := PVM.DeBlobProgramCode(programCode, 0)
 	if exitReason != PVM.ExitContinue {
 		return fmt.Errorf("DeBlobProgramCode failed: exit=%v", exitReason)
 	}
