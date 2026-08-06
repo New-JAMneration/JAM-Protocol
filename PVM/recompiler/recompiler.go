@@ -14,9 +14,8 @@ import (
 // Recompiler is the machine layer of the JIT backend, symmetrical to
 // PVM.Interpreter on the interpreter backend. It owns compilation and
 // native execution over a JITContext, but not host-call dispatch state.
-// Host-call orchestration (OOG, HALT, PANIC handling, sbrk, Omega
-// dispatch) lives in host, which drives Recompiler.BlockBasedInvoke in
-// a loop.
+// Host-call orchestration (OOG, HALT, PANIC handling, Omega dispatch)
+// lives in host, which drives Recompiler.BlockBasedInvoke in a loop.
 type Recompiler struct {
 	compiler *Compiler
 	program  *PVM.Program
@@ -45,8 +44,8 @@ func newRecompiler(cp *CompiledProgram, ctx *JITContext) *Recompiler {
 	}
 }
 
-// BlockBasedInvoke runs one or more compiled basic blocks until the
-// native side signals a non-CONTINUE exit.
+// BlockBasedInvoke runs pre-decoded basic blocks as native code — symmetrical to
+// interpreter BlockBasedInvokeDecodedBlocks (same Program.Instrs/BlockMeta/GasCost).
 func (r *Recompiler) BlockBasedInvoke(pc PVM.ProgramCounter) (PVM.ExitReason, PVM.ProgramCounter) {
 	x86_signal_linux.SetupSignalHandler()
 	runtime.LockOSThread()
@@ -84,21 +83,7 @@ func (r *Recompiler) BlockBasedInvoke(pc PVM.ProgramCounter) (PVM.ExitReason, PV
 			}
 		}
 
-		if IsSbrkExit(exitReason) {
-			instr, ok := r.sbrkInstrForRuntimeExit(exitPC)
-			if !ok {
-				return PVM.ExitPanic, 0
-			}
-			exitReason, pc = r.resolveSbrk(instr)
-			switch exitReason.GetReasonType() {
-			case PVM.CONTINUE:
-				continue
-			case PVM.HALT, PVM.PANIC:
-				return exitReason, r.ctx.ReadExitPC()
-			default:
-				return exitReason, exitPC
-			}
-		}
+		// GP 0.8.0: sbrk exit path removed; heap growth via grow_heap host call
 
 		switch exitReason.GetReasonType() {
 		case PVM.CONTINUE:

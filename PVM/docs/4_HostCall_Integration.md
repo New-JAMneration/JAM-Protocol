@@ -140,34 +140,62 @@ ctx.WriteGas(gas)
 
 ---
 
-## 5. MachineInvoke 與 BlockBasedInvoke 的關係
+## 5. MachineInvoke 與 block 執行引擎
+
+`MachineInvoke` 是 **Ψ_H 外層 loop 的統一入口**：從 `pc` 跑到 HALT / host call / OOG / panic 等非 CONTINUE 為止。  
+本身幾乎不做事，只做 **build-tag 分流**（trace vs production）並轉呼叫底下的 block 引擎。
+
+### 路由（依 backend）
+
+兩個 **outer Ψ_H** backend 都跑 **pre-decoded** basic blocks（`deblob` → `preDecodeBlocks` 產生的 `Instrs` / `BlockMeta` / `GasCost`）。  
+函式名稱不同，語意對稱：
+
+| Backend | 檔案 | Production | 執行方式 | Trace |
+|---------|------|------------|----------|-------|
+| Interpreter | `interpreter/invoke_mode.go` | `BlockBasedInvokeDecodedBlocks` | Go 直譯 pre-decoded blocks | `DebugSingleStepInvoke` |
+| Recompiler | `recompiler/invoke_mode.go` | `BlockBasedInvoke` | native JIT 編譯 + 執行 **同一套** pre-decoded blocks | `DebugSingleStepInvoke` |
+
+Recompiler 的 `lookupOrCompileBlock` → `CompileBasicBlock` 讀 `program.BlockContaining(pc)` 與 `Instrs[InstrStart:InstrEnd]`，**不是** interpreter 的 runtime `DecodeInstructionBlock`。
+
+Refine inner VM（Ω_K `invoke`）同樣走 **`BlockBasedInvokeDecodedBlocks`**（interpreter only；無 recompiler / 無 `MachineInvoke` 包裝）。`machine` 註冊時預 decode 存 `IntegratedPVMType.Program`；`invoke` 僅重驗 `𝔳_inst`。
+
+### 呼叫點
+
+| 呼叫者 | 檔案 | 被叫 |
+|--------|------|------|
+| Ψ_H 外層 loop | `interpreter/host.go` | `h.MachineInvoke(pc)` |
+| Ψ_H 外層 loop | `recompiler/host.go` | `h.recomp.MachineInvoke(pc)` |
+| refine inner VM（Ω_K invoke） | `host_call_refine.go` | `tempInterp.BlockBasedInvokeDecodedBlocks` |
+
+Inner 不經 `MachineInvoke` / recompiler：每次 `invoke` 建立 ephemeral `tempInterp`，gas 由 outer `M_K + g_R` 帳務退還。
+
+### Recompiler：`BlockBasedInvoke` 內部
 
 ```
-host.HostCall (外層 loop)
-  │
+host.HostCall
   └── MachineInvoke(pc)
-        │
         └── BlockBasedInvoke(pc)
-              │
               for {
                   block = lookupOrCompileBlock(pc)
                   executeBlockLocked(block)
                   switch exitReason:
-                    CONTINUE → pc = exitPC, continue
-                    sbrk     → resolveSbrk, continue
-                    djump    → resolveDjump, continue
-                    其他     → return (HOST_CALL / HALT / ...)
+                    CONTINUE → 下一 block
+                    sbrk/djump → 內部消化，不出 MachineInvoke
+                    其他     → 回傳 host（HOST_CALL / HALT / …）
               }
 ```
 
-**BlockBasedInvoke 內部消化的 exit**：
-- `CONTINUE`：block fallthrough，繼續下一個 block
-- `sbrk`（`0xFF`）：HandleSbrk（Go mprotect），不出 MachineInvoke
-- `djump miss`（`0xFE`）：compile target，不出 MachineInvoke
+**內部消化（不上報 host）**：`CONTINUE` fallthrough、`sbrk`（0xFF）、`djump miss`（0xFE）。
 
-**上報給 host 的 exit**：
-- `HOST_CALL`（真正的 ecalli）：需要 omega dispatch
-- `HALT` / `PANIC` / `OOG` / `PAGE_FAULT`：程式結束
+**上報 host**：`HOST_CALL`、`HALT`、`PANIC`、`OOG`、`PAGE_FAULT`。
+
+### 為何保留 `MachineInvoke` 這層？
+
+- Trace / production 分流在 `invoke_mode*.go`，不污染 `host.go`
+- 兩 backend 共用同一呼叫慣例
+- JIT profile 以 `MachineInvoke` 計 `lockCalls`
+
+刪掉改直接呼叫 block 引擎幾乎無效能收益，還會打散 build-tag 結構。
 
 ---
 
@@ -256,10 +284,12 @@ HOST_CALL: type=0x05, payload=callID (omega operation ID)
 
 | 檔案 | 職責 |
 |------|------|
-| `PVM/recompiler/host.go` | host-call dispatch 層（外層 loop + omega 呼叫） |
-| `PVM/recompiler/recompiler.go` | `BlockBasedInvoke`（inner loop、sbrk/djump resolve） |
-| `PVM/recompiler/invoke_mode.go` | `MachineInvoke` → `BlockBasedInvoke` routing |
-| `PVM/recompiler/emit_basic.go` | `emitEcalli`（native code emit） |
-| `PVM/recompiler/execute.go` | `HandleSbrk`、`SbrkCallID`、`DjumpCallID` |
-| `PVM/recompiler/guest_memory.go` | `GuestMemory` interface 實作（Layer 1 check） |
-| `PVM/recompiler/trampoline.go` | exit trampoline（回存 regs → return Go） |
+| `PVM/interpreter/host.go` | interpreter Ψ_H 外層 loop → `MachineInvoke` |
+| `PVM/interpreter/invoke_mode.go` | `MachineInvoke` → `BlockBasedInvokeDecodedBlocks` |
+| `PVM/interpreter/invoke_mode_trace.go` | trace 分流 → `DebugSingleStepInvoke` |
+| `PVM/recompiler/host.go` | recompiler Ψ_H 外層 loop → `MachineInvoke` |
+| `PVM/recompiler/recompiler.go` | `BlockBasedInvoke`（pre-decoded blocks → native JIT） |
+| `PVM/recompiler/invoke_mode.go` | `MachineInvoke` → `BlockBasedInvoke` |
+| `PVM/recompiler/invoke_mode_trace.go` | trace 分流 |
+| `PVM/invocation.go` | `BlockBasedInvoke*` / `DebugSingleStepInvoke` 實作 |
+| `PVM/host_call_refine.go` | Ω_K inner VM → `BlockBasedInvoke`（非 MachineInvoke；#15） |

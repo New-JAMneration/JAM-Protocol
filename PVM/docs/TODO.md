@@ -67,10 +67,7 @@ compile 已小,純 codegen 速度優先序低。經解剖,子項的判定:
 ### 3.(低)eviction 後續
 proactive 淘汰(從 state 訊號主動刪「已知不會再用」的 CodeHash);bytes-based cap;arena-full 優雅處理(目前滿了 → compile error,16MB/service 通常夠);`*Program` cache 也加界限。
 
-### 4.(暫緩)block-based gas(GP 0.8.0)
-0.7.2 仍 per-instruction,改了**沒測資料可驗**。`gas.go` 已備好 `emitBlockGasCheck` / `emitBlockOutOfGasExit`,等 0.8 向量再開。
-
-### 5.(低)已知語意缺口與待補測試
+### 4.(低)已知語意缺口與待補測試
 - **跨頁 memory access 語意**:recompiler 靠硬體 fault——PAGE_FAULT payload 用 `si_addr`(實際 fault 位址,常為第二頁),且 store 在 fault 前可能已部分寫入第一頁;interpreter 則先檢查兩頁權限、fault 回報起始位址、all-or-nothing。僅在存取剛好跨 mapped/PROT_NONE 邊界時分歧;conformance 未覆蓋此細節,PVMtrace 對齊可能受影響。修法:emit page-aware check 對齊 interpreter 兩頁邏輯(`emit_memory.go` vs `decode.go`)。
 - **待補單元測試**:`jump_ind` + HALT sentinel → `Psi_H.Counter == instr.PC`(程式碼已對齊 interpreter,conformance 測不到此項)。
 - (長期)inline sbrk 擴大(同頁內不出 native)、hot omega 的 native stub——皆需 profile 證明才動。

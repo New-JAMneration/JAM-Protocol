@@ -31,6 +31,7 @@ func newHost(r *Recompiler, addition PVM.HostCallArgs, hostCalls PVM.Omegas) *ho
 	}
 }
 
+// Ψ_H outer loop → MachineInvoke → BlockBasedInvoke (see docs/4_HostCall_Integration.md §5).
 func (h *host) HostCall(pc PVM.ProgramCounter) PVM.Psi_H_ReturnType {
 	ctx := h.recomp.Ctx()
 	var vm PVM.VMState
@@ -39,6 +40,7 @@ func (h *host) HostCall(pc PVM.ProgramCounter) PVM.Psi_H_ReturnType {
 	snapshot := func() {
 		ctx.ReadRegistersInto(regsBuf)
 		ctx.ReadGasInto(gasBuf)
+		vm.GasCharged = ctx.ReadGasCharged()
 		vm.Mem = ctx.GuestMemory()
 		vm.BindInlineSnapshot()
 	}
@@ -57,8 +59,6 @@ func (h *host) HostCall(pc PVM.ProgramCounter) PVM.Psi_H_ReturnType {
 		}
 
 		snapshot()
-
-		// unreachable: sbrk is resolved inside BlockBasedInvoke / DebugSingleStepInvoke
 
 		input := PVM.OmegaInput{
 			Operation: PVM.OperationType(exitReason.GetHostCallID()),
@@ -103,6 +103,7 @@ func (h *host) HostCall(pc PVM.ProgramCounter) PVM.Psi_H_ReturnType {
 		regs, gas := vm.InlineSnapshotValues()
 		ctx.WriteRegisters(regs)
 		ctx.WriteGas(gas)
+		ctx.WriteGasCharged(vm.GasCharged)
 
 		if trace != nil {
 			copy(rout[:], regs[:])

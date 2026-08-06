@@ -30,7 +30,7 @@ func storeTestProgram(t *testing.T) *PVM.Program {
 	t.Helper()
 	instBytes, boundaries := buildMinimalInstr(1, PVM.GetOpcodeInfo(1)) // fallthrough
 	blob := buildBlobExact(instBytes, boundaries)
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
+	prog, exitReason := PVM.DeBlobProgramCode(blob, 0)
 	if exitReason != PVM.ExitContinue {
 		t.Fatalf("DeBlobProgramCode: %v", exitReason)
 	}

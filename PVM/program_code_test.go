@@ -24,7 +24,7 @@ func TestLoadPVMFile(t *testing.T) {
 			t.Errorf("Error parsing %s: %v", filename, err)
 		}
 		// exitReason will not be used in this test
-		programBlob, _ := DeBlobProgramCode(programCode)
+		programBlob, _ := DeBlobProgramCode(programCode, 0)
 
 		expected := map[string]int{
 			"InstructionDataSize": 53963,
@@ -81,7 +81,7 @@ func TestSkip(t *testing.T) {
 		}
 
 		// exitReason will not be used in this test
-		programBlob, _ := DeBlobProgramCode(programCode)
+		programBlob, _ := DeBlobProgramCode(programCode, 0)
 
 		// the expected is stick to pvm debugger and only get the program counter < 40 instructions
 		expected := [][]byte{
@@ -100,8 +100,11 @@ func TestSkip(t *testing.T) {
 
 		for pc, j := 0, 0; pc < 40; j++ {
 			l := skip(pc, programBlob.Bitmasks)
-			if !reflect.DeepEqual(expected[j], programBlob.InstructionData[pc:pc+int(l)+1]) {
-				t.Errorf("Expected %v, but got %v", expected[j], programBlob.InstructionData[pc:pc+int(l)+1])
+			// []byte(...) matters: DeepEqual compares types first, and
+			// InstructionData is the named type ProgramCode.
+			got := []byte(programBlob.InstructionData[pc : pc+int(l)+1])
+			if !reflect.DeepEqual(expected[j], got) {
+				t.Errorf("Expected %v, but got %v", expected[j], got)
 			}
 			pc = pc + 1 + int(l)
 			if pc > 40 {

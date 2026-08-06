@@ -21,6 +21,7 @@ func init() {
 	// 4.3 No-argument
 	opcodeHandlers[0] = (*Compiler).emitTrap
 	opcodeHandlers[1] = (*Compiler).emitFallthrough
+	opcodeHandlers[2] = (*Compiler).emitUnlikely // GP 0.8.0: hint only
 
 	// 4.4 Immediate load
 	opcodeHandlers[10] = (*Compiler).emitEcalli
@@ -69,19 +70,18 @@ func init() {
 	opcodeHandlers[89] = makeBranchImm(asm.CondGE)
 	opcodeHandlers[90] = makeBranchImm(asm.CondGT)
 
-	// 4.8 Two-register
+	// A.5.9 Two-register | GP 0.8.0: sbrk removed, 102-111→101-110
 	opcodeHandlers[100] = (*Compiler).emitMoveReg
-	opcodeHandlers[101] = (*Compiler).emitSbrk
-	opcodeHandlers[102] = (*Compiler).emitCountSetBits64
-	opcodeHandlers[103] = (*Compiler).emitCountSetBits32
-	opcodeHandlers[104] = (*Compiler).emitLeadingZeroBits64
-	opcodeHandlers[105] = (*Compiler).emitLeadingZeroBits32
-	opcodeHandlers[106] = (*Compiler).emitTrailingZeroBits64
-	opcodeHandlers[107] = (*Compiler).emitTrailingZeroBits32
-	opcodeHandlers[108] = (*Compiler).emitSignExtend8
-	opcodeHandlers[109] = (*Compiler).emitSignExtend16
-	opcodeHandlers[110] = (*Compiler).emitZeroExtend16
-	opcodeHandlers[111] = (*Compiler).emitReverseBytes
+	opcodeHandlers[101] = (*Compiler).emitCountSetBits64
+	opcodeHandlers[102] = (*Compiler).emitCountSetBits32
+	opcodeHandlers[103] = (*Compiler).emitLeadingZeroBits64
+	opcodeHandlers[104] = (*Compiler).emitLeadingZeroBits32
+	opcodeHandlers[105] = (*Compiler).emitTrailingZeroBits64
+	opcodeHandlers[106] = (*Compiler).emitTrailingZeroBits32
+	opcodeHandlers[107] = (*Compiler).emitSignExtend8
+	opcodeHandlers[108] = (*Compiler).emitSignExtend16
+	opcodeHandlers[109] = (*Compiler).emitZeroExtend16
+	opcodeHandlers[110] = (*Compiler).emitReverseBytes
 
 	// 4.5 Two reg + one imm (store_ind, load_ind)
 	opcodeHandlers[120] = makeStoreInd(1)
@@ -255,7 +255,7 @@ type Compiler struct {
 	linkFallthrough *CompiledBlock // not-taken / sequential successor
 	linkTaken       *CompiledBlock // static jump / branch-taken target
 
-	singleStep bool // set by CompileSingleInstruction: exits must reach Go every instruction, no chaining
+	singleStep bool // set by CompileBlockInstruction: trampoline to Go after each instr
 }
 
 func NewCompiler(program *PVM.Program, ctx *JITContext, cache *CodeCache) *Compiler {
@@ -324,12 +324,11 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 			EndPC:      c.program.Instrs[endIdx-1].PC,
 			InstrStart: startIdx,
 			InstrEnd:   endIdx,
-			GasCost:    PVM.Gas(endIdx - startIdx),
 		}
 	} else if startPC != blockMeta.StartPC {
-		// Resume inside a decoded block (e.g. after sbrk). Compile the suffix
+		// Resume inside a decoded block (e.g. after host call exit). Compile the suffix
 		// from startPC only — executing from the block head would re-run earlier
-		// instructions and can loop on sbrk until the process SIGSEGVs.
+		// instructions.
 		idx := c.program.InstrIdxAt[startPC]
 		if idx < 0 {
 			return nil, fmt.Errorf("no instruction at PC=%d", startPC)
@@ -343,9 +342,10 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 			EndPC:      c.program.Instrs[blockMeta.InstrEnd-1].PC,
 			InstrStart: startIdx,
 			InstrEnd:   blockMeta.InstrEnd,
-			GasCost:    PVM.Gas(blockMeta.InstrEnd - startIdx),
 		}
 	}
+
+	blockGas := c.blockGasCostAt(startPC)
 
 	instrs := c.program.Instrs[blockMeta.InstrStart:blockMeta.InstrEnd]
 	lastInstr := &instrs[len(instrs)-1]
@@ -370,23 +370,14 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	a := c.asm
 	a.Reset()
 
-	// Per-instruction OOG landing-pad labels: the gas check (hot, in the loop)
-	// references instruction i's label before the landing pad (cold, after the
-	// loop) binds it — the two loops walk instrs in the same order, so an
-	// index-aligned slice pairs them.
-	oogLabels := make([]asm.Label, len(instrs))
-	for i := range oogLabels {
-		oogLabels[i] = a.NewLabel()
-	}
-
-	// blockBased gas charging (0.8.0 uncommented this):
-	// c.emitBlockGasCheck(a, blockOOG, int64(blockMeta.GasCost))
+	blockOOG := a.NewLabel()
+	c.emitBlockGasCheck(a, blockOOG, blockGas)
 
 	for i := range instrs {
 		instr := &instrs[i]
-
-		// per-instruction gas charging (GP v0.7.2, remove this in 0.8.0):
-		c.emitGasCheck(a, oogLabels[i])
+		if i == len(instrs)-1 && PVM.IsBlockTerminator(instr.Opcode) {
+			emitGasCharged(a, false)
+		}
 
 		handler := opcodeHandlers[instr.Opcode]
 		if handler == nil {
@@ -397,16 +388,10 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 		}
 	}
 
-	// blockBased gas charging (0.8.0 uncommented this):
-	// emitBlockOutOfGasExit(a, blockOOG, blockMeta.StartPC)
-
 	blockEpilogue := a.NewLabel()
 	a.Jmp(blockEpilogue)
 
-	// per-instruction gas charging (GP v0.7.2, remove this in 0.8.0):
-	for i := range instrs {
-		emitOutOfGasExit(a, oogLabels[i], instrs[i].PC)
-	}
+	emitBlockOutOfGasExit(a, blockOOG, blockMeta.StartPC, blockGas)
 
 	_ = a.BindLabel(blockEpilogue)
 	c.emitFallthroughEpilogue(a, fallthroughPC, linkFallthrough)
@@ -433,11 +418,17 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 		NativeAddr:   em.GetPtr(offset),
 		NativeOffset: offset,
 		NativeSize:   len(code),
-		GasCost:      int64(blockMeta.GasCost),
+		GasCost:      blockGas,
 		InstrCount:   blockMeta.InstrCount(),
 	}
 	c.cache.Put(block)
 	recordPerfMapEntry(block)
 	c.registerDispatch(block)
 	return block, nil
+}
+
+// blockGasCostAt returns A.9 block gas for the suffix from pc through the
+// containing basic block end (same rule as compileBasicBlockAtDepth suffix).
+func (c *Compiler) blockGasCostAt(pc PVM.ProgramCounter) int64 {
+	return int64(PVM.GasCostFromPC(c.program, pc))
 }

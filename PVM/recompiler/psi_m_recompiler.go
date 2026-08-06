@@ -53,7 +53,7 @@ func Psi_M_recompiler(
 	if jitProfile {
 		tDeblob = time.Now()
 	}
-	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode)
+	program, exitReason := PVM.GetOrDeblobProgram(addition.CodeHash, programCode, uint64(counter))
 	if jitProfile {
 		jm.deblobNanos.Add(int64(time.Since(tDeblob)))
 	}
@@ -79,6 +79,7 @@ func Psi_M_recompiler(
 
 	ctx.WriteRegisters(registers)
 	ctx.WriteGas(PVM.Gas(gas))
+	ctx.WriteGasCharged(false)
 	ctx.WriteExitReason(PVM.ExitContinue)
 	ctx.WriteExitPC(counter)
 

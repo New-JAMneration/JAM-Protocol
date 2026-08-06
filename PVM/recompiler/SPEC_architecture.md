@@ -30,7 +30,7 @@ PVM/
 │   ├── executable.go       # ExecutableMemory: dual-mapping (memfd + RW/RX views)
 │   ├── trampoline.go       # EmitEntryTrampoline, EmitExitTrampoline, EmitHostCallExit
 │   ├── compiler.go         # Compiler struct, opcodeHandlers[231], CompileBasicBlock
-│   ├── gas.go              # emitGasCheck (per-instr v0.7.2), emitBlockGasCheck (v0.8.0)
+│   ├── gas.go              # emitBlockGasCheck / emitBlockOutOfGasExit (GP 0.8.0 A.4/A.9)
 │   ├── emit_basic.go       # emitTrap, emitFallthrough, emitEcalli, emitLoadImm, etc.
 │   ├── emit_branch.go      # emitJump, emitJumpInd, emitBranchImm, emitBranch
 │   ├── emit_arith_three.go # 32/64-bit add/sub/mul/div/rem/shift/bitwise
@@ -170,7 +170,7 @@ RSP        (implicit)                native stack pointer
 ### 4.2 Exit Path
 
 Exit reasons（control region 使用 PVM package 的 `ExitReason` 格式：`type<<56 | payload`）：
-- **Gas exhaustion**: `emitGasCheck` → JS oog_label → ExitReason=ExitOOG
+- **Gas exhaustion**: `emitBlockGasCheck` → JS block_oog → `emitBlockOutOfGasExit` → ExitReason=ExitOOG
 - **Block end / branch**: `emitExitToPC` → ExitReason=ExitContinue(0), ExitPC=target
 - **Host call**: `emitEcalli` → ExitReason=ExitHostCall|callID
 - **Halt**: jump_ind to 0xFFFF0000 → ExitReason=ExitHalt

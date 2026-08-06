@@ -9,4 +9,5 @@ type Interpreter struct {
 	Memory     *Memory
 	Gas        Gas
 	InstrCount uint64
+	GasCharged bool // formula A.7 (0.8.0): true when current block's gas is pre-charged
 }

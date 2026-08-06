@@ -107,65 +107,63 @@ func (c *Compiler) emitLoadImmJump(a *asm.Assembler, instr *PVM.InstrMeta) error
 	return nil
 }
 
-// opcode 81-90: branch_xx_imm — conditional branch with immediate comparison
+// opcode 81-90: branch_xx_imm: dual-target validation (taken + fallthrough)
 func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.ConditionCode) error {
 	pc := instr.PC
 	xReg, vX, targetPC := branchOneRegImmFromMeta(instr)
-	takenLabel := a.NewLabel()
+	nextPC := fallthroughPC(instr)
 
-	// Compare Reg[rA] with vX
+	// GP 0.8.0: both targets must be valid basic block starts
+	if !c.program.Bitmasks.IsStartOfBasicBlock(targetPC) || !c.program.Bitmasks.IsStartOfBasicBlock(nextPC) {
+		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
+		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
+		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
+		a.Jmp(a.ExitTrampoline())
+		return nil
+	}
+
+	takenLabel := a.NewLabel()
 	if fitsInt32(vX) {
 		a.CmpRegImm32(xReg, int32(int64(vX)))
 	} else {
 		a.MovImm64ToReg(RegScratch, vX)
 		a.CmpRegReg(xReg, RegScratch)
 	}
-
 	a.Jcc(cc, takenLabel)
 
-	// Not taken: fall through to next instruction (block exit handled by caller)
-	nextPC := fallthroughPC(instr)
 	c.emitLinkOrExit(a, c.linkFallthrough, nextPC)
 
-	// Taken: exit to target PC
 	_ = a.BindLabel(takenLabel)
-	if !c.program.Bitmasks.IsStartOfBasicBlock(targetPC) {
-		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
-		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp(a.ExitTrampoline())
-	} else {
-		c.emitLinkOrExit(a, c.linkTaken, targetPC)
-	}
+	c.emitLinkOrExit(a, c.linkTaken, targetPC)
 
 	return nil
 }
 
 // ---- 4.9.4 Conditional branch (two registers + offset) ----
 
-// opcode 170-175: branch_xx — two-register comparison
+// opcode 170-175: branch_xx: dual-target validation (taken + fallthrough)
 func (c *Compiler) emitBranch(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.ConditionCode) error {
 	pc := instr.PC
 	aReg, bReg, targetPC := branchTwoRegFromMeta(instr)
-	takenLabel := a.NewLabel()
-
-	a.CmpRegReg(aReg, bReg)
-	a.Jcc(cc, takenLabel)
-
-	// Not taken
 	nextPC := fallthroughPC(instr)
-	c.emitLinkOrExit(a, c.linkFallthrough, nextPC)
 
-	// Taken
-	_ = a.BindLabel(takenLabel)
-	if !c.program.Bitmasks.IsStartOfBasicBlock(targetPC) {
+	// GP 0.8.0: both targets must be valid basic block starts
+	if !c.program.Bitmasks.IsStartOfBasicBlock(targetPC) || !c.program.Bitmasks.IsStartOfBasicBlock(nextPC) {
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
 		a.Jmp(a.ExitTrampoline())
-	} else {
-		c.emitLinkOrExit(a, c.linkTaken, targetPC)
+		return nil
 	}
+
+	takenLabel := a.NewLabel()
+	a.CmpRegReg(aReg, bReg)
+	a.Jcc(cc, takenLabel)
+
+	c.emitLinkOrExit(a, c.linkFallthrough, nextPC)
+
+	_ = a.BindLabel(takenLabel)
+	c.emitLinkOrExit(a, c.linkTaken, targetPC)
 
 	return nil
 }

@@ -30,7 +30,7 @@ func (r *Recompiler) DebugSingleStepInvoke(pc PVM.ProgramCounter) (PVM.ExitReaso
 		}
 		instr := &r.program.Instrs[int(idx)]
 
-		block, err := r.compiler.CompileSingleInstruction(instr)
+		block, err := r.compiler.CompileBlockInstruction(instr)
 		if err != nil {
 			return PVM.ExitPanic, 0
 		}
@@ -50,38 +50,7 @@ func (r *Recompiler) DebugSingleStepInvoke(pc PVM.ProgramCounter) (PVM.ExitReaso
 		exitReason := executeBlockLocked(r.ctx, block)
 		exitPC := r.ctx.ReadExitPC()
 
-		if IsSbrkExit(exitReason) {
-			exitReason = HandleSbrk(r.ctx, instr.Dst, instr.Src[0])
-			if exitReason != PVM.ExitContinue {
-				if trace != nil {
-					var dstVal, src1Val, src2Val uint64
-					if instr.Dst != 0xff {
-						dstVal = r.ctx.ReadRegister(instr.Dst)
-					}
-					if instr.Src[0] != 0xff {
-						src1Val = r.ctx.ReadRegister(instr.Src[0])
-					}
-					if instr.Src[1] != 0xff {
-						src2Val = r.ctx.ReadRegister(instr.Src[1])
-					}
-					trace.RecordStep(
-						uint32(instr.PC), instr.Opcode,
-						instr.Dst, instr.Src[0], instr.Src[1],
-						dstVal, src1Val, src2Val,
-						int64(r.ctx.ReadGas()),
-						0, 0, 0, 0,
-					)
-				}
-				switch exitReason.GetReasonType() {
-				case PVM.HALT, PVM.PANIC:
-					return exitReason, r.ctx.ReadExitPC()
-				default:
-					return exitReason, exitPC
-				}
-			}
-			exitPC = fallthroughPC(instr)
-			exitReason = PVM.ExitContinue
-		}
+		// GP 0.8.0: sbrk exit path removed; heap growth via grow_heap host call
 
 		if IsDjumpExit(exitReason) {
 			exitReason, exitPC = r.resolveDjump(instr.PC, uint32(exitPC))

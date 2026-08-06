@@ -384,15 +384,16 @@ Opcode  Handler                    Category
 CompileBasicBlock(startPC):
   1. ensureDjumpSupport() — lazy init jump table rodata
   2. 找到 BlockMeta (pre-decoded block boundaries)
-  3. Pre-compile link targets (strategy-a block linking):
+  3. blockGas = blockGasCostAt(startPC)  — A.9, bake at compile time
+  4. Pre-compile link targets (strategy-a block linking):
      - compileForLink(fallthroughPC)  → linkFallthrough
      - compileForLink(branchTarget)   → linkTaken
-  4. Loop: for each instruction in block:
-     a. emitGasCheck(instrPC)         → gas decrement + OOG check
+  5. emitBlockGasCheck(blockGas) + block OOG landing pad
+  6. Loop: for each instruction in block:
+     a. if last instr is terminator → emitGasCharged(false)
      b. opcodeHandlers[opcode](...)   → emit native code
-  5. Epilogue: JMP block_epilogue
-  6. Emit per-instruction OOG landing pads
-  7. block_epilogue: emitFallthroughEpilogue → ExitTrampoline
-  8. Finalize → resolve labels → write to ExecutableMemory
-  9. cache.Put(block) + registerDispatch(block)
+  7. Epilogue: JMP block_epilogue
+  8. block_epilogue: emitFallthroughEpilogue → ExitTrampoline
+  9. Finalize → resolve labels → write to ExecutableMemory
+ 10. cache.Put(block) + registerDispatch(block)
 ```

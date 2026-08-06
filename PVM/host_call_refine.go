@@ -1,13 +1,26 @@
 package PVM
 
 import (
+	"encoding/binary"
+	"math"
+
 	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// historical_lookup = 6
+// gasFromUint64 clamps a guest-supplied gas budget into signed Gas.
+func gasFromUint64(v uint64) Gas {
+	if v > uint64(math.MaxInt64) {
+		return math.MaxInt64
+	}
+	return Gas(v)
+}
+
+// historical_lookup = 7
 func historicalLookup(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	// g = M_{H,c} + 𝒢(M_{H,ℓ}, z); z = ω₁₁
+	cost := addGas(HostGasHistoricalLookupConst, MemGas(HostGasHistoricalLookupOctets, input.VM.Registers[11]))
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
 
@@ -70,9 +83,9 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// export = 7
+// export = 8
 func export(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasExport); result != nil { // M_E
 		return *result
 	}
 
@@ -112,15 +125,15 @@ func export(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// machine = 8
+// machine = 9
 func machine(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	po, pz, i := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
+	// g = M_{M,c} + 𝒢(M_{M,ℓ}, p_Z)
+	cost := addGas(HostGasMachineConst, MemGas(HostGasMachineOctets, pz))
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
-
-	po, pz, i := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
-	// pz = offset
-	if !input.VM.Mem.IsReadable(po, pz) { // not readable, return
+	if !input.VM.Mem.IsReadable(po, pz) {
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -128,9 +141,14 @@ func machine(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	if uint64(len(input.Addition.IntegratedPVMMap)) >= 63 {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
+
 	p := input.VM.Mem.Read(po, pz)
 
-	// find first i not in K(m)
+	// find first n not in K(m)
 	n := uint64(0)
 	for ; n <= ^uint64(0); n++ {
 		if _, pvmTypeExists := input.Addition.IntegratedPVMMap[n]; !pvmTypeExists {
@@ -138,38 +156,33 @@ func machine(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	var u Memory
-	_, exitReason := DeBlobProgramCode(p)
-	// otherwise if deblob(p) = PANIC
-	if exitReason == ExitPanic {
+	prog, exitReason := DeBlobProgramCode(p, i)
+	if exitReason != ExitContinue {
 		input.VM.Registers[7] = HUH
-		return OmegaOutput{
-			ExitReason: ExitContinue,
-			Addition:   input.Addition,
-		}
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
 
 	// otherwise
 	input.VM.Registers[7] = n
 	input.Addition.IntegratedPVMMap[n] = IntegratedPVMType{
 		ProgramCode: ProgramCode(p),
-		Memory:      u,
+		Program:     &prog,
+		Memory:      Memory{},
 		PC:          ProgramCounter(i),
+		GasCharged:  false, // GP B.6 Ω_M: gaschargedflag = ⊥ at creation
 	}
 
-	return OmegaOutput{
-		ExitReason: ExitContinue,
-		Addition:   input.Addition,
-	}
+	return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 }
 
-// peek = 9
+// peek = 10
 func peek(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	n, o, s, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	// g = M_{P,c} + 𝒢(M_{P,ℓ}, z)
+	cost := addGas(HostGasPeekConst, MemGas(HostGasPeekOctets, z))
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
-
-	n, o, s, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 
 	if z == 0 {
 		input.VM.Registers[7] = OK
@@ -220,13 +233,14 @@ func peek(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// poke = 10
+// poke = 11
 func poke(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	n, s, o, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	// g = M_{O,c} + 𝒢(M_{O,ℓ}, z)
+	cost := addGas(HostGasPokeConst, MemGas(HostGasPokeOctets, z))
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
-
-	n, s, o, z := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 
 	if !input.VM.Mem.IsReadable(s, z) { // not readable, return
 		input.VM.Registers[7] = OOB
@@ -268,13 +282,27 @@ func poke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// pages = 11
+// pagesGasCost is Ω_Z gas from B.6: free (r=0), alloc (r∈{1,2}),
+// setmode (r∈{3,4}), else invalid. Linear term is per page, not MemGas.
+func pagesGasCost(r, c uint64) Gas {
+	switch r {
+	case 0:
+		return unitGasCost(HostGasPagesFreeConst, HostGasPagesFreePage, c)
+	case 1, 2:
+		return unitGasCost(HostGasPagesAllocConst, HostGasPagesAllocPage, c)
+	case 3, 4:
+		return unitGasCost(HostGasPagesSetModeConst, HostGasPagesSetModePage, c)
+	default:
+		return HostGasPagesInvalid
+	}
+}
+
+// pages = 12
 func pages(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	n, p, c, r := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	if result := chargeGasAndCheck(&input, pagesGasCost(r, c)); result != nil {
 		return *result
 	}
-
-	n, p, c, r := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 	// u = panic
 	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
 		// u = panic
@@ -340,17 +368,16 @@ func pages(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// invoke = 12
+// invoke = 13 | B.6 Ω_K: g = M_K + g_R; success path refunds g_R' to outer gas.
 func invoke(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
-		return *result
-	}
-
 	n, o := input.VM.Registers[7], input.VM.Registers[8]
 
 	offset := uint64(112)
-	// g = panic
+	// w = error ⇒ g_R = 0, g = M_K; charge then panic.
 	if !input.VM.Mem.IsWriteable(o, offset) {
+		if result := chargeGasAndCheck(&input, HostGasInvoke); result != nil {
+			return *result
+		}
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -358,25 +385,15 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if n not in M
-	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
-		input.VM.Registers[7] = WHO
-		return OmegaOutput{
-			ExitReason: ExitContinue,
-			Addition:   input.Addition,
-		}
-	}
-
-	// assign g, w  |  g => gas , w => registers[13]   , 8(gas) + 8(uint64) * 13 = 112
-	var g uint64
+	// assign g_R, w  |  g_R => gas , w => registers[13]   , 8(gas) + 8(uint64) * 13 = 112
+	var gR uint64
 	var w Registers
 
-	// first read data from memory
+	// read data from memory
 	data := input.VM.Mem.Read(o, offset)
-
 	decoder := types.NewDecoder()
-	// decode gas
-	err := decoder.Decode(data[:8], &g)
+	 // decode gas
+	err := decoder.Decode(data[:8], &gR)
 	if err != nil {
 		pvmLogger.Errorf("host-call function \"invoke\" decode gas error : %v", err)
 	}
@@ -387,36 +404,46 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 			pvmLogger.Errorf("host-call function \"invoke\" decode register:%d error : %v", i-1, err)
 		}
 	}
-	// inner-invoke executor (A.38 invoke): runs a nested program blob. It is
-	// deliberately NOT one of the pluggable Psi_M backends and does not go
-	// through Psi_M dispatch — it is a core, instruction-only executor:
-	//   - dynamic decode: tmpProgram carries only the raw blob (no pre-decoded
-	//     blocks), so SingleStepInvoke decodes per instruction; nested PVM is not
-	//     recompiled.
-	//   - single-step, no host calls (NewInterpreter takes no omegas).
-	// Keeping it on the core Interpreter (not the host-call Host) also keeps this
-	// executor free of any interpreter-backend package, avoiding an
-	// omega -> PVM/interpreter import cycle.
-	tmpProgram := Program{
-		InstructionData: input.Addition.IntegratedPVMMap[n].ProgramCode,
+
+	innerBudget := gasFromUint64(gR)
+	// Charge M_K + g_R up front; remaining g_R' is refunded after Ψ returns.
+	if result := chargeGasAndCheck(&input, addGas(HostGasInvoke, innerBudget)); result != nil {
+		return *result
 	}
-	tempMemory := input.Addition.IntegratedPVMMap[n].Memory
-	// wrap m[n]_p (program), w (registers), m[n]_u (memory), g (gas)
-	tempInterp := NewInterpreter(&tmpProgram, w, &tempMemory, Gas(g))
 
-	var c ExitReason
-	var pcPrime ProgramCounter
+	// otherwise if n not in M — no refund
+	if _, nExists := input.Addition.IntegratedPVMMap[n]; !nExists {
+		input.VM.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
 
-	c, pcPrime = tempInterp.SingleStepInvoke(input.Addition.IntegratedPVMMap[n].PC)
+	integrated := input.Addition.IntegratedPVMMap[n]
+	tmpProgram, decodeReason := IntegratedProgramForInvoke(integrated)
+	if decodeReason != ExitContinue {
+		// Inner never ran; treat as panic host-result and refund full g_R
+		// (g_R' = g_R) so outer only paid M_K.
+		*input.VM.Gas += innerBudget
+		input.VM.Registers[7] = INNERPANIC
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
 
-	// mu* = mu
-	encoder := types.NewEncoder()
+	tempMemory := integrated.Memory
+	tempInterp := NewInterpreter(tmpProgram, w, &tempMemory, innerBudget)
+	tempInterp.GasCharged = gasChargedForIntegratedResume(tmpProgram, integrated.PC, integrated.GasCharged)
+
+	c, pcPrime := tempInterp.BlockBasedInvokeDecodedBlocks(integrated.PC)
+
+	// gascounter' = gascounter − g + g_R'  (refund remaining inner gas)
+	*input.VM.Gas += tempInterp.Gas
+
+	// mu* = mu — same fixed 8-byte little-endian layout as the read path above.
 	data = types.ByteSequence(make([]byte, offset))
-	encoded, _ := encoder.Encode(&tempInterp.Gas) // encode g'
-	copy(data, encoded)
+	binary.LittleEndian.PutUint64(data[0:8], uint64(tempInterp.Gas))
 	for i := uint64(1); i < offset/8; i++ {
-		encoded, _ := encoder.Encode(&tempInterp.Registers[i-1])
-		copy(data[8*i:8*(i+1)], encoded)
+		binary.LittleEndian.PutUint64(data[8*i:8*(i+1)], tempInterp.Registers[i-1])
 	}
 	// write data into memory (mu)
 	input.VM.Mem.Write(o, data)
@@ -424,11 +451,8 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// m* = m
 	tmp := input.Addition.IntegratedPVMMap[n]
 	tmp.Memory = *tempInterp.Memory
-	if c.GetReasonType() == HOST_CALL {
-		tmp.PC = pcPrime + 1 + ProgramCounter(skip(int(pcPrime), input.Addition.Program.Bitmasks))
-	} else {
-		tmp.PC = pcPrime
-	}
+	tmp.GasCharged = tempInterp.GasCharged
+	tmp.PC = pcPrime
 	input.Addition.IntegratedPVMMap[n] = tmp
 
 	switch c.GetReasonType() {
@@ -457,9 +481,9 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// expunge = 13
+// expunge = 14
 func expunge(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasExpunge); result != nil { // M_X
 		return *result
 	}
 

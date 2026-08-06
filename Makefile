@@ -233,3 +233,8 @@ run-recompiler-test:
 		-v "$(shell pwd)":/app \
 		go-jit-test \
 		go test -v ./PVM/recompiler/...
+
+# Interpreter vs recompiler consistency on extracted program blobs (linux/amd64 + cgo).
+.PHONY: test-backend-consistency
+test-backend-consistency:
+	CGO_ENABLED=1 go test -count=1 -timeout 30m -v ./PVM/ -run TestInterpreterVsRecompilerProgramBlobs

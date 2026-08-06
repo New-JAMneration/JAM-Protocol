@@ -9,14 +9,15 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/internal/utilities/hash"
 )
 
-// bless = 14
+// bless = 15
 func bless(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
-		return *result
-	}
-
 	m, a, v := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9]
 	r, o, n := input.VM.Registers[10], input.VM.Registers[11], input.VM.Registers[12]
+
+	// g = M_{B,c} + n · M_{B,ℓ}
+	if result := chargeGasAndCheck(&input, unitGasCost(HostGasBlessConst, HostGasBlessItem, n)); result != nil {
+		return *result
+	}
 
 	// if N_{a...+4C} not readable
 	offset := uint64(4 * types.CoresCount)
@@ -89,6 +90,15 @@ func bless(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
+	// GP v0.8.0 / PR #519: only the manager service may bless.
+	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Bless {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+
 	// (m, v, r) \not in N_s
 	limit := uint64(1 << 32)
 
@@ -114,9 +124,9 @@ func bless(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// assign = 15
+// assign = 16
 func assign(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasAssign); result != nil { // M_A
 		return *result
 	}
 
@@ -181,16 +191,30 @@ func assign(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// designate = 16
+// isValidValidatorCount: designate (B.7) z ∈ 𝕍 with V = 3·C , z is a multiple
+// of 3 and 6 ≤ z ≤ 3·C. Invalid z → HUH before reading 336·z bytes; bad keys
+// still panic at Decode below.
+func isValidValidatorCount(z uint64) bool {
+	if z%3 != 0 {
+		return false
+	}
+	c := z / 3
+	return c >= 2 && c <= uint64(types.CoresCount)
+}
+
+const validatorKeyBytes = 336
+
+// designate = 17
 func designate(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	o, z := input.VM.Registers[7], input.VM.Registers[8]
+
+	// g = M_{D,c} + z · M_{D,ℓ}
+	if result := chargeGasAndCheck(&input, unitGasCost(HostGasDesignateConst, HostGasDesignateValidator, z)); result != nil {
 		return *result
 	}
 
-	o := input.VM.Registers[7]
-
-	offset := uint64(336 * types.ValidatorsCount)
-	if !input.VM.Mem.IsReadable(o, offset) { // not readable, panic
+	offset, overflow := checkOverflow(validatorKeyBytes, z)
+	if overflow || !input.VM.Mem.IsReadable(o, offset) { // not readable, panic
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
@@ -198,8 +222,9 @@ func designate(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// otherwise if x_s ≠ (x_u)_v
-	if input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Designate {
+	// otherwise if z ∉ 𝕍 or x_s ≠ (x_u)_v (delegator)
+	if !isValidValidatorCount(z) ||
+		input.Addition.ResultContextX.ServiceID != input.Addition.ResultContextX.PartialState.Designate {
 		input.VM.Registers[7] = HUH
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -207,17 +232,18 @@ func designate(input OmegaInput) (output OmegaOutput) {
 		}
 	}
 
-	// 336 * types.ValidatorsCount might cross many pages
-	rawData := input.VM.Mem.Read(o, offset) // bold{v}
-
-	validatorsData := types.ValidatorsData{}
+	// Memory layout is a raw concatenation of z validator keys (no length prefix).
+	rawData := input.VM.Mem.Read(o, offset)
+	validatorsData := make(types.ValidatorsData, z)
 	decoder := types.NewDecoder()
-	err := decoder.Decode(rawData, &validatorsData)
-	if err != nil {
-		pvmLogger.Errorf("host-call function \"designate\" decode validatorsData error : %v", err)
-		return OmegaOutput{
-			ExitReason: ExitPanic,
-			Addition:   input.Addition,
+	for i := uint64(0); i < z; i++ {
+		start := i * validatorKeyBytes
+		if err := decoder.Decode(rawData[start:start+validatorKeyBytes], &validatorsData[i]); err != nil {
+			pvmLogger.Errorf("host-call function \"designate\" decode validator %d error : %v", i, err)
+			return OmegaOutput{
+				ExitReason: ExitPanic,
+				Addition:   input.Addition,
+			}
 		}
 	}
 
@@ -230,9 +256,9 @@ func designate(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// checkpoint = 17
+// checkpoint = 18
 func checkpoint(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasCheckpoint); result != nil { // M_C
 		return *result
 	}
 
@@ -246,9 +272,9 @@ func checkpoint(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// new = 18
+// new = 19
 func new(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasNew); result != nil { // M_N
 		return *result
 	}
 
@@ -369,9 +395,9 @@ func new(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// upgrade = 19
+// upgrade = 20
 func upgrade(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasUpgrade); result != nil { // M_U
 		return *result
 	}
 
@@ -410,9 +436,9 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// transfer = 20
+// transfer = 21
 func transfer(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasTransfer); result != nil { // M_T
 		return *result
 	}
 
@@ -486,9 +512,9 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// eject = 21
+// eject = 22
 func eject(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasEject); result != nil { // M_J
 		return *result
 	}
 
@@ -574,13 +600,27 @@ func eject(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// query = 22
+// isBlobLength reports z ∈ bloblength = ℕ_{2^{32}} (GP PR #520).
+func isBlobLength(z uint64) bool {
+	return z < (1 << 32)
+}
+
+// query = 23
 func query(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasQuery); result != nil { // M_Q
 		return *result
 	}
 
 	o, z := input.VM.Registers[7], input.VM.Registers[8]
+
+	// z ∉ bloblength → HUH (checked before memory panic)
+	if !isBlobLength(z) {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
 
 	offset := uint64(32)
 	if !input.VM.Mem.IsReadable(o, offset) { // not readable, return
@@ -700,13 +740,22 @@ func processSolicitLookupData(account *types.ServiceAccount, lookupKey types.Loo
 	return &OmegaOutput{ExitReason: ExitContinue}
 }
 
-// solicit = 23
+// solicit = 24
 func solicit(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasSolicit); result != nil { // M_S
 		return *result
 	}
 
 	o, z := input.VM.Registers[7], input.VM.Registers[8]
+
+	if !isBlobLength(z) {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+
 	offset := uint64(32)
 	if !input.VM.Mem.IsReadable(o, offset) {
 		input.VM.Registers[7] = OOB
@@ -752,13 +801,21 @@ func solicit(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// forget = 24
+// forget = 25
 func forget(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasForget); result != nil { // M_F
 		return *result
 	}
 
 	o, z := input.VM.Registers[7], input.VM.Registers[8]
+
+	if !isBlobLength(z) {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
 
 	offset := uint64(32)
 	if !input.VM.Mem.IsReadable(o, offset) { // not readable, return
@@ -853,9 +910,9 @@ func forget(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// yield = 25
+// yield = 26
 func yield(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasYield); result != nil { // M_♉
 		return *result
 	}
 
@@ -881,13 +938,23 @@ func yield(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// provide = 26
+// provide = 27
 func provide(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	o, z := input.VM.Registers[8], input.VM.Registers[9]
+	// g = M_{♈,c} + 𝒢(M_{♈,ℓ}, z)
+	if result := chargeGasAndCheck(&input, addGas(HostGasProvideConst, MemGas(HostGasProvideOctets, z))); result != nil {
 		return *result
 	}
 
-	o, z := input.VM.Registers[8], input.VM.Registers[9]
+	// z ∉ bloblength → HUH (before memory panic)
+	if !isBlobLength(z) {
+		input.VM.Registers[7] = HUH
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+
 	// i = panic
 	offset := uint64(z)
 	if !input.VM.Mem.IsReadable(o, offset) {

@@ -2,6 +2,8 @@ package PVM
 
 import (
 	"fmt"
+	"math"
+	"math/bits"
 	"sync"
 	"time"
 
@@ -14,39 +16,40 @@ import (
 type OperationType int
 
 const (
-	// ----------------- General Functions -----------------
-	GasOp    OperationType = iota // gas = 0
-	FetchOp                       // fetch = 1
-	LookupOp                      // lookup = 2
-	ReadOp                        // read = 3
-	WriteOp                       // write = 4
-	InfoOp                        // info = 5
+	// ----------------- General Functions (B.5) -----------------
+	GasOp      OperationType = 0 // Ω_G
+	GrowHeapOp OperationType = 1 // Ω_♊
+	FetchOp    OperationType = 2 // Ω_Y
+	LookupOp   OperationType = 3 // Ω_L
+	ReadOp     OperationType = 4 // Ω_R
+	WriteOp    OperationType = 5 // Ω_W
+	InfoOp     OperationType = 6 // Ω_I
 
-	// ----------------- Refine Functions -----------------
-	HistoricalLookupOp // historical_lookup = 6
-	ExportOp           // export = 7
-	MachineOp          // machine = 8
-	PeekOp             // peek = 9
-	PokeOp             // poke = 10
-	PagesOp            // pages = 11
-	InvokeOp           // invoke = 12
-	ExpungeOp          // expunge = 13
+	// ----------------- Refine Functions (B.6) -----------------
+	HistoricalLookupOp OperationType = 7  // Ω_H
+	ExportOp           OperationType = 8  // Ω_E
+	MachineOp          OperationType = 9  // Ω_M
+	PeekOp             OperationType = 10 // Ω_P
+	PokeOp             OperationType = 11 // Ω_O
+	PagesOp            OperationType = 12 // Ω_Z
+	InvokeOp           OperationType = 13 // Ω_K
+	ExpungeOp          OperationType = 14 // Ω_X
 
-	// ----------------- Accumulate Functions -----------------
-	BlessOp      // bless = 14
-	AssignOp     // assign = 15
-	DesignateOp  // designate = 16
-	CheckpointOp // checkpoint = 17
-	NewOp        // new = 18
-	UpgradeOp    // upgrade = 19
-	TransferOp   // transfer = 20
-	EjectOp      // eject = 21
-	QueryOp      // query = 22
-	SolicitOp    // solicit = 23
-	ForgetOp     // forget = 24
-	YieldOp      // yield = 25
-	ProvideOp    // provide = 26
-	LogOp        = OperationType(100)
+	// ----------------- Accumulate Functions (B.7) -----------------
+	BlessOp      OperationType = 15 // Ω_B
+	AssignOp     OperationType = 16 // Ω_A
+	DesignateOp  OperationType = 17 // Ω_D
+	CheckpointOp OperationType = 18 // Ω_C
+	NewOp        OperationType = 19 // Ω_N
+	UpgradeOp    OperationType = 20 // Ω_U
+	TransferOp   OperationType = 21 // Ω_T
+	EjectOp      OperationType = 22 // Ω_J
+	QueryOp      OperationType = 23 // Ω_Q
+	SolicitOp    OperationType = 24 // Ω_S
+	ForgetOp     OperationType = 25 // Ω_F
+	YieldOp      OperationType = 26 // Ω_Taurus
+	ProvideOp    OperationType = 27 // Ω_Aries
+	LogOp        OperationType = 100
 
 	MaxOperationType OperationType = 100
 )
@@ -97,32 +100,33 @@ func getPtr[T any](v T) *T { return &v }
 
 var hostCallName = []string{
 	0:   "gas",
-	1:   "fetch",
-	2:   "lookup",
-	3:   "read",
-	4:   "write",
-	5:   "info",
-	6:   "historicalLookup",
-	7:   "export",
-	8:   "machine",
-	9:   "peek",
-	10:  "poke",
-	11:  "pages",
-	12:  "invoke",
-	13:  "expunge",
-	14:  "bless",
-	15:  "assign",
-	16:  "designate",
-	17:  "checkpoint",
-	18:  "new",
-	19:  "upgrade",
-	20:  "transfer",
-	21:  "eject",
-	22:  "query",
-	23:  "solicit",
-	24:  "forget",
-	25:  "yield",
-	26:  "provide",
+	1:   "grow_heap",
+	2:   "fetch",
+	3:   "lookup",
+	4:   "read",
+	5:   "write",
+	6:   "info",
+	7:   "historicalLookup",
+	8:   "export",
+	9:   "machine",
+	10:  "peek",
+	11:  "poke",
+	12:  "pages",
+	13:  "invoke",
+	14:  "expunge",
+	15:  "bless",
+	16:  "assign",
+	17:  "designate",
+	18:  "checkpoint",
+	19:  "new",
+	20:  "upgrade",
+	21:  "transfer",
+	22:  "eject",
+	23:  "query",
+	24:  "solicit",
+	25:  "forget",
+	26:  "yield",
+	27:  "provide",
 	100: "log",
 }
 
@@ -137,6 +141,7 @@ func HostCallName(op int) string {
 var HostCallFunctions Omegas = func() Omegas {
 	f := make([]Omega, MaxOperationType+1)
 	f[GasOp] = gas
+	f[GrowHeapOp] = growHeap
 	f[FetchOp] = fetch
 	f[LookupOp] = lookup
 	f[ReadOp] = read
@@ -175,7 +180,7 @@ var (
 )
 
 func hostCallException(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasUnknown); result != nil {
 		return *result
 	}
 	input.VM.Registers[7] = WHAT
@@ -199,8 +204,9 @@ func hostCallOutOfGas(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-func chargeGasAndCheck(input *OmegaInput) *OmegaOutput {
-	*input.VM.Gas -= 10
+// chargeGasAndCheck deducts cost from gas and returns OOG output if negative.
+func chargeGasAndCheck(input *OmegaInput, cost Gas) *OmegaOutput {
+	*input.VM.Gas -= cost
 	if *input.VM.Gas < 0 {
 		return &OmegaOutput{
 			ExitReason: ExitOOG,
@@ -212,15 +218,11 @@ func chargeGasAndCheck(input *OmegaInput) *OmegaOutput {
 
 // Gas Function（ΩG）, gas = 0
 func gas(input OmegaInput) OmegaOutput {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasGas); result != nil { // M_G
 		return *result
 	}
-
 	input.VM.Registers[7] = uint64(*input.VM.Gas)
-	return OmegaOutput{
-		ExitReason: ExitContinue,
-		Addition:   input.Addition,
-	}
+	return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 }
 
 type fetchHandler func(OmegaInput, *types.Encoder) ([]byte, error)
@@ -477,19 +479,48 @@ func fetchOperandOrDeferredTransferAt(input OmegaInput, enc *types.Encoder) ([]b
 	return val, nil
 }
 
-// fetch = 1
+// growHeap = 1 | Ω_♊(g, ω, μ, jam_blob)
+// ω₇ = desired heap-top page index; ω'₇ = resulting heap-top page index.
+// g = M_{♊,c} + (ω₇ − h) · M_{♊,p}
+func growHeap(input OmegaInput) OmegaOutput {
+	n := input.VM.Registers[7]       // ω₇
+	h := input.VM.Mem.HeapPages()    // h = a + c
+	b := input.VM.Mem.HeapMaxPages() // b
+
+	// ω₇ ≤ h ∨ ω₇ > b: no growth needed or invalid → charge M_{♊,c} only
+	if n <= h || n > b {
+		if result := chargeGasAndCheck(&input, HostGasGrowHeapConst); result != nil {
+			input.VM.Registers[7] = h
+			return *result
+		}
+		input.VM.Registers[7] = h
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
+
+	g := HostGasGrowHeapConst + Gas(n-h)*HostGasGrowHeapPage
+	if result := chargeGasAndCheck(&input, g); result != nil {
+		input.VM.Registers[7] = h
+		return *result
+	}
+
+	input.VM.Mem.GrowHeapTo(n)
+	input.VM.Registers[7] = n
+	return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+}
+
+// fetch = 2
 func fetch(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	discriminator := input.VM.Registers[10]
+	if result := chargeGasAndCheck(&input, fetchCost(discriminator, input.VM.Registers[9])); result != nil {
 		return *result
 	}
 
 	encoder := types.NewEncoder()
-	idx := input.VM.Registers[10]
 	var v *[]byte
 	var val []byte
 	var err error
-	if idx < uint64(len(fetchHandlers)) {
-		val, err = fetchHandlers[idx](input, encoder)
+	if discriminator < uint64(len(fetchHandlers)) {
+		val, err = fetchHandlers[discriminator](input, encoder)
 		if err == nil && val != nil {
 			v = &val
 		}
@@ -541,9 +572,43 @@ func fetch(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩL(ϱ, ω, μ, s, s, d) , lookup = 2
+func fetchCost(discriminator, length uint64) Gas {
+	constant, rate := FetchGasCost(discriminator)
+	return addGas(constant, MemGas(rate, length))
+}
+
+// addGas saturates at MaxInt64 so huge linear terms never wrap.
+func addGas(parts ...Gas) Gas {
+	var sum Gas
+	for _, part := range parts {
+		if part <= 0 {
+			continue
+		}
+		if sum > math.MaxInt64-part {
+			return math.MaxInt64
+		}
+		sum += part
+	}
+	return sum
+}
+
+// unitGasCost is const + rate·n with saturation (pages / bless / designate).
+func unitGasCost(constant, rate Gas, n uint64) Gas {
+	if rate <= 0 || n == 0 {
+		return constant
+	}
+	hi, lo := bits.Mul64(uint64(rate), n)
+	if hi != 0 || lo > uint64(math.MaxInt64) {
+		return math.MaxInt64
+	}
+	return addGas(constant, Gas(lo))
+}
+
+// lookup = 3
 func lookup(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	// g = M_{L,c} + 𝒢(M_{L,ℓ}, z); z = ω₁₁
+	cost := addGas(HostGasLookupConst, MemGas(HostGasLookupOctets, input.VM.Registers[11]))
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
 
@@ -610,7 +675,7 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, s, d) , read = 3
+// read = 4
 /*
 ϱ: gas
 ω: registers
@@ -620,7 +685,15 @@ s(italic): ServiceID
 d: ServiceAccountState (map[ServiceID]ServiceAccount)
 */
 func read(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	// g = M_{R,c} + 𝒢(M_{R,k,ℓ}, k_Z) + 𝒢(M_{R,v,ℓ}, v_Z)
+	ko, kz, o := input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	vZ := input.VM.Registers[12]
+	cost := addGas(
+		HostGasReadConst,
+		MemGas(HostGasReadKeyOctets, kz),
+		MemGas(HostGasReadValueOctets, vZ),
+	)
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
 
@@ -635,7 +708,6 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 	// assign ko, kz, o first and check v = panic ?
 	// since v = panic is the first condition to check
-	ko, kz, o := input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 	if !input.VM.Mem.IsReadable(ko, kz) {
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
@@ -719,13 +791,18 @@ func read(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩW (ϱ, ω, μ, s, s) , write = 4
+// write = 5
 func write(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	// g = M_{W,c} + 𝒢(M_{W,k,ℓ}, k_Z) + 𝒢(M_{W,v,ℓ}, v_Z)
+	ko, kz, vo, vz := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
+	cost := addGas(
+		HostGasWriteConst,
+		MemGas(HostGasWriteKeyOctets, kz),
+		MemGas(HostGasWriteValOctets, vz),
+	)
+	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
-
-	ko, kz, vo, vz := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
 	if !input.VM.Mem.IsReadable(ko, kz) {
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
@@ -811,7 +888,7 @@ func write(input OmegaInput) (output OmegaOutput) {
 	}
 }
 
-// ΩR(ϱ, ω, μ, s, d) , info = 5
+// info = 6
 /*
 ϱ: gas
 ω: registers
@@ -821,7 +898,7 @@ s(italic): ServiceID
 d: ServiceAccountState (map[ServiceID]ServiceAccount)
 */
 func info(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasInfo); result != nil { // M_I
 		return *result
 	}
 
@@ -890,10 +967,11 @@ func info(input OmegaInput) (output OmegaOutput) {
 }
 
 // log = 100 , [JIP-1](https://hackmd.io/@polkadot/jip1)
+// g = 10 (fixed; not in Gray Paper)
 // Output registers: {} (none modified per spec)
 // Side-effects: "No side-effects if memory access is invalid."
 func logHostCall(input OmegaInput) (output OmegaOutput) {
-	if result := chargeGasAndCheck(&input); result != nil {
+	if result := chargeGasAndCheck(&input, HostGasLog); result != nil {
 		return *result
 	}
 
@@ -1072,4 +1150,33 @@ func getFetchConstantsData() []byte {
 		fetchConstantsData = val
 	})
 	return fetchConstantsData
+}
+
+// memGasUnit is the octet granularity of the linear gas term: rates in
+// gas_const.go are quoted per this many octets.
+const memGasUnit = 1024
+
+// MemGas is 𝒢(L, ℓ) (formula B.17): the memory term of
+// a host-call gas cost, ⌈L × ℓ / 1024⌉, for a rate L of gas per 1024 octets over
+// a length ℓ.
+//
+// Callers pass ℓ straight from a guest register, so the product can exceed the
+// range of Gas. Because such a cost is unpayable regardless of its exact value,
+// the result saturates at the maximum instead of wrapping.
+func MemGas(rate Gas, length uint64) Gas {
+	if rate <= 0 || length == 0 {
+		return 0
+	}
+
+	hi, lo := bits.Mul64(uint64(rate), length)
+	if hi != 0 {
+		return math.MaxInt64
+	}
+
+	rounded := lo + memGasUnit - 1
+	if rounded < lo {
+		return math.MaxInt64
+	}
+
+	return Gas(rounded / memGasUnit)
 }

@@ -81,7 +81,7 @@ func TestCompileAllOpcodes(t *testing.T) {
 			instBytes, boundaries := buildMinimalInstr(opByte, info)
 			blob := buildBlobExact(instBytes, boundaries)
 
-			prog, exitReason := PVM.DeBlobProgramCode(blob)
+			prog, exitReason := PVM.DeBlobProgramCode(blob, 0)
 			if exitReason != PVM.ExitContinue {
 				t.Fatalf("DeBlobProgramCode failed: %v", exitReason)
 			}
@@ -162,12 +162,13 @@ func buildMinimalInstr(op byte, info *PVM.OpcodeInfo) ([]byte, []int) {
 // ---------------------------------------------------------------------------
 
 type execTestCase struct {
-	name     string
-	inst     []byte // instruction bytes (without trailing trap)
-	initRegs PVM.Registers
-	wantRegs PVM.Registers
-	wantExit PVM.ExitReason
-	setupMem func(t *testing.T, ctx *JITContext)
+	name       string
+	inst       []byte // instruction bytes (without trailing trap unless boundaries set)
+	boundaries []int  // optional explicit instruction boundaries for buildBlobExact
+	initRegs   PVM.Registers
+	wantRegs   PVM.Registers
+	wantExit   PVM.ExitReason
+	setupMem   func(t *testing.T, ctx *JITContext)
 }
 
 func TestExecuteInstructions(t *testing.T) {
@@ -178,171 +179,26 @@ func TestExecuteInstructions(t *testing.T) {
 	t.Run("LoadInd", testLoadInd)
 }
 
-// TestSbrkExpandAmountInT0 verifies expand limit check when amount is in T0 (rA=2).
-// A RegScratch clobber bug computed 2*heapPointer instead of heapPointer+amount.
-func TestSbrkExpandAmountInT0(t *testing.T) {
-	const heapLimit = uint64(0x50000)
-
-	instBytes := []byte{101, packRegs(0, 2), 0}
-	blob := buildBlobExact(instBytes, []int{0, 2})
-
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
-	if exitReason != PVM.ExitContinue {
-		t.Fatalf("DeBlobProgramCode: %v", exitReason)
-	}
-
-	ctx, err := NewJITContext()
-	if err != nil {
-		t.Fatalf("NewJITContext: %v", err)
-	}
-	defer ctx.Close()
-
-	em, err := NewExecutableMemory(0)
-	if err != nil {
-		t.Fatalf("NewExecutableMemory: %v", err)
-	}
-	defer em.Close()
-	ctx.SetExecutableMemory(em)
-	ctx.WriteHeapPointer(0x30000)
-	ctx.heapLimit = heapLimit
-
-	cache := NewCodeCache()
-	compiler := NewCompiler(&prog, ctx, cache)
-	block, err := compiler.CompileBasicBlock(0)
-	if err != nil {
-		t.Fatalf("CompileBasicBlock: %v", err)
-	}
-
-	ctx.WriteRegisters(regsWithValues(2, 100))
-	ctx.WriteGas(1000)
-
-	gotExit := ExecuteBlock(ctx, block)
-	if gotExit != PVM.ExitHostCall|PVM.ExitReason(SbrkCallID) {
-		t.Fatalf("exit reason: got %v, want sbrk expand exit (bug returns inline fail / panic)", gotExit)
-	}
-}
-
-func TestSbrkExpandExitPC(t *testing.T) {
-	instBytes := []byte{101, packRegs(0, 7), 0}
-	blob := buildBlobExact(instBytes, []int{0, 2})
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
-	if exitReason != PVM.ExitContinue {
-		t.Fatalf("DeBlobProgramCode: %v", exitReason)
-	}
-
-	ctx, err := NewJITContext()
-	if err != nil {
-		t.Fatalf("NewJITContext: %v", err)
-	}
-	defer ctx.Close()
-
-	em, err := NewExecutableMemory(0)
-	if err != nil {
-		t.Fatalf("NewExecutableMemory: %v", err)
-	}
-	defer em.Close()
-	ctx.SetExecutableMemory(em)
-	ctx.WriteHeapPointer(0x30000)
-	ctx.heapLimit = GuestMemorySize
-
-	cache := NewCodeCache()
-	compiler := NewCompiler(&prog, ctx, cache)
-	block, err := compiler.CompileBasicBlock(0)
-	if err != nil {
-		t.Fatalf("CompileBasicBlock: %v", err)
-	}
-
-	ctx.WriteRegisters(regsWithValues(7, 4096))
-	ctx.WriteGas(1000)
-
-	gotExit := ExecuteBlock(ctx, block)
-	if gotExit != PVM.ExitHostCall|PVM.ExitReason(SbrkCallID) {
-		t.Fatalf("exit reason: got %v", gotExit)
-	}
-
-	wantPC := PVM.ProgramCounter(2) // PC 0 + skip 1 + 1
-	if gotPC := ctx.ReadExitPC(); gotPC != wantPC {
-		t.Fatalf("ExitPC: got %d, want fallthrough %d", gotPC, wantPC)
-	}
-}
-
-// TestSbrkExpandResumeSuffix verifies control-flow B: after sbrk expand exits to Go,
-// resume compiles only the suffix from fallthroughPC and does not re-run earlier instructions.
-func TestSbrkExpandResumeSuffix(t *testing.T) {
-	const addImm64 = 149
-
-	instBytes := []byte{
-		addImm64, packRegs(1, 1), 1, // PC 0: r1 += 1
-		101, packRegs(0, 7), // PC 3: sbrk expand, fallthrough PC 5
-		addImm64, packRegs(1, 1), 1, // PC 5: r1 += 1
-		0, // PC 8: trap
-	}
-	boundaries := []int{0, 3, 5, 8}
-	blob := buildBlobExact(instBytes, boundaries)
-
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
-	if exitReason != PVM.ExitContinue {
-		t.Fatalf("DeBlobProgramCode: %v", exitReason)
-	}
-	if prog.Instrs[1].PC != 3 || fallthroughPC(&prog.Instrs[1]) != 5 {
-		t.Fatalf("unexpected sbrk layout: pc=%d fallthrough=%d", prog.Instrs[1].PC, fallthroughPC(&prog.Instrs[1]))
-	}
-
-	ctx, err := NewJITContext()
-	if err != nil {
-		t.Fatalf("NewJITContext: %v", err)
-	}
-	defer ctx.Close()
-
-	em, err := NewExecutableMemory(0)
-	if err != nil {
-		t.Fatalf("NewExecutableMemory: %v", err)
-	}
-	defer em.Close()
-	ctx.SetExecutableMemory(em)
-	ctx.WriteHeapPointer(0x30000)
-	ctx.heapLimit = GuestMemorySize
-	ctx.WriteRegisters(regsWithValues(1, 0, 7, 4096))
-	ctx.WriteGas(1000)
-
-	recomp := NewRecompiler(&prog, ctx)
-	gotExit, _ := recomp.BlockBasedInvoke(0)
-	if gotExit != PVM.ExitPanic {
-		t.Fatalf("BlockBasedInvoke exit: got %v, want trap/panic", gotExit)
-	}
-
-	regs := ctx.ReadRegisters()
-	if regs[1] != 2 {
-		t.Fatalf("r1=%d want 2 (re-running block head would leave r1=1)", regs[1])
-	}
-	if regs[0] != 0x31000 {
-		t.Fatalf("r0=%#x want 0x31000 (sbrk result)", regs[0])
-	}
-
-	suffixBlock, err := recomp.compiler.CompileBasicBlock(5)
-	if err != nil {
-		t.Fatalf("CompileBasicBlock suffix: %v", err)
-	}
-	if suffixBlock.PVMStartPC != 5 {
-		t.Fatalf("suffix cache key PVMStartPC=%d want 5", suffixBlock.PVMStartPC)
-	}
-}
-
 func runExecTest(t *testing.T, tc execTestCase) {
 	t.Helper()
 
 	instBytes := make([]byte, len(tc.inst))
 	copy(instBytes, tc.inst)
 
-	lastOp := instBytes[0]
-	boundaries := []int{0}
-	if !PVM.IsBlockTerminator(lastOp) {
-		boundaries = append(boundaries, len(instBytes))
-		instBytes = append(instBytes, 0) // trap
+	var boundaries []int
+	if tc.boundaries != nil {
+		boundaries = tc.boundaries
+	} else {
+		lastOp := instBytes[0]
+		boundaries = []int{0}
+		if !PVM.IsBlockTerminator(lastOp) {
+			boundaries = append(boundaries, len(instBytes))
+			instBytes = append(instBytes, 0) // trap
+		}
 	}
 
 	blob := buildBlobExact(instBytes, boundaries)
-	prog, exitReason := PVM.DeBlobProgramCode(blob)
+	prog, exitReason := PVM.DeBlobProgramCode(blob, 0)
 	if exitReason != PVM.ExitContinue {
 		t.Fatalf("DeBlobProgramCode: %v", exitReason)
 	}
@@ -385,6 +241,168 @@ func runExecTest(t *testing.T, tc execTestCase) {
 	}
 	if gotExit != tc.wantExit {
 		t.Errorf("exit reason: got %v, want %v", gotExit, tc.wantExit)
+	}
+}
+
+func TestBlockEntryOOGLeavesGasUnchanged(t *testing.T) {
+	// unlikely; fallthrough — block cost 2; gas 1 → OOG with gas left at 1
+	inst := []byte{2, 1}
+	prog, reason := PVM.DeBlobProgramCode(buildBlobExact(inst, []int{0, 1}), 0)
+	if reason != PVM.ExitContinue {
+		t.Fatalf("DeBlobProgramCode: %v", reason)
+	}
+
+	ctx, err := NewJITContext()
+	if err != nil {
+		t.Fatalf("NewJITContext: %v", err)
+	}
+	defer ctx.Close()
+
+	em, err := NewExecutableMemory(0)
+	if err != nil {
+		t.Fatalf("NewExecutableMemory: %v", err)
+	}
+	defer em.Close()
+	ctx.SetExecutableMemory(em)
+
+	compiler := NewCompiler(&prog, ctx, NewCodeCache())
+	block, err := compiler.CompileBasicBlock(0)
+	if err != nil {
+		t.Fatalf("compile block: %v", err)
+	}
+
+	ctx.WriteGas(1)
+	ctx.WriteGasCharged(false)
+	if got := ExecuteBlock(ctx, block); got != PVM.ExitOOG {
+		t.Fatalf("exit = %v, want OOG", got)
+	}
+	if gas := ctx.ReadGas(); gas != 1 {
+		t.Fatalf("gas after OOG = %d, want 1 (unchanged)", gas)
+	}
+	if ctx.ReadGasCharged() {
+		t.Fatal("gas flag set after failed block charge")
+	}
+}
+
+func TestCompileUnlikelyOpcode(t *testing.T) {
+	inst := []byte{2, 1} // unlikely; fallthrough
+	prog, reason := PVM.DeBlobProgramCode(buildBlobExact(inst, []int{0, 1}), 0)
+	if reason != PVM.ExitContinue {
+		t.Fatalf("DeBlobProgramCode: %v", reason)
+	}
+
+	ctx, err := NewJITContext()
+	if err != nil {
+		t.Fatalf("NewJITContext: %v", err)
+	}
+	defer ctx.Close()
+
+	em, err := NewExecutableMemory(0)
+	if err != nil {
+		t.Fatalf("NewExecutableMemory: %v", err)
+	}
+	defer em.Close()
+	ctx.SetExecutableMemory(em)
+
+	compiler := NewCompiler(&prog, ctx, NewCodeCache())
+	if _, err := compiler.CompileBasicBlock(0); err != nil {
+		t.Fatalf("compile unlikely block: %v", err)
+	}
+}
+
+func TestBlockGasChargedAcrossHostCall(t *testing.T) {
+	// ecalli 0; load_imm r0, 42; trap
+	inst := []byte{10, 0, 51, 0, 42, 0}
+	prog, reason := PVM.DeBlobProgramCode(buildBlobExact(inst, []int{0, 2, 5}), 0)
+	if reason != PVM.ExitContinue {
+		t.Fatalf("DeBlobProgramCode: %v", reason)
+	}
+
+	ctx, err := NewJITContext()
+	if err != nil {
+		t.Fatalf("NewJITContext: %v", err)
+	}
+	defer ctx.Close()
+
+	em, err := NewExecutableMemory(0)
+	if err != nil {
+		t.Fatalf("NewExecutableMemory: %v", err)
+	}
+	defer em.Close()
+	ctx.SetExecutableMemory(em)
+
+	compiler := NewCompiler(&prog, ctx, NewCodeCache())
+	first, err := compiler.CompileBasicBlock(0)
+	if err != nil {
+		t.Fatalf("compile block: %v", err)
+	}
+	blockGas := first.GasCost
+	if blockGas < 1 {
+		t.Fatalf("block gas = %d, want >= 1", blockGas)
+	}
+
+	initialGas := PVM.Gas(blockGas + 5)
+	ctx.WriteGas(initialGas)
+	ctx.WriteGasCharged(false)
+	if got := ExecuteBlock(ctx, first); got.GetReasonType() != PVM.HOST_CALL {
+		t.Fatalf("first exit = %v, want host call", got)
+	}
+	wantGasAfterCharge := initialGas - PVM.Gas(blockGas)
+	if gas := ctx.ReadGas(); gas != wantGasAfterCharge {
+		t.Fatalf("gas after block charge = %d, want %d", gas, wantGasAfterCharge)
+	}
+	if !ctx.ReadGasCharged() {
+		t.Fatal("gas flag cleared at non-terminating host call")
+	}
+
+	suffix, err := compiler.CompileBasicBlock(ctx.ReadExitPC())
+	if err != nil {
+		t.Fatalf("compile suffix: %v", err)
+	}
+	if suffix.GasCost < 1 {
+		t.Fatalf("suffix block gas = %d, want >= 1", suffix.GasCost)
+	}
+	if got := ExecuteBlock(ctx, suffix); got != PVM.ExitPanic {
+		t.Fatalf("suffix exit = %v, want panic", got)
+	}
+	if gas := ctx.ReadGas(); gas != wantGasAfterCharge {
+		t.Fatalf("suffix charged block twice: gas = %d, want %d", gas, wantGasAfterCharge)
+	}
+	if ctx.ReadGasCharged() {
+		t.Fatal("gas flag remains set after block terminator")
+	}
+}
+
+func TestSuffixBlockGasMatchesGasCostFromPC(t *testing.T) {
+	// ecalli 0; load_imm r0, 42; trap — suffix from PC 2 is load_imm + trap
+	inst := []byte{10, 0, 51, 0, 42, 0}
+	prog, reason := PVM.DeBlobProgramCode(buildBlobExact(inst, []int{0, 2, 5}), 0)
+	if reason != PVM.ExitContinue {
+		t.Fatalf("DeBlobProgramCode: %v", reason)
+	}
+
+	ctx, err := NewJITContext()
+	if err != nil {
+		t.Fatalf("NewJITContext: %v", err)
+	}
+	defer ctx.Close()
+
+	em, err := NewExecutableMemory(0)
+	if err != nil {
+		t.Fatalf("NewExecutableMemory: %v", err)
+	}
+	defer em.Close()
+	ctx.SetExecutableMemory(em)
+
+	compiler := NewCompiler(&prog, ctx, NewCodeCache())
+	const suffixPC PVM.ProgramCounter = 2
+	want := int64(PVM.GasCostFromPC(&prog, suffixPC))
+	suffix, err := compiler.CompileBasicBlock(suffixPC)
+	if err != nil {
+		t.Fatalf("compile suffix: %v", err)
+	}
+	if suffix.GasCost != want {
+		t.Fatalf("suffix baked gas = %d, want GasCostFromPC = %d", suffix.GasCost, want)
 	}
 }
 
@@ -698,85 +716,55 @@ func testTwoReg(t *testing.T) {
 			wantRegs: regsWithValues(0, 42, 1, 42),
 			wantExit: PVM.ExitPanic,
 		},
+		// GP 0.8.0: opcodes 102-111 → 101-110
 		{
 			name:     "sign_extend_8: r0 = sext8(r1)",
-			inst:     []byte{108, packRegs(0, 1)},
-			initRegs: regsWithValues(1, 0x80), // -128 in i8
+			inst:     []byte{107, packRegs(0, 1)},
+			initRegs: regsWithValues(1, 0x80),
 			wantRegs: regsWithValues(0, 0xFFFFFFFFFFFFFF80, 1, 0x80),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "sign_extend_16: r0 = sext16(r1)",
-			inst:     []byte{109, packRegs(0, 1)},
-			initRegs: regsWithValues(1, 0x8000), // -32768 in i16
+			inst:     []byte{108, packRegs(0, 1)},
+			initRegs: regsWithValues(1, 0x8000),
 			wantRegs: regsWithValues(0, 0xFFFFFFFFFFFF8000, 1, 0x8000),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "zero_extend_16: r0 = zext16(r1)",
-			inst:     []byte{110, packRegs(0, 1)},
+			inst:     []byte{109, packRegs(0, 1)},
 			initRegs: regsWithValues(1, 0xDEADBEEF12340000|0xABCD),
 			wantRegs: regsWithValues(0, 0xABCD, 1, 0xDEADBEEF12340000|0xABCD),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "reverse_bytes: r0 = bswap64(r1)",
-			inst:     []byte{111, packRegs(0, 1)},
+			inst:     []byte{110, packRegs(0, 1)},
 			initRegs: regsWithValues(1, 0x0102030405060708),
 			wantRegs: regsWithValues(0, 0x0807060504030201, 1, 0x0102030405060708),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "count_set_bits_64: r0 = popcnt64(r1)",
-			inst:     []byte{102, packRegs(0, 1)},
+			inst:     []byte{101, packRegs(0, 1)},
 			initRegs: regsWithValues(1, 0xFF),
 			wantRegs: regsWithValues(0, 8, 1, 0xFF),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "leading_zero_bits_64: r0 = lzcnt64(r1)",
-			inst:     []byte{104, packRegs(0, 1)},
-			initRegs: regsWithValues(1, 1), // 63 leading zeros
+			inst:     []byte{103, packRegs(0, 1)},
+			initRegs: regsWithValues(1, 1),
 			wantRegs: regsWithValues(0, 63, 1, 1),
 			wantExit: PVM.ExitPanic,
 		},
 		{
 			name:     "trailing_zero_bits_64: r0 = tzcnt64(r1)",
-			inst:     []byte{106, packRegs(0, 1)},
-			initRegs: regsWithValues(1, 0x100), // 8 trailing zeros
+			inst:     []byte{105, packRegs(0, 1)},
+			initRegs: regsWithValues(1, 0x100),
 			wantRegs: regsWithValues(0, 8, 1, 0x100),
 			wantExit: PVM.ExitPanic,
-		},
-		{
-			name:     "sbrk query: r0 = heap pointer when r7==0",
-			inst:     []byte{101, packRegs(0, 7)},
-			initRegs: regsWithValues(7, 0),
-			wantRegs: regsWithValues(0, 0x33000, 7, 0),
-			wantExit: PVM.ExitPanic,
-			setupMem: func(_ *testing.T, ctx *JITContext) {
-				ctx.WriteHeapPointer(0x33000)
-			},
-		},
-		{
-			name:     "sbrk expand: exits to Go when r7!=0",
-			inst:     []byte{101, packRegs(0, 7)},
-			initRegs: regsWithValues(7, 4096),
-			wantRegs: regsWithValues(0, 0, 7, 4096),
-			wantExit: PVM.ExitHostCall | PVM.ExitReason(SbrkCallID),
-			setupMem: func(_ *testing.T, ctx *JITContext) {
-				ctx.WriteHeapPointer(0x30000)
-				ctx.heapLimit = GuestMemorySize
-			},
-		},
-		{
-			name:     "sbrk overflow: r0=0 inline when newHP wraps",
-			inst:     []byte{101, packRegs(0, 7)},
-			initRegs: regsWithValues(7, 1),
-			wantRegs: regsWithValues(0, 0, 7, 1),
-			wantExit: PVM.ExitPanic,
-			setupMem: func(_ *testing.T, ctx *JITContext) {
-				ctx.WriteHeapPointer(^uint64(0))
-			},
 		},
 	}
 
@@ -829,11 +817,12 @@ func testBasicOps(t *testing.T) {
 			wantExit: PVM.ExitPanic,
 		},
 		{
-			name:     "fallthrough: NOP then exit",
-			inst:     []byte{1}, // fallthrough emits NOP; exit trampoline returns ExitContinue
-			initRegs: PVM.Registers{},
-			wantRegs: PVM.Registers{},
-			wantExit: PVM.ExitContinue,
+			name:       "fallthrough: NOP then exit",
+			inst:       []byte{1, 0}, // fallthrough; trap (fallthrough target @ PC 1)
+			boundaries: []int{0, 1},
+			initRegs:   PVM.Registers{},
+			wantRegs:   PVM.Registers{},
+			wantExit:   PVM.ExitContinue,
 		},
 		{
 			name:     "load_imm: r0 = 42",

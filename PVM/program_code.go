@@ -75,8 +75,44 @@ type Program struct {
 	InstrIdxAt []int32      // PC-indexed: InstrIdxAt[pc] = index into Instrs[], -1 if not an instruction start
 }
 
-// DeBlobProgramCode deblob code, jump table, bitmask | A.2
-func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
+// DeBlobProgramCode is deblob(pvm_blob, ι): it decodes the blob and
+// validates both the program as a whole and pc as an entry point for the
+// instruction counter, returning ExitPanic where the Gray Paper yields an error.
+func DeBlobProgramCode(data []byte, pc uint64) (Program, ExitReason) {
+	prog, exitReason := deblobValidatedProgram(data)
+	if exitReason != ExitContinue {
+		return Program{}, exitReason
+	}
+
+	// 𝔳_inst(c, k, ι) (A.2)
+	if !prog.ValidInstructionAt(pc) {
+		pvmLogger.Errorf("instruction counter %d is not a valid entry point", pc)
+		return Program{}, ExitPanic
+	}
+
+	return prog, ExitContinue
+}
+
+// deblobValidatedProgram is the entry-point-independent half of deblob: it
+// already stored a decoded program, only 𝔳_inst(c, k, ι) is rechecked; otherwise
+// falls back to full deblob(p, ι) (e.g. tests that omit Program).
+func IntegratedProgramForInvoke(integrated IntegratedPVMType) (*Program, ExitReason) {
+	if integrated.Program != nil {
+		return validEntry(integrated.Program, uint64(integrated.PC))
+	}
+	p, reason := DeBlobProgramCode(integrated.ProgramCode, uint64(integrated.PC))
+	if reason != ExitContinue {
+		return nil, reason
+	}
+	return &p, ExitContinue
+}
+
+// deblobValidatedProgram is the entry-point-independent half of deblob: it
+// decodes the blob and checks 𝔳_blob(c, k, 0), the latter as part of
+// preDecodeBlocks' walk. Callers that cache a decoded program across invocations
+// (GetOrDeblobProgram) share this result and apply the per-entry 𝔳_inst check
+// themselves.
+func deblobValidatedProgram(data []byte) (_ Program, _ ExitReason) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, dataUsed, exitReason := ReadUintVariable(data)
 	if exitReason != ExitContinue {
@@ -114,6 +150,11 @@ func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 		return Program{}, ExitPanic
 	}
 
+	if instSize > uint64(len(data)) {
+		pvmLogger.Errorf("instruction size %d exceeds remaining blob length %d", instSize, len(data))
+		return Program{}, ExitPanic
+	}
+
 	instructions := data[:instSize]
 	bitmaskData := data[instSize:]
 	bitmask, exitReason := MakeBitMasks(instructions, bitmaskData)
@@ -137,6 +178,25 @@ func DeBlobProgramCode(data []byte) (_ Program, _ ExitReason) {
 	}
 
 	return prog, ExitContinue
+}
+
+// ValidInstructionAt is 𝔳_inst(c, k, ι): whether the instruction counter
+// may enter this program at pc.
+//
+// Unlike 𝔳_blob, this depends on the entry point rather than the program, so it
+// is re-checked on every entry instead of being carried by a cached *Program.
+// Three lookups make that free, and the entry point is not always trustworthy:
+// the machine and invoke host-calls take it from a guest register.
+func (p *Program) ValidInstructionAt(pc uint64) bool {
+	return validInst(p.InstructionData, p.Bitmasks, pc)
+}
+
+// validInst is 𝔳_inst(c, k, ι) (A.2)
+func validInst(c ProgramCode, k Bitmask, i uint64) bool {
+	return len(k) == len(c) &&
+		i < uint64(len(k)) &&
+		k.IsStartOfInstruction(int(i)) &&
+		IsValidOpcode(c[i])
 }
 
 // skip computes the distance to the next opcode  A.3
@@ -292,6 +352,7 @@ func (code ProgramCode) isOpcodeValid(pc ProgramCounter) bool {
 }
 
 // GP 0.6.7 formula A.19
+// Kept for SingleStepStateTransition (GP 0.7.2 path); deprecated for v0.8.0 and later.
 func (code ProgramCode) isOpcode(pc ProgramCounter) opcode {
 	if IsValidOpcode(code[pc]) {
 		return opcode(code[pc])

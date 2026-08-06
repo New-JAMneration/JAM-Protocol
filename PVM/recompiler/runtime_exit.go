@@ -7,10 +7,6 @@ import (
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 )
 
-// sbrkOpcode is opcode 101 (heap expansion). Expand paths exit to Go mid-block;
-// resume must compile a suffix from fallthroughPC, not re-run the block head.
-const sbrkOpcode = 101
-
 // emitRuntimeExit stores ExitReason and ExitPC (the PVM PC to resume at) and
 // jumps to the shared exit trampoline. Matches ecalli: exitPC is fallthrough,
 // not the exiting instruction's PC.

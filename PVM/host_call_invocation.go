@@ -30,12 +30,14 @@ func init() {
 	// is authorized host-call functions
 	IsAuthorizedOmegas = make(Omegas, len(HostCallFunctions))
 	IsAuthorizedOmegas[GasOp] = HostCallFunctions[GasOp]
+	IsAuthorizedOmegas[GrowHeapOp] = HostCallFunctions[GrowHeapOp]
 	IsAuthorizedOmegas[FetchOp] = HostCallFunctions[FetchOp]
 	IsAuthorizedOmegas[100] = logHostCall
 
 	// accumulate host-call functions
 	AccumulateOmegas = make(Omegas, len(HostCallFunctions))
 	AccumulateOmegas[GasOp] = HostCallFunctions[GasOp]
+	AccumulateOmegas[GrowHeapOp] = HostCallFunctions[GrowHeapOp]
 	AccumulateOmegas[FetchOp] = HostCallFunctions[FetchOp]
 	AccumulateOmegas[ReadOp] = readWrapWithG
 	AccumulateOmegas[WriteOp] = writeWrapWithG
@@ -59,6 +61,7 @@ func init() {
 	// refine host-call functions
 	RefineOmegas = make(Omegas, len(HostCallFunctions))
 	RefineOmegas[GasOp] = HostCallFunctions[GasOp]
+	RefineOmegas[GrowHeapOp] = HostCallFunctions[GrowHeapOp]
 	RefineOmegas[FetchOp] = HostCallFunctions[FetchOp]
 	RefineOmegas[HistoricalLookupOp] = HostCallFunctions[HistoricalLookupOp]
 	RefineOmegas[ExportOp] = HostCallFunctions[ExportOp]

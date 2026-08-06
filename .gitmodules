@@ -10,3 +10,6 @@
 [submodule "pkg/test_data/jam-conformance"]
 	path = pkg/test_data/jam-conformance
 	url = https://github.com/davxy/jam-conformance.git
+[submodule "pkg/test_data/new-gas-cost-model"]
+	path = pkg/test_data/new-gas-cost-model
+	url = https://github.com/koute/new-gas-cost-model.git

@@ -8,7 +8,6 @@ import (
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	"github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/asm"
 	x86_signal_linux "github.com/New-JAMneration/JAM-Protocol/PVM/recompiler/x86signal"
-	"golang.org/x/sys/unix"
 )
 
 // ExecuteBlock runs a single compiled basic block through the JIT entry/exit
@@ -90,62 +89,11 @@ func (e execError) Error() string { return string(e) }
 
 const errNoExecMem = execError("executable memory not initialized")
 
-// SbrkCallID is the sentinel host-call ID used by emitSbrk to exit to Go.
-const SbrkCallID = 0xFF
 
 // DjumpCallID is the sentinel host-call ID for indirect jumps (jump_ind, load_imm_jump_ind).
 const DjumpCallID = 0xFE
 
-// IsSbrkExit returns true if the exit reason is an sbrk request.
-func IsSbrkExit(reason PVM.ExitReason) bool {
-	return reason.GetReasonType() == PVM.HOST_CALL && reason.GetHostCallID() == SbrkCallID
-}
-
 // IsDjumpExit returns true if the exit reason is an indirect jump request.
 func IsDjumpExit(reason PVM.ExitReason) bool {
 	return reason.GetReasonType() == PVM.HOST_CALL && reason.GetHostCallID() == DjumpCallID
-}
-
-// HandleSbrk performs the sbrk heap expansion in Go, updating the control
-// region heap pointer and mprotecting newly required pages.
-// rD and rA are the PVM register indices from the sbrk instruction encoding.
-// Returns the ExitReason to propagate (ExitContinue on success).
-func HandleSbrk(ctx *JITContext, rD, rA uint8) PVM.ExitReason {
-	regs := ctx.ReadRegisters()
-	amount := regs[rA]
-
-	oldHP := ctx.ReadHeapPointer()
-
-	if amount == 0 {
-		regs[rD] = oldHP
-		ctx.WriteRegisters(regs)
-		return PVM.ExitContinue
-	}
-
-	newHP := oldHP + amount
-	if newHP < oldHP || newHP > ctx.heapLimit {
-		regs[rD] = 0
-		ctx.WriteRegisters(regs)
-		return PVM.ExitContinue
-	}
-
-	nextPageBoundary := pageCeil(uint32(oldHP))
-	if newHP > uint64(nextPageBoundary) {
-		finalBoundary := pageCeil(uint32(newHP))
-		// Match interpreter allocateMemorySegment: activate from oldHP, not P(oldHP).
-		for addr := uint32(oldHP); addr < finalBoundary; addr += PVM.ZP {
-			if err := ctx.SetPageAccess(addr/PVM.ZP, unix.PROT_READ|unix.PROT_WRITE); err != nil {
-				return PVM.ExitPanic
-			}
-		}
-	}
-
-	ctx.WriteHeapPointer(newHP)
-	regs[rD] = newHP
-	ctx.WriteRegisters(regs)
-	return PVM.ExitContinue
-}
-
-func pageCeil(addr uint32) uint32 {
-	return PVM.P(int(addr))
 }
