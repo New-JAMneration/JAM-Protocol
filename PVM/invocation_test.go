@@ -239,6 +239,24 @@ func TestBlockGasAtPCUsesCacheAtBlockEntry(t *testing.T) {
 	}
 }
 
+func TestSelfLoopJumpRetakesTerminator(t *testing.T) {
+	// jump to PC 0 (self); fallthrough unreachable.
+	prog := decodedGasTestProgram(t,
+		ProgramCode{40, 0, 0, 0, 0}, // jump imm=0
+		Bitmask{0x03, 0x00, 0x00, 0x00, 0x00},
+	)
+	gas := Gas(10_000)
+	interp := &Interpreter{Program: &prog, Gas: gas, GasCharged: false}
+	exit, pc := interp.BlockBasedInvokeDecodedBlocks(0)
+	// Should OOG eventually while looping, with PC at the jump.
+	if exit.GetReasonType() != OUT_OF_GAS {
+		t.Fatalf("exit = %v, want OOG (self-loop must re-enter block)", exit)
+	}
+	if pc != 0 {
+		t.Fatalf("OOG pc = %d, want 0 (self-loop)", pc)
+	}
+}
+
 func ecalliFallthroughTrapProgram(t *testing.T) Program {
 	t.Helper()
 	// ecalli 0; load_imm_64 r0, 42; trap — matches recompiler host-call gas tests.

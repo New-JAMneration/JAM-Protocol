@@ -73,6 +73,20 @@ func TestGasCostBranchToTrap(t *testing.T) {
 	}
 }
 
+func TestBranchCyclesOutOfRangeTargetIsTrap(t *testing.T) {
+	prog := decodedGasTestProgram(t,
+		ProgramCode{
+			170, 0x01, 100, 0, 0, 0, // branch_eq target PC 100 (past end)
+			0, // trap fallthrough at PC 6
+		},
+		Bitmask{0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03},
+	)
+	cost := InstructionCost(&prog, &prog.Instrs[0])
+	if cost.Cycles != 1 {
+		t.Fatalf("out-of-range branch target cycles = %d, want 1", cost.Cycles)
+	}
+}
+
 func TestInstructionCostEcalli(t *testing.T) {
 	instr := InstrMeta{Opcode: 10}
 	cost := InstructionCost(&Program{}, &instr)

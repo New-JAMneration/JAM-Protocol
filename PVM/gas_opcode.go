@@ -30,8 +30,12 @@ func selectOverlapShiftCost(a, b int, instr *InstrMeta) int {
 }
 
 func isTrapOrUnlikely(p *Program, pc int) bool {
-	if pc < 0 || pc >= len(p.InstructionData) {
+	// eq:instructions — code is zero-padded; beyond |c| the opcode is trap.
+	if pc < 0 {
 		return false
+	}
+	if pc >= len(p.InstructionData) {
+		return true
 	}
 	op := p.InstructionData[pc]
 	return op == 0 || op == 2

@@ -239,11 +239,13 @@ func (c *Compiler) emitDjumpNative(a *asm.Assembler, targetReg asm.Register, ins
 	a.TestRegReg(RegScratch, RegScratch)
 	a.Jcc(asm.CondEQ, missLabel)
 	a.AddRegImm32(asm.RSP, 16) // drop saved jump addr + dest PC
+	emitGasCharged(a, false)
 	a.JmpReg(RegScratch)
 
 	_ = a.BindLabel(missLabel)
 	a.Pop(RegScratch)         // dest PC
 	a.AddRegImm32(asm.RSP, 8) // drop saved jump addr
+	emitGasCharged(a, false)
 	c.emitDjumpMiss(a, RegScratch)
 
 	_ = a.BindLabel(panicLabel)

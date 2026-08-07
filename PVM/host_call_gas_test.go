@@ -170,3 +170,99 @@ func TestBlessManagerOnly(t *testing.T) {
 		t.Fatalf("reg7 = %d, want HUH(%d)", regs[7], HUH)
 	}
 }
+
+func newGrowHeapTestMem() *Memory {
+	return &Memory{
+		Pages:       map[uint32]*Page{},
+		heapPointer: 3 * ZZ, // h = 3*ZZ/ZP
+		heapLimit:   1<<32 - 2*ZZ - ZI,
+	}
+}
+
+func TestGrowHeapGasOutcomes(t *testing.T) {
+	t.Run("noGrowthChargesConstEvenIfNegative", func(t *testing.T) {
+		mem := newGrowHeapTestMem()
+		h := NewPagedGuestMemory(mem).HeapPages()
+		gas := HostGasGrowHeapConst / 2
+		regs := Registers{}
+		regs[7] = h // no growth
+		vm := &VMState{Registers: &regs, Gas: &gas, Mem: NewPagedGuestMemory(mem)}
+		out := growHeap(OmegaInput{VM: vm})
+		if out.ExitReason != ExitContinue {
+			t.Fatalf("exit = %v, want continue", out.ExitReason)
+		}
+		if gas != HostGasGrowHeapConst/2-HostGasGrowHeapConst {
+			t.Fatalf("gas = %d, want %d", gas, HostGasGrowHeapConst/2-HostGasGrowHeapConst)
+		}
+		if regs[7] != h {
+			t.Fatalf("reg7 = %d, want h=%d", regs[7], h)
+		}
+	})
+
+	t.Run("growthOOGLeavesGasUnchanged", func(t *testing.T) {
+		mem := newGrowHeapTestMem()
+		h := NewPagedGuestMemory(mem).HeapPages()
+		b := NewPagedGuestMemory(mem).HeapMaxPages()
+		want := h + 1
+		if want > b {
+			t.Skip("heap already at max")
+		}
+		g := HostGasGrowHeapConst + HostGasGrowHeapPage
+		gas := g - 1
+		regs := Registers{}
+		regs[7] = want
+		vm := &VMState{Registers: &regs, Gas: &gas, Mem: NewPagedGuestMemory(mem)}
+		out := growHeap(OmegaInput{VM: vm})
+		if out.ExitReason != ExitOOG {
+			t.Fatalf("exit = %v, want OOG", out.ExitReason)
+		}
+		if gas != g-1 {
+			t.Fatalf("gas changed to %d, want unchanged %d", gas, g-1)
+		}
+		if regs[7] != h {
+			t.Fatalf("reg7 = %d, want h=%d", regs[7], h)
+		}
+	})
+
+	t.Run("growthSucceeds", func(t *testing.T) {
+		mem := newGrowHeapTestMem()
+		h := NewPagedGuestMemory(mem).HeapPages()
+		b := NewPagedGuestMemory(mem).HeapMaxPages()
+		want := h + 1
+		if want > b {
+			t.Skip("heap already at max")
+		}
+		g := HostGasGrowHeapConst + HostGasGrowHeapPage
+		gas := g + 10
+		regs := Registers{}
+		regs[7] = want
+		vm := &VMState{Registers: &regs, Gas: &gas, Mem: NewPagedGuestMemory(mem)}
+		out := growHeap(OmegaInput{VM: vm})
+		if out.ExitReason != ExitContinue {
+			t.Fatalf("exit = %v, want continue", out.ExitReason)
+		}
+		if gas != 10 {
+			t.Fatalf("gas = %d, want 10", gas)
+		}
+		if regs[7] != want {
+			t.Fatalf("reg7 = %d, want %d", regs[7], want)
+		}
+	})
+}
+
+func TestFetchConstantsOmitRemovedV080Fields(t *testing.T) {
+	types.SetTinyMode()
+	t.Cleanup(types.SetTinyMode)
+
+	data := getFetchConstantsData()
+	// v0.8.0 fetch(0) dropped N, V, W_E, W_P (2+2+4+4 = 12 bytes vs 0.7.2).
+	// Spot-check: after L (u32) comes O (u16), not N (u16 tickets).
+	if len(data) < 80 {
+		t.Fatalf("constants too short: %d", len(data))
+	}
+	off := 8 + 8 + 8 + 2 + 4 + 4 + 8 + 8 + 8 + 8 + 2 + 2 + 2 + 2 + 4 // through L
+	gotO := uint16(data[off]) | uint16(data[off+1])<<8
+	if gotO != uint16(types.AuthPoolMaxSize) {
+		t.Fatalf("after L expected O=%d, got %d (N/V still present?)", types.AuthPoolMaxSize, gotO)
+	}
+}

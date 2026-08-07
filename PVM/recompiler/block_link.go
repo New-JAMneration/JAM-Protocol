@@ -18,6 +18,7 @@ func emitJmpNativeAddr(a *asm.Assembler, addr uintptr) {
 // emitFallthroughEpilogue emits block epilogue: native JMP when linkTarget is
 // known, otherwise a runtime chain via the dispatch table.
 func (c *Compiler) emitFallthroughEpilogue(a *asm.Assembler, fallthroughPC PVM.ProgramCounter, linkTarget *CompiledBlock) {
+	emitGasCharged(a, false) // A.4: CONTINUE leaves the block
 	if linkTarget != nil {
 		emitJmpNativeAddr(a, linkTarget.NativeAddr)
 		return
@@ -36,6 +37,7 @@ func (c *Compiler) emitFallthroughEpilogue(a *asm.Assembler, fallthroughPC PVM.P
 // register reload — is exactly what the Go dispatcher would have run, minus the
 // trampoline round-trip.
 func (c *Compiler) emitLinkOrExit(a *asm.Assembler, link *CompiledBlock, targetPC PVM.ProgramCounter) {
+	emitGasCharged(a, false) // A.4: CONTINUE jump/branch transfer
 	if link != nil && link.PVMStartPC == targetPC {
 		emitJmpNativeAddr(a, link.NativeAddr)
 		return
@@ -57,6 +59,7 @@ func (c *Compiler) emitLinkOrExit(a *asm.Assembler, link *CompiledBlock, targetP
 // runtime cannot preempt it — so execution stays bounded by the gas check every
 // block runs on entry.
 func (c *Compiler) emitChainOrExit(a *asm.Assembler, targetPC PVM.ProgramCounter) {
+	// Caller (emitLinkOrExit / emitFallthroughEpilogue) already cleared GasCharged.
 	if c.djump == nil || c.singleStep || int(targetPC) >= len(c.djump.dispatch) {
 		emitExitToPC(a, targetPC)
 		return

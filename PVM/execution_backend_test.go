@@ -20,3 +20,10 @@ func TestSetExecutionBackendInterpreter(t *testing.T) {
 		t.Fatal("expected error for unknown backend")
 	}
 }
+
+func TestPsiMOnBackendUnknown(t *testing.T) {
+	_, err := Psi_M_OnBackend("nope", nil, 0, 0, Argument{}, AccumulateOmegas, HostCallArgs{})
+	if err == nil {
+		t.Fatal("expected error for unknown backend")
+	}
+}

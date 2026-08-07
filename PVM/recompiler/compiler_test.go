@@ -368,8 +368,9 @@ func TestBlockGasChargedAcrossHostCall(t *testing.T) {
 	if gas := ctx.ReadGas(); gas != wantGasAfterCharge {
 		t.Fatalf("suffix charged block twice: gas = %d, want %d", gas, wantGasAfterCharge)
 	}
-	if ctx.ReadGasCharged() {
-		t.Fatal("gas flag remains set after block terminator")
+	// A.4: PANIC preserves gaschargedflag (only CONTINUE terminators clear it).
+	if !ctx.ReadGasCharged() {
+		t.Fatal("gas flag cleared on trap/panic; want preserved")
 	}
 }
 

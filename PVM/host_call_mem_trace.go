@@ -80,8 +80,8 @@ func (t *hostCallMemTracer) HeapMaxPages() uint64 {
 	return t.inner.HeapMaxPages()
 }
 
-func (t *hostCallMemTracer) GrowHeapTo(targetPage uint64) {
-	t.inner.GrowHeapTo(targetPage)
+func (t *hostCallMemTracer) GrowHeapTo(targetPage uint64) error {
+	return t.inner.GrowHeapTo(targetPage)
 }
 
 func (t *hostCallMemTracer) detailsJSON() json.RawMessage {

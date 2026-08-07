@@ -61,8 +61,8 @@ Address 0x00000000 ────────────────────�
   readWritePad   = readWriteStart + P(len(data)) + z_pages * ZP
                                         — Read-Write segment（初始化 data + z-page）
 
-  heapStart      = readWritePad        — Heap 起始（sbrk 可擴展到 stackStart）
-  ...（PROT_NONE，sbrk 時 mprotect 啟用）
+  heapStart      = readWritePad        — Heap 起始（grow_heap 可擴展到 stackStart−ZZ）
+  ...（PROT_NONE，grow_heap 時 mprotect 啟用）
 
   stackStart     = 2^32 - 2*ZZ - ZI - P(stackSize)
   stackEnd       = 2^32 - 2*ZZ - ZI   — Stack（RW）
@@ -113,7 +113,7 @@ Operand encoding 依 `InstrCategory` 決定：
 | OneRegImm | `[opcode][reg_byte][imm: lX bytes]` | load_imm, jump_ind |
 | OneRegTwoImm | `[opcode][reg_byte][vX: lX bytes][vY: lY bytes]` | store_imm_ind |
 | BranchOneRegImm | `[opcode][reg_byte][vX: lX bytes][offset: lY bytes]` | branch_eq_imm |
-| TwoReg | `[opcode][reg_byte]` | move_reg, sbrk |
+| TwoReg | `[opcode][reg_byte]` | move_reg, bit ops |
 | TwoRegImm | `[opcode][reg_byte][imm: lX bytes]` | add_imm_32 |
 | TwoRegOffset | `[opcode][reg_byte][offset: lX bytes]` | branch_eq |
 | TwoRegTwoImm | `[opcode][reg_byte][lX_byte][vX: lX bytes][vY: lY bytes]` | load_imm_jump_ind |
@@ -254,28 +254,22 @@ else               → jump to newPC
 
 ---
 
-## 7. sbrk 語意
+## 7. Heap growth（`grow_heap`，B.5）
+
+GP 0.8.0 移除 `sbrk` opcode。Heap 擴張為 host-call `grow_heap`（ω₇ = 目標
+page index；回傳新的 heap-top page index）：
 
 ```
-sbrk(rD, rA):
-    amount = Reg[rA]
-    oldHP = heapPointer
-
-    if amount == 0:
-        Reg[rD] = oldHP
-        return
-
-    newHP = oldHP + amount
-    if newHP < oldHP (overflow) or newHP > heapLimit:
-        Reg[rD] = 0
-        return
-
-    // activate pages from oldHP to newHP
-    for page in [oldHP, pageCeil(newHP)):
-        mprotect(page, PROT_READ|PROT_WRITE)
-
-    heapPointer = newHP
-    Reg[rD] = newHP
+h = heapPointer / ZP
+b = (heapLimit - ZZ) / ZP          // major guard reserved
+if n ≤ h or n > b:
+    charge M_c only; CONTINUE; ω₇ = h
+else if gas < M_c + (n−h)·M_p:
+    OOG; gas unchanged; ω₇ = h
+else:
+    charge full cost
+    GrowHeapTo(n)  // mprotect [h..n) RW, update heapPointer
+    CONTINUE; ω₇ = n
 ```
 
 ---

@@ -168,35 +168,15 @@ Signed load（`load_i8` / `load_i16` / `load_i32`）用 `MOVSX` / `MOVSXD`。
 
 ---
 
-## 6. sbrk — 三路 Inline + Runtime Exit
+## 6. Heap growth — `grow_heap` host call (not an opcode)
 
-```
-TEST aReg, aReg                 // amount == 0?
-JE queryLabel                   // → rD = heapPointer
-
-// amount != 0:
-oldHP = [R15 - OffsetHeapPointer]
-newHP = oldHP + amount
-if newHP < oldHP → overflow → rD = 0
-if newHP > heapLimit → rD = 0
-
-nextPageBoundary = (oldHP + 0xFFF) & ~0xFFF
-if newHP <= nextPageBoundary:
-    // 同一頁，不需 mprotect
-    [R15 - OffsetHeapPointer] = newHP
-    rD = newHP
-else:
-    // 跨頁：MUST exit to Go for mprotect
-    emitRuntimeExit(SbrkCallID = 0xFF)
-    // Go 側 HandleSbrk → unix.Mprotect → 寫回 heapPointer + rD
-
-queryLabel:
-    rD = [R15 - OffsetHeapPointer]
-```
+GP 0.8.0 removed `sbrk`. Heap expansion is omega host-call ID=1 (`grow_heap`):
+guest issues `ecalli` → exit to Go → `GrowHeapTo` → `mprotect` + update
+`HeapPointer`. There is no native sbrk emit path and no `SbrkCallID` sentinel.
 
 ---
 
-## 7. Gas Check — Per-Instruction (GP v0.7.2)
+## 7. Gas Check — Per-Instruction (GP v0.7.2, historical)
 
 每條 PVM 指令前：
 
@@ -390,8 +370,9 @@ CompileBasicBlock(startPC):
      - compileForLink(branchTarget)   → linkTaken
   5. emitBlockGasCheck(blockGas) + block OOG landing pad
   6. Loop: for each instruction in block:
-     a. if last instr is terminator → emitGasCharged(false)
-     b. opcodeHandlers[opcode](...)   → emit native code
+     opcodeHandlers[opcode](...)   → emit native code
+     (GasCharged cleared only on CONTINUE exits: emitLinkOrExit /
+      emitFallthroughEpilogue — not on trap/halt/ecalli)
   7. Epilogue: JMP block_epilogue
   8. block_epilogue: emitFallthroughEpilogue → ExitTrampoline
   9. Finalize → resolve labels → write to ExecutableMemory

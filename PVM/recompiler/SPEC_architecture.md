@@ -35,12 +35,12 @@ PVM/
 │   ├── emit_branch.go      # emitJump, emitJumpInd, emitBranchImm, emitBranch
 │   ├── emit_arith_three.go # 32/64-bit add/sub/mul/div/rem/shift/bitwise
 │   ├── emit_arith_imm.go   # arithmetic with immediate operand
-│   ├── emit_two_reg.go     # sbrk, move_reg, bit manipulation, sign/zero extend
+│   ├── emit_two_reg.go     # move_reg, bit manipulation, sign/zero extend
 │   ├── emit_memory.go      # load/store (1/2/4/8 bytes, signed/unsigned)
 │   ├── djump_native.go     # djumpSupport, emitDjumpNative, registerDispatch
 │   ├── recompiler.go       # Recompiler struct, BlockBasedInvoke, lookupOrCompileBlock
-│   ├── execute.go          # executeBlockLocked, callNative, HandleSbrk
-│   ├── host.go             # host struct, HostCall dispatch loop (omega integration)
+│   ├── execute.go          # executeBlockLocked, callNative
+│   ├── host.go             # host struct, HostCall dispatch loop (omega / grow_heap)
 │   ├── invoke_mode.go      # MachineInvoke → BlockBasedInvoke
 │   ├── code_cache.go       # CodeCache: PC→CompiledBlock map
 │   └── x86signal/          # Signal handler (CGo)
@@ -89,7 +89,7 @@ same physical pages, no mprotect needed
 ```
 R15 - 8:    ReturnStack   (uintptr)  — Go's RSP, for signal handler restore
 R15 - 16:   ReturnAddr    (uintptr)  — Go's return_label address
-R15 - 24:   HeapPointer   (uint64)   — current sbrk boundary
+R15 - 24:   HeapPointer   (uint64)   — current heap top (grow_heap)
 R15 - 32:   ExitPC        (uint32)   — PVM PC on exit (+4B padding)
 R15 - 40:   ExitReason    (uint64)   — why execution stopped
 R15 - 48:   Gas           (int64)    — remaining gas (disp8 reachable!)
@@ -149,10 +149,9 @@ RSP        (implicit)                native stack pointer
       │            │       │            │
       │            │  switch:           │
       │            │    CONTINUE → loop │
-      │            │    HOST_CALL → dispatch omega
+      │            │    HOST_CALL → dispatch omega (incl. grow_heap)
       │            │    HALT/PANIC/OOG → return
       │            │    DjumpCallID → resolveDjump
-      │            │    SbrkCallID → HandleSbrk + recompile suffix
       │            └────────────────────┘
 ```
 
@@ -176,7 +175,6 @@ Exit reasons（control region 使用 PVM package 的 `ExitReason` 格式：`type
 - **Halt**: jump_ind to 0xFFFF0000 → ExitReason=ExitHalt
 - **Panic**: trap / invalid target → ExitReason=ExitPanic
 - **Signal**: SIGSEGV → signal_handler → ExitReason=PAGE_FAULT|faultAddr or ExitPanic
-- **sbrk runtime**: → ExitReason=ExitHostCall|SbrkCallID(0xFF)（內部 sentinel，不是真的 host call）
 - **djump miss**: → ExitReason=ExitHostCall|DjumpCallID(0xFE)（內部 sentinel）
 
 All paths store registers → `exit_trampoline` → restore RSP → JMP return_label → back to Go.
@@ -184,11 +182,11 @@ All paths store registers → `exit_trampoline` → restore RSP → JMP return_l
 ### 4.3 Internal Sentinel Exit IDs
 
 ```go
-SbrkCallID  = 0xFF  // sbrk 跨頁需要 mprotect → exit to Go
 DjumpCallID = 0xFE  // djump dispatch miss → exit to Go for compile + retry
 ```
 
-Go 側 `BlockBasedInvoke` 先檢查 sentinel，不傳給外部 host。
+Go 側 `BlockBasedInvoke` 先檢查 djump sentinel，不傳給外部 host。Heap 成長走正式
+`grow_heap` host-call（omega ID=1），不再使用 sbrk opcode / SbrkCallID。
 
 ### 4.4 Signal Handler
 
@@ -287,15 +285,11 @@ Layer 1 check: validates against `ctx.pages` before pointer arithmetic.
 
 ---
 
-## 8. sbrk Handling
+## 8. Heap growth (`grow_heap`)
 
-Two paths:
-- **Inline (no page crossing)**: update heapPointer + set rD in native code
-- **Runtime exit (page crossing)**: exit with `SbrkCallID=0xFF`, Go calls `HandleSbrk`:
-  - `mprotect(newPages, PROT_READ|PROT_WRITE)`
-  - Update `ctx.pages` (Layer 1 sync)
-  - Write back heapPointer and rD to control region
-  - Recompile block suffix starting from next instruction
+GP 0.8.0 removed the `sbrk` opcode. Heap expansion is host-call `grow_heap` (Ω_♊):
+`ecalli` → omega dispatch → `GuestMemory.GrowHeapTo` → JIT `mprotect` + update
+`HeapPointer` / Layer-1 `pages`. No internal SbrkCallID sentinel.
 
 ---
 
@@ -308,7 +302,7 @@ Two paths:
 | RCX = scratch | Required by x86 DIV (CL) and shift instructions |
 | Dual mapping (no mprotect toggle) | Eliminates 49% overhead from W^X switching |
 | Signal handler instead of bounds checks | Zero overhead on valid accesses; hardware MMU does the work |
-| Per-instruction gas (v0.7.2) | Exact PC on OOG; v0.8.0 switches to per-block |
+| Block-level gas (v0.8.0 A.4/A.9) | Charge once per basic block; `gaschargedflag` |
 | Block linking (depth-limited) | Eliminates Go dispatcher round-trip for sequential/branch targets |
 | pvmRegSlot reordering | RA/SP at slots 10,11 → disp8 offsets for frequent DIV spill paths |
 | MAP_NORESERVE | 4GB virtual space without committing physical memory |

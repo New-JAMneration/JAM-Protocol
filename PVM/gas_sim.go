@@ -215,6 +215,7 @@ func (b *BlockState) advanceCycle() {
 		}
 		b.ROB[j].state = robNone
 	}
+	b.trimLeadingNone()
 
 	// GP: return units for EXE entries with cyclesLeft==1 (about to hit 0).
 	var returned ExecUnits
@@ -251,7 +252,34 @@ func (b *BlockState) advanceCycle() {
 	b.ExecutionSlots = ExecutionWidth
 }
 
+// trimLeadingNone drops retired leading ROB slots and remaps dependency indices
+// so physical ROB length stays proportional to MaxROB (active bound).
+func (b *BlockState) trimLeadingNone() {
+	n := 0
+	for n < len(b.ROB) && b.ROB[n].state == robNone {
+		n++
+	}
+	if n == 0 {
+		return
+	}
+	b.ROB = b.ROB[n:]
+	for i := range b.ROB {
+		if len(b.ROB[i].deps) == 0 {
+			continue
+		}
+		deps := make([]int, 0, len(b.ROB[i].deps))
+		for _, d := range b.ROB[i].deps {
+			if d < n {
+				continue
+			}
+			deps = append(deps, d-n)
+		}
+		b.ROB[i].deps = deps
+	}
+}
+
 // simulateBlock runs A.9 gas_sim until the basic block converges.
+// A non-converging simulation is a logic bug — never return a partial gas value.
 func (b *BlockState) simulateBlock(p *Program) Gas {
 	const maxSteps = 100000
 	for step := 0; step < maxSteps; step++ {
@@ -273,8 +301,7 @@ func (b *BlockState) simulateBlock(p *Program) Gas {
 		}
 		b.advanceCycle()
 	}
-	// Safety fallback for malformed simulation state.
-	return blockGasFromCycles(b.Cyc)
+	panic("gas_sim: basic block did not converge within step limit")
 }
 
 // blockGasFromCycles implements eq:gascostforblock = max(cycles - 3, 1).
