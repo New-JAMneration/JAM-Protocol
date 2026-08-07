@@ -162,7 +162,7 @@ for each instruction at pc:
     2. 記錄 src1_val, src2_val（執行前）
     3. ClearMemAccess()
     4. executeBlockLocked(block)        → 執行這一條指令
-    5. 處理 sbrk / djump sentinel exits
+    5. 處理 djump sentinel exits
     6. 記錄 dst_val（執行後）
     7. 讀取 MemAccess（load/store addr+val）
     8. trace.RecordStep(...)

@@ -147,8 +147,9 @@ func decodeOperands(instr *InstrMeta, idata ProgramCode, bitmask Bitmask) {
 }
 
 // preDecodeBlocks builds InstrMeta / BlockMeta and caches A.9 gas per block.
-// If code ends without a terminator, the prefix is still emitted; bad PCs panic
-// at execution. Mid-stream 𝔳_inst failures remain fatal.
+// Mid-stream 𝔳_inst failures are fatal. A final open block (no terminator) is
+// still emitted so A.9 can cost incomplete fixtures; 𝔳_blob rejects that case
+// in deblobValidatedProgram via finalInstructionIsTerminator.
 func (p *Program) preDecodeBlocks() ExitReason {
 	idata := p.InstructionData
 	bitmask := p.Bitmasks
@@ -169,7 +170,6 @@ func (p *Program) preDecodeBlocks() ExitReason {
 	blockInstrStart := 0
 
 	// emitBlock writes BlockMeta + gas for [blockStartPC, endPC].
-	// Used on terminators and at EOF when the last op is not a terminator.
 	emitBlock := func(endPC int) {
 		block := &BlockMeta{
 			StartPC:    ProgramCounter(blockStartPC),
@@ -186,7 +186,8 @@ func (p *Program) preDecodeBlocks() ExitReason {
 
 	for pc := 0; ; {
 		if pc >= n {
-			// Code ended mid-block (no terminator): keep the prefix block.
+			// Code ended mid-block (no terminator): emit prefix for gas analysis.
+			// deblobValidatedProgram rejects this via 𝔳_blob (A.2).
 			if blockInstrStart < len(p.Instrs) {
 				emitBlock(int(p.Instrs[len(p.Instrs)-1].PC))
 			}
@@ -222,6 +223,15 @@ func (p *Program) preDecodeBlocks() ExitReason {
 
 		pc = next
 	}
+}
+
+// finalInstructionIsTerminator reports whether 𝔳_blob's final-instruction
+// rule holds: the last decoded opcode is in T (A.2).
+func (p *Program) finalInstructionIsTerminator() bool {
+	if len(p.Instrs) == 0 {
+		return false
+	}
+	return IsBlockTerminator(p.Instrs[len(p.Instrs)-1].Opcode)
 }
 
 // LookupBlock returns the pre-decoded BlockMeta for a basic block starting at pc.

@@ -206,21 +206,11 @@ func containingBlockStart(pc ProgramCounter, bitmask Bitmask) (ProgramCounter, b
 	}
 }
 
-// gasChargedForIntegratedResume decides whether integrated gaschargedflag may be
-// restored for inner Ψ at pc. A stored ⊤ at a basic-block entry is treated as
-// stale so block gas is charged again (A.4).
+// gasChargedForIntegratedResume restores integrated gaschargedflag for inner Ψ.
+// A.4 keeps ⊤ across fault/halt/panic; only CONTINUE/HOST_CALL terminators clear it.
+// A stored ⊤ at a block-entry PC is therefore valid (e.g. fault on the first instr).
 func gasChargedForIntegratedResume(prog *Program, pc ProgramCounter, stored bool) bool {
-	if !stored || prog == nil {
-		return false
-	}
-	blockStart, ok := prog.StartOfBasicBlock(pc)
-	if !ok {
-		return false
-	}
-	if pc == blockStart {
-		return false
-	}
-	return true
+	return stored && prog != nil && prog.ValidInstructionAt(uint64(pc))
 }
 
 // blockGasAtPC returns A.9 block gas for entering at pc within block.
@@ -295,7 +285,8 @@ func (interp *Interpreter) BlockBasedInvokeDecodedBlocks(pc ProgramCounter) (Exi
 				return exitReason, instr.PC + ProgramCounter(instr.SkipLen) + 1
 			}
 
-			if instr.PC != newPC {
+			// Terminator defines control flow even when newPC == instr.PC (self-loop).
+			if IsBlockTerminator(instr.Opcode) {
 				pc = newPC
 				branchTaken = true
 				break
@@ -370,7 +361,7 @@ func (interp *Interpreter) DebugSingleStepInvoke(pc ProgramCounter) (ExitReason,
 			return exitReason, instr.PC + ProgramCounter(instr.SkipLen) + 1
 		}
 
-		if instr.PC != newPC {
+		if IsBlockTerminator(instr.Opcode) {
 			pc = newPC
 			continue
 		}
@@ -429,7 +420,7 @@ func (interp *Interpreter) ExecuteInstructions(pc ProgramCounter, pcPrime Progra
 			return pc + skipLength + 1, exitReason
 		}
 
-		if pc != newPC {
+		if IsBlockTerminator(opcodeData) {
 			return newPC, exitReason
 		}
 

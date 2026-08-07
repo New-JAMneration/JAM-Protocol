@@ -375,10 +375,6 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 
 	for i := range instrs {
 		instr := &instrs[i]
-		if i == len(instrs)-1 && PVM.IsBlockTerminator(instr.Opcode) {
-			emitGasCharged(a, false)
-		}
-
 		handler := opcodeHandlers[instr.Opcode]
 		if handler == nil {
 			return nil, fmt.Errorf("unsupported opcode %d at PC=%d", instr.Opcode, instr.PC)

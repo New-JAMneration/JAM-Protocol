@@ -70,7 +70,7 @@ proactive 淘汰(從 state 訊號主動刪「已知不會再用」的 CodeHash);
 ### 4.(低)已知語意缺口與待補測試
 - **跨頁 memory access 語意**:recompiler 靠硬體 fault——PAGE_FAULT payload 用 `si_addr`(實際 fault 位址,常為第二頁),且 store 在 fault 前可能已部分寫入第一頁;interpreter 則先檢查兩頁權限、fault 回報起始位址、all-or-nothing。僅在存取剛好跨 mapped/PROT_NONE 邊界時分歧;conformance 未覆蓋此細節,PVMtrace 對齊可能受影響。修法:emit page-aware check 對齊 interpreter 兩頁邏輯(`emit_memory.go` vs `decode.go`)。
 - **待補單元測試**:`jump_ind` + HALT sentinel → `Psi_H.Counter == instr.PC`(程式碼已對齊 interpreter,conformance 測不到此項)。
-- (長期)inline sbrk 擴大(同頁內不出 native)、hot omega 的 native stub——皆需 profile 證明才動。
+- (長期)hot omega 的 native stub——需 profile 證明才動。
 
 ---
 

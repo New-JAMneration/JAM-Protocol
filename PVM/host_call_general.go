@@ -487,23 +487,24 @@ func growHeap(input OmegaInput) OmegaOutput {
 	h := input.VM.Mem.HeapPages()    // h = a + c
 	b := input.VM.Mem.HeapMaxPages() // b
 
-	// ω₇ ≤ h ∨ ω₇ > b: no growth needed or invalid → charge M_{♊,c} only
 	if n <= h || n > b {
-		if result := chargeGasAndCheck(&input, HostGasGrowHeapConst); result != nil {
-			input.VM.Registers[7] = h
-			return *result
-		}
+		*input.VM.Gas -= HostGasGrowHeapConst
 		input.VM.Registers[7] = h
 		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
 
 	g := HostGasGrowHeapConst + Gas(n-h)*HostGasGrowHeapPage
-	if result := chargeGasAndCheck(&input, g); result != nil {
+	if *input.VM.Gas < g {
 		input.VM.Registers[7] = h
-		return *result
+		return OmegaOutput{ExitReason: ExitOOG, Addition: input.Addition}
 	}
+	*input.VM.Gas -= g
 
-	input.VM.Mem.GrowHeapTo(n)
+	// GrowHeapTo failure is a host/OS fault (e.g. mprotect), not a GP Ω_♊
+	// outcome — do not invent ExitPanic/PAGE_FAULT for the guest.
+	if err := input.VM.Mem.GrowHeapTo(n); err != nil {
+		panic("grow_heap: " + err.Error())
+	}
 	input.VM.Registers[7] = n
 	return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 }
@@ -1125,20 +1126,16 @@ func getFetchConstantsData() []byte {
 			getPtr(types.U16(types.MaximumDependencyItems)),           // J
 			getPtr(types.U16(types.MaxTicketsPerBlock)),               // K
 			getPtr(types.U32(types.MaxLookupAge)),                     // L
-			getPtr(types.U16(types.TicketsPerValidator)),              // N
 			getPtr(types.U16(types.AuthPoolMaxSize)),                  // O
 			getPtr(types.U16(types.SlotPeriod)),                       // P
 			getPtr(types.U16(types.AuthQueueSize)),                    // Q
 			getPtr(types.U16(types.RotationPeriod)),                   // R
 			getPtr(types.U16(types.MaxExtrinsics)),                    // T
 			getPtr(types.U16(types.WorkReportTimeout)),                // U
-			getPtr(types.U16(types.ValidatorsCount)),                  // V
 			getPtr(types.U32(types.MaxIsAuthorizedCodeSize)),          // W_A
 			getPtr(types.U32(types.MaxTotalSize)),                     // W_B
 			getPtr(types.U32(types.MaxServiceCodeSize)),               // W_C
-			getPtr(types.U32(types.ECBasicSize)),                      // W_E
 			getPtr(types.U32(types.MaxImportCount)),                   // W_M
-			getPtr(types.U32(types.ECPiecesPerSegment)),               // W_P
 			getPtr(types.U32(types.WorkReportOutputBlobsMaximumSize)), // W_R
 			getPtr(types.U32(types.TransferMemoSize)),                 // W_T
 			getPtr(types.U32(types.MaxExportCount)),                   // W_X

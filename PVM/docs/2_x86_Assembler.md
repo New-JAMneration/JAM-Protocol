@@ -271,7 +271,7 @@ opcodeHandlers[131] = (*Compiler).emitAddImm32  // add_imm
 | `emit_memory.go` | load/store（1/2/4/8 byte，直接 / indirect） |
 | `emit_arith_imm.go` | 一個 reg + 一個 imm 的算術（add_imm、sub_imm、mul_imm…） |
 | `emit_arith_three.go` | 兩個 reg 的算術（add、sub、mul、div、shift、bitwise） |
-| `emit_two_reg.go` | 兩 reg 特殊操作（move_reg、sbrk、clz、ctz、popcnt、bswap） |
+| `emit_two_reg.go` | 兩 reg 特殊操作（move_reg、clz、ctz、popcnt、bswap） |
 | `emit_branch.go` | branch（條件跳轉）、djump（indirect jump） |
 | `gas.go` | block-level gas check emit（`emitBlockGasCheck` / `emitBlockOutOfGasExit`） |
 | `emit_record_mem.go` | debug trace 的 memory access 記錄 |

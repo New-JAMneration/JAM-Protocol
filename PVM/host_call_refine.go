@@ -133,17 +133,16 @@ func machine(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input, cost); result != nil {
 		return *result
 	}
+	// B.6: capacity check precedes memory read; result is FULL (not HUH).
+	if uint64(len(input.Addition.IntegratedPVMMap)) >= 63 {
+		input.VM.Registers[7] = FULL
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
 	if !input.VM.Mem.IsReadable(po, pz) {
-		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
-	}
-
-	if uint64(len(input.Addition.IntegratedPVMMap)) >= 63 {
-		input.VM.Registers[7] = HUH
-		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
 
 	p := input.VM.Mem.Read(po, pz)
@@ -392,7 +391,7 @@ func invoke(input OmegaInput) (output OmegaOutput) {
 	// read data from memory
 	data := input.VM.Mem.Read(o, offset)
 	decoder := types.NewDecoder()
-	 // decode gas
+	// decode gas
 	err := decoder.Decode(data[:8], &gR)
 	if err != nil {
 		pvmLogger.Errorf("host-call function \"invoke\" decode gas error : %v", err)

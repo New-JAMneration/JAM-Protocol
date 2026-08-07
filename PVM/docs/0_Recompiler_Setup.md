@@ -35,7 +35,7 @@ Host 進程
 
 - **初始**：整塊 `PROT_NONE` + `MAP_NORESERVE`（只佔虛擬位址空間，物理 RAM 按需分配）
 - **Control region**：立刻 `mprotect` 為 `R/W`
-- **Guest memory 4GB**：`InitFromProgram` / sbrk 時才按 segment / page 設權限
+- **Guest memory 4GB**：`InitFromProgram` / `grow_heap` 時才按 segment / page 設權限
 - **Guard page**：越界存取落在合法 mmap 範圍內，由 signal handler 處理（不觸發 kernel crash）
 
 存取方式：
@@ -81,10 +81,10 @@ R15 指向 guest memory 起點；VM 執行狀態存在 R15 **之前** 的 4KB �
 |-------------------|------|------|
 | 8 | ReturnStack | 存 host RSP，exit trampoline / signal handler 還原 |
 | 16 | ReturnAddress | 存 host 返回位址 |
-| 24 | HeapPointer | sbrk 維護的 heap 頂端 |
+| 24 | HeapPointer | `grow_heap` 維護的 heap 頂端 |
 | 32 | ExitPC | JIT 退出時的 PVM PC |
 | 40 | ExitReason | HALT / PANIC / OOG / HOST_CALL / PAGE_FAULT |
-| 48 | Gas | 每條指令 inline `sub [R15-48], 1`（disp8 範圍內） |
+| 48 | Gas | block 入口 inline 扣費（disp8 範圍內） |
 | 49–152 | Registers[13] | 13 × 8 bytes = 104B，trampoline 邊界 save/restore |
 | 160 | MemAccessAddr | debug trace 用 |
 | 168 | MemAccessVal | debug trace 用 |

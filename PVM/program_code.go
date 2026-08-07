@@ -108,11 +108,20 @@ func IntegratedProgramForInvoke(integrated IntegratedPVMType) (*Program, ExitRea
 }
 
 // deblobValidatedProgram is the entry-point-independent half of deblob: it
-// decodes the blob and checks 𝔳_blob(c, k, 0), the latter as part of
-// preDecodeBlocks' walk. Callers that cache a decoded program across invocations
-// (GetOrDeblobProgram) share this result and apply the per-entry 𝔳_inst check
-// themselves.
-func deblobValidatedProgram(data []byte) (_ Program, _ ExitReason) {
+// decodes the blob and checks 𝔳_blob(c, k, 0). Callers that cache a decoded
+// program across invocations (GetOrDeblobProgram) share this result and apply
+// the per-entry 𝔳_inst check themselves.
+func deblobValidatedProgram(data []byte) (Program, ExitReason) {
+	return decodeProgramBlob(data, true)
+}
+
+// deblobProgramForGasModel decodes A.9 vector fixtures that may omit a final
+// terminator. Production deblobValidatedProgram still enforces 𝔳_blob.
+func deblobProgramForGasModel(data []byte) (Program, ExitReason) {
+	return decodeProgramBlob(data, false)
+}
+
+func decodeProgramBlob(data []byte, requireFinalTerminator bool) (_ Program, _ ExitReason) {
 	// E_(|j|) : size of jumpTable
 	jumpTableSize, dataUsed, exitReason := ReadUintVariable(data)
 	if exitReason != ExitContinue {
@@ -140,7 +149,6 @@ func deblobValidatedProgram(data []byte) (_ Program, _ ExitReason) {
 	if jumpTableLength*jumpTableSize >= 1<<32 {
 		pvmLogger.Errorf("jump table size %d bits exceed litmit of 32 bits", jumpTableLength*jumpTableSize)
 		return Program{}, ExitPanic
-		// panic("the jump table's size is supposed to be at most 32 bits")
 	}
 
 	// E_z(j) = jumpTableSize * jumpTableLength = E_(|j|) * E_1(z)
@@ -175,6 +183,10 @@ func deblobValidatedProgram(data []byte) (_ Program, _ ExitReason) {
 
 	if exitReason := prog.preDecodeBlocks(); exitReason != ExitContinue {
 		return Program{}, exitReason
+	}
+	// A.2 𝔳_blob: final instruction must be a basic-block terminator.
+	if requireFinalTerminator && !prog.finalInstructionIsTerminator() {
+		return Program{}, ExitPanic
 	}
 
 	return prog, ExitContinue

@@ -43,7 +43,10 @@ func (c *Compiler) emitUnlikely(a *asm.Assembler, instr *PVM.InstrMeta) error {
 
 // ---- 4.4 Immediate instructions ----
 
-// opcode 10: ecalli — host call exit
+// opcode 10: ecalli — host call exit. ecalli is not a basic-block terminator
+// (opcode_info), so gaschargedflag stays set across the host-call interrupt;
+// resume continues the same block without a second charge (matches interpreter
+// and A.9 multistep vectors).
 func (c *Compiler) emitEcalli(a *asm.Assembler, instr *PVM.InstrMeta) error {
 	callID := int(instr.Imm[0])
 	nextPC := fallthroughPC(instr)

@@ -44,8 +44,9 @@ func TestGasChargedForIntegratedResume(t *testing.T) {
 		ProgramCode{10, 0, 1, 0},
 		Bitmask{0x03, 0x00, 0x01, 0x03},
 	)
-	if gasChargedForIntegratedResume(&prog, 0, true) {
-		t.Fatal("block entry with stored flag should clear")
+	// A.4: fault on the first instruction keeps ⊤ at the block-entry PC.
+	if !gasChargedForIntegratedResume(&prog, 0, true) {
+		t.Fatal("block entry with stored flag should keep ⊤")
 	}
 	if !gasChargedForIntegratedResume(&prog, 2, true) {
 		t.Fatal("mid-block resume should keep flag")
@@ -55,6 +56,9 @@ func TestGasChargedForIntegratedResume(t *testing.T) {
 	}
 	if gasChargedForIntegratedResume(nil, 0, true) {
 		t.Fatal("nil program should clear flag")
+	}
+	if gasChargedForIntegratedResume(&prog, 1, true) {
+		t.Fatal("invalid instruction PC should not restore flag")
 	}
 }
 
@@ -187,5 +191,30 @@ func TestIntegratedProgramForInvokeUsesCachedDecode(t *testing.T) {
 	integrated.PC = 1
 	if _, reason := IntegratedProgramForInvoke(integrated); reason != ExitPanic {
 		t.Fatalf("invalid entry PC: got %v, want panic", reason)
+	}
+}
+
+func TestMachineCapacityFullBeforeMemory(t *testing.T) {
+	regs := Registers{}
+	regs[7] = 0
+	regs[8] = 1
+	regs[9] = 0
+	gas := Gas(HostGasMachineConst + 10_000)
+	m := IntegratedPVMMap{}
+	for i := uint64(0); i < 63; i++ {
+		m[i] = IntegratedPVMType{}
+	}
+	vm := &VMState{Registers: &regs, Gas: &gas, Mem: NewPagedGuestMemory(&Memory{Pages: map[uint32]*Page{}})}
+	out := machine(OmegaInput{
+		VM: vm,
+		Addition: HostCallArgs{
+			RefineArgs: RefineArgs{IntegratedPVMMap: m},
+		},
+	})
+	if out.ExitReason != ExitContinue {
+		t.Fatalf("exit = %v, want continue", out.ExitReason)
+	}
+	if regs[7] != FULL {
+		t.Fatalf("reg7 = %d, want FULL(%d)", regs[7], FULL)
 	}
 }

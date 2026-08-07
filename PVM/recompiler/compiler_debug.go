@@ -25,9 +25,6 @@ func (c *Compiler) CompileBlockInstruction(instr *PVM.InstrMeta) (*CompiledBlock
 
 	oog := a.NewLabel()
 	c.emitBlockGasCheck(a, oog, gasCost)
-	if PVM.IsBlockTerminator(instr.Opcode) {
-		emitGasCharged(a, false)
-	}
 
 	handler := opcodeHandlers[instr.Opcode]
 	if handler == nil {
@@ -37,6 +34,11 @@ func (c *Compiler) CompileBlockInstruction(instr *PVM.InstrMeta) (*CompiledBlock
 		return nil, fmt.Errorf("emit instruction at PC=%d: %w", pc, err)
 	}
 
+	// Reached only when the handler falls through (CONTINUE). Trap/ecalli/halt
+	// jump to the trampoline inside the handler and never clear here.
+	if PVM.IsBlockTerminator(instr.Opcode) {
+		emitGasCharged(a, false)
+	}
 	emitExitToPC(a, fallthroughPC)
 	EmitExitTrampoline(a)
 	emitBlockOutOfGasExit(a, oog, pc, gasCost)

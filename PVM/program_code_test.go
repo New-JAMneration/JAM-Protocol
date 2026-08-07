@@ -130,3 +130,21 @@ func TestInBasicBlock(t *testing.T) {
 		}
 	}
 }
+
+func TestDeblobRejectsOpenFinalBlock(t *testing.T) {
+	// Minimal blob: empty jump table, 3-byte load_imm (non-terminator), bitmask.
+	open := []byte{0, 0, 3, 51, 0x00, 0, 1}
+	if _, got := DeBlobProgramCode(open, 0); got != ExitPanic {
+		t.Fatalf("open final block via deblob: got %v, want panic", got)
+	}
+	// Same fixture is acceptable for gas-model decode.
+	if _, got := deblobProgramForGasModel(open); got != ExitContinue {
+		t.Fatalf("gas-model decode of open block: got %v, want continue", got)
+	}
+
+	// Valid: trap terminator.
+	ok := []byte{0, 0, 1, 0, 1}
+	if _, got := DeBlobProgramCode(ok, 0); got != ExitContinue {
+		t.Fatalf("terminator final block: got %v, want continue", got)
+	}
+}

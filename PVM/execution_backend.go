@@ -2,40 +2,55 @@ package PVM
 
 import (
 	"fmt"
+
+	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
-// SetExecutionBackend selects the PVM execution backend for subsequent Psi_M
-// calls. Unlike assigning ExecutionBackend directly, this fails if the backend
-// is unknown or not linked (no silent fallback to interpreter).
+// SetExecutionBackend validates and assigns the process-global ExecutionBackend
+// used by Psi_M. Prefer assigning once at process start; do not toggle after
+// concurrent Psi_M callers exist. Dual-backend tests should use Psi_M_OnBackend
+// instead of swapping this global.
 func SetExecutionBackend(backend string) error {
+	if _, err := psiMHook(backend); err != nil {
+		return err
+	}
+	ExecutionBackend = backend
+	return nil
+}
+
+// Psi_M_OnBackend runs Ψ_M on an explicit backend without mutating
+// ExecutionBackend. Prefer this in dual-backend tests over temporarily
+// swapping the process-global selector.
+func Psi_M_OnBackend(
+	backend string,
+	code StandardCodeFormat,
+	counter ProgramCounter,
+	gas types.Gas,
+	argument Argument,
+	omegas Omegas,
+	addition HostCallArgs,
+) (Psi_M_ReturnType, error) {
+	hook, err := psiMHook(backend)
+	if err != nil {
+		return Psi_M_ReturnType{}, err
+	}
+	return hook(code, counter, gas, argument, omegas, addition), nil
+}
+
+func psiMHook(backend string) (PsiMBackend, error) {
 	switch backend {
 	case BackendInterpreter:
 		if Psi_M_interpreterHook == nil {
-			return fmt.Errorf("pvm backend %q is not linked", backend)
+			return nil, fmt.Errorf("pvm backend %q is not linked", backend)
 		}
-		ExecutionBackend = BackendInterpreter
-		return nil
+		return Psi_M_interpreterHook, nil
 	case BackendRecompiler:
 		if Psi_M_recompilerHook == nil {
-			return fmt.Errorf("pvm backend %q is not available (requires linux/amd64 with cgo and recompiler linked)", backend)
+			return nil, fmt.Errorf("pvm backend %q is not available (requires linux/amd64 with cgo and recompiler linked)", backend)
 		}
-		ExecutionBackend = BackendRecompiler
-		return nil
+		return Psi_M_recompilerHook, nil
 	default:
-		return fmt.Errorf("pvm backend must be %q or %q, got %q",
+		return nil, fmt.Errorf("pvm backend must be %q or %q, got %q",
 			BackendInterpreter, BackendRecompiler, backend)
 	}
-}
-
-// WithExecutionBackend runs fn with the given backend selected, then restores
-// the previous ExecutionBackend. Useful for tests that must exercise both
-// backends without leaking global state.
-func WithExecutionBackend(backend string, fn func()) error {
-	prev := ExecutionBackend
-	if err := SetExecutionBackend(backend); err != nil {
-		return err
-	}
-	defer func() { ExecutionBackend = prev }()
-	fn()
-	return nil
 }

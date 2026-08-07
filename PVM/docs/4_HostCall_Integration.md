@@ -180,14 +180,14 @@ host.HostCall
                   executeBlockLocked(block)
                   switch exitReason:
                     CONTINUE → 下一 block
-                    sbrk/djump → 內部消化，不出 MachineInvoke
+                    djump miss → 內部消化，不出 MachineInvoke
                     其他     → 回傳 host（HOST_CALL / HALT / …）
               }
 ```
 
-**內部消化（不上報 host）**：`CONTINUE` fallthrough、`sbrk`（0xFF）、`djump miss`（0xFE）。
+**內部消化（不上報 host）**：`CONTINUE` fallthrough、`djump miss`（0xFE）。
 
-**上報 host**：`HOST_CALL`、`HALT`、`PANIC`、`OOG`、`PAGE_FAULT`。
+**上報 host**：`HOST_CALL`（含 `grow_heap`，omega ID=1）、`HALT`、`PANIC`、`OOG`、`PAGE_FAULT`。
 
 ### 為何保留 `MachineInvoke` 這層？
 
@@ -199,26 +199,7 @@ host.HostCall
 
 ---
 
-## 6. sbrk 的特殊處理
-
-sbrk 在語意上也是「回到 Go 做事」，但它**不是真的 host call**——它不走 omega dispatch，而是在 `BlockBasedInvoke` 內部用特殊的 `SbrkCallID = 0xFF` 標記。
-
-為什麼不走 omega：
-- sbrk 需要 `mprotect`（kernel syscall），只有 Go 能安全呼叫
-- 但它不需要讀寫 service state，不需要 `Addition` / `HostCalls`
-- 處理完就能繼續跑，不需要離開 `MachineInvoke` 的 LockOSThread 區間
-
-```go
-// recompiler.go — BlockBasedInvoke
-if IsSbrkExit(exitReason) {
-    exitReason, pc = r.resolveSbrk(instr)
-    continue  // 不出 MachineInvoke
-}
-```
-
----
-
-## 7. 完整時序圖
+## 6. 完整時序圖
 
 ```
 host.HostCall                MachineInvoke/BlockBased         Native Code
@@ -253,7 +234,7 @@ MachineInvoke(pc=next) ──►
 
 ---
 
-## 8. ExitReason 編碼
+## 7. ExitReason 編碼
 
 ```
 ExitReason = uint64
@@ -275,7 +256,6 @@ HOST_CALL: type=0x05, payload=callID (omega operation ID)
 
 | sentinel | callID | 用途 |
 |----------|--------|------|
-| sbrk | 0xFF | HandleSbrk（mprotect） |
 | djump | 0xFE | indirect jump resolve |
 
 ---

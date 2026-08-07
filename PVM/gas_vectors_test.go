@@ -1,6 +1,7 @@
 package PVM
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 // GP A.9 gas-model vectors under new-gas-cost-model. program is a full PVM blob;
 // block-gas-costs holds expected gascostforblock per basic-block entry PC.
 const (
-	gasModelProgramsDir      = "../pkg/test_data/new-gas-cost-model/tests/programs"
-	gasModelIntegrationDir   = "../pkg/test_data/new-gas-cost-model/integration-tests"
+	gasModelProgramsDir    = "../pkg/test_data/new-gas-cost-model/tests/programs"
+	gasModelIntegrationDir = "../pkg/test_data/new-gas-cost-model/integration-tests"
 )
 
 type blockGasEntry struct {
@@ -49,19 +50,43 @@ func (b *blockGasCosts) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type gasModelMemSlice struct {
+	Address  uint64 `json:"address"`
+	Contents []byte `json:"contents"`
+}
+
+type gasModelAssert struct {
+	Status           string             `json:"status"`
+	Hostcall         *uint64            `json:"hostcall"`
+	PageFaultAddress *uint64            `json:"page-fault-address"`
+	Gas              uint64             `json:"gas"`
+	PC               ProgramCounter     `json:"pc"`
+	Regs             []uint64           `json:"regs"`
+	Memory           []gasModelMemSlice `json:"memory"`
+}
+
+type gasModelStep struct {
+	Run    *struct{}       `json:"run"`
+	Assert *gasModelAssert `json:"assert"`
+	SetReg *struct {
+		Reg   uint8  `json:"reg"`
+		Value uint64 `json:"value"`
+	} `json:"set-reg"`
+	Map *struct {
+		Address    uint64 `json:"address"`
+		Length     uint64 `json:"length"`
+		IsWritable bool   `json:"is-writable"`
+	} `json:"map"`
+	Write *gasModelMemSlice `json:"write"`
+}
+
 type gasModelVector struct {
 	Name         string         `json:"name"`
 	InitialPC    ProgramCounter `json:"initial-pc"`
 	InitialGas   uint64         `json:"initial-gas"`
 	Program      []byte         `json:"program"`
 	BlockGasCost blockGasCosts  `json:"block-gas-costs"`
-	Steps        []struct {
-		Run    *struct{} `json:"run"`
-		Assert *struct {
-			Gas    uint64 `json:"gas"`
-			Status string `json:"status"`
-		} `json:"assert"`
-	} `json:"steps"`
+	Steps        []gasModelStep `json:"steps"`
 }
 
 func loadGasModelVector(t *testing.T, path string) gasModelVector {
@@ -82,9 +107,10 @@ func loadGasModelVector(t *testing.T, path string) gasModelVector {
 
 func programFromGasVectorBlob(t *testing.T, blob []byte) *Program {
 	t.Helper()
-	prog, reason := DeBlobProgramCode(blob, 0)
+	// Gas fixtures may omit a final terminator; use the gas-model decode path.
+	prog, reason := deblobProgramForGasModel(blob)
 	if reason != ExitContinue {
-		t.Fatalf("DeBlobProgramCode: %v", reason)
+		t.Fatalf("deblobProgramForGasModel: %v", reason)
 	}
 	return &prog
 }
@@ -119,9 +145,9 @@ func TestGasVectorHarnessSanity(t *testing.T) {
 				t.Fatal("missing block-gas-costs")
 			}
 
-			prog, reason := DeBlobProgramCode(vec.Program, 0)
+			prog, reason := deblobProgramForGasModel(vec.Program)
 			if reason != ExitContinue {
-				t.Fatalf("DeBlobProgramCode: %v", reason)
+				t.Fatalf("deblobProgramForGasModel: %v", reason)
 			}
 
 			for _, e := range vec.BlockGasCost {
@@ -187,9 +213,9 @@ func runGasModelProgramPrefix(t *testing.T, prefix string) {
 			if len(vec.BlockGasCost) == 0 {
 				t.Fatal("missing block-gas-costs")
 			}
-			prog, reason := DeBlobProgramCode(vec.Program, 0)
+			prog, reason := deblobProgramForGasModel(vec.Program)
 			if reason != ExitContinue {
-				t.Fatalf("DeBlobProgramCode: %v", reason)
+				t.Fatalf("deblobProgramForGasModel: %v", reason)
 			}
 			assertBlockGasCosts(t, &prog, vec.BlockGasCost)
 		})
@@ -212,9 +238,21 @@ func TestGasModelRiscvVectors(t *testing.T) {
 	runGasModelProgramPrefix(t, "riscv_")
 }
 
-// TestGasModelMultistepVectors checks multistep_*.json (ecalli/paging mid-block).
+// TestGasModelMultistepVectors executes multistep_*.json step sequences
+// (run / assert / set-reg / map / write) and still checks block-gas-costs.
 func TestGasModelMultistepVectors(t *testing.T) {
-	runGasModelProgramPrefix(t, "multistep_")
+	for _, path := range gasModelJSONFiles(t, gasModelProgramsDir, "multistep_") {
+		path := path
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			vec := loadGasModelVector(t, path)
+			if len(vec.BlockGasCost) == 0 {
+				t.Fatal("missing block-gas-costs")
+			}
+			prog := programFromGasVectorBlob(t, vec.Program)
+			assertBlockGasCosts(t, prog, vec.BlockGasCost)
+			runGasModelMultistep(t, prog, vec)
+		})
+	}
 }
 
 // TestGasModelIntegrationVectors checks large program-only vectors (program + block-gas-costs).
@@ -229,5 +267,185 @@ func TestGasModelIntegrationVectors(t *testing.T) {
 			prog := programFromGasVectorBlob(t, vec.Program)
 			assertBlockGasCosts(t, prog, vec.BlockGasCost)
 		})
+	}
+}
+
+type gasModelHarness struct {
+	interp   *Interpreter
+	pc       ProgramCounter
+	lastExit ExitReason
+	assertPC ProgramCounter
+}
+
+func runGasModelMultistep(t *testing.T, prog *Program, vec gasModelVector) {
+	t.Helper()
+	mem := &Memory{Pages: map[uint32]*Page{}}
+	gas := Gas(vec.InitialGas)
+	h := &gasModelHarness{
+		interp: &Interpreter{
+			Program:    prog,
+			Registers:  Registers{},
+			Memory:     mem,
+			Gas:        gas,
+			GasCharged: false,
+		},
+		pc: vec.InitialPC,
+	}
+
+	for i, step := range vec.Steps {
+		switch {
+		case step.Run != nil:
+			h.lastExit, h.assertPC, h.pc = gasModelInvokeUntilExit(h.interp, h.pc)
+
+		case step.Assert != nil:
+			assertGasModelState(t, i, h.interp, h.lastExit, h.assertPC, step.Assert)
+
+		case step.SetReg != nil:
+			if int(step.SetReg.Reg) >= len(h.interp.Registers) {
+				t.Fatalf("step %d: set-reg r%d out of range", i, step.SetReg.Reg)
+			}
+			h.interp.Registers[step.SetReg.Reg] = step.SetReg.Value
+
+		case step.Map != nil:
+			gasModelMapPages(mem, step.Map.Address, step.Map.Length, step.Map.IsWritable)
+
+		case step.Write != nil:
+			if !isWriteable(step.Write.Address, uint64(len(step.Write.Contents)), *mem) {
+				t.Fatalf("step %d: write at %#x not writable", i, step.Write.Address)
+			}
+			mem.Write(step.Write.Address, step.Write.Contents)
+
+		default:
+			t.Fatalf("step %d: unrecognized action", i)
+		}
+	}
+}
+
+// gasModelInvokeUntilExit runs like BlockBasedInvokeDecodedBlocks but reports
+// assertPC as the interrupting instruction (ecalli / fault / halt), while
+// resumePC is where the next run should continue.
+func gasModelInvokeUntilExit(interp *Interpreter, pc ProgramCounter) (exit ExitReason, assertPC, resumePC ProgramCounter) {
+	prog := interp.Program
+	for {
+		if int(pc) >= len(prog.InstrIdxAt) {
+			return ExitPanic, pc, pc
+		}
+		instrIdx := prog.InstrIdxAt[pc]
+		block := prog.BlockContaining(pc)
+		if instrIdx < 0 || block == nil {
+			return ExitPanic, pc, pc
+		}
+		startIdx := int(instrIdx)
+		if startIdx < block.InstrStart || startIdx >= block.InstrEnd {
+			return ExitPanic, pc, pc
+		}
+
+		if !interp.GasCharged {
+			blockGas := blockGasAtPC(prog, pc, block)
+			if interp.Gas < blockGas {
+				return ExitOOG, pc, pc
+			}
+			interp.Gas -= blockGas
+			interp.GasCharged = true
+		}
+
+		instrs := prog.Instrs[startIdx:block.InstrEnd]
+		branchTaken := false
+		for i := range instrs {
+			instr := &instrs[i]
+			exitReason, newPC := instr.Exec(interp, instr)
+			reason := exitReason.GetReasonType()
+			if IsBlockTerminator(instr.Opcode) && (reason == CONTINUE || reason == HOST_CALL) {
+				interp.GasCharged = false
+			}
+			switch reason {
+			case PANIC, HALT:
+				return exitReason, instr.PC, instr.PC
+			case PAGE_FAULT, OUT_OF_GAS:
+				return exitReason, instr.PC, instr.PC
+			case HOST_CALL:
+				next := instr.PC + ProgramCounter(instr.SkipLen) + 1
+				return exitReason, instr.PC, next
+			}
+			if IsBlockTerminator(instr.Opcode) {
+				pc = newPC
+				branchTaken = true
+				break
+			}
+		}
+		if !branchTaken {
+			last := &instrs[len(instrs)-1]
+			pc = last.PC + ProgramCounter(last.SkipLen) + 1
+		}
+	}
+}
+
+func gasModelMapPages(mem *Memory, addr, length uint64, writable bool) {
+	access := MemoryReadOnly
+	if writable {
+		access = MemoryReadWrite
+	}
+	end := addr + length
+	allocateMemorySegment(mem, uint32(addr), uint32(end), nil, access)
+}
+
+func assertGasModelState(t *testing.T, step int, interp *Interpreter, exit ExitReason, assertPC ProgramCounter, want *gasModelAssert) {
+	t.Helper()
+	gotStatus := gasModelStatus(exit)
+	if gotStatus != want.Status {
+		t.Fatalf("step %d: status = %q, want %q (exit=%v)", step, gotStatus, want.Status, exit)
+	}
+	if uint64(interp.Gas) != want.Gas {
+		t.Fatalf("step %d: gas = %d, want %d", step, interp.Gas, want.Gas)
+	}
+	if assertPC != want.PC {
+		t.Fatalf("step %d: pc = %d, want %d", step, assertPC, want.PC)
+	}
+	if want.Hostcall != nil {
+		if exit.GetReasonType() != HOST_CALL || uint64(exit.GetHostCallID()) != *want.Hostcall {
+			t.Fatalf("step %d: hostcall = %d, want %d", step, exit.GetHostCallID(), *want.Hostcall)
+		}
+	}
+	if want.PageFaultAddress != nil {
+		// Draft vectors report the faulting page base; interpreter payload is the
+		// access address (may be mid-page).
+		gotFault := uint64(exit.GetPageFaultAddress()) &^ (uint64(ZP) - 1)
+		if exit.GetReasonType() != PAGE_FAULT || gotFault != *want.PageFaultAddress {
+			t.Fatalf("step %d: page-fault page = %#x (raw %#x), want %#x",
+				step, gotFault, exit.GetPageFaultAddress(), *want.PageFaultAddress)
+		}
+	}
+	if len(want.Regs) > 0 {
+		if len(want.Regs) != len(interp.Registers) {
+			t.Fatalf("step %d: regs len = %d, want %d", step, len(interp.Registers), len(want.Regs))
+		}
+		for i, w := range want.Regs {
+			if interp.Registers[i] != w {
+				t.Fatalf("step %d: r%d = %#x, want %#x", step, i, interp.Registers[i], w)
+			}
+		}
+	}
+	for _, m := range want.Memory {
+		got := interp.Memory.Read(m.Address, uint64(len(m.Contents)))
+		if !bytes.Equal(got, m.Contents) {
+			t.Fatalf("step %d: memory[%#x] = %x, want %x", step, m.Address, got, m.Contents)
+		}
+	}
+}
+
+func gasModelStatus(exit ExitReason) string {
+	switch exit.GetReasonType() {
+	case HALT:
+		return "halt"
+	case PANIC:
+		return "panic"
+	case OUT_OF_GAS:
+		return "out-of-gas"
+	case PAGE_FAULT:
+		return "page-fault"
+	case HOST_CALL:
+		return "ecalli"
+	default:
+		return exit.String()
 	}
 }

@@ -146,7 +146,6 @@ BlockBasedInvoke(pc)                          [LockOSThread 一次, L1]
     依 exitReason 分支：
       CONTINUE       → pc = exitPC, continue
       HOST_CALL      → break → 外層 host.HostCall 跑 omega → 再 MachineInvoke
-      sbrk (0xFF)    → HandleSbrk (Go mprotect) → continue
       djump miss     → compile target → continue
       HALT/PANIC/OOG/PAGE_FAULT → 結束
 ```
@@ -160,7 +159,7 @@ block 再進 native——round-trip 次數 ≈ 走過的 block 數（conformance
 Chaining 後，block epilogue 在 native 內直接 `jmp` 進下一個已編譯 block
 （compile-time link 或 dispatch table hit）：PVM registers 全程留在 x86 register、
 不經 trampoline、不回本 loop。只有 **host call、chain/djump miss（冷啟一次性）、
-sbrk 跨頁、終止類出口** 才回 Go。同一 dataset 實測 round-trip 降至
+終止類出口** 才回 Go。同一 dataset 實測 round-trip 降至
 **~40 次/invoke**（roundTrips 3,310,512 → 28,302，117×↓）——一次 invoke 的內層
 loop 幾乎只在必要出口才轉一圈。
 
@@ -209,8 +208,7 @@ Native code 存取 `PROT_NONE` 頁面 → CPU page fault → SIGSEGV → signal 
 |------|----------|----------------------|
 | chain miss（static 目標未編譯） | `BlockBasedInvoke` 編譯 + 填 dispatch table | 否（一次性；之後同出口 native chain） |
 | block link / chain hit JMP | native 內 | 否（完全不回 Go） |
-| `ecalli` | `host.HostCall` → omega | 是（外層 loop） |
-| sbrk 跨頁 | `HandleSbrk`（Go mprotect） | 否（resolve 後 continue） |
+| `ecalli` | `host.HostCall` → omega（含 `grow_heap`） | 是（外層 loop） |
 | djump hit | native `JmpReg`（dispatch table） | 否 |
 | djump miss | Go compile + dispatch 更新 | 否 |
 | OOG / HALT / PANIC | 結束 invoke | 是 |
@@ -255,7 +253,7 @@ Native code 存取 `PROT_NONE` 頁面 → CPU page fault → SIGSEGV → signal 
 
 | 分類 | 項目 |
 |------|------|
-| Graypaper 語意（另章） | Gas model、Host Call (omega)、sbrk、djump、PVMtrace |
+| Graypaper 語意（另章） | Gas model、Host Call (omega)、grow_heap、djump、PVMtrace |
 | Recompiler 特有 | mmap layout、dual mapping、trampoline、signal handler、block linking、register map |
 | 兩邊共用 | `DeBlobProgramCode`、`preDecodeBlocks`、`GuestMemory` interface |
 
