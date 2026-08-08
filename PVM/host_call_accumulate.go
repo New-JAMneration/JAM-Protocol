@@ -437,74 +437,64 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 }
 
 // transfer = 21
+// Charge M_T first for every path; OK then charges t = l before mutating.
 func transfer(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input, HostGasTransfer); result != nil { // M_T
 		return *result
 	}
 
 	d, a, l, o := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
-	if !input.VM.Mem.IsReadable(o, uint64(types.TransferMemoSize)) { // not readable, return
+	if !input.VM.Mem.IsReadable(o, uint64(types.TransferMemoSize)) {
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
-	// m
 	rawData := input.VM.Mem.Read(o, types.TransferMemoSize)
-	if accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]; !accountExists {
-		// not exist
+
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]
+	if !accountExists {
 		input.VM.Registers[7] = WHO
-		return OmegaOutput{
-			ExitReason: ExitContinue,
-			Addition:   input.Addition,
-		}
-	} else if l < uint64(accountD.ServiceInfo.MinMemoGas) {
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
+	if l < uint64(accountD.ServiceInfo.MinMemoGas) {
 		input.VM.Registers[7] = LOW
-		return OmegaOutput{
-			ExitReason: ExitContinue,
-			Addition:   input.Addition,
-		}
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
+
 	serviceID := input.Addition.ResultContextX.ServiceID
-	if accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]; accountSExists {
-		b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
-		minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
-		if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) { //  check b underflow
-			input.VM.Registers[7] = CASH
-			return OmegaOutput{
-				ExitReason: ExitContinue,
-				Addition:   input.Addition,
-			}
-		}
-
-		t := types.DeferredTransfer{
-			SenderID:   serviceID,
-			ReceiverID: types.ServiceID(d),
-			Balance:    types.U64(a),
-			Memo:       [128]byte(rawData),
-			GasLimit:   types.Gas(l),
-		}
-
-		accountS.ServiceInfo.Balance = b
-		input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
-		(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = accountS // update general
-		*input.Addition.GeneralArgs.ServiceAccount = accountS
-		input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, t)
-	} else {
-		// according GP, no need to check the service exists => it should in ServiceAccountState
+	accountS, accountSExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID]
+	if !accountSExists {
+		// GP assumes the sender is present in the accumulate context.
 		pvmLogger.Debugf("host-call function \"transfer\" serviceID : %d not in ServiceAccount state", serviceID)
+		input.VM.Registers[7] = WHO
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
 
-	// l = reg[9]
-	if uint64(*input.VM.Gas) < l {
-		*input.VM.Gas = 0
-		return OmegaOutput{
-			ExitReason: ExitOOG,
-			Addition:   input.Addition,
-		}
+	b := accountS.ServiceInfo.Balance - types.U64(a) // b = (x_s)_b - a
+	minBalance := service_account.CalcThresholdBalance(accountS.ServiceInfo.Items, accountS.ServiceInfo.Bytes, accountS.ServiceInfo.DepositOffset)
+	if b < types.U64(minBalance) || accountS.ServiceInfo.Balance < types.U64(a) {
+		input.VM.Registers[7] = CASH
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
 	}
-	*input.VM.Gas -= Gas(l)
+
+	if result := chargeGasAndCheck(&input, gasFromUint64(l)); result != nil { // t = l
+		return *result
+	}
+
+	accountS.ServiceInfo.Balance = b
+	input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
+	(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = accountS
+	*input.Addition.GeneralArgs.ServiceAccount = accountS
+	input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, types.DeferredTransfer{
+		SenderID:   serviceID,
+		ReceiverID: types.ServiceID(d),
+		Balance:    types.U64(a),
+		Memo:       [128]byte(rawData),
+		GasLimit:   types.Gas(l),
+	})
+
 	input.VM.Registers[7] = OK
 	return OmegaOutput{
 		ExitReason: ExitContinue,

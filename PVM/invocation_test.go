@@ -34,12 +34,7 @@ func TestBlockBasedInvokeDecodedBlocksResumesAfterHostCall(t *testing.T) {
 	}
 
 	var memory Memory
-	suffixBlock := prog.BlockContaining(2)
-	if suffixBlock == nil {
-		t.Fatal("missing suffix block at PC 2")
-	}
-	suffixGas := blockGasAtPC(&prog, 2, suffixBlock)
-	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost+suffixGas)
+	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost)
 
 	reason, pc := interp.BlockBasedInvokeDecodedBlocks(0)
 	if reason.GetReasonType() != HOST_CALL {
@@ -48,15 +43,14 @@ func TestBlockBasedInvokeDecodedBlocksResumesAfterHostCall(t *testing.T) {
 	if pc != 2 {
 		t.Fatalf("first pc = %d, want 2", pc)
 	}
-	if interp.Gas != suffixGas {
-		t.Fatalf("gas after block charge = %d, want %d", interp.Gas, suffixGas)
+	if interp.Gas != 0 {
+		t.Fatalf("gas after block charge = %d, want 0", interp.Gas)
+	}
+	if !interp.GasCharged {
+		t.Fatal("ecalli must preserve GasCharged")
 	}
 
-	// Fund exactly the suffix segment; flag was cleared at ecalli.
-	suffixCost := blockGasAtPC(&prog, 2, suffixBlock)
-	interp.Gas = suffixCost
-	interp.GasCharged = false
-
+	// Resume with flag still ⊤ — no second charge (A.4).
 	reason, pc = interp.BlockBasedInvokeDecodedBlocks(pc)
 	if reason != ExitPanic {
 		t.Fatalf("second exit reason = %v, want panic (trap)", reason)
@@ -65,7 +59,10 @@ func TestBlockBasedInvokeDecodedBlocksResumesAfterHostCall(t *testing.T) {
 		t.Fatalf("second pc = %d, want 0 after trap", pc)
 	}
 	if interp.Gas != 0 {
-		t.Fatalf("gas after suffix block = %d, want 0", interp.Gas)
+		t.Fatalf("gas after resume = %d, want 0", interp.Gas)
+	}
+	if !interp.GasCharged {
+		t.Fatal("trap/panic must preserve GasCharged")
 	}
 }
 
@@ -101,12 +98,7 @@ func TestBlockBasedInvokeResumesAfterHostCall(t *testing.T) {
 	}
 
 	var memory Memory
-	suffixBlock := prog.BlockContaining(2)
-	if suffixBlock == nil {
-		t.Fatal("missing suffix block at PC 2")
-	}
-	suffixGas := blockGasAtPC(&prog, 2, suffixBlock)
-	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost+suffixGas)
+	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost)
 
 	reason, pc := interp.BlockBasedInvoke(0)
 	if reason.GetReasonType() != HOST_CALL {
@@ -115,13 +107,12 @@ func TestBlockBasedInvokeResumesAfterHostCall(t *testing.T) {
 	if pc != 2 {
 		t.Fatalf("first pc = %d, want 2", pc)
 	}
-	if interp.Gas != suffixGas {
-		t.Fatalf("gas after block charge = %d, want %d", interp.Gas, suffixGas)
+	if interp.Gas != 0 {
+		t.Fatalf("gas after block charge = %d, want 0", interp.Gas)
 	}
-
-	suffixCost := blockGasAtPC(&prog, 2, suffixBlock)
-	interp.Gas = suffixCost
-	interp.GasCharged = false
+	if !interp.GasCharged {
+		t.Fatal("ecalli must preserve GasCharged")
+	}
 
 	reason, pc = interp.BlockBasedInvoke(pc)
 	if reason != ExitPanic {
@@ -189,12 +180,7 @@ func TestDebugSingleStepInvokeResumesAfterHostCall(t *testing.T) {
 	}
 
 	var memory Memory
-	suffixBlock := prog.BlockContaining(2)
-	if suffixBlock == nil {
-		t.Fatal("missing suffix block at PC 2")
-	}
-	suffixGas := blockGasAtPC(&prog, 2, suffixBlock)
-	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost+suffixGas)
+	interp := NewInterpreter(&prog, Registers{}, &memory, block.GasCost)
 
 	reason, pc := interp.DebugSingleStepInvoke(0)
 	if reason.GetReasonType() != HOST_CALL {
@@ -203,13 +189,12 @@ func TestDebugSingleStepInvokeResumesAfterHostCall(t *testing.T) {
 	if pc != 2 {
 		t.Fatalf("first pc = %d, want 2", pc)
 	}
-	if interp.Gas != suffixGas {
-		t.Fatalf("gas after block charge = %d, want %d", interp.Gas, suffixGas)
+	if interp.Gas != 0 {
+		t.Fatalf("gas after block charge = %d, want 0", interp.Gas)
 	}
-
-	suffixCost := blockGasAtPC(&prog, 2, suffixBlock)
-	interp.Gas = suffixCost
-	interp.GasCharged = false
+	if !interp.GasCharged {
+		t.Fatal("ecalli must preserve GasCharged")
+	}
 
 	reason, pc = interp.DebugSingleStepInvoke(pc)
 	if reason != ExitPanic {
@@ -220,7 +205,7 @@ func TestDebugSingleStepInvokeResumesAfterHostCall(t *testing.T) {
 	}
 }
 
-func TestBlockGasAtPCUsesCacheAtBlockEntry(t *testing.T) {
+func TestBlockGasAtPCChargesFullContainingBlock(t *testing.T) {
 	prog := ecalliFallthroughTrapProgram(t)
 	block := prog.LookupBlock(0)
 	if block == nil {
@@ -229,13 +214,12 @@ func TestBlockGasAtPCUsesCacheAtBlockEntry(t *testing.T) {
 	if got := blockGasAtPC(&prog, 0, block); got != block.GasCost {
 		t.Fatalf("block entry: got %d, want cached %d", got, block.GasCost)
 	}
-	suffixBlock := prog.BlockContaining(2)
-	if suffixBlock == nil {
-		t.Fatal("missing suffix block")
+	mid := prog.BlockContaining(2)
+	if mid == nil {
+		t.Fatal("missing containing block at pc=2")
 	}
-	suffix := blockGasAtPC(&prog, 2, suffixBlock)
-	if suffix >= block.GasCost {
-		t.Fatalf("suffix at pc=2 = %d, want < full block %d", suffix, block.GasCost)
+	if got := blockGasAtPC(&prog, 2, mid); got != block.GasCost {
+		t.Fatalf("mid-block entry: got %d, want full containing block %d", got, block.GasCost)
 	}
 }
 

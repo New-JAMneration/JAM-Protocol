@@ -17,7 +17,7 @@ type CompiledBlock struct {
 	NativeAddr   uintptr            // callable native code address (precomputed)
 	NativeOffset int                // byte offset into ExecutableMemory (for debug)
 	NativeSize   int                // size of emitted native code in bytes
-	GasCost      int64              // A.9 gascostforblock baked into native gas check (suffix from PVMStartPC)
+	GasCost      int64              // A.9 full containing-block gas baked into native gas check
 	InstrCount   int                // number of PVM instructions in this block
 }
 

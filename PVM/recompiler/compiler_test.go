@@ -374,12 +374,17 @@ func TestBlockGasChargedAcrossHostCall(t *testing.T) {
 	}
 }
 
-func TestSuffixBlockGasMatchesGasCostFromPC(t *testing.T) {
-	// ecalli 0; load_imm r0, 42; trap — suffix from PC 2 is load_imm + trap
+func TestSuffixBlockGasMatchesContainingBlock(t *testing.T) {
+	// ecalli 0; load_imm r0, 42; trap — compile from mid-block PC 2 still bakes
+	// the full containing-block gas (A.4), not a suffix-only cost.
 	inst := []byte{10, 0, 51, 0, 42, 0}
 	prog, reason := PVM.DeBlobProgramCode(buildBlobExact(inst, []int{0, 2, 5}), 0)
 	if reason != PVM.ExitContinue {
 		t.Fatalf("DeBlobProgramCode: %v", reason)
+	}
+	containing := prog.BlockContaining(0)
+	if containing == nil {
+		t.Fatal("missing containing block")
 	}
 
 	ctx, err := NewJITContext()
@@ -397,13 +402,13 @@ func TestSuffixBlockGasMatchesGasCostFromPC(t *testing.T) {
 
 	compiler := NewCompiler(&prog, ctx, NewCodeCache())
 	const suffixPC PVM.ProgramCounter = 2
-	want := int64(PVM.GasCostFromPC(&prog, suffixPC))
+	want := int64(containing.GasCost)
 	suffix, err := compiler.CompileBasicBlock(suffixPC)
 	if err != nil {
 		t.Fatalf("compile suffix: %v", err)
 	}
 	if suffix.GasCost != want {
-		t.Fatalf("suffix baked gas = %d, want GasCostFromPC = %d", suffix.GasCost, want)
+		t.Fatalf("suffix baked gas = %d, want containing block = %d", suffix.GasCost, want)
 	}
 }
 

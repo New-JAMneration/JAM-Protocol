@@ -2,6 +2,35 @@ package PVM
 
 import "testing"
 
+// TestGasSimConvergesBeyondFormerStepCap builds a long serial high-latency
+// block that exceeded the old maxSteps=100000 guard (~1613 DIV/REM per review).
+// A.9 requires convergence; an artificial cap must not panic or undercharge.
+func TestGasSimConvergesBeyondFormerStepCap(t *testing.T) {
+	const nDiv = 2000
+	code := make(ProgramCode, 0, nDiv*3+1)
+	bm := make(Bitmask, 0, nDiv*3+1)
+	for range nDiv {
+		// div_u_64: r0 = r0 / r1 — dependent chain, D-unit serial.
+		// Bitmask is one octet per code byte: 0x03 = instruction start.
+		code = append(code, 203, 0x10, 0)
+		bm = append(bm, 0x03, 0x00, 0x00)
+	}
+	code = append(code, 0) // trap terminator
+	bm = append(bm, 0x03)
+
+	prog := decodedGasTestProgram(t, code, bm)
+	block := prog.LookupBlock(0)
+	if block == nil {
+		t.Fatal("missing block at PC 0")
+	}
+	if block.GasCost < 50_000 {
+		t.Fatalf("block gas = %d, want large serial-div cost (converged)", block.GasCost)
+	}
+	if got := GasCostForBlock(&prog, 0); got != block.GasCost {
+		t.Fatalf("GasCostForBlock=%d preDecode=%d", got, block.GasCost)
+	}
+}
+
 func TestBlockGasFromCycles(t *testing.T) {
 	tests := []struct {
 		cycles Gas

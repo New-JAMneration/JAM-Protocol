@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "description": "Lightweight Psi_A consistency dumps (no pvmtrace); kept iff Psi_M ran and exit != PANIC",
+  "source": {
+    "worktree": "/home/ericshen/worktrees/JAM-Protocol-main",
+    "commit": "c7fb743a",
+    "folder": "1766241814",
+    "trace_folder": "pkg/test_data/jam-conformance/fuzz-reports/0.7.2/traces/1766241814",
+    "binary": "/tmp/jam-fuzz-main-dump",
+    "build": "CGO_ENABLED=1 go build -o /tmp/jam-fuzz-main-dump ./cmd/fuzz/  (no pvmtrace tag)",
+    "pvm_backend": "interpreter",
+    "env": {
+      "JAM_PSI_A_DUMP_DIR": "/home/ericshen/worktrees/JAM-Protocol-main/PVM/testdata/psi_a_consistency/dump_1766241814",
+      "JAM_PSI_A_DUMP_META": "folder=1766241814;block=00000179"
+    },
+    "replay_sock_dir": "/tmp/jam-fuzz-dump-yYYxkN"
+  },
+  "counts": {
+    "kept": 2,
+    "discarded_panic": 3,
+    "psi_m_invocations_seen": 6
+  },
+  "records": [
+    {
+      "service_id": 628206593,
+      "timeslot": 50,
+      "gas_in": 16859,
+      "gas_out": 13843,
+      "code_hash": "0xbb8648e2eb5cab1ebb8129eca29c8af2e5155fe1ac9400ab01852a1e0cc82b1e",
+      "code_sha256": "b3fb362579c220b6f0de912273536d880cde719c30373e71c8670bf209b7bb66",
+      "code_bytes": 145648,
+      "code_relpath": "blobs/b3fb362579c220b6f0de912273536d880cde719c30373e71c8670bf209b7bb66.bin",
+      "argument_hex": "0x32f001ac712501",
+      "argument_bytes": 7,
+      "argument_relpath": "arguments/000001_svc628206593.argument.bin",
+      "exit_reason_type": "Halt",
+      "result_non_nil": true,
+      "result_hash": "0x1b9cc09b6981b0388d2907572f244accfa8446942fec33d266a4b980675010a7",
+      "eta0_hex": "0xc7c9b82950393ce465d2f58763b40276951a78e810b0f162ab4ecfed3bb1442e",
+      "operands_hex": "0x0087b7e386ba2ed34f35187e441719bc10fc5b8e98384c1618ced99e1021fdaba500000000000000000000000000000000000000000000000000000000000000002357426f2313559a271d6782dc00197b379f79cbe3c6a1e72f61f7b592c509f892c895ff7e62fa4ccac1d4d963230d34e11a2696b2d0a9c33f8634760340057cc0db41002b01010a000000005c502906c505d50701ac7125f6a64646d8ca9f4dc5217d53aac117a5317679d4fd6f694900",
+      "operand_count": 1,
+      "folder": "1766241814",
+      "block": "00000179",
+      "meta": {
+        "block": "00000179",
+        "folder": "1766241814"
+      },
+      "seq": 1
+    },
+    {
+      "service_id": 0,
+      "timeslot": 50,
+      "gas_in": 2000000,
+      "gas_out": 31516,
+      "code_hash": "0xd1b097b4410b3a63446d7c57d093972a9744fcd2d74f4a5e2ec163610e6d6327",
+      "code_sha256": "8f705c07bd9d8fac84545f50338b13ddc7d10a28c1b88077d5e38a6da7ce23a7",
+      "code_bytes": 136975,
+      "code_relpath": "blobs/8f705c07bd9d8fac84545f50338b13ddc7d10a28c1b88077d5e38a6da7ce23a7.bin",
+      "argument_hex": "0x320001",
+      "argument_bytes": 3,
+      "argument_relpath": "arguments/000002_svc0.argument.bin",
+      "exit_reason_type": "Halt",
+      "result_non_nil": false,
+      "eta0_hex": "0xc7c9b82950393ce465d2f58763b40276951a78e810b0f162ab4ecfed3bb1442e",
+      "operands_hex": "0x000248985cacce8a395dac65236a86f2c8556eb7ddf996677f7603593ba874f2cb00000000000000000000000000000000000000000000000000000000000000002357426f2313559a271d6782dc00197b379f79cbe3c6a1e72f61f7b592c509f80d84d5a7f38c990ca524a977307c3d02c6958971600aa5a3a41b85b4a98e5b03de80840080c30100bb8648e2eb5cab1ebb8129eca29c8af2e5155fe1ac9400ab01852a1e0cc82b1e3d3902000000000010270000000000001027000000000000176003000000000067696674000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "operand_count": 1,
+      "folder": "1766241814",
+      "block": "00000179",
+      "meta": {
+        "block": "00000179",
+        "folder": "1766241814"
+      },
+      "seq": 2
+    }
+  ]
+}
