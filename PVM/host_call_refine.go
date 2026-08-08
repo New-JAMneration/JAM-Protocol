@@ -45,8 +45,10 @@ func historicalLookup(input OmegaInput) (output OmegaOutput) {
 
 	if account, accountExists := (*input.Addition.ServiceAccountState)[*s]; accountExists && input.VM.Registers[7] == 0xffffffffffffffff {
 		a = &account
-	} else if account, accountExists := (*input.Addition.ServiceAccountState)[types.ServiceID(input.VM.Registers[7])]; accountExists {
-		a = &account
+	} else if sid, ok := serviceIDFromU64(input.VM.Registers[7]); ok {
+		if account, accountExists := (*input.Addition.ServiceAccountState)[sid]; accountExists {
+			a = &account
+		}
 	}
 
 	var f uint64

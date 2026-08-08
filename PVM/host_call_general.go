@@ -605,6 +605,15 @@ func unitGasCost(constant, rate Gas, n uint64) Gas {
 	return addGas(constant, Gas(lo))
 }
 
+// serviceIDFromU64 converts a guest register to ServiceID (U32).
+// Values above MaxUint32 must not be truncated — that would alias existing services.
+func serviceIDFromU64(v uint64) (types.ServiceID, bool) {
+	if v > math.MaxUint32 {
+		return 0, false
+	}
+	return types.ServiceID(v), true
+}
+
 // lookup = 3
 func lookup(input OmegaInput) (output OmegaOutput) {
 	// g = M_{L,c} + 𝒢(M_{L,ℓ}, z); z = ω₁₁
@@ -620,8 +629,10 @@ func lookup(input OmegaInput) (output OmegaOutput) {
 	var a *types.ServiceAccount
 	if input.VM.Registers[7] == 0xffffffffffffffff || input.VM.Registers[7] == uint64(serviceID) {
 		a = &serviceAccount
-	} else if value, exists := delta[types.ServiceID(input.VM.Registers[7])]; exists {
-		a = &value
+	} else if sid, ok := serviceIDFromU64(input.VM.Registers[7]); ok {
+		if value, exists := delta[sid]; exists {
+			a = &value
+		}
 	}
 
 	h, o := input.VM.Registers[8], input.VM.Registers[9]
@@ -722,11 +733,20 @@ func read(input OmegaInput) (output OmegaOutput) {
 	// assign a
 	if sStar == uint64(serviceID) {
 		a = delta[serviceID]
-	} else if value, exists := delta[types.ServiceID(sStar)]; exists {
-		a = value
-		serviceID = types.ServiceID(sStar)
+	} else if sid, ok := serviceIDFromU64(sStar); ok {
+		if value, exists := delta[sid]; exists {
+			a = value
+			serviceID = sid
+		} else {
+			// a = nil , v not panic, => v = nil
+			input.VM.Registers[7] = NONE
+			return OmegaOutput{
+				ExitReason: ExitContinue,
+				Addition:   input.Addition,
+			}
+		}
 	} else {
-		// a = nil , v not panic, => v = nil
+		// s* does not fit in ServiceID (U32)
 		input.VM.Registers[7] = NONE
 		return OmegaOutput{
 			ExitReason: ExitContinue,
@@ -909,8 +929,8 @@ func info(input OmegaInput) (output OmegaOutput) {
 	var a types.ServiceAccount
 	if input.VM.Registers[7] == 0xffffffffffffffff {
 		a = delta[serviceID]
-	} else {
-		value, exist := delta[types.ServiceID(input.VM.Registers[7])]
+	} else if sid, ok := serviceIDFromU64(input.VM.Registers[7]); ok {
+		value, exist := delta[sid]
 		if exist {
 			a = value
 		} else {
@@ -920,6 +940,12 @@ func info(input OmegaInput) (output OmegaOutput) {
 				ExitReason: ExitContinue,
 				Addition:   input.Addition,
 			}
+		}
+	} else {
+		input.VM.Registers[7] = NONE
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
 		}
 	}
 
