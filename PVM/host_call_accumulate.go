@@ -437,23 +437,29 @@ func upgrade(input OmegaInput) (output OmegaOutput) {
 }
 
 // transfer = 21
-// Charge M_T first for every path; OK then charges t = l before mutating.
 func transfer(input OmegaInput) (output OmegaOutput) {
 	if result := chargeGasAndCheck(&input, HostGasTransfer); result != nil { // M_T
 		return *result
 	}
 
 	d, a, l, o := input.VM.Registers[7], input.VM.Registers[8], input.VM.Registers[9], input.VM.Registers[10]
-	if !input.VM.Mem.IsReadable(o, uint64(types.TransferMemoSize)) {
+	if !input.VM.Mem.IsReadable(o, uint64(types.TransferMemoSize)) { // not readable, return
 		input.VM.Registers[7] = OOB
 		return OmegaOutput{
 			ExitReason: ExitPanic,
 			Addition:   input.Addition,
 		}
 	}
+	// m
 	rawData := input.VM.Mem.Read(o, types.TransferMemoSize)
 
-	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]
+	destID, ok := serviceIDFromU64(d)
+	if !ok {
+		input.VM.Registers[7] = WHO
+		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
+	}
+
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[destID]
 	if !accountExists {
 		input.VM.Registers[7] = WHO
 		return OmegaOutput{ExitReason: ExitContinue, Addition: input.Addition}
@@ -489,7 +495,7 @@ func transfer(input OmegaInput) (output OmegaOutput) {
 	*input.Addition.GeneralArgs.ServiceAccount = accountS
 	input.Addition.ResultContextX.DeferredTransfers = append(input.Addition.ResultContextX.DeferredTransfers, types.DeferredTransfer{
 		SenderID:   serviceID,
-		ReceiverID: types.ServiceID(d),
+		ReceiverID: destID,
 		Balance:    types.U64(a),
 		Memo:       [128]byte(rawData),
 		GasLimit:   types.Gas(l),
@@ -523,8 +529,17 @@ func eject(input OmegaInput) (output OmegaOutput) {
 
 	serviceID := input.Addition.ResultContextX.ServiceID
 
-	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[types.ServiceID(d)]
-	if !(types.ServiceID(d) != serviceID && accountExists) {
+	destID, ok := serviceIDFromU64(d)
+	if !ok {
+		input.VM.Registers[7] = WHO
+		return OmegaOutput{
+			ExitReason: ExitContinue,
+			Addition:   input.Addition,
+		}
+	}
+
+	accountD, accountExists := input.Addition.ResultContextX.PartialState.ServiceAccounts[destID]
+	if !(destID != serviceID && accountExists) {
 		// bold{d} = panic => CONTINUE, WHO
 		input.VM.Registers[7] = WHO
 		return OmegaOutput{
@@ -569,7 +584,7 @@ func eject(input OmegaInput) (output OmegaOutput) {
 				input.Addition.ResultContextX.PartialState.ServiceAccounts[serviceID] = accountS
 				(*input.Addition.GeneralArgs.ServiceAccountState)[serviceID] = accountS // update general
 				*input.Addition.GeneralArgs.ServiceAccount = accountS
-				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, types.ServiceID(d))
+				delete(input.Addition.ResultContextX.PartialState.ServiceAccounts, destID)
 				input.VM.Registers[7] = OK
 
 				return OmegaOutput{
@@ -962,7 +977,15 @@ func provide(input OmegaInput) (output OmegaOutput) {
 	if input.VM.Registers[7] == 0xffffffffffffffff {
 		s = input.Addition.ResultContextX.ServiceID
 	} else {
-		s = types.ServiceID(input.VM.Registers[7])
+		var ok bool
+		s, ok = serviceIDFromU64(input.VM.Registers[7])
+		if !ok {
+			input.VM.Registers[7] = WHO
+			return OmegaOutput{
+				ExitReason: ExitContinue,
+				Addition:   input.Addition,
+			}
+		}
 	}
 
 	// a = d[s*] or nil,  d = (x_u)_d
