@@ -1,0 +1,26 @@
+{
+  "service_id": 628206593,
+  "timeslot": 50,
+  "gas_in": 16859,
+  "gas_out": 13843,
+  "code_hash": "0xbb8648e2eb5cab1ebb8129eca29c8af2e5155fe1ac9400ab01852a1e0cc82b1e",
+  "code_sha256": "b3fb362579c220b6f0de912273536d880cde719c30373e71c8670bf209b7bb66",
+  "code_bytes": 145648,
+  "code_relpath": "blobs/b3fb362579c220b6f0de912273536d880cde719c30373e71c8670bf209b7bb66.bin",
+  "argument_hex": "0x32f001ac712501",
+  "argument_bytes": 7,
+  "argument_relpath": "arguments/000001_svc628206593.argument.bin",
+  "exit_reason_type": "Halt",
+  "result_non_nil": true,
+  "result_hash": "0x1b9cc09b6981b0388d2907572f244accfa8446942fec33d266a4b980675010a7",
+  "eta0_hex": "0xc7c9b82950393ce465d2f58763b40276951a78e810b0f162ab4ecfed3bb1442e",
+  "operands_hex": "0x0087b7e386ba2ed34f35187e441719bc10fc5b8e98384c1618ced99e1021fdaba500000000000000000000000000000000000000000000000000000000000000002357426f2313559a271d6782dc00197b379f79cbe3c6a1e72f61f7b592c509f892c895ff7e62fa4ccac1d4d963230d34e11a2696b2d0a9c33f8634760340057cc0db41002b01010a000000005c502906c505d50701ac7125f6a64646d8ca9f4dc5217d53aac117a5317679d4fd6f694900",
+  "operand_count": 1,
+  "folder": "1766241814",
+  "block": "00000179",
+  "meta": {
+    "block": "00000179",
+    "folder": "1766241814"
+  },
+  "seq": 1
+}

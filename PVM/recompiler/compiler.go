@@ -423,8 +423,10 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	return block, nil
 }
 
-// blockGasCostAt returns A.9 block gas for the suffix from pc through the
-// containing basic block end (same rule as compileBasicBlockAtDepth suffix).
+// blockGasCostAt returns the full containing-block gas for pc (A.4 L(ι)).
 func (c *Compiler) blockGasCostAt(pc PVM.ProgramCounter) int64 {
-	return int64(PVM.GasCostFromPC(c.program, pc))
+	if block := c.program.BlockContaining(pc); block != nil {
+		return int64(block.GasCost)
+	}
+	return int64(PVM.GasCostForBlock(c.program, pc))
 }

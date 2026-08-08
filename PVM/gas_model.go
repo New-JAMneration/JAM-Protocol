@@ -17,6 +17,7 @@ var InitialUnits = ExecUnits{A: 4, L: 4, S: 4, M: 1, D: 1} // x.^(0)
 
 type Reg uint8
 
+// BlockState — x (gas-sim state).
 type BlockState struct {
 	Iota           ProgramCounter
 	Cyc            Gas

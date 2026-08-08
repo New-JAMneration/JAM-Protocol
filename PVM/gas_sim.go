@@ -4,12 +4,13 @@ const (
 	iotaNone = ^ProgramCounter(0)
 
 	robNone = 0
-	robDEC  = 1
-	robWAIT = 2
-	robEXE  = 3
-	robFIN  = 4
+	robDEC  = 1 // DEC
+	robWAIT = 2 // WAIT
+	robEXE  = 3 // EXE
+	robFIN  = 4 // FIN
 )
 
+// robEntry is one ROB slot ℝ (s, c, p, r, t).
 type robEntry struct {
 	state      uint8
 	cyclesLeft int
@@ -39,6 +40,7 @@ func (u ExecUnits) addTo(avail *ExecUnits) {
 	avail.D += u.D
 }
 
+// robActiveCount is l in (A.55): |[r ∈ ROB | r_s ≠ ∅]|.
 func (b *BlockState) robActiveCount() int {
 	n := 0
 	for _, e := range b.ROB {
@@ -73,6 +75,7 @@ func (b *BlockState) instrAt(p *Program) *InstrMeta {
 	return &p.Instrs[idx]
 }
 
+// canDecode is the (A.55) decode guard: ι ≠ ∅ ∧ ď ≤ d ∧ l < 32.
 func (b *BlockState) canDecode(p *Program) bool {
 	if b.Iota == iotaNone {
 		return false
@@ -88,6 +91,7 @@ func (b *BlockState) canDecode(p *Program) bool {
 	return cost.Decode <= b.DecodeSlots
 }
 
+// decodeMoveReg — 𝔛^mov (move_reg decode path).
 func (b *BlockState) decodeMoveReg(p *Program, instr *InstrMeta) {
 	srcRegs := instSrcRegs(instr)
 	dstRegs := instDstRegs(instr)
@@ -124,6 +128,7 @@ func appendROBDep(deps []int, j int) []int {
 	return append(deps, j)
 }
 
+// decodeToROB — 𝔛^dec (ordinary decode into the ROB).
 func (b *BlockState) decodeToROB(p *Program, instr *InstrMeta) {
 	dstRegs := instDstRegs(instr)
 	srcRegs := instSrcRegs(instr)
@@ -158,6 +163,7 @@ func (b *BlockState) decodeToROB(p *Program, instr *InstrMeta) {
 	b.DecodeSlots -= cost.Decode
 }
 
+// decode — 𝔛' (decode step; dispatches to 𝔛^mov / 𝔛^dec).
 func (b *BlockState) decode(p *Program) {
 	instr := b.instrAt(p)
 	if instr == nil {
@@ -171,6 +177,7 @@ func (b *BlockState) decode(p *Program) {
 	}
 }
 
+// findReady — 𝔖 (find_ready).
 func (b *BlockState) findReady() int {
 	for j, e := range b.ROB {
 		if e.state != robWAIT {
@@ -198,12 +205,14 @@ func (b *BlockState) findReady() int {
 	return -1
 }
 
+// startExec — 𝔛'' (start-exec step).
 func (b *BlockState) startExec(j int) {
 	b.ROB[j].state = robEXE
 	b.ROB[j].units.subFrom(&b.UnitsAvail)
 	b.ExecutionSlots--
 }
 
+// advanceCycle — 𝔛''' (pipeline tick).
 func (b *BlockState) advanceCycle() {
 	// In-order retire: purge leading FIN entries, then progress EXE/DEC.
 	for j := range b.ROB {
@@ -252,8 +261,8 @@ func (b *BlockState) advanceCycle() {
 	b.ExecutionSlots = ExecutionWidth
 }
 
-// trimLeadingNone drops retired leading ROB slots and remaps dependency indices
-// so physical ROB length stays proportional to MaxROB (active bound).
+// trimLeadingNone is an implementation detail (not a GP symbol): drop leading
+// retired ROB slots so physical length stays ~O(MaxROB).
 func (b *BlockState) trimLeadingNone() {
 	n := 0
 	for n < len(b.ROB) && b.ROB[n].state == robNone {
@@ -278,11 +287,9 @@ func (b *BlockState) trimLeadingNone() {
 	}
 }
 
-// simulateBlock runs A.9 gas_sim until the basic block converges.
-// A non-converging simulation is a logic bug — never return a partial gas value.
+// simulateBlock — 𝔛 (gas_sim).
 func (b *BlockState) simulateBlock(p *Program) Gas {
-	const maxSteps = 100000
-	for step := 0; step < maxSteps; step++ {
+	for {
 		if b.canDecode(p) {
 			b.decode(p)
 			continue
@@ -301,10 +308,9 @@ func (b *BlockState) simulateBlock(p *Program) Gas {
 		}
 		b.advanceCycle()
 	}
-	panic("gas_sim: basic block did not converge within step limit")
 }
 
-// blockGasFromCycles implements eq:gascostforblock = max(cycles - 3, 1).
+// blockGasFromCycles — ϱ^Δ arithmetic: max(c−3, 1).
 func blockGasFromCycles(cycles Gas) Gas {
 	if cycles <= 3 {
 		return 1
@@ -317,7 +323,7 @@ func blockGasFromCycles(cycles Gas) Gas {
 // that appear after a final terminator but are outside code.
 const invalidBlockGas Gas = 2
 
-// GasCostForBlock returns A.9 gascostforblock for the basic block at startPC.
+// GasCostForBlock — ϱ^Δ (gascostforblock).
 func GasCostForBlock(p *Program, startPC ProgramCounter) Gas {
 	if int(startPC) >= len(p.InstrIdxAt) {
 		// Past end of code: treat as an invalid/trap block.
@@ -330,8 +336,7 @@ func GasCostForBlock(p *Program, startPC ProgramCounter) Gas {
 	return state.simulateBlock(p)
 }
 
-// GasCostFromPC returns A.9 gascostforblock for the suffix from pc through the
-// end of its containing basic block (used when resuming mid-block).
+// GasCostFromPC — ϱ^Δ from pc as a synthetic block entry (suffix-only; not A.4).
 func GasCostFromPC(p *Program, pc ProgramCounter) Gas {
 	if int(pc) >= len(p.InstrIdxAt) {
 		return invalidBlockGas

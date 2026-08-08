@@ -213,13 +213,11 @@ func gasChargedForIntegratedResume(prog *Program, pc ProgramCounter, stored bool
 	return stored && prog != nil && prog.ValidInstructionAt(uint64(pc))
 }
 
-// blockGasAtPC returns A.9 block gas for entering at pc within block.
-// Uses cached block.GasCost at block entry; suffix GasCostFromPC mid-block.
-func blockGasAtPC(prog *Program, pc ProgramCounter, block *BlockMeta) Gas {
-	if pc == block.StartPC {
-		return block.GasCost
-	}
-	return GasCostFromPC(prog, pc)
+// blockGasAtPC returns A.4/A.9 gas for entering at pc within block.
+// Always the full containing-block cost (gascostforblock(c, k, L(ι))),
+// including fresh mid-block entry with gaschargedflag = ⊥.
+func blockGasAtPC(_ *Program, _ ProgramCounter, block *BlockMeta) Gas {
+	return block.GasCost
 }
 
 // BlockBasedInvokeDecodedBlocks: pre-decoded blocks + A.7 gas. Production path for

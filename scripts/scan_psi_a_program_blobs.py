@@ -54,6 +54,17 @@ def main() -> int:
     ap.add_argument("--min-octets", type=int, default=20000)
     ap.add_argument("--limit-folders", type=int, default=0, help="0 = all folders with blobs")
     ap.add_argument("--json-out", default="", help="optional JSON summary path")
+    ap.add_argument(
+        "--write-dir",
+        default="",
+        help="write unique blob bytes as <sha256>.bin into this directory",
+    )
+    ap.add_argument(
+        "--max-blobs",
+        type=int,
+        default=0,
+        help="with --write-dir, stop after writing this many unique blobs (0 = all)",
+    )
     args = ap.parse_args()
 
     root = Path(args.traces_root)
@@ -63,6 +74,7 @@ def main() -> int:
 
     folder_blobs: dict[str, set[str]] = defaultdict(set)
     global_blobs: set[str] = set()
+    digest_to_bytes: dict[str, bytes] = {}
 
     for folder in sorted(p for p in root.iterdir() if p.is_dir()):
         for jf in sorted(folder.glob("*.json")):
@@ -70,6 +82,7 @@ def main() -> int:
                 digest = hashlib.sha256(blob).hexdigest()
                 folder_blobs[folder.name].add(digest)
                 global_blobs.add(digest)
+                digest_to_bytes.setdefault(digest, blob)
 
     ranked = sorted(folder_blobs.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     if args.limit_folders > 0:
@@ -89,6 +102,29 @@ def main() -> int:
             ],
         }
         Path(args.json_out).write_text(json.dumps(payload, indent=2) + "\n")
+
+    if args.write_dir:
+        out = Path(args.write_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        # Prefer blobs from the ranked folders first for stable selection.
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for name, digests in ranked:
+            for d in sorted(digests):
+                if d not in seen:
+                    seen.add(d)
+                    ordered.append(d)
+        for d in sorted(global_blobs):
+            if d not in seen:
+                ordered.append(d)
+        if args.max_blobs > 0:
+            ordered = ordered[: args.max_blobs]
+        written = 0
+        for d in ordered:
+            path = out / f"{d}.bin"
+            path.write_bytes(digest_to_bytes[d])
+            written += 1
+        print(f"wrote_blobs={written} dir={out}")
 
     return 0
 

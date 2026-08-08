@@ -2,38 +2,58 @@
 
 package PVM_test
 
+// Transitional Ψ_A dual-backend consistency harness (0.7.2 → 0.8.0).
+//
+// There is not yet a formal 0.8.0 jam-conformance corpus for accumulate / Ψ_A
+// backend checks. This file (and PVM/consistent-testdata/) exists only to bridge
+// that gap: we extract workable cases from 0.7.2 conformance fuzz traces by
+// dumping services that actually enter accumulate / Psi_M (code blob +
+// serialized Ψ_A argument + gas), then compare interpreter vs recompiler via
+// Psi_M_OnBackend.
+//
+// When official 0.8.0 test data lands, discard this file and
+// consistent-testdata/ in favour of that corpus.
+
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	PVM "github.com/New-JAMneration/JAM-Protocol/PVM"
 	_ "github.com/New-JAMneration/JAM-Protocol/PVM/interpreter"
 	_ "github.com/New-JAMneration/JAM-Protocol/PVM/recompiler"
-	"github.com/New-JAMneration/JAM-Protocol/internal/service_account"
 	"github.com/New-JAMneration/JAM-Protocol/internal/types"
 )
 
 const (
-	backendConsistencyBlobDir   = "testdata/psi_a_consistency/blobs"
-	backendConsistencyMinBlobs  = 30
-	backendConsistencyGas       = types.Gas(50_000_000)
-	backendConsistencyEntry     = PVM.ProgramCounter(5) // Ψ_A entry
+	// Default dump root under this package (each dump_<folder>/ has records/).
+	// Override single dump with JAM_PSI_A_DUMP_DIR, or root with JAM_PSI_A_DUMP_ROOT.
+	defaultPsiADumpRoot     = "consistent-testdata"
+	backendConsistencyEntry = PVM.ProgramCounter(5) // Ψ_A entry
 )
 
-// TestInterpreterVsRecompilerProgramBlobs runs each extracted MetaCode program
-// through Psi_M_OnBackend on both backends and requires matching Gas +
-// ReasonOrBytes (no process-global ExecutionBackend swap).
-//
-// Blob corpus is not committed: 0.7.2 traces are the wrong generation for
-// 0.8.0 semantics. Regenerate locally when suitable traces exist:
-//
-//	python3 scripts/scan_psi_a_program_blobs.py …  # see script help / JSON outs
-//
-// then place MetaCode .bin files under testdata/psi_a_consistency/blobs/.
-func TestInterpreterVsRecompilerProgramBlobs(t *testing.T) {
+type psiADumpRecordFile struct {
+	ServiceID       uint64 `json:"service_id"`
+	Timeslot        uint64 `json:"timeslot"`
+	GasIn           uint64 `json:"gas_in"`
+	CodeSHA256      string `json:"code_sha256"`
+	CodeRelPath     string `json:"code_relpath"`
+	ArgumentRelPath string `json:"argument_relpath"`
+	ExitReasonType  string `json:"exit_reason_type"`
+	ResultNonNil    bool   `json:"result_non_nil"`
+	Folder          string `json:"folder"`
+	Block           string `json:"block"`
+	Seq             uint64 `json:"seq"`
+}
+
+// TestInterpreterVsRecompilerPsiADump runs dual-backend Psi_M on the
+// transitional dumps under consistent-testdata/ (see file comment). Expect
+// matching Gas + ReasonOrBytes. Not a full STF host-state replay.
+func TestInterpreterVsRecompilerPsiADump(t *testing.T) {
 	types.SetTinyMode()
 	t.Cleanup(types.SetTinyMode)
 
@@ -44,82 +64,148 @@ func TestInterpreterVsRecompilerProgramBlobs(t *testing.T) {
 		t.Fatal("recompiler backend not linked")
 	}
 
-	codes, err := loadProgramCodes(backendConsistencyBlobDir)
+	dumpDirs, err := resolvePsiADumpDirs()
 	if err != nil {
-		t.Skipf("no local blob corpus (%v); regenerate with scripts/scan_psi_a_program_blobs.py when 0.8.0 traces are available", err)
-	}
-	if len(codes) < backendConsistencyMinBlobs {
-		t.Skipf("need >= %d decodable program blobs, found %d in %s (local corpus only)",
-			backendConsistencyMinBlobs, len(codes), backendConsistencyBlobDir)
+		t.Skipf("no psi_a dumps: %v", err)
 	}
 
-	arg := accumulateEmptyArgument(t)
-	for _, tc := range codes {
-		t.Run(tc.name, func(t *testing.T) {
-			gotI, panicI := runPsiM(t, PVM.BackendInterpreter, tc.code, arg)
-			gotR, panicR := runPsiM(t, PVM.BackendRecompiler, tc.code, arg)
+	var haltNotes []string
+	for _, dumpDir := range dumpDirs {
+		dumpName := filepath.Base(dumpDir)
+		t.Run(dumpName, func(t *testing.T) {
+			records, err := loadPsiADumpRecords(dumpDir)
+			if err != nil {
+				t.Fatalf("load records: %v", err)
+			}
+			if len(records) == 0 {
+				t.Skip("no records")
+			}
+			for _, rec := range records {
+				name := filepath.Base(rec.path)
+				t.Run(name, func(t *testing.T) {
+					code, err := os.ReadFile(filepath.Join(dumpDir, rec.CodeRelPath))
+					if err != nil {
+						t.Fatalf("read code: %v", err)
+					}
+					argBytes, err := os.ReadFile(filepath.Join(dumpDir, rec.ArgumentRelPath))
+					if err != nil {
+						t.Fatalf("read argument: %v", err)
+					}
+					if !isPsiAConsistencyExit(rec.ExitReasonType) {
+						t.Skipf("skip exit=%s (need Halt / Panic / Page Fault; OOG does not count)", rec.ExitReasonType)
+					}
+					gas := types.Gas(rec.GasIn)
+					if gas <= 0 {
+						t.Skipf("skip gas_in=%d (svc=%d exit=%s)", rec.GasIn, rec.ServiceID, rec.ExitReasonType)
+					}
 
-			if panicI != panicR {
-				t.Fatalf("panic mismatch\n  interpreter: %v\n  recompiler:  %v", panicI, panicR)
-			}
-			if panicI != "" {
-				t.Logf("both panicked: %v", panicI)
-				return
-			}
-			if gotI.Gas != gotR.Gas {
-				t.Fatalf("Gas: interpreter=%d recompiler=%d", gotI.Gas, gotR.Gas)
-			}
-			if !reasonEqual(gotI.ReasonOrBytes, gotR.ReasonOrBytes) {
-				t.Fatalf("ReasonOrBytes mismatch\n  interpreter: %#v\n  recompiler:  %#v",
-					gotI.ReasonOrBytes, gotR.ReasonOrBytes)
+					t.Logf("folder=%s block=%s svc=%d gas_in=%d dump_exit=%s result_non_nil=%v code=%dB arg=%dB",
+						rec.Folder, rec.Block, rec.ServiceID, rec.GasIn, rec.ExitReasonType, rec.ResultNonNil, len(code), len(argBytes))
+
+					gotI, panicI := runPsiMWithGas(t, PVM.BackendInterpreter, code, PVM.Argument(argBytes), gas)
+					gotR, panicR := runPsiMWithGas(t, PVM.BackendRecompiler, code, PVM.Argument(argBytes), gas)
+
+					if panicI != panicR {
+						t.Fatalf("Go panic mismatch\n  interpreter: %v\n  recompiler:  %v", panicI, panicR)
+					}
+					if panicI != "" {
+						t.Fatalf("both Go-panicked: %v", panicI)
+					}
+					if gotI.Gas != gotR.Gas {
+						t.Fatalf("Gas: interpreter=%d recompiler=%d", gotI.Gas, gotR.Gas)
+					}
+					if !reasonEqual(gotI.ReasonOrBytes, gotR.ReasonOrBytes) {
+						t.Fatalf("ReasonOrBytes mismatch\n  interpreter: %#v\n  recompiler:  %#v",
+							gotI.ReasonOrBytes, gotR.ReasonOrBytes)
+					}
+					t.Logf("ok Gas=%d ReasonOrBytes=%#v (backends match)", gotI.Gas, gotI.ReasonOrBytes)
+					if rec.ExitReasonType == "Halt" {
+						note := fmt.Sprintf("%s/%s svc=%d block=%s result_non_nil=%v gas_in=%d matched_gas=%d matched_reason=%#v",
+							dumpName, name, rec.ServiceID, rec.Block, rec.ResultNonNil, rec.GasIn, gotI.Gas, gotI.ReasonOrBytes)
+						haltNotes = append(haltNotes, note)
+						t.Logf("HALT dump record: %s", note)
+					}
+				})
 			}
 		})
 	}
-}
-
-type programCase struct {
-	name string
-	code []byte
-}
-
-func loadProgramCodes(dir string) ([]programCase, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w (extract blobs first)", dir, err)
+	if len(haltNotes) > 0 {
+		t.Logf("Halt dump records (%d):", len(haltNotes))
+		for _, n := range haltNotes {
+			t.Logf("  HALT: %s", n)
+		}
 	}
-	var out []programCase
+}
+
+func isPsiAConsistencyExit(exit string) bool {
+	switch exit {
+	case "Halt", "Panic", "Page Fault":
+		return true
+	default:
+		return false
+	}
+}
+
+func resolvePsiADumpDirs() ([]string, error) {
+	if single := os.Getenv("JAM_PSI_A_DUMP_DIR"); single != "" {
+		return []string{single}, nil
+	}
+	root := os.Getenv("JAM_PSI_A_DUMP_ROOT")
+	if root == "" {
+		root = defaultPsiADumpRoot
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	var dirs []string
 	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".bin" {
+		if !e.IsDir() || !strings.HasPrefix(e.Name(), "dump_") {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		dir := filepath.Join(root, e.Name())
+		if _, err := os.Stat(filepath.Join(dir, "records")); err != nil {
+			continue
+		}
+		dirs = append(dirs, dir)
+	}
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("no dump_* under %s", root)
+	}
+	return dirs, nil
+}
+
+type loadedDumpRecord struct {
+	psiADumpRecordFile
+	path string
+}
+
+func loadPsiADumpRecords(dumpDir string) ([]loadedDumpRecord, error) {
+	recDir := filepath.Join(dumpDir, "records")
+	entries, err := os.ReadDir(recDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []loadedDumpRecord
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(recDir, e.Name())
+		raw, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
-		_, code, err := service_account.DecodeMetaCode(raw)
-		if err != nil || len(code) == 0 {
-			continue
+		var rec psiADumpRecordFile
+		if err := json.Unmarshal(raw, &rec); err != nil {
+			return nil, err
 		}
-		out = append(out, programCase{name: e.Name(), code: []byte(code)})
+		out = append(out, loadedDumpRecord{psiADumpRecordFile: rec, path: path})
 	}
 	return out, nil
 }
 
-func accumulateEmptyArgument(t *testing.T) PVM.Argument {
-	t.Helper()
-	enc := types.NewEncoder()
-	var serialized []byte
-	for _, v := range []uint64{0, 1, 0} { // timeslot, serviceId, |operands|
-		b, err := enc.EncodeUint(v)
-		if err != nil {
-			t.Fatalf("EncodeUint: %v", err)
-		}
-		serialized = append(serialized, b...)
-	}
-	return PVM.Argument(serialized)
-}
-
-func runPsiM(t *testing.T, backend string, code []byte, arg PVM.Argument) (got PVM.Psi_M_ReturnType, panicMsg string) {
+func runPsiMWithGas(t *testing.T, backend string, code []byte, arg PVM.Argument, gas types.Gas) (got PVM.Psi_M_ReturnType, panicMsg string) {
 	t.Helper()
 	addition := minimalAccumulateHostArgs()
 	defer func() {
@@ -132,7 +218,7 @@ func runPsiM(t *testing.T, backend string, code []byte, arg PVM.Argument) (got P
 		backend,
 		PVM.StandardCodeFormat(code),
 		backendConsistencyEntry,
-		backendConsistencyGas,
+		gas,
 		arg,
 		PVM.AccumulateOmegas,
 		addition,
