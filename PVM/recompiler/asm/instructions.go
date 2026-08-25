@@ -147,6 +147,13 @@ func (a *Assembler) Jmp(label Label) {
 	a.buf.UseLabel32(label)
 }
 
+// JmpRel32 emits JMP rel32 with an already-computed displacement.
+// Encoding: E9 cd. Used to jump to a native address outside this buffer.
+func (a *Assembler) JmpRel32(disp int32) {
+	a.buf.Emit(0xE9)
+	a.buf.EmitInt32LE(disp)
+}
+
 // JmpReg emits JMP r64 (indirect). Encoding: [REX?] FF /4 mod=11
 func (a *Assembler) JmpReg(reg Register) {
 	if reg.IsExtended() {

@@ -52,6 +52,9 @@ var jm struct {
 	cacheMisses atomic.Int64 // block cache miss (compile needed)
 
 	djumpResolves atomic.Int64 // djump resolved on Go side
+
+	directLinkRel32 atomic.Int64 // compile-time JMP rel32 to an already-emitted block
+	directLinkAbs   atomic.Int64 // compile-time abs JMP fallback (rel32 out of range)
 }
 
 // jmSnapshot is a plain-value copy of jm at one instant, used to compute
@@ -63,6 +66,7 @@ type jmSnapshot struct {
 	hostCalls, hostNanos                                    int64
 	cacheHits, cacheMisses                                  int64
 	djumpResolves                                           int64
+	directLinkRel32, directLinkAbs                          int64
 }
 
 func loadJMSnapshot() jmSnapshot {
@@ -74,7 +78,9 @@ func loadJMSnapshot() jmSnapshot {
 		roundTrips: jm.roundTrips.Load(), lockCalls: jm.lockCalls.Load(),
 		hostCalls: jm.hostCalls.Load(), hostNanos: jm.hostNanos.Load(),
 		cacheHits: jm.cacheHits.Load(), cacheMisses: jm.cacheMisses.Load(),
-		djumpResolves: jm.djumpResolves.Load(),
+		djumpResolves:   jm.djumpResolves.Load(),
+		directLinkRel32: jm.directLinkRel32.Load(),
+		directLinkAbs:   jm.directLinkAbs.Load(),
 	}
 }
 
@@ -127,14 +133,14 @@ func printJITProfile(tag string, s jmSnapshot) {
 	fmt.Fprintf(os.Stderr,
 		"[JIT-PROFILE %s] invokes=%d | time(ms): invoke=%d setup=%d deblob=%d run=%d compile=%d host=%d | "+
 			"avg(ns): compile=%d host=%d | "+
-			"counts: roundTrips=%d lock=%d host=%d compile=%d djump=%d cache(hit/miss)=%d/%d | "+
+			"counts: roundTrips=%d lock=%d host=%d compile=%d djump=%d cache(hit/miss)=%d/%d direct(rel32/abs)=%d/%d | "+
 			"ratios: roundTrips/lock=%.2f\n",
 		tag,
 		s.invokes,
 		ms(s.invokeNanos), ms(s.setupNanos), ms(s.deblobNanos), ms(s.runNanos), ms(s.compileNanos), ms(s.hostNanos),
 		avg(s.compileNanos, s.compileCalls), avg(s.hostNanos, s.hostCalls),
 		s.roundTrips, s.lockCalls, s.hostCalls, s.compileCalls, s.djumpResolves,
-		s.cacheHits, s.cacheMisses,
+		s.cacheHits, s.cacheMisses, s.directLinkRel32, s.directLinkAbs,
 		ratio(s.roundTrips, s.lockCalls),
 	)
 }

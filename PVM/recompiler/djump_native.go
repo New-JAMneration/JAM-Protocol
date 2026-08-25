@@ -106,13 +106,13 @@ func (c *Compiler) emitDjumpPanic(a *asm.Assembler, instrPC PVM.ProgramCounter) 
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(instrPC))
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
 
 func (c *Compiler) emitDjumpMiss(a *asm.Assembler, destReg asm.Register) {
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitPC), destReg)
 	a.MovMemImm32(RegGuestBase, -int32(OffsetExitReason), 0)
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
 
 func (c *Compiler) emitLoadJumpEntry(a *asm.Assembler, tablePtr asm.Register, entryLen uint32) {

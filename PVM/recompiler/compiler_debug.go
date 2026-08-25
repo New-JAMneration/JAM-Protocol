@@ -1,4 +1,4 @@
-//go:build linux && amd64 && cgo && trace
+//go:build linux && amd64 && cgo && pvmtrace
 
 package recompiler
 
@@ -15,9 +15,16 @@ import (
 func (c *Compiler) CompileBlockInstruction(instr *PVM.InstrMeta) (*CompiledBlock, error) {
 	a := c.asm
 	a.Reset()
+	c.memPanicPads = c.memPanicPads[:0]
+	if err := c.ensureExitTrampoline(); err != nil {
+		return nil, err
+	}
+	a.SetExitJmp(c.jmpExit)
 
 	// Trace single-step must not chain blocks natively; each step returns to Go.
 	c.singleStep = true
+	c.linkFallthrough = nil
+	c.linkTaken = nil
 
 	pc := instr.PC
 	fallthroughPC := fallthroughPC(instr)
@@ -40,7 +47,7 @@ func (c *Compiler) CompileBlockInstruction(instr *PVM.InstrMeta) (*CompiledBlock
 		emitGasCharged(a, false)
 	}
 	emitExitToPC(a, fallthroughPC)
-	EmitExitTrampoline(a)
+	c.emitDeferredMemPanicPads(a)
 	emitBlockOutOfGasExit(a, oog, pc, gasCost)
 
 	code, err := a.Finalize()

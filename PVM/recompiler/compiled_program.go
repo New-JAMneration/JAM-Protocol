@@ -14,15 +14,17 @@ import (
 
 // CompiledProgram is the per-CodeHash compiled artifact shared across
 // invocations: the executable code arena, the PC→block cache, djump support, and
-// the pre-emitted entry trampoline. Per-invocation guest state lives in a fresh
-// JITContext bound via bindContext.
+// the pre-emitted entry and exit trampolines. Per-invocation guest state lives in
+// a fresh JITContext bound via bindContext.
 type CompiledProgram struct {
-	hash    types.OpaqueHash
-	program *PVM.Program
-	em      *ExecutableMemory
-	cache   *CodeCache
-	djump   *djumpSupport // dispatch table (block chaining) + djump rodata; nil only for empty code
-	tramp   uintptr       // entry trampoline in em (0 ⇒ emitted lazily, uncached path)
+	hash            types.OpaqueHash
+	program         *PVM.Program
+	em              *ExecutableMemory
+	cache           *CodeCache
+	djump           *djumpSupport // dispatch table (block chaining) + djump rodata; nil only for empty code
+	tramp           uintptr       // entry trampoline in em (0 ⇒ emitted lazily, uncached path)
+	exitTramp       uintptr       // shared exit trampoline in em (0 ⇒ emitted lazily)
+	exitTrampOffset int           // byte offset of exitTramp in em
 
 	// mu serializes lazy block compilation (em append + cache.Put + dispatch
 	// store) when the artifact is shared by concurrent invocations of the same
@@ -39,9 +41,9 @@ type CompiledProgram struct {
 }
 
 // buildCompiledProgram creates a fresh artifact with its own executable arena, a
-// pre-emitted entry trampoline, and djump support (PC→native dispatch for block
-// chaining + jump-table rodata). Used both for the cached store and the uncached
-// (zero-hash) path.
+// pre-emitted entry trampoline, a shared exit trampoline, and djump support
+// (PC→native dispatch for block chaining + jump-table rodata). Used both for the
+// cached store and the uncached (zero-hash) path.
 func buildCompiledProgram(program *PVM.Program) (*CompiledProgram, error) {
 	em, err := NewExecutableMemory(0)
 	if err != nil {
@@ -52,10 +54,22 @@ func buildCompiledProgram(program *PVM.Program) (*CompiledProgram, error) {
 		_ = em.Close()
 		return nil, err
 	}
+	exitOff, exitAddr, err := emitExitTrampolineInto(em)
+	if err != nil {
+		_ = em.Close()
+		return nil, err
+	}
 	cache := NewCodeCache()
 	cache.BindExecutableMemory(em)
 
-	cp := &CompiledProgram{program: program, em: em, cache: cache, tramp: tramp}
+	cp := &CompiledProgram{
+		program:         program,
+		em:              em,
+		cache:           cache,
+		tramp:           tramp,
+		exitTramp:       exitAddr,
+		exitTrampOffset: exitOff,
+	}
 
 	if len(program.Bitmasks) > 0 {
 		d, err := buildDjumpSupport(em, program)
@@ -80,8 +94,13 @@ func newUncachedCompiledProgram(program *PVM.Program, em *ExecutableMemory) *Com
 // entry trampoline, and djump rodata/dispatch (stamped into the control region).
 // Must run for every invocation, including cache hits that do no compilation.
 func (cp *CompiledProgram) bindContext(ctx *JITContext) {
-	ctx.SetExecutableMemory(cp.em) // also resets ctx.trampolineAddr to 0
+	ctx.SetExecutableMemory(cp.em) // also resets trampoline / exit-trampoline fields
 	ctx.trampolineAddr = cp.tramp
+	if cp.exitTramp != 0 {
+		ctx.exitTrampolineAddr = cp.exitTramp
+		ctx.exitTrampolineOffset = cp.exitTrampOffset
+		ctx.exitTrampolineReady = true
+	}
 	if cp.djump != nil {
 		ctx.setDjumpPointers(cp.djump.tableAddr, cp.djump.bitmaskAddr, cp.djump.dispatchBase)
 	}
@@ -108,6 +127,20 @@ func emitEntryTrampolineInto(em *ExecutableMemory) (uintptr, error) {
 		return 0, err
 	}
 	return em.GetPtr(offset), nil
+}
+
+func emitExitTrampolineInto(em *ExecutableMemory) (offset int, addr uintptr, err error) {
+	a := asm.NewAssembler()
+	EmitExitTrampoline(a)
+	code, err := a.Finalize()
+	if err != nil {
+		return 0, 0, err
+	}
+	offset, err = em.Write(code)
+	if err != nil {
+		return 0, 0, err
+	}
+	return offset, em.GetPtr(offset), nil
 }
 
 // --- cross-invocation artifact store (keyed by CodeHash) ---
@@ -261,4 +294,30 @@ func (s *programStore) release(cp *CompiledProgram) {
 		cp.refCount--
 	}
 	s.mu.Unlock()
+}
+
+// ResetProgramStoreForTest closes every cached compiled artifact and empties
+// the store. Dual-backend tests live in package PVM_test, which cannot see
+// export_test.go. Panics if a build is in flight or any artifact still has a
+// live reference. Not part of the Psi_M hot path.
+func ResetProgramStoreForTest() {
+	theProgramStore.mu.Lock()
+	if len(theProgramStore.inflight) != 0 {
+		theProgramStore.mu.Unlock()
+		panic("recompiler: ResetProgramStoreForTest during inflight build")
+	}
+	closing := make([]*CompiledProgram, 0, len(theProgramStore.built))
+	for hash, cp := range theProgramStore.built {
+		if cp.refCount != 0 {
+			theProgramStore.mu.Unlock()
+			panic("recompiler: ResetProgramStoreForTest while artefact is in use")
+		}
+		delete(theProgramStore.built, hash)
+		closing = append(closing, cp)
+	}
+	theProgramStore.seq = 0
+	theProgramStore.mu.Unlock()
+	for _, cp := range closing {
+		cp.close()
+	}
 }

@@ -37,17 +37,19 @@ const (
 )
 
 type psiADumpRecordFile struct {
-	ServiceID       uint64 `json:"service_id"`
-	Timeslot        uint64 `json:"timeslot"`
-	GasIn           uint64 `json:"gas_in"`
-	CodeSHA256      string `json:"code_sha256"`
-	CodeRelPath     string `json:"code_relpath"`
-	ArgumentRelPath string `json:"argument_relpath"`
-	ExitReasonType  string `json:"exit_reason_type"`
-	ResultNonNil    bool   `json:"result_non_nil"`
-	Folder          string `json:"folder"`
-	Block           string `json:"block"`
-	Seq             uint64 `json:"seq"`
+	ServiceID       uint64           `json:"service_id"`
+	Timeslot        uint64           `json:"timeslot"`
+	GasIn           uint64           `json:"gas_in"`
+	GasOut          uint64           `json:"gas_out"`
+	CodeHash        types.OpaqueHash `json:"code_hash"`
+	CodeSHA256      string           `json:"code_sha256"`
+	CodeRelPath     string           `json:"code_relpath"`
+	ArgumentRelPath string           `json:"argument_relpath"`
+	ExitReasonType  string           `json:"exit_reason_type"`
+	ResultNonNil    bool             `json:"result_non_nil"`
+	Folder          string           `json:"folder"`
+	Block           string           `json:"block"`
+	Seq             uint64           `json:"seq"`
 }
 
 // TestInterpreterVsRecompilerPsiADump runs dual-backend Psi_M on the
@@ -80,6 +82,7 @@ func TestInterpreterVsRecompilerPsiADump(t *testing.T) {
 			if len(records) == 0 {
 				t.Skip("no records")
 			}
+			logDumpInventory(t, dumpName, records)
 			for _, rec := range records {
 				name := filepath.Base(rec.path)
 				t.Run(name, func(t *testing.T) {
@@ -99,11 +102,11 @@ func TestInterpreterVsRecompilerPsiADump(t *testing.T) {
 						t.Skipf("skip gas_in=%d (svc=%d exit=%s)", rec.GasIn, rec.ServiceID, rec.ExitReasonType)
 					}
 
-					t.Logf("folder=%s block=%s svc=%d gas_in=%d dump_exit=%s result_non_nil=%v code=%dB arg=%dB",
-						rec.Folder, rec.Block, rec.ServiceID, rec.GasIn, rec.ExitReasonType, rec.ResultNonNil, len(code), len(argBytes))
+					t.Logf("folder=%s block=%s svc=%d gas_in=%d gas_out=%d gas_consumed=%d dump_exit=%s result_non_nil=%v code=%dB arg=%dB code_hash=0x%x",
+						rec.Folder, rec.Block, rec.ServiceID, rec.GasIn, rec.GasOut, rec.GasIn-rec.GasOut, rec.ExitReasonType, rec.ResultNonNil, len(code), len(argBytes), rec.CodeHash[:])
 
-					gotI, panicI := runPsiMWithGas(t, PVM.BackendInterpreter, code, PVM.Argument(argBytes), gas)
-					gotR, panicR := runPsiMWithGas(t, PVM.BackendRecompiler, code, PVM.Argument(argBytes), gas)
+					gotI, panicI := runPsiMWithGas(t, PVM.BackendInterpreter, code, PVM.Argument(argBytes), gas, rec.CodeHash)
+					gotR, panicR := runPsiMWithGas(t, PVM.BackendRecompiler, code, PVM.Argument(argBytes), gas, rec.CodeHash)
 
 					if panicI != panicR {
 						t.Fatalf("Go panic mismatch\n  interpreter: %v\n  recompiler:  %v", panicI, panicR)
@@ -198,16 +201,20 @@ func loadPsiADumpRecords(dumpDir string) ([]loadedDumpRecord, error) {
 		}
 		var rec psiADumpRecordFile
 		if err := json.Unmarshal(raw, &rec); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		var zero types.OpaqueHash
+		if rec.CodeHash == zero {
+			return nil, fmt.Errorf("%s: missing or zero code_hash", path)
 		}
 		out = append(out, loadedDumpRecord{psiADumpRecordFile: rec, path: path})
 	}
 	return out, nil
 }
 
-func runPsiMWithGas(t *testing.T, backend string, code []byte, arg PVM.Argument, gas types.Gas) (got PVM.Psi_M_ReturnType, panicMsg string) {
+func runPsiMWithGas(t *testing.T, backend string, code []byte, arg PVM.Argument, gas types.Gas, codeHash types.OpaqueHash) (got PVM.Psi_M_ReturnType, panicMsg string) {
 	t.Helper()
-	addition := minimalAccumulateHostArgs()
+	addition := minimalAccumulateHostArgs(codeHash)
 	defer func() {
 		if r := recover(); r != nil {
 			panicMsg = fmt.Sprint(r)
@@ -229,7 +236,7 @@ func runPsiMWithGas(t *testing.T, backend string, code []byte, arg PVM.Argument,
 	return got, panicMsg
 }
 
-func minimalAccumulateHostArgs() PVM.HostCallArgs {
+func minimalAccumulateHostArgs(codeHash types.OpaqueHash) PVM.HostCallArgs {
 	sid := types.ServiceID(1)
 	acct := types.ServiceAccount{
 		PreimageLookup: types.PreimagesMapEntry{},
@@ -267,6 +274,7 @@ func minimalAccumulateHostArgs() PVM.HostCallArgs {
 			OperandOrDeferredTransfers: nil,
 			Timeslot:                   0,
 		},
+		CodeHash: codeHash,
 	}
 }
 
@@ -281,4 +289,51 @@ func reasonEqual(a, b any) bool {
 		return string(ab) == string(bb)
 	}
 	return false
+}
+
+func logDumpInventory(t *testing.T, dumpName string, records []loadedDumpRecord) {
+	t.Helper()
+	blobs := make(map[string]struct{})
+	var gasConsumedMax uint64
+	for _, rec := range records {
+		blobs[fmt.Sprintf("%x", rec.CodeHash[:])] = struct{}{}
+		consumed := rec.GasIn - rec.GasOut
+		if consumed > gasConsumedMax {
+			gasConsumedMax = consumed
+		}
+	}
+	t.Logf("inventory dump=%s records=%d distinct_code_hash=%d max_gas_consumed=%d",
+		dumpName, len(records), len(blobs), gasConsumedMax)
+}
+
+func TestLoadPsiADumpRecordsRejectsZeroCodeHash(t *testing.T) {
+	dir := t.TempDir()
+	recDir := filepath.Join(dir, "records")
+	if err := os.Mkdir(recDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"service_id":1,"gas_in":1,"code_relpath":"x.bin","argument_relpath":"y.bin","exit_reason_type":"Halt"}`
+	if err := os.WriteFile(filepath.Join(recDir, "bad.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := loadPsiADumpRecords(dir)
+	if err == nil || !strings.Contains(err.Error(), "code_hash") {
+		t.Fatalf("want missing/zero code_hash error, got %v", err)
+	}
+}
+
+func TestLoadPsiADumpRecordsRejectsInvalidCodeHash(t *testing.T) {
+	dir := t.TempDir()
+	recDir := filepath.Join(dir, "records")
+	if err := os.Mkdir(recDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"code_hash":"0xab","service_id":1,"gas_in":1,"code_relpath":"x.bin","argument_relpath":"y.bin","exit_reason_type":"Halt"}`
+	if err := os.WriteFile(filepath.Join(recDir, "bad.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := loadPsiADumpRecords(dir)
+	if err == nil {
+		t.Fatal("want unmarshal error for truncated code_hash")
+	}
 }

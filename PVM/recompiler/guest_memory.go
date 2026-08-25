@@ -104,13 +104,17 @@ func (ctx *JITContext) mapSegment(start, end uint32, content []byte, prot int) e
 	return nil
 }
 
+// guestMprotect is the syscall used to change guest-memory protection.
+// Tests replace it to count calls or inject a whole-range failure.
+var guestMprotect = unix.Mprotect
+
 // SetPageAccess changes the hardware protection of a guest memory page.
 func (ctx *JITContext) SetPageAccess(pageNum uint32, prot int) error {
 	byteOffset := uint64(pageNum) * PVM.ZP
 	if byteOffset+PVM.ZP > GuestMemorySize {
 		return fmt.Errorf("page %d (offset 0x%x) exceeds 4GB guest memory", pageNum, byteOffset)
 	}
-	if err := unix.Mprotect(ctx.guestMem[byteOffset:byteOffset+PVM.ZP], prot); err != nil {
+	if err := guestMprotect(ctx.guestMem[byteOffset:byteOffset+PVM.ZP], prot); err != nil {
 		return err
 	}
 	ctx.setPageAccess(pageNum, pageAccessFromProt(prot))
@@ -241,8 +245,9 @@ func (g jitGuestMemory) HeapMaxPages() uint64 {
 }
 
 // GrowHeapTo expands the heap to targetPage, mprotecting new pages as RW.
-// Caller has already verified h < targetPage ≤ b. The heap pointer is updated
-// only after every requested page protection succeeds.
+// Caller has already verified h < targetPage ≤ b. One mprotect covers
+// [oldBound, newBound); ctx.pages is still updated per page. The heap pointer
+// and page map are updated only after the range protection succeeds.
 func (g jitGuestMemory) GrowHeapTo(targetPage uint64) error {
 	ctx := g.ctx
 	oldHP := ctx.ReadHeapPointer()
@@ -250,11 +255,10 @@ func (g jitGuestMemory) GrowHeapTo(targetPage uint64) error {
 	oldBound := PVM.P(int(oldHP))
 	newBound := PVM.P(int(newHP))
 	if newHP > uint64(oldBound) {
-		for addr := uint32(oldHP); addr < uint32(newBound); addr += PVM.ZP {
-			if err := ctx.SetPageAccess(addr/PVM.ZP, unix.PROT_READ|unix.PROT_WRITE); err != nil {
-				return err
-			}
+		if err := guestMprotect(ctx.guestMem[oldBound:newBound], unix.PROT_READ|unix.PROT_WRITE); err != nil {
+			return fmt.Errorf("mprotect heap 0x%x..0x%x: %w", oldBound, newBound, err)
 		}
+		ctx.markPageRange(oldBound, newBound, pageReadWrite)
 	}
 	ctx.WriteHeapPointer(newHP)
 	return nil

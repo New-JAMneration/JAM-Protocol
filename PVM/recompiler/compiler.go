@@ -255,6 +255,11 @@ type Compiler struct {
 	linkFallthrough *CompiledBlock // not-taken / sequential successor
 	linkTaken       *CompiledBlock // static jump / branch-taken target
 
+	memPanicPads []memPanicPad // per-block ZZ-panic pads, emitted after the hot body
+
+	exitTrampOffset int     // shared exit trampoline offset in em
+	exitTrampAddr   uintptr // shared exit trampoline native address
+
 	singleStep bool // set by CompileBlockInstruction: trampoline to Go after each instr
 }
 
@@ -369,6 +374,11 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 
 	a := c.asm
 	a.Reset()
+	c.memPanicPads = c.memPanicPads[:0]
+	if err := c.ensureExitTrampoline(); err != nil {
+		return nil, err
+	}
+	a.SetExitJmp(c.jmpExit)
 
 	blockOOG := a.NewLabel()
 	c.emitBlockGasCheck(a, blockOOG, blockGas)
@@ -387,11 +397,11 @@ func (c *Compiler) compileBasicBlockAtDepth(startPC PVM.ProgramCounter, linkDept
 	blockEpilogue := a.NewLabel()
 	a.Jmp(blockEpilogue)
 
+	c.emitDeferredMemPanicPads(a)
 	emitBlockOutOfGasExit(a, blockOOG, blockMeta.StartPC, blockGas)
 
 	_ = a.BindLabel(blockEpilogue)
 	c.emitFallthroughEpilogue(a, fallthroughPC, linkFallthrough)
-	EmitExitTrampoline(a)
 
 	code, err := a.Finalize()
 	if err != nil {
