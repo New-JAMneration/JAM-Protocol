@@ -1,4 +1,4 @@
-//go:build linux && amd64 && cgo && !trace
+//go:build linux && amd64 && cgo && !pvmtrace
 
 package recompiler
 

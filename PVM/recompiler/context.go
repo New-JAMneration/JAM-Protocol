@@ -56,15 +56,18 @@ type guestSegments struct {
 // JITContext holds the unified mmap region (control region + guest memory + guard page)
 // and provides Go-side accessors for the control region fields.
 type JITContext struct {
-	rawMem         []byte         // full mmap'd region returned by unix.Mmap
-	guestBasePtr   unsafe.Pointer // points to rawMem[ControlRegionSize] — R15's value in JIT code
-	controlMem     []byte         // rawMem[0 : ControlRegionSize]
-	guestMem       []byte         // rawMem[ControlRegionSize : ControlRegionSize+GuestMemorySize]
-	executableMem  *ExecutableMemory
-	trampolineAddr uintptr               // cached entry trampoline for this executable memory
-	heapLimit      uint64                // stackStart; grow_heap must not grow past this
-	seg            guestSegments         // segment boundaries (init layout metadata)
-	pages          map[uint32]pageAccess // Layer-1 page permissions for host-call checks
+	rawMem               []byte         // full mmap'd region returned by unix.Mmap
+	guestBasePtr         unsafe.Pointer // points to rawMem[ControlRegionSize] — R15's value in JIT code
+	controlMem           []byte         // rawMem[0 : ControlRegionSize]
+	guestMem             []byte         // rawMem[ControlRegionSize : ControlRegionSize+GuestMemorySize]
+	executableMem        *ExecutableMemory
+	trampolineAddr       uintptr               // cached entry trampoline for this executable memory
+	exitTrampolineAddr   uintptr               // shared exit trampoline (0 ⇒ not yet emitted)
+	exitTrampolineOffset int                   // byte offset of the shared exit trampoline in em
+	exitTrampolineReady  bool                  // true once exitTrampolineAddr is valid for current em
+	heapLimit            uint64                // stackStart; grow_heap must not grow past this
+	seg                  guestSegments         // segment boundaries (init layout metadata)
+	pages                map[uint32]pageAccess // Layer-1 page permissions for host-call checks
 }
 
 // pageAccess mirrors PVM.MemoryAccess for the recompiler page table.
@@ -171,6 +174,9 @@ func (ctx *JITContext) WriteHeapPointer(hp uint64) {
 func (ctx *JITContext) SetExecutableMemory(em *ExecutableMemory) {
 	ctx.executableMem = em
 	ctx.trampolineAddr = 0
+	ctx.exitTrampolineAddr = 0
+	ctx.exitTrampolineOffset = 0
+	ctx.exitTrampolineReady = false
 }
 
 // ReadRegisters reads all 13 PVM registers from the control region.

@@ -21,7 +21,7 @@ func emitHaltAtPC(a *asm.Assembler, instrPC PVM.ProgramCounter) {
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(instrPC))
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitHalt))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
 
 // emitExitToPC emits the exit sequence that sets ExitPC and ExitReason=CONTINUE,
@@ -29,7 +29,7 @@ func emitHaltAtPC(a *asm.Assembler, instrPC PVM.ProgramCounter) {
 func emitExitToPC(a *asm.Assembler, targetPC PVM.ProgramCounter) {
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(targetPC))
 	a.MovMemImm32(RegGuestBase, -int32(OffsetExitReason), 0) // ExitContinue = 0
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
 
 // ---- 4.9.1 Unconditional jump ----
@@ -45,7 +45,7 @@ func (c *Compiler) emitJump(a *asm.Assembler, instr *PVM.InstrMeta) error {
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp(a.ExitTrampoline())
+		a.JmpExit()
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func (c *Compiler) emitLoadImmJump(a *asm.Assembler, instr *PVM.InstrMeta) error
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp(a.ExitTrampoline())
+		a.JmpExit()
 		return nil
 	}
 
@@ -118,7 +118,7 @@ func (c *Compiler) emitBranchImm(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp(a.ExitTrampoline())
+		a.JmpExit()
 		return nil
 	}
 
@@ -152,7 +152,7 @@ func (c *Compiler) emitBranch(a *asm.Assembler, instr *PVM.InstrMeta, cc asm.Con
 		a.MovImm64ToReg(RegScratch, uint64(PVM.ExitPanic))
 		a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 		a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(pc))
-		a.Jmp(a.ExitTrampoline())
+		a.JmpExit()
 		return nil
 	}
 
@@ -177,7 +177,7 @@ func emitDjumpExit(a *asm.Assembler, targetReg asm.Register) {
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitPC), targetReg)
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitHostCall)|uint64(DjumpCallID))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
 
 // opcode 180: load_imm_jump_ind — Reg[rA] = vX, then djump(uint32(Reg[rB] + vY))

@@ -27,9 +27,9 @@ host-call 的內部行為詳細記錄——例如每次 omega 實際做了什麼
 ```
 
 相關檔案：
-- `PVM/PVMtrace/trace_impl.go` — `//go:build trace`（實際實作）
-- `PVM/PVMtrace/trace_stub.go` — `//go:build !trace`（no-op）
-- `PVM/recompiler/invoke_mode_trace.go` — `//go:build linux && amd64 && trace`
+- `PVM/PVMtrace/trace_impl.go` — `//go:build pvmtrace`（實際實作）
+- `PVM/PVMtrace/trace_stub.go` — `//go:build !pvmtrace`（no-op）
+- `PVM/recompiler/invoke_mode_trace.go` — `//go:build linux && amd64 && cgo && pvmtrace`
 
 ---
 
@@ -318,8 +318,8 @@ PVMtrace/
 ├── info_schema.go   ← TraceInfo、HostCallRecord、MemAccess 結構
 ├── stream.go        ← stream 名稱常數、GzipRecordReader（讀取）
 ├── writer.go        ← streamWriter（gzip + SHA-256 sidecar）
-├── trace_impl.go    ← Trace struct + RecordStep/RecordHostCall（trace build）
-├── trace_stub.go    ← no-op stub（非 trace build）
+├── trace_impl.go    ← Trace struct + RecordStep/RecordHostCall（pvmtrace build）
+├── trace_stub.go    ← no-op stub（非 pvmtrace build）
 ├── reader.go        ← TraceReader: OpenTrace、ReadHostCalls
 ├── diff/
 │   ├── compare.go   ← FindFirstDivergence、readStepAt

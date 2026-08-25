@@ -639,6 +639,91 @@ func TestCMovCC(t *testing.T) {
 // Jumps & flow control
 // ---------------------------------------------------------------------------
 
+func TestJmpRel32(t *testing.T) {
+	expectBytes(t, "JMP rel32 +0", emit(func(a *Assembler) { a.JmpRel32(0) }),
+		[]byte{0xE9, 0x00, 0x00, 0x00, 0x00})
+	expectBytes(t, "JMP rel32 -5", emit(func(a *Assembler) { a.JmpRel32(-5) }),
+		[]byte{0xE9, 0xFB, 0xFF, 0xFF, 0xFF})
+}
+
+func TestJmpExitUsesHookThenFallsBackAfterReset(t *testing.T) {
+	a := NewAssembler()
+	a.SetExitJmp(func(a *Assembler) { a.JmpRel32(0) })
+	a.JmpExit()
+	code, err := a.Finalize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectBytes(t, "JmpExit hook", code, []byte{0xE9, 0x00, 0x00, 0x00, 0x00})
+
+	a.Reset()
+	label := a.ExitTrampoline()
+	a.JmpExit()
+	_ = a.BindLabel(label)
+	a.Ret()
+	code, err = a.Finalize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectBytes(t, "JmpExit label after Reset", code, []byte{
+		0xE9, 0x00, 0x00, 0x00, 0x00,
+		0xC3,
+	})
+}
+
+func TestJmpExit_WithoutHookUnresolved(t *testing.T) {
+	a := NewAssembler()
+	a.JmpExit()
+	if _, err := a.Finalize(); err == nil {
+		t.Fatal("JmpExit without hook must leave ExitTrampoline unbound")
+	}
+}
+
+func TestJmpExit_HookFinalizeWithoutBindingLabel(t *testing.T) {
+	a := NewAssembler()
+	a.SetExitJmp(func(a *Assembler) { a.JmpRel32(0) })
+	a.JmpExit()
+	code, err := a.Finalize()
+	if err != nil {
+		t.Fatalf("hook must not require the buffer ExitTrampoline label: %v", err)
+	}
+	expectBytes(t, "hook only", code, []byte{0xE9, 0x00, 0x00, 0x00, 0x00})
+}
+
+func TestJmpExit_NilHookUsesBufferLabel(t *testing.T) {
+	a := NewAssembler()
+	a.SetExitJmp(func(a *Assembler) { a.JmpRel32(-5) })
+	a.SetExitJmp(nil)
+	a.JmpExit()
+	_ = a.BindLabel(a.ExitTrampoline())
+	a.Ret()
+	code, err := a.Finalize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectBytes(t, "nil hook", code, []byte{
+		0xE9, 0x00, 0x00, 0x00, 0x00,
+		0xC3,
+	})
+}
+
+func TestJmpExit_TwoCallsWithHook(t *testing.T) {
+	a := NewAssembler()
+	a.SetExitJmp(func(a *Assembler) { a.JmpRel32(0) })
+	a.Nop()
+	a.JmpExit()
+	a.JmpExit()
+	code, err := a.Finalize()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectBytes(t, "nop + two hook jmps", code, []byte{
+		0x90,
+		0xE9, 0x00, 0x00, 0x00, 0x00,
+		0xE9, 0x00, 0x00, 0x00, 0x00,
+	})
+}
+
 func TestJmpReg(t *testing.T) {
 	// JMP RAX → FF E0 (mod=11, /4, rm=0)
 	expectBytes(t, "JMP RAX", emit(func(a *Assembler) { a.JmpReg(RAX) }),

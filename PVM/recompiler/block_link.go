@@ -15,12 +15,79 @@ func emitJmpNativeAddr(a *asm.Assembler, addr uintptr) {
 	a.JmpReg(RegScratch)
 }
 
+const jmpRel32Len = 5 // E9 cd
+
+// emitJmpToBlock jumps to an already-emitted block. Same-arena targets use
+// JMP rel32 (5 bytes). Out-of-range or mismatched arena falls back to the
+// 12-byte MOV abs64; JMP reg sequence.
+func (c *Compiler) emitJmpToBlock(a *asm.Assembler, target *CompiledBlock) {
+	if target != nil && c.ctx.executableMem != nil &&
+		target.NativeAddr == c.ctx.executableMem.GetPtr(target.NativeOffset) &&
+		c.emitJmpRel32ToOffset(a, target.NativeOffset) {
+		jm.directLinkRel32.Add(1)
+		return
+	}
+	jm.directLinkAbs.Add(1)
+	emitJmpNativeAddr(a, target.NativeAddr)
+}
+
+func (c *Compiler) emitJmpRel32ToOffset(a *asm.Assembler, targetOffset int) bool {
+	em := c.ctx.executableMem
+	if em == nil {
+		return false
+	}
+	srcNext := em.Used() + a.Len() + jmpRel32Len
+	rel := int64(targetOffset) - int64(srcNext)
+	if rel != int64(int32(rel)) {
+		return false
+	}
+	a.JmpRel32(int32(rel))
+	return true
+}
+
+func (c *Compiler) jmpExit(a *asm.Assembler) {
+	if c.exitTrampAddr == 0 {
+		panic("recompiler: jmpExit before ensureExitTrampoline")
+	}
+	if c.emitJmpRel32ToOffset(a, c.exitTrampOffset) {
+		return
+	}
+	emitJmpNativeAddr(a, c.exitTrampAddr)
+}
+
+// ensureExitTrampoline writes one exit trampoline into the arena if this
+// executable memory does not already have a live one. em.Reset() invalidates
+// it because Used() drops to 0.
+func (c *Compiler) ensureExitTrampoline() error {
+	if c.ctx == nil || c.ctx.executableMem == nil {
+		return fmt.Errorf("executable memory not initialized")
+	}
+	em := c.ctx.executableMem
+	if c.ctx.exitTrampolineReady &&
+		c.ctx.exitTrampolineOffset < em.Used() &&
+		c.ctx.exitTrampolineAddr == em.GetPtr(c.ctx.exitTrampolineOffset) {
+		c.exitTrampOffset = c.ctx.exitTrampolineOffset
+		c.exitTrampAddr = c.ctx.exitTrampolineAddr
+		return nil
+	}
+	offset, addr, err := emitExitTrampolineInto(em)
+	if err != nil {
+		return fmt.Errorf("emit shared exit trampoline: %w", err)
+	}
+	c.exitTrampOffset = offset
+	c.exitTrampAddr = addr
+	c.ctx.exitTrampolineOffset = offset
+	c.ctx.exitTrampolineAddr = addr
+	c.ctx.exitTrampolineReady = true
+	return nil
+}
+
 // emitFallthroughEpilogue emits block epilogue: native JMP when linkTarget is
 // known, otherwise a runtime chain via the dispatch table.
 func (c *Compiler) emitFallthroughEpilogue(a *asm.Assembler, fallthroughPC PVM.ProgramCounter, linkTarget *CompiledBlock) {
 	emitGasCharged(a, false) // A.4: CONTINUE leaves the block
 	if linkTarget != nil {
-		emitJmpNativeAddr(a, linkTarget.NativeAddr)
+		c.emitJmpToBlock(a, linkTarget)
 		return
 	}
 	c.emitChainOrExit(a, fallthroughPC)
@@ -39,7 +106,7 @@ func (c *Compiler) emitFallthroughEpilogue(a *asm.Assembler, fallthroughPC PVM.P
 func (c *Compiler) emitLinkOrExit(a *asm.Assembler, link *CompiledBlock, targetPC PVM.ProgramCounter) {
 	emitGasCharged(a, false) // A.4: CONTINUE jump/branch transfer
 	if link != nil && link.PVMStartPC == targetPC {
-		emitJmpNativeAddr(a, link.NativeAddr)
+		c.emitJmpToBlock(a, link)
 		return
 	}
 	c.emitChainOrExit(a, targetPC)

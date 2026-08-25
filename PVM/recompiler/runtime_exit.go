@@ -14,5 +14,5 @@ func emitRuntimeExit(a *asm.Assembler, exitReason uint64, exitPC PVM.ProgramCoun
 	a.MovImm64ToReg(RegScratch, exitReason)
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(exitPC))
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }

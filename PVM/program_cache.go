@@ -75,6 +75,16 @@ func GetOrDeblobProgram(hash types.OpaqueHash, programCode []byte, pc uint64) (*
 	return validEntry(e.program, pc)
 }
 
+// ResetProgramCacheForTest drops every deblob cache entry. Dual-backend tests
+// live in package PVM_test, which cannot see export_test.go, so this follows
+// the same test-helper pattern as types.SetTinyMode. Do not call it on the
+// Psi_M hot path, and do not call it concurrently with GetOrDeblobProgram.
+func ResetProgramCacheForTest() {
+	programCache.mu.Lock()
+	programCache.m = make(map[types.OpaqueHash]*programCacheEntry)
+	programCache.mu.Unlock()
+}
+
 // validEntry applies 𝔳_inst(c, k, ι) for pc on an already-decoded program.
 // Invalid entry points return ExitPanic, matching DeBlobProgramCode.
 func validEntry(p *Program, pc uint64) (*Program, ExitReason) {

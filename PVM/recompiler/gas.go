@@ -40,5 +40,5 @@ func emitBlockOutOfGasExit(a *asm.Assembler, blockOOG asm.Label, blockStartPC PV
 	a.MovMemImm32_32(RegGuestBase, -int32(OffsetExitPC), int32(blockStartPC))
 	a.MovImm64ToReg(RegScratch, uint64(PVM.ExitOOG))
 	a.MovRegToMem(RegGuestBase, -int32(OffsetExitReason), RegScratch)
-	a.Jmp(a.ExitTrampoline())
+	a.JmpExit()
 }
